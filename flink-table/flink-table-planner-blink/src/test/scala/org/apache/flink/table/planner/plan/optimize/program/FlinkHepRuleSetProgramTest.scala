@@ -34,10 +34,10 @@ class FlinkHepRuleSetProgramTest {
   def testBuildFlinkHepRuleSetProgram(): Unit = {
     FlinkHepRuleSetProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        ReduceExpressionsRule.FILTER_INSTANCE,
-        ReduceExpressionsRule.PROJECT_INSTANCE,
-        ReduceExpressionsRule.CALC_INSTANCE,
-        ReduceExpressionsRule.JOIN_INSTANCE
+        CoreRules.FILTER_REDUCE_EXPRESSIONS,
+        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+        CoreRules.CALC_REDUCE_EXPRESSIONS,
+        CoreRules.JOIN_REDUCE_EXPRESSIONS
       ))
       .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
       .setMatchLimit(10)
@@ -64,37 +64,37 @@ class FlinkHepRuleSetProgramTest {
   def testRuleOperations(): Unit = {
     val program = FlinkHepRuleSetProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        ReduceExpressionsRule.FILTER_INSTANCE,
-        ReduceExpressionsRule.PROJECT_INSTANCE,
-        ReduceExpressionsRule.CALC_INSTANCE,
-        ReduceExpressionsRule.JOIN_INSTANCE
+        CoreRules.FILTER_REDUCE_EXPRESSIONS,
+        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+        CoreRules.CALC_REDUCE_EXPRESSIONS,
+        CoreRules.JOIN_REDUCE_EXPRESSIONS
       )).build()
 
-    assertTrue(program.contains(ReduceExpressionsRule.FILTER_INSTANCE))
-    assertTrue(program.contains(ReduceExpressionsRule.PROJECT_INSTANCE))
-    assertTrue(program.contains(ReduceExpressionsRule.CALC_INSTANCE))
-    assertTrue(program.contains(ReduceExpressionsRule.JOIN_INSTANCE))
-    assertFalse(program.contains(SubQueryRemoveRule.FILTER))
+    assertTrue(program.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.CALC_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.JOIN_REDUCE_EXPRESSIONS))
+    assertFalse(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
 
     program.remove(RuleSets.ofList(
-      ReduceExpressionsRule.FILTER_INSTANCE,
-      ReduceExpressionsRule.PROJECT_INSTANCE))
-    assertFalse(program.contains(ReduceExpressionsRule.FILTER_INSTANCE))
-    assertFalse(program.contains(ReduceExpressionsRule.PROJECT_INSTANCE))
-    assertTrue(program.contains(ReduceExpressionsRule.CALC_INSTANCE))
-    assertTrue(program.contains(ReduceExpressionsRule.JOIN_INSTANCE))
+      CoreRules.FILTER_REDUCE_EXPRESSIONS,
+      CoreRules.PROJECT_REDUCE_EXPRESSIONS))
+    assertFalse(program.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+    assertFalse(program.contains(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.CALC_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.JOIN_REDUCE_EXPRESSIONS))
 
-    program.replaceAll(RuleSets.ofList(SubQueryRemoveRule.FILTER))
-    assertFalse(program.contains(ReduceExpressionsRule.CALC_INSTANCE))
-    assertFalse(program.contains(ReduceExpressionsRule.JOIN_INSTANCE))
-    assertTrue(program.contains(SubQueryRemoveRule.FILTER))
+    program.replaceAll(RuleSets.ofList(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
+    assertFalse(program.contains(CoreRules.CALC_REDUCE_EXPRESSIONS))
+    assertFalse(program.contains(CoreRules.JOIN_REDUCE_EXPRESSIONS))
+    assertTrue(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
 
     program.add(RuleSets.ofList(
-      SubQueryRemoveRule.PROJECT,
-      SubQueryRemoveRule.JOIN))
-    assertTrue(program.contains(SubQueryRemoveRule.FILTER))
-    assertTrue(program.contains(SubQueryRemoveRule.PROJECT))
-    assertTrue(program.contains(SubQueryRemoveRule.JOIN))
+      CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE,
+      CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))
+    assertTrue(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
+    assertTrue(program.contains(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE))
+    assertTrue(program.contains(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))
   }
 
   @Test(expected = classOf[NullPointerException])

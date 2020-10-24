@@ -28,6 +28,9 @@ import org.apache.flink.util.CloseableIterator;
 
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * {@link TableResult} for testing.
@@ -55,6 +58,16 @@ public class TestTableResult implements TableResult {
 	@Override
 	public Optional<JobClient> getJobClient() {
 		return Optional.empty();
+	}
+
+	@Override
+	public void await() throws InterruptedException, ExecutionException {
+
+	}
+
+	@Override
+	public void await(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+
 	}
 
 	@Override

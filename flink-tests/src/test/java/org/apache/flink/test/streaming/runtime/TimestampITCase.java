@@ -19,6 +19,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -118,7 +119,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, numWatermarks));
@@ -167,7 +167,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks));
@@ -254,7 +253,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, numElements));
@@ -270,7 +268,7 @@ public class TimestampITCase extends TestLogger {
 	}
 
 	/**
-	 * These check whether timestamps are properly ignored when they are disabled.
+	 * Verifies that we don't have timestamps when the source doesn't emit them with the records.
 	 */
 	@Test
 	public void testDisabledTimestamps() throws Exception {
@@ -278,7 +276,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
 
 		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(numElements));
@@ -304,7 +301,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
 
@@ -366,7 +362,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
 
@@ -424,7 +419,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(1);
 
@@ -483,7 +477,6 @@ public class TimestampITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(2);
 
@@ -541,7 +534,6 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(2);
 
@@ -597,7 +589,7 @@ public class TimestampITCase extends TestLogger {
 				StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-				env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
 
@@ -646,7 +638,6 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
@@ -840,7 +831,7 @@ public class TimestampITCase extends TestLogger {
 	private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
 		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
 		return statusMessages.stream()
-			.filter(status -> !status.getJobState().isGloballyTerminalState())
+			.filter(status -> !status.getJobState().isGloballyTerminalState() && status.getJobState() != JobStatus.INITIALIZING)
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
 	}

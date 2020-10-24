@@ -31,9 +31,6 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -44,6 +41,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -172,9 +173,10 @@ public class AvroOutputFormatTest {
 			user.setTypeBytes(ByteBuffer.allocate(10));
 			user.setTypeDate(LocalDate.parse("2014-03-01"));
 			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-			user.setTypeTimeMicros(123456);
-			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
-			user.setTypeTimestampMicros(123456L);
+			user.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
+			user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
+			user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+
 			// 20.00
 			user.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 			// 20.00

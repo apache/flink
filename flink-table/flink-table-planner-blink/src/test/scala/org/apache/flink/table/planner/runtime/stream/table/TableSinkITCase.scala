@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSinkContextTableSink, changelogRow}
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.util.ExceptionUtils
@@ -32,6 +32,7 @@ import org.junit.Test
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.time.{LocalDateTime, ZoneOffset}
 
 import scala.collection.JavaConversions._
 
@@ -58,7 +59,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "appendSink")
+    table.executeInsert("appendSink").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
@@ -86,7 +87,7 @@ class TableSinkITCase extends StreamingTestBase {
          |  'sink-insert-only' = 'true'
          |)
          |""".stripMargin)
-    execInsertSqlAndWaitResult("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
+    tEnv.executeSql("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
@@ -114,7 +115,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val table = ds1.join(ds2).where('b === 'e)
       .select('c, 'g)
-    execInsertTableAndWaitResult(table, "appendSink")
+   table.executeInsert("appendSink").await()
 
     val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
@@ -142,7 +143,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "retractSink")
+    table.executeInsert("retractSink").await()
 
     val result = TestValuesTableFactory.getResults("retractSink")
     val expected = List(
@@ -173,7 +174,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-    execInsertTableAndWaitResult(table, "retractSink")
+    table.executeInsert("retractSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("retractSink")
     assertFalse(
@@ -215,7 +216,7 @@ class TableSinkITCase extends StreamingTestBase {
       .select('len, 'id.count as 'count, 'cTrue)
       .groupBy('count, 'cTrue)
       .select('count, 'len.count as 'lencnt, 'cTrue)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertTrue(
@@ -250,7 +251,7 @@ class TableSinkITCase extends StreamingTestBase {
       .groupBy('w, 'num)
       // test query field name is different with registered sink field name
       .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -293,7 +294,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('w.end as 'wend, 'id.count as 'cnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -335,7 +336,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('num, 'id.count as 'cnt)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
@@ -385,7 +386,7 @@ class TableSinkITCase extends StreamingTestBase {
     val table = t.groupBy('num)
       .select('num, 'id.count as 'cnt)
       .where('cnt <= 3)
-    execInsertTableAndWaitResult(table, "upsertSink")
+    table.executeInsert("upsertSink").await()
 
     val result = TestValuesTableFactory.getResults("upsertSink")
     val expected = List("1,1", "2,2", "3,3")
@@ -438,7 +439,7 @@ class TableSinkITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -464,7 +465,7 @@ class TableSinkITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "sink")
+    table.executeInsert("sink").await()
 
     val result = TestValuesTableFactory.getResults("sink")
     val expected = Seq("12345,55,12345")
@@ -508,13 +509,13 @@ class TableSinkITCase extends StreamingTestBase {
         |  'sink-insert-only' = 'false'
         |)
         |""".stripMargin)
-    execInsertSqlAndWaitResult(
+    tEnv.executeSql(
       """
         |INSERT INTO changelog_sink
         |SELECT product_id, user_name, SUM(order_price)
         |FROM orders
         |GROUP BY product_id, user_name
-        |""".stripMargin)
+        |""".stripMargin).await()
 
     val rawResult = TestValuesTableFactory.getRawResults("changelog_sink")
     val expected = List(
@@ -559,13 +560,13 @@ class TableSinkITCase extends StreamingTestBase {
         |  'sink-insert-only' = 'false'
         |)
         |""".stripMargin)
-    execInsertSqlAndWaitResult(
+    tEnv.executeSql(
       """
         |INSERT INTO final_sink
         |SELECT user_name, SUM(price) as total_pay
         |FROM changelog_source
         |GROUP BY user_name
-        |""".stripMargin)
+        |""".stripMargin).await()
     val finalResult = TestValuesTableFactory.getResults("final_sink")
     val finalExpected = List(
       "user1,28.12", "user2,71.20", "user3,32.33", "user4,9.99")
@@ -600,7 +601,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     // default should fail, because there are null values in the source
     try {
-      execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+      tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
       fail("Execution should fail.")
     } catch {
       case t: Throwable =>
@@ -614,10 +615,144 @@ class TableSinkITCase extends StreamingTestBase {
 
     // enable drop enforcer to make the query can run
     tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
-    execInsertSqlAndWaitResult("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+    tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
 
     val result = TestValuesTableFactory.getResults("not_null_sink")
     val expected = List("book,1,12", "book,4,11", "fruit,3,44")
     assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testSinkContext(): Unit = {
+    val data = List(
+      rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
+      rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
+      rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
+      rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
+      rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
+      rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
+      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
+
+    val dataId: String = TestValuesTableFactory.registerData(data)
+
+    val sourceDDL =
+      s"""
+         |CREATE TABLE src (
+         |  log_ts STRING,
+         |  ts TIMESTAMP(3),
+         |  a INT,
+         |  b DOUBLE,
+         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+      """.stripMargin
+
+    val sinkDDL =
+      s"""
+         |CREATE TABLE sink (
+         |  log_ts STRING,
+         |  ts TIMESTAMP(3),
+         |  a INT,
+         |  b DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
+         |)
+      """.stripMargin
+
+    tEnv.executeSql(sourceDDL)
+    tEnv.executeSql(sinkDDL)
+
+    //---------------------------------------------------------------------------------------
+    // Verify writing out a source directly with the rowtime attribute
+    //---------------------------------------------------------------------------------------
+
+    tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
+
+    val expected = List(1000, 2000, 3000, 4000, 7000, 8000, 16000)
+    assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+
+    val sinkDDL2 =
+      s"""
+         |CREATE TABLE sink2 (
+         |  window_rowtime TIMESTAMP(3),
+         |  b DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
+         |)
+      """.stripMargin
+    tEnv.executeSql(sinkDDL2)
+
+    //---------------------------------------------------------------------------------------
+    // Verify writing out with additional operator to generate a new rowtime attribute
+    //---------------------------------------------------------------------------------------
+
+    tEnv.executeSql(
+      """
+        |INSERT INTO sink2
+        |SELECT
+        |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
+        |  SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
+        |""".stripMargin
+    ).await()
+
+    val expected2 = List(4999, 9999, 19999)
+    assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+  }
+
+  @Test
+  def testMetadataSourceAndSink(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(nullData4)
+    // tests metadata at different locations and casting in both sources and sinks
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataSource (
+         |  category STRING,
+         |  shopId INT,
+         |  num BIGINT METADATA FROM 'metadata_1'
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'readable-metadata' = 'metadata_1:INT'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataSink (
+         |  category STRING METADATA FROM 'metadata_1',
+         |  shopId INT,
+         |  metadata_3 BIGINT METADATA VIRTUAL,
+         |  num STRING METADATA FROM 'metadata_2'
+         |) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:INT, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:INT'
+         |)
+         |""".stripMargin)
+
+    tEnv
+      .executeSql(
+        s"""
+           |INSERT INTO MetadataSink
+           |SELECT category, shopId, CAST(num AS STRING)
+           |FROM MetadataSource
+           |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResults("MetadataSink")
+    val expected =
+      List("1,book,12", "2,book,null", "3,fruit,44", "4,book,11", "4,fruit,null", "5,fruit,null")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  // ------------------------------------------------------------------------------------------
+
+  private def localDateTime(epochSecond: Long): LocalDateTime = {
+    LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }

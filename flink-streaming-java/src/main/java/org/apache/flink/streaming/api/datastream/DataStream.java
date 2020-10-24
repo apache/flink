@@ -51,7 +51,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -97,6 +96,7 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -226,23 +226,6 @@ public class DataStream<T> {
 			unionedTransforms.add(newStream.getTransformation());
 		}
 		return new DataStream<>(this.environment, new UnionTransformation<>(unionedTransforms));
-	}
-
-	/**
-	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
-	 * Calling this method on an operator creates a new {@link SplitStream}.
-	 *
-	 * @param outputSelector
-	 *            The user defined
-	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
-	 *            for directing the tuples.
-	 * @return The {@link SplitStream}
-	 * @deprecated Please use side output instead.
-	 */
-	@Deprecated
-	public SplitStream<T> split(OutputSelector<T> outputSelector) {
-		return new SplitStream<>(this, clean(outputSelector));
 	}
 
 	/**
@@ -526,7 +509,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -558,7 +541,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -792,7 +775,12 @@ public class DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(TumblingProcessingTimeWindows.of(size));
@@ -813,7 +801,12 @@ public class DataStream<T> {
 	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(SlidingProcessingTimeWindows.of(size, slide));

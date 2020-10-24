@@ -24,6 +24,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 
+import java.time.Duration;
+
 /**
  * Optional consumer specific configuration keys and default values for {@link FlinkKinesisConsumer}.
  */
@@ -143,6 +145,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The maximum number of registerStream attempts if we get a recoverable exception. */
 	public static final String REGISTER_STREAM_RETRIES = "flink.stream.registerstreamconsumer.maxretries";
 
+	/** The maximum time in seconds to wait for a stream consumer to become active before giving up. */
+	public static final String REGISTER_STREAM_TIMEOUT_SECONDS = "flink.stream.registerstreamconsumer.timeout";
+
 	/** The base backoff time between each registerStream attempt. */
 	public static final String REGISTER_STREAM_BACKOFF_BASE = "flink.stream.registerstreamconsumer.backoff.base";
 
@@ -154,6 +159,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/** The maximum number of deregisterStream attempts if we get a recoverable exception. */
 	public static final String DEREGISTER_STREAM_RETRIES = "flink.stream.deregisterstreamconsumer.maxretries";
+
+	/** The maximum time in seconds to wait for a stream consumer to deregister before giving up. */
+	public static final String DEREGISTER_STREAM_TIMEOUT_SECONDS = "flink.stream.deregisterstreamconsumer.timeout";
 
 	/** The base backoff time between each deregisterStream attempt. */
 	public static final String DEREGISTER_STREAM_BACKOFF_BASE = "flink.stream.deregisterstreamconsumer.backoff.base";
@@ -224,6 +232,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The maximum number of records that will be buffered before suspending consumption of a shard. */
 	public static final String WATERMARK_SYNC_QUEUE_CAPACITY = "flink.watermark.sync.queue.capacity";
 
+	public static final String EFO_HTTP_CLIENT_MAX_CONCURRENCY = "flink.stream.efo.http-client.max-concurrency";
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -232,9 +242,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
-	public static final int DEFAULT_STREAM_DESCRIBE_RETRIES = 10;
+	public static final int DEFAULT_STREAM_DESCRIBE_RETRIES = 50;
 
-	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
+	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 2000L;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
@@ -248,31 +258,35 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
 
-	public static final int DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES = 10;
+	public static final int DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES = 50;
 
-	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = 200L;
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = 2000L;
 
-	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = 5000L;
 
 	public static final double DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_REGISTER_STREAM_RETRIES = 10;
 
-	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_BASE = 200L;
+	public static final Duration DEFAULT_REGISTER_STREAM_TIMEOUT = Duration.ofSeconds(60);
 
-	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_BASE = 500L;
+
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_MAX = 2000L;
 
 	public static final double DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_DEREGISTER_STREAM_RETRIES = 10;
 
-	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE = 200L;
+	public static final Duration DEFAULT_DEREGISTER_STREAM_TIMEOUT = Duration.ofSeconds(60);
 
-	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE = 500L;
+
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 2000L;
 
 	public static final double DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
-	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 5;
+	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 10;
 
 	public static final long DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE = 1000L;
 
@@ -308,10 +322,21 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
+	public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
+
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured
 	 * getRecords interval can not exceed 5 minutes, which is the expire time for retrieved iterators.
 	 */
 	public static final long MAX_SHARD_GETRECORDS_INTERVAL_MILLIS = 300000L;
+
+	/**
+	 * Build the key of an EFO consumer ARN according to a stream name.
+	 * @param streamName the stream name the key is built upon.
+	 * @return a key of EFO consumer ARN.
+	 */
+	public static String efoConsumerArn(final String streamName) {
+		return EFO_CONSUMER_ARN_PREFIX + "." + streamName;
+	}
 
 }

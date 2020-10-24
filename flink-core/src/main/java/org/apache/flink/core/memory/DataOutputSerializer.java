@@ -209,6 +209,13 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 		this.position += 4;
 	}
 
+	public void writeIntUnsafe(int v, int pos) throws IOException {
+		if (LITTLE_ENDIAN) {
+			v = Integer.reverseBytes(v);
+		}
+		UNSAFE.putInt(this.buffer, BASE_OFFSET + pos, v);
+	}
+
 	@SuppressWarnings("restriction")
 	@Override
 	public void writeLong(long v) throws IOException {
@@ -342,6 +349,10 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 
 	public void setPosition(int position) {
 		Preconditions.checkArgument(position >= 0 && position <= this.position, "Position out of bounds.");
+		this.position = position;
+	}
+
+	public void setPositionUnsafe(int position) {
 		this.position = position;
 	}
 

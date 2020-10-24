@@ -38,6 +38,8 @@ under the License.
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
+		<httpclient.version>4.5.9</httpclient.version>
+		<httpcore.version>4.4.11</httpcore.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -103,6 +105,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Amazon AWS SDK v1.x dependencies -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
@@ -179,6 +182,17 @@ under the License.
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sts</artifactId>
 			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>${httpcore.version}</version>
 		</dependency>
 
 		<dependency>

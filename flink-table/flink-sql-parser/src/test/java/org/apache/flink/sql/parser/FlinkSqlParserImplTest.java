@@ -29,6 +29,7 @@ import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -60,7 +61,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe schema` supported in original calcite.
 	 */
-	@Override
+	@Ignore
+	@Test
 	public void testDescribeSchema() {
 	}
 
@@ -188,7 +190,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe statement` supported in original calcite.
 	 */
-	@Override
+	@Ignore
+	@Test
 	public void testDescribeStatement() {
 	}
 
@@ -225,6 +228,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
 				"  b varchar,\n" +
 				"  proc as PROCTIME(), \n" +
+				"  meta STRING METADATA, \n" +
+				"  my_meta STRING METADATA FROM 'meta', \n" +
+				"  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n" +
+				"  meta STRING METADATA VIRTUAL, \n" +
 				"  PRIMARY KEY (a, b)\n" +
 				")\n" +
 				"PARTITIONED BY (a, h)\n" +
@@ -233,12 +240,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT,\n" +
-				"  `H`  VARCHAR,\n" +
+				"  `A` BIGINT,\n" +
+				"  `H` VARCHAR,\n" +
 				"  `G` AS (2 * (`A` + 1)),\n" +
 				"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-				"  `B`  VARCHAR,\n" +
+				"  `B` VARCHAR,\n" +
 				"  `PROC` AS `PROCTIME`(),\n" +
+				"  `META` STRING METADATA,\n" +
+				"  `MY_META` STRING METADATA FROM 'meta',\n" +
+				"  `MY_META` STRING METADATA FROM 'meta' VIRTUAL,\n" +
+				"  `META` STRING METADATA VIRTUAL,\n" +
 				"  PRIMARY KEY (`A`, `B`)\n" +
 				")\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
@@ -266,11 +277,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE IF NOT EXISTS `TBL1` (\n" +
-			"  `A`  BIGINT,\n" +
-			"  `H`  VARCHAR,\n" +
+			"  `A` BIGINT,\n" +
+			"  `H` VARCHAR,\n" +
 			"  `G` AS (2 * (`A` + 1)),\n" +
 			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-			"  `B`  VARCHAR,\n" +
+			"  `B` VARCHAR,\n" +
 			"  `PROC` AS `PROCTIME`(),\n" +
 			"  PRIMARY KEY (`A`, `B`)\n" +
 			")\n" +
@@ -291,6 +302,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
 				"  b varchar,\n" +
 				"  proc as PROCTIME(), \n" +
+				"  meta STRING METADATA COMMENT 'c1', \n" +
+				"  my_meta STRING METADATA FROM 'meta' COMMENT 'c2', \n" +
+				"  my_meta STRING METADATA FROM 'meta' VIRTUAL COMMENT 'c3', \n" +
+				"  meta STRING METADATA VIRTUAL COMMENT 'c4', \n" +
 				"  PRIMARY KEY (a, b)\n" +
 				")\n" +
 				"comment 'test table comment ABC.'\n" +
@@ -300,12 +315,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
-				"  `H`  VARCHAR,\n" +
+				"  `A` BIGINT COMMENT 'test column comment AAA.',\n" +
+				"  `H` VARCHAR,\n" +
 				"  `G` AS (2 * (`A` + 1)),\n" +
 				"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-				"  `B`  VARCHAR,\n" +
+				"  `B` VARCHAR,\n" +
 				"  `PROC` AS `PROCTIME`(),\n" +
+				"  `META` STRING METADATA COMMENT 'c1',\n" +
+				"  `MY_META` STRING METADATA FROM 'meta' COMMENT 'c2',\n" +
+				"  `MY_META` STRING METADATA FROM 'meta' VIRTUAL COMMENT 'c3',\n" +
+				"  `META` STRING METADATA VIRTUAL COMMENT 'c4',\n" +
 				"  PRIMARY KEY (`A`, `B`)\n" +
 				")\n" +
 				"COMMENT 'test table comment ABC.'\n" +
@@ -314,6 +333,41 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  'connector' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testCreateTableWithCommentOnComputedColumn() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a bigint comment 'test column comment AAA.',\n" +
+			"  h varchar, \n" +
+			"  g as 2 * (a + 1) comment 'test computed column.', \n" +
+			"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
+			"  b varchar,\n" +
+			"  proc as PROCTIME(), \n" +
+			"  PRIMARY KEY (a, b)\n" +
+			")\n" +
+			"comment 'test table comment ABC.'\n" +
+			"PARTITIONED BY (a, h)\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		final String expected = "CREATE TABLE `TBL1` (\n" +
+			"  `A` BIGINT COMMENT 'test column comment AAA.',\n" +
+			"  `H` VARCHAR,\n" +
+			"  `G` AS (2 * (`A` + 1)) COMMENT 'test computed column.',\n" +
+			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  `B` VARCHAR,\n" +
+			"  `PROC` AS `PROCTIME`(),\n" +
+			"  PRIMARY KEY (`A`, `B`)\n" +
+			")\n" +
+			"COMMENT 'test table comment ABC.'\n" +
+			"PARTITIONED BY (`A`, `H`)\n" +
+			"WITH (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")";
 		sql(sql).ok(expected);
 	}
 
@@ -333,11 +387,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-			"  `A`  BIGINT,\n" +
-			"  `H`  VARCHAR,\n" +
+			"  `A` BIGINT,\n" +
+			"  `H` VARCHAR,\n" +
 			"  `G` AS (2 * (`A` + 1)),\n" +
 			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-			"  `B`  VARCHAR,\n" +
+			"  `B` VARCHAR,\n" +
 			"  `PROC` AS `PROCTIME`(),\n" +
 			"  PRIMARY KEY (`A`, `B`),\n" +
 			"  UNIQUE (`H`, `G`)\n" +
@@ -364,11 +418,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-			"  `A`  BIGINT NOT NULL,\n" +
-			"  `H`  VARCHAR,\n" +
+			"  `A` BIGINT NOT NULL,\n" +
+			"  `H` VARCHAR,\n" +
 			"  `G` AS (2 * (`A` + 1)),\n" +
 			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-			"  `B`  VARCHAR NOT NULL,\n" +
+			"  `B` VARCHAR NOT NULL,\n" +
 			"  `PROC` AS `PROCTIME`(),\n" +
 			"  PRIMARY KEY (`A`, `B`),\n" +
 			"  UNIQUE (`H`, `G`)\n" +
@@ -394,11 +448,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-			"  `A`  BIGINT PRIMARY KEY ENFORCED  COMMENT 'test column comment AAA.',\n" +
-			"  `H`  VARCHAR CONSTRAINT `CT1` UNIQUE NOT ENFORCED,\n" +
+			"  `A` BIGINT PRIMARY KEY ENFORCED COMMENT 'test column comment AAA.',\n" +
+			"  `H` VARCHAR CONSTRAINT `CT1` UNIQUE NOT ENFORCED,\n" +
 			"  `G` AS (2 * (`A` + 1)),\n" +
 			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-			"  `B`  VARCHAR CONSTRAINT `CT2` UNIQUE,\n" +
+			"  `B` VARCHAR CONSTRAINT `CT2` UNIQUE,\n" +
 			"  `PROC` AS `PROCTIME`(),\n" +
 			"  UNIQUE (`G`, `TS`) NOT ENFORCED\n" +
 			") WITH (\n" +
@@ -438,8 +492,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `TS`  TIMESTAMP(3),\n" +
-				"  `ID`  VARCHAR,\n" +
+				"  `TS` TIMESTAMP(3),\n" +
+				"  `ID` VARCHAR,\n" +
 				"  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n" +
 				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
@@ -460,7 +514,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `LOG_TS`  VARCHAR,\n" +
+				"  `LOG_TS` VARCHAR,\n" +
 				"  `TS` AS `TO_TIMESTAMP`(`LOG_TS`),\n" +
 				"  WATERMARK FOR `TS` AS (`TS` + INTERVAL '1' SECOND)\n" +
 				") WITH (\n" +
@@ -481,7 +535,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `F1`  ROW< `Q1` BIGINT, `Q2` ROW< `T1` TIMESTAMP, `T2` VARCHAR >, `Q3` BOOLEAN >,\n" +
+				"  `F1` ROW< `Q1` BIGINT, `Q2` ROW< `T1` TIMESTAMP, `T2` VARCHAR >, `Q3` BOOLEAN >,\n" +
 				"  WATERMARK FOR `F1`.`Q2`.`T1` AS `NOW`()\n" +
 				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
@@ -536,10 +590,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  'asd' = 'data'\n" +
 				")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  ARRAY< BIGINT >,\n" +
-				"  `B`  MAP< INTEGER, VARCHAR >,\n" +
-				"  `C`  ROW< `CC0` INTEGER, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
-				"  `D`  MULTISET< VARCHAR >,\n" +
+				"  `A` ARRAY< BIGINT >,\n" +
+				"  `B` MAP< INTEGER, VARCHAR >,\n" +
+				"  `C` ROW< `CC0` INTEGER, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+				"  `D` MULTISET< VARCHAR >,\n" +
 				"  PRIMARY KEY (`A`, `B`)\n" +
 				") WITH (\n" +
 				"  'x' = 'y',\n" +
@@ -561,10 +615,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  'asd' = 'data'\n" +
 				")\n";
 		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  ARRAY< ARRAY< BIGINT > >,\n" +
-				"  `B`  MAP< MAP< INTEGER, VARCHAR >, ARRAY< VARCHAR > >,\n" +
-				"  `C`  ROW< `CC0` ARRAY< INTEGER >, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
-				"  `D`  MULTISET< ARRAY< INTEGER > >,\n" +
+				"  `A` ARRAY< ARRAY< BIGINT > >,\n" +
+				"  `B` MAP< MAP< INTEGER, VARCHAR >, ARRAY< VARCHAR > >,\n" +
+				"  `C` ROW< `CC0` ARRAY< INTEGER >, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+				"  `D` MULTISET< ARRAY< INTEGER > >,\n" +
 				"  PRIMARY KEY (`A`, `B`)\n" +
 				") WITH (\n" +
 				"  'x' = 'y',\n" +
@@ -583,8 +637,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  'k2' = 'v2'\n" +
 			")";
 		final String expected = "CREATE TABLE `T` (\n" +
-			"  `A`  `CATALOG1`.`DB1`.`MYTYPE1`,\n" +
-			"  `B`  `DB2`.`MYTYPE2`\n" +
+			"  `A` `CATALOG1`.`DB1`.`MYTYPE1`,\n" +
+			"  `B` `DB2`.`MYTYPE2`\n" +
 			") WITH (\n" +
 			"  'k1' = 'v1',\n" +
 			"  'k2' = 'v2'\n" +
@@ -657,9 +711,9 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  'a.b-c-d.e-1231.g' = 'ada',\n" +
 			"  'a.b-c-d.*' = 'adad')\n";
 		final String expected = "CREATE TABLE `SOURCE_TABLE` (\n" +
-			"  `A`  INTEGER,\n" +
-			"  `B`  BIGINT,\n" +
-			"  `C`  STRING\n" +
+			"  `A` INTEGER,\n" +
+			"  `B` BIGINT,\n" +
+			"  `C` STRING\n" +
 			") WITH (\n" +
 			"  'a-b-c-d124' = 'ab',\n" +
 			"  'a.b.1.c' = 'aabb',\n" +
@@ -694,17 +748,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"   OVERWRITING OPTIONS\n" +
 			"   EXCLUDING PARTITIONS\n" +
 			"   INCLUDING GENERATED\n" +
+			"   INCLUDING METADATA\n" +
 			")";
 		final String expected = "CREATE TABLE `SOURCE_TABLE` (\n" +
-			"  `A`  INTEGER,\n" +
-			"  `B`  BIGINT,\n" +
-			"  `C`  STRING\n" +
+			"  `A` INTEGER,\n" +
+			"  `B` BIGINT,\n" +
+			"  `C` STRING\n" +
 			")\n" +
 			"LIKE `PARENT_TABLE` (\n" +
 			"  INCLUDING ALL\n" +
 			"  OVERWRITING OPTIONS\n" +
 			"  EXCLUDING PARTITIONS\n" +
 			"  INCLUDING GENERATED\n" +
+			"  INCLUDING METADATA\n" +
 			")";
 		sql(sql).ok(expected);
 	}
@@ -720,13 +776,26 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  'abc' = 'def'\n" +
 			")";
 		final String expected = "CREATE TEMPORARY TABLE `SOURCE_TABLE` (\n" +
-			"  `A`  INTEGER,\n" +
-			"  `B`  BIGINT,\n" +
-			"  `C`  STRING\n" +
+			"  `A` INTEGER,\n" +
+			"  `B` BIGINT,\n" +
+			"  `C` STRING\n" +
 			") WITH (\n" +
 			"  'x' = 'y',\n" +
 			"  'abc' = 'def'\n" +
 			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testCreateTableWithNoColumns() {
+		final String sql = "create table source_table with (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
+		final String expected = "CREATE TABLE `SOURCE_TABLE` WITH (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
 		sql(sql).ok(expected);
 	}
 
@@ -941,7 +1010,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	// Override the test because our ROW field type default is nullable,
 	// which is different with Calcite.
-	@Override
+	@Test
 	public void testCastAsRowType() {
 		final String expr = "cast(a as row(f0 int, f1 varchar))";
 		final String expected = "CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))";

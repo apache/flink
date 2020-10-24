@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -103,15 +102,13 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		this.incrementalCleanup = getTtlIncrementalCleanup();
 	}
 
-	@SuppressWarnings("deprecation")
 	private Map<Class<? extends StateDescriptor>, SupplierWithException<IS, Exception>> createStateFactories() {
 		return Stream.of(
 			Tuple2.of(ValueStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createValueState),
 			Tuple2.of(ListStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createListState),
 			Tuple2.of(MapStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createMapState),
 			Tuple2.of(ReducingStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createReducingState),
-			Tuple2.of(AggregatingStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createAggregatingState),
-			Tuple2.of(FoldingStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createFoldingState)
+			Tuple2.of(AggregatingStateDescriptor.class, (SupplierWithException<IS, Exception>) this::createAggregatingState)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 	}
 
@@ -174,19 +171,6 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor = new AggregatingStateDescriptor<>(
 			stateDesc.getName(), ttlAggregateFunction, new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlAggregatingState<>(createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
-	}
-
-	@SuppressWarnings({"deprecation", "unchecked"})
-	private <T> IS createFoldingState() throws Exception {
-		FoldingStateDescriptor<T, SV> foldingStateDescriptor = (FoldingStateDescriptor<T, SV>) stateDesc;
-		SV initAcc = stateDesc.getDefaultValue();
-		TtlValue<SV> ttlInitAcc = initAcc == null ? null : new TtlValue<>(initAcc, Long.MAX_VALUE);
-		FoldingStateDescriptor<T, TtlValue<SV>> ttlDescriptor = new FoldingStateDescriptor<>(
-			stateDesc.getName(),
-			ttlInitAcc,
-			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider, initAcc),
-			new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
-		return (IS) new TtlFoldingState<>(createTtlStateContext(ttlDescriptor));
 	}
 
 	@SuppressWarnings("unchecked")

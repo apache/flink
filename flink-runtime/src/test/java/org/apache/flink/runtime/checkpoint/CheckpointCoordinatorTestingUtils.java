@@ -43,7 +43,6 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -76,7 +75,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -439,6 +441,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getID()).thenReturn(ExecutionGraphTestUtils.createRandomExecutionVertexId());
+		when(vertex.getJobId()).thenReturn(new JobID());
 
 		final Execution exec = spy(new Execution(
 			mock(Executor.class),
@@ -606,6 +609,8 @@ public class CheckpointCoordinatorTestingUtils {
 
 		private Executor ioExecutor = Executors.directExecutor();
 
+		private CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
+
 		private ScheduledExecutor timer = new ManuallyTriggeredScheduledExecutor();
 
 		private SharedStateRegistryFactory sharedStateRegistryFactory =
@@ -655,8 +660,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
-		public void setCoordinatorsToCheckpoint(Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
+		public CheckpointCoordinatorBuilder setCoordinatorsToCheckpoint(
+				Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
 			this.coordinatorsToCheckpoint = coordinatorsToCheckpoint;
+			return this;
 		}
 
 		public CheckpointCoordinatorBuilder setCheckpointIDCounter(
@@ -698,6 +705,11 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public CheckpointCoordinatorBuilder setStateBackEnd(StateBackend stateBackEnd) {
+			this.checkpointStateBackend = stateBackEnd;
+			return this;
+		}
+
 		public CheckpointCoordinator build() {
 			return new CheckpointCoordinator(
 				jobId,
@@ -710,6 +722,7 @@ public class CheckpointCoordinatorTestingUtils {
 				completedCheckpointStore,
 				checkpointStateBackend,
 				ioExecutor,
+				checkpointsCleaner,
 				timer,
 				sharedStateRegistryFactory,
 				failureManager);
@@ -741,4 +754,103 @@ public class CheckpointCoordinatorTestingUtils {
 			return new String(serialized, StandardCharsets.UTF_8);
 		}
 	}
+
+	// ----------------- Mock class builders ---------------
+
+	public static final class MockOperatorCheckpointCoordinatorContextBuilder {
+		private BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator = null;
+		private Consumer<Long> onCallingAfterSourceBarrierInjection = null;
+		private OperatorID operatorID = null;
+
+		public MockOperatorCheckpointCoordinatorContextBuilder setOnCallingCheckpointCoordinator(
+				BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator) {
+			this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
+			return this;
+		}
+
+		public MockOperatorCheckpointCoordinatorContextBuilder setOnCallingAfterSourceBarrierInjection(
+				Consumer<Long> onCallingAfterSourceBarrierInjection) {
+			this.onCallingAfterSourceBarrierInjection = onCallingAfterSourceBarrierInjection;
+			return this;
+		}
+
+		public MockOperatorCheckpointCoordinatorContextBuilder setOperatorID(OperatorID operatorID) {
+			this.operatorID = operatorID;
+			return this;
+		}
+
+		public MockOperatorCoordinatorCheckpointContext build() {
+			return new MockOperatorCoordinatorCheckpointContext(
+				onCallingCheckpointCoordinator,
+				onCallingAfterSourceBarrierInjection,
+				operatorID);
+		}
+	}
+
+	// ----------------- Mock classes --------------------
+
+	/**
+	 * The class works together with {@link MockOperatorCheckpointCoordinatorContextBuilder} to
+	 * construct a mock OperatorCoordinatorCheckpointContext.
+	 */
+	public static final class MockOperatorCoordinatorCheckpointContext implements OperatorCoordinatorCheckpointContext {
+		private final BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator;
+		private final Consumer<Long> onCallingAfterSourceBarrierInjection;
+		private final OperatorID operatorID;
+
+		private MockOperatorCoordinatorCheckpointContext(
+				BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator,
+				Consumer<Long> onCallingAfterSourceBarrierInjection,
+				OperatorID operatorID) {
+			 this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
+			 this.onCallingAfterSourceBarrierInjection = onCallingAfterSourceBarrierInjection;
+			 this.operatorID = operatorID;
+		}
+
+		@Override
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+			if (onCallingCheckpointCoordinator != null) {
+				onCallingCheckpointCoordinator.accept(checkpointId, result);
+			}
+		}
+
+		@Override
+		public void afterSourceBarrierInjection(long checkpointId) {
+			if (onCallingAfterSourceBarrierInjection != null) {
+				onCallingAfterSourceBarrierInjection.accept(checkpointId);
+			}
+		}
+
+		@Override
+		public void abortCurrentTriggering() {
+
+		}
+
+		@Override
+		public void checkpointComplete(long checkpointId) {
+
+		}
+
+		@Override
+		public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+
+		}
+
+		@Override
+		public OperatorID operatorId() {
+			return operatorID;
+		}
+
+		@Override
+		public int maxParallelism() {
+			return 1;
+		}
+
+		@Override
+		public int currentParallelism() {
+			return 1;
+		}
+	}
+
+
 }

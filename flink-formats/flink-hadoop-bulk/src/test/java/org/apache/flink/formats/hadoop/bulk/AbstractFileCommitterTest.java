@@ -19,6 +19,7 @@
 package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -218,12 +219,19 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBase {
 
 	private void writeFile(Path path, Configuration configuration) throws IOException {
 		FileSystem fileSystem = FileSystem.get(path.toUri(), configuration);
-		try (FSDataOutputStream fsDataOutputStream = fileSystem.create(path, override);
-			PrintWriter printWriter = new PrintWriter(fsDataOutputStream)) {
+
+		FSDataOutputStream fsDataOutputStream = null;
+		PrintWriter printWriter = null;
+
+		try {
+			fsDataOutputStream = fileSystem.create(path, override);
+			printWriter = new PrintWriter(fsDataOutputStream);
 
 			for (String line : CONTENTS) {
 				printWriter.println(line);
 			}
+		} finally {
+			IOUtils.closeAllQuietly(printWriter, fsDataOutputStream);
 		}
 	}
 

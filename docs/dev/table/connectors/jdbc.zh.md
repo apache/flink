@@ -185,6 +185,15 @@ Connector Options
       <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
     </tr>
     <tr>
+      <td><h5>scan.auto-commit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Sets the <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> flag on the JDBC driver,
+      which determines whether each statement is committed in a transaction automatically. Some JDBC drivers, specifically
+      <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
+    </tr>
+    <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>

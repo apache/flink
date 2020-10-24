@@ -65,6 +65,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFra
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -79,6 +80,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link KvStateServerHandler}.
  */
+@Ignore("KvStateServerHandlerTest is unstable. See FLINK-13553 for more information. Since the community "
+		+ "does not have time to work on QS, we decided to temporarily ignore this test case in order"
+		+ "to maintain build stability.")
 public class KvStateServerHandlerTest extends TestLogger {
 
 	private static KvStateServerImpl testServer;

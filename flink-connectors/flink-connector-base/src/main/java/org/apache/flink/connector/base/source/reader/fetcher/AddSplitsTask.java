@@ -21,43 +21,35 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 /**
  * The task to add splits.
  */
 class AddSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
+
 	private final SplitReader<?, SplitT> splitReader;
 	private final List<SplitT> splitsToAdd;
-	private final Queue<SplitsChange<SplitT>> splitsChanges;
 	private final Map<String, SplitT> assignedSplits;
-	private boolean splitsChangesAdded;
 
 	AddSplitsTask(
 			SplitReader<?, SplitT> splitReader,
 			List<SplitT> splitsToAdd,
-			Queue<SplitsChange<SplitT>> splitsChanges,
 			Map<String, SplitT> assignedSplits) {
 		this.splitReader = splitReader;
 		this.splitsToAdd = splitsToAdd;
-		this.splitsChanges = splitsChanges;
 		this.assignedSplits = assignedSplits;
-		this.splitsChangesAdded = false;
 	}
 
 	@Override
-	public boolean run() throws InterruptedException {
-		if (!splitsChangesAdded) {
-			splitsChanges.add(new SplitsAddition<>(splitsToAdd));
-			splitsToAdd.forEach(s -> assignedSplits.put(s.splitId(), s));
-			splitsChangesAdded = true;
+	public boolean run() {
+		for (SplitT s : splitsToAdd) {
+			assignedSplits.put(s.splitId(), s);
 		}
-		splitReader.handleSplitsChanges(splitsChanges);
-		return splitsChanges.isEmpty();
+		splitReader.handleSplitsChanges(new SplitsAddition<>(splitsToAdd));
+		return true;
 	}
 
 	@Override

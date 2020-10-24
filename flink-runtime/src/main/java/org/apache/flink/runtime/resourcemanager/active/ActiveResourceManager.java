@@ -50,6 +50,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -87,7 +88,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			Executor ioExecutor) {
 		super(
 				rpcService,
 				resourceId,
@@ -99,7 +101,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 				clusterInformation,
 				fatalErrorHandler,
 				resourceManagerMetricGroup,
-				AkkaUtils.getTimeoutAsTime(Preconditions.checkNotNull(flinkConfig)));
+				AkkaUtils.getTimeoutAsTime(Preconditions.checkNotNull(flinkConfig)),
+				ioExecutor);
 
 		this.flinkConfig = flinkConfig;
 		this.resourceManagerDriver = resourceManagerDriver;
@@ -117,7 +120,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		try {
 			resourceManagerDriver.initialize(
 					this,
-					new GatewayMainThreadExecutor());
+					new GatewayMainThreadExecutor(),
+					ioExecutor);
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot initialize resource provider.", e);
 		}
@@ -130,6 +134,16 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot terminate resource provider.", e);
 		}
+	}
+
+	@Override
+	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return resourceManagerDriver.onGrantLeadership();
+	}
+
+	@Override
+	protected CompletableFuture<Void> clearStateAsync() {
+		return resourceManagerDriver.onRevokeLeadership();
 	}
 
 	@Override

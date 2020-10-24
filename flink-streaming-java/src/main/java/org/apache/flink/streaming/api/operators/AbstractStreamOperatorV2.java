@@ -29,6 +29,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -59,6 +60,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * New base class for all stream operators, intended to eventually replace {@link AbstractStreamOperator}.
@@ -107,9 +110,6 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 		try {
 			operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
 			countingOutput = new CountingOutput(parameters.getOutput(), operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
-			if (config.isChainStart()) {
-				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
-			}
 			if (config.isChainEnd()) {
 				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}
@@ -201,7 +201,11 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 				this,
 				keySerializer,
 				cancelables,
-				metrics);
+				metrics,
+				config.getManagedMemoryFractionOperatorUseCaseOfSlot(
+					ManagedMemoryUseCase.STATE_BACKEND,
+					runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
+					runtimeContext.getUserCodeClassLoader()));
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), cancelables);
 		timeServiceManager = context.internalTimerServiceManager();
@@ -455,12 +459,16 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 		if (timeServiceManager == null) {
 			throw new RuntimeException("The timer service has not been initialized.");
 		}
+
+		@SuppressWarnings("unchecked")
 		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
+		KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+		checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
 		return keyedTimeServiceHandler.getInternalTimerService(
 			name,
+			keyedStateBackend.getKeySerializer(),
 			namespaceSerializer,
-			triggerable,
-			stateHandler.getKeyedStateBackend());
+			triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
@@ -485,16 +493,6 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 	@Override
 	public OperatorID getOperatorID() {
 		return config.getOperatorID();
-	}
-
-	@VisibleForTesting
-	public int numProcessingTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numProcessingTimeTimers();
-	}
-
-	@VisibleForTesting
-	public int numEventTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numEventTimeTimers();
 	}
 
 	@Override

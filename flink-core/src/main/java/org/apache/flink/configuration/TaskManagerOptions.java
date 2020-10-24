@@ -26,6 +26,8 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -402,6 +404,23 @@ public class TaskManagerOptions {
 				+ " explicitly specified.");
 
 	/**
+	 * Weights of managed memory consumers.
+	 */
+	// Do not advertise this option until the feature is completed.
+	@Documentation.ExcludeFromDocumentation
+	public static final ConfigOption<Map<String, String>> MANAGED_MEMORY_CONSUMER_WEIGHTS =
+		key("taskmanager.memory.managed.consumer-weights")
+			.mapType()
+			.defaultValue(new HashMap<String, String>() {{
+				put(ManagedMemoryConsumerNames.DATAPROC, "70");
+				put(ManagedMemoryConsumerNames.PYTHON, "30");
+			}})
+			.withDescription("Managed memory weights for different kinds of consumers. A slot’s managed memory is"
+				+ " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
+				+ " of the number of consumers from each kind. Currently supported kinds of consumers are "
+				+ ManagedMemoryConsumerNames.DATAPROC + " (for RocksDB state backend in streaming and built-in"
+				+ " algorithms in batch) and " + ManagedMemoryConsumerNames.PYTHON + " (for python processes).");
+	/**
 	 * Min Network Memory size for TaskExecutors.
 	 */
 	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
@@ -548,4 +567,10 @@ public class TaskManagerOptions {
 
 	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}
+
+	/** Valid names of managed memory consumers. */
+	public static class ManagedMemoryConsumerNames {
+		public static final String DATAPROC = "DATAPROC";
+		public static final String PYTHON = "PYTHON";
+	}
 }

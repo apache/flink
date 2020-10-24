@@ -25,7 +25,6 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,12 +36,11 @@ import java.util.function.Supplier;
 public class MockSourceReader
 		extends SingleThreadMultiplexSourceReaderBase<int[], Integer, MockSourceSplit, AtomicInteger> {
 
-	public MockSourceReader(FutureNotifier futureNotifier,
-							FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
+	public MockSourceReader(FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
 							Supplier<SplitReader<int[], MockSourceSplit>> splitFetcherSupplier,
 							Configuration config,
 							SourceReaderContext context) {
-		super(futureNotifier, elementsQueue, splitFetcherSupplier, new MockRecordEmitter(), config, context);
+		super(elementsQueue, splitFetcherSupplier, new MockRecordEmitter(), config, context);
 	}
 
 	@Override

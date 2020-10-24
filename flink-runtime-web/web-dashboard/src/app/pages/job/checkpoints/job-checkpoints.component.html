@@ -128,7 +128,7 @@
           <th><strong>Latest Acknowledgement</strong></th>
           <th><strong>End to End Duration</strong></th>
           <th><strong>Checkpointed Data Size</strong></th>
-          <th><strong>Buffered During Alignment</strong></th>
+          <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
       <tbody>
@@ -151,7 +151,7 @@
             <td *ngIf="checkpoint['end_to_end_duration'] >= 0">{{ checkpoint['end_to_end_duration'] | humanizeDuration}}</td>
             <td *ngIf="checkpoint['end_to_end_duration'] <0">n/a</td>
             <td>{{ checkpoint['state_size'] | humanizeBytes }}</td>
-            <td>{{ checkpoint['alignment_buffered'] | humanizeBytes }}</td>
+            <td>{{ checkpoint['processed_data'] | humanizeBytes }} ({{ checkpoint['persisted_data'] | humanizeBytes }})</td>
           </tr>
           <tr [nzExpand]="checkpoint.expand">
             <td colspan="11" *ngIf="checkpoint.expand" class="collapse-td">
@@ -176,7 +176,7 @@
           <th></th>
           <th><strong>End to End Duration</strong></th>
           <th><strong>Checkpointed Data Size</strong></th>
-          <th><strong>Buffered During Alignment</strong></th>
+          <th><strong>Processed (persisted) in-flight data</strong></th>
         </tr>
       </thead>
       <tbody>
@@ -185,19 +185,19 @@
             <td><strong>Minimum</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['min'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['min'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['min'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['min'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['min'] | humanizeBytes }})</td>
           </tr>
           <tr>
             <td><strong>Average</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['avg'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['avg'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['avg'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['avg'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['avg'] | humanizeBytes }})</td>
           </tr>
           <tr>
             <td><strong>Maximum</strong></td>
             <td>{{ checkPointStats['summary']['end_to_end_duration']['max'] | humanizeDuration}}</td>
             <td>{{ checkPointStats['summary']['state_size']['max'] | humanizeBytes }}</td>
-            <td>{{ checkPointStats['summary']['alignment_buffered']['max'] | humanizeBytes }}</td>
+            <td>{{ checkPointStats['summary']['processed_data']['max'] | humanizeBytes }} ({{ checkPointStats['summary']['persisted_data']['max'] | humanizeBytes }})</td>
           </tr>
         </ng-container>
       </tbody>

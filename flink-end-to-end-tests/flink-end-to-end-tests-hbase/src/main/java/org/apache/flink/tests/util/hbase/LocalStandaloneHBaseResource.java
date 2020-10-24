@@ -49,16 +49,18 @@ public class LocalStandaloneHBaseResource implements HBaseResource {
 	private final TemporaryFolder tmp = new TemporaryFolder();
 
 	private final DownloadCache downloadCache = DownloadCache.get();
+	private final String hbaseVersion;
 	private Path hbaseDir;
 
-	LocalStandaloneHBaseResource() {
+	LocalStandaloneHBaseResource(String hbaseVersion) {
 		OperatingSystemRestriction.forbid(
 			String.format("The %s relies on UNIX utils and shell scripts.", getClass().getSimpleName()),
 			OperatingSystem.WINDOWS);
+		this.hbaseVersion = hbaseVersion;
 	}
 
-	private static String getHBaseDownloadUrl() {
-		return "https://archive.apache.org/dist/hbase/1.4.3/hbase-1.4.3-bin.tar.gz";
+	private String getHBaseDownloadUrl() {
+		return String.format("https://archive.apache.org/dist/hbase/%1$s/hbase-%1$s-bin.tar.gz", hbaseVersion);
 	}
 
 	@Override

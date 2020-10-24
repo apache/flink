@@ -44,8 +44,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testExpressionReductionWithRichUDF(): Unit = {
     util.addFunction("MyUdf", new RichFunc1)
-    util.getTableEnv.getConfig.getConfiguration.setString("int.value", "10")
+    util.getTableEnv.getConfig.addJobParameter("int.value", "10")
     util.verifyPlan("SELECT myUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithRichUDFAndInvalidOpen(): Unit = {
+    util.addFunction("MyUdf", new RichFunc1)
+    // FunctionContext.getCachedFile will fail during expression reduction
+    // it will be executed during runtime though
+    util.getTableEnv.getConfig.addJobParameter("fail-for-cached-file", "true")
+    util.verifyPlan("SELECT myUdf(1 + 1) FROM MyTable")
   }
 
   @Test

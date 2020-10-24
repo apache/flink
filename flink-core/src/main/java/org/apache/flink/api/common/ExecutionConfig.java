@@ -126,7 +126,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private boolean autoTypeRegistrationEnabled = true;
 
 	private boolean forceAvro = false;
-	private long autoWatermarkInterval = 0;
+	private long autoWatermarkInterval = 200;
 
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
@@ -228,6 +228,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Sets the interval of the automatic watermark emission. Watermarks are used throughout
 	 * the streaming system to keep track of the progress of time. They are used, for example,
 	 * for time based windowing.
+	 *
+	 * <p>Setting an interval of {@code 0} will disable periodic watermark emission.
 	 *
 	 * @param interval The interval between watermarks in milliseconds.
 	 */

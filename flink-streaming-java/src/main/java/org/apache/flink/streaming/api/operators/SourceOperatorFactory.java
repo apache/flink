@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -65,6 +67,10 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 		this.numCoordinatorWorkerThread = numCoordinatorWorkerThread;
 	}
 
+	public Boundedness getBoundedness() {
+		return source.getBoundedness();
+	}
+
 	@Override
 	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
 		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
@@ -75,7 +81,9 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 				gateway,
 				source.getSplitSerializer(),
 				watermarkStrategy,
-				parameters.getProcessingTimeService());
+				parameters.getProcessingTimeService(),
+				parameters.getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				parameters.getContainingTask().getEnvironment().getTaskManagerInfo().getTaskManagerExternalAddress());
 
 		sourceOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
@@ -115,7 +123,9 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 			OperatorEventGateway eventGateway,
 			SimpleVersionedSerializer<?> splitSerializer,
 			WatermarkStrategy<T> watermarkStrategy,
-			ProcessingTimeService timeService) {
+			ProcessingTimeService timeService,
+			Configuration config,
+			String localHostName) {
 
 		// jumping through generics hoops: cast the generics away to then cast them back more strictly typed
 		final Function<SourceReaderContext, SourceReader<T, SplitT>> typedReaderFactory =
@@ -128,6 +138,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 				eventGateway,
 				typedSplitSerializer,
 				watermarkStrategy,
-				timeService);
+				timeService,
+				config,
+				localHostName);
 	}
 }

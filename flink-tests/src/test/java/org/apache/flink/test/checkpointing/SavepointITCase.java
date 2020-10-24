@@ -53,6 +53,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
@@ -337,6 +338,8 @@ public class SavepointITCase extends TestLogger {
 
 		try {
 			client.submitJob(graph).get();
+			// triggerSavepoint is only available after job is initialized
+			TestUtils.waitUntilJobInitializationFinished(graph.getJobID(), cluster, ClassLoader.getSystemClassLoader());
 
 			client.triggerSavepoint(graph.getJobID(), null).get();
 

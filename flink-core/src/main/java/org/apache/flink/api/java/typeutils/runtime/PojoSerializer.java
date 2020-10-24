@@ -41,9 +41,6 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -73,13 +70,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	/** The POJO type class. */
 	private final Class<T> clazz;
-
-	/**
-	 * A cached clazz constructor.
-	 * Invoking it using reflection (e.g. clazz.newInstance) has a lot of overhead.
-	 */
-
-	private transient MethodHandle cachedConstructor;
 
 	/**
 	 * Fields of the POJO and their serializers.
@@ -159,7 +149,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			ExecutionConfig executionConfig) {
 
 		this.clazz = checkNotNull(clazz);
-
 		this.fields = checkNotNull(fields);
 		this.numFields = fields.length;
 		this.fieldSerializers = checkNotNull(fieldSerializers);
@@ -204,17 +193,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			return null;
 		}
 		try {
-			if (cachedConstructor == null) {
-				// constructor metahandle is not serializable, so we cannot populate this cache while
-				// building the serializer, as the whole serializer needs to be serializable
-				cachedConstructor = MethodHandles.lookup()
-					.findConstructor(clazz, MethodType.methodType(void.class));
-			}
-			T t = (T) cachedConstructor.invoke();
+			T t = clazz.newInstance();
 			initializeFields(t);
 			return t;
 		}
-		catch (Throwable e) {
+		catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate class.", e);
 		}
 	}
@@ -1143,5 +1126,4 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				subclassRegistry,
 				nonRegisteredSubclassSerializerCache);
 	}
-
 }

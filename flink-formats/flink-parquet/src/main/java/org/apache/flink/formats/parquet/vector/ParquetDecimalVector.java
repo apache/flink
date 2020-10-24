@@ -34,7 +34,7 @@ public class ParquetDecimalVector implements DecimalColumnVector {
 
 	private final ColumnVector vector;
 
-	ParquetDecimalVector(ColumnVector vector) {
+	public ParquetDecimalVector(ColumnVector vector) {
 		this.vector = vector;
 	}
 

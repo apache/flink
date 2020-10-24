@@ -190,6 +190,43 @@ input.addSink(sink)
 </div>
 </div>
 
+类似的，将 Protobuf 数据写入到 Parquet 格式可以通过：
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
+
+// ProtoRecord is a generated protobuf Message class.
+DataStream<ProtoRecord> stream = ...;
+
+final StreamingFileSink<ProtoRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, ParquetProtoWriters.forType(ProtoRecord.class))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
+
+// ProtoRecord is a generated protobuf Message class.
+val input: DataStream[ProtoRecord] = ...
+
+val sink: StreamingFileSink[ProtoRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, ParquetProtoWriters.forType(classOf[ProtoRecord]))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
 #### Avro格式
 
 Flink 也提供了将数据写入 Avro 文件的内置支持。对于创建 AvroWriterFactory 的快捷方法，更多信息可以参考 

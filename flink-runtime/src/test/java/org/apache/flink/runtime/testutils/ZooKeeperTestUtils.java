@@ -24,12 +24,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * ZooKeeper test utilities.
  */
 public class ZooKeeperTestUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperTestUtils.class);
 
 	/**
 	 * Creates a configuration to operate in {@link HighAvailabilityMode#ZOOKEEPER}.
@@ -68,8 +73,9 @@ public class ZooKeeperTestUtils {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
 
 		int connTimeout = 5000;
-		if (System.getenv().containsKey("CI")) {
+		if (runsOnCIInfrastructure()) {
 			// The regular timeout is to aggressive for Travis and connections are often lost.
+			LOG.info("Detected CI environment: Configuring connection and session timeout of 30 seconds");
 			connTimeout = 30000;
 		}
 
@@ -86,4 +92,10 @@ public class ZooKeeperTestUtils {
 		return config;
 	}
 
+	/**
+	 * @return true, if a CI environment is detected.
+	 */
+	public static boolean runsOnCIInfrastructure() {
+		return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
+	}
 }

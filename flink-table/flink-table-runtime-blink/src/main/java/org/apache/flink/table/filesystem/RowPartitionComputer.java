@@ -20,9 +20,11 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.Row;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -76,6 +78,10 @@ public class RowPartitionComputer implements PartitionComputer<Row> {
 		return partitionIndexes.length == 0 ? in : Row.project(in, nonPartitionIndexes);
 	}
 
+	public static Object restorePartValueFromType(String valStr, DataType type) {
+		return restorePartValueFromType(valStr, type.getLogicalType());
+	}
+
 	/**
 	 * Restore partition value from string and type.
 	 * This method is the opposite of method {@link #generatePartValues}.
@@ -84,12 +90,12 @@ public class RowPartitionComputer implements PartitionComputer<Row> {
 	 * @param type type of partition field.
 	 * @return partition value.
 	 */
-	public static Object restorePartValueFromType(String valStr, DataType type) {
+	public static Object restorePartValueFromType(String valStr, LogicalType type) {
 		if (valStr == null) {
 			return null;
 		}
 
-		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+		LogicalTypeRoot typeRoot = type.getTypeRoot();
 		switch (typeRoot) {
 			case CHAR:
 			case VARCHAR:
@@ -112,6 +118,8 @@ public class RowPartitionComputer implements PartitionComputer<Row> {
 				return LocalDate.parse(valStr);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return LocalDateTime.parse(valStr);
+			case DECIMAL:
+				return new BigDecimal(valStr);
 			default:
 				throw new RuntimeException(String.format(
 						"Can not convert %s to type %s for partition value",

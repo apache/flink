@@ -37,7 +37,6 @@ import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
-import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
@@ -223,6 +222,16 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       fieldNames: Seq[String],
       fieldTypes: Seq[LogicalType]): RelDataType = {
     buildStructType(fieldNames, fieldTypes, StructKind.FULLY_QUALIFIED)
+  }
+
+  /**
+    * Creates a table row type with the input fieldNames and input fieldTypes using
+    * FlinkTypeFactory. Table row type is table schema for Calcite RelNode. See getRowType of
+    * [[RelNode]]. Use FULLY_QUALIFIED to let each field must be referenced explicitly.
+    */
+  def buildRelNodeRowType(rowType: RowType): RelDataType = {
+    val fields = rowType.getFields
+    buildStructType(fields.map(_.getName), fields.map(_.getType), StructKind.FULLY_QUALIFIED)
   }
 
   /**
@@ -416,6 +425,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 }
 
 object FlinkTypeFactory {
+  val INSTANCE = new FlinkTypeFactory(new FlinkTypeSystem)
 
   def isTimeIndicatorType(t: LogicalType): Boolean = t match {
     case t: TimestampType

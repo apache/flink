@@ -155,8 +155,11 @@ public class AvroSchemaConverter {
 				return Types.INT;
 			case LONG:
 				// logical timestamp type
-				if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
+				if (schema.getLogicalType() == LogicalTypes.timestampMillis() ||
+						schema.getLogicalType() == LogicalTypes.timestampMicros()) {
 					return Types.SQL_TIMESTAMP;
+				} else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+					return Types.SQL_TIME;
 				}
 				return Types.LONG;
 			case FLOAT:
@@ -255,28 +258,24 @@ public class AvroSchemaConverter {
 						decimalType.getScale())
 						.notNull();
 			}
-			return DataTypes.ARRAY(DataTypes.TINYINT().bridgedTo(Byte.class))
-					.notNull();
+			return DataTypes.BYTES().notNull();
 		case INT:
 			// logical date and time type
 			final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
 			if (logicalType == LogicalTypes.date()) {
-				return DataTypes.DATE().bridgedTo(java.sql.Date.class).notNull();
+				return DataTypes.DATE().notNull();
 			} else if (logicalType == LogicalTypes.timeMillis()) {
-				return DataTypes.TIME().bridgedTo(java.sql.Time.class).notNull();
+				return DataTypes.TIME().notNull();
 			}
 			return DataTypes.INT().notNull();
 		case LONG:
 			// logical timestamp type
 			if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
-				return DataTypes.TIMESTAMP(3)
-						.bridgedTo(java.sql.Timestamp.class)
-						.notNull();
-			}
-			if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
-				return DataTypes.TIMESTAMP(6)
-						.bridgedTo(java.sql.Timestamp.class)
-						.notNull();
+				return DataTypes.TIMESTAMP(3).notNull();
+			} else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+				return DataTypes.TIMESTAMP(6).notNull();
+			} else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+				return DataTypes.TIME(6).notNull();
 			}
 			return DataTypes.BIGINT().notNull();
 		case FLOAT:
@@ -298,10 +297,10 @@ public class AvroSchemaConverter {
 	 * @return Avro's {@link Schema} matching this logical type.
 	 */
 	public static Schema convertToSchema(LogicalType logicalType) {
-		return convertToSchema(logicalType, 0);
+		return convertToSchema(logicalType, "record");
 	}
 
-	public static Schema convertToSchema(LogicalType logicalType, int rowTypeCounter) {
+	public static Schema convertToSchema(LogicalType logicalType, String rowName) {
 		int precision;
 		switch (logicalType.getTypeRoot()) {
 			case NULL:
@@ -360,13 +359,13 @@ public class AvroSchemaConverter {
 				// we have to make sure the record name is different in a Schema
 				SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder
 					.builder()
-					.record("row_" + rowTypeCounter)
+					.record(rowName)
 					.fields();
-				rowTypeCounter++;
 				for (int i = 0; i < rowType.getFieldCount(); i++) {
+					String fieldName = rowName + "_" + fieldNames.get(i);
 					builder = builder
-						.name(fieldNames.get(i))
-						.type(convertToSchema(rowType.getTypeAt(i), rowTypeCounter))
+						.name(fieldName)
+						.type(convertToSchema(rowType.getTypeAt(i), fieldName))
 						.noDefault();
 				}
 				return builder.endRecord();
@@ -376,14 +375,14 @@ public class AvroSchemaConverter {
 					.builder()
 					.nullable()
 					.map()
-					.values(convertToSchema(extractValueTypeToAvroMap(logicalType), rowTypeCounter));
+					.values(convertToSchema(extractValueTypeToAvroMap(logicalType), rowName));
 			case ARRAY:
 				ArrayType arrayType = (ArrayType) logicalType;
 				return SchemaBuilder
 					.builder()
 					.nullable()
 					.array()
-					.items(convertToSchema(arrayType.getElementType(), rowTypeCounter));
+					.items(convertToSchema(arrayType.getElementType(), rowName));
 			case RAW:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			default:

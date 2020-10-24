@@ -70,13 +70,13 @@ source_table = table_env.from_path("datagen")
 # or create a Table from a SQL query:
 source_table = table_env.sql_query("SELECT * FROM datagen")
 
-result_table = source_table.select("id + 1, data")
+result_table = source_table.select(source_table.id + 1, source_table.data)
 
 # 5. emit query result to sink table
 # emit a Table API result Table to a sink table:
-result_table.execute_insert("print").get_job_client().get_job_execution_result().result()
+result_table.execute_insert("print").wait()
 # or emit results via SQL query:
-table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 
 {% endhighlight %}
 
@@ -108,6 +108,8 @@ env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planne
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 {% endhighlight %}
+
+For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({% link dev/python/table-api-users-guide/table_environment.md %}#create-a-tableenvironment).
 
 The `TableEnvironment` is responsible for:
 
@@ -303,10 +305,10 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
 
 # compute revenue for all customers from France
 revenue = orders \
-    .select("name, country, revenue") \
-    .where("country === 'FRANCE'") \
-    .group_by("name") \
-    .select("name, revenue.sum AS rev_sum")
+    .select(orders.name, orders.country, orders.revenue) \
+    .where(orders.country == 'FRANCE') \
+    .group_by(orders.name) \
+    .select(orders.name, orders.revenue.sum.alias('rev_sum'))
     
 revenue.to_pandas()
 
@@ -366,7 +368,7 @@ table_env.execute_sql("""
             (SELECT id / 2 as id, data FROM random_source)
         WHERE id > 1
         GROUP BY id
-""").get_job_client().get_job_execution_result().result()
+""").wait()
 
 {% endhighlight %}
 
@@ -422,8 +424,7 @@ table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('table_api_table', table)
 
 # emit the Table API table
-table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table") \
-    .get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
 
 {% endhighlight %}
 
@@ -499,6 +500,7 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
+<span class="label label-info">Note</span> "to_pandas" will trigger the materialization of the table and collect table content to the memory of the client, it's good practice to limit the number of rows collected via <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>.
 <span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
 
 ### Emit Results to One Sink Table
@@ -517,7 +519,7 @@ table_env.execute_sql("""
 """)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.execute_insert("sink_table").get_job_client().get_job_execution_result().result()
+table.execute_insert("sink_table").wait()
 
 {% endhighlight %}
 
@@ -533,8 +535,7 @@ This could also be done using SQL:
 {% highlight python %}
 
 table_env.create_temporary_view("table_source", table)
-table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source") \
-    .get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait()
 
 {% endhighlight %}
 
@@ -574,7 +575,7 @@ statement_set.add_insert("first_sink_table", table)
 statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple_source")
 
 # execute the statement set
-statement_set.execute().get_job_client().get_job_execution_result().result()
+statement_set.execute().wait()
 
 {% endhighlight %}
 
@@ -612,7 +613,7 @@ table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table = table1 \
-    .where("LIKE(data, 'H%')") \
+    .where(table1.data.like('H%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -685,7 +686,7 @@ table_env.execute_sql("""
 
 statement_set = table_env.create_statement_set()
 
-statement_set.add_insert("print_sink_table", table1.where("LIKE(data, 'H%')"))
+statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')))
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())

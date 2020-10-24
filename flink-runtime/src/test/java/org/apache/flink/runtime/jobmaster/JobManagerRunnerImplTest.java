@@ -38,6 +38,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 
 import org.junit.After;
 import org.junit.Before;
@@ -180,10 +181,11 @@ public class JobManagerRunnerImplTest extends TestLogger {
 	public void testLibraryCacheManagerRegistration() throws Exception {
 		final OneShotLatch registerClassLoaderLatch = new OneShotLatch();
 		final OneShotLatch closeClassLoaderLeaseLatch = new OneShotLatch();
+		final TestingUserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
 			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> {
 				registerClassLoaderLatch.trigger();
-				return JobManagerRunnerImplTest.class.getClassLoader();
+				return userCodeClassLoader;
 			})
 			.setCloseRunnable(closeClassLoaderLeaseLatch::trigger)
 			.build();
@@ -302,6 +304,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 			haServices,
 			classLoaderLease,
 			TestingUtils.defaultExecutor(),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			System.currentTimeMillis());
 	}
 }

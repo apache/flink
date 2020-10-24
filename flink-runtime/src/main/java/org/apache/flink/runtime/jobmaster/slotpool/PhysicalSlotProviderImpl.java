@@ -32,14 +32,17 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
+/**
+ * The provider serves physical slot requests.
+ */
+public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 	private static final Logger LOG = LoggerFactory.getLogger(PhysicalSlotProviderImpl.class);
 
 	private final SlotSelectionStrategy slotSelectionStrategy;
 
 	private final SlotPool slotPool;
 
-	PhysicalSlotProviderImpl(SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
+	public PhysicalSlotProviderImpl(SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
 		this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
 		this.slotPool = checkNotNull(slotPool);
 		slotPool.disableBatchSlotRequestTimeoutCheck();
@@ -87,9 +90,11 @@ class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 			SlotRequestId slotRequestId,
 			ResourceProfile resourceProfile,
 			boolean willSlotBeOccupiedIndefinitely) {
-		return willSlotBeOccupiedIndefinitely ?
-			slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null) :
-			slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+		if (willSlotBeOccupiedIndefinitely) {
+			return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
+		} else {
+			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+		}
 	}
 
 	@Override

@@ -149,7 +149,13 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			finalPartitionPredicate);
 		// prune partitions
 		Optional<List<Map<String, String>>> remainingPartitions =
-			readPartitionsAndPrune(context, tableSourceTable, defaultPruner, allPredicates._1(), inputFieldNames);
+			readPartitionsAndPrune(
+					rexBuilder,
+					context,
+					tableSourceTable,
+					defaultPruner,
+					allPredicates._1(),
+					inputFieldNames);
 		// apply push down
 		DynamicTableSource dynamicTableSource = tableSourceTable.tableSource().copy();
 		remainingPartitions.ifPresent(((SupportsPartitionPushDown) dynamicTableSource)::applyPartitions);
@@ -224,6 +230,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 	}
 
 	private Optional<List<Map<String, String>>> readPartitionsAndPrune(
+			RexBuilder rexBuilder,
 			FlinkContext context,
 			TableSourceTable tableSourceTable,
 			Function<List<Map<String, String>>, List<Map<String, String>>> pruner,
@@ -254,6 +261,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			}
 			try {
 				return readPartitionFromCatalogAndPrune(
+					rexBuilder,
 					context,
 					catalogOptional.get(),
 					identifier,
@@ -271,6 +279,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 	}
 
 	private Optional<List<Map<String, String>>> readPartitionFromCatalogAndPrune(
+			RexBuilder rexBuilder,
 			FlinkContext context,
 			Catalog catalog,
 			ObjectIdentifier tableIdentifier,
@@ -281,6 +290,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 		ObjectPath tablePath = tableIdentifier.toObjectPath();
 		// build filters
 		RexNodeToExpressionConverter converter = new RexNodeToExpressionConverter(
+			rexBuilder,
 			allFieldNames.toArray(new String[0]),
 			context.getFunctionCatalog(),
 			context.getCatalogManager(),

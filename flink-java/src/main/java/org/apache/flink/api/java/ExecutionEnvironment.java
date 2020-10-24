@@ -890,7 +890,7 @@ public class ExecutionEnvironment {
 
 		try {
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+				lastJobExecutionResult = jobClient.getJobExecutionResult().get();
 			} else {
 				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}
@@ -899,10 +899,15 @@ public class ExecutionEnvironment {
 					jobListener -> jobListener.onJobExecuted(lastJobExecutionResult, null));
 
 		} catch (Throwable t) {
+			// get() on the JobExecutionResult Future will throw an ExecutionException. This
+			// behaviour was largely not there in Flink versions before the PipelineExecutor
+			// refactoring so we should strip that exception.
+			Throwable strippedException = ExceptionUtils.stripExecutionException(t);
+
 			jobListeners.forEach(jobListener -> {
-				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+				jobListener.onJobExecuted(null, strippedException);
 			});
-			ExceptionUtils.rethrowException(t);
+			ExceptionUtils.rethrowException(strippedException);
 		}
 
 		return lastJobExecutionResult;
@@ -970,7 +975,7 @@ public class ExecutionEnvironment {
 
 		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
-			.execute(plan, configuration);
+			.execute(plan, configuration, userClassloader);
 
 		try {
 			JobClient jobClient = jobClientFuture.get();

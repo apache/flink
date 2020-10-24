@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
@@ -27,8 +26,10 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,8 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
 	private final Map<IntermediateResultPartitionID, Set<SchedulingPipelinedRegion>> partitionConsumerRegions = new HashMap<>();
 
+	private final Map<SchedulingPipelinedRegion, List<ExecutionVertexID>> regionVerticesSorted = new IdentityHashMap<>();
+
 	public PipelinedRegionSchedulingStrategy(
 			final SchedulerOperations schedulerOperations,
 			final SchedulingTopology schedulingTopology) {
@@ -66,11 +69,16 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 	private void init() {
 		for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
 			for (SchedulingResultPartition partition : region.getConsumedResults()) {
-				checkState(partition.getResultType() == ResultPartitionType.BLOCKING);
+				checkState(partition.getResultType().isBlocking());
 
 				partitionConsumerRegions.computeIfAbsent(partition.getId(), pid -> new HashSet<>()).add(region);
 				correlatedResultPartitions.computeIfAbsent(partition.getResultId(), rid -> new HashSet<>()).add(partition);
 			}
+		}
+
+		for (SchedulingExecutionVertex vertex : schedulingTopology.getVertices()) {
+			final SchedulingPipelinedRegion region = schedulingTopology.getPipelinedRegionOfVertex(vertex.getId());
+			regionVerticesSorted.computeIfAbsent(region, r -> new ArrayList<>()).add(vertex.getId());
 		}
 	}
 
@@ -127,25 +135,29 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
 		checkState(areRegionVerticesAllInCreatedState(region), "BUG: trying to schedule a region which is not in CREATED state");
 
-		final Set<ExecutionVertexID> verticesToSchedule = IterableUtils.toStream(region.getVertices())
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
 		final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
-				schedulingTopology,
-				verticesToSchedule,
+			SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
+				regionVerticesSorted.get(region),
 				id -> deploymentOption);
 		schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
 	}
 
 	private boolean areRegionInputsAllConsumable(final SchedulingPipelinedRegion region) {
-		return IterableUtils.toStream(region.getConsumedResults())
-			.allMatch(partition -> partition.getState() == ResultPartitionState.CONSUMABLE);
+		for (SchedulingResultPartition partition : region.getConsumedResults()) {
+			if (partition.getState() != ResultPartitionState.CONSUMABLE) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private boolean areRegionVerticesAllInCreatedState(final SchedulingPipelinedRegion region) {
-		return IterableUtils.toStream(region.getVertices())
-			.allMatch(vertex -> vertex.getState() == ExecutionState.CREATED);
+		for (SchedulingExecutionVertex vertex : region.getVertices()) {
+			if (vertex.getState() != ExecutionState.CREATED) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

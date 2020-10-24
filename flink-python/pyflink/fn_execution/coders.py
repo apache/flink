@@ -32,13 +32,16 @@ except:
 __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
            'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder', 'ArrayCoder', 'MapCoder', 'DecimalCoder']
+           'TimestampCoder', 'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder']
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
+FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:aggregate_function:v1"
 FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1"
+FLINK_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1"
 FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:map_function:v1"
 FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:flatmap_function:v1"
+FLINK_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:v1"
 
 
 class BaseCoder(ABC):
@@ -67,6 +70,35 @@ class TableFunctionRowCoder(BaseCoder):
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._flatten_row_coder == other._flatten_row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._flatten_row_coder)
+
+
+class AggregateFunctionRowCoder(BaseCoder):
+    """
+    Coder for Aggregate Function Input Row.
+    """
+
+    def __init__(self, flatten_row_coder):
+        self._flatten_row_coder = flatten_row_coder
+
+    def get_impl(self):
+        return coder_impl.AggregateFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
+
+    @staticmethod
+    def from_schema_proto(schema_proto):
+        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+
+    def __repr__(self):
+        return 'AggregateFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__
@@ -180,7 +212,7 @@ class FieldCoder(ABC):
         pass
 
 
-class RowCoder(FieldCoder):
+class RowCoder(FieldCoder, BaseCoder):
     """
     Coder for Row.
     """
@@ -193,6 +225,18 @@ class RowCoder(FieldCoder):
 
     def __repr__(self):
         return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
 
 
 class CollectionCoder(FieldCoder):
@@ -220,17 +264,28 @@ class CollectionCoder(FieldCoder):
         return hash(self._elem_coder)
 
 
-class ArrayCoder(CollectionCoder):
+class BasicArrayCoder(CollectionCoder):
     """
     Coder for Array.
     """
 
     def __init__(self, elem_coder):
-        self._elem_coder = elem_coder
-        super(ArrayCoder, self).__init__(elem_coder)
+        super(BasicArrayCoder, self).__init__(elem_coder)
 
     def get_impl(self):
-        return coder_impl.ArrayCoderImpl(self._elem_coder.get_impl())
+        return coder_impl.BasicArrayCoderImpl(self._elem_coder.get_impl())
+
+
+class PrimitiveArrayCoder(CollectionCoder):
+    """
+    Coder for Primitive Array.
+    """
+
+    def __init__(self, elem_coder):
+        super(PrimitiveArrayCoder, self).__init__(elem_coder)
+
+    def get_impl(self):
+        return coder_impl.PrimitiveArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class MapCoder(FieldCoder):
@@ -466,8 +521,8 @@ def from_proto(field_type):
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
         timezone = pytz.timezone(os.environ['table.exec.timezone'])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
-    elif field_type_name == type_name.ARRAY:
-        return ArrayCoder(from_proto(field_type.collection_element_type))
+    elif field_type_name == type_name.BASIC_ARRAY:
+        return BasicArrayCoder(from_proto(field_type.collection_element_type))
     elif field_type_name == type_name.MAP:
         return MapCoder(from_proto(field_type.map_info.key_type),
                         from_proto(field_type.map_info.value_type))
@@ -507,8 +562,11 @@ def from_type_info_proto(field_type):
         if field_type_name == type_info_name.ROW:
             return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
 
-        if field_type_name == type_info_name.ARRAY:
-            return ArrayCoder([from_type_info_proto(field_type.collection_element_type)])
+        if field_type_name == type_info_name.PRIMITIVE_ARRAY:
+            return PrimitiveArrayCoder(from_type_info_proto(field_type.collection_element_type))
+
+        if field_type_name == type_info_name.BASIC_ARRAY:
+            return BasicArrayCoder(from_type_info_proto(field_type.collection_element_type))
 
         if field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(f.type)

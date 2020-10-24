@@ -77,6 +77,48 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testDDLWithMetadataColumn(): Unit = {
+    // tests reordering, skipping, and casting of metadata
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |)
+       """.stripMargin)
+    util.verifyPlan("SELECT * FROM MetadataTable")
+  }
+
+  @Test
+  def testDDLWithMetadataColumnProjectionPushDown(): Unit = {
+    // tests reordering, skipping, and casting of metadata
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |)
+       """.stripMargin)
+    util.verifyPlan("SELECT `b`, `other_metadata` FROM MetadataTable")
+  }
+
+  @Test
   def testDDLWithWatermarkComputedColumn(): Unit = {
     // Create table with field as atom expression.
     util.tableEnv.registerFunction("my_udf", Func0)
@@ -270,6 +312,23 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testWatermarkAndChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
     util.addTable(
       """
@@ -310,8 +369,10 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "'default_catalog.default_database.src' source produces ChangelogMode " +
-        "which contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
+      "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
+      "doesn't support a changelog which contains UPDATE_BEFORE but no UPDATE_AFTER. Please " +
+      "adapt the implementation of class 'org.apache.flink.table.planner.factories." +
+      "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -328,30 +389,12 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,D'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage("Currently, ScanTableSource doesn't support producing " +
-      "ChangelogMode which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
-      "Please adapt the implementation of 'TestValues' source.")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
-  def testUnsupportedWatermarkAndChangelogSource(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE src (
-        |  ts TIMESTAMP(3),
-        |  a INT,
-        |  b DOUBLE,
-        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
-        |) WITH (
-        |  'connector' = 'values',
-        |  'changelog-mode' = 'I,UB,UA,D'
-        |)
-      """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Currently, defining WATERMARK on a changelog source is not supported.")
+      "Unsupported source for table 'default_catalog.default_database.src'. Currently, a " +
+      "ScanTableSource doesn't support a changelog which contains UPDATE_AFTER but no " +
+      "UPDATE_BEFORE. Please adapt the implementation of class 'org.apache.flink.table.planner." +
+      "factories.TestValuesTableFactory$TestValuesScanLookupTableSource'.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 

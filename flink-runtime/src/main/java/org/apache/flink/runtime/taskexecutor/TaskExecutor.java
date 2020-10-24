@@ -70,6 +70,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
@@ -359,8 +360,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void onStart() throws Exception {
 		try {
 			startTaskExecutorServices();
-		} catch (Exception e) {
-			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), e);
+		} catch (Throwable t) {
+			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
@@ -1130,6 +1131,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			getAddress(),
 			getResourceID(),
 			unresolvedTaskManagerLocation.getDataPort(),
+			JMXService.getPort().orElse(-1),
 			hardwareDescription,
 			memoryConfiguration,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),
@@ -1425,16 +1427,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		// 2. Move the active slots to state allocated (possible to time out again)
-		Iterator<AllocationID> activeSlots = taskSlotTable.getActiveSlots(jobId);
+		Set<AllocationID> activeSlotAllocationIDs = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId);
 
 		final FlinkException freeingCause = new FlinkException("Slot could not be marked inactive.");
 
-		while (activeSlots.hasNext()) {
-			AllocationID activeSlot = activeSlots.next();
-
+		for (AllocationID activeSlotAllocationID : activeSlotAllocationIDs) {
 			try {
-				if (!taskSlotTable.markSlotInactive(activeSlot, taskManagerConfiguration.getTimeout())) {
-					freeSlotInternal(activeSlot, freeingCause);
+				if (!taskSlotTable.markSlotInactive(activeSlotAllocationID, taskManagerConfiguration.getTimeout())) {
+					freeSlotInternal(activeSlotAllocationID, freeingCause);
 				}
 			} catch (SlotNotFoundException e) {
 				log.debug("Could not mark the slot {} inactive.", jobId, e);
@@ -1696,8 +1696,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void freeNoLongerUsedSlots(AllocatedSlotReport allocatedSlotReport) {
-		final Iterator<AllocationID> slotsTaskManagerSide = taskSlotTable.getActiveSlots(allocatedSlotReport.getJobId());
-		final Set<AllocationID> activeSlots = Sets.newHashSet(slotsTaskManagerSide);
+		final Set<AllocationID> activeSlots = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(allocatedSlotReport.getJobId());
 		final Set<AllocationID> reportedSlots = allocatedSlotReport.getAllocatedSlotInfos().stream()
 				.map(AllocatedSlotInfo::getAllocationId).collect(Collectors.toSet());
 

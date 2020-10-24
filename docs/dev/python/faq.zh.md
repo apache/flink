@@ -96,3 +96,22 @@ table_env.add_python_file('myDir')
 def my_udf():
     from utils import my_util
 {% endhighlight %}
+
+## 当在 mini cluster 环境执行作业时，显式等待作业执行结束
+
+当在 mini cluster 环境执行作业（比如，在IDE中执行作业）且在作业中使用了如下API（比如 Python Table API 的
+TableEnvironment.execute_sql, StatementSet.execute 和 Python DataStream API 的 StreamExecutionEnvironment.execute_async）
+的时候，因为这些API是异步的，请记得显式地等待作业执行结束。否则程序会在已提交的作业执行结束之前退出，以致无法观测到已提交作业的执行结果。
+请参考如下示例代码，了解如何显式地等待作业执行结束：
+
+{% highlight python %}
+# 异步执行 SQL / Table API 作业
+t_result = table_env.execute_sql(...)
+t_result.wait()
+
+# 异步执行 DataStream 作业
+job_client = stream_execution_env.execute_async('My DataStream Job')
+job_client.get_job_execution_result().result()
+{% endhighlight %}
+
+<strong>注意:</strong> 当往远程集群提交作业时，无需显式地等待作业执行结束，所以当往远程集群提交作业之前，请记得移除这些等待作业执行结束的代码逻辑。

@@ -307,7 +307,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		CloseableRegistry cancelStreamRegistry) throws Exception {
 
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			isUsingAsynchronousSnapshots(),
 			stateHandles,
@@ -334,7 +334,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		return new HeapKeyedStateBackendBuilder<>(
 			kvStateRegistry,
 			keySerializer,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),

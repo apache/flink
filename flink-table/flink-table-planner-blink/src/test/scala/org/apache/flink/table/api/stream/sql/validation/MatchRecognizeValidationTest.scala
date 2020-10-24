@@ -35,7 +35,6 @@ import java.sql.Timestamp
 class MatchRecognizeValidationTest extends TableTestBase {
 
   private val streamUtil = scalaStreamTestUtil()
-  streamUtil.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   streamUtil.addDataStream[(Int, String, Timestamp)](
     "MyTable", 'a, 'b, 'rowtime.rowtime, 'proctime.proctime)
   streamUtil.addDataStream[(String, Long, Int, Int)](

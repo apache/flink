@@ -16,8 +16,8 @@
         </tr>
         <tr>
             <td><h5>table.exec.async-lookup.timeout</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">"3 min"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
@@ -30,8 +30,8 @@ By default no operator is disabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">"-1 ms"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
             <td>The maximum latency can be used for MiniBatch to buffer input records. MiniBatch is an optimization to buffer input records to reduce state access. MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. NOTE: If table.exec.mini-batch.enabled is set true, its value must be greater than zero.</td>
         </tr>
         <tr>
@@ -84,15 +84,9 @@ By default no operator is disabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.source.idle-timeout</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">"-1 ms"</td>
-            <td>String</td>
-            <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle.</td>
-        </tr>
-        <tr>
-            <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
-            <td>Specifies a minimum time interval for how long idle state (i.e. state which was not updated), will be retained. State will never be cleared until it was idle for less than the minimum time, and will be cleared at some time after it was idle. Default is never clean-up the state. NOTE: Cleaning up state requires additional overhead for bookkeeping. Default value is 0, which means that it will never clean up state.</td>
+            <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle. Default value is 0, which means detecting source idleness is not enabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.spill-compression.block-size</h5><br> <span class="label label-primary">Batch</span></td>
@@ -105,6 +99,12 @@ By default no operator is disabled.</td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Whether to compress spilled data. Currently we only support compress spilled data for sort and hash-agg and hash-join operators.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.state.ttl</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>Specifies a minimum time interval for how long idle state (i.e. state which was not updated), will be retained. State will never be cleared until it was idle for less than the minimum time, and will be cleared at some time after it was idle. Default is never clean-up the state. NOTE: Cleaning up state requires additional overhead for bookkeeping. Default value is 0, which means that it will never clean up state.</td>
         </tr>
         <tr>
             <td><h5>table.exec.window-agg.buffer-size-limit</h5><br> <span class="label label-primary">Batch</span></td>

@@ -62,7 +62,6 @@ public final class CsvFormatFactory implements
 
 	public static final String IDENTIFIER = "csv";
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -76,7 +75,7 @@ public final class CsvFormatFactory implements
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+						context.createTypeInformation(producedDataType);
 				final CsvRowDataDeserializationSchema.Builder schemaBuilder =
 						new CsvRowDataDeserializationSchema.Builder(
 								rowType,

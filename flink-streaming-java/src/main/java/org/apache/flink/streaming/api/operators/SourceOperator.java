@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
@@ -65,7 +66,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The output type of the operator.
  */
 @Internal
-@SuppressWarnings("serial")
 public class SourceOperator<OUT, SplitT extends SourceSplit>
 		extends AbstractStreamOperator<OUT>
 		implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
@@ -89,6 +89,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	/** The factory for timestamps and watermark generators. */
 	private final WatermarkStrategy<OUT> watermarkStrategy;
 
+	/** The Flink configuration. */
+	private final Configuration configuration;
+
+	/** Host name of the machine where the operator runs, to support locality aware work assignment. */
+	private final String localHostname;
+
 	// ---- lazily initialized fields (these fields are the "hot" fields) ----
 
 	/** The source reader that does most of the work. */
@@ -110,13 +116,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			OperatorEventGateway operatorEventGateway,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
 			WatermarkStrategy<OUT> watermarkStrategy,
-			ProcessingTimeService timeService) {
+			ProcessingTimeService timeService,
+			Configuration configuration,
+			String localHostname) {
 
 		this.readerFactory = checkNotNull(readerFactory);
 		this.operatorEventGateway = checkNotNull(operatorEventGateway);
 		this.splitSerializer = checkNotNull(splitSerializer);
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.processingTimeService = timeService;
+		this.configuration = checkNotNull(configuration);
+		this.localHostname = checkNotNull(localHostname);
 	}
 
 	@Override
@@ -127,6 +137,16 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			@Override
 			public MetricGroup metricGroup() {
 				return metricGroup;
+			}
+
+			@Override
+			public Configuration getConfiguration() {
+				return configuration;
+			}
+
+			@Override
+			public String getLocalHostName() {
+				return localHostname;
 			}
 
 			@Override
@@ -152,10 +172,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			sourceReader.addSplits(splits);
 		}
 
-		// Start the reader.
-		sourceReader.start();
 		// Register the reader to the coordinator.
 		registerReader();
+
+		// Start the reader after registration, sending messages in start is allowed.
+		sourceReader.start();
 
 		eventTimeLogic.startPeriodicWatermarkEmits();
 	}
@@ -219,8 +240,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 	private void registerReader() {
 		operatorEventGateway.sendEventToCoordinator(new ReaderRegistrationEvent(
-				getRuntimeContext().getIndexOfThisSubtask(),
-				"UNKNOWN_LOCATION"));
+				getRuntimeContext().getIndexOfThisSubtask(), localHostname));
 	}
 
 	// --------------- methods for unit tests ------------

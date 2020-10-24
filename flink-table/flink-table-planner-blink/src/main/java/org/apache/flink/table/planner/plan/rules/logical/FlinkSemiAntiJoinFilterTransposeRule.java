@@ -33,8 +33,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
  */
 
 /**
- * Planner rule that pushes
- * {@link org.apache.calcite.rel.core.SemiJoin}s down in a tree past
+ * Planner rule that pushes semi-join down in a tree past
  * a {@link org.apache.calcite.rel.core.Filter}.
  *
  * <p>The intention is to trigger other rules that will convert
@@ -42,7 +41,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
  *
  * <p>SemiJoin(LogicalFilter(X), Y) &rarr; LogicalFilter(SemiJoin(X, Y))
  *
- * @see SemiJoinProjectTransposeRule
+ * @see org.apache.calcite.rel.rules.SemiJoinProjectTransposeRule
  */
 public class FlinkSemiAntiJoinFilterTransposeRule extends RelOptRule {
 	public static final FlinkSemiAntiJoinFilterTransposeRule INSTANCE =
@@ -75,6 +74,7 @@ public class FlinkSemiAntiJoinFilterTransposeRule extends RelOptRule {
 		RelNode newJoin = LogicalJoin.create(
 				filter.getInput(),
 				join.getRight(),
+				join.getHints(),
 				join.getCondition(),
 				join.getVariablesSet(),
 				join.getJoinType());

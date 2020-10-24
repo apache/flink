@@ -62,6 +62,7 @@ table = t_env.from_pandas(pdf,
 在客户端将其序列化为Arrow列存格式，最大Arrow批处理大小
 由配置选项[python.fn-execution.arrow.batch.size]({% link dev/python/table-api-users-guide/python_config.zh.md %}#python-fn-execution-arrow-batch-size) 确定。
 序列化后的数据将被转换为Pandas DataFrame。这意味着需要把表的内容收集到客户端，因此在调用此函数之前，请确保表的内容可以容纳在内存中。
+可以通过<a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>，设置收集到客户端的数据的条数。
 
 以下示例显示了如何将PyFlink表转换为Pandas DataFrame：
 
@@ -71,8 +72,8 @@ import numpy as np
 
 # 创建PyFlink Table
 pdf = pd.DataFrame(np.random.rand(1000, 2))
-table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+table = t_env.from_pandas(pdf, ["a", "b"]).filter(col('a') > 0.5)
 
 # 转换PyFlink Table为Pandas DataFrame
-pdf = table.to_pandas()
+pdf = table.limit(100).to_pandas()
 {% endhighlight %}

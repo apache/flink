@@ -128,10 +128,12 @@ t_env.sql_update(my_sink_ddl)
 接下来，我们介绍如何创建一个作业：该作业读取表`mySource`中的数据，进行一些变换，然后将结果写入表`mySink`。
 
 {% highlight python %}
-t_env.scan('mySource') \
-    .group_by('word') \
-    .select('word, count(1)') \
-    .insert_into('mySink')
+from pyflink.table.expressions import lit
+
+tab = t_env.from_path('mySource')
+tab.group_by(tab.word) \
+   .select(tab.word, lit(1).count) \
+   .insert_into('mySink')
 {% endhighlight %}
 
 最后，需要做的就是启动Flink Python Table API作业。上面所有的操作，比如创建源表
@@ -148,6 +150,7 @@ t_env.execute("python_job")
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import TableConfig, DataTypes, BatchTableEnvironment
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
+from pyflink.table.expressions import lit
 
 exec_env = ExecutionEnvironment.get_execution_environment()
 exec_env.set_parallelism(1)
@@ -171,10 +174,10 @@ t_env.connect(FileSystem().path('/tmp/output')) \
                  .field('count', DataTypes.BIGINT())) \
     .create_temporary_table('mySink')
 
-t_env.from_path('mySource') \
-    .group_by('word') \
-    .select('word, count(1)') \
-    .insert_into('mySink')
+tab = t_env.from_path('mySource')
+tab.group_by(tab.word) \
+   .select(tab.word, lit(1).count) \
+   .insert_into('mySink')
 
 t_env.execute("python_job")
 {% endhighlight %}

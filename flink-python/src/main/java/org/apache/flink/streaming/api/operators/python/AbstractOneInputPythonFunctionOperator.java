@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
  */
 @Internal
 public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
-	extends AbstractPythonFunctionOperatorBase<OUT>
+	extends AbstractPythonFunctionOperator<OUT>
 	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;

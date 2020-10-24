@@ -38,7 +38,6 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -57,7 +56,9 @@ import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -110,6 +111,8 @@ public class StreamMockEnvironment implements Environment {
 	private final TaskStateManager taskStateManager;
 
 	private final GlobalAggregateManager aggregateManager;
+
+	private final UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 
 	@Nullable
 	private Consumer<Throwable> externalExceptionHandler;
@@ -200,7 +203,6 @@ public class StreamMockEnvironment implements Environment {
 		try {
 			outputs.add(new RecordOrEventCollectingResultPartitionWriter<T>(
 				outputList,
-				new TestPooledBufferProvider(Integer.MAX_VALUE),
 				serializer));
 		}
 		catch (Throwable t) {
@@ -254,8 +256,8 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
-		return getClass().getClassLoader();
+	public UserCodeClassLoader getUserCodeClassLoader() {
+		return userCodeClassLoader;
 	}
 
 	@Override

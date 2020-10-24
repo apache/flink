@@ -31,7 +31,7 @@ function internal_cleanup {
 
 start_kubernetes
 
-build_image ${FLINK_IMAGE_NAME}
+build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
@@ -55,4 +55,3 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 # instead of checking the result
 kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
 grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
-

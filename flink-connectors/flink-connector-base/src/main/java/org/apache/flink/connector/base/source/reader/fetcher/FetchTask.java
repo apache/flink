@@ -21,9 +21,10 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
+import java.io.IOException;
 import java.util.Collection;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
 /**
@@ -31,27 +32,27 @@ import java.util.function.Consumer;
  */
 class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 	private final SplitReader<E, SplitT> splitReader;
-	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
+	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 	private final Consumer<Collection<String>> splitFinishedCallback;
-	private final Thread runningThread;
+	private final int fetcherIndex;
 	private volatile RecordsWithSplitIds<E> lastRecords;
 	private volatile boolean wakeup;
 
 	FetchTask(
 			SplitReader<E, SplitT> splitReader,
-			BlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			Consumer<Collection<String>> splitFinishedCallback,
-			Thread runningThread) {
+			int fetcherIndex) {
 		this.splitReader = splitReader;
 		this.elementsQueue = elementsQueue;
 		this.splitFinishedCallback = splitFinishedCallback;
 		this.lastRecords = null;
-		this.runningThread = runningThread;
+		this.fetcherIndex = fetcherIndex;
 		this.wakeup = false;
 	}
 
 	@Override
-	public boolean run() throws InterruptedException {
+	public boolean run() throws IOException {
 		try {
 			if (!isWakenUp() && lastRecords == null) {
 				lastRecords = splitReader.fetch();
@@ -60,18 +61,21 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 			if (!isWakenUp()) {
 				// The order matters here. We must first put the last records into the queue.
 				// This ensures the handling of the fetched records is atomic to wakeup.
-				elementsQueue.put(lastRecords);
-				// The callback does not throw InterruptedException.
-				splitFinishedCallback.accept(lastRecords.finishedSplits());
-				lastRecords = null;
+				if (elementsQueue.put(fetcherIndex, lastRecords)) {
+					// The callback does not throw InterruptedException.
+					splitFinishedCallback.accept(lastRecords.finishedSplits());
+					lastRecords = null;
+				}
 			}
+		} catch (InterruptedException e) {
+			// this should only happen on shutdown
+			throw new IOException("Source fetch execution was interrupted", e);
 		} finally {
 			// clean up the potential wakeup effect. It is possible that the fetcher is waken up
 			// after the clean up. In that case, either the wakeup flag will be set or the
 			// running thread will be interrupted. The next invocation of run() will see that and
 			// just skip.
 			if (isWakenUp()) {
-				Thread.interrupted();
 				wakeup = false;
 			}
 		}
@@ -92,12 +96,12 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 			splitReader.wakeUp();
 		} else {
 			// The task might be blocking on enqueuing the records, just interrupt.
-			runningThread.interrupt();
+			elementsQueue.wakeUpPuttingThread(fetcherIndex);
 		}
 	}
 
 	private boolean isWakenUp() {
-		return wakeup || runningThread.isInterrupted();
+		return wakeup;
 	}
 
 	@Override

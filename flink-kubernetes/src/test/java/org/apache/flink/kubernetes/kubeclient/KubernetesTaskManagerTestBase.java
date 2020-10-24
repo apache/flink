@@ -21,7 +21,6 @@ package org.apache.flink.kubernetes.kubeclient;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -29,13 +28,10 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Base test class for the TaskManager side.
  */
-public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
+public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
 
 	protected static final int RPC_PORT = 12345;
 
@@ -45,34 +41,11 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 	protected static final int TOTAL_PROCESS_MEMORY = 1184;
 	protected static final double TASK_MANAGER_CPU = 2.0;
 
-	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
-		{
-			put("key1", "value1");
-			put("key2", "value2");
-		}
-	};
-
-	protected final Map<String, String> userLabels = new HashMap<String, String>() {
-		{
-			put("label1", "value1");
-			put("label2", "value2");
-		}
-	};
-
-	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
-		{
-			put("env", "production");
-			put("disk", "ssd");
-		}
-	};
-
 	protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
 	protected ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
 	protected KubernetesTaskManagerParameters kubernetesTaskManagerParameters;
-
-	protected FlinkPod baseFlinkPod = new FlinkPod.Builder().build();
 
 	@Override
 	protected void setupFlinkConfig() {

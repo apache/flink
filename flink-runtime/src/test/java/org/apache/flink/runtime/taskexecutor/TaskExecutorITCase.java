@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
@@ -150,7 +151,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 		return () -> {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
-			return allExecutionsRunning.test(executionGraph);
+			return allExecutionsRunning.test(executionGraph) && executionGraph.getState() == JobStatus.RUNNING;
 		};
 	}
 

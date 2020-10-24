@@ -38,9 +38,6 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.DefaultSchedulerFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -71,8 +68,6 @@ public class JobMasterBuilder {
 	private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
 	private SlotPoolFactory slotPoolFactory = null;
-
-	private SchedulerFactory schedulerFactory = null;
 
 	private OnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 
@@ -132,11 +127,6 @@ public class JobMasterBuilder {
 		return this;
 	}
 
-	public JobMasterBuilder withSchedulerFactory(SchedulerFactory schedulerFactory) {
-		this.schedulerFactory = schedulerFactory;
-		return this;
-	}
-
 	public JobMasterBuilder withOnCompletionActions(OnCompletionActions onCompletionActions) {
 		this.onCompletionActions = onCompletionActions;
 		return this;
@@ -176,8 +166,7 @@ public class JobMasterBuilder {
 			jmResourceId,
 			jobGraph,
 			highAvailabilityServices,
-			slotPoolFactory != null ? slotPoolFactory : DefaultSlotPoolFactory.fromConfiguration(configuration),
-			schedulerFactory != null ? schedulerFactory : DefaultSchedulerFactory.fromConfiguration(configuration),
+			slotPoolFactory != null ? slotPoolFactory : SlotPoolFactory.fromConfiguration(configuration),
 			jobManagerSharedServices,
 			heartbeatServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
@@ -188,7 +177,8 @@ public class JobMasterBuilder {
 			shuffleMaster,
 			partitionTrackerFactory,
 			executionDeploymentTracker,
-			executionDeploymentReconcilerFactory);
+			executionDeploymentReconcilerFactory,
+			System.currentTimeMillis());
 	}
 
 	/**

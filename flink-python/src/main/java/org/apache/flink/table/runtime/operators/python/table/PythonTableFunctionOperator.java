@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.utils.StreamRecordCRowWrappingCollector;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;

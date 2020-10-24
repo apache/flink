@@ -204,7 +204,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 				schemaTable,
 				catalogTable);
 		} else {
-			return new CatalogSourceTable<>(
+			return new CatalogSourceTable(
 				relOptSchema,
 				names,
 				rowType,
@@ -232,7 +232,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 					schemaTable.getCatalog(),
 					schemaTable.getTableIdentifier(),
 					catalogTable,
-					new Configuration());
+					new Configuration(),
+					schemaTable.isTemporary());
 				// success, then we will use the legacy factories
 				return true;
 			} catch (Throwable e) {

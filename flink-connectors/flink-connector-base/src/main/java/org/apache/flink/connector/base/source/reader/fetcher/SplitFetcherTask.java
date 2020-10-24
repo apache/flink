@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import java.io.IOException;
+
 /**
  * An interface similar to {@link Runnable} but allows throwing exceptions and wakeup.
  */
@@ -30,9 +32,9 @@ public interface SplitFetcherTask {
 	 * invocation is needed.
 	 *
 	 * @return whether the runnable has successfully finished running.
-	 * @throws InterruptedException when interrupted.
+	 * @throws IOException when the performed I/O operation fails.
 	 */
-	boolean run() throws InterruptedException;
+	boolean run() throws IOException;
 
 	/**
 	 * Wake up the running thread.

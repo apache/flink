@@ -127,16 +127,15 @@ public class SqlClient {
 	 * @param executor executor
 	 */
 	private void openCli(String sessionId, Executor executor) {
-		CliClient cli = null;
-		try {
-			Path historyFilePath;
-			if (options.getHistoryFilePath() != null) {
-				historyFilePath = Paths.get(options.getHistoryFilePath());
-			} else {
-				historyFilePath = Paths.get(System.getProperty("user.home"),
-						SystemUtils.IS_OS_WINDOWS ? "flink-sql-history" : ".flink-sql-history");
-			}
-			cli = new CliClient(sessionId, executor, historyFilePath);
+		Path historyFilePath;
+		if (options.getHistoryFilePath() != null) {
+			historyFilePath = Paths.get(options.getHistoryFilePath());
+		} else {
+			historyFilePath = Paths.get(System.getProperty("user.home"),
+				SystemUtils.IS_OS_WINDOWS ? "flink-sql-history" : ".flink-sql-history");
+		}
+
+		try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
 			// interactive CLI mode
 			if (options.getUpdateStatement() == null) {
 				cli.open();
@@ -147,10 +146,6 @@ public class SqlClient {
 				if (!success) {
 					throw new SqlClientException("Could not submit given SQL update statement to cluster.");
 				}
-			}
-		} finally {
-			if (cli != null) {
-				cli.close();
 			}
 		}
 	}

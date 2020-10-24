@@ -65,6 +65,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -84,6 +86,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -140,6 +143,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final ResourceManagerMetricGroup resourceManagerMetricGroup;
 
+	protected final Executor ioExecutor;
+
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
@@ -168,7 +173,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			Time rpcTimeout) {
+			Time rpcTimeout,
+			Executor ioExecutor) {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(RESOURCE_MANAGER_NAME), null);
 
@@ -197,6 +203,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					throw new CompletionException(throwable);
 				})
 		);
+		this.ioExecutor = ioExecutor;
 	}
 
 
@@ -209,8 +216,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public final void onStart() throws Exception {
 		try {
 			startResourceManagerServices();
-		} catch (Exception e) {
-			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), e);
+		} catch (Throwable t) {
+			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
@@ -376,7 +383,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					return registrationResponse;
 				}
 			},
-			getRpcService().getExecutor());
+			ioExecutor);
 	}
 
 	@Override
@@ -477,6 +484,27 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
+	public CompletableFuture<Acknowledge> declareRequiredResources(JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+		final JobID jobId = resourceRequirements.getJobId();
+		final JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+
+		if (null != jobManagerRegistration) {
+			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
+				log.info("Received resource declaration for job {}: {}", jobId, resourceRequirements.getResourceRequirements());
+
+				slotManager.processResourceRequirements(resourceRequirements);
+
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			} else {
+				return FutureUtils.completedExceptionally(new ResourceManagerException("The job leader's id " +
+					jobManagerRegistration.getJobMasterId() + " does not match the received id " + jobMasterId + '.'));
+			}
+		} else {
+			return FutureUtils.completedExceptionally(new ResourceManagerException("Could not find registered job manager for job " + jobId + '.'));
+		}
+	}
+
+	@Override
 	public void cancelSlotRequest(AllocationID allocationID) {
 		// As the slot allocations are async, it can not avoid all redundant slots, but should best effort.
 		slotManager.unregisterSlotRequest(allocationID);
@@ -546,6 +574,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					resourceId,
 					taskExecutor.getTaskExecutorGateway().getAddress(),
 					taskExecutor.getDataPort(),
+					taskExecutor.getJmxPort(),
 					taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
@@ -571,6 +600,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				resourceId,
 				taskExecutor.getTaskExecutorGateway().getAddress(),
 				taskExecutor.getDataPort(),
+				taskExecutor.getJmxPort(),
 				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 				slotManager.getNumberRegisteredSlotsOf(instanceId),
 				slotManager.getNumberFreeSlotsOf(instanceId),
@@ -784,6 +814,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskExecutorGateway,
 				newWorker,
 				taskExecutorRegistration.getDataPort(),
+				taskExecutorRegistration.getJmxPort(),
 				taskExecutorRegistration.getHardwareDescription(),
 				taskExecutorRegistration.getMemoryConfiguration());
 
@@ -852,6 +883,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			jobManagerHeartbeatManager.unmonitorTarget(jobManagerResourceId);
 
 			jmResourceIdRegistrations.remove(jobManagerResourceId);
+
+			slotManager.processResourceRequirements(ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
 
 			// tell the job manager about the disconnect
 			jobMasterGateway.disconnectResourceManager(getFencingToken(), cause);
@@ -976,7 +1009,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					leaderElectionService.confirmLeadership(newLeaderSessionID, getAddress());
 				}
 			},
-			getRpcService().getExecutor());
+			ioExecutor);
 
 		confirmationFuture.whenComplete(
 			(Void ignored, Throwable throwable) -> {
@@ -1181,6 +1214,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			if (jobManagerRegistration != null) {
 				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
 			}
+		}
+
+		@Override
+		public void notifyNotEnoughResourcesAvailable(JobID jobId, Collection<ResourceRequirement> acquiredResources) {
+			validateRunsInMainThread();
 		}
 	}
 

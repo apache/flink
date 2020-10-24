@@ -65,6 +65,7 @@ table and serialize them into multiple Arrow batches of Arrow columnar format at
 is determined by the config option [python.fn-execution.arrow.batch.size]({% link dev/python/table-api-users-guide/python_config.md %}#python-fn-execution-arrow-batch-size).
 The serialized data will then be converted to Pandas DataFrame. It will collect the content of the table to
 the client side and so please make sure that the content of the table could fit in memory before calling this method.
+You can limit the number of rows collected to client side via <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>
 
 The following example shows how to convert a PyFlink Table to a Pandas DataFrame:
 
@@ -74,8 +75,8 @@ import numpy as np
 
 # Create a PyFlink Table
 pdf = pd.DataFrame(np.random.rand(1000, 2))
-table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+table = t_env.from_pandas(pdf, ["a", "b"]).filter(col('a') > 0.5)
 
 # Convert the PyFlink Table to a Pandas DataFrame
-pdf = table.to_pandas()
+pdf = table.limit(100).to_pandas()
 {% endhighlight %}

@@ -21,6 +21,9 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceTracker;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 import org.apache.flink.util.Preconditions;
@@ -54,10 +57,7 @@ public class ResourceManagerRuntimeServices {
 			ScheduledExecutor scheduledExecutor,
 			SlotManagerMetricGroup slotManagerMetricGroup) {
 
-		final SlotManager slotManager = new SlotManagerImpl(
-			scheduledExecutor,
-			configuration.getSlotManagerConfiguration(),
-			slotManagerMetricGroup);
+		final SlotManager slotManager = createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
 
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
@@ -65,5 +65,21 @@ public class ResourceManagerRuntimeServices {
 			configuration.getJobTimeout());
 
 		return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
+	}
+
+	private static SlotManager createSlotManager(ResourceManagerRuntimeServicesConfiguration configuration, ScheduledExecutor scheduledExecutor, SlotManagerMetricGroup slotManagerMetricGroup) {
+		if (configuration.isDeclarativeResourceManagementEnabled()) {
+			return new DeclarativeSlotManager(
+				scheduledExecutor,
+				configuration.getSlotManagerConfiguration(),
+				slotManagerMetricGroup,
+				new DefaultResourceTracker(),
+				new DefaultSlotTracker());
+		} else {
+			return new SlotManagerImpl(
+				scheduledExecutor,
+				configuration.getSlotManagerConfiguration(),
+				slotManagerMetricGroup);
+		}
 	}
 }

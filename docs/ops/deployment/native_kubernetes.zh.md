@@ -74,7 +74,12 @@ $ ./bin/kubernetes-session.sh \
 
 如果你未通过 `kubernetes.cluster-id` 为 session 指定特定名称，Flink 客户端将会生成一个 UUID 名称。
 
+<span class="label label-info">注意</span> 如果要启动 session 集群运行 PyFlink 作业， 你需要提供一个安装有 Python 和 PyFlink 的镜像。
+请参考下面的[章节](#custom-flink-docker-image).
+
 ### 自定义 Flink Docker 镜像
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、[镜像 tags](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
 如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来指定它：
@@ -88,14 +93,60 @@ $ ./bin/kubernetes-session.sh \
   -Dresourcemanager.taskmanager-timeout=3600000 \
   -Dkubernetes.container.image=<CustomImageName>
 {% endhighlight %}
+</div>
+
+
+<div data-lang="python" markdown="1">
+请参考下面的 Dockerfile 构建一个安装了 Python 和 PyFlink 的 docker 镜像：
+{% highlight Dockerfile %}
+FROM flink
+
+# 安装 python3 和 pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+    
+# 安装 Python Flink
+RUN pip3 install apache-flink
+{% endhighlight %}
+
+构建镜像，命名为**pyflink:latest**:
+{% highlight bash %}
+sudo docker build -t pyflink:latest .
+{% endhighlight %}
+接下来将下面的命令行 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000 \
+  -Dkubernetes.container.image=pyflink:latest
+{% endhighlight %}
+</div>
+
+</div>
 
 ### 将作业提交到现有 Session
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 使用以下命令将 Flink 作业提交到 Kubernetes 集群。
 
 {% highlight bash %}
 $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> examples/streaming/WindowJoin.jar
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+使用以下命令将 PyFlink 作业提交到 Kubernetes 集群。
+{% highlight bash %}
+$ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> -pym scala_function -pyfs examples/python/table/udf
+{% endhighlight %}
+</div>
+</div>
 
 ### 访问 Job Manager UI
 
@@ -152,9 +203,11 @@ $ kubectl delete deployment/<ClusterID>
 ## Flink Kubernetes Application
 
 ### 启动 Flink Application
+<div class="codetabs" markdown="1">
 
 Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像](docker.html#customize-flink-image)的基础镜像。
 
+<div data-lang="java" markdown="1">
 {% highlight dockerfile %}
 FROM flink
 RUN mkdir -p $FLINK_HOME/usrlib
@@ -171,6 +224,44 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
   -Dkubernetes.container.image=<CustomImageName> \
   local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight dockerfile %}
+FROM flink
+
+# 安装 python3 and pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# 安装 Python Flink
+RUN pip3 install apache-flink
+COPY /path/of/python/codes /opt/python_codes
+
+# 如果有引用第三方 Python 依赖库， 可以在构建镜像时安装上这些依赖
+COPY /path/to/requirements.txt /opt/requirements.txt
+RUN pip3 install -r requirements.txt
+
+# 如果有引用第三方 Java 依赖， 也可以在构建镜像时加入到 ${FLINK_HOME}/usrlib 目录下
+RUN mkdir -p $FLINK_HOME/usrlib
+COPY /path/of/external/jar/dependencies $FLINK_HOME/usrlib/
+{% endhighlight %}
+
+假设构建的应用镜像名是 **my-pyflink-app:latest**， 通过下面的命令行运行 PyFlink 应用：
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=my-pyflink-app:latest \
+  -pym <ENTRY_MODULE_NAME> (or -py /opt/python_codes/<ENTRY_FILE_NAME>) -pyfs /opt/python_codes
+{% endhighlight %}
+可以使用 `-py/--python` 参数指定 PyFlink 应用的入口脚本文件， 或者使用 `-pym/--pyModule` 参数指定入口模块名， 使用 `-pyfs/--pyFiles` 参数指定所有 Python 文件路径， 以及其他在 flink run 中能配置的 PyFlink 作业参数。
+</div>
+</div>
+
 
 注意：Application 模式只支持 "local" 作为 schema。默认 jar 位于镜像中，而不是 Flink 客户端中。
 

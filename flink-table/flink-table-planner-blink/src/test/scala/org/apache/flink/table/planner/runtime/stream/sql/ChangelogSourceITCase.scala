@@ -92,7 +92,7 @@ class ChangelogSourceITCase(state: StateBackendMode) extends StreamingWithStateT
          |SELECT * FROM user_logs
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
-    execInsertSqlAndWaitResult(dml)
+    tEnv.executeSql(dml).await()
 
     val expected = Seq(
       "user1,Tom,tom123@gmail.com,8.10,16.20",
@@ -141,7 +141,7 @@ class ChangelogSourceITCase(state: StateBackendMode) extends StreamingWithStateT
          |GROUP BY 'ALL'
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
-    execInsertSqlAndWaitResult(dml)
+    tEnv.executeSql(dml).await()
 
     val expected = Seq("ALL,3,29.39,tom123@gmail.com")
     assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)

@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -71,6 +70,11 @@ public class HiveTestUtils {
 	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
 		return new HiveCatalog(name, null, createHiveConf(),
 				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion, true);
+	}
+
+	public static HiveCatalog createHiveCatalog(String name, String hiveConfDir, String hadoopConfDir, String hiveVersion) {
+		return new HiveCatalog(name, null, hiveConfDir, hadoopConfDir,
+			StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
@@ -144,10 +148,6 @@ public class HiveTestUtils {
 		tableEnv.registerCatalog(catalog.getName(), catalog);
 		tableEnv.useCatalog(catalog.getName());
 		return tableEnv;
-	}
-
-	public static void waitForJobFinish(TableResult tableResult) throws Exception {
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 
 	// Insert into a single partition of a text table.

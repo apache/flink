@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
@@ -118,7 +119,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE,
-			null);
+			null,
+			ForkJoinPool.commonPool());
 	}
 
 	@After

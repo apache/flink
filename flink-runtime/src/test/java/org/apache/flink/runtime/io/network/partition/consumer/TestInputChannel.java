@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,11 +34,10 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A mocked input channel.
@@ -55,7 +56,9 @@ public class TestInputChannel extends InputChannel {
 
 	private boolean isReleased = false;
 
-	private boolean isResumed;
+	private boolean isBlocked;
+
+	private int sequenceNumber;
 
 	public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
 		this(inputGate, channelIndex, true, false);
@@ -68,11 +71,11 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
-		return read(buffer, true);
+		return read(buffer, Buffer.DataType.DATA_BUFFER);
 	}
 
-	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
-		addBufferAndAvailability(new BufferAndAvailability(buffer, moreAvailable, 0));
+	public TestInputChannel read(Buffer buffer, @Nullable Buffer.DataType nextType) throws IOException, InterruptedException {
+		addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, 0, sequenceNumber++));
 		if (notifyChannelNonEmpty) {
 			notifyChannelNonEmpty();
 		}
@@ -80,23 +83,23 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	TestInputChannel readBuffer() throws IOException, InterruptedException {
-		return readBuffer(true);
+		return readBuffer(Buffer.DataType.DATA_BUFFER);
 	}
 
-	TestInputChannel readBuffer(boolean moreAvailable) throws IOException, InterruptedException {
-		final Buffer buffer = mock(Buffer.class);
-		when(buffer.isBuffer()).thenReturn(true);
-
-		return read(buffer, moreAvailable);
+	TestInputChannel readBuffer(Buffer.DataType nextType) throws IOException, InterruptedException {
+		return read(createBuffer(1), nextType);
 	}
 
 	TestInputChannel readEndOfPartitionEvent() {
 		addBufferAndAvailability(
 			() -> {
 				setReleased();
-				return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
-					false,
-					0));
+				return Optional.of(
+					new BufferAndAvailability(
+						EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+						Buffer.DataType.NONE,
+						0,
+						sequenceNumber++));
 			}
 		);
 		return this;
@@ -172,7 +175,7 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	public void resumeConsumption() {
-		isResumed = true;
+		isBlocked = false;
 	}
 
 	@Override
@@ -195,8 +198,12 @@ public class TestInputChannel extends InputChannel {
 		}
 	}
 
-	public boolean isResumed() {
-		return isResumed;
+	public boolean isBlocked() {
+		return isBlocked;
+	}
+
+	public void setBlocked(boolean isBlocked) {
+		this.isBlocked = isBlocked;
 	}
 
 	interface BufferAndAvailabilityProvider {

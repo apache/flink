@@ -28,6 +28,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Schema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -94,6 +95,59 @@ public class AvroSchemaConverterTest {
 		AvroSchemaConverter.convertToSchema(rowType);
 	}
 
+	@Test
+	public void testRowTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("row1", DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
+			.field("row2", DataTypes.ROW(DataTypes.FIELD("b", DataTypes.STRING())))
+			.field("row3", DataTypes.ROW(
+				DataTypes.FIELD("row3", DataTypes.ROW(DataTypes.FIELD("c", DataTypes.STRING())))))
+			.build().toRowDataType().getLogicalType();
+		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		assertEquals("{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"record\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"record_row1\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row1\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row1_a\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"record_row2\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row2\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row2_b\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"record_row3\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row3\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row3_row3\",\n" +
+			"        \"type\" : {\n" +
+			"          \"type\" : \"record\",\n" +
+			"          \"name\" : \"record_row3_row3\",\n" +
+			"          \"fields\" : [ {\n" +
+			"            \"name\" : \"record_row3_row3_c\",\n" +
+			"            \"type\" : [ \"string\", \"null\" ]\n" +
+			"          } ]\n" +
+			"        }\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  } ]\n" +
+			"}", schema.toString(true));
+	}
+
 	private void validateUserSchema(TypeInformation<?> actual) {
 		final TypeInformation<Row> address = Types.ROW_NAMED(
 			new String[]{
@@ -151,9 +205,9 @@ public class AvroSchemaConverterTest {
 			Types.PRIMITIVE_ARRAY(Types.BYTE),
 			Types.SQL_DATE,
 			Types.SQL_TIME,
-			Types.INT,
+			Types.SQL_TIME,
 			Types.SQL_TIMESTAMP,
-			Types.LONG,
+			Types.SQL_TIMESTAMP,
 			Types.BIG_DEC,
 			Types.BIG_DEC);
 
@@ -190,14 +244,14 @@ public class AvroSchemaConverterTest {
 				DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
 				DataTypes.FIELD("type_union", DataTypes.RAW(Types.GENERIC(Object.class)).notNull()),
 				DataTypes.FIELD("type_nested", address),
-				DataTypes.FIELD("type_bytes", DataTypes.ARRAY(DataTypes.TINYINT().bridgedTo(Byte.class)).notNull()),
-				DataTypes.FIELD("type_date", DataTypes.DATE().bridgedTo(java.sql.Date.class).notNull()),
-				DataTypes.FIELD("type_time_millis", DataTypes.TIME().bridgedTo(java.sql.Time.class).notNull()),
-				DataTypes.FIELD("type_time_micros", DataTypes.INT().notNull()),
+				DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
+				DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
+				DataTypes.FIELD("type_time_millis", DataTypes.TIME().notNull()),
+				DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
 				DataTypes.FIELD("type_timestamp_millis",
-						DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class).notNull()),
+						DataTypes.TIMESTAMP(3).notNull()),
 				DataTypes.FIELD("type_timestamp_micros",
-						DataTypes.TIMESTAMP(6).bridgedTo(java.sql.Timestamp.class).notNull()),
+						DataTypes.TIMESTAMP(6).notNull()),
 				DataTypes.FIELD("type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
 				DataTypes.FIELD("type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
 				.notNull();

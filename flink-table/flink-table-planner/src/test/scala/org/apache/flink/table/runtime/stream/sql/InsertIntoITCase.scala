@@ -38,7 +38,6 @@ class InsertIntoITCase extends StreamingWithStateTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.enableObjectReuse()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 

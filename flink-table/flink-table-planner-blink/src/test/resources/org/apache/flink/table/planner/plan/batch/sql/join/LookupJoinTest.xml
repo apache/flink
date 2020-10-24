@@ -664,4 +664,64 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinTemporalTableWithComputedColumn[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+FROM
+  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+  ON T.a = D.id
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], name=[$5], age=[$6], nominal_age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(id=[$0], name=[$1], age=[$2], nominal_age=[+($2, 1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, name, age, nominal_age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, id, name, age, +(age, 1) AS nominal_age])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+FROM
+  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+  ON T.a = D.id and D.nominal_age > 12
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], name=[$5], age=[$6], nominal_age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($3, 12))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(id=[$0], name=[$1], age=[$2], nominal_age=[+($2, 1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, name, age, nominal_age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(+(age, 1), 12)], select=[a, b, c, id, name, age, +(age, 1) AS nominal_age])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

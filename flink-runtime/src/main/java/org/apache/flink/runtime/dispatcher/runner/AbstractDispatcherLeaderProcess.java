@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -139,6 +140,8 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 	private void closeInternal() {
 		log.info("Stopping {}.", getClass().getSimpleName());
 
+		state = State.STOPPED;
+
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = closeDispatcherService();
 
 		final CompletableFuture<Void> onCloseTerminationFuture = FutureUtils.composeAfterwards(
@@ -148,8 +151,6 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 		FutureUtils.forward(
 			onCloseTerminationFuture,
 			this.terminationFuture);
-
-		state = State.STOPPED;
 	}
 
 	private CompletableFuture<Void> closeDispatcherService() {
@@ -177,6 +178,16 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 		dispatcherService = createdDispatcherService;
 		dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
 		FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
+		handleUnexpectedDispatcherServiceTermination(createdDispatcherService);
+	}
+
+	private void handleUnexpectedDispatcherServiceTermination(DispatcherGatewayService createdDispatcherService) {
+		createdDispatcherService.getTerminationFuture().whenComplete(
+				(ignored, throwable) -> {
+					runIfStateIs(State.RUNNING, () -> {
+						handleError(new FlinkException("Unexpected termination of DispatcherService.", throwable));
+					});
+				});
 	}
 
 	final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
@@ -225,11 +236,15 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 		}
 
 		if (throwable != null) {
-			closeAsync();
-			fatalErrorHandler.onFatalError(throwable);
+			handleError(throwable);
 		}
 
 		return null;
+	}
+
+	private void handleError(Throwable throwable) {
+		closeAsync();
+		fatalErrorHandler.onFatalError(throwable);
 	}
 
 	/**
@@ -264,5 +279,7 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
 
 		CompletableFuture<ApplicationStatus> getShutDownFuture();
+
+		CompletableFuture<Void> getTerminationFuture();
 	}
 }

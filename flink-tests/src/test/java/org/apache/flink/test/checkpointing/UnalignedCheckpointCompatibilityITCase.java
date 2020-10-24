@@ -19,16 +19,23 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.checkpointing.utils.AccumulatingIntegerSink;
 import org.apache.flink.test.checkpointing.utils.CancellingIntegerSource;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -38,9 +45,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -53,9 +58,8 @@ import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DI
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
-import static org.apache.flink.runtime.jobgraph.SavepointConfigOptions.SAVEPOINT_PATH;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
-import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.createLocalEnvironment;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
@@ -63,10 +67,10 @@ import static org.junit.Assert.assertEquals;
  * Tests recovery from a snapshot created in different UC mode (i.e. unaligned checkpoints enabled/disabled).
  */
 @RunWith(Parameterized.class)
-public class UnalignedCheckpointCompatibilityITCase {
+public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private static final int TOTAL_ELEMENTS = 20;
 	private static final int FIRST_RUN_EL_COUNT = TOTAL_ELEMENTS / 2;
@@ -75,6 +79,8 @@ public class UnalignedCheckpointCompatibilityITCase {
 
 	private final boolean startAligned;
 	private final CheckpointType type;
+
+	private static MiniClusterWithClientResource miniCluster;
 
 	@Parameterized.Parameters(name = "type: {0}, startAligned: {1}")
 	public static Object[][] parameters() {
@@ -89,6 +95,29 @@ public class UnalignedCheckpointCompatibilityITCase {
 	public UnalignedCheckpointCompatibilityITCase(CheckpointType type, boolean startAligned) {
 		this.startAligned = startAligned;
 		this.type = type;
+	}
+
+	@BeforeClass
+	public static void setupMiniCluster() throws Exception {
+		File folder = temporaryFolder.getRoot();
+		final Configuration conf = new Configuration();
+		conf.set(CHECKPOINTS_DIRECTORY, folder.toURI().toString());
+		// prevent deletion of checkpoint files while it's being checked and used
+		conf.set(MAX_RETAINED_CHECKPOINTS, Integer.MAX_VALUE);
+
+		miniCluster = new MiniClusterWithClientResource(
+			new MiniClusterResourceConfiguration.Builder().setConfiguration(conf).build());
+		miniCluster.before();
+	}
+
+	@AfterClass
+	public static void teardownMiniCluster() {
+		miniCluster.after();
+	}
+
+	@Before
+	public void cleanDirectory() throws IOException {
+		FileUtils.cleanDirectory(temporaryFolder.getRoot());
 	}
 
 	@Test
@@ -106,17 +135,19 @@ public class UnalignedCheckpointCompatibilityITCase {
 	}
 
 	private Tuple2<String, Map<String, Object>> runAndTakeSavepoint() throws Exception {
-		JobClient jobClient = submitJobInitially(env(startAligned, 0, emptyMap()));
-		Thread.sleep(FIRST_RUN_EL_COUNT * FIRST_RUN_BACKPRESSURE_MS); // wait for all tasks to run and some backpressure from sink
-		Future<Map<String, Object>> accFuture = jobClient.getAccumulators(getClass().getClassLoader());
+		JobClient jobClient = submitJobInitially(env(startAligned, 0));
+		waitForAllTaskRunning(() -> miniCluster.getMiniCluster().getExecutionGraph(jobClient.getJobID()).get());
+		Thread.sleep(FIRST_RUN_BACKPRESSURE_MS); // wait for some backpressure from sink
+
+		Future<Map<String, Object>> accFuture = jobClient.getAccumulators();
 		Future<String> savepointFuture = jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
 		return new Tuple2<>(savepointFuture.get(), accFuture.get());
 	}
 
 	private Tuple2<String, Map<String, Object>> runAndTakeExternalCheckpoint() throws Exception {
-		File folder = tempFolder();
-		JobClient jobClient = submitJobInitially(externalCheckpointEnv(startAligned, folder, 100));
-		File metadata = waitForChild(waitForChild(waitForChild(folder))); // structure: root/attempt/checkpoint/_metadata
+		JobClient jobClient = submitJobInitially(env(startAligned, 100));
+		// structure: root/attempt/checkpoint/_metadata
+		File metadata = waitForChild(waitForChild(waitForChild(temporaryFolder.getRoot())));
 		cancelJob(jobClient);
 		return new Tuple2<>(metadata.getParentFile().toString(), emptyMap());
 	}
@@ -126,8 +157,10 @@ public class UnalignedCheckpointCompatibilityITCase {
 	}
 
 	private Map<String, Object> runFromSavepoint(String path, boolean isAligned, int totalCount) throws Exception {
-		StreamExecutionEnvironment env = env(isAligned, 50, Collections.singletonMap(SAVEPOINT_PATH, path));
-		return env.execute(dag(totalCount, false, 0, env)).getJobExecutionResult().getAllAccumulatorResults();
+		StreamExecutionEnvironment env = env(isAligned, 50);
+		final StreamGraph streamGraph = dag(totalCount, false, 0, env);
+		streamGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(path));
+		return env.execute(streamGraph).getJobExecutionResult().getAllAccumulatorResults();
 	}
 
 	@SuppressWarnings({"OptionalGetWithoutIsPresent", "ConstantConditions"})
@@ -141,30 +174,19 @@ public class UnalignedCheckpointCompatibilityITCase {
 	private void cancelJob(JobClient jobClient) throws InterruptedException, java.util.concurrent.ExecutionException {
 		jobClient.cancel().get();
 		try {
-			jobClient.getJobExecutionResult(getClass().getClassLoader()); // wait for cancellation
+			jobClient.getJobExecutionResult(); // wait for cancellation
 		} catch (Exception e) {
 			// ignore cancellation exception
 		}
 	}
 
-	private StreamExecutionEnvironment externalCheckpointEnv(boolean isAligned, File dir, int checkpointingInterval) {
-		Map<ConfigOption<?>, String> cfg = new HashMap<>();
-		cfg.put(CHECKPOINTS_DIRECTORY, dir.toURI().toString());
-		cfg.put(MAX_RETAINED_CHECKPOINTS, Integer.toString(Integer.MAX_VALUE)); // prevent deletion of checkpoint files while it's being checked and used
-		StreamExecutionEnvironment env = env(isAligned, checkpointingInterval, cfg);
-		env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
-		return env;
-	}
-
 	@SuppressWarnings("unchecked")
-	private StreamExecutionEnvironment env(boolean isAligned, int checkpointingInterval, Map<ConfigOption<?>, String> cfg) {
-		Configuration configuration = new Configuration();
-		for (Map.Entry<ConfigOption<?>, String> e: cfg.entrySet()) {
-			configuration.setString((ConfigOption<String>) e.getKey(), e.getValue());
-		}
-		StreamExecutionEnvironment env = createLocalEnvironment(PARALLELISM, configuration);
+	private StreamExecutionEnvironment env(boolean isAligned, int checkpointingInterval) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(PARALLELISM);
 		env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
 		env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
+		env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
 		if (checkpointingInterval > 0) {
 			env.enableCheckpointing(checkpointingInterval);
 		}

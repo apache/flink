@@ -82,6 +82,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
@@ -122,6 +123,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 
 	@Override
 	public final DataStreamSink consumeDataStream(DataStream dataStream) {
+		checkAcidTable(catalogTable, identifier.toObjectPath());
 		String[] partitionColumns = getPartitionKeys().toArray(new String[0]);
 		String dbName = identifier.getDatabaseName();
 		String tableName = identifier.getObjectName();

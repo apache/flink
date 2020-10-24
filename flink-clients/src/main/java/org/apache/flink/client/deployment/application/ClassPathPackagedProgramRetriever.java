@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -111,6 +112,19 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 	@Override
 	public PackagedProgram getPackagedProgram() throws FlinkException {
 		try {
+			// It is Python job if program arguments contain "-py"/--python" or "-pym/--pyModule", set the fixed
+			// jobClassName and jarFile path.
+			if (PackagedProgramUtils.isPython(jobClassName) || PackagedProgramUtils.isPython(programArguments)){
+				String pythonJobClassName = PackagedProgramUtils.getPythonDriverClassName();
+				File pythonJarFile = new File(PackagedProgramUtils.getPythonJar().getPath());
+				return PackagedProgram.newBuilder()
+					.setUserClassPaths(new ArrayList<>(userClassPaths))
+					.setArguments(programArguments)
+					.setJarFile(pythonJarFile)
+					.setEntryPointClassName(pythonJobClassName)
+					.build();
+			}
+
 			if (jarFile != null) {
 				return PackagedProgram.newBuilder()
 					.setUserClassPaths(new ArrayList<>(userClassPaths))

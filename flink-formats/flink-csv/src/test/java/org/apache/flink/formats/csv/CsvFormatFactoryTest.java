@@ -226,7 +226,8 @@ public class CsvFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				CsvFormatFactoryTest.class.getClassLoader());
+				CsvFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -235,6 +236,7 @@ public class CsvFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				CsvFormatFactoryTest.class.getClassLoader());
+				CsvFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

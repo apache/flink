@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -30,6 +30,8 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 class BatchExecLocalHashWindowAggregate(
     cluster: RelOptCluster,
@@ -85,5 +87,5 @@ class BatchExecLocalHashWindowAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.MATERIALIZING
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 }

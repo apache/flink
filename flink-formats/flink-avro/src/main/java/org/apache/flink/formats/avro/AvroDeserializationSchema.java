@@ -144,7 +144,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			SpecificData specificData = new SpecificData(cl);
+			@SuppressWarnings("unchecked")
+			SpecificData specificData = AvroFactory.getSpecificDataForClass(
+				(Class<? extends SpecificData>) recordClazz,
+				cl);
 			this.datumReader = new SpecificDatumReader<>(specificData);
 			this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
 		} else {
@@ -163,7 +166,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public TypeInformation<T> getProducedType() {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
 			return new AvroTypeInfo(recordClazz);

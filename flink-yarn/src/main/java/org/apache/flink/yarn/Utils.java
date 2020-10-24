@@ -18,10 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,6 +43,7 @@ import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -48,6 +51,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -58,7 +62,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
@@ -74,6 +80,21 @@ public final class Utils {
 
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+	@VisibleForTesting
+	static final String YARN_RM_FAIR_SCHEDULER_CLAZZ = "org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler";
+	@VisibleForTesting
+	static final String YARN_RM_SLS_FAIR_SCHEDULER_CLAZZ = "org.apache.hadoop.yarn.sls.scheduler.SLSFairScheduler";
+	@VisibleForTesting
+	static final String YARN_RM_INCREMENT_ALLOCATION_MB_KEY = "yarn.resource-types.memory-mb.increment-allocation";
+	@VisibleForTesting
+	static final String YARN_RM_INCREMENT_ALLOCATION_MB_LEGACY_KEY = "yarn.scheduler.increment-allocation-mb";
+	private static final int DEFAULT_YARN_RM_INCREMENT_ALLOCATION_MB = 1024;
+	@VisibleForTesting
+	static final String YARN_RM_INCREMENT_ALLOCATION_VCORES_KEY = "yarn.resource-types.vcores.increment-allocation";
+	@VisibleForTesting
+	static final String YARN_RM_INCREMENT_ALLOCATION_VCORES_LEGACY_KEY = "yarn.scheduler.increment-allocation-vcores";
+	private static final int DEFAULT_YARN_RM_INCREMENT_ALLOCATION_VCORES = 1;
 
 	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
 		addToEnvironment(
@@ -92,10 +113,9 @@ public final class Utils {
 	 * Deletes the YARN application files, e.g., Flink binaries, libraries, etc., from the remote
 	 * filesystem.
 	 *
-	 * @param env The environment variables.
+	 * @param applicationFilesDir The application files directory.
 	 */
-	public static void deleteApplicationFiles(final Map<String, String> env) {
-		final String applicationFilesDir = env.get(YarnConfigKeys.FLINK_YARN_FILES);
+	public static void deleteApplicationFiles(final String applicationFilesDir) {
 		if (!StringUtils.isNullOrWhitespaceOnly(applicationFilesDir)) {
 			final org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(applicationFilesDir);
 			try {
@@ -191,9 +211,9 @@ public final class Utils {
 				// ----
 				// Intended call: HBaseConfiguration.addHbaseResources(conf);
 				Class
-						.forName("org.apache.hadoop.hbase.HBaseConfiguration")
-						.getMethod("addHbaseResources", Configuration.class)
-						.invoke(null, conf);
+					.forName("org.apache.hadoop.hbase.HBaseConfiguration")
+					.getMethod("addHbaseResources", Configuration.class)
+					.invoke(null, conf);
 				// ----
 
 				LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
@@ -203,14 +223,38 @@ public final class Utils {
 					return;
 				}
 
-				LOG.info("Obtaining Kerberos security token for HBase");
-				// ----
-				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
-				Token<?> token = (Token<?>) Class
+				Token<?> token;
+				try {
+					LOG.info("Obtaining Kerberos security token for HBase");
+					// ----
+					// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
+					token = (Token<?>) Class
 						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
 						.getMethod("obtainToken", Configuration.class)
 						.invoke(null, conf);
-				// ----
+					// ----
+				} catch (NoSuchMethodException e){
+					// for HBase 2
+
+					// ----
+					// Intended call: ConnectionFactory connectionFactory = ConnectionFactory.createConnection(conf);
+					Closeable connectionFactory = (Closeable) Class
+						.forName("org.apache.hadoop.hbase.client.ConnectionFactory")
+						.getMethod("createConnection", Configuration.class)
+						.invoke(null, conf);
+					// ----
+					Class<?> connectionClass = Class.forName("org.apache.hadoop.hbase.client.Connection");
+					// ----
+					// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(connectionFactory);
+					token = (Token<?>) Class
+						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
+						.getMethod("obtainToken", connectionClass)
+						.invoke(null, connectionFactory);
+					// ----
+					if (null != connectionFactory){
+						connectionFactory.close();
+					}
+				}
 
 				if (token == null) {
 					LOG.error("No Kerberos security token for HBase available");
@@ -220,11 +264,11 @@ public final class Utils {
 				credentials.addToken(token.getService(), token);
 				LOG.info("Added HBase Kerberos security token to credentials.");
 			} catch (ClassNotFoundException
-					| NoSuchMethodException
-					| IllegalAccessException
-					| InvocationTargetException e) {
+				| NoSuchMethodException
+				| IllegalAccessException
+				| InvocationTargetException e) {
 				LOG.info("HBase is not available (not packaged with this application): {} : \"{}\".",
-						e.getClass().getSimpleName(), e.getMessage());
+					e.getClass().getSimpleName(), e.getMessage());
 			}
 		}
 	}
@@ -297,8 +341,8 @@ public final class Utils {
 	 *		 The Flink configuration object.
 	 * @param yarnConfig
 	 *		 The YARN configuration object.
-	 * @param env
-	 *		 The environment variables.
+	 * @param configuration
+	 *		 The YarnResourceManagerDriver configurations.
 	 * @param tmParams
 	 *		 The TaskExecutor container memory parameters.
 	 * @param taskManagerDynamicProperties
@@ -318,7 +362,7 @@ public final class Utils {
 	static ContainerLaunchContext createTaskExecutorContext(
 		org.apache.flink.configuration.Configuration flinkConfig,
 		YarnConfiguration yarnConfig,
-		Map<String, String> env,
+		YarnResourceManagerDriverConfiguration configuration,
 		ContaineredTaskManagerParameters tmParams,
 		String taskManagerDynamicProperties,
 		String workingDirectory,
@@ -327,26 +371,15 @@ public final class Utils {
 
 		// get and validate all relevant variables
 
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_DIST_JAR);
-		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
+		String remoteFlinkJarPath = checkNotNull(configuration.getFlinkDistJar(), "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
 
-		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
-		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
+		String shipListString = checkNotNull(configuration.getClientShipFiles(), "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
 
-		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-		require(clientHomeDir != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-
-		String shipListString = env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-		require(shipListString != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-
-		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
-
-		final String remoteKeytabPath = env.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
-		final String localKeytabPath = env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
-		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
+		final String remoteKeytabPath = configuration.getRemoteKeytabPath();
+		final String localKeytabPath = configuration.getLocalKeytabPath();
+		final String keytabPrincipal = configuration.getKeytabPrinciple();
+		final String remoteYarnConfPath = configuration.getYarnSiteXMLPath();
+		final String remoteKrb5Path = configuration.getKrb5Path();
 
 		if (log.isDebugEnabled()) {
 			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
@@ -356,8 +389,7 @@ public final class Utils {
 			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
 		}
 
-		String classPathString = env.get(ENV_FLINK_CLASSPATH);
-		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
+		String classPathString = checkNotNull(configuration.getFlinkClasspath(), "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
 
 		//register keytab
 		LocalResource keytabResource = null;
@@ -370,8 +402,6 @@ public final class Utils {
 
 		//To support Yarn Secure Integration Test Scenario
 		LocalResource yarnConfResource = null;
-		LocalResource krb5ConfResource = null;
-		boolean hasKrb5 = false;
 		if (remoteYarnConfPath != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
@@ -379,8 +409,11 @@ public final class Utils {
 			yarnConfResource = registerLocalResource(fs, yarnConfPath, LocalResourceType.FILE);
 		}
 
+		// register krb5.conf
+		LocalResource krb5ConfResource = null;
+		boolean hasKrb5 = false;
 		if (remoteKrb5Path != null) {
-			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
+			log.info("Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
 			FileSystem fs = krb5ConfPath.getFileSystem(yarnConfig);
 			krb5ConfResource = registerLocalResource(fs, krb5ConfPath, LocalResourceType.FILE);
@@ -501,17 +534,31 @@ public final class Utils {
 		return resourceDescriptors;
 	}
 
-	/**
-	 * Validates a condition, throwing a RuntimeException if the condition is violated.
-	 *
-	 * @param condition The condition.
-	 * @param message The message for the runtime exception, with format variables as defined by
-	 *                {@link String#format(String, Object...)}.
-	 * @param values The format arguments.
-	 */
-	static void require(boolean condition, String message, Object... values) {
-		if (!condition) {
-			throw new RuntimeException(String.format(message, values));
+	@VisibleForTesting
+	static Resource getUnitResource(YarnConfiguration yarnConfig) {
+		final int unitMemMB, unitVcore;
+
+		final String yarnRmSchedulerClazzName = yarnConfig.get(YarnConfiguration.RM_SCHEDULER);
+		if (Objects.equals(yarnRmSchedulerClazzName, YARN_RM_FAIR_SCHEDULER_CLAZZ) ||
+				Objects.equals(yarnRmSchedulerClazzName, YARN_RM_SLS_FAIR_SCHEDULER_CLAZZ)) {
+			String propMem = yarnConfig.get(YARN_RM_INCREMENT_ALLOCATION_MB_KEY);
+			String propVcore = yarnConfig.get(YARN_RM_INCREMENT_ALLOCATION_VCORES_KEY);
+
+			unitMemMB = propMem != null ?
+					Integer.parseInt(propMem) :
+					yarnConfig.getInt(YARN_RM_INCREMENT_ALLOCATION_MB_LEGACY_KEY, DEFAULT_YARN_RM_INCREMENT_ALLOCATION_MB);
+			unitVcore = propVcore != null ?
+					Integer.parseInt(propVcore) :
+					yarnConfig.getInt(YARN_RM_INCREMENT_ALLOCATION_VCORES_LEGACY_KEY, DEFAULT_YARN_RM_INCREMENT_ALLOCATION_VCORES);
+		} else {
+			unitMemMB = yarnConfig.getInt(
+					YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
+					YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB);
+			unitVcore = yarnConfig.getInt(
+					YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
+					YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES);
 		}
+
+		return Resource.newInstance(unitMemMB, unitVcore);
 	}
 }

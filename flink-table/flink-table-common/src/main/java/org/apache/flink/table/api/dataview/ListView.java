@@ -64,7 +64,7 @@ import java.util.Objects;
  *    public long count = 0L;
  *  }
  *
- *  public class MyAggregateFunction extends AggregateFunction<Long, MyAccumulator> {
+ *  public class MyAggregateFunction extends AggregateFunction<String, MyAccumulator> {
  *
  *   {@literal @}Override
  *   public MyAccumulator createAccumulator() {
@@ -73,18 +73,13 @@ import java.util.Objects;
  *
  *   public void accumulate(MyAccumulator accumulator, String id) {
  *     accumulator.list.add(id);
- *     ... ...
- *     accumulator.list.get()
- *     ... ...
+ *     accumulator.count++;
  *   }
  *
  *   {@literal @}Override
- *   public Long getValue(MyAccumulator accumulator) {
- *     accumulator.list.add(id);
- *     ... ...
- *     accumulator.list.get()
- *     ... ...
- *     return accumulator.count;
+ *   public String getValue(MyAccumulator accumulator) {
+ *     // return the count and the joined elements
+ *     return count + ": " + String.join("|", acc.list.get());
  *   }
  * }
  *

@@ -21,8 +21,7 @@ from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, SimpleStringEncoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaConsumer010, FlinkKafkaProducer010, \
-    FlinkKafkaConsumer011, FlinkKafkaProducer011, FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink,\
+from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink,\
     JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, DefaultRollingPolicy, \
     OutputFileConfig
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
@@ -35,19 +34,12 @@ class FlinkKafkaTest(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
         # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
         # load specific connector jars with given module path to do dependency isolation. And We
         # will change the ClassLoader back to the cached ContextClassLoader after the test case
         # finished.
         self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-
-    def test_kafka_connector_010(self):
-        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-kafka-0.10')
-        self.kafka_connector_assertion(FlinkKafkaConsumer010, FlinkKafkaProducer010)
-
-    def test_kafka_connector_011(self):
-        _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-kafka-0.11')
-        self.kafka_connector_assertion(FlinkKafkaConsumer011, FlinkKafkaProducer011)
 
     def test_kafka_connector_universal(self):
         _load_specific_flink_module_jars('/flink-connectors/flink-sql-connector-kafka')

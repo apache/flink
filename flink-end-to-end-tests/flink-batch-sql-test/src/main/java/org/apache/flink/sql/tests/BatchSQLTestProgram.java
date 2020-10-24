@@ -70,7 +70,7 @@ public class BatchSQLTestProgram {
 
 		TableResult result = tEnv.executeSql(sqlStatement);
 		// wait job finish
-		result.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		result.getJobClient().get().getJobExecutionResult().get();
 	}
 
 	/**

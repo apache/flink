@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -198,6 +199,25 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		} else {
 			return Collections.unmodifiableSet(allocationIds);
 		}
+	}
+
+	@Override
+	public Set<AllocationID> getActiveTaskSlotAllocationIds() {
+		return createAllocationIdSet(new TaskSlotIterator(TaskSlotState.ACTIVE));
+	}
+
+	@Override
+	public Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId) {
+		return createAllocationIdSet(new TaskSlotIterator(jobId, TaskSlotState.ACTIVE));
+	}
+
+	private Set<AllocationID> createAllocationIdSet(Iterator<TaskSlot<T>> taskSlotIterator) {
+		Set<AllocationID> allocationIds = new HashSet<>();
+		while (taskSlotIterator.hasNext()) {
+			allocationIds.add(taskSlotIterator.next().getAllocationId());
+		}
+
+		return allocationIds;
 	}
 
 	// ---------------------------------------------------------------------
@@ -463,11 +483,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
-		return new AllocationIDIterator(jobId, TaskSlotState.ACTIVE);
-	}
-
-	@Override
 	@Nullable
 	public JobID getOwningJob(AllocationID allocationId) {
 		final TaskSlot<T> taskSlot = getTaskSlot(allocationId);
@@ -626,37 +641,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	/**
-	 * Iterator over {@link AllocationID} of the {@link TaskSlot} of a given job. Additionally,
-	 * the task slots identified by the allocation ids are in the given state.
-	 */
-	private final class AllocationIDIterator implements Iterator<AllocationID> {
-		private final Iterator<TaskSlot<T>> iterator;
-
-		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-			iterator = new TaskSlotIterator(jobId, state);
-		}
-
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
-
-		@Override
-		public AllocationID next() {
-			try {
-				return iterator.next().getAllocationId();
-			} catch (NoSuchElementException e) {
-				throw new NoSuchElementException("No more allocation ids.");
-			}
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("Cannot remove allocation ids via this iterator.");
-		}
-	}
-
-	/**
 	 * Iterator over {@link TaskSlot} which fulfill a given state condition and belong to the given
 	 * job.
 	 */
@@ -666,18 +650,22 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
 		private TaskSlot<T> currentSlot;
 
+		private TaskSlotIterator(TaskSlotState state) {
+			this(slotsPerJob.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.collect(Collectors.toSet())
+					.iterator(),
+				state);
+		}
+
 		private TaskSlotIterator(JobID jobId, TaskSlotState state) {
+			this(slotsPerJob.get(jobId) == null ? Collections.emptyIterator() : slotsPerJob.get(jobId).iterator(), state);
+		}
 
-			Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
-
-			if (allocationIds == null || allocationIds.isEmpty()) {
-				allSlots = Collections.emptyIterator();
-			} else {
-				allSlots = allocationIds.iterator();
-			}
-
+		private TaskSlotIterator(Iterator<AllocationID> allocationIDIterator, TaskSlotState state) {
+			this.allSlots = Preconditions.checkNotNull(allocationIDIterator);
 			this.state = Preconditions.checkNotNull(state);
-
 			this.currentSlot = null;
 		}
 

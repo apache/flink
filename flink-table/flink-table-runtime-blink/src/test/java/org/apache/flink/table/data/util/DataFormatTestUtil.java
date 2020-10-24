@@ -47,7 +47,8 @@ public class DataFormatTestUtil {
 			if (row.isNullAt(i)) {
 				build.append("null");
 			} else {
-				build.append(RowData.get(row, i, types[i]));
+				RowData.FieldGetter fieldGetter = RowData.createFieldGetter(types[i], i);
+				build.append(fieldGetter.getFieldOrNull(row));
 			}
 		}
 		build.append(')');

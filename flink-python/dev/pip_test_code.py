@@ -42,7 +42,7 @@ bt_env.connect(FileSystem().path(sink_path)) \
                  .field("c", DataTypes.STRING())) \
     .create_temporary_table("batch_sink")
 
-t.select("a + 1, b, c").execute_insert("batch_sink").get_job_client().get_job_execution_result().result()
+t.select("a + 1, b, c").execute_insert("batch_sink").wait()
 
 with open(sink_path, 'r') as f:
     lines = f.read()

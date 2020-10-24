@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import static com.amazonaws.services.kinesis.model.ShardIteratorType.LATEST;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
 
@@ -134,7 +133,7 @@ public class PollingRecordPublisher implements RecordPublisher {
 		while (getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisProxy.getRecords(shardItr, maxNumberOfRecords);
-			} catch (ExpiredIteratorException eiEx) {
+			} catch (ExpiredIteratorException | InterruptedException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
 
@@ -156,10 +155,6 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 */
 	@Nullable
 	private String getShardIterator() throws InterruptedException {
-		if (nextStartingPosition.getShardIteratorType() == LATEST && subscribedShard.isClosed()) {
-			return null;
-		}
-
 		return kinesisProxy.getShardIterator(
 			subscribedShard,
 			nextStartingPosition.getShardIteratorType().toString(),

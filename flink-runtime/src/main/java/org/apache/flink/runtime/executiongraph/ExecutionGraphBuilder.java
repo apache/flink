@@ -18,6 +18,15 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import javax.annotation.Nullable;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -58,19 +67,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
-
 import org.slf4j.Logger;
-
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
@@ -99,7 +96,8 @@ public class ExecutionGraphBuilder {
 			Time allocationTimeout,
 			Logger log,
 			ShuffleMaster<?> shuffleMaster,
-			JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
+			JobMasterPartitionTracker partitionTracker,
+			long initializationTimestamp) throws JobExecutionException, JobException {
 
 		final FailoverStrategy.Factory failoverStrategy =
 			FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
@@ -123,7 +121,8 @@ public class ExecutionGraphBuilder {
 			partitionTracker,
 			failoverStrategy,
 			NoOpExecutionDeploymentListener.get(),
-			(execution, newState) -> {});
+			(execution, newState) -> {},
+			initializationTimestamp);
 	}
 
 	public static ExecutionGraph buildGraph(
@@ -145,7 +144,8 @@ public class ExecutionGraphBuilder {
 		JobMasterPartitionTracker partitionTracker,
 		FailoverStrategy.Factory failoverStrategyFactory,
 		ExecutionDeploymentListener executionDeploymentListener,
-		ExecutionStateUpdateListener executionStateUpdateListener) throws JobExecutionException, JobException {
+		ExecutionStateUpdateListener executionStateUpdateListener,
+		long initializationTimestamp) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
@@ -187,7 +187,8 @@ public class ExecutionGraphBuilder {
 					partitionTracker,
 					jobGraph.getScheduleMode(),
 					executionDeploymentListener,
-					executionStateUpdateListener);
+					executionStateUpdateListener,
+					initializationTimestamp);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

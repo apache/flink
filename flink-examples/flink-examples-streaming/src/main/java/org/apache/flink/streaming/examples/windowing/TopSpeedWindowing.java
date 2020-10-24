@@ -20,7 +20,6 @@ package org.apache.flink.streaming.examples.windowing;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -53,7 +52,6 @@ public class TopSpeedWindowing {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setGlobalJobParameters(params);
 
 		@SuppressWarnings({"rawtypes", "serial"})

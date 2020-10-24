@@ -197,11 +197,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 				}
 			}
 		} catch (Throwable e) {
-			try {
-				recycleMemorySegments(segments, numberOfSegmentsToRequest);
-			} catch (IOException inner) {
-				e.addSuppressed(inner);
-			}
+			recycleMemorySegments(segments, numberOfSegmentsToRequest);
 			ExceptionUtils.rethrowIOException(e);
 		}
 
@@ -220,11 +216,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	@Override
-	public void recycleMemorySegments(Collection<MemorySegment> segments) throws IOException {
+	public void recycleMemorySegments(Collection<MemorySegment> segments) {
 		recycleMemorySegments(segments, segments.size());
 	}
 
-	private void recycleMemorySegments(Collection<MemorySegment> segments, int size) throws IOException {
+	private void recycleMemorySegments(Collection<MemorySegment> segments, int size) {
 		internalRecycleMemorySegments(segments);
 
 		synchronized (factoryLock) {
@@ -268,13 +264,29 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	public int getTotalNumberOfMemorySegments() {
-		return totalNumberOfMemorySegments;
+		return isDestroyed() ? 0 : totalNumberOfMemorySegments;
+	}
+
+	public long getTotalMemory() {
+		return getTotalNumberOfMemorySegments() * memorySegmentSize;
 	}
 
 	public int getNumberOfAvailableMemorySegments() {
 		synchronized (availableMemorySegments) {
 			return availableMemorySegments.size();
 		}
+	}
+
+	public long getAvailableMemory() {
+		return getNumberOfAvailableMemorySegments() * memorySegmentSize;
+	}
+
+	public int getNumberOfUsedMemorySegments() {
+		return getTotalNumberOfMemorySegments() - getNumberOfAvailableMemorySegments();
+	}
+
+	public long getUsedMemory() {
+		return getNumberOfUsedMemorySegments() * memorySegmentSize;
 	}
 
 	public int getNumberOfRegisteredBufferPools() {
@@ -313,7 +325,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		return internalCreateBufferPool(
 			numRequiredBuffers,
 			maxUsedBuffers,
-			null,
 			0,
 			Integer.MAX_VALUE);
 	}
@@ -322,13 +333,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	public BufferPool createBufferPool(
 			int numRequiredBuffers,
 			int maxUsedBuffers,
-			BufferPoolOwner bufferPoolOwner,
 			int numSubpartitions,
 			int maxBuffersPerChannel) throws IOException {
 		return internalCreateBufferPool(
 			numRequiredBuffers,
 			maxUsedBuffers,
-			bufferPoolOwner,
 			numSubpartitions,
 			maxBuffersPerChannel);
 	}
@@ -336,7 +345,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	private BufferPool internalCreateBufferPool(
 			int numRequiredBuffers,
 			int maxUsedBuffers,
-			@Nullable BufferPoolOwner bufferPoolOwner,
 			int numSubpartitions,
 			int maxBuffersPerChannel) throws IOException {
 
@@ -366,29 +374,19 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					this,
 					numRequiredBuffers,
 					maxUsedBuffers,
-					bufferPoolOwner,
 					numSubpartitions,
 					maxBuffersPerChannel);
 
 			allBufferPools.add(localBufferPool);
 
-			try {
-				redistributeBuffers();
-			} catch (IOException e) {
-				try {
-					destroyBufferPool(localBufferPool);
-				} catch (IOException inner) {
-					e.addSuppressed(inner);
-				}
-				ExceptionUtils.rethrowIOException(e);
-			}
+			redistributeBuffers();
 
 			return localBufferPool;
 		}
 	}
 
 	@Override
-	public void destroyBufferPool(BufferPool bufferPool) throws IOException {
+	public void destroyBufferPool(BufferPool bufferPool) {
 		if (!(bufferPool instanceof LocalBufferPool)) {
 			throw new IllegalArgumentException("bufferPool is no LocalBufferPool");
 		}
@@ -441,17 +439,13 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		} catch (Throwable t) {
 			this.numTotalRequiredBuffers -= numberOfSegmentsToRequest;
 
-			try {
-				redistributeBuffers();
-			} catch (IOException inner) {
-				t.addSuppressed(inner);
-			}
-			ExceptionUtils.rethrowIOException(t);
+			redistributeBuffers();
+			ExceptionUtils.rethrow(t);
 		}
 	}
 
 	// Must be called from synchronized block
-	private void redistributeBuffers() throws IOException {
+	private void redistributeBuffers() {
 		assert Thread.holdsLock(factoryLock);
 
 		// All buffers, which are not among the required ones

@@ -33,7 +33,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for temporal table join.
+  * Stream physical RelNode for temporal table join that implemented by lookup.
   */
 class StreamExecLookupJoin(
     cluster: RelOptCluster,

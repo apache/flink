@@ -20,28 +20,29 @@ import decimal
 
 import pytz
 
-from pyflink.table import DataTypes, Row
+from pyflink.common import Row
+from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    exec_insert_table, PyFlinkTestCase
+    PyFlinkTestCase
 
 
 class PandasUDFTests(PyFlinkTestCase):
 
-    def test_non_exist_udf_type(self):
+    def test_non_exist_func_type(self):
         with self.assertRaisesRegex(ValueError,
-                                    'The udf_type must be one of \'general, pandas\''):
-            udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="non-exist")
+                                    'The func_type must be one of \'general, pandas\''):
+            udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="non-exist")
 
 
 class PandasUDFITTests(object):
 
     def test_basic_functionality(self):
         # pandas UDF
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="pandas")
+        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")
 
         # general Python UDF
         subtract_one = udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT())
@@ -52,10 +53,10 @@ class PandasUDFITTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        exec_insert_table(
-            t.where(add_one(t.b) <= 3)
-             .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1)),
-            "Results")
+        t.where(add_one(t.b) <= 3) \
+            .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1)) \
+            .execute_insert("Results") \
+            .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
 
@@ -63,14 +64,14 @@ class PandasUDFITTests(object):
         import pandas as pd
         import numpy as np
 
-        @udf(result_type=DataTypes.TINYINT(), udf_type="pandas")
+        @udf(result_type=DataTypes.TINYINT(), func_type="pandas")
         def tinyint_func(tinyint_param):
             assert isinstance(tinyint_param, pd.Series)
             assert isinstance(tinyint_param[0], np.int8), \
                 'tinyint_param of wrong type %s !' % type(tinyint_param[0])
             return tinyint_param
 
-        @udf(result_type=DataTypes.SMALLINT(), udf_type="pandas")
+        @udf(result_type=DataTypes.SMALLINT(), func_type="pandas")
         def smallint_func(smallint_param):
             assert isinstance(smallint_param, pd.Series)
             assert isinstance(smallint_param[0], np.int16), \
@@ -78,7 +79,7 @@ class PandasUDFITTests(object):
             assert smallint_param[0] == 32767, 'smallint_param of wrong value %s' % smallint_param
             return smallint_param
 
-        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        @udf(result_type=DataTypes.INT(), func_type="pandas")
         def int_func(int_param):
             assert isinstance(int_param, pd.Series)
             assert isinstance(int_param[0], np.int32), \
@@ -86,63 +87,63 @@ class PandasUDFITTests(object):
             assert int_param[0] == -2147483648, 'int_param of wrong value %s' % int_param
             return int_param
 
-        @udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
         def bigint_func(bigint_param):
             assert isinstance(bigint_param, pd.Series)
             assert isinstance(bigint_param[0], np.int64), \
                 'bigint_param of wrong type %s !' % type(bigint_param[0])
             return bigint_param
 
-        @udf(result_type=DataTypes.BOOLEAN(), udf_type="pandas")
+        @udf(result_type=DataTypes.BOOLEAN(), func_type="pandas")
         def boolean_func(boolean_param):
             assert isinstance(boolean_param, pd.Series)
             assert isinstance(boolean_param[0], np.bool_), \
                 'boolean_param of wrong type %s !' % type(boolean_param[0])
             return boolean_param
 
-        @udf(result_type=DataTypes.FLOAT(), udf_type="pandas")
+        @udf(result_type=DataTypes.FLOAT(), func_type="pandas")
         def float_func(float_param):
             assert isinstance(float_param, pd.Series)
             assert isinstance(float_param[0], np.float32), \
                 'float_param of wrong type %s !' % type(float_param[0])
             return float_param
 
-        @udf(result_type=DataTypes.DOUBLE(), udf_type="pandas")
+        @udf(result_type=DataTypes.DOUBLE(), func_type="pandas")
         def double_func(double_param):
             assert isinstance(double_param, pd.Series)
             assert isinstance(double_param[0], np.float64), \
                 'double_param of wrong type %s !' % type(double_param[0])
             return double_param
 
-        @udf(result_type=DataTypes.STRING(), udf_type="pandas")
+        @udf(result_type=DataTypes.STRING(), func_type="pandas")
         def varchar_func(varchar_param):
             assert isinstance(varchar_param, pd.Series)
             assert isinstance(varchar_param[0], str), \
                 'varchar_param of wrong type %s !' % type(varchar_param[0])
             return varchar_param
 
-        @udf(result_type=DataTypes.BYTES(), udf_type="pandas")
+        @udf(result_type=DataTypes.BYTES(), func_type="pandas")
         def varbinary_func(varbinary_param):
             assert isinstance(varbinary_param, pd.Series)
             assert isinstance(varbinary_param[0], bytes), \
                 'varbinary_param of wrong type %s !' % type(varbinary_param[0])
             return varbinary_param
 
-        @udf(result_type=DataTypes.DECIMAL(38, 18), udf_type="pandas")
+        @udf(result_type=DataTypes.DECIMAL(38, 18), func_type="pandas")
         def decimal_func(decimal_param):
             assert isinstance(decimal_param, pd.Series)
             assert isinstance(decimal_param[0], decimal.Decimal), \
                 'decimal_param of wrong type %s !' % type(decimal_param[0])
             return decimal_param
 
-        @udf(result_type=DataTypes.DATE(), udf_type="pandas")
+        @udf(result_type=DataTypes.DATE(), func_type="pandas")
         def date_func(date_param):
             assert isinstance(date_param, pd.Series)
             assert isinstance(date_param[0], datetime.date), \
                 'date_param of wrong type %s !' % type(date_param[0])
             return date_param
 
-        @udf(result_type=DataTypes.TIME(), udf_type="pandas")
+        @udf(result_type=DataTypes.TIME(), func_type="pandas")
         def time_func(time_param):
             assert isinstance(time_param, pd.Series)
             assert isinstance(time_param[0], datetime.time), \
@@ -151,7 +152,7 @@ class PandasUDFITTests(object):
 
         timestamp_value = datetime.datetime(1970, 1, 2, 0, 0, 0, 123000)
 
-        @udf(result_type=DataTypes.TIMESTAMP(3), udf_type="pandas")
+        @udf(result_type=DataTypes.TIMESTAMP(3), func_type="pandas")
         def timestamp_func(timestamp_param):
             assert isinstance(timestamp_param, pd.Series)
             assert isinstance(timestamp_param[0], datetime.datetime), \
@@ -169,17 +170,17 @@ class PandasUDFITTests(object):
 
         array_str_func = udf(array_func,
                              result_type=DataTypes.ARRAY(DataTypes.STRING()),
-                             udf_type="pandas")
+                             func_type="pandas")
 
         array_timestamp_func = udf(array_func,
                                    result_type=DataTypes.ARRAY(DataTypes.TIMESTAMP(3)),
-                                   udf_type="pandas")
+                                   func_type="pandas")
 
         array_int_func = udf(array_func,
                              result_type=DataTypes.ARRAY(DataTypes.INT()),
-                             udf_type="pandas")
+                             func_type="pandas")
 
-        @udf(result_type=DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas")
+        @udf(result_type=DataTypes.ARRAY(DataTypes.STRING()), func_type="pandas")
         def nested_array_func(nested_array_param):
             assert isinstance(nested_array_param, pd.Series)
             assert isinstance(nested_array_param[0], np.ndarray), \
@@ -192,7 +193,7 @@ class PandasUDFITTests(object):
              DataTypes.FIELD("f3", DataTypes.TIMESTAMP(3)),
              DataTypes.FIELD("f4", DataTypes.ARRAY(DataTypes.INT()))])
 
-        @udf(result_type=row_type, udf_type="pandas")
+        @udf(result_type=row_type, func_type="pandas")
         def row_func(row_param):
             assert isinstance(row_param, pd.Series)
             assert isinstance(row_param[0], dict), \
@@ -241,27 +242,29 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD("u", row_type)]))
 
-        exec_insert_table(t.select(tinyint_func(t.a),
-                                   smallint_func(t.b),
-                                   int_func(t.c),
-                                   bigint_func(t.d),
-                                   boolean_func(t.e),
-                                   boolean_func(t.f),
-                                   float_func(t.g),
-                                   double_func(t.h),
-                                   varchar_func(t.i),
-                                   varchar_func(t.j),
-                                   varbinary_func(t.k),
-                                   decimal_func(t.l),
-                                   decimal_func(t.m),
-                                   date_func(t.n),
-                                   time_func(t.o),
-                                   timestamp_func(t.p),
-                                   array_str_func(t.q),
-                                   array_timestamp_func(t.r),
-                                   array_int_func(t.s),
-                                   nested_array_func(t.t),
-                                   row_func(t.u)), "Results")
+        t.select(
+            tinyint_func(t.a),
+            smallint_func(t.b),
+            int_func(t.c),
+            bigint_func(t.d),
+            boolean_func(t.e),
+            boolean_func(t.f),
+            float_func(t.g),
+            double_func(t.h),
+            varchar_func(t.i),
+            varchar_func(t.j),
+            varbinary_func(t.k),
+            decimal_func(t.l),
+            decimal_func(t.m),
+            date_func(t.n),
+            time_func(t.o),
+            timestamp_func(t.p),
+            array_str_func(t.q),
+            array_timestamp_func(t.r),
+            array_int_func(t.s),
+            nested_array_func(t.t),
+            row_func(t.u)) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
@@ -280,7 +283,7 @@ class BlinkPandasUDFITTests(object):
         local_datetime = pytz.timezone(timezone).localize(
             datetime.datetime(1970, 1, 2, 0, 0, 0, 123000))
 
-        @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3), udf_type="pandas")
+        @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3), func_type="pandas")
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
             assert isinstance(local_zoned_timestamp_param, pd.Series)
             assert isinstance(local_zoned_timestamp_param[0], datetime.datetime), \
@@ -299,8 +302,8 @@ class BlinkPandasUDFITTests(object):
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        exec_insert_table(t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))),
-                          "Results")
+        t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
+            .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
 
@@ -313,7 +316,7 @@ class StreamPandasUDFITTests(PandasUDFITTests,
 class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
 
     def test_basic_functionality(self):
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="pandas")
+        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")
 
         # general Python UDF
         subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
@@ -337,7 +340,7 @@ class BlinkStreamPandasUDFITTests(PandasUDFITTests,
     pass
 
 
-@udf(result_type=DataTypes.BIGINT(), udf_type='pandas')
+@udf(result_type=DataTypes.BIGINT(), func_type='pandas')
 def add(i, j):
     return i + j
 

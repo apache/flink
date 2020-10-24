@@ -20,20 +20,21 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link PhysicalTransformation} for {@link Source}.
  */
 @Internal
-public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
+public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> implements WithBoundedness {
 	private final SourceOperatorFactory<OUT> sourceFactory;
 	/**
 	 * Creates a new {@code Transformation} with the given name, output type and parallelism.
@@ -52,6 +53,11 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
 		this.sourceFactory = sourceFactory;
 	}
 
+	@Override
+	public Boundedness getBoundedness() {
+		return sourceFactory.getBoundedness();
+	}
+
 	/**
 	 * Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}.
 	 */
@@ -60,8 +66,13 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
 	}
 
 	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		return Collections.singleton(this);
+	public List<Transformation<?>> getTransitivePredecessors() {
+		return Collections.singletonList(this);
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return Collections.emptyList();
 	}
 
 	@Override

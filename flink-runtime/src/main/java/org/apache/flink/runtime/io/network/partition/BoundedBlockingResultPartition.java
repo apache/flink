@@ -20,8 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * per sub-partition. This implementation hence requires at least as many files (file handles) and
  * memory buffers as the parallelism of the target task that the data is shuffled to.
  */
-public class BoundedBlockingResultPartition extends ResultPartition {
+public class BoundedBlockingResultPartition extends BufferWritingResultPartition {
 
 	public BoundedBlockingResultPartition(
 			String owningTaskName,
@@ -49,7 +48,7 @@ public class BoundedBlockingResultPartition extends ResultPartition {
 			int numTargetKeyGroups,
 			ResultPartitionManager partitionManager,
 			@Nullable BufferCompressor bufferCompressor,
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
 		super(
 			owningTaskName,
@@ -61,6 +60,16 @@ public class BoundedBlockingResultPartition extends ResultPartition {
 			partitionManager,
 			bufferCompressor,
 			bufferPoolFactory);
+	}
+
+	@Override
+	public void flush(int targetSubpartition) {
+		flushSubpartition(targetSubpartition, true);
+	}
+
+	@Override
+	public void flushAll() {
+		flushAllSubpartitions(true);
 	}
 
 	private static ResultPartitionType checkResultPartitionType(ResultPartitionType type) {

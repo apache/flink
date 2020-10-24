@@ -25,7 +25,7 @@ under the License.
 
 用户自定义函数是重要的功能，因为它们极大地扩展了Python Table API程序的表达能力。
 
-**注意:** 要执行Python用户自定义函数，客户端和集群端都需要安装Python版本3.5、3.6或3.7，并安装PyFlink。
+**注意:** 要执行Python用户自定义函数，客户端和集群端都需要安装Python版本(3.5、3.6、3.7 或 3.8)，并安装PyFlink。
 
 * This will be replaced by the TOC
 {:toc}
@@ -39,6 +39,8 @@ Python标量函数的行为由名为`eval`的方法定义，eval方法支持可�
 以下示例显示了如何定义自己的Python哈希函数、如何在TableEnvironment中注册它以及如何在作业中使用它。
 
 {% highlight python %}
+from pyflink.table.expressions import call 
+
 class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
@@ -48,22 +50,15 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
-# 注册Python自定义函数
-table_env.register_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # 在Python Table API中使用Python自定义函数
-my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
+my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
 
 # 在SQL API中使用Python自定义函数
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除此之外，还支持在Python Table API程序中使用Java / Scala标量函数。
 
@@ -80,25 +75,19 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
+from pyflink.table.expressions import call
 
 table_env = BatchTableEnvironment.create(env)
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册Java函数
-table_env.register_java_function("hash_code", "my.java.function.HashCode")
+table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # 在Python Table API中使用Java函数
-my_table.select("string.hash_code(), hash_code(string)")
+my_table.select(call('hash_code', my_table.string))
 
 # 在SQL API中使用Java函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除了扩展基类`ScalarFunction`之外，还支持多种方式来定义Python标量函数。
 以下示例显示了多种定义Python标量函数的方式。该函数需要两个类型为bigint的参数作为输入参数，并返回它们的总和作为结果。
@@ -133,9 +122,12 @@ def partial_add(i, j, k):
 add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
 # 注册Python自定义函数
-table_env.register_function("add", add)
+table_env.create_temporary_function("add", add)
 # 在Python Table API中使用Python自定义函数
 my_table.select("add(a, b)")
+
+# 也可以在Python Table API中直接使用Python自定义函数
+my_table.select(add(my_table.a, my_table.b))
 {% endhighlight %}
 
 ## 表值函数
@@ -154,25 +146,19 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册Python表值函数
-table_env.register_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # 在Python Table API中使用Python表值函数
-my_table.join_lateral("split(a) as (word, length)")
-my_table.left_outer_join_lateral("split(a) as (word, length)")
+my_table.join_lateral(split(my_table.a).alias("word, length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
 
 # 在SQL API中使用Python表值函数
+table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除此之外，还支持在Python Table API程序中使用Java / Scala表值函数。
 {% highlight python %}
@@ -192,20 +178,18 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
+from pyflink.table.expressions import call
 
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册java自定义函数。
-table_env.register_java_function("split", "my.java.function.Split")
+table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# 在Python Table API中使用表值函数。 "as"指定表的字段名称。
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+# 在Python Table API中使用表值函数。 "alias"指定表的字段名称。
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # 注册python函数。
 
@@ -215,10 +199,6 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 # LEFT JOIN一个表值函数（等同于Table API中的"left_outer_join"）。
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 像Python标量函数一样，您可以使用上述五种方式来定义Python表值函数。
 
@@ -241,9 +221,4 @@ def iterator_func(x):
 def iterable_func(x):
       result = [1, 2, 3]
       return result
-
-table_env.register_function("iterable_func", iterable_func)
-table_env.register_function("iterator_func", iterator_func)
-table_env.register_function("generator_func", generator_func)
-
 {% endhighlight %}

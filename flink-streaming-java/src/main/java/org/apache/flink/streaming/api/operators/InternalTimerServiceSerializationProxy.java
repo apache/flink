@@ -38,7 +38,7 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 	public static final int VERSION = 2;
 
 	/** The key-group timer services to write / read. */
-	private final InternalTimeServiceManager<K> timerServicesManager;
+	private final InternalTimeServiceManagerImpl<K> timerServicesManager;
 
 	/** The user classloader; only relevant if the proxy is used to restore timer services. */
 	private ClassLoader userCodeClassLoader;
@@ -51,7 +51,7 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 	 * Constructor to use when restoring timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-		InternalTimeServiceManager<K> timerServicesManager,
+		InternalTimeServiceManagerImpl<K> timerServicesManager,
 		ClassLoader userCodeClassLoader,
 		int keyGroupIdx) {
 		this.timerServicesManager = checkNotNull(timerServicesManager);
@@ -63,7 +63,7 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 	 * Constructor to use when writing timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-		InternalTimeServiceManager<K> timerServicesManager,
+		InternalTimeServiceManagerImpl<K> timerServicesManager,
 		int keyGroupIdx) {
 		this.timerServicesManager = checkNotNull(timerServicesManager);
 		this.keyGroupIdx = keyGroupIdx;

@@ -18,7 +18,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.fabric8:kubernetes-model:4.9.2
 - io.fabric8:kubernetes-model-common:4.9.2
 - io.fabric8:zjsonpatch:0.3.0
-- org.yaml:snakeyaml:1.24
+- org.yaml:snakeyaml:1.27
 
 This project bundles the following dependencies under the BSD License.
 See bundled license files for details.

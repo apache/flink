@@ -42,6 +42,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,6 +58,39 @@ import static org.mockito.Mockito.mock;
 public class PartitionRequestClientFactoryTest {
 
 	private static final int SERVER_PORT = NetUtils.getAvailablePort();
+
+	@Test
+	public void testInterruptsNotCached() throws Exception {
+		ConnectionID connectionId = new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0);
+		try (AwaitingNettyClient nettyClient = new AwaitingNettyClient()) {
+			PartitionRequestClientFactory factory = new PartitionRequestClientFactory(nettyClient, 0);
+
+			nettyClient.awaitForInterrupts = true;
+			connectAndInterrupt(factory, connectionId);
+
+			nettyClient.awaitForInterrupts = false;
+			factory.createPartitionRequestClient(connectionId);
+		}
+	}
+
+	private void connectAndInterrupt(PartitionRequestClientFactory factory, ConnectionID connectionId) throws Exception {
+		CompletableFuture<Void> started = new CompletableFuture<>();
+		CompletableFuture<Void> interrupted = new CompletableFuture<>();
+		Thread thread = new Thread(() -> {
+			try {
+				started.complete(null);
+				factory.createPartitionRequestClient(connectionId);
+			} catch (InterruptedException e) {
+				interrupted.complete(null);
+			} catch (Exception e) {
+				interrupted.completeExceptionally(e);
+			}
+		});
+		thread.start();
+		started.get();
+		thread.interrupt();
+		interrupted.get();
+	}
 
 	@Test
 	public void testNettyClientConnectRetry() throws Exception {
@@ -200,6 +234,36 @@ public class PartitionRequestClientFactoryTest {
 		@Override
 		ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
 			throw new ChannelException("Simulate connect failure");
+		}
+	}
+
+	private class AwaitingNettyClient extends NettyClient implements AutoCloseable {
+		private volatile boolean awaitForInterrupts;
+		private final NettyTestUtil.NettyServerAndClient nettyServerAndClient;
+
+		AwaitingNettyClient() throws Exception {
+			super(null);
+			nettyServerAndClient = createNettyServerAndClient();
+		}
+
+		@Override
+		ChannelFuture connect(InetSocketAddress serverSocketAddress) {
+			if (awaitForInterrupts) {
+				return new NeverCompletingChannelFuture();
+			}
+			try {
+				return nettyServerAndClient.client().connect(serverSocketAddress);
+			} catch (Exception exception) {
+				throw new RuntimeException(exception);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			if (nettyServerAndClient != null) {
+				nettyServerAndClient.client().shutdown();
+				nettyServerAndClient.server().shutdown();
+			}
 		}
 	}
 

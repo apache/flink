@@ -24,10 +24,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -191,7 +191,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		final TaskManagerLocation taskManagerLocation3 = testingSlotProvider.addTaskManager(2);
 
 		// schedule something on an arbitrary instance
-		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(new LocalTaskManagerLocation())), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
+		LogicalSlot s1 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
 
 		// figure out how we use the location hints
 		ResourceID firstResourceId = s1.getTaskManagerLocation().getResourceID();
@@ -213,28 +213,28 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 		TaskManagerLocation third = taskManagerLocations.get((index + 2) % taskManagerLocations.size());
 
 		// something that needs to go to the first instance again
-		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(s1.getTaskManagerLocation())), slotProfileForLocation(s1.getTaskManagerLocation()), TestingUtils.infiniteTime()).get();
+		LogicalSlot s2 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(s1.getTaskManagerLocation()), TestingUtils.infiniteTime()).get();
 		assertEquals(first.getResourceID(), s2.getTaskManagerLocation().getResourceID());
 
 		// first or second --> second, because first is full
-		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(first, second)), slotProfileForLocation(first, second), TestingUtils.infiniteTime()).get();
+		LogicalSlot s3 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(first, second), TestingUtils.infiniteTime()).get();
 		assertEquals(second.getResourceID(), s3.getTaskManagerLocation().getResourceID());
 
 		// first or third --> third (because first is full)
-		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
-		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s4 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s5 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(third.getResourceID(), s4.getTaskManagerLocation().getResourceID());
 		assertEquals(third.getResourceID(), s5.getTaskManagerLocation().getResourceID());
 
 		// first or third --> second, because all others are full
-		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s6 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(second.getResourceID(), s6.getTaskManagerLocation().getResourceID());
 
 		// release something on the first and second instance
 		runInMainThreadExecutor(s2::releaseSlot);
 		runInMainThreadExecutor(s6::releaseSlot);
 
-		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution(first, third)), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
+		LogicalSlot s7 = testingSlotProvider.allocateSlot(new ScheduledUnit(getExecution()), slotProfileForLocation(first, third), TestingUtils.infiniteTime()).get();
 		assertEquals(first.getResourceID(), s7.getTaskManagerLocation().getResourceID());
 
 		assertEquals(1, testingSlotProvider.getNumberOfUnconstrainedAssignments());
@@ -249,7 +249,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		testingSlotProvider.allocateSlot(
 			new SlotRequestId(),
-			new ScheduledUnit(new JobVertexID(), null, null),
+			new ScheduledUnit(new JobVertexID(), new SlotSharingGroupId(), null),
 			SlotProfile.priorAllocation(
 				taskResourceProfile,
 				physicalSlotResourceProfile,

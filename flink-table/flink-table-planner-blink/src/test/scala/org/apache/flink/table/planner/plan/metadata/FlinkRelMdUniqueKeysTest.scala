@@ -71,6 +71,11 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUniqueKeysOnWatermark(): Unit = {
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(logicalWatermarkAssigner).toSet)
+  }
+
+  @Test
   def testGetUniqueKeysOnCalc(): Unit = {
     relBuilder.push(studentLogicalScan)
     // id < 100
@@ -150,6 +155,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   def testGetUniqueKeysOnStreamExecDeduplicate(): Unit = {
     assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(streamDeduplicateFirstRow).toSet)
     assertEquals(uniqueKeys(Array(1, 2)), mq.getUniqueKeys(streamDeduplicateLastRow).toSet)
+    assertEquals(uniqueKeys(Array(5)), mq.getUniqueKeys(rowtimeDeduplicate).toSet)
   }
 
   @Test
@@ -260,6 +266,12 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     Array(logicalUnion, logicalIntersect, logicalMinus).foreach { setOp =>
       assertEquals(uniqueKeys(Array(0, 1, 2, 3, 4)), mq.getUniqueKeys(setOp).toSet)
     }
+  }
+
+  @Test
+  def testGetUniqueKeysOnMultipleInput(): Unit = {
+    assertEquals(uniqueKeys(Array(0), Array(2), Array(0, 2)),
+      mq.getUniqueKeys(batchMultipleInput).toSet)
   }
 
   @Test

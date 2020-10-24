@@ -18,7 +18,7 @@
 
 package org.apache.flink.orc.shim;
 
-import org.apache.flink.orc.OrcSplitReader;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;
@@ -42,7 +42,7 @@ public interface OrcShim<BATCH> extends Serializable {
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
-			List<OrcSplitReader.Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			org.apache.flink.core.fs.Path path,
 			long splitStart,
 			long splitLength) throws IOException;

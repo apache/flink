@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -125,15 +126,13 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				rpcService,
 				DispatcherGateway.class,
 				DispatcherId::fromUuid,
-				10,
-				Time.milliseconds(50L));
+				new ExponentialBackoffRetryStrategy(12, Duration.ofMillis(10), Duration.ofMillis(50)));
 
 			final LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				ResourceManagerGateway.class,
 				ResourceManagerId::fromUuid,
-				10,
-				Time.milliseconds(50L));
+				new ExponentialBackoffRetryStrategy(12, Duration.ofMillis(10), Duration.ofMillis(50)));
 
 			final ScheduledExecutorService executor = WebMonitorEndpoint.createExecutorService(
 				configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
@@ -174,7 +173,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
 				metricRegistry,
-				hostname);
+				hostname,
+				ioExecutor);
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
 
@@ -188,7 +188,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist,
-				metricRegistry.getMetricQueryServiceGatewayRpcAddress());
+				metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
+				ioExecutor);
 
 			log.debug("Starting Dispatcher.");
 			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(
@@ -207,10 +208,11 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 			return new DispatcherResourceManagerComponent(
 				dispatcherRunner,
-				resourceManager,
+				DefaultResourceManagerService.createFor(resourceManager),
 				dispatcherLeaderRetrievalService,
 				resourceManagerRetrievalService,
-				webMonitorEndpoint);
+				webMonitorEndpoint,
+				fatalErrorHandler);
 
 		} catch (Exception exception) {
 			// clean up all started components

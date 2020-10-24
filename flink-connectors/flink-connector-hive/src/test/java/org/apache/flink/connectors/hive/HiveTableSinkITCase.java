@@ -39,13 +39,11 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -116,7 +114,7 @@ public class HiveTableSinkITCase {
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from src"), "hive.`default`.dest");
+		tableEnv.sqlQuery("select * from src").executeInsert("hive.`default`.dest").await();
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -157,7 +155,7 @@ public class HiveTableSinkITCase {
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from complexSrc"), "hive.`default`.dest");
+		tableEnv.sqlQuery("select * from complexSrc").executeInsert("hive.`default`.dest").await();
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -195,7 +193,7 @@ public class HiveTableSinkITCase {
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from nestedSrc"), "hive.`default`.dest");
+		tableEnv.sqlQuery("select * from nestedSrc").executeInsert("hive.`default`.dest").await();
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -219,7 +217,7 @@ public class HiveTableSinkITCase {
 					.commit();
 			hiveShell.execute("create table db1.dest like db1.src");
 
-			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
+			tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
 			List<String> results = hiveShell.executeQuery("select * from db1.dest");
 			assertEquals(1, results.size());
 			String[] cols = results.get(0).split("\t");
@@ -232,7 +230,7 @@ public class HiveTableSinkITCase {
 	}
 
 	@Test
-	public void testBatchAppend() {
+	public void testBatchAppend() throws Exception {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tEnv.useCatalog(hiveCatalog.getName());
@@ -240,9 +238,9 @@ public class HiveTableSinkITCase {
 		tEnv.useDatabase("db1");
 		try {
 			tEnv.executeSql("create table append_table (i int, j int)");
-			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into append_table select 1, 1");
-			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into append_table select 2, 2");
-			ArrayList<Row> rows = Lists.newArrayList(tEnv.executeSql("select * from append_table").collect());
+			tEnv.executeSql("insert into append_table select 1, 1").await();
+			tEnv.executeSql("insert into append_table select 2, 2").await();
+			List<Row> rows = CollectionUtil.iteratorToList(tEnv.executeSql("select * from append_table").collect());
 			rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
 			Assert.assertEquals(Arrays.asList(Row.of(1, 1), Row.of(2, 2)), rows);
 		} finally {
@@ -300,9 +298,13 @@ public class HiveTableSinkITCase {
 			tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tEnv.useCatalog(hiveCatalog.getName());
 
-			TableEnvUtil.execInsertSqlAndWaitResult(
-					tEnv,
-					"insert into db1.sink_table select 6,'a','b','2020-05-03','12'");
+			try {
+				tEnv.executeSql(
+						"insert into db1.sink_table select 6,'a','b','2020-05-03','12'")
+						.await();
+			} catch (Exception e) {
+				Assert.fail("Failed to execute sql: " + e.getMessage());
+			}
 
 			assertBatch("db1.sink_table", Arrays.asList(
 					"1,a,b,2020-05-03,7",
@@ -379,9 +381,7 @@ public class HiveTableSinkITCase {
 					"'" + SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key() + "'='_MY_SUCCESS'" +
 					")");
 
-			TableEnvUtil.execInsertTableAndWaitResult(
-					tEnv.sqlQuery("select * from my_table"),
-					"sink_table");
+			tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await();
 
 			assertBatch("db1.sink_table", Arrays.asList(
 					"1,a,b,2020-05-03,7",

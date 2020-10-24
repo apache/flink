@@ -25,7 +25,7 @@ under the License.
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
-**NOTE:** Python UDF execution requires Python version (3.5, 3.6 or 3.7) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.5, 3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 * This will be replaced by the TOC
 {:toc}
@@ -40,6 +40,8 @@ The following example shows how to define your own Python hash code function, re
 Note that you can configure your scalar function via a constructor before it is registered:
 
 {% highlight python %}
+from pyflink.table.expressions import call 
+
 class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
@@ -49,22 +51,15 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
-# register the Python function
-table_env.register_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # use the Python function in Python Table API
-my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
+my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
 
 # use the Python function in SQL API
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
-worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
-Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
 It also supports to use Java/Scala scalar functions in Python Table API programs.
 
@@ -81,25 +76,19 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
+from pyflink.table.expressions import call
 
 table_env = BatchTableEnvironment.create(env)
 
-# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # register the Java function
-table_env.register_java_function("hash_code", "my.java.function.HashCode")
+table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # use the Java function in Python Table API
-my_table.select("string.hash_code(), hash_code(string)")
+my_table.select(call('hash_code', my_table.string))
 
 # use the Java function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
-worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
-Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
 There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
 The following examples show the different ways to define a Python scalar function which takes two columns of
@@ -135,9 +124,12 @@ def partial_add(i, j, k):
 add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
 # register the Python function
-table_env.register_function("add", add)
+table_env.create_temporary_function("add", add)
 # use the function in Python Table API
 my_table.select("add(a, b)")
+
+# You can also use the Python function in Python Table API directly
+my_table.select(add(my_table.a, my_table.b))
 {% endhighlight %}
 
 ## Table Functions
@@ -159,25 +151,19 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # register the Python Table Function
-table_env.register_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # use the Python Table Function in Python Table API
-my_table.join_lateral("split(a) as (word, length)")
-my_table.left_outer_join_lateral("split(a) as (word, length)")
+my_table.join_lateral(split(my_table.a).alias("word, length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
 
 # use the Python Table function in SQL API
+table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
 {% endhighlight %}
-
-<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
-worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
-Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
 It also supports to use Java/Scala table functions in Python Table API programs.
 {% highlight python %}
@@ -197,20 +183,18 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
+from pyflink.table.expressions import call
 
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # Register the java function.
-table_env.register_java_function("split", "my.java.function.Split")
+table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+# Use the table function in the Python Table API. "alias" specifies the field names of the table.
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # Register the python function.
 
@@ -220,10 +204,6 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 # LEFT JOIN a table function (equivalent to "left_outer_join" in Table API).
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
-
-<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
-worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
-Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
 
 Like Python scalar functions, you can use the above five ways to define Python TableFunctions.
 
@@ -246,9 +226,4 @@ def iterator_func(x):
 def iterable_func(x):
       result = [1, 2, 3]
       return result
-
-table_env.register_function("iterable_func", iterable_func)
-table_env.register_function("iterator_func", iterator_func)
-table_env.register_function("generator_func", generator_func)
-
 {% endhighlight %}

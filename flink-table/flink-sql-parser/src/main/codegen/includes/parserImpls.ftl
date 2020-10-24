@@ -480,8 +480,9 @@ void TableColumn(TableCreationContext context) :
     SqlTableConstraint constraint;
 }
 {
-    (LOOKAHEAD(2)
-        TableColumn2(context.columnList)
+    (
+        LOOKAHEAD(2)
+        TypedColumn(context)
     |
         constraint = TableConstraint() {
             context.constraints.add(constraint);
@@ -513,43 +514,105 @@ void Watermark(TableCreationContext context) :
     }
 }
 
-void ComputedColumn(TableCreationContext context) :
+/** Parses {@code column_name column_data_type [...]}. */
+void TypedColumn(TableCreationContext context) :
 {
-    SqlNode identifier;
-    SqlNode expr;
+    SqlIdentifier name;
     SqlParserPos pos;
+    SqlDataTypeSpec type;
 }
 {
-    identifier = SimpleIdentifier() {pos = getPos();}
+    name = SimpleIdentifier() {pos = getPos();}
+    type = ExtendedDataType()
+    (
+        MetadataColumn(context, name, type)
+    |
+        RegularColumn(context, name, type)
+    )
+}
+
+/** Parses {@code column_name AS expr [COMMENT 'comment']}. */
+void ComputedColumn(TableCreationContext context) :
+{
+    SqlIdentifier name;
+    SqlParserPos pos;
+    SqlNode expr;
+    SqlNode comment = null;
+}
+{
+    name = SimpleIdentifier() {pos = getPos();}
     <AS>
-    expr = Expression(ExprContext.ACCEPT_NON_QUERY) {
-        expr = SqlStdOperatorTable.AS.createCall(Span.of(identifier, expr).pos(), expr, identifier);
-        context.columnList.add(expr);
+    expr = Expression(ExprContext.ACCEPT_NON_QUERY)
+    [
+        <COMMENT>
+        comment = StringLiteral()
+    ]
+    {
+        SqlTableColumn computedColumn = new SqlTableColumn.SqlComputedColumn(
+            getPos(),
+            name,
+            comment,
+            expr);
+        context.columnList.add(computedColumn);
     }
 }
 
-void TableColumn2(List<SqlNode> list) :
+/** Parses {@code column_name column_data_type METADATA [FROM 'alias_name'] [VIRTUAL] [COMMENT 'comment']}. */
+void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
 {
-    SqlParserPos pos;
-    SqlIdentifier name;
-    SqlDataTypeSpec type;
-    SqlTableConstraint constraint = null;
-    SqlCharStringLiteral comment = null;
+    SqlNode metadataAlias = null;
+    boolean isVirtual = false;
+    SqlNode comment = null;
 }
 {
-    name = SimpleIdentifier()
-    type = ExtendedDataType()
+    <METADATA>
+    [
+        <FROM>
+        metadataAlias = StringLiteral()
+    ]
+    [
+        <VIRTUAL> {
+            isVirtual = true;
+        }
+    ]
+    [
+        <COMMENT>
+        comment = StringLiteral()
+    ]
+    {
+        SqlTableColumn metadataColumn = new SqlTableColumn.SqlMetadataColumn(
+            getPos(),
+            name,
+            comment,
+            type,
+            metadataAlias,
+            isVirtual);
+        context.columnList.add(metadataColumn);
+    }
+}
+
+/** Parses {@code column_name column_data_type [constraint] [COMMENT 'comment']}. */
+void RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+{
+    SqlTableConstraint constraint = null;
+    SqlNode comment = null;
+}
+{
     [
         constraint = ColumnConstraint(name)
     ]
-    [ <COMMENT> <QUOTED_STRING> {
-            String p = SqlParserUtil.parseString(token.image);
-            comment = SqlLiteral.createCharString(p, getPos());
-        }
+    [
+        <COMMENT>
+        comment = StringLiteral()
     ]
     {
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, constraint, comment, getPos());
-        list.add(tableColumn);
+        SqlTableColumn regularColumn = new SqlTableColumn.SqlRegularColumn(
+            getPos(),
+            name,
+            comment,
+            type,
+            constraint);
+        context.columnList.add(regularColumn);
     }
 }
 
@@ -830,6 +893,8 @@ SqlTableLikeOption SqlTableLikeOption():
         <CONSTRAINTS> { featureOption = FeatureOption.CONSTRAINTS;}
     |
         <GENERATED> { featureOption = FeatureOption.GENERATED;}
+    |
+        <METADATA> { featureOption = FeatureOption.METADATA;}
     |
         <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
     |

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -41,6 +43,7 @@ import org.junit.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * ResourceManager HA test, including grant leadership and revoke leadership.
@@ -66,6 +69,7 @@ public class ResourceManagerHATest extends TestLogger {
 
 		TestingHeartbeatServices heartbeatServices = new TestingHeartbeatServices();
 
+		final Configuration configuration = new Configuration();
 		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
 			Time.seconds(5L),
 			new SlotManagerConfiguration(
@@ -77,7 +81,8 @@ public class ResourceManagerHATest extends TestLogger {
 				WorkerResourceSpec.ZERO,
 				1,
 				ResourceManagerOptions.MAX_SLOT_NUM.defaultValue(),
-				ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()));
+				ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()),
+			ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
 		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
@@ -101,7 +106,8 @@ public class ResourceManagerHATest extends TestLogger {
 				testingFatalErrorHandler,
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				Time.minutes(5L),
-				RpcUtils.INF_TIMEOUT) {
+				RpcUtils.INF_TIMEOUT,
+				ForkJoinPool.commonPool()) {
 
 				@Override
 				public void revokeLeadership() {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -27,18 +26,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link RemoteInputChannel} finally.
+ * and then converts into {@link RemoteInputChannel} finally.
  */
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	private final ConnectionID connectionId;
 	private final ConnectionManager connectionManager;
-	private final int networkBuffersPerChannel;
-
-	private boolean exclusiveBuffersAssigned;
 
 	RemoteRecoveredInputChannel(
 			SingleInputGate inputGate,
@@ -50,15 +45,22 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			int maxBackoff,
 			int networkBuffersPerChannel,
 			InputChannelMetrics metrics) {
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+		super(
+			inputGate,
+			channelIndex,
+			partitionId,
+			initialBackOff,
+			maxBackoff,
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter(),
+			networkBuffersPerChannel);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
-		this.networkBuffersPerChannel = networkBuffersPerChannel;
 	}
 
 	@Override
-	public InputChannel toInputChannel() throws IOException {
+	protected InputChannel toInputChannelInternal() throws IOException {
 		RemoteInputChannel remoteInputChannel = new RemoteInputChannel(
 			inputGate,
 			getChannelIndex(),
@@ -70,14 +72,11 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			networkBuffersPerChannel,
 			numBytesIn,
 			numBuffersIn);
-		remoteInputChannel.assignExclusiveSegments();
+		if (channelStateWriter != null) {
+			remoteInputChannel.setChannelStateWriter(channelStateWriter);
+		}
+		remoteInputChannel.setup();
 		return remoteInputChannel;
 	}
 
-	void assignExclusiveSegments() throws IOException {
-		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
-
-		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
-		exclusiveBuffersAssigned = true;
-	}
 }

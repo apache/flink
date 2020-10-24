@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
@@ -35,8 +36,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
-
-import com.esotericsoftware.kryo.Serializer
 
 import _root_.scala.language.implicitConversions
 import scala.collection.JavaConverters._
@@ -389,7 +388,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]]
    *
    * @param characteristic The time characteristic.
+   * @deprecated In Flink 1.12 the default stream time characteristic has been changed to
+   *             [[TimeCharacteristic.EventTime]], thus you don't need to call this method for
+   *             enabling event-time support anymore. Explicitly using processing-time windows and
+   *             timers works in event-time mode. If you need to disable watermarks, please use
+   *             [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long]]. If
+   *             you are using [[TimeCharacteristic.IngestionTime]], please manually set an
+   *             appropriate [[WatermarkStrategy]]. If you are using generic "time window"
+   *             operations (for example [[KeyedStream.timeWindow()]] that change behaviour based
+   *             on the time characteristic, please use equivalent operations that explicitly
+   *             specify processing time or event time.
    */
+  @deprecated
   @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)

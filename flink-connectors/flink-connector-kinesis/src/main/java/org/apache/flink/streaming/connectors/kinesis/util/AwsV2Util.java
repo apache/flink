@@ -23,7 +23,6 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -34,12 +33,16 @@ import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -50,24 +53,23 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
+
 /**
  * Utility methods specific to Amazon Web Service SDK v2.x.
  */
 @Internal
 public class AwsV2Util {
 
-	/**
-	 * Creates an Amazon Kinesis Async Client from the provided properties.
-	 * Configuration is copied from AWS SDK v1 configuration class as per:
-	 * - https://github.com/aws/aws-sdk-java-v2/blob/2.13.52/docs/LaunchChangelog.md#134-client-override-retry-configuration
-	 *
-	 * @param configProps configuration properties
-	 * @return a new Amazon Kinesis Client
-	 */
-	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps) {
-		final ClientConfiguration config = new ClientConfigurationFactory().getConfig();
-		return createKinesisAsyncClient(configProps, config);
-	}
+	private static final int INITIAL_WINDOW_SIZE_BYTES = 512 * 1024; // 512 KB
+	private static final Duration HEALTH_CHECK_PING_PERIOD = Duration.ofSeconds(60);
+	private static final Duration CONNECTION_ACQUISITION_TIMEOUT = Duration.ofSeconds(60);
 
 	/**
 	 * Creates an Amazon Kinesis Async Client from the provided properties.
@@ -75,27 +77,43 @@ public class AwsV2Util {
 	 * - https://github.com/aws/aws-sdk-java-v2/blob/2.13.52/docs/LaunchChangelog.md#134-client-override-retry-configuration
 	 *
 	 * @param configProps configuration properties
-	 * @param config the AWS SDK v1.x client configuration used to create the client
+	 * @param clientConfiguration the AWS SDK v1.X config ported to V2 to instantiate the client
+	 * @param httpClient the underlying HTTP client used to talk to Kinesis
 	 * @return a new Amazon Kinesis Client
 	 */
-	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps, final ClientConfiguration config) {
-		final SdkAsyncHttpClient httpClient = createHttpClient(config, NettyNioAsyncHttpClient.builder());
-		final ClientOverrideConfiguration overrideConfiguration = createClientOverrideConfiguration(config, ClientOverrideConfiguration.builder());
+	public static KinesisAsyncClient createKinesisAsyncClient(
+			final Properties configProps,
+			final ClientConfiguration clientConfiguration,
+			final SdkAsyncHttpClient httpClient) {
+		final ClientOverrideConfiguration overrideConfiguration = createClientOverrideConfiguration(clientConfiguration, ClientOverrideConfiguration.builder());
 		final KinesisAsyncClientBuilder clientBuilder = KinesisAsyncClient.builder();
 
 		return createKinesisAsyncClient(configProps, clientBuilder, httpClient, overrideConfiguration);
 	}
 
-	@VisibleForTesting
-	static SdkAsyncHttpClient createHttpClient(
+	public static SdkAsyncHttpClient createHttpClient(
 			final ClientConfiguration config,
-			final NettyNioAsyncHttpClient.Builder httpClientBuilder) {
+			final NettyNioAsyncHttpClient.Builder httpClientBuilder,
+			final Properties consumerConfig) {
+
+		int maxConcurrency = Optional
+			.ofNullable(consumerConfig.getProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY))
+			.map(Integer::parseInt)
+			.orElse(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
+
 		httpClientBuilder
-			.maxConcurrency(config.getMaxConnections())
+			.maxConcurrency(maxConcurrency)
 			.connectionTimeout(Duration.ofMillis(config.getConnectionTimeout()))
 			.writeTimeout(Duration.ofMillis(config.getSocketTimeout()))
 			.connectionMaxIdleTime(Duration.ofMillis(config.getConnectionMaxIdleMillis()))
-			.useIdleConnectionReaper(config.useReaper());
+			.useIdleConnectionReaper(config.useReaper())
+			.protocol(Protocol.HTTP2)
+			.connectionAcquisitionTimeout(CONNECTION_ACQUISITION_TIMEOUT)
+			.http2Configuration(Http2Configuration
+				.builder()
+				.healthCheckPingPeriod(HEALTH_CHECK_PING_PERIOD)
+				.initialWindowSize(INITIAL_WINDOW_SIZE_BYTES)
+				.build());
 
 		if (config.getConnectionTTL() > -1) {
 			httpClientBuilder.connectionTimeToLive(Duration.ofMillis(config.getConnectionTTL()));
@@ -248,4 +266,27 @@ public class AwsV2Util {
 	public static Region getRegion(final Properties configProps) {
 		return Region.of(configProps.getProperty(AWSConfigConstants.AWS_REGION));
 	}
+
+	public static boolean isRecoverableException(Exception e) {
+		Throwable cause = e.getCause();
+		return cause instanceof LimitExceededException || cause instanceof ProvisionedThroughputExceededException;
+	}
+
+	public static boolean isUsingEfoRecordPublisher(final Properties properties) {
+		return EFO.name().equals(properties.get(RECORD_PUBLISHER_TYPE));
+	}
+
+	public static boolean isEagerEfoRegistrationType(final Properties properties) {
+		return EAGER.name().equals(properties.get(EFO_REGISTRATION_TYPE));
+	}
+
+	public static boolean isLazyEfoRegistrationType(final Properties properties) {
+		return !isEagerEfoRegistrationType(properties) &&
+			!isNoneEfoRegistrationType(properties);
+	}
+
+	public static boolean isNoneEfoRegistrationType(final Properties properties) {
+		return NONE.name().equals(properties.get(EFO_REGISTRATION_TYPE));
+	}
+
 }

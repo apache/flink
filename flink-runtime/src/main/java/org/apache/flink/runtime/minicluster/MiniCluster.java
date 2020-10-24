@@ -37,6 +37,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -96,6 +97,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,7 +119,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * MiniCluster to execute Flink jobs locally.
  */
-public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
+public class MiniCluster implements AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniCluster.class);
 
@@ -339,14 +341,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					commonRpcService,
 					DispatcherGateway.class,
 					DispatcherId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Duration.ofMillis(5L), Duration.ofMillis(20L)));
 				resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					commonRpcService,
 					ResourceManagerGateway.class,
 					ResourceManagerId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Duration.ofMillis(5L), Duration.ofMillis(20L)));
 				webMonitorLeaderRetriever = new LeaderRetriever();
 
 				resourceManagerLeaderRetriever.start(resourceManagerGatewayRetriever);
@@ -656,7 +656,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
-	@Override
 	public JobExecutionResult executeJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 

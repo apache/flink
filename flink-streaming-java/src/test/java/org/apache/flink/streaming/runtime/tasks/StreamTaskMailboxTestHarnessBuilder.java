@@ -73,7 +73,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
 	protected long memorySize = 1024 * 1024;
 	protected int bufferSize = 1024;
-	protected long bufferTimeout = 0;
 	protected Configuration jobConfig = new Configuration();
 	protected Configuration taskConfig = new Configuration();
 	protected StreamConfig streamConfig = new StreamConfig(taskConfig);
@@ -101,6 +100,11 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		return this;
 	}
 
+	public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(Consumer<StreamConfig> action) {
+		action.accept(streamConfig);
+		return this;
+	}
+
 	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType) {
 		return addInput(inputType, 1);
 	}
@@ -125,7 +129,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	}
 
 	public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
-		streamConfig.setBufferTimeout(bufferTimeout);
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
 		if (taskStateSnapshots != null) {
@@ -167,7 +170,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		inputGates = new StreamTestSingleInputGate[inputChannelsPerGate.size()];
 		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
 
-		StreamNode mainNode = new StreamNode(StreamConfigChainer.MAIN_NODE_ID, null, null, (StreamOperator<?>) null, null, null, null);
+		StreamNode mainNode = new StreamNode(StreamConfigChainer.MAIN_NODE_ID, null, null, (StreamOperator<?>) null, null, null);
 		for (int i = 0; i < inputs.size(); i++) {
 			if ((inputs.get(i) instanceof NetworkInputConfig)) {
 				NetworkInputConfig networkInput = (NetworkInputConfig) inputs.get(i);
@@ -201,12 +204,11 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			inputSerializer,
 			bufferSize);
 
-		StreamNode sourceVertexDummy = new StreamNode(0, null, null, (StreamOperator<?>) null, null, null, SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(0, null, null, (StreamOperator<?>) null, null, SourceStreamTask.class);
 		StreamEdge streamEdge = new StreamEdge(
 			sourceVertexDummy,
 			targetVertexDummy,
 			gateIndex + 1,
-			new LinkedList<>(),
 			new BroadcastPartitioner<>(),
 			null);
 
@@ -224,10 +226,9 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<>();
 
 		StreamEdge sourceToMainEdge = new StreamEdge(
-			new StreamNode(maxNodeId + inputId + 1337, null, null, (StreamOperator<?>) null, null, null, null),
+			new StreamNode(maxNodeId + inputId + 1337, null, null, (StreamOperator<?>) null, null, null),
 			mainNode,
 			0,
-			new LinkedList<>(),
 			new ForwardPartitioner<>(),
 			null);
 		outEdgesInOrder.add(sourceToMainEdge);

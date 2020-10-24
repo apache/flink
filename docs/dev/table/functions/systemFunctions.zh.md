@@ -23,7 +23,7 @@ under the License.
 -->
 
 Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
-If a function that you need is not supported yet, you can implement a <a href="udfs.html">user-defined function</a>.
+If a function that you need is not supported yet, you can implement a [user-defined function]({% link dev/table/functions/udfs.zh.md %}).
 If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
 
 * This will be replaced by the TOC
@@ -3759,7 +3759,7 @@ FROM_UNIXTIME(numeric[, string])
       </td>
       <td>
         <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
-        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>

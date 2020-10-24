@@ -38,6 +38,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.junit.Assert.assertEquals;
@@ -50,7 +51,7 @@ import static org.junit.Assert.fail;
 public class KinesisConfigUtilTest {
 
 	@Rule
-	private ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedException.none();
 
 	// ----------------------------------------------------------------------
 	// getValidatedProducerConfiguration() tests
@@ -214,6 +215,7 @@ public class KinesisConfigUtilTest {
 	// ----------------------------------------------------------------------
 	// validateEfoConfiguration() tests
 	// ----------------------------------------------------------------------
+
 	@Test
 	public void testNoEfoRegistrationTypeInConfig() {
 		Properties testConfig = TestUtils.getStandardProperties();
@@ -282,6 +284,37 @@ public class KinesisConfigUtilTest {
 		List<String> streams = Arrays.asList("stream1", "stream2");
 		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
 	}
+
+	@Test
+	public void testValidateEfoMaxConcurrency() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "55");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testValidateEfoMaxConcurrencyNonNumeric() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for EFO HTTP client max concurrency. Must be positive.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "abc");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testValidateEfoMaxConcurrencyNegative() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for EFO HTTP client max concurrency. Must be positive.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "-1");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
 	// ----------------------------------------------------------------------
 	// validateConsumerConfiguration() tests
 	// ----------------------------------------------------------------------
@@ -670,6 +703,17 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
+	public void testUnparsableIntForRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for register stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
 	public void testUnparsableLongForRegisterStreamBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for register stream operation base backoff milliseconds");
@@ -709,6 +753,17 @@ public class KinesisConfigUtilTest {
 
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForDeRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for deregister stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}

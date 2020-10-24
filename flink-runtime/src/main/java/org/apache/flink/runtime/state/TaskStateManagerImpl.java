@@ -25,8 +25,8 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReaderImpl;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -70,7 +70,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	/** The checkpoint responder through which this manager can report to the job manager. */
 	private final CheckpointResponder checkpointResponder;
 
-	private final ChannelStateReader channelStateReader;
+	private final SequentialChannelStateReader sequentialChannelStateReader;
 
 	public TaskStateManagerImpl(
 			@Nonnull JobID jobId,
@@ -84,8 +84,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			localStateStore,
 			jobManagerTaskRestore,
 			checkpointResponder,
-			new ChannelStateReaderImpl(jobManagerTaskRestore == null ? new TaskStateSnapshot() : jobManagerTaskRestore.getTaskStateSnapshot())
-		);
+			new SequentialChannelStateReaderImpl(jobManagerTaskRestore == null ? new TaskStateSnapshot() : jobManagerTaskRestore.getTaskStateSnapshot()));
 	}
 
 	public TaskStateManagerImpl(
@@ -94,13 +93,13 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			@Nonnull TaskLocalStateStore localStateStore,
 			@Nullable JobManagerTaskRestore jobManagerTaskRestore,
 			@Nonnull CheckpointResponder checkpointResponder,
-			@Nonnull ChannelStateReader channelStateReader) {
+			@Nonnull SequentialChannelStateReaderImpl sequentialChannelStateReader) {
 		this.jobId = jobId;
 		this.localStateStore = localStateStore;
 		this.jobManagerTaskRestore = jobManagerTaskRestore;
 		this.executionAttemptID = executionAttemptID;
 		this.checkpointResponder = checkpointResponder;
-		this.channelStateReader = channelStateReader;
+		this.sequentialChannelStateReader = sequentialChannelStateReader;
 	}
 
 	@Override
@@ -175,8 +174,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	}
 
 	@Override
-	public ChannelStateReader getChannelStateReader() {
-		return channelStateReader;
+	public SequentialChannelStateReader getSequentialChannelStateReader() {
+		return sequentialChannelStateReader;
 	}
 
 	/**
@@ -197,6 +196,6 @@ public class TaskStateManagerImpl implements TaskStateManager {
 
 	@Override
 	public void close() throws Exception {
-		channelStateReader.close();
+		sequentialChannelStateReader.close();
 	}
 }

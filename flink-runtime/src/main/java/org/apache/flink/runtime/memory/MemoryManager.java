@@ -471,17 +471,6 @@ public class MemoryManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Acquires a shared memory resource, that uses all the memory of this memory manager.
-	 * This method behaves otherwise exactly as {@link #getSharedMemoryResourceForManagedMemory(String, LongFunctionWithException, double)}.
-	 */
-	public <T extends AutoCloseable> OpaqueMemoryResource<T> getSharedMemoryResourceForManagedMemory(
-			String type,
-			LongFunctionWithException<T, Exception> initializer) throws Exception {
-
-		return getSharedMemoryResourceForManagedMemory(type, initializer, 1.0);
-	}
-
-	/**
 	 * Acquires a shared memory resource, identified by a type string. If the resource already exists, this
 	 * returns a descriptor to the resource. If the resource does not yet exist, the given memory fraction
 	 * is reserved and the resource is initialized with that size.
@@ -590,7 +579,7 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Returns the available amount of the certain type of memory handled by this memory manager.
+	 * Returns the available amount of memory handled by this memory manager.
 	 *
 	 * @return The available amount of memory.
 	 */

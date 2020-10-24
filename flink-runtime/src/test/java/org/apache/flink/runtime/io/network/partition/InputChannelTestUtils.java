@@ -101,17 +101,6 @@ public class InputChannelTestUtils {
 
 	public static LocalInputChannel createLocalInputChannel(
 		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionManager partitionManager) {
-
-		return InputChannelBuilder.newBuilder()
-			.setChannelIndex(channelIndex)
-			.setPartitionManager(partitionManager)
-			.buildLocalChannel(inputGate);
-	}
-
-	public static LocalInputChannel createLocalInputChannel(
-		SingleInputGate inputGate,
 		ResultPartitionManager partitionManager,
 		int initialBackoff,
 		int maxBackoff) {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -36,17 +35,16 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
-import org.apache.flink.table.planner.utils.{RowDataTestUtil, TableTestUtil, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-
+import org.apache.flink.util.CollectionUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 
@@ -296,19 +294,13 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = Lists.newArrayList(table.execute().collect()).asScala
+  def executeQuery(table: Table): Seq[Row] = {
+    CollectionUtil.iteratorToList(table.execute().collect()).asScala
+  }
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
     executeQuery(table)
-  }
-
-  def execInsertSqlAndWaitResult(insert: String): JobExecutionResult = {
-    TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insert)
-  }
-
-  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
-    TableEnvUtil.execInsertTableAndWaitResult(table, targetPath)
   }
 
   private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {

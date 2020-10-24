@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -64,7 +63,6 @@ public class BroadcastStateITCase extends AbstractTestBase {
 		expected.put(5L, "test:5");
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
 				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
@@ -116,7 +114,6 @@ public class BroadcastStateITCase extends AbstractTestBase {
 		expected.put(5L, "test:5");
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
 			.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {

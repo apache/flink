@@ -19,7 +19,6 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -33,7 +32,6 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
@@ -86,13 +84,13 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 		final JdbcRowDataInputFormat.Builder builder = JdbcRowDataInputFormat.builder()
 			.setDrivername(options.getDriverName())
 			.setDBUrl(options.getDbURL())
 			.setUsername(options.getUsername().orElse(null))
-			.setPassword(options.getPassword().orElse(null));
+			.setPassword(options.getPassword().orElse(null))
+			.setAutoCommit(readOptions.getAutoCommit());
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());
@@ -113,8 +111,8 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 		builder.setQuery(query);
 		final RowType rowType = (RowType) physicalSchema.toRowDataType().getLogicalType();
 		builder.setRowConverter(dialect.getRowConverter(rowType));
-		builder.setRowDataTypeInfo((TypeInformation<RowData>) runtimeProviderContext
-			.createTypeInformation(physicalSchema.toRowDataType()));
+		builder.setRowDataTypeInfo(
+				runtimeProviderContext.createTypeInformation(physicalSchema.toRowDataType()));
 
 		return InputFormatProvider.of(builder.build());
 	}

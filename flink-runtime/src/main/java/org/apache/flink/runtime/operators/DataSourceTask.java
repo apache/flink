@@ -44,6 +44,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -103,7 +104,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		LOG.debug(getLogString("Start registering input and output"));
 
 		try {
-			initOutputs(getUserCodeClassLoader());
+			initOutputs(getEnvironment().getUserCodeClassLoader());
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " +
 					ex.getMessage(), ex);
@@ -309,7 +310,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategy.
 	 */
-	private void initOutputs(ClassLoader cl) throws Exception {
+	private void initOutputs(UserCodeClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
@@ -405,7 +406,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		String sourceName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
 				getEnvironment().getMetricGroup().getOrAddOperator(sourceName), env.getExternalResourceInfoProvider());
 	}

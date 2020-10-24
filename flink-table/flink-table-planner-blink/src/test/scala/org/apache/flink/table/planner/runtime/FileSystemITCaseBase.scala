@@ -26,7 +26,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil.execInsertSqlAndWaitResult
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertTrue
@@ -100,8 +99,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions1(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
-        "partition(a='1', b='1') select x, y from originalT where a=1 and b=1")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
 
     check(
       "select x, y from partitionedTable where a=1 and b=1",
@@ -116,8 +115,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions2(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
-        "partition(a='2', b='1') select x, y from originalT where a=2 and b=1")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a='2', b='1') select x, y from originalT where a=2 and b=1").await()
 
     check(
       "select x, y from partitionedTable where a=2 and b=1",
@@ -132,8 +131,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testPartialDynamicPartition(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
-        "partition(a=3) select x, y, b from originalT where a=3")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a=3) select x, y, b from originalT where a=3").await()
 
     check(
       "select x, y from partitionedTable where a=2 and b=1",
@@ -173,8 +172,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testDynamicPartition(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
-        "select x, y, a, b from originalT")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "select x, y, a, b from originalT").await()
 
     check(
       "select x, y from partitionedTable where a=1 and b=1",
@@ -199,8 +198,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testPartitionWithHiddenFile(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
-      "partition(a='1', b='1') select x, y from originalT where a=1 and b=1")
+    tableEnv.executeSql("insert into partitionedTable " +
+      "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
 
     // create hidden partition dir
     assertTrue(new File(new Path(resultPath + "/a=1/.b=2").toUri).mkdir())
@@ -213,8 +212,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testNonPartition(): Unit = {
-    execInsertSqlAndWaitResult(tableEnv, "insert into nonPartitionedTable " +
-        "select x, y, a, b from originalT where a=1 and b=1")
+    tableEnv.executeSql("insert into nonPartitionedTable " +
+        "select x, y, a, b from originalT where a=1 and b=1").await()
 
     check(
       "select x, y from nonPartitionedTable where a=1 and b=1",
@@ -226,8 +225,7 @@ trait FileSystemITCaseBase {
   def testLimitPushDown(): Unit = {
     tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    execInsertSqlAndWaitResult(
-      tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
+    tableEnv.executeSql("insert into nonPartitionedTable select x, y, a, b from originalT").await()
 
     check(
       "select x, y from nonPartitionedTable limit 3",
@@ -239,8 +237,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testFilterPushDown(): Unit = {
-    execInsertSqlAndWaitResult(
-      tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
+    tableEnv.executeSql("insert into nonPartitionedTable select x, y, a, b from originalT").await()
 
     check(
       "select x, y from nonPartitionedTable where a=10086",
@@ -249,8 +246,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testProjectPushDown(): Unit = {
-    execInsertSqlAndWaitResult(
-      tableEnv, "insert into partitionedTable select x, y, a, b from originalT")
+    tableEnv.executeSql("insert into partitionedTable select x, y, a, b from originalT").await()
 
     check(
       "select y, b, x from partitionedTable where a=3",

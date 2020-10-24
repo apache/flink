@@ -197,27 +197,30 @@ public class Bucket<IN, BucketID> {
 						subtaskIndex, bucketId, element);
 			}
 
-			rollPartFile(currentTime);
+			inProgressPart = rollPartFile(currentTime);
 		}
 		inProgressPart.write(element, currentTime);
 	}
 
-	private void rollPartFile(final long currentTime) throws IOException {
+	private InProgressFileWriter<IN, BucketID> rollPartFile(final long currentTime) throws IOException {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
-		inProgressPart = bucketWriter.openNewInProgressFile(bucketId, partFilePath, currentTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",
 					subtaskIndex, partFilePath.getName(), bucketId);
 		}
 
-		partCounter++;
+		return bucketWriter.openNewInProgressFile(bucketId, partFilePath, currentTime);
 	}
 
+	/**
+	 * Constructor a new PartPath and increment the partCounter.
+	 */
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + partCounter + outputFileConfig.getPartSuffix());
+		long currentPartCounter = partCounter++;
+		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + currentPartCounter + outputFileConfig.getPartSuffix());
 	}
 
 	private InProgressFileWriter.PendingFileRecoverable closePartFile() throws IOException {

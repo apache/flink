@@ -44,4 +44,12 @@ public class AlgorithmOptions {
 		key("taskmanager.runtime.sort-spilling-threshold")
 			.defaultValue(0.8f)
 			.withDescription("A sort operation starts spilling when this fraction of its memory budget is full.");
+
+	public static final ConfigOption<Boolean> USE_LARGE_RECORDS_HANDLER =
+		key("taskmanager.runtime.large-record-handler")
+			.defaultValue(false)
+			.withDescription(
+				"Whether to use the LargeRecordHandler when spilling. If a record will not fit into the sorting" +
+					" buffer. The record will be spilled on disk and the sorting will continue with only the key." +
+					" The record itself will be read afterwards when merging.");
 }

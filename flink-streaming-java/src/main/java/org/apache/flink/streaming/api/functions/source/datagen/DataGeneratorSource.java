@@ -19,10 +19,16 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 /**
  * A data generator source that abstract data generator. It can be used to easy startup/test
@@ -34,8 +40,18 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 
 	private static final long serialVersionUID = 1L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(DataGeneratorSource.class);
+
 	private final DataGenerator<T> generator;
+
 	private final long rowsPerSecond;
+
+	@Nullable
+	private final Long numberOfRows;
+
+	private transient int outputSoFar;
+
+	private transient int toOutput;
 
 	transient volatile boolean isRunning;
 
@@ -45,7 +61,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 * @param generator data generator.
 	 */
 	public DataGeneratorSource(DataGenerator<T> generator) {
-		this(generator, Long.MAX_VALUE);
+		this(generator, Long.MAX_VALUE, null);
 	}
 
 	/**
@@ -53,10 +69,25 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 *
 	 * @param generator data generator.
 	 * @param rowsPerSecond Control the emit rate.
+	 * @param numberOfRows Total number of rows to output.
 	 */
-	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond) {
+	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, @Nullable Long numberOfRows) {
 		this.generator = generator;
 		this.rowsPerSecond = rowsPerSecond;
+		this.numberOfRows = numberOfRows;
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+
+		if (numberOfRows != null) {
+			final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
+			final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+
+			final int baseSize = (int) (numberOfRows / stepSize);
+			toOutput = (numberOfRows % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+		}
 	}
 
 	@Override
@@ -77,8 +108,9 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 
 		while (isRunning) {
 			for (int i = 0; i < taskRowsPerSecond; i++) {
-				if (isRunning && generator.hasNext()) {
+				if (isRunning && generator.hasNext() && (numberOfRows == null || outputSoFar < toOutput)) {
 					synchronized (ctx.getCheckpointLock()) {
+						outputSoFar++;
 						ctx.collect(this.generator.next());
 					}
 				} else {
@@ -93,6 +125,12 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 				toWaitMs = nextReadTime - System.currentTimeMillis();
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		LOG.info("generated {} rows", outputSoFar);
 	}
 
 	@Override

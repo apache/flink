@@ -21,11 +21,8 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,22 +31,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Default implementation of {@link BulkSlotProvider}.
  */
-class BulkSlotProviderImpl implements BulkSlotProvider {
+public class BulkSlotProviderImpl implements BulkSlotProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BulkSlotProviderImpl.class);
-
-	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
 	private final SlotSelectionStrategy slotSelectionStrategy;
 
@@ -57,28 +49,17 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 
 	private final PhysicalSlotRequestBulkChecker slotRequestBulkChecker;
 
-	BulkSlotProviderImpl(final SlotSelectionStrategy slotSelectionStrategy, final SlotPool slotPool) {
+	public BulkSlotProviderImpl(
+			final SlotSelectionStrategy slotSelectionStrategy,
+			final SlotPool slotPool,
+			final PhysicalSlotRequestBulkChecker slotRequestBulkChecker) {
 		this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
 		this.slotPool = checkNotNull(slotPool);
-
-		this.slotRequestBulkChecker = new PhysicalSlotRequestBulkChecker(
-			this::getAllSlotInfos,
-			SystemClock.getInstance());
-
-		this.componentMainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
-			"Scheduler is not initialized with proper main thread executor. " +
-				"Call to BulkSlotProvider.start(...) required.");
-	}
-
-	@Override
-	public void start(final ComponentMainThreadExecutor mainThreadExecutor) {
-		this.componentMainThreadExecutor = mainThreadExecutor;
+		this.slotRequestBulkChecker = checkNotNull(slotRequestBulkChecker);
 	}
 
 	@Override
 	public void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause) {
-		componentMainThreadExecutor.assertRunningInMainThread();
-
 		slotPool.releaseSlot(slotRequestId, cause);
 	}
 
@@ -86,13 +67,9 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 	public CompletableFuture<Collection<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
 			final Collection<PhysicalSlotRequest> physicalSlotRequests,
 			final Time timeout) {
-
-		componentMainThreadExecutor.assertRunningInMainThread();
-
 		LOG.debug("Received {} slot requests.", physicalSlotRequests.size());
 
-		final PhysicalSlotRequestBulk slotRequestBulk =
-			slotRequestBulkChecker.createPhysicalSlotRequestBulk(physicalSlotRequests);
+		final PhysicalSlotRequestBulkImpl slotRequestBulk = createPhysicalSlotRequestBulk(physicalSlotRequests);
 
 		final List<CompletableFuture<PhysicalSlotRequest.Result>> resultFutures = new ArrayList<>(physicalSlotRequests.size());
 		for (PhysicalSlotRequest request : physicalSlotRequests) {
@@ -107,7 +84,7 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 			resultFutures.add(resultFuture);
 		}
 
-		schedulePendingRequestBulkTimeoutCheck(slotRequestBulk, timeout);
+		slotRequestBulkChecker.schedulePendingRequestBulkTimeoutCheck(slotRequestBulk, timeout);
 
 		return FutureUtils.combineAll(resultFutures);
 	}
@@ -169,44 +146,13 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 		}
 	}
 
-	private void schedulePendingRequestBulkTimeoutCheck(
-			final PhysicalSlotRequestBulk slotRequestBulk,
-			final Time timeout) {
-
-		componentMainThreadExecutor.schedule(() -> {
-			final PhysicalSlotRequestBulkChecker.TimeoutCheckResult result =
-				slotRequestBulkChecker.checkPhysicalSlotRequestBulkTimeout(slotRequestBulk, timeout);
-
-			switch (result) {
-				case PENDING:
-					//re-schedule the timeout check
-					schedulePendingRequestBulkTimeoutCheck(slotRequestBulk, timeout);
-					break;
-				case TIMEOUT:
-					timeoutSlotRequestBulk(slotRequestBulk);
-					break;
-				default: // no action to take
-			}
-		}, timeout.getSize(), timeout.getUnit());
-	}
-
-	private void timeoutSlotRequestBulk(final PhysicalSlotRequestBulk slotRequestBulk) {
-		final Exception cause = new TimeoutException("Slot request bulk is not fulfillable!");
-		// pending requests must be canceled first otherwise they might be fulfilled by
-		// allocated slots released from this bulk
-		for (SlotRequestId slotRequestId : slotRequestBulk.getPendingRequests().keySet()) {
-			cancelSlotRequest(slotRequestId, cause);
-		}
-		for (SlotRequestId slotRequestId : slotRequestBulk.getFulfilledRequests().keySet()) {
-			cancelSlotRequest(slotRequestId, cause);
-		}
-	}
-
-	private Set<SlotInfo> getAllSlotInfos() {
-		return Stream
-			.concat(
-				slotPool.getAvailableSlotsInformation().stream(),
-				slotPool.getAllocatedSlotsInformation().stream())
-			.collect(Collectors.toSet());
+	private PhysicalSlotRequestBulkImpl createPhysicalSlotRequestBulk(final Collection<PhysicalSlotRequest> physicalSlotRequests) {
+		final PhysicalSlotRequestBulkImpl slotRequestBulk = new PhysicalSlotRequestBulkImpl(
+			physicalSlotRequests
+				.stream()
+				.collect(Collectors.toMap(
+					PhysicalSlotRequest::getSlotRequestId,
+					r -> r.getSlotProfile().getPhysicalSlotResourceProfile())), this::cancelSlotRequest);
+		return slotRequestBulk;
 	}
 }

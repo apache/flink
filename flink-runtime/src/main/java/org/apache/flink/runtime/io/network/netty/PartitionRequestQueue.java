@@ -236,7 +236,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 					BufferResponse msg = new BufferResponse(
 						next.buffer(),
-						reader.getSequenceNumber(),
+						next.getSequenceNumber(),
 						reader.getReceiverId(),
 						next.buffersInBacklog());
 

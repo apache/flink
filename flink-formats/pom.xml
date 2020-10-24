@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<properties>
-		<flink.format.parquet.version>1.10.0</flink.format.parquet.version>
+		<flink.format.parquet.version>1.11.1</flink.format.parquet.version>
 	</properties>
 
 	<artifactId>flink-formats</artifactId>
@@ -81,6 +81,7 @@ under the License.
 			<modules>
 				<module>flink-sql-orc</module>
 				<module>flink-sql-parquet</module>
+				<module>flink-sql-avro</module>
 			</modules>
 		</profile>
 	</profiles>

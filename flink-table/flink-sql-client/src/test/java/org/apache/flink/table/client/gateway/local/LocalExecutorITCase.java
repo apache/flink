@@ -428,12 +428,14 @@ public class LocalExecutorITCase extends TestLogger {
 
 		TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber2");
 		assertEquals(
-				tableResult.getTableSchema(),
-				TableSchema.builder().fields(
-						new String[] { "name", "type", "null", "key", "computed column", "watermark" },
+			TableSchema.builder()
+					.fields(
+						new String[] { "name", "type", "null", "key", "extras", "watermark" },
 						new DataType[] { DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(),
 								DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING() }
-				).build()
+					)
+					.build(),
+			tableResult.getTableSchema()
 		);
 		List<Row> schemaData = Arrays.asList(
 				Row.of("IntegerField2", "INT", true, null, null, null),

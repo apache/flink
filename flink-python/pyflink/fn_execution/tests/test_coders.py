@@ -23,8 +23,8 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder
+    TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
+    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -119,8 +119,13 @@ class CodersTest(PyFlinkTestCase):
 
     def test_array_coder(self):
         element_coder = BigIntCoder()
-        coder = ArrayCoder(element_coder)
+        coder = BasicArrayCoder(element_coder)
         self.check_coder(coder, [1, 2, 3, None])
+
+    def test_primitive_array_coder(self):
+        element_coder = CharCoder()
+        coder = PrimitiveArrayCoder(element_coder)
+        self.check_coder(coder, ['hi', 'hello', 'flink'])
 
     def test_map_coder(self):
         key_coder = CharCoder()
@@ -141,19 +146,26 @@ class CodersTest(PyFlinkTestCase):
         field_coder = BigIntCoder()
         field_count = 10
         coder = FlattenRowCoder([field_coder for _ in range(field_count)]).get_impl()
-        v = [[None if i % 2 == 0 else i for i in range(field_count)]]
+        v = [None if i % 2 == 0 else i for i in range(field_count)]
         generator_result = coder.decode(coder.encode(v))
         result = []
         for item in generator_result:
             result.append(item)
-        self.assertEqual(v, result)
+        self.assertEqual([v], result)
 
     def test_row_coder(self):
-        from pyflink.table import Row
+        from pyflink.common import Row, RowKind
         field_coder = BigIntCoder()
         field_count = 10
         coder = RowCoder([field_coder for _ in range(field_count)])
         v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        v.set_row_kind(RowKind.INSERT)
+        self.check_coder(coder, v)
+        v.set_row_kind(RowKind.UPDATE_BEFORE)
+        self.check_coder(coder, v)
+        v.set_row_kind(RowKind.UPDATE_AFTER)
+        self.check_coder(coder, v)
+        v.set_row_kind(RowKind.DELETE)
         self.check_coder(coder, v)
 
     def test_basic_decimal_coder(self):

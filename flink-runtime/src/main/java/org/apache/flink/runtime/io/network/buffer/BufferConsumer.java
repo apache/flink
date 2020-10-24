@@ -136,6 +136,10 @@ public class BufferConsumer implements Closeable {
 		return buffer.isBuffer();
 	}
 
+	public Buffer.DataType getDataType() {
+		return buffer.getDataType();
+	}
+
 	@Override
 	public void close() {
 		if (!buffer.isRecycled()) {

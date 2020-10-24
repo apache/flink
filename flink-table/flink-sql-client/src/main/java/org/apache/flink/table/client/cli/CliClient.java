@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * SQL CLI client.
  */
-public class CliClient {
+public class CliClient implements AutoCloseable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
 

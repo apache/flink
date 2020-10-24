@@ -68,7 +68,7 @@ Calc(select=[rtime])
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>

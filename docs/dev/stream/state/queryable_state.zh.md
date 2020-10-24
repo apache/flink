@@ -83,11 +83,6 @@ QueryableStateStream asQueryableState(
 // Shortcut for explicit ValueStateDescriptor variant
 QueryableStateStream asQueryableState(String queryableStateName)
 
-// FoldingState
-QueryableStateStream asQueryableState(
-    String queryableStateName,
-    FoldingStateDescriptor stateDescriptor)
-
 // ReducingState
 QueryableStateStream asQueryableState(
     String queryableStateName,

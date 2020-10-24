@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -34,7 +34,7 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode for temporal table join.
+  * Batch physical RelNode for temporal table join that implements by lookup.
   */
 class BatchExecLookupJoin(
     cluster: RelOptCluster,
@@ -68,11 +68,11 @@ class BatchExecLookupJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
   }
+
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 
   override def replaceInputNode(
       ordinalInParent: Int,

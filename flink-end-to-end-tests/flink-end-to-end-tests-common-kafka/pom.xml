@@ -46,35 +46,6 @@ under the License.
 			<artifactId>junit</artifactId>
 		</dependency>
 
-		<!-- Need the three Kafka jar version to run the E2E Kafka tests -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-kafka010-test_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<!-- ensure the test jars are built beforehand -->
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<!-- For dependency convergence; conflicting dependencies are not loaded at the same time -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-kafka011-test_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<!-- ensure the test jars are built beforehand -->
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<!-- For dependency convergence; conflicting dependencies are not loaded at the same time -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-connector-kafka-0.11_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
@@ -105,22 +76,7 @@ under the License.
 		<dependency>
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
-			<version>${project.version}</version>
-			<classifier>sql-jar</classifier>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-kafka-0.10_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<!-- Used by maven-dependency-plugin -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-kafka-0.11_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-avro</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -144,22 +100,6 @@ under the License.
 					<artifactItems>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-streaming-kafka010-test_${scala.binary.version}</artifactId>
-							<version>${project.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-streaming-kafka011-test_${scala.binary.version}</artifactId>
-							<version>${project.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
 							<artifactId>flink-streaming-kafka-test_${scala.binary.version}</artifactId>
 							<version>${project.version}</version>
 							<type>jar</type>
@@ -177,26 +117,9 @@ under the License.
 						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-avro</artifactId>
+							<artifactId>flink-sql-avro</artifactId>
 							<version>${project.version}</version>
-							<classifier>sql-jar</classifier>
 							<destFileName>avro.jar</destFileName>
-							<type>jar</type>
-							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-sql-connector-kafka-0.10_${scala.binary.version}</artifactId>
-							<version>${project.version}</version>
-							<destFileName>sql-kafka-0.10.jar</destFileName>
-							<type>jar</type>
-							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-sql-connector-kafka-0.11_${scala.binary.version}</artifactId>
-							<version>${project.version}</version>
-							<destFileName>sql-kafka-0.11.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</artifactItem>

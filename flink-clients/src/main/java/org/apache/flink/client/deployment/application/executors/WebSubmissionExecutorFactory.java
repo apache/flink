@@ -75,6 +75,6 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
 		return new EmbeddedExecutor(
 				submittedJobIds,
 				dispatcherGateway,
-				WebSubmissionJobClient::new);
+				(jobId, userCodeClassloader) -> new WebSubmissionJobClient(jobId));
 	}
 }

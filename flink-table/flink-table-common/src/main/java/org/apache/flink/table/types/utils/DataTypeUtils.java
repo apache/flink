@@ -47,6 +47,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -66,6 +67,48 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
  */
 @Internal
 public final class DataTypeUtils {
+
+	/**
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes fields of the given
+	 * index paths.
+	 *
+	 * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
+	 * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
+	 */
+	public static DataType projectRow(DataType dataType, int[][] indexPaths) {
+		final List<RowField> updatedFields = new ArrayList<>();
+		final List<DataType> updatedChildren = new ArrayList<>();
+		for (int[] indexPath : indexPaths) {
+			updatedFields.add(selectChild(dataType.getLogicalType(), indexPath, 0));
+			updatedChildren.add(selectChild(dataType, indexPath, 0));
+		}
+		return new FieldsDataType(
+			new RowType(dataType.getLogicalType().isNullable(), updatedFields),
+			dataType.getConversionClass(),
+			updatedChildren);
+	}
+
+	private static DataType selectChild(DataType dataType, int[] indexPath, int pos) {
+		final int index = indexPath[pos];
+		final DataType child = dataType.getChildren().get(index);
+		if (pos == indexPath.length - 1) {
+			return child;
+		}
+		return selectChild(child, indexPath, pos + 1);
+	}
+
+	private static RowField selectChild(LogicalType logicalType, int[] indexPath, int pos) {
+		Preconditions.checkArgument(
+			hasRoot(logicalType, LogicalTypeRoot.ROW),
+			"Row data type expected.");
+		final RowType rowType = (RowType) logicalType;
+		final int index = indexPath[pos];
+		final RowField child = rowType.getFields().get(index);
+		if (pos == indexPath.length - 1) {
+			return child;
+		}
+		return selectChild(child.getType(), indexPath, pos + 1);
+	}
 
 	/**
 	 * Creates a {@link DataType} from the given {@link LogicalType} with internal data structures.
@@ -179,6 +222,13 @@ public final class DataTypeUtils {
 			return dataType.getChildren();
 		}
 		return Collections.singletonList(dataType);
+	}
+
+	/**
+	 * Returns the names of the flat representation in the first level of the given data type.
+	 */
+	public static List<String> flattenToNames(DataType dataType) {
+		return flattenToNames(dataType, Collections.emptyList());
 	}
 
 	/**

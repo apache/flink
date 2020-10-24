@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
@@ -40,7 +41,6 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
 	public static final String FIELD_NAME_METRICS = "metrics";
 
-	@JsonProperty(FIELD_NAME_METRICS)
 	private final TaskManagerMetricsInfo taskManagerMetrics;
 
 	@JsonCreator
@@ -48,6 +48,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
 			@JsonProperty(FIELD_NAME_ADDRESS) String address,
 			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
+			@JsonProperty(FIELD_NAME_JMX_PORT) int jmxPort,
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
@@ -60,6 +61,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			resourceId,
 			address,
 			dataPort,
+			jmxPort,
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
@@ -76,6 +78,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			taskManagerInfo.getResourceId(),
 			taskManagerInfo.getAddress(),
 			taskManagerInfo.getDataPort(),
+			taskManagerInfo.getJmxPort(),
 			taskManagerInfo.getLastHeartbeat(),
 			taskManagerInfo.getNumberSlots(),
 			taskManagerInfo.getNumberAvailableSlots(),
@@ -84,6 +87,12 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			taskManagerInfo.getHardwareDescription(),
 			taskManagerInfo.getMemoryConfiguration(),
 			taskManagerMetrics);
+	}
+
+	@JsonProperty(FIELD_NAME_METRICS)
+	@VisibleForTesting
+	public final TaskManagerMetricsInfo getTaskManagerMetricsInfo() {
+		return this.taskManagerMetrics;
 	}
 
 	@Override

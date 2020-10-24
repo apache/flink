@@ -21,13 +21,10 @@ package org.apache.flink.queryablestate.itcases;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -42,7 +39,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
@@ -600,79 +596,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	}
 
 	/**
-	 * Tests simple folding state queryable state instance. Each source emits
-	 * (subtaskIndex, 0)..(subtaskIndex, numElements) tuples, which are then
-	 * queried. The folding state sums these up and maps them to Strings. The
-	 * test succeeds after each subtask index is queried with result n*(n+1)/2
-	 * (as a String).
-	 */
-	@Test
-	public void testFoldingState() throws Exception {
-		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
-		final int numElements = 1024;
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStateBackend(stateBackend);
-		env.setParallelism(maxParallelism);
-		// Very important, because cluster is shared between tests and we
-		// don't explicitly check that all slots are available before
-		// submitting.
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
-
-		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
-
-		FoldingStateDescriptor<Tuple2<Integer, Long>, String> foldingState = new FoldingStateDescriptor<>(
-				"any", "0", new SumFold(), StringSerializer.INSTANCE);
-
-		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-			private static final long serialVersionUID = -842809958106747539L;
-
-			@Override
-			public Integer getKey(Tuple2<Integer, Long> value) {
-				return value.f0;
-			}
-		}).asQueryableState("pumba", foldingState);
-
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
-
-			final JobID jobId = autoCancellableJob.getJobId();
-			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
-
-			clusterClient.submitJob(jobGraph).get();
-
-			final String expected = Integer.toString(numElements * (numElements + 1) / 2);
-
-			for (int key = 0; key < maxParallelism; key++) {
-				boolean success = false;
-				while (deadline.hasTimeLeft() && !success) {
-					CompletableFuture<FoldingState<Tuple2<Integer, Long>, String>> future = getKvState(
-							deadline,
-							client,
-							jobId,
-							"pumba",
-							key,
-							BasicTypeInfo.INT_TYPE_INFO,
-							foldingState,
-							false,
-							executor);
-
-					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
-
-					//assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected.equals(value)) {
-						success = true;
-					} else {
-						// Retry
-						Thread.sleep(RETRY_TIMEOUT);
-					}
-				}
-
-				assertTrue("Did not succeed query", success);
-			}
-		}
-	}
-
-	/**
 	 * Tests simple reducing state queryable state instance. Each source emits
 	 * (subtaskIndex, 0)..(subtaskIndex, numElements) tuples, which are then
 	 * queried. The reducing state instance sums these up. The test succeeds
@@ -1190,20 +1113,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		@Override
 		public String merge(String a, String b) {
 			return Long.toString(Long.valueOf(a) + Long.valueOf(b));
-		}
-	}
-
-	/**
-	 * Test {@link FoldFunction} concatenating the already stored string with the long passed as argument.
-	 */
-	private static class SumFold implements FoldFunction<Tuple2<Integer, Long>, String> {
-		private static final long serialVersionUID = -6249227626701264599L;
-
-		@Override
-		public String fold(String accumulator, Tuple2<Integer, Long> value) throws Exception {
-			long acc = Long.valueOf(accumulator);
-			acc += value.f1;
-			return Long.toString(acc);
 		}
 	}
 

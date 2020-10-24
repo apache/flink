@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
@@ -64,9 +65,7 @@ import org.apache.flink.table.utils.ParserMock;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -78,8 +77,13 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Test cases for {@link SqlToOperationConverter}. **/
 public class SqlToOperationConverterTest {
@@ -99,9 +103,6 @@ public class SqlToOperationConverterTest {
 			functionCatalog,
 			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, tableConfig, false)),
 			new ExpressionBridge<>(PlannerExpressionConverter.INSTANCE()));
-
-	@Rule
-	public ExpectedException expectedEx = ExpectedException.none();
 
 	@Before
 	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -152,7 +153,7 @@ public class SqlToOperationConverterTest {
 		assertEquals("db1", ((UseDatabaseOperation) operation2).getDatabaseName());
 	}
 
-	@Test(expected = SqlConversionException.class)
+	@Test(expected = ValidationException.class)
 	public void testUseDatabaseWithException() {
 		final String sql = "USE cat1.db1.tbl1";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
@@ -294,7 +295,7 @@ public class SqlToOperationConverterTest {
 		assertEquals(expected, sortedProperties.toString());
 	}
 
-	@Test(expected = SqlConversionException.class)
+	@Test(expected = TableException.class)
 	public void testCreateTableWithPkUniqueKeys() {
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +
@@ -499,7 +500,7 @@ public class SqlToOperationConverterTest {
 	}
 
 	@Test
-	public void testCreateTableWithUnSupportedDataTypes() {
+	public void testCreateTableWithUnsupportedFeatures() {
 		final List<TestItem> testItems = Arrays.asList(
 			createTestItem("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>",
 				"Type is not supported: TIMESTAMP_WITH_LOCAL_TIME_ZONE"),
@@ -511,18 +512,22 @@ public class SqlToOperationConverterTest {
 			createTestItem("VARBINARY(33)", "Type is not supported: VARBINARY"),
 			createTestItem("VARBINARY", "Type is not supported: VARBINARY"),
 			createTestItem("BINARY(33)", "Type is not supported: BINARY"),
-			createTestItem("BINARY", "Type is not supported: BINARY")
+			createTestItem("BINARY", "Type is not supported: BINARY"),
+			createTestItem("AS 1 + 1", "Only regular columns are supported in the DDL of the old planner."),
+			createTestItem("INT METADATA", "Only regular columns are supported in the DDL of the old planner.")
 		);
-		final String sqlTemplate = "create table t1(\n" +
-			"  f0 %s)";
+		final String sqlTemplate = "CREATE TABLE T1 (f0 %s)";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		for (TestItem item : testItems) {
 			String sql = String.format(sqlTemplate, item.testExpr);
 			SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
 			assert node instanceof SqlCreateTable;
-			expectedEx.expect(TableException.class);
-			expectedEx.expectMessage(item.expectedError);
-			SqlToOperationConverter.convert(planner, catalogManager, node);
+			try {
+				SqlToOperationConverter.convert(planner, catalogManager, node);
+			} catch (Exception e) {
+				assertThat(e, is(instanceOf(TableException.class)));
+				assertThat(e, hasMessage(equalTo(item.expectedError)));
+			}
 		}
 	}
 

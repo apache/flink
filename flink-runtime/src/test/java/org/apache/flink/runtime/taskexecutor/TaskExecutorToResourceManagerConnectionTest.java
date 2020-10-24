@@ -67,6 +67,8 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
 	private static final int TASK_MANAGER_DATA_PORT = 12345;
 
+	private static final int TASK_MANAGER_JMX_PORT = 23456;
+
 	private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION = HardwareDescription.extractFromSystem(Long.MAX_VALUE);
 
 	private static final TaskExecutorMemoryConfiguration TASK_MANAGER_MEMORY_CONFIGURATION = new TaskExecutorMemoryConfiguration(
@@ -116,6 +118,7 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 			TASK_MANAGER_ADDRESS,
 			TASK_MANAGER_RESOURCE_ID,
 			TASK_MANAGER_DATA_PORT,
+			TASK_MANAGER_JMX_PORT,
 			TASK_MANAGER_HARDWARE_DESCRIPTION,
 			TASK_MANAGER_MEMORY_CONFIGURATION,
 			ResourceProfile.ZERO,
