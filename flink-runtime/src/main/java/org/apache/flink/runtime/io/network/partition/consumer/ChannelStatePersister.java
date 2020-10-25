@@ -21,6 +21,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
@@ -47,9 +48,7 @@ final class ChannelStatePersister {
 
 	private long lastSeenBarrier = -1L;
 
-	/**
-	 * Writer must be initialized before usage. {@link #startPersisting(long, List)} enforces this invariant.
-	 */
+	/** Writer must be initialized before usage. {@link #startPersisting(long, List)} enforces this invariant. */
 	private final ChannelStateWriter channelStateWriter;
 
 	ChannelStatePersister(ChannelStateWriter channelStateWriter, InputChannelInfo channelInfo) {
@@ -95,6 +94,12 @@ final class ChannelStatePersister {
 				checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
 				lastSeenBarrier = ((CheckpointBarrier) priorityEvent).getId();
 				return Optional.of(lastSeenBarrier);
+			}
+		}
+		else if (priorityEvent instanceof EventAnnouncement) {
+			EventAnnouncement announcement = (EventAnnouncement) priorityEvent;
+			if (announcement.getAnnouncedEvent() instanceof CheckpointBarrier) {
+				return Optional.of(((CheckpointBarrier) announcement.getAnnouncedEvent()).getId());
 			}
 		}
 		return Optional.empty();

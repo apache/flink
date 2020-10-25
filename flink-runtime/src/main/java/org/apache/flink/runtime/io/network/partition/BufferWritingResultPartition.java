@@ -235,6 +235,9 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	private BufferBuilder appendUnicastDataForNewRecord(
 			final ByteBuffer record,
 			final int targetSubpartition) throws IOException {
+		if (targetSubpartition < 0 || targetSubpartition > unicastBufferBuilders.length) {
+			throw new ArrayIndexOutOfBoundsException(targetSubpartition);
+		}
 		BufferBuilder buffer = unicastBufferBuilders[targetSubpartition];
 
 		if (buffer == null) {

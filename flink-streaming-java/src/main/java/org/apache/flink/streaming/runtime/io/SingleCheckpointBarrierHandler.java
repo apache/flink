@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
@@ -116,21 +118,15 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				markAlignmentStart(barrier.getTimestamp());
 			}
 			allBarriersReceivedFuture = new CompletableFuture<>();
-			try {
-				if (controller.preProcessFirstBarrier(channelInfo, barrier)) {
-					LOG.debug("{}: Triggering checkpoint {} on the first barrier at {}.",
-						taskName,
-						barrier.getId(),
-						barrier.getTimestamp());
-					notifyCheckpoint(barrier);
-				}
-			} catch (CheckpointException e) {
-				abortInternal(barrier.getId(), e);
+
+			if (!handleBarrier(barrier, channelInfo, CheckpointBarrierBehaviourController::preProcessFirstBarrier)) {
 				return;
 			}
 		}
 
-		controller.barrierReceived(channelInfo, barrier);
+		if (!handleBarrier(barrier, channelInfo, CheckpointBarrierBehaviourController::barrierReceived)) {
+			return;
+		}
 
 		if (currentCheckpointId == barrierId) {
 			if (++numBarriersReceived == numOpenChannels) {
@@ -139,15 +135,41 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				}
 				numBarriersReceived = 0;
 				lastCancelledOrCompletedCheckpointId = currentCheckpointId;
-				if (controller.postProcessLastBarrier(channelInfo, barrier)) {
-					LOG.debug("{}: Triggering checkpoint {} on the last barrier at {}.",
-						taskName,
-						barrier.getId(),
-						barrier.getTimestamp());
-					notifyCheckpoint(barrier);
-				}
+				handleBarrier(barrier, channelInfo, CheckpointBarrierBehaviourController::postProcessLastBarrier);
 				allBarriersReceivedFuture.complete(null);
 			}
+		}
+	}
+
+	private boolean handleBarrier(
+			CheckpointBarrier barrier,
+			InputChannelInfo channelInfo,
+			TriFunctionWithException<
+				CheckpointBarrierBehaviourController,
+				InputChannelInfo,
+				CheckpointBarrier,
+				Optional<CheckpointBarrier>,
+				Exception
+			> controllerAction) throws IOException {
+		try {
+			Optional<CheckpointBarrier> triggerMaybe = controllerAction.apply(controller, channelInfo, barrier);
+			if (triggerMaybe.isPresent()) {
+				CheckpointBarrier trigger = triggerMaybe.get();
+				LOG.debug(
+					"{}: Triggering checkpoint {} on the barrier announcement at {}.",
+					taskName,
+					trigger.getId(),
+					trigger.getTimestamp());
+				notifyCheckpoint(trigger);
+			}
+			return true;
+		} catch (CheckpointException e) {
+			abortInternal(barrier.getId(), e);
+			return false;
+		} catch (RuntimeException | IOException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new IOException(e);
 		}
 	}
 
@@ -157,7 +179,17 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			int sequenceNumber,
 			InputChannelInfo channelInfo) throws IOException {
 		checkSubsumedCheckpoint(channelInfo, announcedBarrier);
-		// TODO: FLINK-19681
+
+		long barrierId = announcedBarrier.getId();
+		if (currentCheckpointId > barrierId || (currentCheckpointId == barrierId && !isCheckpointPending())) {
+			LOG.debug("{}: Obsolete announcement of checkpoint {} for channel {}.",
+					taskName,
+					barrierId,
+					channelInfo);
+			return;
+		}
+
+		controller.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
 	}
 
 	private void checkSubsumedCheckpoint(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {

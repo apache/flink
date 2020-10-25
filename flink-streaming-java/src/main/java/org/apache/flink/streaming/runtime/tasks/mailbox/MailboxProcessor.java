@@ -86,6 +86,11 @@ public class MailboxProcessor implements Closeable {
 
 	private Meter idleTime = new MeterView(new SimpleCounter());
 
+	@VisibleForTesting
+	public MailboxProcessor() {
+		this(MailboxDefaultAction.Controller::suspendDefaultAction);
+	}
+
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
 	}

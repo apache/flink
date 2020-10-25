@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,11 +51,16 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -142,6 +148,29 @@ public class AlignedControllerTest {
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
+
+	public void testGetChannelsWithUnprocessedBarriers() throws IOException {
+		mockInputGate = new MockInputGate(4, Collections.emptyList());
+		AlignedController alignedController = new AlignedController(mockInputGate);
+		BufferOrEvent barrier0 = createBarrier(1, 0);
+		BufferOrEvent barrier1 = createBarrier(1, 1);
+		BufferOrEvent barrier3 = createBarrier(1, 3);
+		alignedController.barrierAnnouncement(barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent(), 0);
+		alignedController.barrierReceived(barrier0.getChannelInfo(), (CheckpointBarrier) barrier0.getEvent());
+		alignedController.barrierAnnouncement(barrier1.getChannelInfo(), (CheckpointBarrier) barrier1.getEvent(), 1);
+		alignedController.barrierAnnouncement(barrier3.getChannelInfo(), (CheckpointBarrier) barrier3.getEvent(), 42);
+
+		Collection<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
+		Map<InputChannelInfo, Integer> announcedChannels = alignedController.getSequenceNumberInAnnouncedChannels();
+
+		// blockedChannels and announcedChannels should be copies and shouldn't be cleared by the resumeConsumption
+		alignedController.resumeConsumption();
+
+		assertThat(blockedChannels, contains(barrier0.getChannelInfo()));
+		assertThat(announcedChannels, IsMapContaining.hasEntry(barrier1.getChannelInfo(), 1));
+		assertThat(announcedChannels, IsMapContaining.hasEntry(barrier3.getChannelInfo(), 42));
+		assertThat(announcedChannels.size(), equalTo(2));
+	}
 
 	/**
 	 * Validates that the buffer behaves correctly if no checkpoint barriers come,
