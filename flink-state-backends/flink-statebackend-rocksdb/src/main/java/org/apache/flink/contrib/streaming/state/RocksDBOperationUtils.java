@@ -170,13 +170,13 @@ public class RocksDBOperationUtils {
 	}
 
 	/**
-	 * Logs a warning ff the arena block size is too high causing RocksDB to flush constantly.
+	 * Logs a warning if the arena block size is too high causing RocksDB to flush constantly.
 	 * Essentially, the condition
 	 * <a href="https://github.com/dataArtisans/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/include/rocksdb/write_buffer_manager.h#L47">
 	 * here</a> will always be true.
 	 *
 	 * @param writeBufferSize the size of write buffer (bytes)
-	 * @param arenaBlockSizeConfigured the manually configured arena block size
+	 * @param arenaBlockSizeConfigured the manually configured arena block size, zero or less means not configured
 	 * @param writeBufferManagerCapacity the size of the write buffer manager (bytes)
 	 * @return true if sanity check passes, false otherwise
 	 */
