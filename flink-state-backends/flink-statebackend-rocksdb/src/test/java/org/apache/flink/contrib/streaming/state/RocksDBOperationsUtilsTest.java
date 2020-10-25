@@ -32,9 +32,7 @@ import org.rocksdb.RocksDB;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -81,58 +79,22 @@ public class RocksDBOperationsUtilsTest {
 		}
 	}
 
-	@Test
 	public void testSanityCheckArenaBlockSize() {
 		long testWriteBufferSize = 56 * 1024 * 1024L;
-		long testDefaultArenaSize = testWriteBufferSize / 8;
-		long testValidArenaSize = testWriteBufferSize / 7;
-		long testInvalidArenaSize = testWriteBufferSize / 7 - 8L;
-		List<TestData> tests = Arrays.asList(
-				new TestData(testWriteBufferSize, 0, testInvalidArenaSize, false),
-				new TestData(testWriteBufferSize, testDefaultArenaSize, testInvalidArenaSize, false),
-				new TestData(testWriteBufferSize, 0, testValidArenaSize, true),
-				new TestData(testWriteBufferSize, testDefaultArenaSize, testValidArenaSize, true)
-		);
-
-		for (TestData test : tests) {
-			long writeBufferSize = test.getWriteBufferSize();
-			long arenaBlockSizeConfigured = test.getArenaBlockSizeConfigured();
-			long writeBufferManagerCapacity = test.getWriteBufferManagerCapacity();
-			boolean expected = test.getExpectedResult();
-
-			boolean sanityCheckResult = RocksDBOperationUtils.sanityCheckArenaBlockSize(writeBufferSize, arenaBlockSizeConfigured, writeBufferManagerCapacity);
-			assertThat(sanityCheckResult, is(expected));
-		}
-	}
-
-	private static class TestData {
-		private final long writeBufferSize;
-		private final long arenaBlockSizeConfigured;
-		private final long writeBufferManagerCapacity;
-		private final boolean expectedResult;
-
-		public TestData(long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity, boolean expectedResult) {
-			this.writeBufferSize = writeBufferSize;
-			this.arenaBlockSizeConfigured = arenaBlockSizeConfigured;
-			this.writeBufferManagerCapacity = writeBufferManagerCapacity;
-			this.expectedResult = expectedResult;
-		}
-
-		public long getWriteBufferSize() {
-			return writeBufferSize;
-		}
-
-		public long getArenaBlockSizeConfigured() {
-			return arenaBlockSizeConfigured;
-		}
-
-		public long getWriteBufferManagerCapacity() {
-			return writeBufferManagerCapacity;
-		}
-
-		public boolean getExpectedResult() {
-			return expectedResult;
-		}
+		long testDefaultArenaSize = RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(testWriteBufferSize);
+		long testWriteBufferCapacityBoundary = testDefaultArenaSize * 8 / 7;
+		assertThat("The sanity check result is incorrect with default arena block size",
+				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, 0, testWriteBufferCapacityBoundary),
+				is(true));
+		assertThat("The sanity check result is incorrect with default arena block size given as argument",
+				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, testDefaultArenaSize, testWriteBufferCapacityBoundary),
+				is(true));
+		assertThat("The sanity check should pass when the configured arena block size is smaller than the boundary.",
+				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, testDefaultArenaSize - 1, testWriteBufferCapacityBoundary),
+				is(true));
+		assertThat("The sanity check should fail when the configured arena block size is higher than the boundary.",
+				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, testDefaultArenaSize + 1, testWriteBufferCapacityBoundary),
+				is(false));
 	}
 
 	private static String getLongString(int numChars) {
