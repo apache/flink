@@ -85,6 +85,9 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 	@Override
 	public void wakeUp() {}
 
+	@Override
+	public void close() throws Exception {}
+
 	private void checkSplitOrStartNext() throws IOException {
 		if (currentReader != null) {
 			return;
