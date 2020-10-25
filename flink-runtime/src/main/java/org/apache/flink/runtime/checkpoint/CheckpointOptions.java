@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Options for performing the checkpoint.
@@ -187,5 +188,15 @@ public class CheckpointOptions implements Serializable {
 			isExactlyOnceMode,
 			isUnalignedCheckpoint,
 			alignmentTimeout);
+	}
+
+	public CheckpointOptions toTimeouted() {
+		checkState(checkpointType == CheckpointType.CHECKPOINT);
+		return create(
+			checkpointType,
+			targetLocation,
+			isExactlyOnceMode,
+			true,
+			0);
 	}
 }

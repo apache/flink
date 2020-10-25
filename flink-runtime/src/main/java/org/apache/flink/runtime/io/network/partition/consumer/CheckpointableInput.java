@@ -44,4 +44,6 @@ public interface CheckpointableInput {
 	void checkpointStopped(long cancelledCheckpointId);
 
 	int getInputGateIndex();
+
+	void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException;
 }

@@ -494,6 +494,7 @@ public class RemoteInputChannel extends InputChannel {
 
 	private SequenceBuffer announce(SequenceBuffer sequenceBuffer) throws IOException {
 		checkState(!sequenceBuffer.buffer.isBuffer(), "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
+		checkAnnouncedOnlyOnce(sequenceBuffer);
 		AbstractEvent event = EventSerializer.fromBuffer(
 				sequenceBuffer.buffer,
 				getClass().getClassLoader());
@@ -502,6 +503,20 @@ public class RemoteInputChannel extends InputChannel {
 		return new SequenceBuffer(
 				EventSerializer.toBuffer(new EventAnnouncement(barrier, sequenceBuffer.sequenceNumber), true),
 				sequenceBuffer.sequenceNumber);
+	}
+
+	private void checkAnnouncedOnlyOnce(SequenceBuffer sequenceBuffer) {
+		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
+		int count = 0;
+		while (iterator.hasNext()) {
+			if (iterator.next().sequenceNumber == sequenceBuffer.sequenceNumber) {
+				count++;
+			}
+		}
+		checkState(
+			count == 1,
+			"Before enqueuing the announcement there should be exactly single occurrence of the buffer, but found [%d]",
+			count);
 	}
 
 	/**
@@ -530,6 +545,29 @@ public class RemoteInputChannel extends InputChannel {
 	List<Buffer> getInflightBuffers(long checkpointId) throws CheckpointException {
 		synchronized (receivedBuffers) {
 			return getInflightBuffersUnsafe(checkpointId);
+		}
+	}
+
+	@Override
+	public void convertToPriorityEvent(int sequenceNumber) throws IOException {
+		boolean firstPriorityEvent;
+		synchronized (receivedBuffers) {
+			checkState(!channelStatePersister.hasBarrierReceived());
+			int numPriorityElementsBeforeRemoval = receivedBuffers.getNumPriorityElements();
+			SequenceBuffer toPrioritize = receivedBuffers.getAndRemove(
+				sequenceBuffer -> sequenceBuffer.sequenceNumber == sequenceNumber);
+			checkState(lastBarrierSequenceNumber == sequenceNumber);
+			checkState(!toPrioritize.buffer.isBuffer());
+			checkState(
+				numPriorityElementsBeforeRemoval == receivedBuffers.getNumPriorityElements(),
+				"Attempted to convertToPriorityEvent an event [%s] that has already been prioritized [%s]",
+				toPrioritize,
+				numPriorityElementsBeforeRemoval);
+			firstPriorityEvent = addPriorityBuffer(toPrioritize); 	// note that only position of the element is changed
+																	// converting the event itself would require switching the controller sooner
+		}
+		if (firstPriorityEvent) {
+			notifyPriorityEvent(sequenceNumber);
 		}
 	}
 
@@ -652,6 +690,15 @@ public class RemoteInputChannel extends InputChannel {
 		private SequenceBuffer(Buffer buffer, int sequenceNumber) {
 			this.buffer = buffer;
 			this.sequenceNumber = sequenceNumber;
+		}
+
+		@Override
+		public String toString() {
+			return String.format(
+				"SequenceBuffer(isEvent = %s, dataType = %s, sequenceNumber = %s)",
+				!buffer.isBuffer(),
+				buffer.getDataType(),
+				sequenceNumber);
 		}
 	}
 }

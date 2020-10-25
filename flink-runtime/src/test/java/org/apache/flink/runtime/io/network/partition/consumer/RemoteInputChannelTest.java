@@ -1232,6 +1232,47 @@ public class RemoteInputChannelTest {
 		assertEquals(3, channel.getNextBuffer().get().getSequenceNumber());
 	}
 
+	@Test
+	public void testGetInflightBuffersBeforeProcessingAnnouncement() throws Exception {
+		int bufferSize = 1;
+		int sequenceNumber = 0;
+		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBarrier(channel, sequenceNumber++, 10);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		assertInflightBufferSizes(channel, 1, 2);
+	}
+
+	@Test
+	public void testGetInflightBuffersAfterProcessingAnnouncement() throws Exception {
+		int bufferSize = 1;
+		int sequenceNumber = 0;
+		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBarrier(channel, sequenceNumber++, 10);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		assertGetNextBufferSequenceNumbers(channel, 2);
+		assertInflightBufferSizes(channel, 1, 2);
+	}
+
+	@Test
+	public void testGetInflightBuffersAfterProcessingAnnouncementAndBuffer() throws Exception {
+		int bufferSize = 1;
+		int sequenceNumber = 0;
+		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBarrier(channel, sequenceNumber++, 10);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		sendBuffer(channel, sequenceNumber++, bufferSize++);
+		assertGetNextBufferSequenceNumbers(channel, 2, 0);
+		assertInflightBufferSizes(channel, 2);
+	}
+
 	private void sendBarrier(RemoteInputChannel channel, int sequenceNumber, int alignmentTimeout) throws IOException {
 		CheckpointOptions checkpointOptions = CheckpointOptions.create(
 			CHECKPOINT,

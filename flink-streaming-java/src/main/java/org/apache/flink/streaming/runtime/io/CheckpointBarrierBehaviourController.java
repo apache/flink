@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Controls when the checkpoint should be actually triggered.
@@ -37,23 +38,28 @@ public interface CheckpointBarrierBehaviourController {
 	void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier);
 
 	/**
+	 * Invoked per every {@link CheckpointBarrier} announcement.
+	 */
+	void barrierAnnouncement(InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber) throws IOException;
+
+	/**
 	 * Invoked per every received {@link CheckpointBarrier}.
 	 */
-	void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier);
+	Optional<CheckpointBarrier> barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
 
 	/**
 	 * Invoked once per checkpoint, before the first invocation of
 	 * {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
 	 * @return {@code true} if checkpoint should be triggered.
 	 */
-	boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
+	Optional<CheckpointBarrier> preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
 
 	/**
 	 * Invoked once per checkpoint, after the last invocation of
 	 * {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
 	 * @return {@code true} if checkpoint should be triggered.
 	 */
-	boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException;
+	Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
 
 	void abortPendingCheckpoint(long cancelledId, CheckpointException exception) throws IOException;
 

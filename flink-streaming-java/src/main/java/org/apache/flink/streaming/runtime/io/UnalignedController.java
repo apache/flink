@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Controller for unaligned checkpoints.
@@ -48,22 +49,33 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 	}
 
 	@Override
-	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+	public void barrierAnnouncement(
+			InputChannelInfo channelInfo,
+			CheckpointBarrier announcedBarrier,
+			int sequenceNumber) throws IOException {
+		inputs[channelInfo.getGateIdx()].convertToPriorityEvent(
+			channelInfo.getInputChannelIdx(),
+			sequenceNumber);
 	}
 
 	@Override
-	public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
+	public Optional<CheckpointBarrier> barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+		return Optional.empty();
+	}
+
+	@Override
+	public Optional<CheckpointBarrier> preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
 		checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
 		for (final CheckpointableInput input : inputs) {
 			input.checkpointStarted(barrier);
 		}
-		return true;
+		return Optional.of(barrier);
 	}
 
 	@Override
-	public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+	public Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
 		resetPendingCheckpoint(barrier.getId());
-		return false;
+		return Optional.empty();
 	}
 
 	private void resetPendingCheckpoint(long cancelledId) {
