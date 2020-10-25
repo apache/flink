@@ -77,6 +77,9 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 		}
 	}
 
+	@Override
+	public void close() throws Exception {}
+
 	private RecordsBySplits<int[]> getRecords() {
 		final RecordsBySplits.Builder<int[]> records = new RecordsBySplits.Builder<>();
 

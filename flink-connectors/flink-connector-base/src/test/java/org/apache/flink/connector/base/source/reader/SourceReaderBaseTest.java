@@ -75,8 +75,10 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				public void handleSplitsChanges(SplitsChange<MockSourceSplit> splitsChanges) {}
 
 				@Override
-				public void wakeUp() {
-				}
+				public void wakeUp() {}
+
+				@Override
+				public void close() throws Exception {}
 			},
 			getConfig(),
 			null)) {

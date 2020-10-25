@@ -227,6 +227,15 @@ public class SplitFetcherTest {
 		}
 	}
 
+	@Test
+	public void testClose() {
+		TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
+		final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader);
+		fetcher.shutdown();
+		fetcher.run();
+		assertTrue(splitReader.isClosed());
+	}
+
 	// ------------------------------------------------------------------------
 	//  testing utils
 	// ------------------------------------------------------------------------

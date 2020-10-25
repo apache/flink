@@ -22,11 +22,13 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.TestingRecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
+import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.testutils.OneShotLatch;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Queue;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
@@ -55,6 +58,22 @@ public class SplitFetcherManagerTest {
 				new TestingRecordsWithSplitIds<>("testSplit", 1, 2, 3, 4),
 				new TestingRecordsWithSplitIds<>("testSplit", 5, 6, 7, 8)
 		);
+	}
+
+	@Test
+	public void testCloseFetcherWithException() throws Exception {
+		TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
+		reader.setCloseWithException();
+		SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
+				createFetcher("test-split", new FutureCompletingBlockingQueue<>(), reader);
+		fetcherManager.close(1000L);
+		try {
+			fetcherManager.checkErrors();
+		} catch (Exception e) {
+			assertEquals(
+					"Artificial exception on closing the split reader.",
+					ExceptionUtils.getRootCause(e).getMessage());
+		}
 	}
 
 	// the final modifier is important so that '@SafeVarargs' is accepted on Java 8
@@ -145,6 +164,9 @@ public class SplitFetcherManagerTest {
 
 		@Override
 		public void wakeUp() {}
+
+		@Override
+		public void close() throws Exception {}
 
 		public void awaitAllRecordsReturned() throws InterruptedException {
 			inBlocking.await();

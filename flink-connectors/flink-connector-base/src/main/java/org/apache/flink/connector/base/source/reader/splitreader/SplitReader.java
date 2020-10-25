@@ -57,4 +57,11 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
 	 * {@link #fetch()}.
 	 */
 	void wakeUp();
+
+	/**
+	 * Close the split reader.
+	 *
+	 * @throws Exception if closing the split reader failed.
+	 */
+	void close() throws Exception;
 }

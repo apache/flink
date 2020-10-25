@@ -33,11 +33,15 @@ import java.util.Arrays;
 public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitReader<E, SplitT> {
 
 	private final ArrayDeque<RecordsWithSplitIds<E>> fetches;
+	private volatile boolean closed;
+	private volatile boolean closeWithException;
 
 	@SafeVarargs
 	public TestingSplitReader(RecordsWithSplitIds<E>... fetches) {
 		this.fetches = new ArrayDeque<>(fetches.length);
 		this.fetches.addAll(Arrays.asList(fetches));
+		this.closed = false;
+		this.closeWithException = false;
 	}
 
 	@Override
@@ -65,5 +69,21 @@ public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitR
 		synchronized (fetches) {
 			fetches.notifyAll();
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (closeWithException) {
+			throw new Exception("Artificial exception on closing the split reader.");
+		}
+		closed = true;
+	}
+
+	public void setCloseWithException() {
+		closeWithException = true;
+	}
+
+	public boolean isClosed() {
+		return closed;
 	}
 }
