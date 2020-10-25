@@ -32,7 +32,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <SplitT> The type of the the source splits.
  */
 @PublicEvolving
-public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseable {
+public interface SourceReader<T, SplitT extends SourceSplit>
+		extends AutoCloseable {
 
 	/**
 	 * Start the reader.
@@ -58,7 +59,7 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 *
 	 * @return the state of the source.
 	 */
-	List<SplitT> snapshotState();
+	List<SplitT> snapshotState(long checkpointId);
 
 	/**
 	 * @return a future that will be completed once there is a record available to poll.
@@ -78,4 +79,18 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 * @param sourceEvent the event sent by the {@link SplitEnumerator}.
 	 */
 	void handleSourceEvents(SourceEvent sourceEvent);
+
+	/**
+	 * We have an empty default implementation here because most source readers do not have
+	 * to implement the method.
+	 */
+	default void notifyCheckpointComplete(long checkpointId) throws Exception {}
+
+	/**
+	 * Called when a checkpoint is aborted.
+	 *
+	 * <p>NOTE: This method is here only in the backport to the Flink 1.11 branch.
+	 * In 1.12, this default method is inherited from the CheckpointListener interface.
+	 */
+	default void notifyCheckpointAborted(long checkpointId) {}
 }

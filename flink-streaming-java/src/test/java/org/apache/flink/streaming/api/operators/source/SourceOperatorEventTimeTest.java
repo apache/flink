@@ -239,7 +239,7 @@ public class SourceOperatorEventTimeTest {
 		}
 
 		@Override
-		public List<MockSourceSplit> snapshotState() {
+		public List<MockSourceSplit> snapshotState(long checkpointId) {
 			throw new UnsupportedOperationException();
 		}
 

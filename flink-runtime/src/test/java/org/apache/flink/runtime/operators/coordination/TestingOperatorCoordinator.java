@@ -81,7 +81,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		lastCheckpointComplete.offer(checkpointId);
 	}
 
