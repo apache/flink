@@ -35,10 +35,10 @@ import java.util.Collection;
  * A {@link SourceReader} that read records from {@link FileSourceSplit}.
  */
 @Internal
-public final class FileSourceReader<T>
-		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
+public final class FileSourceReader<T, SplitT extends FileSourceSplit>
+		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, SplitT, FileSourceSplitState<SplitT>> {
 
-	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T, FileSourceSplit> readerFormat, Configuration config) {
+	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T, SplitT> readerFormat, Configuration config) {
 		super(
 			() -> new FileSourceSplitReader<>(config, readerFormat),
 			new FileSourceRecordEmitter<>(),
@@ -57,12 +57,12 @@ public final class FileSourceReader<T>
 	}
 
 	@Override
-	protected FileSourceSplitState initializedState(FileSourceSplit split) {
-		return new FileSourceSplitState(split);
+	protected FileSourceSplitState<SplitT> initializedState(SplitT split) {
+		return new FileSourceSplitState<>(split);
 	}
 
 	@Override
-	protected FileSourceSplit toSplitType(String splitId, FileSourceSplitState splitState) {
+	protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
 		return splitState.toFileSourceSplit();
 	}
 
