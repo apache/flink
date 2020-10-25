@@ -21,9 +21,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
@@ -32,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 
 import org.junit.Test;
 
@@ -45,8 +51,11 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -84,7 +93,7 @@ public class AlternatingControllerTest {
 	}
 
 	@Test
-	public void testAlignedTimeoutableCheckpoint() throws Exception {
+	public void testAlignedNeverTimeoutableCheckpoint() throws Exception {
 		int numChannels = 2;
 		int bufferSize = 1000;
 		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
@@ -95,12 +104,82 @@ public class AlternatingControllerTest {
 		Buffer neverTimeoutableCheckpoint = barrier(1, CHECKPOINT, checkpointCreationTime, Long.MAX_VALUE);
 		send(neverTimeoutableCheckpoint, gate, 0);
 		sendBuffer(bufferSize, gate, 1);
-
 		assertEquals(0, target.getTriggeredCheckpointCounter());
 
 		send(neverTimeoutableCheckpoint, gate, 1);
-
 		assertEquals(1, target.getTriggeredCheckpointCounter());
+	}
+
+	@Test
+	public void testTimeoutAlignment() throws Exception {
+		int numChannels = 2;
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels);
+
+		testTimeoutBarrierOnTwoChannels(target, gate);
+	}
+
+	@Test
+	public void testTimeoutAlignmentAfterProcessingBarrier() throws Exception {
+		int numChannels = 3;
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels);
+
+		long alignmentTimeout = 10;
+		long checkpointCreationTime = System.currentTimeMillis() - 2 * alignmentTimeout;
+		Buffer neverTimeoutableCheckpoint = barrier(1, CHECKPOINT, checkpointCreationTime, Long.MAX_VALUE);
+
+		RemoteInputChannel channel2 = (RemoteInputChannel) gate.getChannel(2);
+
+		channel2.onBuffer(neverTimeoutableCheckpoint.retainBuffer(), 0, 0);
+		while (gate.pollNext().isPresent()) {
+		}
+
+		assertEquals(0, target.getTriggeredCheckpointCounter());
+
+		testTimeoutBarrierOnTwoChannels(target, gate);
+	}
+
+	private void testTimeoutBarrierOnTwoChannels(ValidatingCheckpointHandler target, CheckpointedInputGate gate) throws Exception {
+		int bufferSize = 1000;
+		long alignmentTimeout = 10;
+		long checkpointCreationTime = System.currentTimeMillis() - 2 * alignmentTimeout;
+		Buffer checkpointBarrier = barrier(1, CHECKPOINT, checkpointCreationTime, alignmentTimeout);
+		Buffer buffer = TestBufferFactory.createBuffer(bufferSize);
+
+		RemoteInputChannel channel0 = (RemoteInputChannel) gate.getChannel(0);
+		RemoteInputChannel channel1 = (RemoteInputChannel) gate.getChannel(1);
+		channel0.onBuffer(buffer.retainBuffer(), 0, 0);
+		channel0.onBuffer(buffer.retainBuffer(), 1, 0);
+		channel0.onBuffer(checkpointBarrier.retainBuffer(), 2, 0);
+		channel1.onBuffer(buffer.retainBuffer(), 0, 0);
+		channel1.onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+
+		assertEquals(0, target.getTriggeredCheckpointCounter());
+		// First announcements and prioritsed barriers
+		List<AbstractEvent> events = new ArrayList<>();
+		events.add(gate.pollNext().get().getEvent());
+		events.add(gate.pollNext().get().getEvent());
+		events.add(gate.pollNext().get().getEvent());
+		events.add(gate.pollNext().get().getEvent());
+		assertThat(events, containsInAnyOrder(
+			instanceOf(EventAnnouncement.class),
+			instanceOf(EventAnnouncement.class),
+			instanceOf(CheckpointBarrier.class),
+			instanceOf(CheckpointBarrier.class)));
+		assertEquals(1, target.getTriggeredCheckpointCounter());
+		assertThat(
+			target.getTriggeredCheckpointOptions(),
+			contains(CheckpointOptions.create(
+				CHECKPOINT,
+				CheckpointStorageLocationReference.getDefault(),
+				true,
+				true,
+				0)));
+		// Followed by overtaken buffers
+		assertFalse(gate.pollNext().get().isEvent());
+		assertFalse(gate.pollNext().get().isEvent());
+		assertFalse(gate.pollNext().get().isEvent());
 	}
 
 	@Test
@@ -405,4 +484,22 @@ public class AlternatingControllerTest {
 		return new CheckpointedInputGate(gate, barrierHandler(gate, target), new SyncMailboxExecutor());
 	}
 
+	private static CheckpointedInputGate buildRemoteInputGate(
+			AbstractInvokable target,
+			int numChannels) throws IOException {
+		int maxUsedBuffers = 10;
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numChannels * maxUsedBuffers, 4096);
+		SingleInputGate gate = new SingleInputGateBuilder()
+			.setChannelFactory(InputChannelBuilder::buildRemoteChannel)
+			.setNumberOfChannels(numChannels)
+			.setSegmentProvider(networkBufferPool)
+			.setBufferPoolFactory(networkBufferPool.createBufferPool(numChannels, maxUsedBuffers))
+			.build();
+		gate.setup();
+		gate.requestPartitions();
+		// do not fire events automatically. If you need events, you should expose mailboxProcessor and
+		// execute it step by step
+		MailboxProcessor mailboxProcessor = new MailboxProcessor();
+		return new CheckpointedInputGate(gate, barrierHandler(gate, target), mailboxProcessor.getMainMailboxExecutor());
+	}
 }

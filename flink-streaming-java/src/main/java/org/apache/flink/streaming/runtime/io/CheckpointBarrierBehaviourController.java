@@ -37,6 +37,12 @@ public interface CheckpointBarrierBehaviourController {
 	void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier);
 
 	/**
+	 * Invoked per every checkpoint barrier announcement.
+	 * @return {@code true} if this should trigger a checkpoint.
+	 */
+	boolean barrierAnnouncement(InputChannelInfo channelInfo, CheckpointBarrier announcedBarrier, int sequenceNumber) throws IOException;
+
+	/**
 	 * Invoked per every received {@link CheckpointBarrier}.
 	 */
 	void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier);

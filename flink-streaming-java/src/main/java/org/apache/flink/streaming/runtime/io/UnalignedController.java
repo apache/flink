@@ -48,6 +48,15 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 	}
 
 	@Override
+	public boolean barrierAnnouncement(
+			InputChannelInfo channelInfo,
+			CheckpointBarrier announcedBarrier,
+			int sequenceNumber) throws IOException {
+		inputs[channelInfo.getGateIdx()].convertToPriorityEvent(channelInfo.getInputChannelIdx(), sequenceNumber);
+		return false;
+	}
+
+	@Override
 	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
 	}
 

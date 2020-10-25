@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
@@ -189,6 +190,9 @@ public abstract class InputChannel {
 	 * Called by task thread on cancel/complete to clean-up temporary data.
 	 */
 	public void checkpointStopped(long checkpointId) {
+	}
+
+	public void convertToPriorityEvent(int sequenceNumber) throws IOException {
 	}
 
 	// ------------------------------------------------------------------------
@@ -419,6 +423,10 @@ public abstract class InputChannel {
 			if (priorityEvent instanceof CheckpointBarrier) {
 				pendingCheckpointBarrierId = BARRIER_RECEIVED;
 				return true;
+			}
+			else if (priorityEvent instanceof EventAnnouncement) {
+				EventAnnouncement announcement = (EventAnnouncement) priorityEvent;
+				return announcement.getAnnouncedEvent() instanceof CheckpointBarrier;
 			}
 			return false;
 		}

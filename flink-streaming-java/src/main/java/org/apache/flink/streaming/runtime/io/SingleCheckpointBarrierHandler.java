@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -69,6 +70,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	private long lastCancelledOrCompletedCheckpointId = -1L;
 
+	private long timeoutedBarrierId = -1; // used to shortcut timeout check
+
 	private int numOpenChannels;
 
 	private CompletableFuture<Void> allBarriersReceivedFuture = FutureUtils.completedVoidFuture();
@@ -100,6 +103,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	public void processBarrier(CheckpointBarrier barrier, InputChannelInfo channelInfo) throws IOException {
+		barrier = maybeTimeout(barrier);
+
 		long barrierId = barrier.getId();
 		LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
 
@@ -153,7 +158,25 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			int sequenceNumber,
 			InputChannelInfo channelInfo) throws IOException {
 		checkSubsumedCheckpoint(channelInfo, announcedBarrier);
-		// TODO: FLINK-19681
+
+		announcedBarrier = maybeTimeout(announcedBarrier);
+
+		long barrierId = announcedBarrier.getId();
+		if (currentCheckpointId > barrierId || (currentCheckpointId == barrierId && !isCheckpointPending())) {
+			LOG.debug("{}: Obsolete announcement of checkpoint {} for channel {}.",
+					taskName,
+					barrierId,
+					channelInfo);
+			return;
+		}
+
+		if (controller.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber)) {
+			LOG.debug("{}: Triggering checkpoint {} on the barrier announcement at {}.",
+					taskName,
+					barrierId,
+					announcedBarrier.getTimestamp());
+			notifyCheckpoint(announcedBarrier);
+		}
 	}
 
 	private void checkSubsumedCheckpoint(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
@@ -238,6 +261,23 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	@VisibleForTesting
 	int getNumOpenChannels() {
 		return numOpenChannels;
+	}
+
+	private CheckpointBarrier maybeTimeout(CheckpointBarrier barrier) {
+		CheckpointOptions options = barrier.getCheckpointOptions();
+		boolean shouldTimeout = (options.isTimeoutable()) && (
+			barrier.getId() == timeoutedBarrierId ||
+			(System.currentTimeMillis() - barrier.getTimestamp()) > options.getAlignmentTimeout());
+		if (options.isUnalignedCheckpoint() || !shouldTimeout) {
+			return barrier;
+		}
+		else {
+			timeoutedBarrierId = Math.max(timeoutedBarrierId, barrier.getId());
+			return new CheckpointBarrier(
+				barrier.getId(),
+				barrier.getTimestamp(),
+				options.toTimeouted());
+		}
 	}
 
 	@Override

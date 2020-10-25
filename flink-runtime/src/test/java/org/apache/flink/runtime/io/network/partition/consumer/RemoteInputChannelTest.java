@@ -1193,6 +1193,29 @@ public class RemoteInputChannelTest {
 		assertEquals(3, channel.getNextBuffer().get().getSequenceNumber());
 	}
 
+	@Test
+	public void testGetInflightBuffersBeforeProcessingAnnouncement() throws Exception {
+		final RemoteInputChannel channel = buildInputGateAndGetChannel();
+		sendBuffersAndTimeOutableBarrier(channel);
+		assertInflightBufferSizes(channel, 1, 2);
+	}
+
+	@Test
+	public void testGetInflightBuffersAfterProcessingAnnouncement() throws Exception {
+		final RemoteInputChannel channel = buildInputGateAndGetChannel();
+		sendBuffersAndTimeOutableBarrier(channel);
+		assertGetNextBufferSequenceNumbers(channel, 2);
+		assertInflightBufferSizes(channel, 1, 2);
+	}
+
+	@Test
+	public void testGetInflightBuffersAfterProcessingAnnouncementAndBuffer() throws Exception {
+		final RemoteInputChannel channel = buildInputGateAndGetChannel();
+		sendBuffersAndTimeOutableBarrier(channel);
+		assertGetNextBufferSequenceNumbers(channel, 2, 0);
+		assertInflightBufferSizes(channel, 2);
+	}
+
 	private void sendBuffersAndTimeOutableBarrier(RemoteInputChannel channel) throws IOException {
 		CheckpointOptions options = CheckpointOptions.create(
 			CHECKPOINT,

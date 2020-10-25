@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
+import java.io.IOException;
+
 /**
  * An {@link InputGate} with a specific index.
  */
@@ -51,5 +53,10 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
 	@Override
 	public void blockConsumption(InputChannelInfo channelInfo) {
 		// Unused. Network stack is blocking consumption automatically by revoking credits.
+	}
+
+	@Override
+	public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
+		getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
 	}
 }
