@@ -73,8 +73,8 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
-		coordinator.checkpointComplete(checkpointId);
+	public void notifyCheckpointComplete(long checkpointId) {
+		coordinator.notifyCheckpointComplete(checkpointId);
 	}
 
 	@Override

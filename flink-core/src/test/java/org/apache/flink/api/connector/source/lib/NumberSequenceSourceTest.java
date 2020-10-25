@@ -54,7 +54,7 @@ public class NumberSequenceSourceTest {
 			if (--remainingInCycle <= 0) {
 				remainingInCycle = elementsPerCycle;
 				// checkpoint
-				List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState();
+				List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
 
 				// re-create and restore
 				reader = createReader();

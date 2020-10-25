@@ -30,12 +30,14 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
 import static org.junit.Assert.assertEquals;
@@ -52,7 +54,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 	public void testThrowExceptionWhenNotStarted() {
 		// The following methods should only be invoked after the source coordinator has started.
 		String failureMessage = "Call should fail when source coordinator has not started yet.";
-		verifyException(() -> sourceCoordinator.checkpointComplete(100L),
+		verifyException(() -> sourceCoordinator.notifyCheckpointComplete(100L),
 				failureMessage, "The coordinator has not started yet.");
 		verifyException(() -> sourceCoordinator.handleEventFromOperator(0, null),
 				failureMessage, "The coordinator has not started yet.");
@@ -209,7 +211,13 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 		checkpointFuture.get();
 
 		// Complete checkpoint 100.
-		sourceCoordinator.checkpointComplete(100L);
+		sourceCoordinator.notifyCheckpointComplete(100L);
+		waitUtil(
+				() -> !enumerator.getSuccessfulCheckpoints().isEmpty(),
+				Duration.ofMillis(1000L),
+				"The enumerator failed to process the successful checkpoint "
+						+ "before times out.");
+		assertEquals(100L, (long) enumerator.getSuccessfulCheckpoints().get(0));
 
 		// Fail reader 0.
 		sourceCoordinator.subtaskFailed(0, null);

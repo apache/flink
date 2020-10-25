@@ -299,7 +299,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		}
 
 		@Override
-		public void checkpointComplete(long checkpointId) {}
+		public void notifyCheckpointComplete(long checkpointId) {}
 
 		@SuppressWarnings("CallToPrintStackTrace")
 		@Override

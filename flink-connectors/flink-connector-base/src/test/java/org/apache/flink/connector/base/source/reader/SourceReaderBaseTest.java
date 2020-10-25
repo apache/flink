@@ -185,8 +185,10 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			new TestingReaderContext()) {
 
 			@Override
-			protected void onSplitFinished(Collection<String> finishedSplitIds) {
-			}
+			public void notifyCheckpointComplete(long checkpointId) throws Exception {}
+
+			@Override
+			protected void onSplitFinished(Collection<String> finishedSplitIds) {}
 
 			@Override
 			protected TestingSourceSplit initializedState(TestingSourceSplit split) {

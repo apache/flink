@@ -122,7 +122,7 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 	}
 
 	@Override
-	public List<SplitT> snapshotState() {
+	public List<SplitT> snapshotState(long checkpointId) {
 		final ArrayList<SplitT> allSplits = new ArrayList<>(1 + remainingSplits.size());
 		if (iterator != null) {
 			@SuppressWarnings("unchecked")

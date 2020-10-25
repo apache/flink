@@ -35,6 +35,8 @@ import java.util.concurrent.CompletableFuture;
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
 	private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
 	private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
+	private final List<Long> completedCheckpoints = new ArrayList<>();
+	private final List<Long> abortedCheckpoints = new ArrayList<>();
 	private final boolean markIdleOnNoSplits;
 
 	private int currentSplitIndex = 0;
@@ -90,7 +92,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public List<MockSourceSplit> snapshotState() {
+	public List<MockSourceSplit> snapshotState(long checkpointId) {
 		return assignedSplits;
 	}
 
@@ -117,6 +119,16 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	@Override
 	public void close() throws Exception {
 		this.closed = true;
+	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) {
+		completedCheckpoints.add(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		abortedCheckpoints.add(checkpointId);
 	}
 
 	private synchronized void markUnavailable() {
@@ -153,6 +165,14 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	public List<SourceEvent> getReceivedSourceEvents() {
 		return receivedSourceEvents;
+	}
+
+	public List<Long> getCompletedCheckpoints() {
+		return completedCheckpoints;
+	}
+
+	public List<Long> getAbortedCheckpoints() {
+		return abortedCheckpoints;
 	}
 
 	/**

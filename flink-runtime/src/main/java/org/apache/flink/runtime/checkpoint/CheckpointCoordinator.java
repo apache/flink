@@ -1161,7 +1161,7 @@ public class CheckpointCoordinator {
 
 		// commit coordinators
 		for (OperatorCoordinatorCheckpointContext coordinatorContext : coordinatorsToCheckpoint) {
-			coordinatorContext.checkpointComplete(checkpointId);
+			coordinatorContext.notifyCheckpointComplete(checkpointId);
 		}
 	}
 
@@ -1176,6 +1176,11 @@ public class CheckpointCoordinator {
 				}
 			}
 		});
+
+		// commit coordinators
+		for (OperatorCoordinatorCheckpointContext coordinatorContext : coordinatorsToCheckpoint) {
+			coordinatorContext.notifyCheckpointAborted(checkpointId);
+		}
 	}
 
 	/**

@@ -193,7 +193,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 	}
 
 	@Override

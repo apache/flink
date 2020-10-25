@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.io.InputStatus;
 
 import java.util.List;
@@ -32,7 +33,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <SplitT> The type of the the source splits.
  */
 @PublicEvolving
-public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseable {
+public interface SourceReader<T, SplitT extends SourceSplit>
+		extends AutoCloseable, CheckpointListener {
 
 	/**
 	 * Start the reader.
@@ -58,7 +60,7 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 *
 	 * @return the state of the source.
 	 */
-	List<SplitT> snapshotState();
+	List<SplitT> snapshotState(long checkpointId);
 
 	/**
 	 * @return a future that will be completed once there is a record available to poll.
@@ -78,4 +80,13 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 * @param sourceEvent the event sent by the {@link SplitEnumerator}.
 	 */
 	void handleSourceEvents(SourceEvent sourceEvent);
+
+	/**
+	 * We have an empty default implementation here because most source readers do not have
+	 * to implement the method.
+	 *
+	 * @see CheckpointListener#notifyCheckpointComplete(long)
+	 */
+	@Override
+	default void notifyCheckpointComplete(long checkpointId) throws Exception {}
 }

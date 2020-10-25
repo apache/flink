@@ -797,6 +797,8 @@ public class CheckpointCoordinatorTestingUtils {
 		private final BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator;
 		private final Consumer<Long> onCallingAfterSourceBarrierInjection;
 		private final OperatorID operatorID;
+		private final List<Long> completedCheckpoints;
+		private final List<Long> abortedCheckpoints;
 
 		private MockOperatorCoordinatorCheckpointContext(
 				BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator,
@@ -805,6 +807,8 @@ public class CheckpointCoordinatorTestingUtils {
 			 this.onCallingCheckpointCoordinator = onCallingCheckpointCoordinator;
 			 this.onCallingAfterSourceBarrierInjection = onCallingAfterSourceBarrierInjection;
 			 this.operatorID = operatorID;
+			 this.completedCheckpoints = new ArrayList<>();
+			 this.abortedCheckpoints = new ArrayList<>();
 		}
 
 		@Override
@@ -827,8 +831,13 @@ public class CheckpointCoordinatorTestingUtils {
 		}
 
 		@Override
-		public void checkpointComplete(long checkpointId) {
+		public void notifyCheckpointComplete(long checkpointId) {
+			completedCheckpoints.add(checkpointId);
+		}
 
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+			abortedCheckpoints.add(checkpointId);
 		}
 
 		@Override
@@ -849,6 +858,14 @@ public class CheckpointCoordinatorTestingUtils {
 		@Override
 		public int currentParallelism() {
 			return 1;
+		}
+
+		public List<Long> getCompletedCheckpoints() {
+			return completedCheckpoints;
+		}
+
+		public List<Long> getAbortedCheckpoints() {
+			return abortedCheckpoints;
 		}
 	}
 

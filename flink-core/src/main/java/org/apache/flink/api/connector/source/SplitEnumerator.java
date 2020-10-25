@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.CheckpointListener;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,7 +30,8 @@ import java.util.List;
  * 2. assign the splits to the source reader.
  */
 @PublicEvolving
-public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT> extends AutoCloseable {
+public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT>
+		extends AutoCloseable, CheckpointListener {
 
 	/**
 	 * Start the split enumerator.
@@ -76,4 +78,13 @@ public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT> extend
 	 */
 	@Override
 	void close() throws IOException;
+
+	/**
+	 * We have an empty default implementation here because most source readers do not have
+	 * to implement the method.
+	 *
+	 * @see CheckpointListener#notifyCheckpointComplete(long)
+	 */
+	@Override
+	default void notifyCheckpointComplete(long checkpointId) throws Exception {}
 }

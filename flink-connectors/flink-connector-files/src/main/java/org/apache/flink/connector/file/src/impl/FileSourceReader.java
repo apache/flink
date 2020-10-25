@@ -69,4 +69,7 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
 	private void requestSplit() {
 		context.sendSourceEventToCoordinator(new RequestSplitEvent(context.getLocalHostName()));
 	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {}
 }

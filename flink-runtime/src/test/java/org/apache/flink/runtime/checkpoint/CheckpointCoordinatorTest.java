@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -94,6 +95,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
@@ -2558,6 +2560,57 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		assertTrue(checkpointFuture.isCompletedExceptionally());
 		assertTrue(checkpointCoordinator.getSuccessfulCheckpoints().isEmpty());
+	}
+
+	@Test
+	public void testNotifyCheckpointAbortionInOperatorCoordinator() throws Exception {
+		JobID jobId = new JobID();
+		final ExecutionAttemptID attemptID = new ExecutionAttemptID();
+		ExecutionVertex executionVertex = mockExecutionVertex(attemptID);
+
+		CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext context =
+				new CheckpointCoordinatorTestingUtils.MockOperatorCheckpointCoordinatorContextBuilder()
+					.setOperatorID(new OperatorID())
+					.setOnCallingCheckpointCoordinator((ignored, future) -> future.complete(new byte[0]))
+					.build();
+
+		// set up the coordinator and validate the initial state
+		CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinatorBuilder()
+				.setJobId(jobId)
+				.setTasks(new ExecutionVertex[]{executionVertex})
+				.setCheckpointCoordinatorConfiguration(
+						CheckpointCoordinatorConfiguration
+							  .builder()
+							  .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+							  .build())
+				.setTimer(manuallyTriggeredScheduledExecutor)
+				.setCoordinatorsToCheckpoint(Collections.singleton(context))
+				.build();
+		try {
+			// Trigger checkpoint 1.
+			checkpointCoordinator.triggerCheckpoint(false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			long checkpointId1 = Collections.max(checkpointCoordinator
+														 .getPendingCheckpoints()
+														 .keySet());
+			// Trigger checkpoint 2.
+			checkpointCoordinator.triggerCheckpoint(false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+
+			// Acknowledge checkpoint 2. This should abort checkpoint 1.
+			long checkpointId2 = Collections.max(checkpointCoordinator
+														 .getPendingCheckpoints()
+														 .keySet());
+			AcknowledgeCheckpoint acknowledgeCheckpoint1 = new AcknowledgeCheckpoint(
+					jobId, attemptID, checkpointId2, new CheckpointMetrics(), null);
+			checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint1, "");
+
+			// OperatorCoordinator should have been notified of the abortion of checkpoint 1.
+			assertEquals(Collections.singletonList(1L), context.getAbortedCheckpoints());
+			assertEquals(Collections.singletonList(2L), context.getCompletedCheckpoints());
+		} finally {
+			checkpointCoordinator.shutdown(JobStatus.FINISHED);
+		}
 	}
 
 	private CheckpointCoordinator getCheckpointCoordinator(

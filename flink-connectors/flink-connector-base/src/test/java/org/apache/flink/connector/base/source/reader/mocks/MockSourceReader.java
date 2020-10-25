@@ -57,4 +57,9 @@ public class MockSourceReader
 	protected MockSourceSplit toSplitType(String splitId, AtomicInteger splitState) {
 		return new MockSourceSplit(Integer.parseInt(splitId), splitState.get());
 	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+
+	}
 }

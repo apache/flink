@@ -137,7 +137,7 @@ public interface CheckpointListener {
 	 *
 	 * @param checkpointId The ID of the checkpoint that has been aborted.
 	 * @throws Exception This method can propagate exceptions, which leads to a failure/recovery for
-	 *                   the task.
+	 *                   the task or job.
 	 */
 	default void notifyCheckpointAborted(long checkpointId) throws Exception {}
 }

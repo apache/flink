@@ -208,12 +208,21 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
 		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
 		// main thread executor
-		mainThreadExecutor.execute(() -> checkpointCompleteInternal(checkpointId));
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointComplete(checkpointId));
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		// unfortunately, this method does not run in the scheduler executor, but in the
+		// checkpoint coordinator time thread.
+		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
+		// main thread executor
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointAborted(checkpointId));
 	}
 
 	@Override
@@ -223,11 +232,6 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		eventValve.reset();
 		coordinator.resetToCheckpoint(checkpointData);
-	}
-
-	private void checkpointCompleteInternal(long checkpointId) {
-		mainThreadExecutor.assertRunningInMainThread();
-		coordinator.checkpointComplete(checkpointId);
 	}
 
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {

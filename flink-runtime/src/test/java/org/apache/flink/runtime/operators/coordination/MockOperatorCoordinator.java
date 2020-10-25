@@ -54,7 +54,7 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		throw new UnsupportedOperationException();
 	}
 

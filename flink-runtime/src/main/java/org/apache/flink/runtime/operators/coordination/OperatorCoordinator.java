@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 
@@ -43,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
  * The methods on the {@link Context} are safe to be called from another thread than the thread that
  * calls the Coordinator's methods.
  */
-public interface OperatorCoordinator extends AutoCloseable {
+public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 
 	/**
 	 * Starts the coordinator. This method is called once at the beginning, before any other methods.
@@ -102,27 +103,20 @@ public interface OperatorCoordinator extends AutoCloseable {
 	void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> resultFuture) throws Exception;
 
 	/**
-	 * Notifies the coordinator that the checkpoint with the given checkpointId completes and
-	 * was committed.
-	 *
-	 * <h3>Checkpoint Subsuming</h3>
-	 *
-	 * <p>Checkpoint IDs are strictly increasing. A checkpoint with higher ID always subsumes
-	 * a checkpoint with lower ID. For example, when checkpoint T is confirmed complete, the
-	 * code should treat all checkpoints with lower ID (T-1, T-2, etc.) also as confirmed.
-	 *
-	 * <h3>Exceptions</h3>
-	 *
-	 * <p>This method is not supposed to throw an exception indicating the the checkpoint cannot
-	 * be completed. By the time we notify that the checkpoint is complete, the checkpoint is
-	 * committed and cannot be aborted any more.
-	 *
-	 * <p>If the coordinator gets into an inconsistent state internally, as a result of logic that
-	 * runs after this notification, it should fail the job ({@link Context#failJob(Throwable)})
-	 * instead. Any exception propagating from this method may be treated as a fatal error for the
-	 * JobManager, crashing the JobManager, and leading to an expensive "master failover" procedure.
+	 * We override the method here to remove the checked exception. Please check the
+	 * Java docs of {@link CheckpointListener#notifyCheckpointComplete(long)} for more
+	 * detail semantic of the method.
 	 */
-	void checkpointComplete(long checkpointId);
+	@Override
+	void notifyCheckpointComplete(long checkpointId);
+
+	/**
+	 * We override the method here to remove the checked exception. Please check the
+	 * Java docs of {@link CheckpointListener#notifyCheckpointAborted(long)} for more
+	 * detail semantic of the method.
+	 */
+	@Override
+	default void notifyCheckpointAborted(long checkpointId) {}
 
 	/**
 	 * Resets the coordinator to the given checkpoint.
@@ -139,9 +133,9 @@ public interface OperatorCoordinator extends AutoCloseable {
 	 * It is safe to commit side-effects that are predicated on checkpoint completion after this
 	 * call.
 	 *
-	 * <p>Even if no call to {@link #checkpointComplete(long)} happened, the checkpoint can still be
+	 * <p>Even if no call to {@link #notifyCheckpointComplete(long)} happened, the checkpoint can still be
 	 * complete (for example when a system failure happened directly after committing the checkpoint,
-	 * before calling the {@link #checkpointComplete(long)} method).
+	 * before calling the {@link #notifyCheckpointComplete(long)} method).
 	 */
 	void resetToCheckpoint(byte[] checkpointData) throws Exception;
 

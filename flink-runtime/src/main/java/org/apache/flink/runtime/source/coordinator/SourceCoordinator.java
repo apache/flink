@@ -181,15 +181,31 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		ensureStarted();
 		coordinatorExecutor.execute(() -> {
 			try {
 				LOG.info("Marking checkpoint {} as completed for source {}.", checkpointId, operatorName);
 				context.onCheckpointComplete(checkpointId);
+				enumerator.notifyCheckpointComplete(checkpointId);
 			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when completing the checkpoint {} for source {}.",
-						checkpointId, operatorName, e);
+				LOG.error("Failing the job due to exception when notifying the completion of the "
+					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
+				context.failJob(e);
+			}
+		});
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		ensureStarted();
+		coordinatorExecutor.execute(() -> {
+			try {
+				LOG.info("Marking checkpoint {} as aborted for source {}.", checkpointId, operatorName);
+				enumerator.notifyCheckpointAborted(checkpointId);
+			} catch (Exception e) {
+				LOG.error("Failing the job due to exception when notifying abortion of the "
+					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
 				context.failJob(e);
 			}
 		});
