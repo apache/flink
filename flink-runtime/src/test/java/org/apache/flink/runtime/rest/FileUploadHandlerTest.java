@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.util.LinkedHashSet;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -130,7 +131,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testUploadDirectoryRegeneration() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
 
@@ -146,7 +147,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testMixedMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartMixedHandler mixedHandler = MULTIPART_UPLOAD_RESOURCE.getMixedHandler();
 
@@ -174,7 +175,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testJsonMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartJsonHandler jsonHandler = MULTIPART_UPLOAD_RESOURCE.getJsonHandler();
 
@@ -202,7 +203,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testFileMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
 
@@ -228,7 +229,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testUploadCleanupOnUnknownAttribute() throws IOException {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		Request request = buildMixedRequestWithUnknownAttribute(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
@@ -244,7 +245,7 @@ public class FileUploadHandlerTest extends TestLogger {
 	 */
 	@Test
 	public void testUploadCleanupOnFailure() throws IOException {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		Request request = buildMalformedRequest(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
@@ -254,6 +255,15 @@ public class FileUploadHandlerTest extends TestLogger {
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
 
 		verifyNoFileIsRegisteredToDeleteOnExitHook();
+	}
+
+	private OkHttpClient createOkHttpClientWithNoTimeouts() {
+		// don't fail if some OkHttpClient operations take longer. See FLINK-17725
+		return new OkHttpClient.Builder()
+			.connectTimeout(0, TimeUnit.MILLISECONDS)
+			.writeTimeout(0, TimeUnit.MILLISECONDS)
+			.readTimeout(0, TimeUnit.MILLISECONDS)
+			.build();
 	}
 
 	/**

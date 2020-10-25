@@ -43,7 +43,7 @@ class SplitPythonConditionFromJoinRule extends RelOptRule(
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
     val joinType: JoinRelType = join.getJoinType
     // matches if it is inner join and it contains Python functions in condition
-    joinType == JoinRelType.INNER && Option(join.getCondition).exists(containsPythonCall)
+    joinType == JoinRelType.INNER && Option(join.getCondition).exists(containsPythonCall(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -51,7 +51,7 @@ class SplitPythonConditionFromJoinRule extends RelOptRule(
     val rexBuilder = join.getCluster.getRexBuilder
 
     val joinFilters = RelOptUtil.conjunctions(join.getCondition)
-    val pythonFilters = joinFilters.filter(containsPythonCall)
+    val pythonFilters = joinFilters.filter(containsPythonCall(_))
     val remainingFilters = joinFilters.filter(!containsPythonCall(_))
 
     val newJoinCondition = RexUtil.composeConjunction(rexBuilder, remainingFilters)

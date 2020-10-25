@@ -17,27 +17,31 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.util.Preconditions.checkArgument
-
+import org.apache.calcite.rel.core.JoinInfo
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
 
+import scala.collection.JavaConversions._
+
 /**
-  * Utilities for temporal table join
+  * Utilities for temporal table join.
   */
 object TemporalJoinUtil {
 
   // ----------------------------------------------------------------------------------------
-  //                          Temporal TableFunction Join Utilities
+  //                          Temporal Join Condition Utilities
   // ----------------------------------------------------------------------------------------
 
   /**
-    * [[TEMPORAL_JOIN_CONDITION]] is a specific condition which correctly defines
+    * [[TEMPORAL_JOIN_CONDITION]] is a specific join condition which correctly defines
     * references to rightTimeAttribute, rightPrimaryKeyExpression and leftTimeAttribute.
-    * The condition is used to mark this is a temporal tablefunction join.
-    * Later rightTimeAttribute, rightPrimaryKeyExpression and leftTimeAttribute will be
-    * extracted from the condition.
+    * The condition is used to mark this is a temporal table join and ensure columns these
+    * expressions depends on will not be pruned. The join key pair is necessary to ensure the
+    * the condition will not push down.
+    *
+    * The rightTimeAttribute, rightPrimaryKeyExpression and leftTimeAttribute will be
+    * extracted from the condition in physical phase.
     */
   val TEMPORAL_JOIN_CONDITION = new SqlFunction(
     "__TEMPORAL_JOIN_CONDITION",
@@ -45,47 +49,120 @@ object TemporalJoinUtil {
     ReturnTypes.BOOLEAN_NOT_NULL,
     null,
     OperandTypes.or(
+      // right time attribute and primary key are required in event-time temporal table join,
       OperandTypes.sequence(
-        "'(LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, PRIMARY_KEY)'",
+        "'(LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY, PRIMARY_KEY)'",
         OperandTypes.DATETIME,
         OperandTypes.DATETIME,
+        OperandTypes.ANY,
+        OperandTypes.ANY,
         OperandTypes.ANY),
+      // the primary key may inferred later in event-time temporal table join,
       OperandTypes.sequence(
-        "'(LEFT_TIME_ATTRIBUTE, PRIMARY_KEY)'",
+        "'(LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY)'",
         OperandTypes.DATETIME,
+        OperandTypes.DATETIME,
+        OperandTypes.ANY,
+        OperandTypes.ANY),
+      // Only left time attribute is required for processing-time temporal table join,
+      // primary key is optional
+      OperandTypes.sequence(
+        "'(LEFT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY)'",
+        OperandTypes.DATETIME,
+        OperandTypes.ANY,
+        OperandTypes.ANY,
         OperandTypes.ANY)),
     SqlFunctionCategory.SYSTEM)
 
-  def isRowtimeCall(call: RexCall): Boolean = {
-    checkArgument(call.getOperator == TEMPORAL_JOIN_CONDITION)
-    call.getOperands.size() == 3
-  }
+  val TEMPORAL_JOIN_LEFT_KEY = new SqlFunction(
+    "__TEMPORAL_JOIN_LEFT_KEY",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.BOOLEAN_NOT_NULL,
+    null,
+    OperandTypes.ARRAY,
+    SqlFunctionCategory.SYSTEM)
 
-  def isProctimeCall(call: RexCall): Boolean = {
-    checkArgument(call.getOperator == TEMPORAL_JOIN_CONDITION)
-    call.getOperands.size() == 2
-  }
+  val TEMPORAL_JOIN_RIGHT_KEY = new SqlFunction(
+    "__TEMPORAL_JOIN_RIGHT_KEY",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.BOOLEAN_NOT_NULL,
+    null,
+    OperandTypes.ARRAY,
+    SqlFunctionCategory.SYSTEM)
+
+  val TEMPORAL_JOIN_CONDITION_PRIMARY_KEY = new SqlFunction(
+    "__TEMPORAL_JOIN_CONDITION_PRIMARY_KEY",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.BOOLEAN_NOT_NULL,
+    null,
+    OperandTypes.ARRAY,
+    SqlFunctionCategory.SYSTEM)
+
 
   def makeRowTimeTemporalJoinConditionCall(
     rexBuilder: RexBuilder,
     leftTimeAttribute: RexNode,
     rightTimeAttribute: RexNode,
-    rightPrimaryKeyExpression: RexNode): RexNode = {
+    leftJoinKeyExpression: Seq[RexNode],
+    rightJoinKeyExpression: Seq[RexNode],
+    rightPrimaryKeyExpression: Seq[RexNode]): RexNode = {
     rexBuilder.makeCall(
       TEMPORAL_JOIN_CONDITION,
       leftTimeAttribute,
       rightTimeAttribute,
-      rightPrimaryKeyExpression)
+      makeLeftJoinKeyCall(rexBuilder, leftJoinKeyExpression),
+      makeRightJoinKeyCall(rexBuilder, rightJoinKeyExpression),
+      makePrimaryKeyCall(rexBuilder, rightPrimaryKeyExpression))
   }
 
-  def makeProcTimeTemporalJoinConditionCall(
-    rexBuilder: RexBuilder,
-    leftTimeAttribute: RexNode,
-    rightPrimaryKeyExpression: RexNode): RexNode = {
+  def makeRowTimeTemporalJoinConditionCall(
+      rexBuilder: RexBuilder,
+      leftTimeAttribute: RexNode,
+      rightTimeAttribute: RexNode,
+      leftJoinKeyExpression: Seq[RexNode],
+      rightJoinKeyExpression: Seq[RexNode]): RexNode = {
     rexBuilder.makeCall(
       TEMPORAL_JOIN_CONDITION,
       leftTimeAttribute,
+      rightTimeAttribute,
+      makeLeftJoinKeyCall(rexBuilder, leftJoinKeyExpression),
+      makeRightJoinKeyCall(rexBuilder, rightJoinKeyExpression))
+  }
+
+  private def makePrimaryKeyCall(
+      rexBuilder: RexBuilder,
+      rightPrimaryKeyExpression: Seq[RexNode]): RexNode = {
+    rexBuilder.makeCall(
+      TEMPORAL_JOIN_CONDITION_PRIMARY_KEY,
       rightPrimaryKeyExpression)
+  }
+
+  private def makeLeftJoinKeyCall(
+      rexBuilder: RexBuilder,
+      keyExpression: Seq[RexNode]): RexNode = {
+    rexBuilder.makeCall(
+      TEMPORAL_JOIN_LEFT_KEY,
+      keyExpression)
+  }
+
+  private def makeRightJoinKeyCall(
+      rexBuilder: RexBuilder,
+      keyExpression: Seq[RexNode]): RexNode = {
+    rexBuilder.makeCall(
+      TEMPORAL_JOIN_RIGHT_KEY,
+      keyExpression)
+  }
+
+  def makeProcTimeTemporalJoinConditionCall(
+      rexBuilder: RexBuilder,
+      leftTimeAttribute: RexNode,
+      leftJoinKeyExpression: Seq[RexNode],
+      rightJoinKeyExpression: Seq[RexNode]): RexNode = {
+    rexBuilder.makeCall(
+      TEMPORAL_JOIN_CONDITION,
+      leftTimeAttribute,
+      makeLeftJoinKeyCall(rexBuilder, leftJoinKeyExpression),
+      makeRightJoinKeyCall(rexBuilder, rightJoinKeyExpression))
   }
 
   def containsTemporalJoinCondition(condition: RexNode): Boolean = {
@@ -101,6 +178,27 @@ object TemporalJoinUtil {
       }
     })
     hasTemporalJoinCondition
+  }
+
+  def isRowTimeJoin(rexBuilder: RexBuilder, joinInfo: JoinInfo): Boolean = {
+    val nonEquiJoinRex = joinInfo.getRemaining(rexBuilder)
+
+    var rowtimeJoin: Boolean = false
+    val visitor = new RexVisitorImpl[Unit](true) {
+      override def visitCall(call: RexCall): Unit = {
+        if (isRowTimeTemporalJoinConditionCall(call)) {
+           rowtimeJoin = true
+        } else {
+          super.visitCall(call)
+        }
+      }
+    }
+    nonEquiJoinRex.accept(visitor)
+    rowtimeJoin
+  }
+
+  def isRowTimeTemporalJoinConditionCall(rexCall: RexCall): Boolean = {
+    rexCall.getOperator == TEMPORAL_JOIN_CONDITION && rexCall.operands.length > 3
   }
 
 }

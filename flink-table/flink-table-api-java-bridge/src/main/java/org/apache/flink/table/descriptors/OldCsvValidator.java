@@ -39,6 +39,8 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_IGNORE_FIRST_LINE = "format.ignore-first-line";
 	public static final String FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors";
 	public static final String FORMAT_FIELDS = "format.fields";
+	public static final String FORMAT_WRITE_MODE = "format.write-mode";
+	public static final String FORMAT_NUM_FILES = "format.num-files";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -51,6 +53,8 @@ public class OldCsvValidator extends FormatDescriptorValidator {
 		properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, true);
 		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
 		properties.validateBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA, true);
+		properties.validateString(FORMAT_WRITE_MODE, true, 1);
+		properties.validateInt(FORMAT_NUM_FILES, true);
 
 		final boolean hasSchema = properties.hasPrefix(FORMAT_FIELDS);
 		final boolean isDerived = properties

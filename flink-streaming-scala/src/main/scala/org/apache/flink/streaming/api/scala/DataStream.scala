@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.eventtime.{TimestampAssigner, WatermarkGenerator, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.operators.ResourceSpec
@@ -31,11 +32,10 @@ import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
-import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.{AscendingTimestampExtractor, BoundedOutOfOrdernessTimestampExtractor}
-import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -388,13 +388,16 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
+   *
    */
+  @deprecated("use [[DataStream.keyBy(KeySelector)]] instead")
   def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = asScalaStream(stream.keyBy(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
+  @deprecated("use [[DataStream.keyBy(KeySelector)]] instead")
   def keyBy(firstField: String, otherFields: String*): KeyedStream[T, JavaTuple] =
     asScalaStream(stream.keyBy(firstField +: otherFields.toArray: _*))
 
@@ -433,6 +436,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))
 
@@ -443,6 +447,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
         : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))
@@ -553,7 +558,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * stepfunction: initialStream => (feedback, output)
    *
    * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the [[split]] method of the DataStream
+   * Please see the side outputs of [[ProcessFunction]] method of the DataStream
    *
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
@@ -736,7 +741,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[TumblingEventTimeWindows]] or
+   *             [[TumblingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size))
   }
@@ -754,7 +764,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[SlidingEventTimeWindows]] or
+   *             [[SlidingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time, slide: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size, slide))
 
@@ -807,50 +822,42 @@ class DataStream[T](stream: JavaStream[T]) {
   def windowAll[W <: Window](assigner: WindowAssigner[_ >: T, W]): AllWindowedStream[T, W] = {
     new AllWindowedStream[T, W](new JavaAllWindowedStream[T, W](stream, assigner))
   }
-  
+
   /**
-   * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
-   * The internal timestamps are, for example, used to to event-time window operations.
+   * Assigns timestamps to the elements in the data stream and generates watermarks to signal
+   * event time progress. The given [[WatermarkStrategy is used to create a [[TimestampAssigner]]
+   * and [[org.apache.flink.api.common.eventtime.WatermarkGenerator]].
    *
-   * If you know that the timestamps are strictly increasing you can use an
-   * [[AscendingTimestampExtractor]]. Otherwise,
-   * you should provide a [[TimestampExtractor]] that also implements
-   * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
+   * For each event in the data stream, the [[TimestampAssigner#extractTimestamp(Object, long)]]
+   * method is called to assign an event timestamp.
    *
-   * @see org.apache.flink.streaming.api.watermark.Watermark
+   * For each event in the data stream, the
+   * [[WatermarkGenerator#onEvent(Object, long, WatermarkOutput)]] will be called.
+   *
+   * Periodically (defined by the [[ExecutionConfig#getAutoWatermarkInterval()]]), the
+   * [[WatermarkGenerator#onPeriodicEmit(WatermarkOutput)]] method will be called.
+   *
+   * Common watermark generation patterns can be found as static methods in the
+   * [[org.apache.flink.api.common.eventtime.WatermarkStrategy]] class.
    */
-  @deprecated
-  def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
-    asScalaStream(stream.assignTimestamps(clean(extractor)))
+  def assignTimestampsAndWatermarks(watermarkStrategy: WatermarkStrategy[T]): DataStream[T] = {
+    val cleanedStrategy = clean(watermarkStrategy)
+
+    asScalaStream(stream.assignTimestampsAndWatermarks(cleanedStrategy))
   }
 
   /**
    * Assigns timestamps to the elements in the data stream and periodically creates
    * watermarks to signal event time progress.
    *
-   * This method creates watermarks periodically (for example every second), based
-   * on the watermarks indicated by the given watermark generator. Even when no new elements
-   * in the stream arrive, the given watermark generator will be periodically checked for
-   * new watermarks. The interval in which watermarks are generated is defined in
-   * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]].
+   * This method uses the deprecated watermark generator interfaces. Please switch to
+   * [[assignTimestampsAndWatermarks(WatermarkStrategy]] to use the
+   * new interfaces instead. The new interfaces support watermark idleness and no longer need
+   * to differentiate between "periodic" and "punctuated" watermarks.
    *
-   * Use this method for the common cases, where some characteristic over all elements
-   * should generate the watermarks, or where watermarks are simply trailing behind the
-   * wall clock time by a certain amount.
-   *
-   * For the second case and when the watermarks are required to lag behind the maximum
-   * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
-   * amount is known in advance, use the
-   * [[BoundedOutOfOrdernessTimestampExtractor]].
-   *
-   * For cases where watermarks should be created in an irregular fashion, for example
-   * based on certain markers that some element carry, use the
-   * [[AssignerWithPunctuatedWatermarks]].
-   *
-   * @see AssignerWithPeriodicWatermarks
-   * @see AssignerWithPunctuatedWatermarks
-   * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
+   * @deprecated please use [[assignTimestampsAndWatermarks()]]
    */
+  @deprecated
   @PublicEvolving
   def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]): DataStream[T] = {
     asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
@@ -860,25 +867,14 @@ class DataStream[T](stream: JavaStream[T]) {
    * Assigns timestamps to the elements in the data stream and periodically creates
    * watermarks to signal event time progress.
    *
-   * This method creates watermarks based purely on stream elements. For each element
-   * that is handled via [[AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)]],
-   * the [[AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark()]] method is called,
-   * and a new watermark is emitted, if the returned watermark value is larger than the previous
-   * watermark.
+   * This method uses the deprecated watermark generator interfaces. Please switch to
+   * [[assignTimestampsAndWatermarks(WatermarkStrategy]] to use the
+   * new interfaces instead. The new interfaces support watermark idleness and no longer need
+   * to differentiate between "periodic" and "punctuated" watermarks.
    *
-   * This method is useful when the data stream embeds watermark elements, or certain elements
-   * carry a marker that can be used to determine the current event time watermark. 
-   * This operation gives the programmer full control over the watermark generation. Users
-   * should be aware that too aggressive watermark generation (i.e., generating hundreds of
-   * watermarks every second) can cost some performance.
-   *
-   * For cases where watermarks should be created in a regular fashion, for example
-   * every x milliseconds, use the [[AssignerWithPeriodicWatermarks]].
-   * 
-   * @see AssignerWithPunctuatedWatermarks
-   * @see AssignerWithPeriodicWatermarks
-   * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
+   * @deprecated please use [[assignTimestampsAndWatermarks()]]
    */
+  @deprecated
   @PublicEvolving
   def assignTimestampsAndWatermarks(assigner: AssignerWithPunctuatedWatermarks[T])
       : DataStream[T] = {
@@ -908,37 +904,6 @@ class DataStream[T](stream: JavaStream[T]) {
       }
     }
     asScalaStream(stream.assignTimestampsAndWatermarks(extractorFunction))
-  }
-
-  /**
-   *
-   * Operator used for directing tuples to specific named outputs using an
-   * OutputSelector. Calling this method on an operator creates a new
-   * [[SplitStream]].
-   *
-   * @deprecated Please use side output instead.
-   */
-  @deprecated
-  def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
-
-  /**
-   * Creates a new [[SplitStream]] that contains only the elements satisfying the
-   *  given output selector predicate.
-   *
-   * @deprecated Please use side output instead.
-   */
-  @deprecated
-  def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
-    if (fun == null) {
-      throw new NullPointerException("OutputSelector must not be null.")
-    }
-    val cleanFun = clean(fun)
-    val selector = new OutputSelector[T] {
-      def select(in: T): java.lang.Iterable[String] = {
-        cleanFun(in).toIterable.asJava
-      }
-    }
-    split(selector)
   }
 
   /**
@@ -1006,7 +971,12 @@ class DataStream[T](stream: JavaStream[T]) {
     *
     * @param path The path pointing to the location the text file is written to
     * @return The closed DataStream
+    *
+    * @deprecated Please use the
+    *             [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]
+    *             explicitly using the [[addSink()]] method.
     */
+  @Deprecated
   @PublicEvolving
   def writeAsText(path: String): DataStreamSink[T] =
     stream.writeAsText(path)
@@ -1021,7 +991,12 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
     *                  OVERWRITE.
     * @return The closed DataStream
+    *
+    * @deprecated Please use the
+    *             [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]
+    *             explicitly using the [[addSink()]] method.
     */
+  @Deprecated
   @PublicEvolving
   def writeAsText(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
     if (writeMode != null) {
@@ -1037,7 +1012,12 @@ class DataStream[T](stream: JavaStream[T]) {
     *
     * @param path Path to the location of the CSV file
     * @return The closed DataStream
+    *
+    * @deprecated Please use the
+    *             [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]
+    *             explicitly using the [[addSink()]] method.
     */
+  @Deprecated
   @PublicEvolving
   def writeAsCsv(path: String): DataStreamSink[T] = {
     writeAsCsv(
@@ -1054,7 +1034,12 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param path Path to the location of the CSV file
     * @param writeMode Controls whether an existing file is overwritten or not
     * @return The closed DataStream
+    *
+    * @deprecated Please use the
+    *             [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]
+    *             explicitly using the [[addSink()]] method.
     */
+  @Deprecated
   @PublicEvolving
   def writeAsCsv(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
     writeAsCsv(
@@ -1073,7 +1058,12 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param rowDelimiter Delimiter for consecutive rows
     * @param fieldDelimiter Delimiter for consecutive fields
     * @return The closed DataStream
+    *
+    * @deprecated Please use the
+    *             [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]
+    *             explicitly using the [[addSink()]] method.
     */
+  @Deprecated
   @PublicEvolving
   def writeAsCsv(
       path: String,

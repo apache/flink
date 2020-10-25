@@ -37,6 +37,16 @@ import java.util.Set;
  * {@code SYMBOL}, or {@code RAW}).
  *
  * <p>See the type-implementing classes for a more detailed description of each type.
+ *
+ * <p>Note to implementers: Whenever we perform a match against a type root (e.g. using a switch/case
+ * statement), it is recommended to:
+ * <ul>
+ *     <li>Order the items by the type root definition in this class for easy readability.
+ *     <li>Think about the behavior of all type roots for the implementation. A default fallback is
+ *     dangerous when introducing a new type root in the future.
+ *     <li>In many <b>runtime</b> cases, resolve the indirection of {@link #DISTINCT_TYPE}:
+ *     {@code return myMethod(((DistinctType) type).getSourceType)}
+ * </ul>
  */
 @PublicEvolving
 public enum LogicalTypeRoot {
@@ -68,21 +78,25 @@ public enum LogicalTypeRoot {
 	TINYINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	SMALLINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	INTEGER(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	BIGINT(
 		LogicalTypeFamily.PREDEFINED,
 		LogicalTypeFamily.NUMERIC,
+		LogicalTypeFamily.INTEGER_NUMERIC,
 		LogicalTypeFamily.EXACT_NUMERIC),
 
 	FLOAT(

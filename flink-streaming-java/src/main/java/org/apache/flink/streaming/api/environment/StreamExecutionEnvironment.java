@@ -17,13 +17,16 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
@@ -32,9 +35,10 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,24 +47,20 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.ReadableConfigToConfigurationAdapter;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -70,7 +70,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
@@ -82,17 +82,23 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -103,7 +109,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -125,10 +131,7 @@ public class StreamExecutionEnvironment {
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
 	/** The time characteristic that is used if none other is set. */
-	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
-
-	/** The default buffer timeout (max delay of records in the network stack). */
-	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
+	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.EventTime;
 
 	/**
 	 * The environment of the context (local by default, cluster if invoked through command line).
@@ -151,7 +154,7 @@ public class StreamExecutionEnvironment {
 
 	protected final List<Transformation<?>> transformations = new ArrayList<>();
 
-	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
+	private long bufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
 	protected boolean isChainingEnabled = true;
 
@@ -163,7 +166,7 @@ public class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
-	private final ExecutorServiceLoader executorServiceLoader;
+	private final PipelineExecutorServiceLoader executorServiceLoader;
 
 	private final Configuration configuration;
 
@@ -184,32 +187,60 @@ public class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(final Configuration configuration) {
-		this(DefaultExecutorServiceLoader.INSTANCE, configuration, null);
+		this(configuration, null);
 	}
 
 	/**
 	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
-	 * Configuration} to configure the {@link org.apache.flink.core.execution.Executor}.
+	 * Configuration} to configure the {@link PipelineExecutor}.
 	 *
-	 * <p>In addition, this constructor allows specifying the {@link ExecutorServiceLoader} and
+	 * <p>In addition, this constructor allows specifying the user code {@link ClassLoader}.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment(
+			final Configuration configuration,
+			final ClassLoader userClassloader) {
+		this(new DefaultExecutorServiceLoader(), configuration, userClassloader);
+	}
+
+	/**
+	 * Creates a new {@link StreamExecutionEnvironment} that will use the given {@link
+	 * Configuration} to configure the {@link PipelineExecutor}.
+	 *
+	 * <p>In addition, this constructor allows specifying the {@link PipelineExecutorServiceLoader} and
 	 * user code {@link ClassLoader}.
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
+			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
 		this.configuration = checkNotNull(configuration);
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
+
+		// the configuration of a job or an operator can be specified at the following places:
+		//     i) at the operator level using e.g. parallelism using the SingleOutputStreamOperator.setParallelism().
+		//     ii) programmatically by using e.g. the env.setRestartStrategy() method
+		//     iii) in the configuration passed here
+		//
+		// if specified in multiple places, the priority order is the above.
+		//
+		// Given this, it is safe to overwrite the execution config default values here because all other ways assume
+		// that the env is already instantiated so they will overwrite the value passed here.
+		this.configure(this.configuration, this.userClassloader);
 	}
 
 	protected Configuration getConfiguration() {
 		return this.configuration;
+	}
+
+	protected ClassLoader getUserClassloader() {
+		return userClassloader;
 	}
 
 	/**
@@ -224,6 +255,14 @@ public class StreamExecutionEnvironment {
 	*/
 	public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
 		return cacheFile;
+	}
+
+	/**
+	 * Gets the config JobListeners.
+	 */
+	@PublicEvolving
+	public List<JobListener> getJobListeners() {
+		return jobListeners;
 	}
 
 	/**
@@ -526,16 +565,6 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * @deprecated Use {@link #setStateBackend(StateBackend)} instead.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
-		this.defaultStateBackend = Preconditions.checkNotNull(backend);
-		return this;
-	}
-
-	/**
 	 * Gets the state backend that defines how to store and checkpoint state.
 	 *
 	 * @see #setStateBackend(StateBackend)
@@ -694,12 +723,24 @@ public class StreamExecutionEnvironment {
 	 * time, event time, or ingestion time.
 	 *
 	 * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
-	 * watermark update interval of 200 ms. If this is not applicable for your application
-	 * you should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
+	 * watermark update interval of 200 ms. If this is not applicable for your application you
+	 * should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
 	 *
 	 * @param characteristic The time characteristic.
+	 *
+	 * @deprecated In Flink 1.12 the default stream time characteristic has been changed to {@link
+	 *        TimeCharacteristic#EventTime}, thus you don't need to call this method for enabling
+	 * 		event-time support anymore. Explicitly using processing-time windows and timers works in
+	 * 		event-time mode. If you need to disable watermarks, please use {@link
+	 *        ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
+	 *        TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
+	 *        WatermarkStrategy}. If you are using generic "time window" operations (for example {@link
+	 *        org.apache.flink.streaming.api.datastream.KeyedStream#timeWindow(org.apache.flink.streaming.api.windowing.time.Time)}
+	 * 		that change behaviour based on the time characteristic, please use equivalent operations
+	 * 		that explicitly specify processing time or event time.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
@@ -712,11 +753,11 @@ public class StreamExecutionEnvironment {
 	/**
 	 * Gets the time characteristic.
 	 *
-	 * @see #setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)
-	 *
-	 * @return The time characteristic.
+	 * @deprecated See {@link #setStreamTimeCharacteristic(TimeCharacteristic)} for deprecation
+	 * 		notice.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public TimeCharacteristic getStreamTimeCharacteristic() {
 		return timeCharacteristic;
 	}
@@ -743,42 +784,48 @@ public class StreamExecutionEnvironment {
 			.ifPresent(c -> this.isChainingEnabled = c);
 		configuration.getOptional(ExecutionOptions.BUFFER_TIMEOUT)
 			.ifPresent(t -> this.setBufferTimeout(t.toMillis()));
+		configuration.getOptional(DeploymentOptions.JOB_LISTENERS)
+			.ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
 		configuration.getOptional(PipelineOptions.CACHED_FILES)
 			.ifPresent(f -> {
 				this.cacheFile.clear();
-				parseCachedFiles(f).forEach(t -> registerCachedFile(t.f1, t.f0, t.f2));
+				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
+		configuration.getOptional(ExecutionOptions.RUNTIME_MODE)
+				.ifPresent(runtimeMode ->
+						this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode)
+				);
+		configuration.getOptional(ExecutionOptions.SORT_INPUTS).ifPresent(
+			sortInputs -> this.getConfiguration().set(ExecutionOptions.SORT_INPUTS, sortInputs)
+		);
+		configuration.getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND).ifPresent(
+			sortInputs -> this.getConfiguration().set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs)
+		);
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+	}
+
+	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {
+		for (String listener : listeners) {
+			try {
+				final JobListener jobListener = InstantiationUtil.instantiate(
+						listener, JobListener.class, classLoader);
+				jobListeners.add(jobListener);
+			} catch (FlinkException e) {
+				throw new WrappingRuntimeException("Could not load JobListener : " + listener, e);
+			}
+		}
 	}
 
 	private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
 		try {
 			return StateBackendLoader.loadStateBackendFromConfig(
-				new ReadableConfigToConfigurationAdapter(configuration),
+				configuration,
 				classLoader,
 				null);
 		} catch (DynamicCodeLoadingException | IOException e) {
 			throw new WrappingRuntimeException(e);
 		}
-	}
-
-	private List<Tuple3<String, String, Boolean>> parseCachedFiles(List<String> s) {
-		return s.stream()
-			.map(v -> Arrays.stream(v.split(","))
-				.map(p -> p.split(":"))
-				.collect(
-					Collectors.toMap(
-						arr -> arr[0], // key name
-						arr -> arr[1] // value
-					)
-				)
-			)
-			.map(m -> Tuple3.of(
-				m.get("name"),
-				m.get("path"),
-				Optional.ofNullable(m.get("executable")).map(Boolean::parseBoolean).orElse(false)))
-			.collect(Collectors.toList());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -940,7 +987,7 @@ public class StreamExecutionEnvironment {
 		catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-		return addSource(function, "Collection Source", typeInfo).setParallelism(1);
+		return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED).setParallelism(1);
 	}
 
 	/**
@@ -990,7 +1037,7 @@ public class StreamExecutionEnvironment {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 
 		SourceFunction<OUT> function = new FromIteratorFunction<>(data);
-		return addSource(function, "Collection Source", typeInfo);
+		return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED);
 	}
 
 	/**
@@ -1040,9 +1087,11 @@ public class StreamExecutionEnvironment {
 	}
 
 	// private helper for passing different names
-	private <OUT> DataStreamSource<OUT> fromParallelCollection(SplittableIterator<OUT> iterator, TypeInformation<OUT>
-			typeInfo, String operatorName) {
-		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo);
+	private <OUT> DataStreamSource<OUT> fromParallelCollection(
+			SplittableIterator<OUT> iterator,
+			TypeInformation<OUT> typeInfo,
+			String operatorName) {
+		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo, Boundedness.BOUNDED);
 	}
 
 	/**
@@ -1051,7 +1100,7 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
-	 * them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * them to the downstream readers to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more
 	 * checkpoint barriers are going to be forwarded after the source exits, thus having no
 	 * checkpoints after that point.
@@ -1071,7 +1120,7 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * forwards them to the downstream readers to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
 	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
@@ -1104,7 +1153,7 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * forwards them to the downstream readers to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
 	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
@@ -1182,7 +1231,7 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
 	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
-	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * to be processed, forwards them to the downstream readers to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
 	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
@@ -1253,7 +1302,7 @@ public class StreamExecutionEnvironment {
 	 *
 	 * <p><b>NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
 	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
-	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * to be processed, forwards them to the downstream readers to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
 	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
@@ -1411,7 +1460,7 @@ public class StreamExecutionEnvironment {
 	 * <p><b>NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
 	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
-	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
+	 * them to the downstream readers to read the actual data, and exits,
 	 * without waiting for the readers to finish reading. This implies that no more checkpoint
 	 * barriers are going to be forwarded after the source exits, thus having no checkpoints.
 	 *
@@ -1436,7 +1485,7 @@ public class StreamExecutionEnvironment {
 	 * <p><b>NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
 	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
-	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
+	 * them to the downstream readers to read the actual data, and exits,
 	 * without waiting for the readers to finish reading. This implies that no more checkpoint
 	 * barriers are going to be forwarded after the source exits, thus having no checkpoints.
 	 *
@@ -1491,11 +1540,15 @@ public class StreamExecutionEnvironment {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval);
 
-		ContinuousFileReaderOperator<OUT> reader =
-			new ContinuousFileReaderOperator<>(inputFormat);
+		ContinuousFileReaderOperatorFactory<OUT, TimestampedFileInputSplit> factory =
+				new ContinuousFileReaderOperatorFactory<>(inputFormat);
 
-		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
-				.transform("Split Reader: " + sourceName, typeInfo, reader);
+		final Boundedness boundedness = monitoringMode == FileProcessingMode.PROCESS_ONCE
+				? Boundedness.BOUNDED
+				: Boundedness.CONTINUOUS_UNBOUNDED;
+
+		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName, null, boundedness)
+				.transform("Split Reader: " + sourceName, typeInfo, factory);
 
 		return new DataStreamSource<>(source);
 	}
@@ -1571,28 +1624,96 @@ public class StreamExecutionEnvironment {
 	 * 		the user defined type information for the stream
 	 * @return the data stream constructed
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+		return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
+	}
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		}
-		if (typeInfo == null) {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (final InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
-			}
-		}
+	private <OUT> DataStreamSource<OUT> addSource(
+			final SourceFunction<OUT> function,
+			final String sourceName,
+			@Nullable final TypeInformation<OUT> typeInfo,
+			final Boundedness boundedness) {
+		checkNotNull(function);
+		checkNotNull(sourceName);
+		checkNotNull(boundedness);
+
+		TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(function, sourceName, SourceFunction.class, typeInfo);
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
 
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
+		return new DataStreamSource<>(this, resolvedTypeInfo, sourceOperator, isParallel, sourceName, boundedness);
+	}
+
+	/**
+	 * Adds a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * <p>The result will be either a bounded data stream (that can be processed in a batch way) or
+	 * an unbounded data stream (that must be processed in a streaming way), based on the
+	 * boundedness property of the source, as defined by {@link Source#getBoundedness()}.
+	 *
+	 * <p>The result type (that is used to create serializers for the produced data events)
+	 * will be automatically extracted. This is useful for sources that describe the produced types
+	 * already in their configuration, to avoid having to declare the type multiple times.
+	 * For example the file sources and Kafka sources already define the produced byte their
+	 * parsers/serializers/formats, and can forward that information.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @return the data stream constructed
+	 */
+	@Experimental
+	public <OUT> DataStreamSource<OUT> fromSource(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> timestampsAndWatermarks,
+			String sourceName) {
+		return fromSource(source, timestampsAndWatermarks, sourceName, null);
+	}
+
+	/**
+	 * Adds a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * <p>The result will be either a bounded data stream (that can be processed in a batch way) or
+	 * an unbounded data stream (that must be processed in a streaming way), based on the
+	 * boundedness property of the source, as defined by {@link Source#getBoundedness()}.
+	 *
+	 * <p>This method takes an explicit type information for the produced data stream, so that callers
+	 * can define directly what type/serializer will be used for the produced stream.
+	 * For sources that describe their produced type, the method
+	 * {@link #fromSource(Source, WatermarkStrategy, String)} can be used to avoid specifying the
+	 * produced type redundantly.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@Experimental
+	public <OUT> DataStreamSource<OUT> fromSource(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> timestampsAndWatermarks,
+			String sourceName,
+			TypeInformation<OUT> typeInfo) {
+
+		final TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(source, sourceName, Source.class, typeInfo);
+
+		return new DataStreamSource<>(
+				this,
+				checkNotNull(source, "source"),
+				checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
+				checkNotNull(resolvedTypeInfo),
+				checkNotNull(sourceName));
 	}
 
 	/**
@@ -1645,7 +1766,7 @@ public class StreamExecutionEnvironment {
 			final JobExecutionResult jobExecutionResult;
 
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-				jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+				jobExecutionResult = jobClient.getJobExecutionResult().get();
 			} else {
 				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}
@@ -1654,10 +1775,15 @@ public class StreamExecutionEnvironment {
 
 			return jobExecutionResult;
 		} catch (Throwable t) {
+			// get() on the JobExecutionResult Future will throw an ExecutionException. This
+			// behaviour was largely not there in Flink versions before the PipelineExecutor
+			// refactoring so we should strip that exception.
+			Throwable strippedException = ExceptionUtils.stripExecutionException(t);
+
 			jobListeners.forEach(jobListener -> {
-				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+				jobListener.onJobExecuted(null, strippedException);
 			});
-			ExceptionUtils.rethrowException(t);
+			ExceptionUtils.rethrowException(strippedException);
 
 			// never reached, only make javac happy
 			return null;
@@ -1728,9 +1854,7 @@ public class StreamExecutionEnvironment {
 		checkNotNull(streamGraph, "StreamGraph cannot be null.");
 		checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-		consolidateParallelismDefinitionsInConfiguration();
-
-		final ExecutorFactory executorFactory =
+		final PipelineExecutorFactory executorFactory =
 			executorServiceLoader.getExecutorFactory(configuration);
 
 		checkNotNull(
@@ -1740,24 +1864,19 @@ public class StreamExecutionEnvironment {
 
 		CompletableFuture<JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
-			.execute(streamGraph, configuration);
+			.execute(streamGraph, configuration, userClassloader);
 
 		try {
 			JobClient jobClient = jobClientFuture.get();
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
 			return jobClient;
-		} catch (Throwable t) {
-			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
-			ExceptionUtils.rethrow(t);
+		} catch (ExecutionException executionException) {
+			final Throwable strippedException = ExceptionUtils.stripExecutionException(executionException);
+			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, strippedException));
 
-			// make javac happy, this code path will not be reached
-			return null;
-		}
-	}
-
-	private void consolidateParallelismDefinitionsInConfiguration() {
-		if (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-			configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).ifPresent(this::setParallelism);
+			throw new FlinkException(
+				String.format("Failed to execute job '%s'.", streamGraph.getJobName()),
+				strippedException);
 		}
 	}
 
@@ -1807,7 +1926,12 @@ public class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return new StreamGraphGenerator(transformations, config, checkpointCfg)
+
+		final RuntimeExecutionMode executionMode =
+				configuration.get(ExecutionOptions.RUNTIME_MODE);
+
+		return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
+			.setRuntimeExecutionMode(executionMode)
 			.setStateBackend(defaultStateBackend)
 			.setChaining(isChainingEnabled)
 			.setUserArtifacts(cacheFile)
@@ -1872,22 +1996,7 @@ public class StreamExecutionEnvironment {
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
 		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
 			.map(StreamExecutionEnvironmentFactory::createExecutionEnvironment)
-			.orElseGet(StreamExecutionEnvironment::createStreamExecutionEnvironment);
-	}
-
-	private static StreamExecutionEnvironment createStreamExecutionEnvironment() {
-		// because the streaming project depends on "flink-clients" (and not the other way around)
-		// we currently need to intercept the data set environment and create a dependent stream env.
-		// this should be fixed once we rework the project dependencies
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		if (env instanceof ContextEnvironment) {
-			return new StreamContextEnvironment((ContextEnvironment) env);
-		} else if (env instanceof OptimizerPlanEnvironment) {
-			return new StreamPlanEnvironment(env);
-		} else {
-			return createLocalEnvironment();
-		}
+			.orElseGet(StreamExecutionEnvironment::createLocalEnvironment);
 	}
 
 	/**
@@ -2111,5 +2220,28 @@ public class StreamExecutionEnvironment {
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable) {
 		this.cacheFile.add(new Tuple2<>(name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
+	}
+
+	// Private helpers.
+	@SuppressWarnings("unchecked")
+	private <OUT, T extends TypeInformation<OUT>> T getTypeInfo(
+			Object source,
+			String sourceName,
+			Class<?> baseSourceClass,
+			TypeInformation<OUT> typeInfo) {
+		TypeInformation<OUT> resolvedTypeInfo = typeInfo;
+		if (resolvedTypeInfo == null && source instanceof ResultTypeQueryable) {
+			resolvedTypeInfo = ((ResultTypeQueryable<OUT>) source).getProducedType();
+		}
+		if (resolvedTypeInfo == null) {
+			try {
+				resolvedTypeInfo = TypeExtractor.createTypeInfo(
+						baseSourceClass,
+						source.getClass(), 0, null, null);
+			} catch (final InvalidTypesException e) {
+				resolvedTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+			}
+		}
+		return (T) resolvedTypeInfo;
 	}
 }

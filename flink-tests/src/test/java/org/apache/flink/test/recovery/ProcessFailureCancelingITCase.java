@@ -33,7 +33,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -117,17 +116,19 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
+		config.set(TaskManagerOptions.CPU_CORES, 1.0);
 		config.setInteger(RestOptions.PORT, 0);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
+		final RpcService rpcService = AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
 		final int jobManagerPort = rpcService.getPort();
 		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
 		final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory = DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			StandaloneResourceManagerFactory.INSTANCE);
+			StandaloneResourceManagerFactory.getInstance());
 		DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
 		final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
@@ -232,15 +233,15 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			Throwable error = errorRef[0];
 			assertNotNull("The program did not fail properly", error);
 
-			assertTrue(error.getCause() instanceof ProgramInvocationException);
+			assertTrue(error instanceof ProgramInvocationException);
 			// all seems well :-)
 		}
 		catch (Exception e) {
-			printProcessLog("TaskManager", taskManagerProcess.getOutput().toString());
+			printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
 			throw e;
 		}
 		catch (Error e) {
-			printProcessLog("TaskManager 1", taskManagerProcess.getOutput().toString());
+			printProcessLog("TaskManager 1", taskManagerProcess.getErrorOutput().toString());
 			throw e;
 		}
 		finally {

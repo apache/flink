@@ -19,11 +19,12 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
 import org.junit.Test
 
@@ -34,7 +35,7 @@ abstract class AggregateTestBase extends TableTestBase {
     Array[TypeInformation[_]](
       Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
       Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
-      DecimalTypeInfo.of(30, 20), DecimalTypeInfo.of(10, 5)),
+      DecimalDataTypeInfo.of(30, 20), DecimalDataTypeInfo.of(10, 5)),
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
@@ -197,6 +198,15 @@ abstract class AggregateTestBase extends TableTestBase {
   def testPojoAccumulator(): Unit = {
     util.addFunction("var_sum", new VarSum1AggFunction)
     util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
+  }
+
+  @Test
+  def testGroupByWithConstantKey(): Unit = {
+    val sql =
+      """
+        |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, c
+      """.stripMargin
+    util.verifyPlan(sql)
   }
 
   // TODO supports group sets

@@ -28,10 +28,16 @@ This page describes the SQL language supported in Flink, including Data Definiti
 
 This page lists all the supported statements supported in Flink SQL for now:
 
-- [SELECT (Queries)](queries.html)
-- [CREATE TABLE, DATABASE, FUNCTION](create.html)
-- [DROP TABLE, DATABASE, FUNCTION](drop.html)
-- [ALTER TABLE, DATABASE, FUNCTION](alter.html)
+- [SELECT (Queries)]({% link dev/table/sql/queries.md %})
+- [CREATE TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/create.md %})
+- [DROP TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/drop.md %})
+- [ALTER TABLE, DATABASE, FUNCTION]({% link dev/table/sql/alter.md %})
+- [INSERT]({% link dev/table/sql/insert.md %})
+- [SQL HINTS]({% link dev/table/sql/hints.md %})
+- [DESCRIBE]({% link dev/table/sql/describe.md %})
+- [EXPLAIN]({% link dev/table/sql/explain.md %})
+- [USE]({% link dev/table/sql/use.md %})
+- [SHOW]({% link dev/table/sql/show.md %})
 
 ## Data Types
 

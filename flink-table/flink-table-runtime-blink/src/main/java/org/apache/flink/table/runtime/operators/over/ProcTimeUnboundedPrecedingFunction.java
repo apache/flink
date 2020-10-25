@@ -22,13 +22,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -43,15 +43,15 @@ import org.apache.flink.util.Collector;
  * (PARTITION BY b ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)
  * FROM T.
  */
-public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
+public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
 	private final LogicalType[] accTypes;
 
 	private transient AggsHandleFunction function;
-	private transient ValueState<BaseRow> accState;
-	private transient JoinedRow output;
+	private transient ValueState<RowData> accState;
+	private transient JoinedRowData output;
 
 	public ProcTimeUnboundedPrecedingFunction(
 			long minRetentionTime,
@@ -68,11 +68,11 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		output = new JoinedRow();
+		output = new JoinedRowData();
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> stateDescriptor =
-			new ValueStateDescriptor<BaseRow>("accState", accTypeInfo);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+		ValueStateDescriptor<RowData> stateDescriptor =
+			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(stateDescriptor);
 
 		initCleanupTimeState("ProcTimeUnboundedOverCleanupTime");
@@ -80,13 +80,13 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 
 	@Override
 	public void processElement(
-			BaseRow input,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.Context ctx,
-			Collector<BaseRow> out) throws Exception {
+			RowData input,
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			Collector<RowData> out) throws Exception {
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
-		BaseRow accumulators = accState.value();
+		RowData accumulators = accState.value();
 		if (null == accumulators) {
 			accumulators = function.createAccumulators();
 		}
@@ -101,7 +101,7 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 		accState.update(accumulators);
 
 		// prepare output row
-		BaseRow aggValue = function.getValue();
+		RowData aggValue = function.getValue();
 		output.replace(input, aggValue);
 		out.collect(output);
 	}
@@ -109,8 +109,8 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 	@Override
 	public void onTimer(
 			long timestamp,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
+			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+			Collector<RowData> out) throws Exception {
 		if (stateCleaningEnabled) {
 			cleanupState(accState);
 			function.cleanup();

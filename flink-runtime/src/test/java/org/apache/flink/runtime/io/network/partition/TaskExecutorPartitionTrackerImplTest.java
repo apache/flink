@@ -38,6 +38,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.not;
@@ -150,6 +151,27 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
 	}
 
+	@Test
+	public void stopTrackingAndReleaseClusterPartitions() throws Exception {
+		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
+		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+
+		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+
+		final IntermediateDataSetID dataSetId1 = new IntermediateDataSetID();
+		final IntermediateDataSetID dataSetId2 = new IntermediateDataSetID();
+
+		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, dataSetId1, 1));
+		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, dataSetId2, 1));
+		partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+
+		partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
+		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+	}
+
 	private static class TestingShuffleEnvironment implements ShuffleEnvironment<ResultPartition, SingleInputGate> {
 
 		private final ShuffleEnvironment<ResultPartition, SingleInputGate> backingShuffleEnvironment =
@@ -168,7 +190,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		}
 
 		@Override
-		public Collection<ResultPartition> createResultPartitionWriters(ShuffleIOOwnerContext ownerContext, Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
+		public List<ResultPartition> createResultPartitionWriters(ShuffleIOOwnerContext ownerContext, List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
 			return backingShuffleEnvironment.createResultPartitionWriters(ownerContext, resultPartitionDeploymentDescriptors);
 		}
 
@@ -186,7 +208,7 @@ public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 		}
 
 		@Override
-		public Collection<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		public List<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 			return backingShuffleEnvironment.createInputGates(ownerContext, partitionProducerStateProvider, inputGateDeploymentDescriptors);
 		}
 

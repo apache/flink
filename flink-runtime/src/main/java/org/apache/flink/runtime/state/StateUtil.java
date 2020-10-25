@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.LambdaUtil;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -40,7 +42,7 @@ public class StateUtil {
 	}
 
 	/**
-	 * Returns the size of a state object
+	 * Returns the size of a state object.
 	 *
 	 * @param handle The handle to the retrieved state
 	 */
@@ -67,22 +69,57 @@ public class StateUtil {
 	 * @param stateFuture to be discarded
 	 * @throws Exception if the discard operation failed
 	 */
-	public static void discardStateFuture(RunnableFuture<? extends StateObject> stateFuture) throws Exception {
+	public static void discardStateFuture(Future<? extends StateObject> stateFuture) throws Exception {
 		if (null != stateFuture) {
 			if (!stateFuture.cancel(true)) {
 
 				try {
 					// We attempt to get a result, in case the future completed before cancellation.
-					StateObject stateObject = FutureUtils.runIfNotDoneAndGet(stateFuture);
-
+					if (stateFuture instanceof RunnableFuture<?> && !stateFuture.isDone()) {
+						((RunnableFuture<?>) stateFuture).run();
+					}
+					StateObject stateObject = stateFuture.get();
 					if (null != stateObject) {
 						stateObject.discardState();
 					}
+
 				} catch (CancellationException | ExecutionException ex) {
 					LOG.debug("Cancelled execution of snapshot future runnable. Cancellation produced the following " +
 						"exception, which is expected an can be ignored.", ex);
 				}
 			}
 		}
+	}
+
+	/**
+	 * Creates an {@link RuntimeException} that signals that an operation did not get the type of
+	 * {@link StateObject} that was expected. This can mostly happen when a different {@link
+	 * StateBackend} from the one that was used for taking a checkpoint/savepoint is used when
+	 * restoring.
+	 */
+	@SuppressWarnings("unchecked")
+	public static RuntimeException unexpectedStateHandleException(
+			Class<? extends StateObject> expectedStateHandleClass,
+			Class<? extends StateObject> actualStateHandleClass) {
+		return unexpectedStateHandleException(
+				new Class[]{expectedStateHandleClass},
+				actualStateHandleClass);
+	}
+
+	/**
+	 * Creates a {@link RuntimeException} that signals that an operation did not get the type of
+	 * {@link StateObject} that was expected. This can mostly happen when a different {@link
+	 * StateBackend} from the one that was used for taking a checkpoint/savepoint is used when
+	 * restoring.
+	 */
+	public static RuntimeException unexpectedStateHandleException(
+			Class<? extends StateObject>[] expectedStateHandleClasses,
+			Class<? extends StateObject> actualStateHandleClass) {
+
+		return new IllegalStateException("Unexpected state handle type, expected one of: " +
+				Joiner.on(", ").join(expectedStateHandleClasses)
+				+ ", but found: " + actualStateHandleClass + ". "
+				+ "This can mostly happen when a different StateBackend from the one "
+				+ "that was used for taking a checkpoint/savepoint is used when restoring.");
 	}
 }

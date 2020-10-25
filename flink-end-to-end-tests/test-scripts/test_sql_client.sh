@@ -20,11 +20,16 @@
 set -Eeuo pipefail
 
 PLANNER="${1:-old}"
+ELASTICSEARCH_VERSION=${2:-6}
 
-KAFKA_VERSION="2.2.0"
+KAFKA_VERSION="2.2.2"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
 KAFKA_SQL_VERSION="universal"
+
+ELASTICSEARCH6_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
+ELASTICSEARCH7_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-darwin-x86_64.tar.gz'
+ELASTICSEARCH7_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -55,7 +60,8 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     if ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/flink"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/META-INF"* ]] && \
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/LICENSE"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] ; then
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/NOTICE"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/avro"* ]] ; then
       echo "Bad file in JAR: $EXTRACTED_FILE"
       exit 1
     fi
@@ -85,6 +91,30 @@ function sql_cleanup() {
 }
 on_exit sql_cleanup
 
+function prepare_elasticsearch {
+  echo "Preparing Elasticsearch(version=$ELASTICSEARCH_VERSION)..."
+  # elastcisearch offers different release binary file for corresponding system since version 7.
+  case "$(uname -s)" in
+      Linux*)     OS_TYPE=linux;;
+      Darwin*)    OS_TYPE=mac;;
+      *)          OS_TYPE="UNKNOWN:${unameOut}"
+  esac
+
+  if [[ "$ELASTICSEARCH_VERSION" == 6 ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH6_DOWNLOAD_URL
+  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "mac" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH7_MAC_DOWNLOAD_URL
+  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "linux" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH7_LINUX_DOWNLOAD_URL
+  else
+    echo "[ERROR] Unsupported elasticsearch version($ELASTICSEARCH_VERSION) for OS: $OS_TYPE"
+    exit 1
+  fi
+
+  setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
+  wait_elasticsearch_working
+}
+
 # prepare Kafka
 echo "Preparing Kafka..."
 
@@ -96,13 +126,7 @@ create_kafka_json_source test-json
 create_kafka_topic 1 1 test-avro
 
 # prepare Elasticsearch
-echo "Preparing Elasticsearch..."
-
-ELASTICSEARCH_VERSION=6
-DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
-
-setup_elasticsearch $DOWNLOAD_URL $ELASTICSEARCH_VERSION
-wait_elasticsearch_working
+prepare_elasticsearch
 
 ################################################################################
 # Prepare Flink
@@ -119,9 +143,8 @@ start_taskmanagers 2
 
 echo "Testing SQL statements..."
 
-JSON_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "json" )
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
-ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch6" )
+ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH_VERSION" )
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
@@ -146,7 +169,7 @@ cat >> $SQL_CONF << EOF
         data-type: BIGINT
     connector:
       type: elasticsearch
-      version: 6
+      version: "$ELASTICSEARCH_VERSION"
       hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
@@ -167,7 +190,7 @@ cat >> $SQL_CONF << EOF
         data-type: BIGINT
     connector:
       type: elasticsearch
-      version: 6
+      version: "$ELASTICSEARCH_VERSION"
       hosts: "http://localhost:9200"
       index: "$ELASTICSEARCH_INDEX"
       document-type: "user"
@@ -190,7 +213,7 @@ EOF
 
 echo "Executing SQL: Values -> Elasticsearch (upsert)"
 
-SQL_STATEMENT_3=$(cat << EOF
+SQL_STATEMENT_1=$(cat << EOF
 INSERT INTO ElasticsearchUpsertSinkTable
   SELECT user_id, user_name, COUNT(*) AS user_count
   FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), (42, 'Kim'), (42, 'Kim'), (1, 'Bob'))
@@ -200,18 +223,19 @@ EOF
 )
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $KAFKA_SQL_JAR \
+  --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
+  --update "$SQL_STATEMENT_1" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "21a76360e2a40f442816d940e7071ccf"
+verify_result_line_number 3 "$ELASTICSEARCH_INDEX"
 
 echo "Executing SQL: Values -> Elasticsearch (append, no key)"
 
-SQL_STATEMENT_4=$(cat << EOF
+SQL_STATEMENT_2=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT *
   FROM (
@@ -228,11 +252,10 @@ EOF
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
+  --update "$SQL_STATEMENT_2" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 
@@ -241,7 +264,7 @@ verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
 
 echo "Executing SQL: Match recognize -> Elasticsearch"
 
-SQL_STATEMENT_5=$(cat << EOF
+SQL_STATEMENT_3=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
   FROM (
@@ -261,11 +284,10 @@ EOF
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
   --jar $KAFKA_SQL_JAR \
-  --jar $JSON_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
-  --update "$SQL_STATEMENT_5" | grep "Job ID:" | sed 's/.* //g')
+  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
 
 # 3 upsert results and 6 append results and 3 match_recognize results
 verify_result_line_number 12 "$ELASTICSEARCH_INDEX"

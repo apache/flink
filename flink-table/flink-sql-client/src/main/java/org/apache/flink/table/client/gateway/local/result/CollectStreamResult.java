@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
@@ -33,7 +33,6 @@ import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectStreamTableSink;
-import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
@@ -42,8 +41,6 @@ import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A result that works similarly to {@link DataStreamUtils#collect(DataStream)}.
  *
@@ -51,29 +48,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class CollectStreamResult<C> extends BasicResult<C> implements DynamicResult<C> {
 
-	private final TypeInformation<Row> outputType;
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
 	private final CollectStreamTableSink collectTableSink;
 	private final ResultRetrievalThread retrievalThread;
-	private final ClassLoader classLoader;
 	private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
 
 	protected final Object resultLock;
 	protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
 
 	public CollectStreamResult(
-			RowTypeInfo outputType,
 			TableSchema tableSchema,
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader) {
-		this.outputType = outputType;
-
+			int gatewayPort) {
 		resultLock = new Object();
 
 		// create socket stream iterator
-		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, outputType);
+		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, tableSchema.toRowType());
 		final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
 		try {
 			// pass gateway port and address such that iterator knows where to bind to
@@ -86,28 +77,19 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// pass binding address and port such that sink knows where to send to
 		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
 		retrievalThread = new ResultRetrievalThread();
-
-		this.classLoader = checkNotNull(classLoader);
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return outputType;
-	}
-
-	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
+	public void startRetrieval(JobClient jobClient) {
 		// start listener thread
 		retrievalThread.start();
 
-		jobExecutionResultFuture = deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
+		jobExecutionResultFuture = jobClient.getJobExecutionResult()
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(
 								null,
-								new SqlExecutionException("Error while submitting job.", throwable));
+								new SqlExecutionException("Error while retrieving result.", throwable));
 					}
 				});
 	}

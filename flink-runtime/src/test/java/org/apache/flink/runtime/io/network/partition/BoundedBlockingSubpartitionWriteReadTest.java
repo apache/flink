@@ -174,7 +174,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 		int nextExpectedBacklog = numBuffers - 1;
 
 		while ((next = reader.getNextBuffer()) != null && next.buffer().isBuffer()) {
-			assertTrue(next.isMoreAvailable());
+			assertTrue(next.isDataAvailable());
 			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
 
 			ByteBuffer buffer = next.buffer().getNioBufferReadable();
@@ -210,7 +210,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 				nums--;
 			}
 
-			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, true));
+			partition.add(new BufferConsumer(memory, (ignored) -> {}, pos, Buffer.DataType.DATA_BUFFER));
 
 			// we need to flush after every buffer as long as the add() contract is that
 			// buffer are immediately added and can be filled further after that (for low latency
@@ -229,7 +229,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	private BoundedBlockingSubpartition createSubpartition() throws IOException {
 		return type.create(
 				0,
-				PartitionTestUtils.createPartition(
+					(BoundedBlockingResultPartition) PartitionTestUtils.createPartition(
 					ResultPartitionType.BLOCKING,
 					fileChannelManager,
 					compressionEnabled,

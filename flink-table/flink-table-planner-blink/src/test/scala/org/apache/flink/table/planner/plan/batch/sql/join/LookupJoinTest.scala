@@ -20,16 +20,26 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Assert.{assertTrue, fail}
-import org.junit.{Before, Test}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.{Assume, Before, Test}
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.util.{Collection => JCollection}
 
-class LookupJoinTest extends TableTestBase {
+import _root_.scala.collection.JavaConversions._
+
+/**
+ * The physical plans for legacy [[org.apache.flink.table.sources.LookupableTableSource]] and new
+ * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
+ */
+@RunWith(classOf[Parameterized])
+class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   private val testUtil = batchTestUtil()
 
   @Before
@@ -37,29 +47,56 @@ class LookupJoinTest extends TableTestBase {
     testUtil.addDataStream[(Int, String, Long)]("T0", 'a, 'b, 'c)
     testUtil.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
     testUtil.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
-    testUtil.tableEnv.registerTableSource("temporalTest", new TestTemporalTable)
     val myTable = testUtil.tableEnv.sqlQuery("SELECT *, PROCTIME() as proctime FROM T0")
-    testUtil.tableEnv.registerTable("MyTable", myTable)
+    testUtil.tableEnv.createTemporaryView("MyTable", myTable)
+    if (legacyTableSource) {
+      TestTemporalTable.createTemporaryTable(testUtil.tableEnv, "LookupTable", isBounded = true)
+    } else {
+      testUtil.addTable(
+        """
+          |CREATE TABLE LookupTable (
+          |  `id` INT,
+          |  `name` STRING,
+          |  `age` INT
+          |) WITH (
+          |  'connector' = 'values',
+          |  'bounded' = 'true'
+          |)
+          |""".stripMargin)
+
+      testUtil.addTable(
+        """
+          |CREATE TABLE LookupTableWithComputedColumn (
+          |  `id` INT,
+          |  `name` STRING,
+          |  `age` INT,
+          |  `nominal_age` as age + 1
+          |) WITH (
+          |  'connector' = 'values',
+          |  'bounded' = 'true'
+          |)
+          |""".stripMargin)
+    }
   }
 
   @Test
   def testJoinInvalidJoinTemporalTable(): Unit = {
     // must follow a period specification
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN temporalTest T.proc AS D ON T.a = D.id",
+      "SELECT * FROM MyTable AS T JOIN LookupTable T.proc AS D ON T.a = D.id",
       "SQL parse failed",
       classOf[SqlParserException])
 
     // can't query a dim table directly
     expectExceptionThrown(
-      "SELECT * FROM temporalTest FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
+      "SELECT * FROM LookupTable FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
       "Cannot generate a valid execution plan for the given query",
       classOf[TableException]
     )
 
     // only support left or inner join
     // Calcite does not allow FOR SYSTEM_TIME AS OF non-nullable left table field to Right Join.
-    // There is a exception:
+    // There is an exception:
     // java.lang.AssertionError
     //    at SqlToRelConverter.getCorrelationUse(SqlToRelConverter.java:2517)
     //    at SqlToRelConverter.createJoin(SqlToRelConverter.java:2426)
@@ -70,7 +107,7 @@ class LookupJoinTest extends TableTestBase {
     //    at SqlToRelConverter.convertQuery(SqlToRelConverter.java:563)
     //    at org.apache.flink.table.planner.calcite.FlinkPlannerImpl.rel(FlinkPlannerImpl.scala:125)
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
+      "SELECT * FROM MyTable AS T RIGHT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
       null,
       classOf[AssertionError]
@@ -78,10 +115,10 @@ class LookupJoinTest extends TableTestBase {
 
     // only support join on raw key of right table
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a + 1 = D.id + 1",
       "Temporal table join requires an equality condition on fields of table " +
-        "[TestTemporalTable(id, name, age)].",
+        "[default_catalog.default_database.LookupTable].",
       classOf[TableException]
     )
   }
@@ -91,7 +128,7 @@ class LookupJoinTest extends TableTestBase {
 
     // does not support join condition contains `IS NOT DISTINCT`
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a IS NOT  DISTINCT FROM D.id",
       "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
         "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
@@ -100,7 +137,7 @@ class LookupJoinTest extends TableTestBase {
 
     // does not support join condition contains `IS NOT  DISTINCT` and similar syntax
     expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id OR (T.a IS NULL AND D.id IS NULL)",
       "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
         "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
@@ -118,7 +155,7 @@ class LookupJoinTest extends TableTestBase {
     val sql =
       """
         |SELECT * FROM MyTable AS T
-        |LEFT OUTER JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |LEFT OUTER JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id AND D.age = 10 AND pyFunc(D.age, T.a) > 100
       """.stripMargin
     testUtil.verifyPlan(sql)
@@ -136,7 +173,7 @@ class LookupJoinTest extends TableTestBase {
     val sql2 =
       s"""
          |SELECT T.* FROM ($sql1) AS T
-         |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
       """.stripMargin
@@ -162,30 +199,20 @@ class LookupJoinTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
 
-    testUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN temporalTest "
+    testUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
 
   @Test
-  def testJoinInvalidNonTemporalTable(): Unit = {
-    // can't follow a period specification
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN nonTemporal " +
-        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Temporal table join only support join on a LookupableTableSource",
-      classOf[TableException])
-  }
-
-  @Test
   def testJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T JOIN temporalTest " +
+    val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     testUtil.verifyPlan(sql)
   }
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
-    val sql = "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+    val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     testUtil.verifyPlan(sql)
   }
@@ -194,7 +221,7 @@ class LookupJoinTest extends TableTestBase {
   def testJoinTemporalTableWithNestedQuery(): Unit = {
     val sql = "SELECT * FROM " +
       "(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T " +
-      "JOIN temporalTest " +
+      "JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
     testUtil.verifyPlan(sql)
   }
@@ -205,7 +232,7 @@ class LookupJoinTest extends TableTestBase {
       """
         |SELECT T.*, D.id
         |FROM MyTable AS T
-        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id
       """.stripMargin
     testUtil.verifyPlan(sql)
@@ -216,7 +243,7 @@ class LookupJoinTest extends TableTestBase {
     val sql =
       """
         |SELECT * FROM MyTable AS T
-        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id AND D.age = 10
         |WHERE T.c > 1000
       """.stripMargin
@@ -235,7 +262,7 @@ class LookupJoinTest extends TableTestBase {
     val sql2 =
       s"""
          |SELECT T.* FROM ($sql1) AS T
-         |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
       """.stripMargin
@@ -254,9 +281,39 @@ class LookupJoinTest extends TableTestBase {
     val sql =
       """
         |SELECT * FROM MyTable AS T
-        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON true
         |WHERE T.c > 1000
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id and D.nominal_age > 12
       """.stripMargin
     testUtil.verifyPlan(sql)
   }
@@ -275,7 +332,7 @@ class LookupJoinTest extends TableTestBase {
     val sql2 =
       s"""
          |SELECT * FROM ($sql1) AS T
-         |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
          |ON T.a = D.id
          |WHERE D.age > 10
       """.stripMargin
@@ -317,5 +374,12 @@ class LookupJoinTest extends TableTestBase {
         e.printStackTrace()
         fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
     }
+  }
+}
+
+object LookupJoinTest {
+  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+  def parameters(): JCollection[Array[Object]] = {
+    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
   }
 }

@@ -24,6 +24,9 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -66,7 +69,9 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSingleFieldInterval;
 
 /**
@@ -114,76 +119,85 @@ public final class LogicalTypeCasts {
 		castTo(CHAR)
 			.implicitFrom(CHAR)
 			.explicitFromFamily(PREDEFINED)
-			.explicitNotFromFamily(BINARY_STRING)
 			.build();
 
 		castTo(VARCHAR)
 			.implicitFromFamily(CHARACTER_STRING)
 			.explicitFromFamily(PREDEFINED)
-			.explicitNotFromFamily(BINARY_STRING)
 			.build();
 
 		castTo(BOOLEAN)
 			.implicitFrom(BOOLEAN)
-			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFromFamily(CHARACTER_STRING, NUMERIC)
 			.build();
 
 		castTo(BINARY)
 			.implicitFrom(BINARY)
+			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(VARBINARY)
 			.build();
 
 		castTo(VARBINARY)
 			.implicitFromFamily(BINARY_STRING)
+			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(BINARY)
 			.build();
 
 		castTo(DECIMAL)
 			.implicitFromFamily(NUMERIC)
-			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFromFamily(CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(TINYINT)
 			.implicitFrom(TINYINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(SMALLINT)
 			.implicitFrom(TINYINT, SMALLINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(INTEGER)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(BIGINT)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(FLOAT)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
 			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(DOUBLE)
 			.implicitFromFamily(NUMERIC)
 			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(DATE)
 			.implicitFrom(DATE, TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(TIMESTAMP, CHARACTER_STRING)
+			.explicitFromFamily(TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
 			.build();
 
 		castTo(TIME_WITHOUT_TIME_ZONE)
 			.implicitFrom(TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING)
+			.explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
 			.build();
 
 		castTo(TIMESTAMP_WITHOUT_TIME_ZONE)
 			.implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(DATETIME, CHARACTER_STRING)
+			.explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
 			.build();
 
 		castTo(TIMESTAMP_WITH_TIME_ZONE)
@@ -193,7 +207,7 @@ public final class LogicalTypeCasts {
 
 		castTo(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-			.explicitFromFamily(DATETIME, CHARACTER_STRING)
+			.explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
 			.build();
 
 		castTo(INTERVAL_YEAR_MONTH)
@@ -205,6 +219,43 @@ public final class LogicalTypeCasts {
 			.implicitFrom(INTERVAL_DAY_TIME)
 			.explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
 			.build();
+	}
+
+	/**
+	 * Returns whether the source type can be safely interpreted as the target type. This allows avoiding
+	 * casts by ignoring some logical properties. This is basically a relaxed {@link LogicalType#equals(Object)}.
+	 *
+	 * <p>In particular this means:
+	 *
+	 * <p>Atomic, non-string types (INT, BOOLEAN, ...) and user-defined structured types must be fully
+	 * equal (i.e. {@link LogicalType#equals(Object)}). However, a NOT NULL type can be stored in NULL
+	 * type but not vice versa.
+	 *
+	 * <p>Atomic, string types must be contained in the target type (e.g. CHAR(2) is contained in VARCHAR(3),
+	 * but VARCHAR(2) is not contained in CHAR(3)). Same for binary strings.
+	 *
+	 * <p>Constructed types (ARRAY, ROW, MAP, etc.) and user-defined distinct type must be of same kind
+	 * but ignore field names and other logical attributes. However, all the children types
+	 * ({@link LogicalType#getChildren()}) must be compatible.
+	 */
+	public static boolean supportsAvoidingCast(LogicalType sourceType, LogicalType targetType) {
+		final CastAvoidanceChecker checker = new CastAvoidanceChecker(sourceType);
+		return targetType.accept(checker);
+	}
+
+	/**
+	 * See {@link #supportsAvoidingCast(LogicalType, LogicalType)}.
+	 */
+	public static boolean supportsAvoidingCast(List<LogicalType> sourceTypes, List<LogicalType> targetTypes) {
+		if (sourceTypes.size() != targetTypes.size()) {
+			return false;
+		}
+		for (int i = 0; i < sourceTypes.size(); i++) {
+			if (!supportsAvoidingCast(sourceTypes.get(i), targetTypes.get(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -263,7 +314,7 @@ public final class LogicalTypeCasts {
 		} else if (targetRoot == DISTINCT_TYPE) {
 			return supportsCasting(sourceType, ((DistinctType) targetType).getSourceType(), allowExplicit);
 		} else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
-			// TODO structured types are not supported yet
+			// inheritance is not supported yet, so structured type must be fully equal
 			return false;
 		} else if (sourceRoot == NULL) {
 			// null can be cast to an arbitrary type
@@ -376,6 +427,79 @@ public final class LogicalTypeCasts {
 		void build() {
 			implicitCastingRules.put(targetType, implicitSourceTypes);
 			explicitCastingRules.put(targetType, explicitSourceTypes);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Checks if a source type can safely be interpreted as the target type.
+	 */
+	private static class CastAvoidanceChecker extends LogicalTypeDefaultVisitor<Boolean> {
+
+		private final LogicalType sourceType;
+
+		private CastAvoidanceChecker(LogicalType sourceType) {
+			this.sourceType = sourceType;
+		}
+
+		@Override
+		public Boolean visit(VarCharType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// CHAR and VARCHAR are very compatible within bounds
+			if ((hasRoot(sourceType, LogicalTypeRoot.CHAR) || hasRoot(sourceType, LogicalTypeRoot.VARCHAR)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+				return true;
+			}
+			return defaultMethod(targetType);
+		}
+
+		@Override
+		public Boolean visit(VarBinaryType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// BINARY and VARBINARY are very compatible within bounds
+			if ((hasRoot(sourceType, LogicalTypeRoot.BINARY) || hasRoot(sourceType, LogicalTypeRoot.VARBINARY)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+				return true;
+			}
+			return defaultMethod(targetType);
+		}
+
+		@Override
+		public Boolean visit(StructuredType targetType) {
+			if (sourceType.isNullable() && !targetType.isNullable()) {
+				return false;
+			}
+			// structured types should be equal (modulo nullability)
+			return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+		}
+
+		@Override
+		protected Boolean defaultMethod(LogicalType targetType) {
+			// quick path
+			if (sourceType == targetType) {
+				return true;
+			}
+
+			if (sourceType.isNullable() && !targetType.isNullable() ||
+					sourceType.getClass() != targetType.getClass() || // TODO drop this line once we remove legacy types
+					sourceType.getTypeRoot() != targetType.getTypeRoot()) {
+				return false;
+			}
+
+			final List<LogicalType> sourceChildren = sourceType.getChildren();
+			final List<LogicalType> targetChildren = targetType.getChildren();
+			if (sourceChildren.isEmpty()) {
+				// handles all types that are not of family CONSTRUCTED or USER DEFINED
+				return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+			} else {
+				// handles all types of CONSTRUCTED family as well as distinct types
+				return supportsAvoidingCast(sourceChildren, targetChildren);
+			}
 		}
 	}
 

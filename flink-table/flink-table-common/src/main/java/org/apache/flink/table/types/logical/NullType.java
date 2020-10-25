@@ -33,6 +33,10 @@ import java.util.List;
  * well as bridging to formats such as JSON or Avro that define such a type as well.
  *
  * <p>The serialized string representation is {@code NULL}.
+ *
+ * <p>Note: The runtime does not support this type. It is a pure helper type during translation and
+ * planning. Table columns cannot be declared with this type. Functions cannot declare return types
+ * of this type.
  */
 @PublicEvolving
 public final class NullType extends LogicalType {

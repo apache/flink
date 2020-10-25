@@ -19,9 +19,15 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FailureRateRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FallbackRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.NoRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
@@ -31,26 +37,29 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
+import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl;
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
@@ -66,6 +75,7 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
+import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -73,7 +83,9 @@ import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSinkFactoryContextImpl;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionService;
@@ -82,10 +94,10 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -94,8 +106,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -105,6 +124,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -121,7 +141,7 @@ public class ExecutionContext<ClusterID> {
 
 	private final Environment environment;
 	private final SessionContext originalSessionContext;
-	private final ClassLoader classLoader;
+	private final URLClassLoader classLoader;
 
 	private final Configuration flinkConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
@@ -150,10 +170,16 @@ public class ExecutionContext<ClusterID> {
 
 		this.flinkConfig = flinkConfig;
 
+		if (containsPythonFunction(environment)) {
+			dependencies = addPythonDependency(dependencies);
+		}
+
 		// create class loader
-		classLoader = FlinkUserCodeClassLoaders.parentFirst(
-				dependencies.toArray(new URL[dependencies.size()]),
-				this.getClass().getClassLoader());
+		classLoader = ClientUtils.buildUserCodeClassLoader(
+			dependencies,
+			Collections.emptyList(),
+			this.getClass().getClassLoader(),
+			flinkConfig);
 
 		// Initialize the TableEnvironment.
 		initializeTableEnvironment(sessionState);
@@ -227,7 +253,7 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given supplier using the execution context's classloader as thread classloader.
 	 */
 	public <R> R wrapClassLoader(Supplier<R> supplier) {
-		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)){
 			return supplier.get();
 		}
 	}
@@ -236,20 +262,8 @@ public class ExecutionContext<ClusterID> {
 	 * Executes the given Runnable using the execution context's classloader as thread classloader.
 	 */
 	void wrapClassLoader(Runnable runnable) {
-		try (TemporaryClassLoaderContext tmpCl = new TemporaryClassLoaderContext(classLoader)){
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)){
 			runnable.run();
-		}
-	}
-
-	public QueryConfig getQueryConfig() {
-		if (streamExecEnv != null) {
-			final StreamQueryConfig config = new StreamQueryConfig();
-			final long minRetention = environment.getExecution().getMinStateRetention();
-			final long maxRetention = environment.getExecution().getMaxStateRetention();
-			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
-			return config;
-		} else {
-			return new BatchQueryConfig();
 		}
 	}
 
@@ -265,20 +279,17 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public Pipeline createPipeline(String name, Configuration flinkConfig) {
-		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (executor instanceof ExecutorBase) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
+	public Pipeline createPipeline(String name) {
+		return wrapClassLoader(() -> {
+			if (streamExecEnv != null) {
+				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+				return streamTableEnv.getPipeline(name);
+			} else {
+				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
+				return batchTableEnv.getPipeline(name);
 			}
-			return streamExecEnv.getStreamGraph(name);
-		} else {
-			final int parallelism = execEnv.getParallelism();
-			return execEnv.createProgramPlan(name);
-		}
+		});
 	}
-
 
 	/** Returns a builder for this {@link ExecutionContext}. */
 	public static Builder builder(
@@ -291,6 +302,16 @@ public class ExecutionContext<ClusterID> {
 			List<CustomCommandLine> commandLines) {
 		return new Builder(defaultEnv, sessionContext, dependencies, configuration,
 				serviceLoader, commandLineOptions, commandLines);
+	}
+
+	/** Close resources associated with this ExecutionContext, e.g. catalogs. */
+	public void close() {
+		wrapClassLoader(() -> getCatalogs().values().forEach(Catalog::close));
+		try {
+			classLoader.close();
+		} catch (IOException e) {
+			LOG.debug("Error while closing class loader.", e);
+		}
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -324,7 +345,7 @@ public class ExecutionContext<ClusterID> {
 				commandLine);
 
 		try {
-			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromProgramOptions(programOptions, dependencies);
 			executionConfigAccessor.applyToConfiguration(executionConfig);
 		} catch (CliArgsException e) {
@@ -364,12 +385,18 @@ public class ExecutionContext<ClusterID> {
 		return factory.createCatalog(name, catalogProperties);
 	}
 
-	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
-		if (execution.isStreamingPlanner()) {
+	private TableSource<?> createTableSource(String name, Map<String, String> sourceProperties) {
+		if (environment.getExecution().isStreamingPlanner()) {
 			final TableSourceFactory<?> factory = (TableSourceFactory<?>)
 				TableFactoryService.find(TableSourceFactory.class, sourceProperties, classLoader);
-			return factory.createTableSource(sourceProperties);
-		} else if (execution.isBatchPlanner()) {
+			return factory.createTableSource(new TableSourceFactoryContextImpl(
+					ObjectIdentifier.of(
+							tableEnv.getCurrentCatalog(),
+							tableEnv.getCurrentDatabase(),
+							name),
+					CatalogTableImpl.fromProperties(sourceProperties),
+					tableEnv.getConfig().getConfiguration(), true));
+		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
 				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
 			return factory.createBatchTableSource(sourceProperties);
@@ -377,12 +404,19 @@ public class ExecutionContext<ClusterID> {
 		throw new SqlExecutionException("Unsupported execution type for sources.");
 	}
 
-	private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
-		if (execution.isStreamingPlanner()) {
+	private TableSink<?> createTableSink(String name, Map<String, String> sinkProperties) {
+		if (environment.getExecution().isStreamingPlanner()) {
 			final TableSinkFactory<?> factory = (TableSinkFactory<?>)
 				TableFactoryService.find(TableSinkFactory.class, sinkProperties, classLoader);
-			return factory.createTableSink(sinkProperties);
-		} else if (execution.isBatchPlanner()) {
+			return factory.createTableSink(new TableSinkFactoryContextImpl(
+					ObjectIdentifier.of(
+							tableEnv.getCurrentCatalog(),
+							tableEnv.getCurrentDatabase(),
+							name),
+					CatalogTableImpl.fromProperties(sinkProperties),
+					tableEnv.getConfig().getConfiguration(),
+					!environment.getExecution().inStreamingMode(), true));
+		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
 			return factory.createBatchTableSink(sinkProperties);
@@ -397,7 +431,8 @@ public class ExecutionContext<ClusterID> {
 			Executor executor,
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog) {
+			FunctionCatalog functionCatalog,
+			ClassLoader userClassLoader) {
 
 		final Map<String, String> plannerProperties = settings.toPlannerProperties();
 		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
@@ -411,7 +446,8 @@ public class ExecutionContext<ClusterID> {
 			env,
 			planner,
 			executor,
-			settings.isStreamingMode());
+			settings.isStreamingMode(),
+			userClassLoader);
 	}
 
 	private static Executor lookupExecutor(
@@ -436,26 +472,33 @@ public class ExecutionContext<ClusterID> {
 	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
 		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		final boolean noInheritedState = sessionState == null;
+		// Step 0.0 Initialize the table configuration.
+		final TableConfig config = createTableConfig();
+
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
 			// Step.1 Create environments
 			//--------------------------------------------------------------------------------------------------------------
-			// Step 1.0 Initialize the table configuration.
-			final TableConfig config = new TableConfig();
-			environment.getConfiguration().asMap().forEach((k, v) ->
-					config.getConfiguration().setString(k, v));
+
+			// Step 1.0 Initialize the ModuleManager if required.
+			final ModuleManager moduleManager = new ModuleManager();
+
 			// Step 1.1 Initialize the CatalogManager if required.
-			final CatalogManager catalogManager = new CatalogManager(
+			final CatalogManager catalogManager = CatalogManager.newBuilder()
+				.classLoader(classLoader)
+				.config(config.getConfiguration())
+				.defaultCatalog(
 					settings.getBuiltInCatalogName(),
 					new GenericInMemoryCatalog(
-							settings.getBuiltInCatalogName(),
-							settings.getBuiltInDatabaseName()));
-			// Step 1.2 Initialize the ModuleManager if required.
-			final ModuleManager moduleManager = new ModuleManager();
-			// Step 1.3 Initialize the FunctionCatalog if required.
+						settings.getBuiltInCatalogName(),
+						settings.getBuiltInDatabaseName()))
+				.build();
+
+			// Step 1.2 Initialize the FunctionCatalog if required.
 			final FunctionCatalog functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager);
-			// Step 1.4 Set up session state.
-			this.sessionState = SessionState.of(config, catalogManager, moduleManager, functionCatalog);
+
+			// Step 1.3 Set up session state.
+			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
 
 			// Must initialize the table environment before actually the
 			createTableEnvironment(settings, config, catalogManager, moduleManager, functionCatalog);
@@ -490,10 +533,61 @@ public class ExecutionContext<ClusterID> {
 			this.sessionState = sessionState;
 			createTableEnvironment(
 					settings,
-					sessionState.config,
+					config,
 					sessionState.catalogManager,
 					sessionState.moduleManager,
 					sessionState.functionCatalog);
+		}
+	}
+
+	private TableConfig createTableConfig() {
+		final TableConfig config = new TableConfig();
+		config.addConfiguration(flinkConfig);
+		Configuration conf = config.getConfiguration();
+		environment.getConfiguration().asMap().forEach(conf::setString);
+		ExecutionEntry execution = environment.getExecution();
+		config.setIdleStateRetentionTime(
+				Time.milliseconds(execution.getMinStateRetention()),
+				Time.milliseconds(execution.getMaxStateRetention()));
+
+		if (execution.getParallelism().isPresent()) {
+			conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism().get());
+		}
+		conf.set(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
+		conf.set(StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
+		if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
+			conf.set(PipelineOptions.AUTO_WATERMARK_INTERVAL,
+					Duration.ofMillis(execution.getPeriodicWatermarksInterval()));
+		}
+
+		setRestartStrategy(conf);
+		return config;
+	}
+
+	private void setRestartStrategy(Configuration conf) {
+		RestartStrategyConfiguration restartStrategy = environment.getExecution().getRestartStrategy();
+		if (restartStrategy instanceof NoRestartStrategyConfiguration) {
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+		} else if (restartStrategy instanceof FixedDelayRestartStrategyConfiguration) {
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+			FixedDelayRestartStrategyConfiguration fixedDelay = ((FixedDelayRestartStrategyConfiguration) restartStrategy);
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+					fixedDelay.getRestartAttempts());
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+					Duration.ofMillis(fixedDelay.getDelayBetweenAttemptsInterval().toMilliseconds()));
+		} else if (restartStrategy instanceof FailureRateRestartStrategyConfiguration) {
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+			FailureRateRestartStrategyConfiguration failureRate = (FailureRateRestartStrategyConfiguration) restartStrategy;
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL,
+					failureRate.getMaxFailureRate());
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,
+					Duration.ofMillis(failureRate.getFailureInterval().toMilliseconds()));
+			conf.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY,
+					Duration.ofMillis(failureRate.getDelayBetweenAttemptsInterval().toMilliseconds()));
+		} else if (restartStrategy instanceof FallbackRestartStrategyConfiguration) {
+			// default is FallbackRestartStrategyConfiguration
+			// see ExecutionConfig.restartStrategyConfiguration
+			conf.removeConfig(RestartStrategyOptions.RESTART_STRATEGY);
 		}
 	}
 
@@ -516,10 +610,11 @@ public class ExecutionContext<ClusterID> {
 					executor,
 					catalogManager,
 					moduleManager,
-					functionCatalog);
+					functionCatalog,
+					classLoader);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
-			execEnv = createExecutionEnvironment();
+			execEnv = ExecutionEnvironment.getExecutionEnvironment();
 			executor = null;
 			tableEnv = new BatchTableEnvironmentImpl(
 					execEnv,
@@ -549,16 +644,16 @@ public class ExecutionContext<ClusterID> {
 		Map<String, TableSink<?>> tableSinks = new HashMap<>();
 		environment.getTables().forEach((name, entry) -> {
 			if (entry instanceof SourceTableEntry || entry instanceof SourceSinkTableEntry) {
-				tableSources.put(name, createTableSource(environment.getExecution(), entry.asMap(), classLoader));
+				tableSources.put(name, createTableSource(name, entry.asMap()));
 			}
 			if (entry instanceof SinkTableEntry || entry instanceof SourceSinkTableEntry) {
-				tableSinks.put(name, createTableSink(environment.getExecution(), entry.asMap(), classLoader));
+				tableSinks.put(name, createTableSink(name, entry.asMap()));
 			}
 		});
 		// register table sources
-		tableSources.forEach(tableEnv::registerTableSource);
+		tableSources.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSourceInternal);
 		// register table sinks
-		tableSinks.forEach(tableEnv::registerTableSink);
+		tableSinks.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSinkInternal);
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.4 Register temporal tables.
@@ -578,7 +673,7 @@ public class ExecutionContext<ClusterID> {
 			// it means that it accesses tables that are not available anymore
 			if (entry instanceof ViewEntry) {
 				final ViewEntry viewEntry = (ViewEntry) entry;
-				registerView(viewEntry);
+				registerTemporaryView(viewEntry);
 			}
 		});
 
@@ -594,20 +689,11 @@ public class ExecutionContext<ClusterID> {
 		database.ifPresent(tableEnv::useDatabase);
 	}
 
-	private ExecutionEnvironment createExecutionEnvironment() {
-		final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-		execEnv.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		execEnv.setParallelism(environment.getExecution().getParallelism());
-		return execEnv;
-	}
-
 	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		env.setParallelism(environment.getExecution().getParallelism());
-		env.setMaxParallelism(environment.getExecution().getMaxParallelism());
+		// for TimeCharacteristic validation in StreamTableEnvironmentImpl
 		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+		if (environment.getExecution().getTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 		return env;
@@ -616,7 +702,11 @@ public class ExecutionContext<ClusterID> {
 	private void registerFunctions() {
 		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
 		environment.getFunctions().forEach((name, entry) -> {
-			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
+			final UserDefinedFunction function = FunctionService.createFunction(
+				entry.getDescriptor(),
+				classLoader,
+				false,
+				getTableEnvironment().getConfig().getConfiguration());
 			functions.put(name, function);
 		});
 		registerFunctions(functions);
@@ -626,14 +716,28 @@ public class ExecutionContext<ClusterID> {
 		if (tableEnv instanceof StreamTableEnvironment) {
 			StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 			functions.forEach((k, v) -> {
-				if (v instanceof ScalarFunction) {
-					streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-				} else if (v instanceof AggregateFunction) {
-					streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-				} else if (v instanceof TableFunction) {
-					streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-				} else {
-					throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+				// Blink planner uses FLIP-65 functions for scalar and table functions
+				// aggregate functions still use the old type inference
+				if (environment.getExecution().isBlinkPlanner()) {
+					if (v instanceof ScalarFunction || v instanceof TableFunction) {
+						streamTableEnvironment.createTemporarySystemFunction(k, (UserDefinedFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				}
+				// legacy
+				else {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
 				}
 			});
 		} else {
@@ -652,9 +756,9 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private void registerView(ViewEntry viewEntry) {
+	private void registerTemporaryView(ViewEntry viewEntry) {
 		try {
-			tableEnv.registerTable(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
+			tableEnv.createTemporaryView(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
 		} catch (Exception e) {
 			throw new SqlExecutionException(
 				"Invalid view '" + viewEntry.getName() + "' with query:\n" + viewEntry.getQuery()
@@ -664,10 +768,14 @@ public class ExecutionContext<ClusterID> {
 
 	private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
 		try {
-			final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+			final Table table = tableEnv.from(temporalTableEntry.getHistoryTable());
+			List<String> primaryKeyFields = temporalTableEntry.getPrimaryKeyFields();
+			if (primaryKeyFields.size() > 1) {
+				throw new ValidationException("Temporal tables over a composite primary key are not supported yet.");
+			}
 			final TableFunction<?> function = table.createTemporalTableFunction(
-				temporalTableEntry.getTimeAttribute(),
-				String.join(",", temporalTableEntry.getPrimaryKeyFields()));
+				$(temporalTableEntry.getTimeAttribute()),
+				$(primaryKeyFields.get(0)));
 			if (tableEnv instanceof StreamTableEnvironment) {
 				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 				streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
@@ -682,17 +790,29 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private Pipeline createPipeline(String name) {
-		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (executor instanceof ExecutorBase) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
+	private boolean containsPythonFunction(Environment environment) {
+		return environment.getFunctions().values().stream().anyMatch(f ->
+			FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
+				f.getDescriptor().toProperties().get(FunctionDescriptorValidator.FROM)));
+	}
+
+	private List<URL> addPythonDependency(List<URL> dependencies) {
+		List<URL> newDependencies = new ArrayList<>(dependencies);
+		try {
+			URL location = Class.forName(
+				"org.apache.flink.python.PythonFunctionRunner",
+				false,
+				Thread.currentThread().getContextClassLoader())
+				.getProtectionDomain().getCodeSource().getLocation();
+			if (Paths.get(location.toURI()).toFile().isFile()) {
+				newDependencies.add(location);
 			}
-			return streamExecEnv.getStreamGraph(name);
-		} else {
-			return execEnv.createProgramPlan(name);
+		} catch (URISyntaxException | ClassNotFoundException e) {
+			throw new SqlExecutionException("Python UDF detected but flink-python jar not found. " +
+				"If you starts SQL-Client via `sql-client.sh`, please add the flink-python jar " +
+				"via `-j` command option manually.", e);
 		}
+		return newDependencies;
 	}
 
 	//~ Inner Class -------------------------------------------------------------------------------
@@ -763,28 +883,24 @@ public class ExecutionContext<ClusterID> {
 
 	/** Represents the state that should be reused in one session. **/
 	public static class SessionState {
-		public final TableConfig config;
 		public final CatalogManager catalogManager;
 		public final ModuleManager moduleManager;
 		public final FunctionCatalog functionCatalog;
 
 		private SessionState(
-				TableConfig config,
 				CatalogManager catalogManager,
 				ModuleManager moduleManager,
 				FunctionCatalog functionCatalog) {
-			this.config = config;
 			this.catalogManager = catalogManager;
 			this.moduleManager = moduleManager;
 			this.functionCatalog = functionCatalog;
 		}
 
 		public static SessionState of(
-				TableConfig config,
 				CatalogManager catalogManager,
 				ModuleManager moduleManager,
 				FunctionCatalog functionCatalog) {
-			return new SessionState(config, catalogManager, moduleManager, functionCatalog);
+			return new SessionState(catalogManager, moduleManager, functionCatalog);
 		}
 	}
 }

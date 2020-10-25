@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 
 /**
@@ -30,7 +30,7 @@ public class IntNormalizedKeyComputer implements NormalizedKeyComputer {
 	public static final IntNormalizedKeyComputer INSTANCE = new IntNormalizedKeyComputer();
 
 	@Override
-	public void putKey(BaseRow record, MemorySegment target, int offset) {
+	public void putKey(RowData record, MemorySegment target, int offset) {
 		// write first null byte.
 		if (record.isNullAt(0)) {
 			SortUtil.minNormalizedKey(target, offset, 5);

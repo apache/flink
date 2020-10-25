@@ -54,18 +54,17 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +92,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
+import static org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -122,7 +121,6 @@ import static org.junit.Assert.assertThat;
  *   lost results.
  * </ul>
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchFineGrainedRecoveryITCase.class);
 
@@ -396,14 +394,16 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		@Override
 		void fail(int trackingIndex) throws Exception {
 			//noinspection OverlyBroadCatchBlock
-			try {
-				restartTaskManager();
-			} catch (InterruptedException e) {
-				// ignore the exception, task should have been failed while stopping TM
-				Thread.currentThread().interrupt();
-			} catch (Throwable t) {
-				failureTracker.unrelatedFailure(t);
-				throw t;
+			try (TemporaryClassLoaderContext unused = TemporaryClassLoaderContext.of(ClassLoader.getSystemClassLoader())) {
+				try {
+					restartTaskManager();
+				} catch (InterruptedException e) {
+					// ignore the exception, task should have been failed while stopping TM
+					Thread.currentThread().interrupt();
+				} catch (Throwable t) {
+					failureTracker.unrelatedFailure(t);
+					throw t;
+				}
 			}
 		}
 	}

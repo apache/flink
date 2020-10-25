@@ -781,6 +781,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					false,
 					false,
+					false,
 					0),
 				null));
 
@@ -801,7 +802,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			timeout,
 			LoggerFactory.getLogger(getClass()),
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

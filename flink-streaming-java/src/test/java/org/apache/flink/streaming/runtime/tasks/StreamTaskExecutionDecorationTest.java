@@ -80,7 +80,7 @@ public class StreamTaskExecutionDecorationTest {
 	}
 
 	@Before
-	public void before() {
+	public void before() throws Exception {
 		mailbox = new TaskMailboxImpl();
 		decorator = new CountingStreamTaskActionExecutor();
 		task = new StreamTask<Object, StreamOperator<Object>>(new StreamTaskTest.DeclineDummyEnvironment(), null, FatalExitExceptionHandler.INSTANCE, decorator, mailbox) {

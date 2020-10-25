@@ -19,9 +19,12 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 
 import javax.annotation.Nonnull;
@@ -55,18 +58,26 @@ public class OperatorSnapshotFinalizer {
 		SnapshotResult<OperatorStateHandle> operatorRaw =
 			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
 
+		SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel = snapshotFutures.getInputChannelStateFuture().get();
+
+		SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition = snapshotFutures.getResultSubpartitionStateFuture().get();
+
 		jobManagerOwnedState = new OperatorSubtaskState(
 			operatorManaged.getJobManagerOwnedSnapshot(),
 			operatorRaw.getJobManagerOwnedSnapshot(),
 			keyedManaged.getJobManagerOwnedSnapshot(),
-			keyedRaw.getJobManagerOwnedSnapshot()
+			keyedRaw.getJobManagerOwnedSnapshot(),
+			inputChannel.getJobManagerOwnedSnapshot(),
+			resultSubpartition.getJobManagerOwnedSnapshot()
 		);
 
 		taskLocalState = new OperatorSubtaskState(
 			operatorManaged.getTaskLocalSnapshot(),
 			operatorRaw.getTaskLocalSnapshot(),
 			keyedManaged.getTaskLocalSnapshot(),
-			keyedRaw.getTaskLocalSnapshot()
+			keyedRaw.getTaskLocalSnapshot(),
+			inputChannel.getTaskLocalSnapshot(),
+			resultSubpartition.getTaskLocalSnapshot()
 		);
 	}
 

@@ -18,16 +18,23 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -331,6 +338,30 @@ public class TypeMappingUtilsTest {
 		);
 	}
 
+	@Test
+	public void testCheckPhysicalLogicalTypeCompatible() {
+		TableSchema tableSchema = TableSchema.builder()
+								.field("a", DataTypes.VARCHAR(2))
+								.field("b", DataTypes.DECIMAL(20, 2))
+								.build();
+		TableSink tableSink = new TestTableSink(tableSchema);
+		LegacyTypeInformationType legacyDataType = (LegacyTypeInformationType) tableSink.getConsumedDataType()
+														.getLogicalType();
+		TypeInformation legacyTypeInfo = ((TupleTypeInfo) legacyDataType.getTypeInformation()).getTypeAt(1);
+		DataType physicalType = TypeConversions.fromLegacyInfoToDataType(legacyTypeInfo);
+		TableSchema physicSchema = DataTypeUtils.expandCompositeTypeToSchema(physicalType);
+		DataType[] logicalDataTypes = tableSchema.getFieldDataTypes();
+		DataType[] physicalDataTypes = physicSchema.getFieldDataTypes();
+		for (int i = 0; i < logicalDataTypes.length; i++) {
+			TypeMappingUtils.checkPhysicalLogicalTypeCompatible(
+					physicalDataTypes[i].getLogicalType(),
+					logicalDataTypes[i].getLogicalType(),
+					"physicalField",
+					"logicalField",
+					false);
+		}
+	}
+
 	private static class TestTableSource
 		implements TableSource<Object>, DefinedProctimeAttribute, DefinedRowtimeAttributes {
 
@@ -368,6 +399,43 @@ public class TypeMappingUtilsTest {
 		@Override
 		public TableSchema getTableSchema() {
 			throw new UnsupportedOperationException("Should not be called");
+		}
+	}
+
+	/**
+	 * Since UpsertStreamTableSink not in flink-table-common module, here we use Tuple2 &lt;Boolean, Row&gt; to
+	 * simulate the behavior of UpsertStreamTableSink.
+	 */
+	private static class TestTableSink implements TableSink<Tuple2<Boolean, Row>> {
+		private final TableSchema tableSchema;
+
+		private TestTableSink(TableSchema tableSchema) {
+			this.tableSchema = tableSchema;
+		}
+
+		TypeInformation<Row> getRecordType() {
+			return tableSchema.toRowType();
+		}
+
+		@Override
+		public TypeInformation<Tuple2<Boolean, Row>> getOutputType() {
+			return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+		}
+
+		@Override
+		public String[] getFieldNames() {
+			return tableSchema.getFieldNames();
+		}
+
+		@Override
+		public TypeInformation<?>[] getFieldTypes() {
+			return tableSchema.getFieldTypes();
+		}
+
+		@Override
+		public TableSink<Tuple2<Boolean, Row>> configure(
+				String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+			return null;
 		}
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -40,7 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -83,7 +84,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
-		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		properties.add(SCHEMA + ".#." + EXPR);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
@@ -92,18 +93,23 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
+		// table constraint
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+
 		return properties;
 	}
 
 	@Override
-	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+	public StreamTableSource<Row> createTableSource(TableSourceFactory.Context context) {
+		TableSchema schema = context.getTable().getSchema();
 		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+		params.putProperties(context.getTable().toProperties());
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA)),
-			properties.get(testProperty),
+			schema,
+			context.getTable().getProperties().get(testProperty),
 			proctime.orElse(null),
 			rowtime);
 	}
@@ -121,7 +127,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		private final List<RowtimeAttributeDescriptor> rowtime;
 
 		public TestTableSource(TableSchema schema, String property, String proctime, List<RowtimeAttributeDescriptor> rowtime) {
-			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
+			this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 			this.property = property;
 			this.proctime = proctime;
 			this.rowtime = rowtime;

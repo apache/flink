@@ -25,27 +25,27 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Flink programs can run distributed on clusters of many machines. There
-are two ways to send a program to a cluster for execution:
+Flink 程序可以分布式运行在多机器集群上。有两种方式可以将程序提交到集群上执行：
 
-## Command Line Interface
+<a name="command-line-interface"></a>
 
-The command line interface lets you submit packaged programs (JARs) to a cluster
-(or single machine setup).
+## 命令行界面（Interface）
 
-Please refer to the [Command Line Interface]({{ site.baseurl }}/ops/cli.html) documentation for
-details.
+命令行界面使你可以将打包的程序（JARs）提交到集群（或单机设置）。
 
-## Remote Environment
+有关详细信息，请参阅[命令行界面]({% link ops/cli.zh.md %})文档。
 
-The remote environment lets you execute Flink Java programs on a cluster
-directly. The remote environment points to the cluster on which you want to
-execute the program.
+<a name="remote-environment"></a>
+
+## 远程环境（Remote Environment）
+
+远程环境使你可以直接在集群上执行 Flink Java 程序。远程环境指向你要执行程序的集群。
+
+<a name="maven-dependency"></a>
 
 ### Maven Dependency
 
-If you are developing your program as a Maven project, you have to add the
-`flink-clients` module using this dependency:
+如果将程序作为 Maven 项目开发，则必须添加 `flink-clients` 模块的依赖：
 
 {% highlight xml %}
 <dependency>
@@ -55,14 +55,16 @@ If you are developing your program as a Maven project, you have to add the
 </dependency>
 {% endhighlight %}
 
-### Example
+<a name="example"></a>
 
-The following illustrates the use of the `RemoteEnvironment`:
+### 示例
+
+下面演示了 `RemoteEnvironment` 的用法：
 
 {% highlight java %}
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
-        .createRemoteEnvironment("flink-master", 8081, "/home/user/udfs.jar");
+        .createRemoteEnvironment("flink-jobmanager", 8081, "/home/user/udfs.jar");
 
     DataSet<String> data = env.readTextFile("hdfs://path/to/file");
 
@@ -78,8 +80,6 @@ public static void main(String[] args) throws Exception {
 }
 {% endhighlight %}
 
-Note that the program contains custom user code and hence requires a JAR file with
-the classes of the code attached. The constructor of the remote environment
-takes the path(s) to the JAR file(s).
+请注意，该程序包含用户自定义代码，因此需要一个带有附加代码类的 JAR 文件。远程环境的构造函数使用 JAR 文件的路径进行构造。
 
 {% top %}

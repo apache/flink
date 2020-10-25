@@ -21,12 +21,10 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -39,15 +37,13 @@ class TestingDispatcher extends Dispatcher {
 
 	TestingDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrap dispatcherBootstrap,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
-			recoveredJobs,
+			dispatcherBootstrap,
 			dispatcherServices);
 
 		this.startFuture = new CompletableFuture<>();

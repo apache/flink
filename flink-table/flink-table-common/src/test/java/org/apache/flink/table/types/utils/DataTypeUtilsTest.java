@@ -22,7 +22,9 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -34,21 +36,93 @@ import org.junit.Test;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DataTypeUtils}.
  */
 public class DataTypeUtilsTest {
+
+	@Test
+	public void testProjectRow() {
+		final DataType thirdLevelRow = ROW(
+			FIELD("c0", BOOLEAN()),
+			FIELD("c1", DOUBLE()),
+			FIELD("c2", INT())
+		);
+		final DataType secondLevelRow = ROW(
+			FIELD("b0", BOOLEAN()),
+			FIELD("b1", thirdLevelRow),
+			FIELD("b2", INT())
+		);
+		final DataType topLevelRow = ROW(
+			FIELD("a0", INT()),
+			FIELD("a1", secondLevelRow)
+		);
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{0}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("a0", INT()), FIELD("c0", BOOLEAN()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1}, {0}}),
+			equalTo(ROW(FIELD("b1", thirdLevelRow), FIELD("a0", INT()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 2}, {1, 1, 1}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("c2", INT()), FIELD("c1", DOUBLE()), FIELD("c0", BOOLEAN()))));
+	}
+
+	@Test
+	public void testIsInternalClass() {
+		assertTrue(DataTypeUtils.isInternal(DataTypes.INT()));
+		assertTrue(DataTypeUtils.isInternal(DataTypes.INT().notNull().bridgedTo(int.class)));
+		assertTrue(DataTypeUtils.isInternal(DataTypes.ROW().bridgedTo(RowData.class)));
+		assertFalse(DataTypeUtils.isInternal(DataTypes.ROW()));
+	}
+
+	@Test
+	public void testFlattenToDataTypes() {
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(INT()),
+			equalTo(Collections.singletonList(INT())));
+
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN()))),
+			equalTo(Arrays.asList(INT(), BOOLEAN())));
+	}
+
+	@Test
+	public void testFlattenToNames() {
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.emptyList()),
+			equalTo(Collections.singletonList("f0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.singletonList("f0")),
+			equalTo(Collections.singletonList("f0_0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN())), Collections.emptyList()),
+			equalTo(Arrays.asList("a", "b")));
+	}
+
 	@Test
 	public void testExpandRowType() {
 		DataType dataType = ROW(
@@ -98,11 +172,11 @@ public class DataTypeUtilsTest {
 			))
 			.build();
 
-		Map<String, DataType> dataTypes = new HashMap<>();
-		dataTypes.put("f0", DataTypes.INT());
-		dataTypes.put("f1", DataTypes.STRING());
-		dataTypes.put("f2", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class));
-		dataTypes.put("f3", DataTypes.TIMESTAMP(3));
+		List<DataType> dataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.STRING(),
+			DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class),
+			DataTypes.TIMESTAMP(3));
 		FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
 
 		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
@@ -131,7 +205,7 @@ public class DataTypeUtilsTest {
 			ObjectIdentifier.of("catalog", "database", "type"),
 			originalLogicalType)
 			.build();
-		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getFieldDataTypes());
+		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getChildren());
 
 		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
 
@@ -149,5 +223,24 @@ public class DataTypeUtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testExpandThrowExceptionOnAtomicType() {
 		DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+	}
+
+	@Test
+	public void testDataTypeValidation() {
+		final DataType validDataType = DataTypes.MAP(DataTypes.INT(), DataTypes.STRING());
+
+		DataTypeUtils.validateInputDataType(validDataType);
+		DataTypeUtils.validateOutputDataType(validDataType);
+
+		final DataType inputOnlyDataType = validDataType.bridgedTo(HashMap.class);
+		DataTypeUtils.validateInputDataType(inputOnlyDataType);
+		try {
+			DataTypeUtils.validateOutputDataType(inputOnlyDataType);
+			fail();
+		} catch (ValidationException e) {
+			assertEquals(
+				e.getMessage(),
+				"Data type 'MAP<INT, STRING>' does not support an output conversion to class '" + java.util.HashMap.class.getName() + "'.");
+		}
 	}
 }

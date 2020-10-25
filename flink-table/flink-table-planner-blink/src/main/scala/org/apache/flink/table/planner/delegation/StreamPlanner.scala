@@ -19,17 +19,20 @@
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
-import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
+import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -48,27 +51,48 @@ class StreamPlanner(
       ConventionTraitDef.INSTANCE,
       FlinkRelDistributionTraitDef.INSTANCE,
       MiniBatchIntervalTraitDef.INSTANCE,
-      UpdateAsRetractionTraitDef.INSTANCE,
-      AccModeTraitDef.INSTANCE)
+      ModifyKindSetTraitDef.INSTANCE,
+      UpdateKindTraitDef.INSTANCE)
   }
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+    val planner = createDummyPlanner()
+    planner.overrideEnvParallelism()
+
     execNodes.map {
-      case node: StreamExecNode[_] => node.translateToPlan(this)
+      case node: StreamExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
   }
 
-  override def explain(operations: util.List[Operation], extended: Boolean): String = {
+  override protected def createSelectTableSink(tableSchema: TableSchema): SelectTableSinkBase[_] = {
+    new StreamSelectTableSink(tableSchema)
+  }
+
+  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
-        getRelBuilder.queryOperation(queryOperation).build()
+        val relNode = getRelBuilder.queryOperation(queryOperation).build()
+        relNode match {
+          // SQL: explain plan for insert into xx
+          case modify: LogicalTableModify =>
+            // convert LogicalTableModify to CatalogSinkModifyOperation
+            val qualifiedName = modify.getTable.getQualifiedName
+            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
+            val modifyOperation = new CatalogSinkModifyOperation(
+              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
+              new PlannerQueryOperation(modify.getInput)
+            )
+            translateToRel(modifyOperation)
+          case _ =>
+            relNode
+        }
       case modifyOperation: ModifyOperation =>
         translateToRel(modifyOperation)
       case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
@@ -76,9 +100,7 @@ class StreamPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
 
-    val plannerForExplain = createDummyPlannerForExplain()
-    plannerForExplain.overrideEnvParallelism()
-    val transformations = plannerForExplain.translateToPlan(execNodes)
+    val transformations = translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
@@ -92,15 +114,16 @@ class StreamPlanner(
 
     sb.append("== Optimized Logical Plan ==")
     sb.append(System.lineSeparator)
-    val (explainLevel, withRetractTraits) = if (extended) {
-      (SqlExplainLevel.ALL_ATTRIBUTES, true)
+    val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
+      SqlExplainLevel.ALL_ATTRIBUTES
     } else {
-      (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
+      SqlExplainLevel.DIGEST_ATTRIBUTES
     }
+    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
       explainLevel,
-      withRetractTraits = withRetractTraits))
+      withChangelogTraits = withChangelogTraits))
     sb.append(System.lineSeparator)
 
     sb.append("== Physical Execution Plan ==")
@@ -109,7 +132,7 @@ class StreamPlanner(
     sb.toString()
   }
 
-  private def createDummyPlannerForExplain(): StreamPlanner = {
+  private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)

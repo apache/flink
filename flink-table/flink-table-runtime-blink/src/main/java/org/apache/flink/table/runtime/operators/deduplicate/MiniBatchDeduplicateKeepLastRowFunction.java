@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -32,50 +33,62 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRow;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * This function is used to get the last row for every key partition in miniBatch mode.
  */
 public class MiniBatchDeduplicateKeepLastRowFunction
-		extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
+		extends MapBundleFunction<RowData, RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -8981813609115029119L;
 
-	private final BaseRowTypeInfo rowTypeInfo;
-	private final boolean generateRetraction;
-	private final TypeSerializer<BaseRow> typeSerializer;
-
+	private final InternalTypeInfo<RowData> rowTypeInfo;
+	private final boolean generateUpdateBefore;
+	private final boolean generateInsert;
+	private final TypeSerializer<RowData> typeSerializer;
+	private final long minRetentionTime;
 	// state stores complete row.
-	private ValueState<BaseRow> state;
+	private ValueState<RowData> state;
 
-	public MiniBatchDeduplicateKeepLastRowFunction(BaseRowTypeInfo rowTypeInfo, boolean generateRetraction,
-			TypeSerializer<BaseRow> typeSerializer) {
+	public MiniBatchDeduplicateKeepLastRowFunction(
+			InternalTypeInfo<RowData> rowTypeInfo,
+			boolean generateUpdateBefore,
+			boolean generateInsert,
+			TypeSerializer<RowData> typeSerializer,
+			long minRetentionTime) {
+		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
+		this.generateInsert = generateInsert;
 		this.typeSerializer = typeSerializer;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
-		ValueStateDescriptor<BaseRow> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
+		ValueStateDescriptor<RowData> stateDesc = new ValueStateDescriptor<>("preRowState", rowTypeInfo);
+		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+		if (ttlConfig.isEnabled()) {
+			stateDesc.enableTimeToLive(ttlConfig);
+		}
 		state = ctx.getRuntimeContext().getState(stateDesc);
 	}
 
 	@Override
-	public BaseRow addInput(@Nullable BaseRow value, BaseRow input) {
+	public RowData addInput(@Nullable RowData value, RowData input) {
 		// always put the input into buffer
 		return typeSerializer.copy(input);
 	}
 
 	@Override
 	public void finishBundle(
-			Map<BaseRow, BaseRow> buffer, Collector<BaseRow> out) throws Exception {
-		for (Map.Entry<BaseRow, BaseRow> entry : buffer.entrySet()) {
-			BaseRow currentKey = entry.getKey();
-			BaseRow currentRow = entry.getValue();
+			Map<RowData, RowData> buffer, Collector<RowData> out) throws Exception {
+		for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+			RowData currentKey = entry.getKey();
+			RowData currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			processLastRow(currentRow, generateRetraction, state, out);
+			processLastRow(currentRow, generateUpdateBefore, generateInsert, state, out);
 		}
 	}
 }

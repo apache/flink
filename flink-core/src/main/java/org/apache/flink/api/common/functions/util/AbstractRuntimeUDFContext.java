@@ -33,8 +33,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -45,9 +43,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -61,7 +59,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final TaskInfo taskInfo;
 
-	private final ClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final ExecutionConfig executionConfig;
 
@@ -72,7 +70,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	private final MetricGroup metrics;
 
 	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
-										ClassLoader userCodeClassLoader,
+										UserCodeClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
 										Map<String, Accumulator<?, ?>> accumulators,
 										Map<String, Future<Path>> cpTasks,
@@ -161,13 +159,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return Collections.unmodifiableMap(this.accumulators);
+	public ClassLoader getUserCodeClassLoader() {
+		return this.userCodeClassLoader.asClassLoader();
 	}
 
 	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return this.userCodeClassLoader;
+	public void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+		userCodeClassLoader.registerReleaseHookIfAbsent(releaseHookName, releaseHook);
 	}
 
 	@Override
@@ -222,14 +220,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	@PublicEvolving
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		throw new UnsupportedOperationException(
-				"This state is only accessible by functions executed on a KeyedStream");
-	}
-
-	@Override
-	@PublicEvolving
-	@Deprecated
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}

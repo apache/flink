@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-python_${scala.binary.version}</artifactId>
-	<name>flink-python</name>
+	<name>Flink : Python</name>
 
 	<packaging>jar</packaging>
 
@@ -41,6 +41,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -89,10 +95,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.github.spotbugs</groupId>
-			<artifactId>spotbugs</artifactId>
-			<version>3.1.10</version>
-			<scope>provided</scope>
+			<groupId>org.apache.beam</groupId>
+			<artifactId>beam-runners-core-java</artifactId>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -118,6 +122,44 @@ under the License.
 					<artifactId>serpent</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Arrow dependencies -->
+
+		<dependency>
+			<groupId>org.apache.arrow</groupId>
+			<artifactId>arrow-vector</artifactId>
+			<version>${arrow.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- Override arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-buffer</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- Override arrow netty dependency -->
+					<groupId>io.netty</groupId>
+					<artifactId>netty-common</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- Bump arrow netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-buffer</artifactId>
+			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bump arrow netty dependency -->
+			<groupId>io.netty</groupId>
+			<artifactId>netty-common</artifactId>
+			<version>4.1.44.Final</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -184,6 +226,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>org.apache.beam</groupId>
+				<artifactId>beam-runners-core-java</artifactId>
+				<version>${beam.version}</version>
+			</dependency>
+
+			<dependency>
 				<groupId>com.google.protobuf</groupId>
 				<artifactId>protobuf-java</artifactId>
 				<version>${protoc.version}</version>
@@ -193,18 +241,6 @@ under the License.
 
 	<build>
 		<resources>
-			<resource>
-				<directory>lib</directory>
-				<includes>
-					<include>*.zip</include>
-				</includes>
-			</resource>
-			<resource>
-				<directory>bin</directory>
-				<includes>
-					<include>pyflink-udf-runner.sh</include>
-				</includes>
-			</resource>
 			<resource>
 				<directory>src/main/resources</directory>
 			</resource>
@@ -235,7 +271,6 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
-								<delete dir="${project.basedir}/dist"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
 							</target>
 						</configuration>
@@ -288,13 +323,16 @@ under the License.
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
 									<inculde>com.google.protobuf:*</inculde>
+									<include>org.apache.arrow:*</include>
+									<include>io.netty:*</include>
+									<include>com.google.flatbuffers:*</include>
 								</includes>
 							</artifactSet>
 							<filters>
 								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
-										<exclude>org/apache/beam/repackaged/core/net/bytebuddy/**</exclude>
+										<exclude>org/apache/beam/vendor/bytebuddy/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
@@ -305,11 +343,6 @@ under the License.
 								<relocation>
 									<pattern>py4j</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
-									<includes>
-										<!-- prevent it from relocating the py4j zip file and
-										replacing the py4j file name string in source code -->
-										<include>py4j/**</include>
-									</includes>
 								</relocation>
 								<relocation>
 									<pattern>net.razorvine</pattern>
@@ -326,6 +359,18 @@ under the License.
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.protobuf</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.arrow</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.org.apache.arrow</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google.flatbuffers</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
@@ -348,6 +393,104 @@ under the License.
 								<include>pyflink/proto</include>
 							</inputDirectories>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
+					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
+					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>testUDF1</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction1.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func1
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testUDF2</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/TestScalarFunction2.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/func2
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>testJavaDDL</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/PythonFunctionFactoryTest.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/javaDDL
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>data-stream-test</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/DataStreamTestCollectSink.class</include>
+								<include>**/MyCustomSourceFunction.class</include>
+								<include>**/PartitionCustomTestMapFunction.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/data-stream-test
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>dummy-job-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.client.cli.TestJob</mainClass>
+								</manifest>
+							</archive>
+							<includes>
+								<include>**/TestJob.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/dummy-job-jar
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

@@ -45,4 +45,11 @@ public class HiveOptions {
 			key("table.exec.hive.infer-source-parallelism.max")
 					.defaultValue(1000)
 					.withDescription("Sets max infer parallelism for source operator.");
+
+	public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER =
+			key("table.exec.hive.fallback-mapred-writer")
+					.booleanType()
+					.defaultValue(true)
+					.withDescription("If it is false, using flink native writer to write parquet and orc files; " +
+							"If it is true, using hadoop mapred record writer to write parquet and orc files.");
 }

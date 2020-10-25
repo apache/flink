@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.TimestampData;
 
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +66,7 @@ public final class LocalZonedTimestampType extends LogicalType {
 		java.time.Instant.class.getName(),
 		Integer.class.getName(),
 		Long.class.getName(),
-		"org.apache.flink.table.dataformat.SqlTimestamp");
+		TimestampData.class.getName());
 
 	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.time.Instant.class.getName(),

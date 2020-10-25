@@ -44,6 +44,7 @@ import static org.apache.flink.runtime.state.ttl.StateBackendTestContext.NUMBER_
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
 
@@ -85,8 +86,7 @@ public abstract class TtlStateTestBase {
 			new TtlMapStatePerElementTestContext(),
 			new TtlMapStatePerNullElementTestContext(),
 			new TtlAggregatingStateTestContext(),
-			new TtlReducingStateTestContext(),
-			new TtlFoldingStateTestContext());
+			new TtlReducingStateTestContext());
 	}
 
 	public boolean fullSnapshot() {
@@ -208,7 +208,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 300;
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 	}
 
 	@Test
@@ -222,7 +222,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 120;
 		assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 		assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
 	}
 
@@ -247,7 +247,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 250;
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 	}
 
 	@Test
@@ -509,7 +509,7 @@ public abstract class TtlStateTestBase {
 	private void checkExpiredKeys(int startKey, int endKey) throws Exception {
 		for (int i = startKey; i < endKey; i++) {
 			sbetc.setCurrentKey(Integer.toString(i));
-			assertEquals("Original state should be cleared", ctx().emptyValue, ctx().getOriginal());
+			assertTrue("Original state should be cleared", ctx().isOriginalEmptyValue());
 		}
 	}
 

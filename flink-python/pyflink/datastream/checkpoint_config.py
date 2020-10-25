@@ -268,6 +268,45 @@ class CheckpointConfig(object):
         cleanup_mode = self._j_checkpoint_config.getExternalizedCheckpointCleanup()
         return ExternalizedCheckpointCleanup._from_j_externalized_checkpoint_cleanup(cleanup_mode)
 
+    def is_unaligned_checkpoints_enabled(self):
+        """
+        Returns whether unaligned checkpoints are enabled.
+
+        :return: ``True`` if unaligned checkpoints are enabled.
+        """
+        return self._j_checkpoint_config.isUnalignedCheckpointsEnabled()
+
+    def enable_unaligned_checkpoints(self, enabled=True):
+        """
+        Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
+
+        Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which
+        allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes
+        independent of the current throughput as checkpoint barriers are effectively not embedded
+        into the stream of data anymore.
+
+        Unaligned checkpoints can only be enabled if :func:`get_checkpointing_mode` is
+        :data:`CheckpointingMode.EXACTLY_ONCE`.
+
+        :param enabled: ``True`` if a checkpoints should be taken in unaligned mode.
+        """
+        self._j_checkpoint_config.enableUnalignedCheckpoints(enabled)
+
+    def disable_unaligned_checkpoints(self):
+        """
+        Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure
+        (experimental).
+
+        Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which
+        allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes
+        independent of the current throughput as checkpoint barriers are effectively not embedded
+        into the stream of data anymore.
+
+        Unaligned checkpoints can only be enabled if :func:`get_checkpointing_mode` is
+        :data:`CheckpointingMode.EXACTLY_ONCE`.
+        """
+        self.enable_unaligned_checkpoints(False)
+
 
 class ExternalizedCheckpointCleanup(object):
     """

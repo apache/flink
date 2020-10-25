@@ -40,7 +40,11 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
 	@Override
 	public boolean isReleased() {
-		return true;
+		return false;
+	}
+
+	@Override
+	public void resumeConsumption() {
 	}
 
 	@Override
@@ -49,12 +53,7 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return false;
-	}
-
-	@Override
-	public boolean isAvailable() {
+	public boolean isAvailable(int numCreditsAvailable) {
 		return false;
 	}
 

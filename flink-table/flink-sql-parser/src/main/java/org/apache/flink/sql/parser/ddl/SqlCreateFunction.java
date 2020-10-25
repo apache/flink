@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -41,7 +38,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE FUNCTION DDL sql call.
  */
-public class SqlCreateFunction extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateFunction extends SqlCreate {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE FUNCTION", SqlKind.CREATE_FUNCTION);
 
@@ -66,7 +63,7 @@ public class SqlCreateFunction extends SqlCreate implements ExtendedSqlNode {
 		super(OPERATOR, pos, false, ifNotExists);
 		this.functionIdentifier = requireNonNull(functionIdentifier);
 		this.functionClassName = requireNonNull(functionClassName);
-		this.isSystemFunction = requireNonNull(isSystemFunction);
+		this.isSystemFunction = isSystemFunction;
 		this.isTemporary = isTemporary;
 		this.functionLanguage = functionLanguage;
 	}
@@ -102,11 +99,6 @@ public class SqlCreateFunction extends SqlCreate implements ExtendedSqlNode {
 			writer.keyword("LANGUAGE");
 			writer.keyword(functionLanguage);
 		}
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
 	}
 
 	public boolean isIfNotExists() {

@@ -30,16 +30,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
-
-import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.fail;
 
 /**
  * Manual test to evaluate impact of checkpointing on latency.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class StreamingScalabilityAndLatency {
 
 	public static void main(String[] args) throws Exception {

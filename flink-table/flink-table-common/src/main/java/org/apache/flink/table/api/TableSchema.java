@@ -23,8 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -49,6 +50,7 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -83,7 +85,7 @@ public class TableSchema {
 		validateNameTypeNumberEqual(fieldNames, fieldDataTypes);
 		List<TableColumn> columns = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; i++) {
-			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
+			columns.add(TableColumn.physical(fieldNames[i], fieldDataTypes[i]));
 		}
 		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
 		this.columns = columns;
@@ -227,15 +229,58 @@ public class TableSchema {
 	}
 
 	/**
-	 * Converts a table schema into a (nested) data type describing a
-	 * {@link DataTypes#ROW(Field...)}.
+	 * Converts all columns of this schema into a (possibly nested) row data type.
 	 *
-	 * <p>Note that the returned row type contains field types for all the columns, including
-	 * normal columns and computed columns. Be caution with the computed column data types, because
-	 * they are not expected to be included in the row type of TableSource or TableSink.
+	 * <p>This method returns the <b>source-to-query schema</b>.
+	 *
+	 * <p>Note: The returned row data type contains physical, computed, and metadata columns. Be careful
+	 * when using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
+	 * might be more appropriate.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toPhysicalRowDataType()
+	 * @see #toPersistedRowDataType()
 	 */
 	public DataType toRowDataType() {
 		final Field[] fields = columns.stream()
+			.map(column -> FIELD(column.getName(), column.getType()))
+			.toArray(Field[]::new);
+		return ROW(fields);
+	}
+
+	/**
+	 * Converts all physical columns of this schema into a (possibly nested) row data type.
+	 *
+	 * <p>Note: The returned row data type contains only physical columns. It does not include computed
+	 * or metadata columns.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toRowDataType()
+	 * @see #toPersistedRowDataType()
+	 */
+	public DataType toPhysicalRowDataType() {
+		final Field[] fields = columns.stream()
+			.filter(TableColumn::isPhysical)
+			.map(column -> FIELD(column.getName(), column.getType()))
+			.toArray(Field[]::new);
+		return ROW(fields);
+	}
+
+	/**
+	 * Converts all persisted columns of this schema into a (possibly nested) row data type.
+	 *
+	 * <p>This method returns the <b>query-to-sink schema</b>.
+	 *
+	 * <p>Note: Computed columns and virtual columns are excluded in the returned row data type. The
+	 * data type contains the columns of {@link #toPhysicalRowDataType()} plus persisted metadata columns.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toRowDataType()
+	 * @see #toPhysicalRowDataType()
+	 */
+	public DataType toPersistedRowDataType() {
+		final Field[] fields = columns.stream()
+			.filter(TableColumn::isPersisted)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
 		return ROW(fields);
@@ -270,25 +315,21 @@ public class TableSchema {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("root\n");
 		for (TableColumn column : columns) {
-			sb.append(" |-- ")
-				.append(column.getName())
-				.append(": ");
-			sb.append(column.getType());
-			if (column.getExpr().isPresent()) {
-				sb.append(" AS ").append(column.getExpr().get());
-			}
+			sb.append(" |-- ");
+			sb.append(column.asSummaryString());
 			sb.append('\n');
 		}
 		if (!watermarkSpecs.isEmpty()) {
-			for (WatermarkSpec watermark : watermarkSpecs) {
-				sb.append(" |-- ").append("WATERMARK FOR ")
-					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpr());
+			for (WatermarkSpec watermarkSpec : watermarkSpecs) {
+				sb.append(" |-- ");
+				sb.append(watermarkSpec.asSummaryString());
+				sb.append('\n');
 			}
 		}
 
 		if (primaryKey != null) {
 			sb.append(" |-- ").append(primaryKey.asSummaryString());
+			sb.append('\n');
 		}
 		return sb.toString();
 	}
@@ -375,21 +416,22 @@ public class TableSchema {
 		// field can be nested.
 
 		// This also check duplicate fields.
-		final Map<String, DataType> fieldNameToType = new HashMap<>();
+		final Map<String, LogicalType> fieldNameToType = new HashMap<>();
 		for (TableColumn column : columns) {
-			validateAndCreateNameToTypeMapping(fieldNameToType,
+			validateAndCreateNameToTypeMapping(
+				fieldNameToType,
 				column.getName(),
-				column.getType(),
+				column.getType().getLogicalType(),
 				"");
 		}
 
 		// Validate watermark and rowtime attribute.
 		for (WatermarkSpec watermark : watermarkSpecs) {
 			String rowtimeAttribute = watermark.getRowtimeAttribute();
-			DataType rowtimeType = Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
+			LogicalType rowtimeType = Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
 				.orElseThrow(() -> new ValidationException(String.format(
 					"Rowtime attribute '%s' is not defined in schema.", rowtimeAttribute)));
-			if (rowtimeType.getLogicalType().getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
+			if (rowtimeType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
 					"Rowtime attribute '%s' must be of type TIMESTAMP but is of type '%s'.",
 					rowtimeAttribute, rowtimeType));
@@ -397,9 +439,9 @@ public class TableSchema {
 			LogicalType watermarkOutputType = watermark.getWatermarkExprOutputType().getLogicalType();
 			if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
-					"Watermark strategy '%s' must be of type TIMESTAMP but is of type '%s'.",
+					"Watermark strategy %s must be of type TIMESTAMP but is of type '%s'.",
 					watermark.getWatermarkExpr(),
-					watermarkOutputType.asSerializableString()));
+					watermarkOutputType.asSummaryString()));
 			}
 		}
 	}
@@ -417,9 +459,9 @@ public class TableSchema {
 					columnName));
 			}
 
-			if (column.isGenerated()) {
+			if (!column.isPhysical()) {
 				throw new ValidationException(String.format(
-					"Could not create a PRIMARY KEY '%s' with a generated column '%s'.",
+					"Could not create a PRIMARY KEY '%s'. Column '%s' is not a physical column.",
 					primaryKey.getName(),
 					columnName));
 			}
@@ -453,19 +495,25 @@ public class TableSchema {
 	 * @param parentFieldName Field name of parent type, e.g. "f0" in the above example
 	 */
 	private static void validateAndCreateNameToTypeMapping(
-			Map<String, DataType> fieldNameToType,
+			Map<String, LogicalType> fieldNameToType,
 			String fieldName,
-			DataType fieldType,
+			LogicalType fieldType,
 			String parentFieldName) {
 		String fullFieldName = parentFieldName.isEmpty() ? fieldName : parentFieldName + "." + fieldName;
-		DataType oldType = fieldNameToType.put(fullFieldName, fieldType);
+		LogicalType oldType = fieldNameToType.put(fullFieldName, fieldType);
 		if (oldType != null) {
 			throw new ValidationException("Field names must be unique. Duplicate field: '" + fullFieldName + "'");
 		}
-		if (fieldType instanceof FieldsDataType) {
-			Map<String, DataType> fieldDataTypes = ((FieldsDataType) fieldType).getFieldDataTypes();
-			fieldDataTypes.forEach((key, value) ->
-				validateAndCreateNameToTypeMapping(fieldNameToType, key, value, fullFieldName));
+		if (isCompositeType(fieldType) && !(fieldType instanceof LegacyTypeInformationType)) {
+			final List<String> fieldNames = LogicalTypeChecks.getFieldNames(fieldType);
+			final List<LogicalType> fieldTypes = fieldType.getChildren();
+			IntStream.range(0, fieldNames.size())
+				.forEach(i ->
+					validateAndCreateNameToTypeMapping(
+						fieldNameToType,
+						fieldNames.get(i),
+						fieldTypes.get(i),
+						fullFieldName));
 		}
 	}
 
@@ -495,7 +543,7 @@ public class TableSchema {
 		public Builder field(String name, DataType dataType) {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
-			columns.add(TableColumn.of(name, dataType));
+			columns.add(TableColumn.physical(name, dataType));
 			return this;
 		}
 
@@ -527,7 +575,17 @@ public class TableSchema {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
 			Preconditions.checkNotNull(expression);
-			columns.add(TableColumn.of(name, dataType, expression));
+			columns.add(TableColumn.computed(name, dataType, expression));
+			return this;
+		}
+
+		/**
+		 * Adds a {@link TableColumn} to this builder.
+		 *
+		 * <p>The call order of this method determines the order of fields in the schema.
+		 */
+		public Builder add(TableColumn column) {
+			columns.add(column);
 			return this;
 		}
 
@@ -541,7 +599,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(dataTypes);
 			validateNameTypeNumberEqual(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
-				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
+				.mapToObj(idx -> TableColumn.physical(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
 			this.columns.addAll(columns);
 			return this;
@@ -584,6 +642,17 @@ public class TableSchema {
 				rowtimeAttribute,
 				watermarkExpressionString,
 				watermarkExprOutputType));
+			return this;
+		}
+
+		/**
+		 * Adds the given {@link WatermarkSpec} to this builder.
+		 */
+		public Builder watermark(WatermarkSpec watermarkSpec) {
+			if (!this.watermarkSpecs.isEmpty()) {
+				throw new IllegalStateException("Multiple watermark definition is not supported yet.");
+			}
+			this.watermarkSpecs.add(watermarkSpec);
 			return this;
 		}
 

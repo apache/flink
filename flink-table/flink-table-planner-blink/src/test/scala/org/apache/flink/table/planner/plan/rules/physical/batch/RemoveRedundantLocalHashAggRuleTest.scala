@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -35,6 +35,7 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
   def setup(): Unit = {
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)
+    util.addTableSource[(Int, Long, Long, Long, Long)]("z", 'a, 'b, 'c, 'd, 'e)
   }
 
   @Test
@@ -66,6 +67,18 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
         | WHERE rk <= 10
         |) GROUP BY a
       """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUsingLocalAggCallFilters(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED, true)
+    val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
+      "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+      "FROM z GROUP BY d"
     util.verifyPlan(sqlQuery)
   }
 

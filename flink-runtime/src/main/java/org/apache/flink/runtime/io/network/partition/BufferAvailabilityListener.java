@@ -28,4 +28,12 @@ public interface BufferAvailabilityListener {
 	 * Called whenever there might be new data available.
 	 */
 	void notifyDataAvailable();
+
+	/**
+	 * Called when the first priority event is added to the head of the buffer queue.
+	 *
+	 * @param prioritySequenceNumber the sequence number that identifies the priority buffer.
+	 */
+	default void notifyPriorityEvent(int prioritySequenceNumber) {
+	}
 }

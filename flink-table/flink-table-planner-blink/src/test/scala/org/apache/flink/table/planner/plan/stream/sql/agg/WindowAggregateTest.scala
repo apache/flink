@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import java.time.Duration
 
+import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-  util.addFunction("weightedAvg", new WeightedAvgWithMerge)
-  util.tableEnv.sqlUpdate(
+  util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
+  util.tableEnv.executeSql(
     s"""
        |create table MyTable1 (
        |  a int,
@@ -138,6 +140,20 @@ class WindowAggregateTest extends TableTestBase {
         |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
         |FROM MyTable
         |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowGroupByOnConstant(): Unit = {
+    val sql =
+      """
+        |SELECT COUNT(*),
+        |    weightedAvg(c, a) AS wAvg,
+        |    TUMBLE_START(rowtime, INTERVAL '15' MINUTE),
+        |    TUMBLE_END(rowtime, INTERVAL '15' MINUTE)
+        |FROM MyTable
+        |    GROUP BY 'a', TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
     util.verifyPlan(sql)
   }
@@ -386,5 +402,58 @@ class WindowAggregateTest extends TableTestBase {
       """.stripMargin
 
     util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowAggregate node' digest contains the window specs.
+    // This allows the planner to make the distinction between similar aggregations using different
+    // windows (see FLINK-15577).
+    val sql =
+    """
+      |WITH window_1h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+      |),
+      |
+      |window_2h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+      |)
+      |
+      |(SELECT * FROM window_1h)
+      |UNION ALL
+      |(SELECT * FROM window_2h)
+      |""".stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithLateFire(): Unit = {
+    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWindowAggregateWithAllowLatenessOnly(): Unit = {
+    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

@@ -57,18 +57,18 @@ object RankUtil {
   /**
     * Extracts the TopN offset and fetch bounds from a predicate.
     *
-    * @param  predicate           predicate
+    * @param  oriPred             the original predicate
     * @param  rankFieldIndex      the index of rank field
     * @param  rexBuilder          RexBuilder
     * @param  config              TableConfig
     * @return A Tuple2 of extracted rank range and remaining predicates.
     */
   def extractRankRange(
-      predicate: RexNode,
+      oriPred: RexNode,
       rankFieldIndex: Int,
       rexBuilder: RexBuilder,
       config: TableConfig): (Option[RankRange], Option[RexNode]) = {
-
+    val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
     // Converts the condition to conjunctive normal form (CNF)
     val cnfNodeCount = config.getConfiguration.getInteger(
       FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)

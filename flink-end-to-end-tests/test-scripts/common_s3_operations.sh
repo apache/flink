@@ -71,7 +71,10 @@ function aws_cli() {
   if [[ $S3_ENDPOINT ]]; then
     endpoint="--endpoint-url $S3_ENDPOINT"
   fi
-  docker exec "$AWSCLI_CONTAINER_ID" aws $endpoint "$@"
+  if ! docker exec "$AWSCLI_CONTAINER_ID" aws $endpoint "$@"; then
+    echo "Error executing aws command: $@";
+    return 1
+  fi
 }
 
 ###################################

@@ -27,7 +27,6 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 
@@ -56,33 +55,20 @@ class BatchLogicalWindowAggregateRule
 
   private[table] override def getTimeFieldReference(
       operand: RexNode,
-      windowExprIdx: Int,
+      timeAttributeIndex: Int,
       rowType: RelDataType): FieldReferenceExpression = {
     if (FlinkTypeFactory.isProctimeIndicatorType(operand.getType)) {
       throw new ValidationException("Window can not be defined over "
         + "a proctime attribute column for batch mode")
     }
-    operand match {
-      case c: RexCall if c.getKind == SqlKind.CAST =>
-        getTimeFieldReference(c.getOperands.get(0), windowExprIdx, rowType)
-      // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
-      case c: RexCall if c.getOperands.size() == 1 &&
-        FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
-        new FieldReferenceExpression(
-          rowType.getFieldList.get(windowExprIdx).getName,
-          fromLogicalTypeToDataType(toLogicalType(c.getType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-      case ref: RexInputRef =>
-        // resolve field name of window attribute
-        val fieldName = rowType.getFieldList.get(ref.getIndex).getName
-        val fieldType = rowType.getFieldList.get(ref.getIndex).getType
-        new FieldReferenceExpression(
-          fieldName,
-          fromLogicalTypeToDataType(toLogicalType(fieldType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-    }
+
+    val fieldName = rowType.getFieldList.get(timeAttributeIndex).getName
+    val fieldType = rowType.getFieldList.get(timeAttributeIndex).getType
+    new FieldReferenceExpression(
+      fieldName,
+      fromLogicalTypeToDataType(toLogicalType(fieldType)),
+      0,
+      timeAttributeIndex)
   }
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =

@@ -44,14 +44,15 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -69,30 +70,39 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 	private final StateBackend stateBackend;
 
+	private final Configuration configuration;
+
 	private final StateReaderOperator<?, K, N, OUT> operator;
 
 	private transient CloseableRegistry registry;
 
 	private transient BufferingCollector<OUT> out;
 
-	private transient Iterator<Tuple2<K, N>> keysAndNamespaces;
+	private transient CloseableIterator<Tuple2<K, N>> keysAndNamespaces;
 
 	/**
 	 * Creates an input format for reading partitioned state from an operator in a savepoint.
 	 *
 	 * @param operatorState The state to be queried.
 	 * @param stateBackend  The state backed used to snapshot the operator.
+	 * @param configuration The underlying Flink configuration used to configure the state backend.
 	 */
 	public KeyedStateInputFormat(
 		OperatorState operatorState,
 		StateBackend stateBackend,
+		Configuration configuration,
 		StateReaderOperator<?, K, N, OUT> operator) {
 		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
+		Preconditions.checkNotNull(configuration, "The configuration cannot be null");
 		Preconditions.checkNotNull(operator, "The operator cannot be null");
 
 		this.operatorState = operatorState;
 		this.stateBackend = stateBackend;
+		// Eagerly deep copy the configuration object
+		// otherwise there will be undefined behavior
+		// when executing pipelines with multiple input formats
+		this.configuration = new Configuration(configuration);
 		this.operator = operator;
 	}
 
@@ -138,6 +148,7 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 		final Environment environment = new SavepointEnvironment
 			.Builder(getRuntimeContext(), split.getNumKeyGroups())
+			.setConfiguration(configuration)
 			.setSubtaskIndex(split.getSplitNumber())
 			.setPrioritizedOperatorSubtaskState(split.getPrioritizedOperatorSubtaskState())
 			.build();
@@ -172,7 +183,8 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 				operator,
 				operator.getKeyType().createSerializer(environment.getExecutionConfig()),
 				registry,
-				getRuntimeContext().getMetricGroup());
+				getRuntimeContext().getMetricGroup(),
+				1.0);
 		} catch (Exception e) {
 			throw new IOException("Failed to restore state backend", e);
 		}
@@ -180,7 +192,13 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 	@Override
 	public void close() throws IOException {
-		registry.close();
+		try {
+			IOUtils.closeQuietly(keysAndNamespaces);
+			operator.close();
+			registry.close();
+		} catch (Exception e) {
+			throw new IOException("Failed to close state backend", e);
+		}
 	}
 
 	@Override

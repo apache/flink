@@ -37,7 +37,12 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -49,6 +54,7 @@ public class CheckpointMessagesTest {
 
 	@Test
 	public void testConfirmTaskCheckpointed() {
+		final Random rnd = new Random();
 		try {
 			AcknowledgeCheckpoint noState = new AcknowledgeCheckpoint(
 					new JobID(), new ExecutionAttemptID(), 569345L);
@@ -62,7 +68,9 @@ public class CheckpointMessagesTest {
 					CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle(new JobVertexID(), 0, 2, 8, false),
 					null,
 					CheckpointCoordinatorTestingUtils.generateKeyGroupState(keyGroupRange, Collections.singletonList(new MyHandle())),
-					null
+					null,
+					singleton(createNewInputChannelStateHandle(10, rnd)),
+					singleton(createNewResultSubpartitionStateHandle(10, rnd))
 				)
 			);
 
@@ -118,6 +126,11 @@ public class CheckpointMessagesTest {
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
 			return null;
+		}
+
+		@Override
+		public Optional<byte[]> asBytesIfInMemory() {
+			return Optional.empty();
 		}
 	}
 }

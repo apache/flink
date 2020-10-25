@@ -91,11 +91,19 @@ public class SubtaskCheckpointStatistics {
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
 
+		/**
+		 * The accurate name of this field should be 'checkpointed_data_size',
+		 * keep it as before to not break backwards compatibility for old web UI.
+		 *
+		 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+		 */
 		public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 		public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint";
 
 		public static final String FIELD_NAME_ALIGNMENT = "alignment";
+
+		public static final String FIELD_NAME_START_DELAY = "start_delay";
 
 		@JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
 		private final long ackTimestamp;
@@ -112,6 +120,9 @@ public class SubtaskCheckpointStatistics {
 		@JsonProperty(FIELD_NAME_ALIGNMENT)
 		private final CheckpointAlignment alignment;
 
+		@JsonProperty(FIELD_NAME_START_DELAY)
+		private final long startDelay;
+
 		@JsonCreator
 		public CompletedSubtaskCheckpointStatistics(
 				@JsonProperty(FIELD_NAME_INDEX) int index,
@@ -119,13 +130,15 @@ public class SubtaskCheckpointStatistics {
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
 				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment) {
+				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
+				@JsonProperty(FIELD_NAME_START_DELAY) long startDelay) {
 			super(index, "completed");
 			this.ackTimestamp = ackTimestamp;
 			this.duration = duration;
 			this.stateSize = stateSize;
 			this.checkpointDuration = checkpointDuration;
 			this.alignment = alignment;
+			this.startDelay = startDelay;
 		}
 
 		public long getAckTimestamp() {
@@ -148,6 +161,10 @@ public class SubtaskCheckpointStatistics {
 			return alignment;
 		}
 
+		public long getStartDelay() {
+			return startDelay;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -161,12 +178,19 @@ public class SubtaskCheckpointStatistics {
 				duration == that.duration &&
 				stateSize == that.stateSize &&
 				Objects.equals(checkpointDuration, that.checkpointDuration) &&
-				Objects.equals(alignment, that.alignment);
+				Objects.equals(alignment, that.alignment) &&
+				startDelay == that.startDelay;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(ackTimestamp, duration, stateSize, checkpointDuration, alignment);
+			return Objects.hash(
+				ackTimestamp,
+				duration,
+				stateSize,
+				checkpointDuration,
+				alignment,
+				startDelay);
 		}
 
 		/**
@@ -226,10 +250,20 @@ public class SubtaskCheckpointStatistics {
 
 			public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "buffered";
 
+			public static final String FIELD_NAME_ALIGNMENT_PROCESSED = "processed";
+
+			public static final String FIELD_NAME_ALIGNMENT_PERSISTED = "persisted";
+
 			public static final String FIELD_NAME_ALIGNMENT_DURATION = "duration";
 
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
 			private final long alignmentBuffered;
+
+			@JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED)
+			private final long processed;
+
+			@JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED)
+			private final long persisted;
 
 			@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION)
 			private final long alignmentDuration;
@@ -237,13 +271,13 @@ public class SubtaskCheckpointStatistics {
 			@JsonCreator
 			public CheckpointAlignment(
 					@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
+					@JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED) long processed,
+					@JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED) long persisted,
 					@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION) long alignmentDuration) {
 				this.alignmentBuffered = alignmentBuffered;
+				this.processed = processed;
+				this.persisted = persisted;
 				this.alignmentDuration = alignmentDuration;
-			}
-
-			public long getAlignmentBuffered() {
-				return alignmentBuffered;
 			}
 
 			public long getAlignmentDuration() {
@@ -260,12 +294,18 @@ public class SubtaskCheckpointStatistics {
 				}
 				CheckpointAlignment that = (CheckpointAlignment) o;
 				return alignmentBuffered == that.alignmentBuffered &&
+					processed == that.processed &&
+					persisted == that.persisted &&
 					alignmentDuration == that.alignmentDuration;
 			}
 
 			@Override
 			public int hashCode() {
-				return Objects.hash(alignmentBuffered, alignmentDuration);
+				return Objects.hash(
+					alignmentBuffered,
+					processed,
+					persisted,
+					alignmentDuration);
 			}
 		}
 	}

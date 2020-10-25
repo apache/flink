@@ -21,7 +21,8 @@ package org.apache.flink.table.runtime.hashtable;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
@@ -29,8 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
-import java.util.Collections;
-import java.util.List;
+import java.util.Arrays;
 
 import static org.apache.flink.table.runtime.hashtable.BaseHybridHashTable.partitionLevelHash;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -235,7 +235,7 @@ public class BinaryHashBucketArea {
 					// this bucket is no longer in-memory
 					// free new segments.
 					for (int j = 0; j < i; j++) {
-						table.free(newBuckets[j]);
+						table.returnPage(newBuckets[j]);
 					}
 					return;
 				}
@@ -456,7 +456,7 @@ public class BinaryHashBucketArea {
 	/**
 	 * Append record and insert to bucket.
 	 */
-	boolean appendRecordAndInsert(BinaryRow record, int hashCode) throws IOException {
+	boolean appendRecordAndInsert(BinaryRowData record, int hashCode) throws IOException {
 		final int posHashCode = findBucket(hashCode);
 		// get the bucket for the given hash code
 		final int bucketArrayPos = posHashCode >> table.bucketsPerSegmentBits;
@@ -487,7 +487,7 @@ public class BinaryHashBucketArea {
 			MemorySegment bucket,
 			int searchHashCode,
 			int bucketInSegmentOffset,
-			BinaryRow buildRowToInsert) {
+			BinaryRowData buildRowToInsert) {
 		int posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
 		int countInBucket = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 		int numInBucket = 0;
@@ -504,7 +504,7 @@ public class BinaryHashBucketArea {
 					numInBucket++;
 					try {
 						view.setReadPosition(pointer);
-						BinaryRow row = table.binaryBuildSideSerializer.mapFromPages(table.reuseBuildRow, view);
+						BinaryRowData row = table.binaryBuildSideSerializer.mapFromPages(table.reuseBuildRow, view);
 						if (buildRowToInsert.equals(row)) {
 							return true;
 						}
@@ -546,26 +546,26 @@ public class BinaryHashBucketArea {
 		table.bucketIterator.set(bucket, overflowSegments, partition, hashCode, bucketInSegmentOffset);
 	}
 
-	void returnMemory(List<MemorySegment> target) {
-		returnMemory(target, buckets, overflowSegments);
+	void returnMemory(LazyMemorySegmentPool pool) {
+		returnMemory(pool, buckets, overflowSegments);
 	}
 
 	void freeMemory() {
-		returnMemory(table.availableMemory, buckets, overflowSegments);
+		returnMemory(table.getInternalPool(), buckets, overflowSegments);
 	}
 
 	private void freeMemory(MemorySegment[] buckets, MemorySegment[] overflowSegments) {
-		returnMemory(table.availableMemory, buckets, overflowSegments);
+		returnMemory(table.getInternalPool(), buckets, overflowSegments);
 	}
 
 	private void returnMemory(
-			List<MemorySegment> target, MemorySegment[] buckets, MemorySegment[] overflowSegments) {
-		Collections.addAll(target, buckets);
+			LazyMemorySegmentPool pool, MemorySegment[] buckets, MemorySegment[] overflowSegments) {
+		pool.returnAll(Arrays.asList(buckets));
 		for (MemorySegment segment : overflowSegments) {
 			if (segment != null &&
 					// except stealing from heap.
 					segment.getOwner() != this) {
-				target.add(segment);
+				pool.returnPage(segment);
 			}
 		}
 	}

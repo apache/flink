@@ -19,9 +19,10 @@
 package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -30,7 +31,9 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +51,9 @@ import static org.junit.Assert.fail;
 public class FunctionITCase extends AbstractTestBase {
 
 	private static final String TEST_FUNCTION = TestUDF.class.getName();
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testCreateCatalogFunctionInDefaultCatalog() {
@@ -106,7 +112,7 @@ public class FunctionITCase extends AbstractTestBase {
 		} catch (Exception e){
 			assertEquals(e.getMessage(), "Could not execute CREATE CATALOG FUNCTION:" +
 				" (catalogFunction: [Optional[This is a user-defined function]], identifier:" +
-				" [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false])");
+				" [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false], isTemporary: [false])");
 		}
 	}
 
@@ -137,9 +143,8 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl1);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" is already defined");
+			assertEquals("Could not register temporary catalog function. A function 'default_catalog.default_database.f4' does already exist.",
+					e.getMessage());
 		}
 
 		tableEnv.sqlUpdate(ddl3);
@@ -148,22 +153,22 @@ public class FunctionITCase extends AbstractTestBase {
 			tableEnv.sqlUpdate(ddl3);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
-			assertEquals(e.getMessage(),
-				"Temporary catalog function `default_catalog`.`default_database`.`f4`" +
-					" doesn't exist");
+			assertEquals("Temporary catalog function `default_catalog`.`default_database`.`f4`" +
+					" doesn't exist",
+					e.getMessage());
 		}
 	}
 
 	@Test
 	public void testCreateTemporarySystemFunction() {
 		TableEnvironment tableEnv = getTableEnvironment();
-		String ddl1 = "create temporary system function default_catalog.default_database.f5" +
+		String ddl1 = "create temporary system function f5" +
 			" as '" + TEST_FUNCTION + "'";
 
-		String ddl2 = "create temporary system function if not exists default_catalog.default_database.f5" +
-			" as 'org.apache.flink.table.functions.CatalogFunctionTestBase$TestUDF'";
+		String ddl2 = "create temporary system function if not exists f5" +
+			" as 'org.apache.flink.table.runtime.stream.sql.FunctionITCase$TestUDF'";
 
-		String ddl3 = "drop temporary system function default_catalog.default_database.f5";
+		String ddl3 = "drop temporary system function f5";
 
 		tableEnv.sqlUpdate(ddl1);
 		tableEnv.sqlUpdate(ddl2);
@@ -362,7 +367,9 @@ public class FunctionITCase extends AbstractTestBase {
 		try {
 			tableEnv.sqlUpdate(ddl2);
 		} catch (Exception e) {
-			assertEquals(e.getMessage(), "Temporary system function f5 doesn't exist");
+			assertEquals(
+				"Could not drop temporary system function. A function named 'f5' doesn't exist.",
+				e.getMessage());
 		}
 	}
 
@@ -442,8 +449,18 @@ public class FunctionITCase extends AbstractTestBase {
 		tableEnv.sqlUpdate("drop table t2");
 	}
 
+	/**
+	 * Simple scalar function.
+	 */
+	public static class SimpleScalarFunction extends ScalarFunction {
+		public long eval(Integer i) {
+			return i;
+		}
+	}
+
 	private TableEnvironment getTableEnvironment() {
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		return StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		return StreamTableEnvironment.create(streamExecEnvironment, settings);
 	}
 }

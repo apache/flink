@@ -30,13 +30,11 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
@@ -54,7 +52,6 @@ import static org.junit.Assert.fail;
  * test cluster.
  */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithLegacyScheduler.class)
 public class MiscellaneousIssuesITCase extends TestLogger {
 
 	@ClassRule

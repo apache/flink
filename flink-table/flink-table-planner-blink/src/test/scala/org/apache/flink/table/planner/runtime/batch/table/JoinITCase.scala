@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
@@ -73,8 +73,8 @@ class JoinITCase extends BatchTestBase {
 
   @Test
   def testJoinWithFilter(): Unit = {
-    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv).as("a", "b", "c")
+    val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv).as("d", "e", "f", "g", "h")
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 

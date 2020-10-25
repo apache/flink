@@ -501,32 +501,6 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isObjectReuseEnabled()
 
-    def enable_sysout_logging(self):
-        """
-        Enables the printing of progress update messages to stdout.
-
-        :return: This object.
-        """
-        self._j_execution_config = self._j_execution_config.enableSysoutLogging()
-        return self
-
-    def disable_sysout_logging(self):
-        """
-        Disables the printing of progress update messages to stdout.
-
-        :return: This object.
-        """
-        self._j_execution_config = self._j_execution_config.disableSysoutLogging()
-        return self
-
-    def is_sysout_logging_enabled(self):
-        """
-        Gets whether progress update messages should be printed to stdout.
-
-        :return: True, if progress update messages should be printed, false otherwise.
-        """
-        return self._j_execution_config.isSysoutLoggingEnabled()
-
     def get_global_job_parameters(self):
         """
         Gets current configuration dict.

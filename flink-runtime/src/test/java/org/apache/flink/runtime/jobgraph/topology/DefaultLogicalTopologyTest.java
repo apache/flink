@@ -89,7 +89,7 @@ public class DefaultLogicalTopologyTest extends TestLogger {
 
 	@Test
 	public void testGetLogicalPipelinedRegions() {
-		final Set<LogicalPipelinedRegion> regions = logicalTopology.getLogicalPipelinedRegions();
+		final Set<DefaultLogicalPipelinedRegion> regions = logicalTopology.getLogicalPipelinedRegions();
 		assertEquals(2, regions.size());
 	}
 

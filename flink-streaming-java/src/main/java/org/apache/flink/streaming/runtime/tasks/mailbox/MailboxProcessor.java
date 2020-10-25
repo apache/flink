@@ -19,8 +19,13 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -62,13 +67,10 @@ public class MailboxProcessor implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
 	/** The mailbox data-structure that manages request for special actions, like timers, checkpoints, ... */
-	private final TaskMailbox mailbox;
+	protected final TaskMailbox mailbox;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
-	private final MailboxDefaultAction mailboxDefaultAction;
-
-	/** A pre-created instance of mailbox executor that executes all mails. */
-	private final MailboxExecutor mainMailboxExecutor;
+	protected final MailboxDefaultAction mailboxDefaultAction;
 
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
 	private boolean mailboxLoopRunning;
@@ -81,6 +83,8 @@ public class MailboxProcessor implements Closeable {
 	private MailboxDefaultAction.Suspension suspendedDefaultAction;
 
 	private final StreamTaskActionExecutor actionExecutor;
+
+	private Meter idleTime = new MeterView(new SimpleCounter());
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this(mailboxDefaultAction, StreamTaskActionExecutor.IMMEDIATE);
@@ -96,27 +100,15 @@ public class MailboxProcessor implements Closeable {
 			MailboxDefaultAction mailboxDefaultAction,
 			TaskMailbox mailbox,
 			StreamTaskActionExecutor actionExecutor) {
-		this(mailboxDefaultAction, actionExecutor, mailbox, new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor));
-	}
-
-	public MailboxProcessor(
-			MailboxDefaultAction mailboxDefaultAction,
-			StreamTaskActionExecutor actionExecutor,
-			TaskMailbox mailbox,
-			MailboxExecutor mainMailboxExecutor) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
 		this.mailbox = Preconditions.checkNotNull(mailbox);
-		this.mainMailboxExecutor = Preconditions.checkNotNull(mainMailboxExecutor);
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
 	}
 
-	/**
-	 * Returns a pre-created executor service that executes all mails.
-	 */
 	public MailboxExecutor getMainMailboxExecutor() {
-		return mainMailboxExecutor;
+		return new MailboxExecutorImpl(mailbox, MIN_PRIORITY, actionExecutor);
 	}
 
 	/**
@@ -125,7 +117,11 @@ public class MailboxProcessor implements Closeable {
 	 * @param priority the priority of the {@link MailboxExecutor}.
 	 */
 	public MailboxExecutor getMailboxExecutor(int priority) {
-		return new MailboxExecutorImpl(mailbox, priority, actionExecutor);
+		return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
+	}
+
+	public void initMetric(TaskMetricGroup metricGroup) {
+		idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
 	}
 
 	/**
@@ -183,9 +179,39 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		while (processMail(localMailbox)) {
-			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+		while (isMailboxLoopRunning()) {
+			// The blocking `processMail` call will not return until default action is available.
+			processMail(localMailbox, false);
+			if (isMailboxLoopRunning()) {
+				mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
+			}
 		}
+	}
+
+	/**
+	 * Execute a single (as small as possible) step of the mailbox.
+	 *
+	 * @return true if something was processed.
+	 */
+	@VisibleForTesting
+	public boolean runMailboxStep() throws Exception {
+		if (processMail(mailbox, true)) {
+			return true;
+		}
+		if (!isDefaultActionUnavailable() && isMailboxLoopRunning()) {
+			mailboxDefaultAction.runDefaultAction(new MailboxController(this));
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Check if the current thread is the mailbox thread.
+	 *
+	 * @return only true if called from the mailbox thread.
+	 */
+	public boolean isMailboxThread() {
+		return mailbox.isMailboxThread();
 	}
 
 	/**
@@ -234,34 +260,50 @@ public class MailboxProcessor implements Closeable {
 	}
 
 	/**
-	 * This helper method handles all special actions from the mailbox. It returns true if the mailbox loop should
-	 * continue running, false if it should stop. In the current design, this method also evaluates all control flag
-	 * changes. This keeps the hot path in {@link #runMailboxLoop()} free from any other flag checking, at the cost
+	 * This helper method handles all special actions from the mailbox.
+	 * In the current design, this method also evaluates all control flag changes.
+	 * This keeps the hot path in {@link #runMailboxLoop()} free from any other flag checking, at the cost
 	 * that all flag changes must make sure that the mailbox signals mailbox#hasMail.
+	 *
+	 * @return true if a mail has been processed.
 	 */
-	private boolean processMail(TaskMailbox mailbox) throws Exception {
-
+	private boolean processMail(TaskMailbox mailbox, boolean singleStep) throws Exception {
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
 		if (!mailbox.createBatch()) {
 			// We can also directly return true because all changes to #isMailboxLoopRunning must be connected to
 			// mailbox.hasMail() == true.
-			return true;
+			return false;
 		}
 
+		boolean processed = false;
 		// Take mails in a non-blockingly and execute them.
 		Optional<Mail> maybeMail;
 		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
 			maybeMail.get().run();
+			processed = true;
+			if (singleStep) {
+				break;
+			}
+		}
+		if (singleStep) {
+			return processed;
 		}
 
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.take(MIN_PRIORITY).run();
+			maybeMail = mailbox.tryTake(MIN_PRIORITY);
+			if (!maybeMail.isPresent()) {
+				long start = System.currentTimeMillis();
+				maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
+				idleTime.markEvent(System.currentTimeMillis() - start);
+			}
+			maybeMail.get().run();
+			processed = true;
 		}
 
-		return isMailboxLoopRunning();
+		return processed;
 	}
 
 	/**
@@ -285,8 +327,19 @@ public class MailboxProcessor implements Closeable {
 		return suspendedDefaultAction != null;
 	}
 
-	private boolean isMailboxLoopRunning() {
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
 		return mailboxLoopRunning;
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTime() {
+		return idleTime;
+	}
+
+	@VisibleForTesting
+	public boolean hasMail() {
+		return mailbox.hasMail();
 	}
 
 	/**
@@ -303,11 +356,11 @@ public class MailboxProcessor implements Closeable {
 	 * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private static final class MailboxController implements MailboxDefaultAction.Controller {
+	protected static final class MailboxController implements MailboxDefaultAction.Controller {
 
 		private final MailboxProcessor mailboxProcessor;
 
-		private MailboxController(MailboxProcessor mailboxProcessor) {
+		protected MailboxController(MailboxProcessor mailboxProcessor) {
 			this.mailboxProcessor = mailboxProcessor;
 		}
 
@@ -332,7 +385,12 @@ public class MailboxProcessor implements Closeable {
 			if (mailbox.isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendControlMail(this::resumeInternal, "resume default action");
+				try {
+					sendControlMail(this::resumeInternal, "resume default action");
+				}
+				catch (MailboxClosedException ex) {
+					// Ignored
+				}
 			}
 		}
 

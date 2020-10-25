@@ -70,8 +70,6 @@ public interface StreamTaskActionExecutor {
 	/**
 	 * A {@link StreamTaskActionExecutor} that synchronizes every operation on the provided mutex.
 	 * @deprecated this class should only be used in {@link SourceStreamTask} which exposes the checkpoint lock as part of Public API.
-	 * During transitional period it is used in {@link StreamTask} (until {@link StreamTask#getCheckpointLock()}
-	 * is pushed down to {@link SourceStreamTask}).
 	 */
 	@Deprecated
 	class SynchronizedStreamTaskActionExecutor implements StreamTaskActionExecutor {

@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -74,26 +77,35 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class DescriptorProperties {
 
-	public static final String TABLE_SCHEMA_NAME = "name";
+	public static final String NAME = "name";
 
-	/**
-	 * @deprecated this will be removed in future version as it uses old type system.
-	 * 	 Please use {@link #TABLE_SCHEMA_DATA_TYPE} instead.
-	 */
-	@Deprecated
-	public static final String TABLE_SCHEMA_TYPE = "type";
+	public static final String TYPE = "type";
 
-	public static final String TABLE_SCHEMA_DATA_TYPE = "data-type";
+	public static final String DATA_TYPE = "data-type";
 
-	public static final String TABLE_SCHEMA_EXPR = "expr";
+	public static final String EXPR = "expr";
+
+	public static final String METADATA = "metadata";
+
+	public static final String VIRTUAL = "virtual";
+
+	public static final String PARTITION_KEYS = "partition.keys";
 
 	public static final String WATERMARK = "watermark";
 
 	public static final String WATERMARK_ROWTIME = "rowtime";
 
-	public static final String WATERMARK_STRATEGY_EXPR = "strategy.expr";
+	public static final String WATERMARK_STRATEGY = "strategy";
 
-	public static final String WATERMARK_STRATEGY_DATA_TYPE = "strategy.data-type";
+	public static final String WATERMARK_STRATEGY_EXPR = WATERMARK_STRATEGY + '.' + EXPR;
+
+	public static final String WATERMARK_STRATEGY_DATA_TYPE = WATERMARK_STRATEGY + '.' + DATA_TYPE;
+
+	public static final String PRIMARY_KEY_NAME = "primary-key.name";
+
+	public static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
+
+	private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");
 
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
@@ -207,7 +219,28 @@ public class DescriptorProperties {
 		final String[] fieldNames = schema.getFieldNames();
 		final DataType[] fieldTypes = schema.getFieldDataTypes();
 		final String[] fieldExpressions = schema.getTableColumns().stream()
-			.map(column -> column.getExpr().orElse(null))
+			.map(column -> {
+				if (column instanceof ComputedColumn) {
+					return ((ComputedColumn) column).getExpression();
+				}
+				return null;
+			})
+			.toArray(String[]::new);
+		final String[] fieldMetadata = schema.getTableColumns().stream()
+			.map(column -> {
+				if (column instanceof MetadataColumn) {
+					return ((MetadataColumn) column).getMetadataAlias().orElse(column.getName());
+				}
+				return null;
+			})
+			.toArray(String[]::new);
+		final String[] fieldVirtual = schema.getTableColumns().stream()
+			.map(column -> {
+				if (column instanceof MetadataColumn) {
+					return Boolean.toString(((MetadataColumn) column).isVirtual());
+				}
+				return null;
+			})
 			.toArray(String[]::new);
 
 		final List<List<String>> values = new ArrayList<>();
@@ -216,12 +249,14 @@ public class DescriptorProperties {
 				Arrays.asList(
 					fieldNames[i],
 					fieldTypes[i].getLogicalType().asSerializableString(),
-					fieldExpressions[i]));
+					fieldExpressions[i],
+					fieldMetadata[i],
+					fieldVirtual[i]));
 		}
 
 		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_DATA_TYPE, TABLE_SCHEMA_EXPR),
+			Arrays.asList(NAME, DATA_TYPE, EXPR, METADATA, VIRTUAL),
 			values);
 
 		if (!schema.getWatermarkSpecs().isEmpty()) {
@@ -237,6 +272,23 @@ public class DescriptorProperties {
 				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_DATA_TYPE),
 				watermarkValues);
 		}
+
+		schema.getPrimaryKey().ifPresent(pk -> {
+			putString(key + '.' + PRIMARY_KEY_NAME, pk.getName());
+			putString(key + '.' + PRIMARY_KEY_COLUMNS, String.join(",", pk.getColumns()));
+		});
+	}
+
+	/**
+	 * Adds table partition keys.
+	 */
+	public void putPartitionKeys(List<String> keys) {
+		checkNotNull(keys);
+
+		putIndexedFixedProperties(
+				PARTITION_KEYS,
+				Collections.singletonList(NAME),
+				keys.stream().map(Collections::singletonList).collect(Collectors.toList()));
 	}
 
 	/**
@@ -594,7 +646,9 @@ public class DescriptorProperties {
 	public Optional<TableSchema> getOptionalTableSchema(String key) {
 		// filter for number of fields
 		final int fieldCount = properties.keySet().stream()
-			.filter((k) -> k.startsWith(key) && k.endsWith('.' + TABLE_SCHEMA_NAME))
+			.filter((k) -> k.startsWith(key)
+					// "key." is the prefix.
+					&& SCHEMA_COLUMN_NAME_SUFFIX.matcher(k.substring(key.length() + 1)).matches())
 			.mapToInt((k) -> 1)
 			.sum();
 
@@ -605,10 +659,12 @@ public class DescriptorProperties {
 		// validate fields and build schema
 		final TableSchema.Builder schemaBuilder = TableSchema.builder();
 		for (int i = 0; i < fieldCount; i++) {
-			final String nameKey = key + '.' + i + '.' + TABLE_SCHEMA_NAME;
-			final String legacyTypeKey = key + '.' + i + '.' + TABLE_SCHEMA_TYPE;
-			final String typeKey = key + '.' + i + '.' + TABLE_SCHEMA_DATA_TYPE;
-			final String exprKey = key + '.' + i + '.' + TABLE_SCHEMA_EXPR;
+			final String nameKey = key + '.' + i + '.' + NAME;
+			final String legacyTypeKey = key + '.' + i + '.' + TYPE;
+			final String typeKey = key + '.' + i + '.' + DATA_TYPE;
+			final String exprKey = key + '.' + i + '.' + EXPR;
+			final String metadataKey = key + '.' + i + '.' + METADATA;
+			final String virtualKey = key + '.' + i + '.' + VIRTUAL;
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
@@ -622,13 +678,24 @@ public class DescriptorProperties {
 			}
 
 			final Optional<String> expr = optionalGet(exprKey);
+			final Optional<String> metadata = optionalGet(metadataKey);
+			final boolean virtual = getOptionalBoolean(virtualKey).orElse(false);
+			// computed column
 			if (expr.isPresent()) {
-				schemaBuilder.field(
-					name,
-					type,
-					expr.get());
-			} else {
-				schemaBuilder.field(name, type);
+				schemaBuilder.add(TableColumn.computed(name, type, expr.get()));
+			}
+			// metadata column
+			else if (metadata.isPresent()) {
+				final String metadataAlias = metadata.get();
+				if (metadataAlias.equals(name)) {
+					schemaBuilder.add(TableColumn.metadata(name, type, virtual));
+				} else {
+					schemaBuilder.add(TableColumn.metadata(name, type, metadataAlias, virtual));
+				}
+			}
+			// physical column
+			else {
+				schemaBuilder.add(TableColumn.physical(name, type));
 			}
 		}
 
@@ -653,6 +720,14 @@ public class DescriptorProperties {
 			}
 		}
 
+		// Extract unique constraints.
+		String pkConstraintNameKey = key + '.' + PRIMARY_KEY_NAME;
+		final Optional<String> pkConstraintNameOpt = optionalGet(pkConstraintNameKey);
+		if (pkConstraintNameOpt.isPresent()) {
+			final String pkColumnsKey = key + '.' + PRIMARY_KEY_COLUMNS;
+			final String columns = optionalGet(pkColumnsKey).orElseThrow(exceptionSupplier(pkColumnsKey));
+			schemaBuilder.primaryKey(pkConstraintNameOpt.get(), columns.split(","));
+		}
 		return Optional.of(schemaBuilder.build());
 	}
 
@@ -661,6 +736,17 @@ public class DescriptorProperties {
 	 */
 	public TableSchema getTableSchema(String key) {
 		return getOptionalTableSchema(key).orElseThrow(exceptionSupplier(key));
+	}
+
+	/**
+	 * Returns partition keys.
+	 */
+	public List<String> getPartitionKeys() {
+		return getFixedIndexedProperties(
+				PARTITION_KEYS, Collections.singletonList(NAME))
+				.stream()
+				.map(map -> map.values().iterator().next())
+				.map(this::getString).collect(Collectors.toList());
 	}
 
 	/**
@@ -1139,13 +1225,13 @@ public class DescriptorProperties {
 	public void validateTableSchema(String key, boolean isOptional) {
 		final Consumer<String> nameValidation = (fullKey) -> validateString(fullKey, false, 1);
 		final Consumer<String> typeValidation = (fullKey) -> {
-			String fallbackKey = fullKey.replace("." + TABLE_SCHEMA_DATA_TYPE, "." + TABLE_SCHEMA_TYPE);
+			String fallbackKey = fullKey.replace("." + DATA_TYPE, "." + TYPE);
 			validateDataType(fullKey, fallbackKey, false);
 		};
 
 		final Map<String, Consumer<String>> subKeys = new HashMap<>();
-		subKeys.put(TABLE_SCHEMA_NAME, nameValidation);
-		subKeys.put(TABLE_SCHEMA_DATA_TYPE, typeValidation);
+		subKeys.put(NAME, nameValidation);
+		subKeys.put(DATA_TYPE, typeValidation);
 
 		validateFixedIndexedProperties(
 			key,

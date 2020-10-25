@@ -27,5 +27,14 @@ import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from 
 export class RefreshDownloadComponent {
   @Input() downloadName: string;
   @Input() downloadHref: string;
+  @Input() isLoading = false;
+  @Input() compactMode = false;
   @Output() reload = new EventEmitter<void>();
+  @Output() fullScreen = new EventEmitter<boolean>();
+  isFullScreen = false;
+
+  toggleFullScreen() {
+    this.isFullScreen = !this.isFullScreen;
+    this.fullScreen.emit(this.isFullScreen);
+  }
 }

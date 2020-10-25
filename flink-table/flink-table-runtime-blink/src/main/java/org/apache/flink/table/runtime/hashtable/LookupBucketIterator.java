@@ -19,14 +19,14 @@
 package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MathUtils;
 
 /**
  * Build iterator from bucket to match probe row.
  */
-public class LookupBucketIterator implements RowIterator<BinaryRow> {
+public class LookupBucketIterator implements RowIterator<BinaryRowData> {
 
 	private final BinaryHashTable table;
 	private final int segmentSizeBits;
@@ -50,9 +50,9 @@ public class LookupBucketIterator implements RowIterator<BinaryRow> {
 
 	private int numInBucket;
 
-	private BinaryRow reuse;
+	private BinaryRowData reuse;
 
-	private BinaryRow instance;
+	private BinaryRowData instance;
 
 	LookupBucketIterator(BinaryHashTable table) {
 		this.table = table;
@@ -97,7 +97,7 @@ public class LookupBucketIterator implements RowIterator<BinaryRow> {
 					// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 					try {
 						this.partition.setReadPosition(pointer);
-						BinaryRow row = table.binaryBuildSideSerializer.mapFromPages(reuse, this.partition);
+						BinaryRowData row = table.binaryBuildSideSerializer.mapFromPages(reuse, this.partition);
 						if (table.applyCondition(row)) {
 							if (table.type.needSetProbed()) {
 								table.probedSet.set(numInBucket - 1);
@@ -134,7 +134,7 @@ public class LookupBucketIterator implements RowIterator<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow getRow() {
+	public BinaryRowData getRow() {
 		return instance;
 	}
 }

@@ -21,13 +21,10 @@ package org.apache.flink.queryablestate.itcases;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -42,12 +39,9 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -57,6 +51,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -187,7 +182,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -296,16 +291,15 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		// Submit the job graph
 		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		boolean caughtException = false;
-		try {
-			ClientUtils.submitJobAndWaitForResult(clusterClient, jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
-		} catch (ProgramInvocationException e) {
-			String failureCause = ExceptionUtils.stringifyException(e);
-			assertThat(failureCause, containsString("KvState with name '" + queryName + "' has already been registered by another operator"));
-			caughtException = true;
-		}
-
-		assertTrue(caughtException);
+		clusterClient.submitJob(jobGraph)
+			.thenCompose(clusterClient::requestJobResult)
+			.thenApply(JobResult::getSerializedThrowable)
+			.thenAccept(serializedThrowable -> {
+				assertTrue(serializedThrowable.isPresent());
+				final Throwable t = serializedThrowable.get().deserializeError(getClass().getClassLoader());
+				final String failureCause = ExceptionUtils.stringifyException(t);
+				assertThat(failureCause, containsString("KvState with name '" + queryName + "' has already been registered by another operator"));
+			}).get();
 	}
 
 	/**
@@ -346,7 +340,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		}
 	}
@@ -380,7 +374,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		try (AutoCancellableJob closableJobGraph = new AutoCancellableJob(deadline, clusterClient, env)) {
 
-			ClientUtils.submitJob(clusterClient, closableJobGraph.getJobGraph());
+			clusterClient.submitJob(closableJobGraph.getJobGraph()).get();
 
 			CompletableFuture<JobStatus> jobStatusFuture =
 				clusterClient.getJobStatus(closableJobGraph.getJobId());
@@ -481,7 +475,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					BasicTypeInfo.INT_TYPE_INFO,
 					valueState);
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		}
 	}
@@ -528,7 +522,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			// Now query
 			int key = 0;
@@ -596,81 +590,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "matata", stateDesc, numElements);
-		}
-	}
-
-	/**
-	 * Tests simple folding state queryable state instance. Each source emits
-	 * (subtaskIndex, 0)..(subtaskIndex, numElements) tuples, which are then
-	 * queried. The folding state sums these up and maps them to Strings. The
-	 * test succeeds after each subtask index is queried with result n*(n+1)/2
-	 * (as a String).
-	 */
-	@Test
-	public void testFoldingState() throws Exception {
-		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
-		final int numElements = 1024;
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStateBackend(stateBackend);
-		env.setParallelism(maxParallelism);
-		// Very important, because cluster is shared between tests and we
-		// don't explicitly check that all slots are available before
-		// submitting.
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
-
-		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
-
-		FoldingStateDescriptor<Tuple2<Integer, Long>, String> foldingState = new FoldingStateDescriptor<>(
-				"any", "0", new SumFold(), StringSerializer.INSTANCE);
-
-		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-			private static final long serialVersionUID = -842809958106747539L;
-
-			@Override
-			public Integer getKey(Tuple2<Integer, Long> value) {
-				return value.f0;
-			}
-		}).asQueryableState("pumba", foldingState);
-
-		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(deadline, clusterClient, env)) {
-
-			final JobID jobId = autoCancellableJob.getJobId();
-			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
-
-			ClientUtils.submitJob(clusterClient, jobGraph);
-
-			final String expected = Integer.toString(numElements * (numElements + 1) / 2);
-
-			for (int key = 0; key < maxParallelism; key++) {
-				boolean success = false;
-				while (deadline.hasTimeLeft() && !success) {
-					CompletableFuture<FoldingState<Tuple2<Integer, Long>, String>> future = getKvState(
-							deadline,
-							client,
-							jobId,
-							"pumba",
-							key,
-							BasicTypeInfo.INT_TYPE_INFO,
-							foldingState,
-							false,
-							executor);
-
-					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
-
-					//assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected.equals(value)) {
-						success = true;
-					} else {
-						// Retry
-						Thread.sleep(RETRY_TIMEOUT);
-					}
-				}
-
-				assertTrue("Did not succeed query", success);
-			}
 		}
 	}
 
@@ -712,7 +633,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -804,7 +725,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -894,7 +815,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final Map<Integer, Set<Long>> results = new HashMap<>();
 
@@ -979,7 +900,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -1124,6 +1045,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				LATEST_CHECKPOINT_ID.set(checkpointId);
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**
@@ -1188,20 +1113,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		@Override
 		public String merge(String a, String b) {
 			return Long.toString(Long.valueOf(a) + Long.valueOf(b));
-		}
-	}
-
-	/**
-	 * Test {@link FoldFunction} concatenating the already stored string with the long passed as argument.
-	 */
-	private static class SumFold implements FoldFunction<Tuple2<Integer, Long>, String> {
-		private static final long serialVersionUID = -6249227626701264599L;
-
-		@Override
-		public String fold(String accumulator, Tuple2<Integer, Long> value) throws Exception {
-			long acc = Long.valueOf(accumulator);
-			acc += value.f1;
-			return Long.toString(acc);
 		}
 	}
 

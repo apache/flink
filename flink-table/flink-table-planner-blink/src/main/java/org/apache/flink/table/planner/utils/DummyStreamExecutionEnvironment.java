@@ -24,16 +24,16 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.StreamTableSource;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -41,21 +41,26 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * This is dummy {@link StreamExecutionEnvironment}, only used for {@link PlannerBase#explain(List, boolean)} method.
+ * This is dummy {@link StreamExecutionEnvironment}, which holds a real {@link StreamExecutionEnvironment},
+ * shares all configurations of the real environment, and disables all configuration setting methods.
  *
- * <P>{@link Transformation}s will be added into a {@link StreamExecutionEnvironment} when translating ExecNode to plan,
- * and they will be cleared only when calling {@link StreamExecutionEnvironment#execute()} method.
+ * <p>When translating relational plan to execution plan in the {@link Planner}, the generated {@link Transformation}s
+ * will be added into StreamExecutionEnvironment's buffer, and they will be cleared only when
+ * {@link StreamExecutionEnvironment#execute()} method is called. Each {@link TableEnvironment} instance holds
+ * an immutable StreamExecutionEnvironment instance. If there are multiple translations (not all for `execute`,
+ * e.g. `explain` and then `execute`) in one TableEnvironment instance, the transformation buffer is dirty,
+ * and execution result may be incorrect.
  *
- * <p>{@link PlannerBase#explain(List, boolean)} method will not only print logical plan but also execution plan,
- * translating will happen in explain method. If calling explain method before execute method, the transformations in
- * StreamExecutionEnvironment is dirty, and execution result may be incorrect.
+ * <p>This dummy StreamExecutionEnvironment is only used for buffering the transformations generated in the planner.
+ * A new dummy StreamExecutionEnvironment instance should be created for each translation, and this could avoid
+ * dirty the transformation buffer of the real StreamExecutionEnvironment instance.
  *
  * <p>All set methods (e.g. `setXX`, `enableXX`, `disableXX`, etc) are disabled to prohibit changing configuration,
- * all get methods (e.g. `getXX`, `isXX`, etc) will be delegated to real StreamExecutionEnvironment.
+ * all get methods (e.g. `getXX`, `isXX`, etc) will be delegated to the real StreamExecutionEnvironment.
  * `execute`, `getStreamGraph`, `getExecutionPlan` methods are also disabled, while `addOperator` method is enabled to
- * let `explain` method add Transformations to this StreamExecutionEnvironment.
+ * allow the planner to add the generated transformations to the dummy StreamExecutionEnvironment.
  *
- * <p>This class could be removed once the {@link TableSource} interface and {@link StreamTableSink} interface
+ * <p>This class could be removed once the {@link StreamTableSource} interface and {@link StreamTableSink} interface
  * are reworked.
  *
  * <p>NOTE: Please remove {@code com.esotericsoftware.kryo} item in the whitelist of checkCodeDependencies()
@@ -169,12 +174,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 
 	@Override
 	public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
-		throw new UnsupportedOperationException(
-				"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
-	}
-
-	@Override
-	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
 		throw new UnsupportedOperationException(
 				"This is a dummy StreamExecutionEnvironment, setStateBackend method is unsupported.");
 	}

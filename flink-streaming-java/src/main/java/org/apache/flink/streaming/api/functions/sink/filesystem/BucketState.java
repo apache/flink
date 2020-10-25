@@ -46,30 +46,30 @@ class BucketState<BucketID> {
 	private final long inProgressFileCreationTime;
 
 	/**
-	 * A {@link RecoverableWriter.ResumeRecoverable} for the currently open
+	 * A {@link InProgressFileWriter.InProgressFileRecoverable} for the currently open
 	 * part file, or null if there is no currently open part file.
 	 */
 	@Nullable
-	private final RecoverableWriter.ResumeRecoverable inProgressResumableFile;
+	private final InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable;
 
 	/**
 	 * The {@link RecoverableWriter.CommitRecoverable files} pending to be
 	 * committed, organized by checkpoint id.
 	 */
-	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> committableFilesPerCheckpoint;
+	private final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint;
 
 	BucketState(
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long inProgressFileCreationTime,
-			@Nullable final RecoverableWriter.ResumeRecoverable inProgressResumableFile,
-			final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingCommittablesPerCheckpoint
+			@Nullable final InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable,
+			final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint
 	) {
 		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
 		this.inProgressFileCreationTime = inProgressFileCreationTime;
-		this.inProgressResumableFile = inProgressResumableFile;
-		this.committableFilesPerCheckpoint = Preconditions.checkNotNull(pendingCommittablesPerCheckpoint);
+		this.inProgressFileRecoverable = inProgressFileRecoverable;
+		this.pendingFileRecoverablesPerCheckpoint = Preconditions.checkNotNull(pendingFileRecoverablesPerCheckpoint);
 	}
 
 	BucketID getBucketId() {
@@ -84,17 +84,17 @@ class BucketState<BucketID> {
 		return inProgressFileCreationTime;
 	}
 
-	boolean hasInProgressResumableFile() {
-		return inProgressResumableFile != null;
+	boolean hasInProgressFileRecoverable() {
+		return inProgressFileRecoverable != null;
 	}
 
 	@Nullable
-	RecoverableWriter.ResumeRecoverable getInProgressResumableFile() {
-		return inProgressResumableFile;
+	InProgressFileWriter.InProgressFileRecoverable getInProgressFileRecoverable() {
+		return inProgressFileRecoverable;
 	}
 
-	Map<Long, List<RecoverableWriter.CommitRecoverable>> getCommittableFilesPerCheckpoint() {
-		return committableFilesPerCheckpoint;
+	Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> getPendingFileRecoverablesPerCheckpoint() {
+		return pendingFileRecoverablesPerCheckpoint;
 	}
 
 	@Override
@@ -105,13 +105,13 @@ class BucketState<BucketID> {
 				.append("BucketState for bucketId=").append(bucketId)
 				.append(" and bucketPath=").append(bucketPath);
 
-		if (hasInProgressResumableFile()) {
+		if (hasInProgressFileRecoverable()) {
 			strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
 		}
 
-		if (!committableFilesPerCheckpoint.isEmpty()) {
+		if (!pendingFileRecoverablesPerCheckpoint.isEmpty()) {
 			strBuilder.append(", has pending files for checkpoints: {");
-			for (long checkpointId: committableFilesPerCheckpoint.keySet()) {
+			for (long checkpointId: pendingFileRecoverablesPerCheckpoint.keySet()) {
 				strBuilder.append(checkpointId).append(' ');
 			}
 			strBuilder.append('}');

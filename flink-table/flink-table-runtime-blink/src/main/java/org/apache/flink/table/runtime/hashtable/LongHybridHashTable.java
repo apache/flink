@@ -25,10 +25,10 @@ import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.util.MathUtils;
 
@@ -48,8 +48,8 @@ import static org.apache.flink.table.runtime.hashtable.LongHashPartition.INVALID
  */
 public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
-	private final BinaryRowSerializer buildSideSerializer;
-	private final BinaryRowSerializer probeSideSerializer;
+	private final BinaryRowDataSerializer buildSideSerializer;
+	private final BinaryRowDataSerializer probeSideSerializer;
 	private final ArrayList<LongHashPartition> partitionsBeingBuilt;
 	private final ArrayList<LongHashPartition> partitionsPending;
 	private ProbeIterator probeIterator;
@@ -64,8 +64,8 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 	public LongHybridHashTable(
 			Configuration conf,
 			Object owner,
-			BinaryRowSerializer buildSideSerializer,
-			BinaryRowSerializer probeSideSerializer,
+			BinaryRowDataSerializer buildSideSerializer,
+			BinaryRowDataSerializer probeSideSerializer,
 			MemoryManager memManager,
 			long reservedMemorySize,
 			IOManager ioManager,
@@ -83,7 +83,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
 	// ---------------------- interface to join operator ---------------------------------------
 
-	public void putBuildRow(BinaryRow row) throws IOException {
+	public void putBuildRow(BinaryRowData row) throws IOException {
 		long key = getBuildLongKey(row);
 		final int hashCode = hashLong(key, 0);
 		insertIntoTable(key, hashCode, row);
@@ -102,7 +102,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		tryDenseMode();
 	}
 
-	public boolean tryProbe(BaseRow record) throws IOException {
+	public boolean tryProbe(RowData record) throws IOException {
 		long probeKey = getProbeLongKey(record);
 
 		if (denseMode) {
@@ -145,7 +145,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		return !denseMode && (processProbeIter() || prepareNextPartition());
 	}
 
-	public BaseRow getCurrentProbeRow() {
+	public RowData getCurrentProbeRow() {
 		return this.probeIterator.current();
 	}
 
@@ -231,7 +231,9 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 			LOG.info("LongHybridHashTable: Use dense mode!");
 			this.minKey = minKey;
 			this.maxKey = maxKey;
-			buildSpillReturnBuffers.drainTo(availableMemory);
+			List<MemorySegment> segments = new ArrayList<>();
+			buildSpillReturnBuffers.drainTo(segments);
+			returnAll(segments);
 
 			ArrayList<MemorySegment> dataBuffers = new ArrayList<>();
 
@@ -270,19 +272,19 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 	/**
 	 * For code gen get build side long key.
 	 */
-	public abstract long getBuildLongKey(BaseRow row);
+	public abstract long getBuildLongKey(RowData row);
 
 	/**
 	 * For code gen get probe side long key.
 	 */
-	public abstract long getProbeLongKey(BaseRow row);
+	public abstract long getProbeLongKey(RowData row);
 
 	/**
-	 * For code gen probe side to BinaryRow.
+	 * For code gen probe side to BinaryRowData.
 	 */
-	public abstract BinaryRow probeToBinary(BaseRow row);
+	public abstract BinaryRowData probeToBinary(RowData row);
 
-	private void insertIntoTable(long key, int hashCode, BinaryRow row) throws IOException {
+	private void insertIntoTable(long key, int hashCode, BinaryRowData row) throws IOException {
 		LongHashPartition p = partitionsBeingBuilt.get(hashCode % partitionsBeingBuilt.size());
 		p.insertIntoTable(key, hashCode, row);
 	}
@@ -299,7 +301,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		if (this.probeIterator.hasSource()) {
 			final ProbeIterator probeIter = this.probeIterator;
 
-			BinaryRow next;
+			BinaryRowData next;
 			while ((next = probeIter.next()) != null) {
 				long probeKey = getProbeLongKey(next);
 				final int hash = hashLong(probeKey, this.currentRecursionDepth);
@@ -359,7 +361,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		this.currentSpilledProbeSide = FileChannelUtil.createInputView(ioManager, channelWithMeta, new ArrayList<>(),
 				compressionEnable, compressionCodecFactory, compressionBlockSize, segmentSize);
 
-		ChannelReaderInputViewIterator<BinaryRow> probeReader = new ChannelReaderInputViewIterator(
+		ChannelReaderInputViewIterator<BinaryRowData> probeReader = new ChannelReaderInputViewIterator(
 				this.currentSpilledProbeSide, new ArrayList<>(), this.probeSideSerializer);
 		this.probeIterator.set(probeReader);
 		this.probeIterator.setReuse(probeSideSerializer.createInstance());
@@ -399,11 +401,11 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		//        that single partition.
 		// 2) We can not guarantee that enough memory segments are available and read the partition
 		//    in, distributing its data among newly created partitions.
-		final int totalBuffersAvailable = this.availableMemory.size() + this.buildSpillRetBufferNumbers;
+		final int totalBuffersAvailable = this.internalPool.freePages() + this.buildSpillRetBufferNumbers;
 		if (totalBuffersAvailable != this.totalNumBuffers) {
 			throw new RuntimeException(String.format("Hash Join bug in memory management: Memory buffers leaked." +
 							" availableMemory(%s), buildSpillRetBufferNumbers(%s), reservedNumBuffers(%s)",
-					availableMemory.size(), buildSpillRetBufferNumbers, totalNumBuffers));
+					this.internalPool.freePages(), buildSpillRetBufferNumbers, totalNumBuffers));
 		}
 
 		int maxBucketAreaBuffers = MathUtils.roundUpToPowerOfTwo(
@@ -451,7 +453,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 					p.getPartitionNumber(), nextRecursionLevel));
 
 			ChannelReaderInputView inView = createInputView(p.getBuildSideChannel().getChannelID(), p.getBuildSideBlockCount(), p.getLastSegmentLimit());
-			BinaryRow rec = this.buildSideSerializer.createInstance();
+			BinaryRowData rec = this.buildSideSerializer.createInstance();
 			while (true) {
 				try {
 					LongHashPartition.deserializeFromPages(rec, inView, buildSideSerializer);
@@ -500,7 +502,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		// grab as many buffers as are available directly
 		MemorySegment currBuff;
 		while (this.buildSpillRetBufferNumbers > 0 && (currBuff = this.buildSpillReturnBuffers.poll()) != null) {
-			this.availableMemory.add(currBuff);
+			returnPage(currBuff);
 			this.buildSpillRetBufferNumbers--;
 		}
 		numSpillFiles++;
@@ -515,7 +517,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		for (int i = this.partitionsBeingBuilt.size() - 1; i >= 0; --i) {
 			final LongHashPartition p = this.partitionsBeingBuilt.get(i);
 			try {
-				p.clearAllMemory(this.availableMemory);
+				p.clearAllMemory(this.internalPool);
 			} catch (Exception e) {
 				LOG.error("Error during partition cleanup.", e);
 			}
@@ -524,7 +526,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
 		// clear the partitions that are still to be done (that have files on disk)
 		for (final LongHashPartition p : this.partitionsPending) {
-			p.clearAllMemory(this.availableMemory);
+			p.clearAllMemory(this.internalPool);
 		}
 	}
 

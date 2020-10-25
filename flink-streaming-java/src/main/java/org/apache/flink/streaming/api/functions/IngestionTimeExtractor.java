@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  *
  * @param <T> The elements that get timestamps assigned.
  */
+@Deprecated
 public class IngestionTimeExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
 	private static final long serialVersionUID = -4072216356049069301L;
 

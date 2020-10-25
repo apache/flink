@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,10 +29,12 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.util.Preconditions;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.Delivery;
+import com.rabbitmq.client.Envelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +79,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private final RMQConnectionConfig rmqConnectionConfig;
 	protected final String queueName;
 	private final boolean usesCorrelationId;
-	protected DeserializationSchema<OUT> schema;
+	protected RMQDeserializationSchema<OUT> deliveryDeserializer;
 
 	protected transient Connection connection;
 	protected transient Channel channel;
@@ -121,15 +124,83 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
-		this.schema = deserializationSchema;
+		this.deliveryDeserializer = new RMQDeserializationSchemaWrapper<>(deserializationSchema);
+	}
+
+	/**
+	 * Creates a new RabbitMQ source with at-least-once message processing guarantee when
+	 * checkpointing is enabled. No strong delivery guarantees when checkpointing is disabled.
+	 *
+	 * <p>For exactly-once, please use the constructor
+	 * {@link RMQSource#RMQSource(RMQConnectionConfig, String, boolean, RMQDeserializationSchema)}.
+	 *
+	 * <p>It also uses the provided {@link RMQDeserializationSchema} to parse both the correlationID and the message.
+	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param queueName  The queue to receive messages from.
+	 * @param deliveryDeserializer A {@link RMQDeserializationSchema} for parsing the RMQDelivery.
+	 */
+	public RMQSource(RMQConnectionConfig rmqConnectionConfig, String queueName,
+					RMQDeserializationSchema<OUT> deliveryDeserializer) {
+		this(rmqConnectionConfig, queueName, false, deliveryDeserializer);
+	}
+
+	/**
+	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
+	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
+	 * undefined. If in doubt, set usesCorrelationId to false. When correlation ids are not
+	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
+	 *
+	 * <p>It also uses the provided {@link RMQDeserializationSchema} to parse both the correlationID and the message.
+	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param queueName The queue to receive messages from.
+	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
+	 *                          id to deduplicate messages (in case of failed acknowledgments).
+	 *                          Only used when checkpointing is enabled.
+	 * @param deliveryDeserializer A {@link RMQDeserializationSchema} for parsing the RMQDelivery.
+	 */
+	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
+					String queueName, boolean usesCorrelationId, RMQDeserializationSchema<OUT> deliveryDeserializer) {
+		super(String.class);
+		this.rmqConnectionConfig = rmqConnectionConfig;
+		this.queueName = queueName;
+		this.usesCorrelationId = usesCorrelationId;
+		this.deliveryDeserializer = deliveryDeserializer;
 	}
 
 	/**
 	 * Initializes the connection to RMQ with a default connection factory. The user may override
-	 * this method to setup and configure their own ConnectionFactory.
+	 * this method to setup and configure their own {@link ConnectionFactory}.
 	 */
 	protected ConnectionFactory setupConnectionFactory() throws Exception {
 		return rmqConnectionConfig.getConnectionFactory();
+	}
+
+	/**
+	 * Initializes the connection to RMQ using the default connection factory from {@link #setupConnectionFactory()}.
+	 * The user may override this method to setup and configure their own {@link Connection}.
+	 */
+	@VisibleForTesting
+	protected Connection setupConnection() throws Exception {
+		return setupConnectionFactory().newConnection();
+	}
+
+	/**
+	 * Initializes the consumer's {@link Channel}. If a prefetch count has been set in {@link RMQConnectionConfig},
+	 * the new channel will be use it for {@link Channel#basicQos(int)}.
+	 *
+	 * @param connection the consumer's {@link Connection}.
+	 * @return the channel.
+	 * @throws Exception if there is an issue creating or configuring the channel.
+	 */
+	private Channel setupChannel(Connection connection) throws Exception {
+		Channel chan = connection.createChannel();
+		if (rmqConnectionConfig.getPrefetchCount().isPresent()) {
+			// set the global flag for the entire channel, though shouldn't make a difference
+			// since there is only one consumer, and each parallel instance of the source will
+			// create a new connection (and channel)
+			chan.basicQos(rmqConnectionConfig.getPrefetchCount().get(), true);
+		}
+		return chan;
 	}
 
 	/**
@@ -137,17 +208,17 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
 	 * defining custom queue parameters)
 	 */
+	@VisibleForTesting
 	protected void setupQueue() throws IOException {
-		channel.queueDeclare(queueName, true, false, false, null);
+		Util.declareQueueDefaults(channel, queueName);
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		ConnectionFactory factory = setupConnectionFactory();
 		try {
-			connection = factory.newConnection();
-			channel = connection.createChannel();
+			connection = setupConnection();
+			channel = setupChannel(connection);
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
@@ -171,6 +242,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
+		this.deliveryDeserializer.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		running = true;
 	}
 
@@ -206,35 +278,27 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 	}
 
+	private void processMessage(Delivery delivery, RMQCollectorImpl collector)
+			throws IOException {
+		AMQP.BasicProperties properties = delivery.getProperties();
+		byte[] body = delivery.getBody();
+		Envelope envelope = delivery.getEnvelope();
+		collector.setFallBackIdentifiers(properties.getCorrelationId(), envelope.getDeliveryTag());
+		deliveryDeserializer.deserialize(envelope, properties, body, collector);
+	}
+
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
+		final RMQCollectorImpl collector = new RMQCollectorImpl(ctx);
 		while (running) {
-			QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+			Delivery delivery = consumer.nextDelivery();
 
 			synchronized (ctx.getCheckpointLock()) {
-
-				OUT result = schema.deserialize(delivery.getBody());
-
-				if (schema.isEndOfStream(result)) {
-					break;
+				processMessage(delivery, collector);
+				if (collector.isEndOfStreamSignalled()) {
+					this.running = false;
+					return;
 				}
-
-				if (!autoAck) {
-					final long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-					if (usesCorrelationId) {
-						final String correlationId = delivery.getProperties().getCorrelationId();
-						Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
-							"with usesCorrelationId set to true but a message was received with " +
-							"correlation id set to null!");
-						if (!addId(correlationId)) {
-							// we have already processed this message
-							continue;
-						}
-					}
-					sessionIds.add(deliveryTag);
-				}
-
-				ctx.collect(result);
 			}
 		}
 	}
@@ -258,6 +322,80 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	@Override
 	public TypeInformation<OUT> getProducedType() {
-		return schema.getProducedType();
+		return deliveryDeserializer.getProducedType();
+	}
+
+	/**
+	 * Special collector for RMQ messages.
+	 * Captures the correlation ID and delivery tag also does the filtering logic for weather a message has been
+	 * processed or not.
+	 */
+	private class RMQCollectorImpl implements RMQDeserializationSchema.RMQCollector<OUT> {
+		private final SourceContext<OUT> ctx;
+		private boolean endOfStreamSignalled = false;
+		private String correlationId;
+		private long deliveryTag;
+		private boolean customIdentifiersSet = false;
+
+		private RMQCollectorImpl(SourceContext<OUT> ctx) {
+			this.ctx = ctx;
+		}
+
+		@Override
+		public void collect(OUT record) {
+			if (!customIdentifiersSet) {
+				boolean newMessage = setMessageIdentifiers(correlationId, deliveryTag);
+				if (!newMessage) {
+					return;
+				}
+			}
+
+			if (isEndOfStream(record)) {
+				this.endOfStreamSignalled = true;
+				return;
+			}
+			ctx.collect(record);
+		}
+
+		public void setFallBackIdentifiers(String correlationId, long deliveryTag){
+			this.correlationId = correlationId;
+			this.deliveryTag = deliveryTag;
+			this.customIdentifiersSet = false;
+		}
+
+		@Override
+		public boolean setMessageIdentifiers(String correlationId, long deliveryTag){
+			if (customIdentifiersSet) {
+				throw new IllegalStateException("You can set only a single set of identifiers for a block of messages.");
+			}
+
+			this.customIdentifiersSet = true;
+			if (!autoAck) {
+				if (usesCorrelationId) {
+					Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
+						"with usesCorrelationId set to true yet we couldn't extract the correlation id from it !");
+					if (!addId(correlationId)) {
+						// we have already processed this message
+						return false;
+					}
+				}
+				sessionIds.add(deliveryTag);
+			}
+			return true;
+		}
+
+		boolean isEndOfStream(OUT record) {
+			return endOfStreamSignalled || deliveryDeserializer.isEndOfStream(record);
+		}
+
+		public boolean isEndOfStreamSignalled() {
+			return endOfStreamSignalled;
+		}
+
+		@Override
+		public void close() {
+
+		}
 	}
 }
+

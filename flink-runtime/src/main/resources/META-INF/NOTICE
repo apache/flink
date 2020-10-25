@@ -1,5 +1,5 @@
 flink-runtime
-Copyright 2014-2019 The Apache Software Foundation
+Copyright 2014-2020 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -8,8 +8,6 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.typesafe.akka:akka-remote_2.11:2.5.21
 - io.netty:netty:3.10.6.Final
-- org.apache.zookeeper:zookeeper:3.4.10
-- org.uncommons.maths:uncommons-maths:1.2.2a
 
 This project bundles io.netty:netty:3.10.6.Final from which it inherits the following notices:
 

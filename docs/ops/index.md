@@ -3,7 +3,7 @@ title: "Deployment & Operations"
 nav-id: ops
 nav-title: '<i class="fa fa-sliders title maindish" aria-hidden="true"></i> Deployment & Operations'
 nav-parent_id: root
-nav-pos: 6
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

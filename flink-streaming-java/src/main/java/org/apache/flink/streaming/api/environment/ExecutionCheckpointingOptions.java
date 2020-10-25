@@ -123,4 +123,24 @@ public class ExecutionCheckpointingOptions {
 					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()),
 					TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()))
 				.build());
+
+	public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
+		ConfigOptions.key("execution.checkpointing.unaligned")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(Description.builder()
+				.text("Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.")
+				.linebreak()
+				.linebreak()
+				.text("Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which " +
+					"allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes " +
+					"independent of the current throughput as checkpoint barriers are effectively not embedded into " +
+					"the stream of data anymore.")
+				.linebreak()
+				.linebreak()
+				.text("Unaligned checkpoints can only be enabled if %s is %s and if %s is 1",
+					TextElement.code(CHECKPOINTING_MODE.key()),
+					TextElement.code(CheckpointingMode.EXACTLY_ONCE.toString()),
+					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
+				.build());
 }

@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -135,6 +136,13 @@ public final class TypeInference {
 		}
 
 		/**
+		 * @see #namedArguments(List)
+		 */
+		public Builder namedArguments(String... argumentNames) {
+			return namedArguments(Arrays.asList(argumentNames));
+		}
+
+		/**
 		 * Sets the list of argument types for specifying a fixed, not overloaded, not vararg input
 		 * signature explicitly.
 		 *
@@ -145,6 +153,13 @@ public final class TypeInference {
 			this.typedArguments =
 				Preconditions.checkNotNull(argumentTypes, "List of argument types must not be null.");
 			return this;
+		}
+
+		/**
+		 * @see #typedArguments(List)
+		 */
+		public Builder typedArguments(DataType... argumentTypes) {
+			return typedArguments(Arrays.asList(argumentTypes));
 		}
 
 		/**
@@ -179,7 +194,9 @@ public final class TypeInference {
 		}
 
 		public TypeInference build() {
-			return new TypeInference(namedArguments, typedArguments,
+			return new TypeInference(
+				namedArguments,
+				typedArguments,
 				inputTypeStrategy,
 				accumulatorTypeStrategy,
 				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."));

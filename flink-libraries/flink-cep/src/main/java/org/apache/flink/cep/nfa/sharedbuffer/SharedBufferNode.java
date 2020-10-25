@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,6 +62,23 @@ public class SharedBufferNode {
 		return "SharedBufferNode{" +
 			"edges=" + edges +
 			'}';
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SharedBufferNode that = (SharedBufferNode) o;
+		return Objects.equals(edges, that.edges);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(edges);
 	}
 
 	/** Serializer for {@link SharedBufferNode}. */

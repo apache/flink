@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.util.concurrent.Future;
 
@@ -32,7 +32,7 @@ public class Mail {
 	/**
 	 * The action to execute.
 	 */
-	private final RunnableWithException runnable;
+	private final ThrowingRunnable<? extends Exception> runnable;
 	/**
 	 * The priority of the mail. The priority does not determine the order, but helps to hide upstream mails from
 	 * downstream processors to avoid live/deadlocks.
@@ -47,11 +47,11 @@ public class Mail {
 
 	private final StreamTaskActionExecutor actionExecutor;
 
-	public Mail(RunnableWithException runnable, int priority, String descriptionFormat, Object... descriptionArgs) {
+	public Mail(ThrowingRunnable<? extends Exception> runnable, int priority, String descriptionFormat, Object... descriptionArgs) {
 		this(runnable, priority, StreamTaskActionExecutor.IMMEDIATE, descriptionFormat, descriptionArgs);
 	}
 
-	public Mail(RunnableWithException runnable, int priority, StreamTaskActionExecutor actionExecutor, String descriptionFormat, Object... descriptionArgs) {
+	public Mail(ThrowingRunnable<? extends Exception> runnable, int priority, StreamTaskActionExecutor actionExecutor, String descriptionFormat, Object... descriptionArgs) {
 		this.runnable = Preconditions.checkNotNull(runnable);
 		this.priority = priority;
 		this.descriptionFormat = descriptionFormat == null ? runnable.toString() : descriptionFormat;
@@ -75,6 +75,6 @@ public class Mail {
 	}
 
 	public void run() throws Exception {
-		actionExecutor.run(runnable);
+		actionExecutor.runThrowing(runnable);
 	}
 }

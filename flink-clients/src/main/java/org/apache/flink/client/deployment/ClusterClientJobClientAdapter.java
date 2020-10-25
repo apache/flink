@@ -26,6 +26,10 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 
 import org.apache.commons.io.IOUtils;
 
@@ -41,15 +45,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient} underneath..
  */
-public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
+public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, CoordinationRequestGateway {
 
 	private final ClusterClientProvider<ClusterID> clusterClientProvider;
 
 	private final JobID jobID;
 
-	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID) {
+	private final ClassLoader classLoader;
+
+	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID, final ClassLoader classLoader) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClientProvider = checkNotNull(clusterClientProvider);
+		this.classLoader = classLoader;
 	}
 
 	@Override
@@ -88,7 +95,7 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		checkNotNull(classLoader);
 
 		return bridgeClientRequest(
@@ -98,8 +105,8 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
-		checkNotNull(userClassloader);
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+		checkNotNull(classLoader);
 
 		return bridgeClientRequest(
 				clusterClientProvider,
@@ -107,12 +114,19 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 					.requestJobResult(jobID)
 					.thenApply((jobResult) -> {
 						try {
-							return jobResult.toJobExecutionResult(userClassloader);
+							return jobResult.toJobExecutionResult(classLoader);
 						} catch (Throwable t) {
 							throw new CompletionException(
 									new ProgramInvocationException("Job failed", jobID, t));
 						}
 					})));
+	}
+
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
+		return bridgeClientRequest(
+			clusterClientProvider,
+			clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
 	}
 
 	private static <T> CompletableFuture<T> bridgeClientRequest(
@@ -132,5 +146,4 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 		return resultFuture.whenCompleteAsync(
 				(jobResult, throwable) -> IOUtils.closeQuietly(clusterClient::close));
 	}
-
 }

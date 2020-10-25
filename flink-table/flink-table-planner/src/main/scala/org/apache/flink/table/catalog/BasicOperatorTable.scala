@@ -260,6 +260,8 @@ object BasicOperatorTable {
     */
 
   val TUMBLE: SqlGroupedWindowFunction = new SqlGroupedWindowFunction(
+    // The TUMBLE group function was hard code to $TUMBLE in CALCITE-3382.
+    "$TUMBLE",
     SqlKind.TUMBLE,
     null,
     OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
@@ -286,6 +288,7 @@ object BasicOperatorTable {
     TUMBLE.auxiliary("TUMBLE_PROCTIME", SqlKind.OTHER_FUNCTION)
 
   val HOP: SqlGroupedWindowFunction = new SqlGroupedWindowFunction(
+    "$HOP",
     SqlKind.HOP,
     null,
     OperandTypes.or(
@@ -313,6 +316,7 @@ object BasicOperatorTable {
   val HOP_PROCTIME: SqlGroupedWindowFunction = HOP.auxiliary("HOP_PROCTIME", SqlKind.OTHER_FUNCTION)
 
   val SESSION: SqlGroupedWindowFunction = new SqlGroupedWindowFunction(
+    "$SESSION",
     SqlKind.SESSION,
     null,
     OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {

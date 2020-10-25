@@ -57,10 +57,6 @@ public class PathTest {
 		assertEquals("/my/path/a", p.toUri().getPath());
 		assertNull(p.toUri().getScheme());
 
-		p = new Path("/my/path/ ");
-		assertEquals("/my/path", p.toUri().getPath());
-		assertNull(p.toUri().getScheme());
-
 		p = new Path("hdfs:///my/path");
 		assertEquals("/my/path", p.toUri().getPath());
 		assertEquals("hdfs", p.toUri().getScheme());
@@ -88,13 +84,6 @@ public class PathTest {
 
 		try {
 			new Path("");
-			fail();
-		} catch (Exception e) {
-			// exception expected
-		}
-
-		try {
-			new Path(" ");
 			fail();
 		} catch (Exception e) {
 			// exception expected

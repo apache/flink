@@ -42,6 +42,8 @@ public enum LogicalTypeFamily {
 
 	NUMERIC,
 
+	INTEGER_NUMERIC,
+
 	EXACT_NUMERIC,
 
 	APPROXIMATE_NUMERIC,

@@ -21,19 +21,25 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -42,26 +48,52 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	ContextEnvironment(
-			final ExecutorServiceLoader executorServiceLoader,
-			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
-		super(executorServiceLoader, configuration, userCodeClassLoader);
+	private final boolean suppressSysout;
 
-		final int parallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
+	private final boolean enforceSingleJobExecution;
+
+	private int jobCounter;
+
+	public ContextEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
+		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.suppressSysout = suppressSysout;
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
+
+		this.jobCounter = 0;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		JobClient jobClient = executeAsync(jobName);
+		final JobClient jobClient = executeAsync(jobName);
+		final List<JobListener> jobListeners = getJobListeners();
+
+		try {
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(jobExecutionResult, null));
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t)));
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
 
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+					jobClient.getJobExecutionResult();
 
 			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
 				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
@@ -73,7 +105,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 						ContextEnvironment.class.getSimpleName(),
 						LOG);
 				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+						ShutdownHookUtil.removeShutdownHook(
+							shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
 			}
 
 			jobExecutionResult = jobExecutionResultFuture.get();
@@ -87,11 +120,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(String jobName) throws Exception {
+		validateAllowedExecution();
 		final JobClient jobClient = super.executeAsync(jobName);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
 		return jobClient;
+	}
+
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
 	}
 
 	@Override
@@ -101,11 +144,22 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader,
+			enforceSingleJobExecution,
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

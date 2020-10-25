@@ -27,6 +27,7 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -72,6 +73,15 @@ public final class UnresolvedIdentifier {
 		} else {
 			return new UnresolvedIdentifier(null, null, path[0]);
 		}
+	}
+
+	/**
+	 * Constructs an {@link UnresolvedIdentifier} from a list of identifier segments.
+	 *
+	 * @see UnresolvedIdentifier#of(String...)
+	 */
+	public static UnresolvedIdentifier of(List<String> path) {
+		return of(path.toArray(new String[0]));
 	}
 
 	private UnresolvedIdentifier(

@@ -83,7 +83,9 @@ public final class Over {
 	 *
 	 * @param orderBy field reference
 	 * @return an over window with defined order
+	 * @deprecated use {@link #orderBy(Expression)}
 	 */
+	@Deprecated
 	public static OverWindowPartitionedOrdered orderBy(String orderBy) {
 		return partitionBy().orderBy(orderBy);
 	}

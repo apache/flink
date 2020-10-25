@@ -110,7 +110,7 @@ public class RocksDBConfigurableOptions implements Serializable {
 		key("state.backend.rocksdb.writebuffer.count")
 			.intType()
 			.noDefaultValue()
-			.withDescription("Tne maximum number of write buffers that are built up in memory. " +
+			.withDescription("The maximum number of write buffers that are built up in memory. " +
 				"RocksDB has default configuration as '2'.");
 
 	public static final ConfigOption<Integer> MIN_WRITE_BUFFER_NUMBER_TO_MERGE =

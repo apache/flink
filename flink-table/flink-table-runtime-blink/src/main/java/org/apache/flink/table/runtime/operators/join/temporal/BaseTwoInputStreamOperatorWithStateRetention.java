@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -57,8 +57,8 @@ import java.util.Optional;
  */
 @Internal
 public abstract class BaseTwoInputStreamOperatorWithStateRetention
-	extends AbstractStreamOperator<BaseRow>
-	implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, Triggerable<Object, VoidNamespace> {
+	extends AbstractStreamOperator<RowData>
+	implements TwoInputStreamOperator<RowData, RowData, RowData>, Triggerable<Object, VoidNamespace> {
 
 	private static final long serialVersionUID = -5953921797477294258L;
 

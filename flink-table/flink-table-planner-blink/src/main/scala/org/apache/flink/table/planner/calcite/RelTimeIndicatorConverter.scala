@@ -28,12 +28,15 @@ import org.apache.flink.table.types.logical.TimestampType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.FINAL
+
+import java.util.{Collections => JCollections}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -117,7 +120,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     case uncollect: Uncollect =>
       // visit children and update inputs
       val input = uncollect.getInput.accept(this)
-      Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality)
+      Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality,
+        JCollections.emptyList())
 
     case scan: LogicalTableFunctionScan =>
       scan
@@ -162,24 +166,19 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       snapshot.copy(snapshot.getTraitSet, input, snapshot.getPeriod)
 
     case sink: LogicalSink =>
-      var newInput = sink.getInput.accept(this)
-      var needsConversion = false
-
-      val projects = newInput.getRowType.getFieldList.map { field =>
-        if (isProctimeIndicatorType(field.getType)) {
-          needsConversion = true
-          rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
-            new RexInputRef(field.getIndex, field.getType))
-        } else {
-          new RexInputRef(field.getIndex, field.getType)
-        }
-      }
-
-      // add final conversion if necessary
-      if (needsConversion) {
-        newInput = LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
-      }
+      val newInput = convertSinkInput(sink.getInput)
       new LogicalSink(
+        sink.getCluster,
+        sink.getTraitSet,
+        newInput,
+        sink.tableIdentifier,
+        sink.catalogTable,
+        sink.tableSink,
+        sink.staticPartitions)
+
+    case sink: LogicalLegacySink =>
+      val newInput = convertSinkInput(sink.getInput)
+      new LogicalLegacySink(
         sink.getCluster,
         sink.getTraitSet,
         newInput,
@@ -231,7 +230,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     val projects = project.getProjects.map(_.accept(materializer))
     val fieldNames = project.getRowType.getFieldNames
-    LogicalProject.create(input, projects, fieldNames)
+    LogicalProject.create(input, JCollections.emptyList[RelHint](), projects, fieldNames)
   }
 
   override def visit(join: LogicalJoin): RelNode = {
@@ -268,7 +267,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         }
       })
 
-      LogicalJoin.create(left, right, newCondition, join.getVariablesSet, join.getJoinType)
+      LogicalJoin.create(left, right, JCollections.emptyList(),
+        newCondition, join.getVariablesSet, join.getJoinType)
     }
   }
 
@@ -371,6 +371,29 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
   }
 
+  private def convertSinkInput(sinkInput: RelNode): RelNode = {
+    var newInput = sinkInput.accept(this)
+    var needsConversion = false
+
+    val projects = newInput.getRowType.getFieldList.map { field =>
+      if (isProctimeIndicatorType(field.getType)) {
+        needsConversion = true
+        rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
+          new RexInputRef(field.getIndex, field.getType))
+      } else {
+        new RexInputRef(field.getIndex, field.getType)
+      }
+    }
+
+    // add final conversion if necessary
+    if (needsConversion) {
+      LogicalProject.create(newInput, JCollections.emptyList[RelHint](),
+        projects, newInput.getRowType.getFieldNames)
+    } else {
+      newInput
+    }
+  }
+
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
     // visit children and update inputs
     val input = aggregate.getInput.accept(this)
@@ -407,6 +430,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
           LogicalProject.create(
             lp.getInput,
+            JCollections.emptyList[RelHint](),
             projects,
             input.getRowType.getFieldNames)
 
@@ -432,6 +456,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
           LogicalProject.create(
             input,
+            JCollections.emptyList[RelHint](),
             projects,
             input.getRowType.getFieldNames)
       }
@@ -464,6 +489,14 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       updatedAggCalls)
   }
 
+  override def visit(modify: LogicalTableModify): RelNode = {
+    val input = modify.getInput.accept(this)
+    modify.copy(modify.getTraitSet, JCollections.singletonList(input))
+  }
+
+  override def visit(calc: LogicalCalc): RelNode = {
+    calc // Do nothing for Calc now.
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -476,7 +509,7 @@ object RelTimeIndicatorConverter {
     val convertedRoot = rootRel.accept(converter)
 
     // the LogicalSink is converted in RelTimeIndicatorConverter before
-    if (rootRel.isInstanceOf[LogicalSink] || !needFinalTimeIndicatorConversion) {
+    if (rootRel.isInstanceOf[LogicalLegacySink] || !needFinalTimeIndicatorConversion) {
       return convertedRoot
     }
     var needsConversion = false
@@ -497,6 +530,7 @@ object RelTimeIndicatorConverter {
     if (needsConversion) {
       LogicalProject.create(
         convertedRoot,
+        JCollections.emptyList[RelHint](),
         projects,
         convertedRoot.getRowType.getFieldNames)
     } else {
@@ -591,9 +625,9 @@ class RexTimeIndicatorMaterializer(
     // materialize operands with time indicators
     val materializedOperands = updatedCall.getOperator match {
       // skip materialization for special operators
-      case FlinkSqlOperatorTable.SESSION |
-           FlinkSqlOperatorTable.HOP |
-           FlinkSqlOperatorTable.TUMBLE =>
+      case FlinkSqlOperatorTable.SESSION_OLD |
+           FlinkSqlOperatorTable.HOP_OLD |
+           FlinkSqlOperatorTable.TUMBLE_OLD =>
         updatedCall.getOperands.toList
 
       case _ =>
@@ -677,6 +711,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
 
     LogicalProject.create(
       input,
+      JCollections.emptyList[RelHint](),
       projects,
       input.getRowType.getFieldNames)
   }

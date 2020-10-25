@@ -25,8 +25,11 @@ import org.junit.Test;
 
 import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -58,5 +61,23 @@ public class CheckpointOptionsTest {
 		final CheckpointOptions copy = CommonTestUtils.createCopySerializable(options);
 		assertEquals(options.getCheckpointType(), copy.getCheckpointType());
 		assertArrayEquals(locationBytes, copy.getTargetLocation().getReferenceBytes());
+	}
+
+	@Test
+	public void testSavepointNeedsAlignment() {
+		CheckpointStorageLocationReference location = CheckpointStorageLocationReference.getDefault();
+		assertTrue(new CheckpointOptions(SAVEPOINT, location, true, true).needsAlignment());
+		assertFalse(new CheckpointOptions(SAVEPOINT, location, false, true).needsAlignment());
+		assertTrue(new CheckpointOptions(SAVEPOINT, location, true, false).needsAlignment());
+		assertFalse(new CheckpointOptions(SAVEPOINT, location, false, false).needsAlignment());
+	}
+
+	@Test
+	public void testCheckpointNeedsAlignment() {
+		CheckpointStorageLocationReference location = CheckpointStorageLocationReference.getDefault();
+		assertFalse(new CheckpointOptions(CHECKPOINT, location, true, true).needsAlignment());
+		assertTrue(new CheckpointOptions(CHECKPOINT, location, true, false).needsAlignment());
+		assertFalse(new CheckpointOptions(CHECKPOINT, location, false, true).needsAlignment());
+		assertFalse(new CheckpointOptions(CHECKPOINT, location, false, false).needsAlignment());
 	}
 }

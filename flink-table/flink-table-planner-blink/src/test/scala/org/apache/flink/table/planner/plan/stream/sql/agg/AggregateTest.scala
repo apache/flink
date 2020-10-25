@@ -20,11 +20,12 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+
+import java.time.Duration
 
 import org.junit.Test
 
@@ -40,7 +41,7 @@ class AggregateTest extends TableTestBase {
     Array[TypeInformation[_]](
       Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
       Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
-      DecimalTypeInfo.of(30, 20), DecimalTypeInfo.of(10, 5)),
+      DecimalDataTypeInfo.of(30, 20), DecimalDataTypeInfo.of(10, 5)),
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
 
@@ -65,8 +66,8 @@ class AggregateTest extends TableTestBase {
   def testAggWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     util.verifyPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
   }
 
@@ -74,8 +75,8 @@ class AggregateTest extends TableTestBase {
   def testAggAfterUnionWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val query =
       """
         |SELECT a, sum(b), count(distinct c)
@@ -98,8 +99,8 @@ class AggregateTest extends TableTestBase {
     // enable local global optimize
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
 
     val sql =
       """
@@ -131,8 +132,8 @@ class AggregateTest extends TableTestBase {
   def testAggWithFilterClauseWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
 
     val sql =
       """
@@ -185,7 +186,8 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testAvgWithRetract(): Unit = {
-    util.verifyPlanWithTrait("SELECT AVG(a) FROM (SELECT AVG(a) AS a FROM T GROUP BY b)")
+    util.verifyPlan(
+      "SELECT AVG(a) FROM (SELECT AVG(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -206,7 +208,8 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testSumWithRetract(): Unit = {
-    util.verifyPlanWithTrait("SELECT SUM(a) FROM (SELECT SUM(a) AS a FROM T GROUP BY b)")
+    util.verifyPlan(
+      "SELECT SUM(a) FROM (SELECT SUM(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -232,7 +235,8 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testMinWithRetract(): Unit = {
-    util.verifyPlanWithTrait("SELECT MIN(a) FROM (SELECT MIN(a) AS a FROM T GROUP BY b)")
+    util.verifyPlan(
+      "SELECT MIN(a) FROM (SELECT MIN(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -258,6 +262,22 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testMaxWithRetract(): Unit = {
-    util.verifyPlanWithTrait("SELECT MAX(a) FROM (SELECT MAX(a) AS a FROM T GROUP BY b)")
+    util.verifyPlan(
+      "SELECT MAX(a) FROM (SELECT MAX(a) AS a FROM T GROUP BY b)", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testGroupByWithConstantKey(): Unit = {
+    val sql =
+      """
+        |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM T) t GROUP BY a, c
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testColumnIntervalValidation(): Unit = {
+    // test for FLINK-16577
+    util.verifyPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
   }
 }

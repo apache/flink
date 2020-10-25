@@ -20,25 +20,26 @@ package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, LegacySinkTransformation, TwoInputTransformation}
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.sinks.CollectRowTableSink
+import org.apache.flink.table.planner.utils.{TestingStatementSet, TestingTableEnvironment}
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Test}
 import java.util
 
-import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, SinkTransformation, TwoInputTransformation}
-import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.sinks.CollectRowTableSink
-import org.apache.flink.table.planner.utils.TestingTableEnvironment
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
@@ -100,18 +101,21 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.registerTableSink("outputTable", sink)
-      tEnv.insertInto("outputTable", tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"))
+      tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
+      val stmtSet = tEnv.createStatementSet()
+      val table = tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e")
+      stmtSet.addInsert("outputTable", table)
       val testingTEnv = tEnv.asInstanceOf[TestingTableEnvironment]
+      val testingStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
       val transforms = testingTEnv.getPlanner.asInstanceOf[PlannerBase]
-        .translate(testingTEnv.getBufferedOperations)
+        .translate(testingStmtSet.getOperations)
       var haveTwoOp = false
 
       @scala.annotation.tailrec
       def findTwoInputTransform(t: Transformation[_]): TwoInputTransformation[_, _, _] = {
         t match {
-          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInput)
-          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInput)
+          case sink: LegacySinkTransformation[_] => findTwoInputTransform(sink.getInputs.get(0))
+          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInputs.get(0))
           case two: TwoInputTransformation[_, _, _] => two
         }
       }

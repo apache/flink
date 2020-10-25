@@ -23,11 +23,13 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
@@ -88,7 +90,7 @@ class TemporalJoinITCase(state: StateBackendMode)
     tEnv.registerTable("RatesHistory", ratesHistory)
     tEnv.registerFunction(
       "Rates",
-      ratesHistory.createTemporalTableFunction("proctime", "currency"))
+      ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new TestingAppendSink)
@@ -100,7 +102,6 @@ class TemporalJoinITCase(state: StateBackendMode)
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -142,16 +143,16 @@ class TemporalJoinITCase(state: StateBackendMode)
     tEnv.registerTable("RatesHistory", ratesHistory)
     tEnv.registerTable("FilteredRatesHistory",
       tEnv.sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110"))
-    tEnv.registerFunction(
+    tEnv.createTemporarySystemFunction(
       "Rates",
       tEnv
-        .scan("FilteredRatesHistory")
-        .createTemporalTableFunction("rowtime", "currency"))
+        .from("FilteredRatesHistory")
+        .createTemporalTableFunction($"rowtime", $"currency"))
     tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.scan("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -163,7 +164,6 @@ class TemporalJoinITCase(state: StateBackendMode)
   def testNestedTemporalJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -213,12 +213,12 @@ class TemporalJoinITCase(state: StateBackendMode)
 
     tEnv.createTemporaryView("Orders", orders)
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
-    tEnv.registerFunction(
+    tEnv.createTemporarySystemFunction(
       "Rates",
-      ratesHistory.createTemporalTableFunction("rowtime", "currency"))
+      ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
     tEnv.registerFunction(
       "Prices",
-      pricesHistory.createTemporalTableFunction("rowtime", "productId"))
+      pricesHistory.createTemporalTableFunction($"rowtime", $"productId"))
 
     tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 

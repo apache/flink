@@ -120,9 +120,12 @@ The processing time attribute is defined with the `.proctime` property during sc
 DataStream<Tuple2<String, String>> stream = ...;
 
 // declare an additional logical field as a processing time attribute
-Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.proctime");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+WindowedTable windowedTable = table.window(
+        Tumble.over(lit(10).minutes())
+            .on($("user_action_time"))
+            .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -130,9 +133,9 @@ WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_ac
 val stream: DataStream[(String, String)] = ...
 
 // declare an additional logical field as a processing time attribute
-val table = tEnv.fromDataStream(stream, 'UserActionTimestamp, 'user_name, 'data, 'user_action_time.proctime)
+val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
 
-val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -173,7 +176,10 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+	.window(Tumble
+	    .over(lit(10).minutes())
+	    .on($("user_action_time"))
+	    .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -204,7 +210,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+	.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -264,7 +270,7 @@ In either case the event time timestamp field will hold the value of the `DataSt
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // declare an additional logical field as an event time attribute
-Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.rowtime");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime());
 
 
 // Option 2:
@@ -274,11 +280,14 @@ DataStream<Tuple3<Long, String, String>> stream = inputStream.assignTimestampsAn
 
 // the first field has been used for timestamp extraction, and is no longer necessary
 // replace first field with a logical event time attribute
-Table table = tEnv.fromDataStream(stream, "user_action_time.rowtime, user_name, data");
+Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("user_name"), $("data"));
 
 // Usage:
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+WindowedTable windowedTable = table.window(Tumble
+       .over(lit(10).minutes())
+       .on($("user_action_time"))
+       .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -290,7 +299,7 @@ WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_ac
 val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
 
 // declare an additional logical field as an event time attribute
-val table = tEnv.fromDataStream(stream, 'user_name, 'data, 'user_action_time.rowtime)
+val table = tEnv.fromDataStream(stream, $"user_name", $"data", $"user_action_time".rowtime)
 
 
 // Option 2:
@@ -300,11 +309,11 @@ val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAnd
 
 // the first field has been used for timestamp extraction, and is no longer necessary
 // replace first field with a logical event time attribute
-val table = tEnv.fromDataStream(stream, 'user_action_time.rowtime, 'user_name, 'data)
+val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name", $"data")
 
 // Usage:
 
-val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -359,7 +368,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+	.window(Tumble.over(lit(10).minutes()).on($("user_action_time")).as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -398,7 +407,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+	.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>

@@ -17,15 +17,14 @@
  */
 package org.apache.flink.table.api.batch.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils._
+
 import org.hamcrest.Matchers.startsWith
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class TemporalTableJoinTest extends TableTestBase {
 

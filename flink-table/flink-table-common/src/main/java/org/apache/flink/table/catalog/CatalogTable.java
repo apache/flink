@@ -40,10 +40,17 @@ public interface CatalogTable extends CatalogBaseTable {
 	List<String> getPartitionKeys();
 
 	/**
-	 * Return a property map for table factory discovery purpose. The properties will be used to match a [[TableFactory]].
-	 * Please refer to {@link org.apache.flink.table.factories.TableFactory}
+	 * Returns a copy of this {@code CatalogTable} with given table options {@code options}.
 	 *
-	 * @return a map of properties
+	 * @return a new copy of this table with replaced table options
+	 */
+	CatalogTable copy(Map<String, String> options);
+
+	/**
+	 * Serializes this instance into a map of string-based properties.
+	 *
+	 * <p>Compared to the pure table options in {@link #getOptions()}, the map includes schema,
+	 * partitioning, and other characteristics in a serialized form.
 	 */
 	Map<String, String> toProperties();
 }

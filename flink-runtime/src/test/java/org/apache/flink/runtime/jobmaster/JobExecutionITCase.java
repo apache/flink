@@ -25,11 +25,9 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -39,7 +37,6 @@ import static org.junit.Assert.assertThat;
 /**
  * Integration tests for job scheduling.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class JobExecutionITCase extends TestLogger {
 
 	/**

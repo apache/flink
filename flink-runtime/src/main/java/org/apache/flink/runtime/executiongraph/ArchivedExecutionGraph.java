@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -351,4 +352,52 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			executionGraph.getCheckpointStatsSnapshot(),
 			executionGraph.getStateBackendName().orElse(null));
 	}
+
+	/**
+	 * Create a sparse ArchivedExecutionGraph for a job while it is still initializing.
+	 * Most fields will be empty, only job status and error-related fields are set.
+	 */
+	public static ArchivedExecutionGraph createFromInitializingJob(
+			JobID jobId,
+			String jobName,
+			JobStatus jobStatus,
+			@Nullable Throwable throwable,
+			long initializationTimestamp) {
+		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = Collections.emptyMap();
+		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = Collections.emptyList();
+		final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators = Collections.emptyMap();
+		StringifiedAccumulatorResult[] archivedUserAccumulators = new StringifiedAccumulatorResult[]{};
+
+		final long[] timestamps = new long[JobStatus.values().length];
+		timestamps[JobStatus.INITIALIZING.ordinal()] = initializationTimestamp;
+
+		String jsonPlan = "{}";
+
+		ErrorInfo failureInfo = null;
+		if (throwable != null) {
+			Preconditions.checkState(jobStatus == JobStatus.FAILED);
+			long failureTime = System.currentTimeMillis();
+			failureInfo = new ErrorInfo(throwable, failureTime);
+			timestamps[JobStatus.FAILED.ordinal()] = failureTime;
+		}
+
+		return new ArchivedExecutionGraph(
+			jobId,
+			jobName,
+			archivedTasks,
+			archivedVerticesInCreationOrder,
+			timestamps,
+			jobStatus,
+			failureInfo,
+			jsonPlan,
+			archivedUserAccumulators,
+			serializedUserAccumulators,
+			new ExecutionConfig().archive(),
+			false,
+			null,
+			null,
+			null);
+
+	}
+
 }

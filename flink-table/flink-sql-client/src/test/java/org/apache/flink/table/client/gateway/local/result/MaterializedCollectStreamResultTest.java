@@ -19,14 +19,13 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 
@@ -45,14 +44,12 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testSnapshot() throws UnknownHostException {
-		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 		TableSchema tableSchema = TableSchema.builder().fields(
 				new String[]{"f0", "f1"}, new DataType[]{DataTypes.STRING(), DataTypes.BIGINT()}).build();
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
 			result = new TestMaterializedCollectStreamResult<>(
-				type,
 				tableSchema,
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
@@ -61,10 +58,10 @@ public class MaterializedCollectStreamResultTest {
 
 			result.isRetrieving = true;
 
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("C", 2)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "B", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "C", 2)));
 
 			assertEquals(TypedResult.payload(4), result.snapshot(1));
 
@@ -73,7 +70,7 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
 
-			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
 
 			assertEquals(TypedResult.payload(3), result.snapshot(1));
 
@@ -81,8 +78,8 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(3));
 
-			result.processRecord(Tuple2.of(false, Row.of("C", 2)));
-			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "C", 2)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
 
 			assertEquals(TypedResult.payload(1), result.snapshot(1));
 
@@ -96,14 +93,12 @@ public class MaterializedCollectStreamResultTest {
 
 	@Test
 	public void testLimitedSnapshot() throws UnknownHostException {
-		final RowTypeInfo type = new RowTypeInfo(Types.STRING, Types.LONG);
 		TableSchema tableSchema = TableSchema.builder().fields(
 				new String[]{"f0", "f1"}, new DataType[]{DataTypes.STRING(), DataTypes.BIGINT()}).build();
 
 		TestMaterializedCollectStreamResult<?> result = null;
 		try {
 			result = new TestMaterializedCollectStreamResult<>(
-				type,
 				tableSchema,
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
@@ -154,7 +149,6 @@ public class MaterializedCollectStreamResultTest {
 		public boolean isRetrieving;
 
 		public TestMaterializedCollectStreamResult(
-				RowTypeInfo outputType,
 				TableSchema tableSchema,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
@@ -163,18 +157,15 @@ public class MaterializedCollectStreamResultTest {
 				int overcommitThreshold) {
 
 			super(
-				outputType,
 				tableSchema,
 				config,
 				gatewayAddress,
 				gatewayPort,
 				maxRowCount,
-				overcommitThreshold,
-				MaterializedCollectStreamResultTest.class.getClassLoader());
+				overcommitThreshold);
 		}
 
 		public TestMaterializedCollectStreamResult(
-				RowTypeInfo outputType,
 				TableSchema tableSchema,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
@@ -182,13 +173,11 @@ public class MaterializedCollectStreamResultTest {
 				int maxRowCount) {
 
 			super(
-				outputType,
 				tableSchema,
 				config,
 				gatewayAddress,
 				gatewayPort,
-				maxRowCount,
-				MaterializedCollectStreamResultTest.class.getClassLoader());
+				maxRowCount);
 		}
 
 		@Override

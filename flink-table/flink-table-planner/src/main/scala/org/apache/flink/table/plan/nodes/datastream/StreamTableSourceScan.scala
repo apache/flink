@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{StreamQueryConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
@@ -60,13 +60,13 @@ class StreamTableSourceScan(
   with StreamScan {
 
   override def deriveRowType(): RelDataType = {
-    val baseRowType = table.getRowType
+    val rowType = table.getRowType
     selectedFields.map(idxs => {
-      val fields = baseRowType.getFieldList
+      val fields = rowType.getFieldList
       val builder = cluster.getTypeFactory.builder()
       idxs.map(fields.get).foreach(builder.add)
       builder.build()
-    }).getOrElse(baseRowType)
+    }).getOrElse(rowType)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -99,9 +99,7 @@ class StreamTableSourceScan(
     )
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
     val inputDataStream = tableSource.getDataStream(planner.getExecutionEnvironment)

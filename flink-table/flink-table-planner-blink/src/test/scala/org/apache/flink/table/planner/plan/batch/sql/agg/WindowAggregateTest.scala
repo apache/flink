@@ -18,9 +18,8 @@
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
@@ -46,7 +45,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable2", 'a, 'b, 'c, 'd, 'ts)
-    util.tableEnv.sqlUpdate(
+    util.tableEnv.executeSql(
       s"""
          |create table MyTable3 (
          |  a int,
@@ -365,6 +364,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.verifyPlan(sql)
   }
 
+  // TODO: fix the plan regression when FLINK-19668 is fixed.
   @Test
   def testReturnTypeInferenceForWindowAgg() = {
 
@@ -383,6 +383,33 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |)
         |GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowAggregate node' digest contains the window specs.
+    // This allows the planner to make the distinction between similar aggregations using different
+    // windows (see FLINK-15577).
+    val sql =
+      """
+        |WITH window_1h AS (
+        |    SELECT 1
+        |    FROM MyTable2
+        |    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+        |),
+        |
+        |window_2h AS (
+        |    SELECT 1
+        |    FROM MyTable2
+        |    GROUP BY HOP(`ts`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+        |)
+        |
+        |(SELECT * FROM window_1h)
+        |UNION ALL
+        |(SELECT * FROM window_2h)
+        |""".stripMargin
 
     util.verifyPlan(sql)
   }

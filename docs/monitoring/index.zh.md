@@ -3,7 +3,7 @@ title: "调试和监控"
 nav-title: '<i class="fa fa-bug title maindish" aria-hidden="true"></i> 调试和监控'
 nav-id: monitoring
 nav-parent_id: root
-nav-pos: 7
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

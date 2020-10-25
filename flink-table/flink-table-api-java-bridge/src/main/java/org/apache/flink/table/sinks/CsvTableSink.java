@@ -112,7 +112,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	@Override
-	public void emitDataSet(DataSet<Row> dataSet) {
+	public DataSink<?> consumeDataSet(DataSet<Row> dataSet) {
 		MapOperator<Row, String> csvRows =
 			dataSet.map(new CsvFormatter(fieldDelim == null ? "," : fieldDelim));
 
@@ -128,7 +128,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 			sink.setParallelism(numFiles);
 		}
 
-		sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));
+		return sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));
 	}
 
 	@Override
@@ -155,11 +155,6 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 		sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));
 
 		return sink;
-	}
-
-	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
-		consumeDataStream(dataStream);
 	}
 
 	@Override

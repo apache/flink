@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BinaryRow
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -162,7 +162,7 @@ trait BatchExecAggRuleBase {
   protected def isAggBufferFixedLength(aggBufferTypes: Array[Array[LogicalType]]): Boolean = {
     val aggBuffAttributesTypes = aggBufferTypes.flatten
     val isAggBufferFixedLength = aggBuffAttributesTypes.forall(
-      t => BinaryRow.isMutable(t))
+      t => BinaryRowData.isMutable(t))
     // it means grouping without aggregate functions
     aggBuffAttributesTypes.isEmpty || isAggBufferFixedLength
   }

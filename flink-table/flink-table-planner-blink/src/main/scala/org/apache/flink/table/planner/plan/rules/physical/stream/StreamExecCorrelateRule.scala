@@ -22,12 +22,13 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCorrelate
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule.getMergedCalc
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule.{getMergedCalc, getTableScan}
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexNode, RexProgram, RexProgramBuilder}
+import org.apache.flink.table.planner.plan.utils.PythonUtil
 
 class StreamExecCorrelateRule
   extends ConverterRule(
@@ -44,7 +45,7 @@ class StreamExecCorrelateRule
     def findTableFunction(calc: FlinkLogicalCalc): Boolean = {
       val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
       child match {
-        case scan: FlinkLogicalTableFunctionScan => true
+        case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
         case calc: FlinkLogicalCalc => findTableFunction(calc)
         case _ => false
       }
@@ -52,7 +53,7 @@ class StreamExecCorrelateRule
 
     right match {
       // right node is a table function
-      case _: FlinkLogicalTableFunctionScan => true
+      case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
       // a filter is pushed above the table function
       case calc: FlinkLogicalCalc => findTableFunction(calc)
       case _ => false
@@ -65,16 +66,6 @@ class StreamExecCorrelateRule
     val convInput: RelNode = RelOptRule.convert(
       correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
     val right: RelNode = correlate.getInput(1)
-
-
-    def getTableScan(calc: FlinkLogicalCalc): RelNode = {
-      val child = calc.getInput.asInstanceOf[RelSubset].getOriginal
-      child match {
-        case scan: FlinkLogicalTableFunctionScan => scan
-        case calc: FlinkLogicalCalc => getTableScan(calc)
-        case _ => throw new TableException("This must be a bug, could not find table scan")
-      }
-    }
 
     def convertToCorrelate(relNode: RelNode, condition: Option[RexNode]): StreamExecCorrelate = {
       relNode match {
@@ -128,6 +119,18 @@ object StreamExecCorrelateRule {
           .asInstanceOf[FlinkLogicalCalc]
       case _ =>
         calc
+    }
+  }
+
+  def getTableScan(calc: FlinkLogicalCalc): FlinkLogicalTableFunctionScan = {
+    val child = calc.getInput match {
+      case relSubset: RelSubset => relSubset.getOriginal
+      case hepRelVertex: HepRelVertex => hepRelVertex.getCurrentRel
+    }
+    child match {
+      case scan: FlinkLogicalTableFunctionScan => scan
+      case calc: FlinkLogicalCalc => getTableScan(calc)
+      case _ => throw new TableException("This must be a bug, could not find table scan")
     }
   }
 }

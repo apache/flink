@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 /**
@@ -36,8 +37,9 @@ public class ResourceManagerOptions {
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
 	/**
-	 * The number of resource managers start.
+	 * This option is not used any more.
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
 		.defaultValue(1)
@@ -55,25 +57,28 @@ public class ResourceManagerOptions {
 			" default, the port of the JobManager, because the same ActorSystem is used." +
 			" Its not possible to use this configuration key to define port ranges.");
 
-	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos/ Kubernetes), to compensate
-	 * for other JVM memory usage.
-	 */
-	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
-		.key("containerized.heap-cutoff-ratio")
-		.defaultValue(0.25f)
-		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
-		.withDescription("Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate" +
-			" for other JVM memory usage.");
+	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+	public static final ConfigOption<Integer> MAX_SLOT_NUM = ConfigOptions
+		.key("slotmanager.number-of-slots.max")
+		.intType()
+		.defaultValue(Integer.MAX_VALUE)
+		.withDescription("Defines the maximum number of slots that the Flink cluster allocates. This configuration option " +
+			"is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option " +
+			"for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take " +
+			"effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
 	/**
-	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 * The number of redundant task managers. Redundant task managers are extra task managers started by Flink,
+	 * in order to speed up job recovery in case of failures due to task manager lost.
+	 * Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).
 	 */
-	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
-		.key("containerized.heap-cutoff-min")
-		.defaultValue(600)
-		.withDeprecatedKeys("yarn.heap-cutoff-min")
-		.withDescription("Minimum amount of heap memory to remove in containers, as a safety margin.");
+	public static final ConfigOption<Integer> REDUNDANT_TASK_MANAGER_NUM = ConfigOptions
+		.key("slotmanager.redundant-taskmanager-num")
+		.intType()
+		.defaultValue(0)
+		.withDescription("The number of redundant task managers. Redundant task managers are extra task managers " +
+			"started by Flink, in order to speed up job recovery in case of failures due to task manager lost. " +
+			"Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
 
 	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.

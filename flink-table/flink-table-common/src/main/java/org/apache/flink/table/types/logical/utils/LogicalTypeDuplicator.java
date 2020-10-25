@@ -88,7 +88,7 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 	@Override
 	public LogicalType visit(DistinctType distinctType) {
 		final DistinctType.Builder builder = DistinctType.newBuilder(
-			distinctType.getObjectIdentifier(),
+			distinctType.getObjectIdentifier().orElseThrow(IllegalStateException::new),
 			distinctType.getSourceType().accept(this));
 		distinctType.getDescription().ifPresent(builder::description);
 		return builder.build();
@@ -121,7 +121,7 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 	// --------------------------------------------------------------------------------------------
 
 	private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
-		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
+		final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
 		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
 		if (identifier.isPresent() && implementationClass.isPresent()) {
 			return StructuredType.newBuilder(identifier.get(), implementationClass.get());

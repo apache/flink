@@ -1,7 +1,7 @@
 ---
-title:  "Connectors"
-nav-parent_id: batch
-nav-pos: 4
+title:  "DataSet Connectors"
+nav-parent_id: connectors-root
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -87,35 +87,35 @@ This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop 
 1. Download and compile the `azure-tables-hadoop` project. The input format developed by the project is not yet available in Maven Central, therefore, we have to build the project ourselves.
 Execute the following commands:
 
-   {% highlight bash %}
-   git clone https://github.com/mooso/azure-tables-hadoop.git
-   cd azure-tables-hadoop
-   mvn clean install
-   {% endhighlight %}
+{% highlight bash %}
+git clone https://github.com/mooso/azure-tables-hadoop.git
+cd azure-tables-hadoop
+mvn clean install
+{% endhighlight %}
 
 2. Setup a new Flink project using the quickstarts:
 
-   {% highlight bash %}
-   curl https://flink.apache.org/q/quickstart.sh | bash
-   {% endhighlight %}
+{% highlight bash %}
+curl https://flink.apache.org/q/quickstart.sh | bash
+{% endhighlight %}
 
 3. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
 
-   {% highlight xml %}
-   <dependency>
-       <groupId>org.apache.flink</groupId>
-       <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
-       <version>{{site.version}}</version>
-   </dependency>
-   <dependency>
-     <groupId>com.microsoft.hadoop</groupId>
-     <artifactId>microsoft-hadoop-azure</artifactId>
-     <version>0.0.4</version>
-   </dependency>
-   {% endhighlight %}
+{% highlight xml %}
+<dependency>
+   <groupId>org.apache.flink</groupId>
+   <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
+   <version>{{site.version}}</version>
+</dependency>
+<dependency>
+ <groupId>com.microsoft.hadoop</groupId>
+ <artifactId>microsoft-hadoop-azure</artifactId>
+ <version>0.0.4</version>
+</dependency>
+{% endhighlight %}
 
-   `flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
-   `microsoft-hadoop-azure` is adding the project we've build before to our project.
+`flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
+`microsoft-hadoop-azure` is adding the project we've build before to our project.
 
 The project is now prepared for starting to code. We recommend to import the project into an IDE, such as Eclipse or IntelliJ. (Import as a Maven project!).
 Browse to the code of the `Job.java` file. Its an empty skeleton for a Flink job.
@@ -182,11 +182,5 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 ## Access MongoDB
 
 This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
-
-## Hive Connector
-
-Starting from 1.9.0, Apache Flink provides Hive connector to access Apache Hive tables. [HiveCatalog]({{ site.baseurl }}/dev/table/catalogs.html#hivecatalog) is required in order to use the Hive connector.
-After HiveCatalog is setup, please refer to [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html) for the usage of the Hive connector and its limitations.
-Same as HiveCatalog, the officially supported Apache Hive versions for Hive connector are 2.3.4 and 1.2.1.
 
 {% top %}

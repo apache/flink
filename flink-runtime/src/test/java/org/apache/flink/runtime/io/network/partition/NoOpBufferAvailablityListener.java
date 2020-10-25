@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 /**
  * Test implementation of {@link BufferAvailabilityListener}.
  */
-class NoOpBufferAvailablityListener implements BufferAvailabilityListener {
+public class NoOpBufferAvailablityListener implements BufferAvailabilityListener {
 	@Override
 	public void notifyDataAvailable() {
 	}

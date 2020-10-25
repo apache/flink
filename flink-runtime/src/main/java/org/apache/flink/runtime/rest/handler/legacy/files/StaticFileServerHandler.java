@@ -27,7 +27,9 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
@@ -47,10 +49,11 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpChunkedInp
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
+
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -77,7 +80,9 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHea
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.LAST_MODIFIED;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -130,22 +135,27 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		// make sure we request the "index.html" in case there is a directory request
 		if (routedRequest.getPath().endsWith("/")) {
 			requestPath = routedRequest.getPath() + "index.html";
-		}
-		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
-			requestPath = "";
 		} else {
 			requestPath = routedRequest.getPath();
 		}
 
-		respondToRequest(channelHandlerContext, request, requestPath);
+		try {
+			respondToRequest(channelHandlerContext, request, requestPath);
+		} catch (RestHandlerException rhe) {
+			HandlerUtils.sendErrorResponse(
+				channelHandlerContext,
+				routedRequest.getRequest(),
+				new ErrorResponseBody(rhe.getMessage()),
+				rhe.getHttpResponseStatus(),
+				responseHeaders);
+		}
 	}
 
 	/**
 	 * Response when running with leading JobManager.
 	 */
 	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-			throws IOException, ParseException, URISyntaxException {
+			throws IOException, ParseException, URISyntaxException, RestHandlerException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
@@ -182,37 +192,13 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 				} finally {
 					if (!success) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
-						HandlerUtils.sendErrorResponse(
-							ctx,
-							request,
-							new ErrorResponseBody(String.format("Unable to load requested file %s.", requestPath)),
-							NOT_FOUND,
-							responseHeaders);
-						return;
+						throw new NotFoundException(String.format("Unable to load requested file %s.", requestPath));
 					}
 				}
 			}
 		}
 
-		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
-			return;
-		}
-
-		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
-			return;
-		}
+		checkFileValidity(file, rootPath, logger);
 
 		// cache validation
 		final String ifModifiedSince = request.headers().get(IF_MODIFIED_SINCE);
@@ -244,13 +230,10 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			raf = new RandomAccessFile(file, "r");
 		}
 		catch (FileNotFoundException e) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				HttpResponseStatus.NOT_FOUND,
-				responseHeaders);
-			return;
+			if (logger.isDebugEnabled()) {
+				logger.debug("Could not find file {}.", file.getAbsolutePath());
+			}
+			throw new NotFoundException("File not found.");
 		}
 
 		try {
@@ -258,11 +241,8 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			setContentTypeHeader(response, file);
+			setDateAndCacheHeaders(response, file);
 
-			// since the log and out files are rapidly changing, we don't want to browser to cache them
-			if (!(requestPath.contains("log") || requestPath.contains("out"))) {
-				setDateAndCacheHeaders(response, file);
-			}
 			if (HttpHeaders.isKeepAlive(request)) {
 				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 			}
@@ -289,12 +269,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		} catch (Exception e) {
 			raf.close();
 			logger.error("Failed to serve file.", e);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("Internal server error."),
-				INTERNAL_SERVER_ERROR,
-				responseHeaders);
+			throw new RestHandlerException("Internal server error.", INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -373,5 +348,35 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);
+	}
+
+	/**
+	 * Checks various conditions for file access.
+	 * If all checks pass this method returns, and processing of the request may continue.
+	 * If any check fails this method throws a {@link RestHandlerException}, and further processing of the request
+	 * must be limited to sending an error response.
+	 */
+	public static void checkFileValidity(File file, File rootPath, Logger logger) throws IOException, RestHandlerException {
+		// this check must be done first to prevent probing for arbitrary files
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} points outside the root directory.", file.getAbsolutePath());
+			}
+			throw new RestHandlerException("Forbidden.", FORBIDDEN);
+		}
+
+		if (!file.exists() || file.isHidden()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} cannot be found.", file.getAbsolutePath());
+			}
+			throw new RestHandlerException("File not found.", NOT_FOUND);
+		}
+
+		if (file.isDirectory() || !file.isFile()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} does not point to a file.", file.getAbsolutePath());
+			}
+			throw new RestHandlerException("File not found.", METHOD_NOT_ALLOWED);
+		}
 	}
 }

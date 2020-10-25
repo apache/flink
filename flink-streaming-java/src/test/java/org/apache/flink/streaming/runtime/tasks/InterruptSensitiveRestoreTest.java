@@ -24,9 +24,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -36,11 +34,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -69,6 +67,7 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -89,6 +88,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
@@ -248,9 +248,6 @@ public class InterruptSensitiveRestoreTest {
 			SourceStreamTask.class.getName(),
 			taskConfig);
 
-		BlobCacheService blobService =
-			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
 		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
@@ -274,18 +271,16 @@ public class InterruptSensitiveRestoreTest {
 			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
 			new TaskEventDispatcher(),
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			blobService,
-			new BlobLibraryCacheManager(
-				blobService.getPermanentBlobService(),
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0]),
+			TestingClassLoaderLease.newBuilder().build(),
 			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
-				blobService.getPermanentBlobService()),
+				VoidPermanentBlobService.INSTANCE),
 			new TestingTaskManagerRuntimeInfo(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 			new NoOpResultPartitionConsumableNotifier(),
@@ -332,6 +327,11 @@ public class InterruptSensitiveRestoreTest {
 			};
 
 			return is;
+		}
+
+		@Override
+		public Optional<byte[]> asBytesIfInMemory() {
+			return Optional.empty();
 		}
 
 		private void block() {

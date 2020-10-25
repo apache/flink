@@ -21,9 +21,13 @@ package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedRegion;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -35,18 +39,21 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 
 	private static final ExecutionVertexID TEST_EXECUTION_VERTEX_ID = new ExecutionVertexID(new JobVertexID(), 0);
 
+	private static final TestingSchedulingPipelinedRegion TEST_PIPELINED_REGION = new TestingSchedulingPipelinedRegion(Collections.singleton(
+		new TestingSchedulingExecutionVertex(
+			TEST_EXECUTION_VERTEX_ID.getJobVertexId(),
+			TEST_EXECUTION_VERTEX_ID.getSubtaskIndex())));
+
 	@Test
 	public void regionIsUnfinishedIfNotAllVerticesAreFinished() {
-		final PipelinedRegion pipelinedRegion = PipelinedRegion.from(TEST_EXECUTION_VERTEX_ID);
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(pipelinedRegion);
+		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
 		assertFalse(pipelinedRegionExecutionView.isFinished());
 	}
 
 	@Test
 	public void regionIsFinishedIfAllVerticesAreFinished() {
-		final PipelinedRegion pipelinedRegion = PipelinedRegion.from(TEST_EXECUTION_VERTEX_ID);
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(pipelinedRegion);
+		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
 		pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
 
@@ -55,8 +62,7 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 
 	@Test
 	public void vertexCanBeUnfinished() {
-		final PipelinedRegion pipelinedRegion = PipelinedRegion.from(TEST_EXECUTION_VERTEX_ID);
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(pipelinedRegion);
+		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
 		pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
 		pipelinedRegionExecutionView.vertexUnfinished(TEST_EXECUTION_VERTEX_ID);
@@ -66,8 +72,7 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void finishingUnknownVertexThrowsException() {
-		final PipelinedRegion from = PipelinedRegion.from(TEST_EXECUTION_VERTEX_ID);
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(from);
+		final PipelinedRegionExecutionView pipelinedRegionExecutionView = new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
 		final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		pipelinedRegionExecutionView.vertexFinished(unknownVertexId);

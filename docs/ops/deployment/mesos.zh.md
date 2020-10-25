@@ -1,5 +1,5 @@
 ---
-title:  "Mesos 安装"
+title:  "Mesos 设置"
 nav-title: Mesos
 nav-parent_id: deployment
 nav-pos: 5
@@ -215,17 +215,16 @@ For example:
 
     bin/mesos-appmaster.sh \
         -Dmesos.master=master.foobar.org:5050 \
-        -Djobmanager.heap.size=1024m \
+        -Djobmanager.memory.process.size=1472m \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
-        -Dmesos.resourcemanager.tasks.mem=4096 \
         -Dtaskmanager.memory.process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
 ### High Availability
 
-You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
+You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
 In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
 
 #### Marathon
@@ -237,7 +236,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.memory.process.size=1472m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dtaskmanager.memory.process.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

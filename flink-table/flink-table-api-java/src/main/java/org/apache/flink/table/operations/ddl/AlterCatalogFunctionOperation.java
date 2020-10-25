@@ -34,14 +34,17 @@ public class AlterCatalogFunctionOperation implements AlterOperation  {
 	private final ObjectIdentifier functionIdentifier;
 	private CatalogFunction catalogFunction;
 	private boolean ifExists;
+	private boolean isTemporary;
 
 	public AlterCatalogFunctionOperation(
 			ObjectIdentifier functionIdentifier,
 			CatalogFunction catalogFunction,
-			boolean ifExists) {
+			boolean ifExists,
+			boolean isTemporary) {
 		this.functionIdentifier = functionIdentifier;
 		this.catalogFunction = catalogFunction;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
 	public CatalogFunction getCatalogFunction() {
@@ -56,12 +59,17 @@ public class AlterCatalogFunctionOperation implements AlterOperation  {
 		return this.ifExists;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("catalogFunction", catalogFunction.getDetailedDescription());
 		params.put("identifier", functionIdentifier);
 		params.put("ifExists", ifExists);
+		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
 			"ALTER CATALOG FUNCTION",

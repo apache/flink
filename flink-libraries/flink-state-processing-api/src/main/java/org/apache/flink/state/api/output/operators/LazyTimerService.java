@@ -59,13 +59,13 @@ public class LazyTimerService implements TimerService {
 	@Override
 	public void registerProcessingTimeTimer(long time) {
 		ensureInitialized();
-		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, time);
+		internalTimerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, time);
 	}
 
 	@Override
 	public void registerEventTimeTimer(long time) {
 		ensureInitialized();
-		internalTimerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, time);
+		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, time);
 	}
 
 	@Override

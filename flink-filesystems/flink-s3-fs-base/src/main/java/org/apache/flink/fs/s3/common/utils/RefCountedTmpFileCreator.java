@@ -34,10 +34,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A utility class that creates local {@link RefCountedFile reference counted files} that serve as temporary files.
+ * A utility class that creates local {@link RefCountedFileWithStream reference counted files} that serve as temporary files.
  */
 @Internal
-public class RefCountedTmpFileCreator implements FunctionWithException<File, RefCountedFile, IOException> {
+public class RefCountedTmpFileCreator implements FunctionWithException<File, RefCountedFileWithStream, IOException> {
 
 	private final File[] tempDirectories;
 
@@ -70,7 +70,7 @@ public class RefCountedTmpFileCreator implements FunctionWithException<File, Ref
 	 * @throws IOException Thrown, if the stream to the temp file could not be opened.
 	 */
 	@Override
-	public RefCountedFile apply(File file) throws IOException {
+	public RefCountedFileWithStream apply(File file) throws IOException {
 		final File directory = tempDirectories[nextIndex()];
 
 		while (true) {
@@ -78,10 +78,10 @@ public class RefCountedTmpFileCreator implements FunctionWithException<File, Ref
 				if (file == null) {
 					final File newFile = new File(directory, ".tmp_" + UUID.randomUUID());
 					final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
-					return RefCountedFile.newFile(newFile, out);
+					return RefCountedFileWithStream.newFile(newFile, out);
 				} else {
 					final OutputStream out = Files.newOutputStream(file.toPath(), StandardOpenOption.APPEND);
-					return RefCountedFile.restoredFile(file, out, file.length());
+					return RefCountedFileWithStream.restoredFile(file, out, file.length());
 				}
 			} catch (FileAlreadyExistsException ignored) {
 				// fall through the loop and retry

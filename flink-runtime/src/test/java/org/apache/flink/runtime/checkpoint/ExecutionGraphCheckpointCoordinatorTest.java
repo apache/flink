@@ -156,6 +156,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
 			false,
+			false,
 			0);
 
 		executionGraph.enableCheckpointing(
@@ -218,7 +219,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		}
 
 		@Override
-		public void addCheckpoint(CompletedCheckpoint checkpoint) {
+		public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 
@@ -228,7 +229,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		}
 
 		@Override
-		public void shutdown(JobStatus jobStatus) {
+		public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
 			shutdownStatus.complete(jobStatus);
 		}
 

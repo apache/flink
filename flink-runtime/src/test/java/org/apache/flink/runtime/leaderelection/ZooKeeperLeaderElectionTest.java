@@ -25,14 +25,15 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.CreateBuilder;
-import org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.CreateBuilder;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+
 import org.apache.curator.test.TestingServer;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -409,23 +410,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		try {
 			client = spy(ZooKeeperUtils.startCuratorFramework(configuration));
 
-			Answer<CreateBuilder> answer = new Answer<CreateBuilder>() {
-				private int counter = 0;
-
-				@Override
-				public CreateBuilder answer(InvocationOnMock invocation) throws Throwable {
-					counter++;
-
-					// at first we have to create the leader latch, there it mustn't fail yet
-					if (counter < 2) {
-						return (CreateBuilder) invocation.callRealMethod();
-					} else {
-						return mockCreateBuilder;
-					}
-				}
-			};
-
-			doAnswer(answer).when(client).create();
+			doAnswer(invocation -> mockCreateBuilder).when(client).create();
 
 			when(
 				mockCreateBuilder

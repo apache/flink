@@ -32,7 +32,9 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link CompletedOperationCache}.
@@ -76,5 +78,30 @@ public class CompletedOperationCacheTest extends TestLogger {
 		assertThat(operationResultOrError, is(notNullValue()));
 		assertThat(operationResultOrError.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
 		assertThat(closeCacheFuture.isDone(), is(true));
+	}
+
+	@Test
+	public void testCannotAddOperationAfterClosing() {
+		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, new CompletableFuture<>());
+		final CompletableFuture<Void> terminationFuture = completedOperationCache.closeAsync();
+
+		assertFalse(terminationFuture.isDone());
+
+		try {
+			completedOperationCache.registerOngoingOperation(new OperationKey(new TriggerId()), new CompletableFuture<>());
+			fail("It should no longer be possible to register new operations because the cache is shutting down.");
+		} catch (IllegalStateException ignored) {
+			// expected
+		}
+	}
+
+	@Test
+	public void testCanGetOperationResultAfterClosing() throws Exception {
+		completedOperationCache.registerOngoingOperation(TEST_OPERATION_KEY, TEST_OPERATION_RESULT);
+		completedOperationCache.closeAsync();
+
+		final Either<Throwable, String> result = completedOperationCache.get(TEST_OPERATION_KEY);
+
+		assertThat(result.right(), is(equalTo(TEST_OPERATION_RESULT.get())));
 	}
 }

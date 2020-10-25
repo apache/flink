@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -36,7 +37,7 @@ public final class SessionWithGap {
 	private final Expression gap;
 
 	SessionWithGap(Expression gap) {
-		this.gap = gap;
+		this.gap = ApiExpressionUtils.unwrapFromApi(gap);
 	}
 
 	/**
@@ -49,7 +50,9 @@ public final class SessionWithGap {
 	 *
 	 * @param timeField time attribute for streaming and batch tables
 	 * @return a tumbling window on event-time
+	 * @deprecated use {@link #on(Expression)}
 	 */
+	@Deprecated
 	public SessionWithGapOnTime on(String timeField) {
 		return on(ExpressionParser.parseExpression(timeField));
 	}

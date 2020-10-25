@@ -19,19 +19,18 @@
 package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * The base interface of runner which is responsible for the execution of Python functions.
- *
- * @param <IN> Type of the input elements.
  */
 @Internal
-public interface PythonFunctionRunner<IN> {
+public interface PythonFunctionRunner {
 
 	/**
 	 * Prepares the Python function runner, such as preparing the Python execution environment, etc.
 	 */
-	void open() throws Exception;
+	void open(PythonConfig config) throws Exception;
 
 	/**
 	 * Tear-down the Python function runner.
@@ -39,9 +38,20 @@ public interface PythonFunctionRunner<IN> {
 	void close() throws Exception;
 
 	/**
-	 * Prepares to process the next bundle of elements.
+	 * Executes the Python function with the input byte array.
+	 *
+	 * @param data the byte array data.
 	 */
-	void startBundle() throws Exception;
+	void process(byte[] data) throws Exception;
+
+	/**
+	 * Retrieves the Python function result.
+	 *
+	 * @return the head of he Python function result buffer, or {@code null} if the result buffer is empty.
+	 * f0 means the byte array buffer which stores the Python function result.
+	 * f1 means the length of the Python function result byte array.
+	 */
+	Tuple2<byte[], Integer> pollResult() throws Exception;
 
 	/**
 	 * Forces to finish the processing of the current bundle of elements. It will flush
@@ -49,12 +59,5 @@ public interface PythonFunctionRunner<IN> {
 	 * made by the Python function. The call blocks until all of the outputs produced by this
 	 * bundle have been received.
 	 */
-	void finishBundle() throws Exception;
-
-	/**
-	 * Executes the Python function with the input element. It's not required to execute
-	 * the Python function immediately. The runner may choose to buffer the input element and
-	 * execute them in batch for better performance.
-	 */
-	void processElement(IN element) throws Exception;
+	void flush() throws Exception;
 }

@@ -33,14 +33,24 @@ start_time=$(date +%s)
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
+  docker exec mesos-master bash -c "chmod -R ogu+rw ${FLINK_DIR}/log/ ${TEST_DATA_DIR}"
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml down
 }
 on_exit cluster_shutdown
 
 function start_flink_cluster_with_mesos() {
     echo "Starting Flink on Mesos cluster"
+    if ! retry_times $IMAGE_BUILD_RETRIES 0 build_image; then
+        echo "ERROR: Could not build mesos image. Aborting..."
+        exit 1
+    fi
+    # build docker image with java and mesos
     build_image
 
+    # we need to export the MVN_REPO location so that mesos can access the files referenced in HADOOP_CLASSPATH
+    export MVN_REPO=`mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout`
+
+    # start mesos cluster
     docker-compose -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/docker-compose.yml up -d
 
     # wait for the Mesos master and slave set up
@@ -53,19 +63,17 @@ function start_flink_cluster_with_mesos() {
     set_config_key "jobmanager.rpc.address" "mesos-master"
     set_config_key "rest.address" "mesos-master"
 
-    docker exec -itd mesos-master bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050"
+    docker exec --env HADOOP_CLASSPATH=$HADOOP_CLASSPATH -itd mesos-master bash -c "${FLINK_DIR}/bin/mesos-appmaster.sh -Dmesos.master=mesos-master:5050"
+
     wait_rest_endpoint_up "http://${NODENAME}:8081/taskmanagers" "Dispatcher" "\{\"taskmanagers\":\[.*\]\}"
     return 0
 }
 
 function build_image() {
     echo "Building Mesos Docker container"
-    if ! retry_times $IMAGE_BUILD_RETRIES 0 docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
+    docker build -f $END_TO_END_DIR/test-scripts/docker-mesos-cluster/Dockerfile \
         -t flink/docker-mesos-cluster:latest \
-        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/; then
-        echo "ERROR: Could not build mesos image. Aborting..."
-        exit 1
-    fi
+        $END_TO_END_DIR/test-scripts/docker-mesos-cluster/
 }
 
 function wait_job_terminal_state_mesos {

@@ -1,7 +1,7 @@
 ---
 title: "Scala API Extensions"
-nav-parent_id: api-concepts
-nav-pos: 10
+nav-parent_id: streaming
+nav-pos: 200
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -311,29 +311,6 @@ data.keyingBy(
 data.reduceWith {
   case ((_, sum1), (_, sum2) => sum1 + sum2
 }
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>foldWith</strong></td>
-      <td><strong>fold (KeyedStream, WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.foldWith(User(bought = 0)) {
-  case (User(b), (_, items)) => User(b + items.size)
-}
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>applyWith</strong></td>
-      <td><strong>apply (WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.applyWith(0)(
-  foldFunction = case (sum, amount) => sum + amount
-  windowFunction = case (k, w, sum) => // [...]
-)
 {% endhighlight %}
       </td>
     </tr>

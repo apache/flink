@@ -38,7 +38,7 @@ Starting from Flink 1.9, Flink provides two different planner implementations fo
 translating relational operators into an executable, optimized Flink job. Both of the planners come with different optimization rules and runtime classes.
 They may also differ in the set of supported features.
 
-<span class="label label-danger">Attention</span> For production use cases, we recommend the old planner that was present before Flink 1.9 for now.
+<span class="label label-danger">Attention</span> For production use cases, we recommend the blink planner that has become the default planner since 1.11.
 
 All Table API and SQL components are bundled in the `flink-table` or `flink-table-blink` Maven artifacts.
 
@@ -49,8 +49,8 @@ The following dependencies are relevant for most projects:
 * `flink-table-api-scala`: The Table & SQL API for pure table programs using the Scala programming language (in early development stage, not recommended!).
 * `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
 * `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
-* `flink-table-planner`: The table program planner and runtime. This was the only planner of Flink before the 1.9 release. It is still the recommended one.
-* `flink-table-planner-blink`: The new Blink planner.
+* `flink-table-planner`: The table program planner and runtime. This was the only planner of Flink before the 1.9 release. It's no longer recommended since Flink 1.11.
+* `flink-table-planner-blink`: The new Blink planner, which has become the default one since Flink 1.11.
 * `flink-table-runtime-blink`: The new Blink runtime.
 * `flink-table-uber`: Packages the API modules above plus the old planner into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-*.jar` is located in the `/lib` directory of a Flink release by default.
 * `flink-table-uber-blink`: Packages the API modules above plus the Blink specific modules into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-blink-*.jar` is located in the `/lib` directory of a Flink release by default.

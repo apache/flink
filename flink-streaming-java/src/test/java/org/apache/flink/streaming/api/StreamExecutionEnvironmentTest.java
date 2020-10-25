@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -31,6 +34,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 
@@ -253,6 +257,18 @@ public class StreamExecutionEnvironmentTest {
 		}
 	}
 
+	@Test
+	public void testAddSourceWithUserDefinedTypeInfo() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Row> source1 = env.addSource(new RowSourceFunction(), Types.ROW(Types.STRING));
+		// the source type information should be the user defined type
+		assertEquals(Types.ROW(Types.STRING), source1.getType());
+
+		DataStreamSource<Row> source2 = env.addSource(new RowSourceFunction());
+		// the source type information should be derived from RowSourceFunction#getProducedType
+		assertEquals(new GenericTypeInfo<>(Row.class), source2.getType());
+	}
+
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////
@@ -313,6 +329,23 @@ public class StreamExecutionEnvironmentTest {
 	private static class SubClass extends ParentClass{
 		public SubClass(int num, String string) {
 			super(num, string);
+		}
+	}
+
+	private static class RowSourceFunction implements SourceFunction<Row>, ResultTypeQueryable<Row> {
+		private static final long serialVersionUID = 5216362688122691404L;
+
+		@Override
+		public TypeInformation<Row> getProducedType() {
+			return TypeInformation.of(Row.class);
+		}
+
+		@Override
+		public void run(SourceContext<Row> ctx) throws Exception {
+		}
+
+		@Override
+		public void cancel() {
 		}
 	}
 }

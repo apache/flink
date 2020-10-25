@@ -87,6 +87,12 @@ public class ConfigOptions {
 	 * It is instantiated via {@link ConfigOptions#key(String)}.
 	 */
 	public static final class OptionBuilder {
+		/**
+		 * Workaround to reuse the {@link TypedConfigOptionBuilder} for a {@link Map Map&lt;String, String&gt;}.
+		 */
+		@SuppressWarnings("unchecked")
+		private static final Class<Map<String, String>> PROPERTIES_MAP_CLASS =
+			(Class<Map<String, String>>) (Class<?>) Map.class;
 
 		/** The key for the config option. */
 		private final String key;
@@ -169,7 +175,7 @@ public class ConfigOptions {
 		 * {@code Map<String, String>}.
 		 */
 		public TypedConfigOptionBuilder<Map<String, String>> mapType() {
-			return new TypedConfigOptionBuilder<>(key, Map.class);
+			return new TypedConfigOptionBuilder<>(key, PROPERTIES_MAP_CLASS);
 		}
 
 		/**
@@ -220,9 +226,9 @@ public class ConfigOptions {
 	 */
 	public static class TypedConfigOptionBuilder<T> {
 		private final String key;
-		private final Class clazz;
+		private final Class<T> clazz;
 
-		TypedConfigOptionBuilder(String key, Class clazz) {
+		TypedConfigOptionBuilder(String key, Class<T> clazz) {
 			this.key = key;
 			this.clazz = clazz;
 		}
@@ -255,7 +261,7 @@ public class ConfigOptions {
 		 * @return The config option without a default value.
 		 */
 		public ConfigOption<T> noDefaultValue() {
-			return new ConfigOption<T>(
+			return new ConfigOption<>(
 				key,
 				clazz,
 				Description.builder().text("").build(),
@@ -265,15 +271,15 @@ public class ConfigOptions {
 	}
 
 	/**
-	 * Builder for {@link ConfigOption} of list of type T.
+	 * Builder for {@link ConfigOption} of list of type {@link E}.
 	 *
-	 * @param <T> atomic type of the option
+	 * @param <E> list element type of the option
 	 */
-	public static class ListConfigOptionBuilder<T> {
+	public static class ListConfigOptionBuilder<E> {
 		private final String key;
-		private final Class clazz;
+		private final Class<E> clazz;
 
-		ListConfigOptionBuilder(String key, Class clazz) {
+		ListConfigOptionBuilder(String key, Class<E> clazz) {
 			this.key = key;
 			this.clazz = clazz;
 		}
@@ -285,7 +291,7 @@ public class ConfigOptions {
 		 * @return The config option with the default value.
 		 */
 		@SafeVarargs
-		public final ConfigOption<List<T>> defaultValues(T... values) {
+		public final ConfigOption<List<E>> defaultValues(E... values) {
 			return new ConfigOption<>(
 				key,
 				clazz,
@@ -299,7 +305,7 @@ public class ConfigOptions {
 		 *
 		 * @return The config option without a default value.
 		 */
-		public ConfigOption<List<T>> noDefaultValue() {
+		public ConfigOption<List<E>> noDefaultValue() {
 			return new ConfigOption<>(
 				key,
 				clazz,

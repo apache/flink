@@ -36,6 +36,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 	}
 
 	@Override
+	public boolean allowCharLiteralAlias() {
+		return false;
+	}
+
+	@Override
 	public boolean isGroupByAlias() {
 		return false;
 	}
@@ -83,13 +88,23 @@ public enum FlinkSqlConformance implements SqlConformance {
 	}
 
 	@Override
+	public boolean splitQuotedTableName() {
+		return false;
+	}
+
+	@Override
+	public boolean allowHyphenInUnquotedTableName() {
+		return false;
+	}
+
+	@Override
 	public boolean isBangEqualAllowed() {
 		return false;
 	}
 
 	@Override
 	public boolean isPercentRemainderAllowed() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -104,6 +119,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 
 	@Override
 	public boolean isInsertSubsetColumnsAllowed() {
+		return false;
+	}
+
+	@Override
+	public boolean allowAliasUnnestItems() {
 		return false;
 	}
 
@@ -146,10 +166,13 @@ public enum FlinkSqlConformance implements SqlConformance {
 		return false;
 	}
 
-	/**
-	 * Whether to allow "create table T(i int, j int) partitioned by (i)" grammar.
-	 */
-	public boolean allowCreatePartitionedTable() {
-		return this == FlinkSqlConformance.HIVE;
+	@Override
+	public boolean allowPluralTimeUnits() {
+		return false;
+	}
+
+	@Override
+	public boolean allowQualifyingCommonColumn() {
+		return true;
 	}
 }

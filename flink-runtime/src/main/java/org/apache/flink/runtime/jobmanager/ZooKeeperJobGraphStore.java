@@ -25,12 +25,13 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.PathChildrenCache;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
-import org.apache.curator.utils.ZKPaths;
-import org.apache.zookeeper.KeeperException;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -307,7 +308,7 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 
 		for (String path : paths) {
 			try {
-				jobIds.add(jobIdfromPath(path));
+				jobIds.add(jobIdFromPath(path));
 			} catch (Exception exception) {
 				LOG.warn("Could not parse job id from {}. This indicates a malformed path.", path, exception);
 			}
@@ -444,7 +445,7 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 	 * @param path in ZooKeeper
 	 * @return JobID associated with the given path
 	 */
-	public static JobID jobIdfromPath(final String path) {
+	public static JobID jobIdFromPath(final String path) {
 		return JobID.fromHexString(path);
 	}
 }

@@ -87,7 +87,7 @@ type and the *serialized binary format* of a state type. The schema, generally s
  1. Data schema of the state type has evolved, i.e. adding or removing a field from a POJO that is used as state.
  2. Generally speaking, after a change to the data schema, the serialization format of the serializer will need to be upgraded.
  3. Configuration of the serializer has changed.
-
+ 
 In order for the new execution to have information about the *written schema* of state and detect whether or not the
 schema has changed, upon taking a savepoint of an operator's state, a *snapshot* of the state serializer needs to be
 written along with the state bytes. This is abstracted a `TypeSerializerSnapshot`, explained in the next subsection.
@@ -108,10 +108,10 @@ public interface TypeSerializerSnapshot<T> {
 
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public abstract class TypeSerializer<T> {
-
+public abstract class TypeSerializer<T> {    
+    
     // ...
-
+    
     public abstract TypeSerializerSnapshot<T> snapshotConfiguration();
 }
 {% endhighlight %}
@@ -140,7 +140,7 @@ which can be one of the following:
  2. **`TypeSerializerSchemaCompatibility.compatibleAfterMigration()`**: this result signals that the new serializer has a
  different serialization schema, and it is possible to migrate from the old schema by using the previous serializer
  (which recognizes the old schema) to read bytes into state objects, and then rewriting the object back to bytes with
- the new serializer (which recognizes the new schema).
+ the new serializer (which recognizes the new schema). 
  3. **`TypeSerializerSchemaCompatibility.incompatible()`**: this result signals that the new serializer has a
  different serialization schema, but it is not possible to migrate from the old schema.
 
@@ -170,13 +170,13 @@ to the implementation of state serializers and their serializer snapshots.
   - Upon receiving the new serializer, it is provided to the restored previous serializer's snapshot via the
   `TypeSerializer#resolveSchemaCompatibility` to check for schema compatibility.
  4. **Migrate state bytes in backend from schema _A_ to schema _B_**
-  - If the compatibility resolution reflects that the schema has changed and migration is possible, schema migration is
+  - If the compatibility resolution reflects that the schema has changed and migration is possible, schema migration is 
   performed. The previous state serializer which recognizes schema _A_ will be obtained from the serializer snapshot, via
    `TypeSerializerSnapshot#restoreSerializer()`, and is used to deserialize state bytes to objects, which in turn
    are re-written again with the new serializer, which recognizes schema _B_ to complete the migration. All entries
    of the accessed state is migrated all-together before processing continues.
   - If the resolution signals incompatibility, then the state access fails with an exception.
-
+ 
 #### Heap state backends (e.g. `MemoryStateBackend`, `FsStateBackend`)
 
  1. **Register new state with a state serializer that has schema _A_**
@@ -218,7 +218,7 @@ as your serializer's snapshot class:
 
  - `TypeSerializerSchemaCompatibility.compatibleAsIs()`, if the new serializer class remains identical, or
  - `TypeSerializerSchemaCompatibility.incompatible()`, if the new serializer class is different then the previous one.
-
+ 
 Below is an example of how the `SimpleTypeSerializerSnapshot` is used, using Flink's `IntSerializer` as an example:
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -254,7 +254,7 @@ outer serializer, the compatibility of each nested serializer needs to be consid
 
 `CompositeTypeSerializerSnapshot` is provided to assist in the implementation of snapshots for these kind of
 composite serializers. It deals with reading and writing the nested serializer snapshots, as well as resolving
-the final compatibilty result taking into account the compatibility of all nested serializers.
+the final compatibility result taking into account the compatibility of all nested serializers.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
 <div data-lang="java" markdown="1">
@@ -309,7 +309,7 @@ the nested element serializer.
 In these cases, an additional three methods need to be implemented on the `CompositeTypeSerializerSnapshot`:
  * `#writeOuterSnapshot(DataOutputView)`: defines how the outer snapshot information is written.
  * `#readOuterSnapshot(int, DataInputView, ClassLoader)`: defines how the outer snapshot information is read.
- * `#isOuterSnapshotCompatible(TypeSerializer)`: checks whether the outer snapshot information remains identical.
+ * `#resolveOuterSchemaCompatibility(TypeSerializer)`: checks the compatibility based on the outer snapshot information.
 
 By default, the `CompositeTypeSerializerSnapshot` assumes that there isn't any outer snapshot information to
 read / write, and therefore have empty default implementations for the above methods. If the subclass
@@ -351,8 +351,10 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     }
 
     @Override
-    protected boolean isOuterSnapshotCompatible(GenericArraySerializer newSerializer) {
-        return this.componentClass == newSerializer.getComponentClass();
+    protected boolean resolveOuterSchemaCompatibility(GenericArraySerializer newSerializer) {
+        return (this.componentClass == newSerializer.getComponentClass())
+            ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+            : OuterSchemaCompatibility.INCOMPATIBLE;
     }
 
     @Override

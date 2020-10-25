@@ -19,7 +19,6 @@
 
 package org.apache.flink.test.example.failing;
 
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -30,30 +29,23 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.function.Predicate;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.fail;
 
 /**
  * Tests for failing job submissions.
  */
-@RunWith(Parameterized.class)
-@Category(AlsoRunWithLegacyScheduler.class)
 public class JobSubmissionFailsITCase extends TestLogger {
 
 	private static final int NUM_TM = 2;
@@ -72,7 +64,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 
 		// to accommodate for 10 netty arenas (NUM_SLOTS / NUM_TM) x 16Mb (NettyBufferPool.ARENA_SIZE)
-		config.set(TaskManagerOptions.SHUFFLE_MEMORY_MIN, MemorySize.parse("256m"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("256m"));
 
 		return config;
 	}
@@ -83,19 +75,6 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		return new JobGraph("Working testing job", jobVertex);
 	}
 
-	// --------------------------------------------------------------------------------------------
-
-	private final boolean detached;
-
-	public JobSubmissionFailsITCase(boolean detached) {
-		this.detached = detached;
-	}
-
-	@Parameterized.Parameters(name = "Detached mode = {0}")
-	public static Collection<Boolean[]> executionModes(){
-		return Arrays.asList(new Boolean[]{false},
-				new Boolean[]{true});
-	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -130,15 +109,11 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		runJobSubmissionTest(jobGraph, e -> ExceptionUtils.findThrowable(e, IOException.class).isPresent());
 	}
 
-	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws org.apache.flink.client.program.ProgramInvocationException {
+	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws Exception {
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
 		try {
-			if (detached) {
-				ClientUtils.submitJob(client, jobGraph);
-			} else {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
-			}
+			submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			fail("Job submission should have thrown an exception.");
 		} catch (Exception e) {
 			if (!failurePredicate.test(e)) {
@@ -146,7 +121,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			}
 		}
 
-		ClientUtils.submitJobAndWaitForResult(client, getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
+		submitJobAndWaitForResult(client, getWorkingJobGraph(), getClass().getClassLoader());
 	}
 
 	@Nonnull

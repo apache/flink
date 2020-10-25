@@ -47,6 +47,7 @@ public interface TableMetaStoreFactory extends Serializable {
 		/**
 		 * Get base location path of this table.
 		 */
+		@Deprecated
 		Path getLocationPath();
 
 		/**
@@ -60,13 +61,12 @@ public interface TableMetaStoreFactory extends Serializable {
 		Optional<Path> getPartition(LinkedHashMap<String, String> partitionSpec) throws Exception;
 
 		/**
-		 * Create partition to meta store.
-		 * See {@link Catalog#createPartition}.
+		 * After data has been inserted into the partition path, the partition may need to be
+		 * created (if doesn't exists) or updated.
 		 *
-		 * @param partitionSpec partition spec should be a full spec, must be in the same order as
-		 *                      the partition keys of the table.
-		 * @param partitionPath partition location path.
+		 * @param partitionSpec the full spec of the target partition
+		 * @param partitionPath partition location path
 		 */
-		void createPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception;
+		void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception;
 	}
 }

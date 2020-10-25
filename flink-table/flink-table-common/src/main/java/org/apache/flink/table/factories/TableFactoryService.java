@@ -51,7 +51,6 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
  */
 public class TableFactoryService {
 
-	private static final ServiceLoader<TableFactory> defaultLoader = ServiceLoader.load(TableFactory.class);
 	private static final Logger LOG = LoggerFactory.getLogger(TableFactoryService.class);
 
 	/**
@@ -208,14 +207,11 @@ public class TableFactoryService {
 	private static List<TableFactory> discoverFactories(Optional<ClassLoader> classLoader) {
 		try {
 			List<TableFactory> result = new LinkedList<>();
-			if (classLoader.isPresent()) {
-				ServiceLoader
-					.load(TableFactory.class, classLoader.get())
-					.iterator()
-					.forEachRemaining(result::add);
-			} else {
-				defaultLoader.iterator().forEachRemaining(result::add);
-			}
+			ClassLoader cl = classLoader.orElse(Thread.currentThread().getContextClassLoader());
+			ServiceLoader
+				.load(TableFactory.class, cl)
+				.iterator()
+				.forEachRemaining(result::add);
 			return result;
 		} catch (ServiceConfigurationError e) {
 			LOG.error("Could not load service provider for table factories.", e);

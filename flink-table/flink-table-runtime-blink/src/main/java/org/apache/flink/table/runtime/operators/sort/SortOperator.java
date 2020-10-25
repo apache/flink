@@ -23,15 +23,15 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Operator for batch sort.
  */
-public class SortOperator extends TableStreamOperator<BinaryRow>
-		implements OneInputStreamOperator<BaseRow, BinaryRow>, BoundedOneInput {
+public class SortOperator extends TableStreamOperator<BinaryRowData>
+		implements OneInputStreamOperator<RowData, BinaryRowData>, BoundedOneInput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
 
@@ -50,8 +50,8 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	private GeneratedRecordComparator gComparator;
 
 	private transient BinaryExternalSorter sorter;
-	private transient StreamRecordCollector<BinaryRow> collector;
-	private transient BinaryRowSerializer binarySerializer;
+	private transient StreamRecordCollector<BinaryRowData> collector;
+	private transient BinaryRowDataSerializer binarySerializer;
 
 	public SortOperator(
 			GeneratedNormalizedKeyComputer gComputer,
@@ -67,8 +67,8 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 
 		ClassLoader cl = getContainingTask().getUserCodeClassLoader();
 
-		AbstractRowSerializer inputSerializer = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader());
-		this.binarySerializer = new BinaryRowSerializer(inputSerializer.getArity());
+		AbstractRowDataSerializer inputSerializer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(getUserCodeClassloader());
+		this.binarySerializer = new BinaryRowDataSerializer(inputSerializer.getArity());
 
 		NormalizedKeyComputer computer = gComputer.newInstance(cl);
 		RecordComparator comparator = gComparator.newInstance(cl);
@@ -91,14 +91,14 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement(StreamRecord<RowData> element) throws Exception {
 		this.sorter.write(element.getValue());
 	}
 
 	@Override
 	public void endInput() throws Exception {
-		BinaryRow row = binarySerializer.createInstance();
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		BinaryRowData row = binarySerializer.createInstance();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 		while ((row = iterator.next(row)) != null) {
 			collector.collect(row);
 		}

@@ -1,0 +1,103 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>task.cancellation.interval</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>Long</td>
+            <td>Time interval between two successive task cancellation attempts in milliseconds.</td>
+        </tr>
+        <tr>
+            <td><h5>task.cancellation.timeout</h5></td>
+            <td style="word-wrap: break-word;">180000</td>
+            <td>Long</td>
+            <td>Timeout in milliseconds after which a task cancellation times out and leads to a fatal TaskManager error. A value of 0 deactivates the watch dog.</td>
+        </tr>
+        <tr>
+            <td><h5>task.cancellation.timers.timeout</h5></td>
+            <td style="word-wrap: break-word;">7500</td>
+            <td>Long</td>
+            <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The task manager’s external port used for data exchange operations.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.log</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.debug.memory.log-interval</h5></td>
+            <td style="word-wrap: break-word;">5000</td>
+            <td>Long</td>
+            <td>The interval (in ms) for the log thread to log the current memory usage.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The external address of the network interface where the TaskManager is exposed. Because different TaskManagers need different values for this option, usually it is specified in an additional non-shared TaskManager-specific config file.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.jvm-exit-on-oom</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.memory.segment-size</h5></td>
+            <td style="word-wrap: break-word;">32 kb</td>
+            <td>MemorySize</td>
+            <td>Size of memory buffers used by the network stack and the memory manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.bind-policy</h5></td>
+            <td style="word-wrap: break-word;">"ip"</td>
+            <td>String</td>
+            <td>The automatic address binding policy used by the TaskManager if "taskmanager.host" is not set. The value should be one of the following:
+<ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.numberOfTaskSlots</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of parallel operator or user function instances that a single TaskManager can run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the available memory is divided between the different operator or function instances. This value is typically proportional to the number of physical CPU cores that the TaskManager's machine has (e.g., equal to the number of cores, or half the number of cores).</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.registration.timeout</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Defines the timeout for the TaskManager registration. If the duration is exceeded without a successful registration, then the TaskManager terminates.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.resource-id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>String</td>
+            <td>The external RPC port where the TaskManager is exposed. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running on the same machine.</td>
+        </tr>
+    </tbody>
+</table>

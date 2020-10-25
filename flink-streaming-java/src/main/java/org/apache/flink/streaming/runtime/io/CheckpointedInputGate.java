@@ -18,32 +18,36 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming
  * {@link CheckpointBarrier} from the {@link InputGate}.
  */
 @Internal
-public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent> {
-
+public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
 
 	private final CheckpointBarrierHandler barrierHandler;
@@ -51,38 +55,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
 
-	private final int channelIndexOffset;
+	private final MailboxExecutor mailboxExecutor;
 
-	private final BufferStorage bufferStorage;
-
-	/** Flag to indicate whether we have drawn all available input. */
-	private boolean endOfInputGate;
-
-	/** Indicate end of the input. Set to true after encountering {@link #endOfInputGate} and depleting
-	 * {@link #bufferStorage}. */
+	/** Indicate end of the input. */
 	private boolean isFinished;
-
-	public CheckpointedInputGate(
-			InputGate inputGate,
-			BufferStorage bufferStorage,
-			String taskName,
-			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
-		this(
-			inputGate,
-			bufferStorage,
-			new CheckpointBarrierAligner(
-				inputGate.getNumberOfInputChannels(),
-				taskName,
-				toNotifyOnCheckpoint)
-		);
-	}
-
-	public CheckpointedInputGate(
-			InputGate inputGate,
-			BufferStorage bufferStorage,
-			CheckpointBarrierHandler barrierHandler) {
-		this(inputGate, bufferStorage, barrierHandler, 0);
-	}
 
 	/**
 	 * Creates a new checkpoint stream aligner.
@@ -92,113 +68,109 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 * checkpoint has been cancelled.
 	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 * @param barrierHandler Handler that controls which channels are blocked.
-	 * @param channelIndexOffset Optional offset added to channelIndex returned from the inputGate
-	 *                           before passing it to the barrierHandler.
 	 */
 	public CheckpointedInputGate(
 			InputGate inputGate,
-			BufferStorage bufferStorage,
 			CheckpointBarrierHandler barrierHandler,
-			int channelIndexOffset) {
+			MailboxExecutor mailboxExecutor) {
 		this.inputGate = inputGate;
-		this.channelIndexOffset = channelIndexOffset;
-		this.bufferStorage = checkNotNull(bufferStorage);
 		this.barrierHandler = barrierHandler;
+		this.mailboxExecutor = mailboxExecutor;
+
+		waitForPriorityEvents(inputGate, mailboxExecutor);
+	}
+
+	/**
+	 * Eagerly pulls and processes all priority events. Must be called from task thread.
+	 *
+	 * <p>Basic assumption is that no priority event needs to be handled by the {@link StreamTaskNetworkInput}.
+	 */
+	private void processPriorityEvents() throws IOException, InterruptedException {
+		// check if the priority event is still not processed (could have been pulled before mail was being executed)
+		boolean hasPriorityEvent = inputGate.getPriorityEventAvailableFuture().isDone();
+		while (hasPriorityEvent) {
+			// process as many priority events as possible
+			final Optional<BufferOrEvent> bufferOrEventOpt = pollNext();
+			checkState(bufferOrEventOpt.isPresent());
+			final BufferOrEvent bufferOrEvent = bufferOrEventOpt.get();
+			checkState(bufferOrEvent.hasPriority(), "Should only poll priority events");
+			hasPriorityEvent = bufferOrEvent.morePriorityEvents();
+		}
+
+		// re-enqueue mail to process future priority events
+		waitForPriorityEvents(inputGate, mailboxExecutor);
+	}
+
+	private void waitForPriorityEvents(InputGate inputGate, MailboxExecutor mailboxExecutor) {
+		final CompletableFuture<?> priorityEventAvailableFuture = inputGate.getPriorityEventAvailableFuture();
+		assertNoException(priorityEventAvailableFuture.thenRun(() -> {
+			try {
+				mailboxExecutor.execute(this::processPriorityEvents, "process priority event @ gate %s", inputGate);
+			} catch (RejectedExecutionException ex) {
+				LOG.debug("Ignored RejectedExecutionException in CheckpointedInputGate.waitForPriorityEvents");
+			}
+		}));
 	}
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		if (bufferStorage.isEmpty()) {
-			return inputGate.getAvailableFuture();
-		}
-		return AVAILABLE;
+		return inputGate.getAvailableFuture();
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNext() throws Exception {
-		while (true) {
-			// process buffered BufferOrEvents before grabbing new ones
-			Optional<BufferOrEvent> next;
-			if (bufferStorage.isEmpty()) {
-				next = inputGate.pollNext();
-			}
-			else {
-				next = bufferStorage.pollNext();
-				if (!next.isPresent()) {
-					return pollNext();
-				}
-			}
+	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
+		Optional<BufferOrEvent> next = inputGate.pollNext();
 
-			if (!next.isPresent()) {
-				return handleEmptyBuffer();
-			}
+		if (!next.isPresent()) {
+			return handleEmptyBuffer();
+		}
 
-			BufferOrEvent bufferOrEvent = next.get();
-			if (barrierHandler.isBlocked(offsetChannelIndex(bufferOrEvent.getChannelIndex()))) {
-				// if the channel is blocked, we just store the BufferOrEvent
-				bufferStorage.add(bufferOrEvent);
-				if (bufferStorage.isFull()) {
-					barrierHandler.checkpointSizeLimitExceeded(bufferStorage.getMaxBufferedBytes());
-					bufferStorage.rollOver();
-				}
-			}
-			else if (bufferOrEvent.isBuffer()) {
-				return next;
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
-				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
-				if (!endOfInputGate) {
-					// process barriers only if there is a chance of the checkpoint completing
-					if (barrierHandler.processBarrier(checkpointBarrier, offsetChannelIndex(bufferOrEvent.getChannelIndex()), bufferStorage.getPendingBytes())) {
-						bufferStorage.rollOver();
-					}
-				}
-			}
-			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
-				if (barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent())) {
-					bufferStorage.rollOver();
-				}
-			}
-			else {
-				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
-					if (barrierHandler.processEndOfPartition()) {
-						bufferStorage.rollOver();
-					}
-				}
-				return next;
-			}
+		BufferOrEvent bufferOrEvent = next.get();
+
+		if (bufferOrEvent.isEvent()) {
+			handleEvent(bufferOrEvent);
+		}
+		else if (bufferOrEvent.isBuffer()) {
+			/**
+			 * https://issues.apache.org/jira/browse/FLINK-19537
+			 * This is not entirely true, as it's ignoring the buffer/bytes accumulated in the
+			 * record deserializers. If buffer is processed here, it doesn't mean it was fully
+			 * processed (so we can over estimate the amount of processed bytes). On the other hand
+			 * some records/bytes might be processed without polling anything from this
+			 * {@link CheckpointedInputGate} (underestimating the amount of processed bytes). All in all
+			 * this should have been calculated on the {@link StreamTaskNetworkInput} level, where we
+			 * have an access to the records deserializers. However the current is on average accurate
+			 * and it might be just good enough (at least for the time being).
+			 */
+			barrierHandler.addProcessedBytes(bufferOrEvent.getBuffer().getSize());
+		}
+		return next;
+	}
+
+	private void handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
+		if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
+			CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
+			barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
+		}
+		else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
+			barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
+		}
+		else if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
+			barrierHandler.processEndOfPartition();
 		}
 	}
 
-	private int offsetChannelIndex(int channelIndex) {
-		return channelIndex + channelIndexOffset;
+	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+		return barrierHandler.getAllBarriersReceivedFuture(checkpointId);
 	}
 
-	private Optional<BufferOrEvent> handleEmptyBuffer() throws Exception {
-		if (!inputGate.isFinished()) {
-			return Optional.empty();
-		}
-
-		if (endOfInputGate) {
+	private Optional<BufferOrEvent> handleEmptyBuffer() {
+		if (inputGate.isFinished()) {
 			isFinished = true;
-			return Optional.empty();
-		} else {
-			// end of input stream. stream continues with the buffered data
-			endOfInputGate = true;
-			barrierHandler.releaseBlocksAndResetBarriers();
-			bufferStorage.rollOver();
-			return pollNext();
 		}
-	}
 
-	/**
-	 * Checks if the barrier handler has buffered any data internally.
-	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
-	 */
-	public boolean isEmpty() {
-		return bufferStorage.isEmpty();
+		return Optional.empty();
 	}
 
 	@Override
@@ -211,8 +183,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
-	public void cleanup() throws IOException {
-		bufferStorage.close();
+	public void close() throws IOException {
+		barrierHandler.close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -224,7 +196,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @return The ID of the pending of completed checkpoint.
 	 */
-	public long getLatestCheckpointId() {
+	@VisibleForTesting
+	long getLatestCheckpointId() {
 		return barrierHandler.getLatestCheckpointId();
 	}
 
@@ -235,8 +208,18 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	 *
 	 * @return The duration in nanoseconds
 	 */
-	public long getAlignmentDurationNanos() {
+	@VisibleForTesting
+	long getAlignmentDurationNanos() {
 		return barrierHandler.getAlignmentDurationNanos();
+	}
+
+	/**
+	 * @return the time that elapsed, in nanoseconds, between the creation of the latest checkpoint
+	 * and the time when it's first {@link CheckpointBarrier} was received by this {@link InputGate}.
+	 */
+	@VisibleForTesting
+	long getCheckpointStartDelayNanos() {
+		return barrierHandler.getCheckpointStartDelayNanos();
 	}
 
 	/**
@@ -253,5 +236,18 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	@Override
 	public String toString() {
 		return barrierHandler.toString();
+	}
+
+	public InputChannel getChannel(int channelIndex) {
+		return inputGate.getChannel(channelIndex);
+	}
+
+	public List<InputChannelInfo> getChannelInfos() {
+		return inputGate.getChannelInfos();
+	}
+
+	@VisibleForTesting
+	CheckpointBarrierHandler getCheckpointBarrierHandler() {
+		return barrierHandler;
 	}
 }

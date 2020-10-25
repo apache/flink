@@ -29,15 +29,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The default implementation of the {@link ExecutorServiceLoader}. This implementation uses
- * Java service discovery to find the available {@link ExecutorFactory executor factories}.
+ * The default implementation of the {@link PipelineExecutorServiceLoader}. This implementation uses
+ * Java service discovery to find the available {@link PipelineExecutorFactory executor factories}.
  */
 @Internal
-public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
+public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
 	// TODO: This code is almost identical to the ClusterClientServiceLoader and its default implementation.
 	// The reason of this duplication is the package structure which does not allow for the ExecutorServiceLoader
@@ -45,19 +47,18 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutorServiceLoader.class);
 
-	private static final ServiceLoader<ExecutorFactory> defaultLoader = ServiceLoader.load(ExecutorFactory.class);
-
-	public static final DefaultExecutorServiceLoader INSTANCE = new DefaultExecutorServiceLoader();
-
 	@Override
-	public ExecutorFactory getExecutorFactory(final Configuration configuration) {
+	public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
-		final List<ExecutorFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ExecutorFactory> factories = defaultLoader.iterator();
+		final ServiceLoader<PipelineExecutorFactory> loader =
+				ServiceLoader.load(PipelineExecutorFactory.class);
+
+		final List<PipelineExecutorFactory> compatibleFactories = new ArrayList<>();
+		final Iterator<PipelineExecutorFactory> factories = loader.iterator();
 		while (factories.hasNext()) {
 			try {
-				final ExecutorFactory factory = factories.next();
+				final PipelineExecutorFactory factory = factories.next();
 				if (factory != null && factory.isCompatibleWith(configuration)) {
 					compatibleFactories.add(factory);
 				}
@@ -79,10 +80,19 @@ public class DefaultExecutorServiceLoader implements ExecutorServiceLoader {
 			throw new IllegalStateException("Multiple compatible client factories found for:\n" + configStr + ".");
 		}
 
-		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
+		if (compatibleFactories.isEmpty()) {
+			throw new IllegalStateException("No ExecutorFactory found to execute the application.");
+		}
+
+		return compatibleFactories.get(0);
 	}
 
-	private DefaultExecutorServiceLoader() {
-		// make sure nobody instantiates us explicitly.
+	@Override
+	public Stream<String> getExecutorNames() {
+		final ServiceLoader<PipelineExecutorFactory> loader =
+				ServiceLoader.load(PipelineExecutorFactory.class);
+
+		return StreamSupport.stream(loader.spliterator(), false)
+				.map(PipelineExecutorFactory::getName);
 	}
 }

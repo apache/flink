@@ -140,10 +140,7 @@ object FlinkShell {
   }
 
   private def getConfigDir(config: Config) = {
-    config.configDir match {
-      case Some(confDir) => confDir
-      case None => CliFrontend.getConfigurationDirectoryFromEnv
-    }
+    config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
   }
 
   private def getGlobalConfig(config: Config) = {
@@ -225,15 +222,16 @@ object FlinkShell {
       case None => fetchDeployedYarnClusterInfo(config, clusterConfig, "default")
     }
 
+    println("Configuration: " + effectiveConfig)
+
     (effectiveConfig, clusterClient)
   }
 
   private def deployNewYarnCluster(config: Config, flinkConfig: Configuration) = {
     val effectiveConfig = new Configuration(flinkConfig)
-    val args = parseYarnArgList(config, "yarn-cluster")
+    val args = parseArgList(config, "yarn-cluster")
 
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+    val configurationDirectory = getConfigDir(config)
 
     val frontend = new CliFrontend(
       effectiveConfig,
@@ -244,7 +242,7 @@ object FlinkShell {
       frontend.getCustomCommandLineOptions)
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
-    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
 
     val serviceLoader = new DefaultClusterClientServiceLoader
@@ -257,6 +255,7 @@ object FlinkShell {
         .deploySessionCluster(clusterSpecification)
         .getClusterClient
     } finally {
+      executorConfig.set(DeploymentOptions.TARGET, "yarn-session")
       clusterDescriptor.close()
     }
 
@@ -269,10 +268,9 @@ object FlinkShell {
       mode: String) = {
 
     val effectiveConfig = new Configuration(flinkConfig)
-    val args = parseYarnArgList(config, mode)
+    val args = parseArgList(config, mode)
 
-    val configurationDirectory =
-      config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+    val configurationDirectory = getConfigDir(config)
 
     val frontend = new CliFrontend(
       effectiveConfig,
@@ -283,13 +281,13 @@ object FlinkShell {
       frontend.getCustomCommandLineOptions)
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
-    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
     (executorConfig, None)
   }
 
-  def parseYarnArgList(config: Config, mode: String): Array[String] = {
+  def parseArgList(config: Config, mode: String): Array[String] = {
     val args = if (mode == "default") {
       ArrayBuffer[String]()
     } else {

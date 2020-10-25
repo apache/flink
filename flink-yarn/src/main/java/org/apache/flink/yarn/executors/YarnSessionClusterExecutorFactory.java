@@ -21,16 +21,22 @@ package org.apache.flink.yarn.executors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import javax.annotation.Nonnull;
 
 /**
- * An {@link ExecutorFactory} for executing jobs on an existing (session) cluster.
+ * An {@link PipelineExecutorFactory} for executing jobs on an existing (session) cluster.
  */
 @Internal
-public class YarnSessionClusterExecutorFactory implements ExecutorFactory {
+public class YarnSessionClusterExecutorFactory implements PipelineExecutorFactory {
+
+	@Override
+	public String getName() {
+		return YarnSessionClusterExecutor.NAME;
+	}
 
 	@Override
 	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
@@ -38,7 +44,11 @@ public class YarnSessionClusterExecutorFactory implements ExecutorFactory {
 	}
 
 	@Override
-	public Executor getExecutor(@Nonnull final Configuration configuration) {
-		return new YarnSessionClusterExecutor();
+	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
+		try {
+			return new YarnSessionClusterExecutor();
+		} catch (NoClassDefFoundError e) {
+			throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
+		}
 	}
 }

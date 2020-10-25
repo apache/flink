@@ -22,28 +22,43 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
+import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.entrypoint.KubernetesApplicationClusterEntrypoint;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
+import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
+import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,11 +94,11 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		return () -> {
 			final Configuration configuration = new Configuration(flinkConfig);
 
-			final Endpoint restEndpoint = client.getRestEndpoint(clusterId);
+			final Optional<Endpoint> restEndpoint = client.getRestEndpoint(clusterId);
 
-			if (restEndpoint != null) {
-				configuration.setString(RestOptions.ADDRESS, restEndpoint.getAddress());
-				configuration.setInteger(RestOptions.PORT, restEndpoint.getPort());
+			if (restEndpoint.isPresent()) {
+				configuration.setString(RestOptions.ADDRESS, restEndpoint.get().getAddress());
+				configuration.setInteger(RestOptions.PORT, restEndpoint.get().getPort());
 			} else {
 				throw new RuntimeException(
 						new ClusterRetrieveException(
@@ -91,7 +106,13 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 			}
 
 			try {
-				return new RestClusterClient<>(configuration, clusterId);
+				// Flink client will always use Kubernetes service to contact with jobmanager. So we have a pre-configured web
+				// monitor address. Using StandaloneClientHAServices to create RestClusterClient is reasonable.
+				return new RestClusterClient<>(
+					configuration,
+					clusterId,
+					new StandaloneClientHAServices(HighAvailabilityServicesUtils.getWebMonitorAddress(
+						configuration, HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION)));
 			} catch (Exception e) {
 				client.handleException(e);
 				throw new RuntimeException(new ClusterRetrieveException("Could not create the RestClusterClient.", e));
@@ -129,11 +150,53 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	}
 
 	@Override
+	public ClusterClientProvider<String> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) throws ClusterDeploymentException {
+		if (client.getRestService(clusterId).isPresent()) {
+			throw new ClusterDeploymentException("The Flink cluster " + clusterId + " already exists.");
+		}
+
+		checkNotNull(clusterSpecification);
+		checkNotNull(applicationConfiguration);
+
+		final KubernetesDeploymentTarget deploymentTarget = KubernetesDeploymentTarget.fromConfig(flinkConfig);
+		if (KubernetesDeploymentTarget.APPLICATION != deploymentTarget) {
+			throw new ClusterDeploymentException(
+				"Couldn't deploy Kubernetes Application Cluster." +
+					" Expected deployment.target=" + KubernetesDeploymentTarget.APPLICATION.getName() +
+					" but actual one was \"" + deploymentTarget + "\"");
+		}
+
+		applicationConfiguration.applyToConfiguration(flinkConfig);
+
+		// No need to do pipelineJars validation if it is a PyFlink job.
+		if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName()) ||
+			PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
+			final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
+			Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+		}
+
+		final ClusterClientProvider<String> clusterClientProvider = deployClusterInternal(
+			KubernetesApplicationClusterEntrypoint.class.getName(),
+			clusterSpecification,
+			false);
+
+		try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
+			LOG.info(
+				"Create flink application cluster {} successfully, JobManager Web Interface: {}",
+				clusterId,
+				clusterClient.getWebInterfaceURL());
+		}
+		return clusterClientProvider;
+	}
+
+	@Override
 	public ClusterClientProvider<String> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) throws ClusterDeploymentException {
-		throw new ClusterDeploymentException("Per job could not be supported now.");
+		throw new ClusterDeploymentException("Per-Job Mode not supported by Active Kubernetes deployments.");
 	}
 
 	private ClusterClientProvider<String> deployClusterInternal(
@@ -148,49 +211,36 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		flinkConfig.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entryPoint);
 
 		// Rpc, blob, rest, taskManagerRpc ports need to be exposed, so update them to fixed values.
-		if (KubernetesUtils.parsePort(flinkConfig, BlobServerOptions.PORT) == 0) {
-			flinkConfig.setString(BlobServerOptions.PORT, String.valueOf(Constants.BLOB_SERVER_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				BlobServerOptions.PORT.key(),
-				Constants.BLOB_SERVER_PORT);
-		}
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, BlobServerOptions.PORT, Constants.BLOB_SERVER_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, TaskManagerOptions.RPC_PORT, Constants.TASK_MANAGER_RPC_PORT);
+		KubernetesUtils.checkAndUpdatePortConfigOption(flinkConfig, RestOptions.BIND_PORT, Constants.REST_PORT);
 
-		if (KubernetesUtils.parsePort(flinkConfig, TaskManagerOptions.RPC_PORT) == 0) {
-			flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
-			LOG.warn(
-				"Kubernetes service requires a fixed port. Configuration {} will be set to {}",
-				TaskManagerOptions.RPC_PORT.key(),
-				Constants.TASK_MANAGER_RPC_PORT);
+		if (HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+			flinkConfig.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
+			KubernetesUtils.checkAndUpdatePortConfigOption(
+				flinkConfig,
+				HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE,
+				flinkConfig.get(JobManagerOptions.PORT));
 		}
-
-		// Set jobmanager address to namespaced service name
-		final String nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-		flinkConfig.setString(JobManagerOptions.ADDRESS, clusterId + "." + nameSpace);
 
 		try {
-			final KubernetesService internalSvc = client.createInternalService(clusterId).get();
-			// Update the service id in Flink config, it will be used for gc.
-			final String serviceId = internalSvc.getInternalResource().getMetadata().getUid();
-			if (serviceId != null) {
-				flinkConfig.setString(KubernetesConfigOptionsInternal.SERVICE_ID, serviceId);
-			} else {
-				throw new ClusterDeploymentException("Get service id failed.");
-			}
+			final KubernetesJobManagerParameters kubernetesJobManagerParameters =
+				new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
 
-			// Create the rest service when exposed type is not ClusterIp.
-			final String restSvcExposedType = flinkConfig.getString(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
-			if (!restSvcExposedType.equals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.toString())) {
-				client.createRestService(clusterId).get();
-			}
+			final KubernetesJobManagerSpecification kubernetesJobManagerSpec =
+				KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
-			client.createConfigMap();
-			client.createFlinkMasterDeployment(clusterSpecification);
+			client.createJobManagerComponent(kubernetesJobManagerSpec);
 
 			return createClusterClientProvider(clusterId);
 		} catch (Exception e) {
-			client.handleException(e);
-			throw new ClusterDeploymentException("Could not create Kubernetes cluster " + clusterId, e);
+			try {
+				LOG.warn("Failed to create the Kubernetes cluster \"{}\", try to clean up the residual resources.", clusterId);
+				client.stopAndCleanupCluster(clusterId);
+			} catch (Exception e1) {
+				LOG.info("Failed to stop and clean up the Kubernetes cluster \"{}\".", clusterId, e1);
+			}
+			throw new ClusterDeploymentException("Could not create Kubernetes cluster \"" + clusterId + "\".", e);
 		}
 	}
 

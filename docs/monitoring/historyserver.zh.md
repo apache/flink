@@ -22,62 +22,68 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink has a history server that can be used to query the statistics of completed jobs after the corresponding Flink cluster has been shut down.
+Flink 提供了 history server，可以在相应的 Flink 集群关闭之后查询已完成作业的统计信息。
 
-Furthermore, it exposes a REST API that accepts HTTP requests and responds with JSON data.
+此外，它暴露了一套 REST API，该 API 接受 HTTP 请求并返回 JSON 格式的数据。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Overview
+<a name="overview"></a>
 
-The HistoryServer allows you to query the status and statistics of completed jobs that have been archived by a JobManager.
+## 概览
 
-After you have configured the HistoryServer *and* JobManager, you start and stop the HistoryServer via its corresponding startup script:
+HistoryServer 允许查询 JobManager 存档的已完成作业的状态和统计信息。
+
+在配置 HistoryServer *和* JobManager 之后，你可以使用相应的脚本来启动和停止 HistoryServer：
 
 {% highlight shell %}
-# Start or stop the HistoryServer
+# 启动或者停止 HistoryServer
 bin/historyserver.sh (start|start-foreground|stop)
 {% endhighlight %}
 
-By default, this server binds to `localhost` and listens at port `8082`.
+默认情况下，此服务器绑定到 `localhost` 的 `8082` 端口。
 
-Currently, you can only run it as a standalone process.
+目前，只能将 HistoryServer 作为独立的进程运行。
 
-## Configuration
+<a name="configuration"></a>
 
-The configuration keys `jobmanager.archive.fs.dir` and `historyserver.archive.fs.refresh-interval` need to be adjusted for archiving and displaying archived jobs.
+## 配置参数
+
+配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据 `作业存档目录` 和 `刷新作业存档目录的时间间隔` 进行调整。
 
 **JobManager**
 
-The archiving of completed jobs happens on the JobManager, which uploads the archived job information to a file system directory. You can configure the directory to archive completed jobs in `flink-conf.yaml` by setting a directory via `jobmanager.archive.fs.dir`.
+已完成作业的存档在 JobManager 上进行，将已存档的作业信息上传到文件系统目录中。你可以在 `flink-conf.yaml` 文件中通过 `jobmanager.archive.fs.dir` 设置一个目录存档已完成的作业。
 
 {% highlight yaml %}
-# Directory to upload completed job information
+# 上传已完成作业信息的目录
 jobmanager.archive.fs.dir: hdfs:///completed-jobs
 {% endhighlight %}
 
 **HistoryServer**
 
-The HistoryServer can be configured to monitor a comma-separated list of directories in via `historyserver.archive.fs.dir`. The configured directories are regularly polled for new archives; the polling interval can be configured via `historyserver.archive.fs.refresh-interval`.
+可以通过 `historyserver.archive.fs.dir` 设置 HistoryServer 监视以逗号分隔的目录列表。定期轮询已配置的目录以查找新的存档；轮询间隔可以通过 `historyserver.archive.fs.refresh-interval` 来配置。
 
 {% highlight yaml %}
-# Monitor the following directories for completed jobs
+# 监视以下目录中已完成的作业
 historyserver.archive.fs.dir: hdfs:///completed-jobs
 
-# Refresh every 10 seconds
+# 每 10 秒刷新一次
 historyserver.archive.fs.refresh-interval: 10000
 {% endhighlight %}
 
-The contained archives are downloaded and cached in the local filesystem. The local directory for this is configured via `historyserver.web.tmpdir`.
+所包含的存档被下载缓存在本地文件系统中。本地目录通过 `historyserver.web.tmpdir` 配置。
 
-Check out the configuration page for a [complete list of configuration options]({{ site.baseurl }}/ops/config.html#history-server).
+请查看配置页面以获取[配置选项的完整列表]({% link ops/config.zh.md %}#history-server)。
 
-## Available Requests
+<a name="available-requests"></a>
 
-Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8082/jobs`, below we list only the *path* part of the URLs.
+## 可用的请求
 
-Values in angle brackets are variables, for example `http://hostname:port/jobs/<jobid>/exceptions` will have to requested for example as `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`.
+以下是可用且带有示例 JSON 响应的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
+尖括号中的值为变量，例如作业 `7684be6004e4e955c2a558a9bc463f65` 的 
+`http://hostname:port/jobs/<jobid>/exceptions` 请求须写为 `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`。
 
   - `/config`
   - `/jobs/overview`

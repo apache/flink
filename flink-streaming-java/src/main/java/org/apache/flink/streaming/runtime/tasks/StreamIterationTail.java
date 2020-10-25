@@ -43,7 +43,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
-	public StreamIterationTail(Environment environment) {
+	public StreamIterationTail(Environment environment) throws Exception {
 		super(environment);
 	}
 
@@ -70,7 +70,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 		RecordPusher<IN> headOperator = new RecordPusher<>();
 		headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
-		this.headOperator = headOperator;
+		this.mainOperator = headOperator;
 
 		// call super.init() last because that needs this.headOperator to be set up
 		super.init();

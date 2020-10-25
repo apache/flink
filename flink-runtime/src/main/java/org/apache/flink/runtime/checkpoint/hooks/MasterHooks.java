@@ -58,7 +58,7 @@ public class MasterHooks {
 	 */
 	public static void reset(
 		final Collection<MasterTriggerRestoreHook<?>> hooks,
-		final Logger log) throws FlinkException {
+		@SuppressWarnings("unused") final Logger log) throws FlinkException {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			final String id = hook.getIdentifier();
@@ -76,12 +76,10 @@ public class MasterHooks {
 	 * Closes the master hooks.
 	 *
 	 * @param hooks The hooks to close
-	 *
-	 * @throws FlinkException Thrown, if the hooks throw an exception.
 	 */
 	public static void close(
 		final Collection<MasterTriggerRestoreHook<?>> hooks,
-		final Logger log) throws FlinkException {
+		final Logger log) {
 
 		for (MasterTriggerRestoreHook<?> hook : hooks) {
 			try {
@@ -320,12 +318,7 @@ public class MasterHooks {
 		@Nullable
 		@Override
 		public CompletableFuture<T> triggerCheckpoint(long checkpointId, long timestamp, final Executor executor) throws Exception {
-			final Executor wrappedExecutor = new Executor() {
-				@Override
-				public void execute(Runnable command) {
-					executor.execute(new WrappedCommand(userClassLoader, command));
-				}
-			};
+			final Executor wrappedExecutor = command -> executor.execute(new WrappedCommand(userClassLoader, command));
 
 			return LambdaUtil.withContextClassLoader(
 					userClassLoader,

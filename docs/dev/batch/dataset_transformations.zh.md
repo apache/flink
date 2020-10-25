@@ -1470,7 +1470,7 @@ return (collect), zero, one, or more elements.
 public class PointAssigner
          implements FlatJoinFunction<Tuple2<String, String>, Rating, Tuple2<String, Integer>> {
   @Override
-  public void join(Tuple2<String, String> movie, Rating rating
+  public void join(Tuple2<String, String> movie, Rating rating,
     Collector<Tuple2<String, Integer>> out) {
   if (rating == null ) {
     out.collect(new Tuple2<String, Integer>(movie.f0, -1));

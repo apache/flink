@@ -28,6 +28,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.concurrent.Executor;
 
 /**
  * {@link DispatcherFactory} services container.
@@ -47,7 +50,8 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nonnull String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
+			@Nonnull Executor ioExecutor,
 			@Nonnull JobGraphWriter jobGraphWriter) {
 		super(
 			configuration,
@@ -59,7 +63,8 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
 			archivedExecutionGraphStore,
 			fatalErrorHandler,
 			historyServerArchivist,
-			metricQueryServiceAddress);
+			metricQueryServiceAddress,
+			ioExecutor);
 		this.jobGraphWriter = jobGraphWriter;
 	}
 
@@ -80,6 +85,7 @@ public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatche
 			partialDispatcherServices.getFatalErrorHandler(),
 			partialDispatcherServices.getHistoryServerArchivist(),
 			partialDispatcherServices.getMetricQueryServiceAddress(),
+			partialDispatcherServices.getIoExecutor(),
 			jobGraphWriter);
 	}
 }

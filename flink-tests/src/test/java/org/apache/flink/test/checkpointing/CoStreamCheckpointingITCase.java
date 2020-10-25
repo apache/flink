@@ -227,6 +227,10 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
 			}
 		}
 
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
 		private static String randomString(StringBuilder bld, Random rnd) {
 			final int len = rnd.nextInt(10) + 5;
 

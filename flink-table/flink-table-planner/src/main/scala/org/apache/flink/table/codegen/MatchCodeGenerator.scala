@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.codegen
 
-import java.lang.{Long => JLong}
-import java.util
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlAggFunction
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.cep.functions.PatternProcessFunction
@@ -32,22 +26,29 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.dataview.DataViewSpec
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.ImperativeAggregateFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
-import org.apache.flink.table.catalog.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
 
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
+
+import java.lang.{Long => JLong}
+import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -890,7 +891,7 @@ class MatchCodeGenerator(
     )
 
     private case class SingleAggCall(
-      aggFunction: UserDefinedAggregateFunction[_, _],
+      aggFunction: ImperativeAggregateFunction[_, _],
       inputIndices: Array[Int],
       dataViews: Seq[DataViewSpec[_]],
       distinctAccIndex: Int

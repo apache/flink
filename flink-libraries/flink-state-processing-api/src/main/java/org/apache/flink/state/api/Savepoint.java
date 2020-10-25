@@ -21,6 +21,7 @@ package org.apache.flink.state.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
@@ -52,17 +53,17 @@ public final class Savepoint {
 	 * @param stateBackend The state backend of the savepoint.
 	 */
 	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
-		org.apache.flink.runtime.checkpoint.savepoint.Savepoint savepoint = SavepointLoader.loadSavepoint(path);
+		CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
 
-		int maxParallelism = savepoint
+		int maxParallelism = metadata
 			.getOperatorStates()
 			.stream()
 			.map(OperatorState::getMaxParallelism)
 			.max(Comparator.naturalOrder())
 			.orElseThrow(() -> new RuntimeException("Savepoint must contain at least one operator state."));
 
-		SavepointMetadata metadata = new SavepointMetadata(maxParallelism, savepoint.getMasterStates(), savepoint.getOperatorStates());
-		return new ExistingSavepoint(env, metadata, stateBackend);
+		SavepointMetadata savepointMetadata = new SavepointMetadata(maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+		return new ExistingSavepoint(env, savepointMetadata, stateBackend);
 	}
 
 	/**

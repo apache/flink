@@ -55,6 +55,8 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** Flag whether this reader is released. Atomic, to avoid double release. */
 	private boolean isReleased;
 
+	private int sequenceNumber;
+
 	/**
 	 * Convenience constructor that takes a single buffer.
 	 */
@@ -93,7 +95,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		assert dataReader != null;
 		nextBuffer = dataReader.nextBuffer();
 
-		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
+		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog, sequenceNumber++);
 	}
 
 	/**
@@ -146,13 +148,17 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return nextBuffer != null && !nextBuffer.isBuffer();
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("Method should never be called.");
 	}
 
 	@Override
-	public boolean isAvailable() {
-		return nextBuffer != null;
+	public boolean isAvailable(int numCreditsAvailable) {
+		if (numCreditsAvailable > 0) {
+			return nextBuffer != null;
+		}
+
+		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override
@@ -170,6 +176,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),
-				parent.index);
+				parent.getSubPartitionIndex());
 	}
 }

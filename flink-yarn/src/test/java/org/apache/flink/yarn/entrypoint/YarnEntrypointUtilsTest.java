@@ -20,8 +20,10 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.YarnConfigKeys;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.junit.ClassRule;
@@ -37,6 +39,7 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -93,14 +96,45 @@ public class YarnEntrypointUtilsTest extends TestLogger {
 		assertThat(configuration.getString(RestOptions.BIND_PORT), is(equalTo(bindingPortRange)));
 	}
 
+	@Test
+	public void testParsingValidKerberosEnv() throws IOException {
+		final Configuration initialConfiguration = new Configuration();
+		Map<String, String> env = new HashMap<>();
+		File keytabFile = TEMPORARY_FOLDER.newFile();
+		env.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, keytabFile.getAbsolutePath());
+		env.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "starlord");
+
+		Configuration configuration = loadConfiguration(initialConfiguration, env);
+
+		assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB), is(keytabFile.getAbsolutePath()));
+		assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), is("starlord"));
+	}
+
+	@Test
+	public void testParsingKerberosEnvWithMissingKeytab() throws IOException {
+		final Configuration initialConfiguration = new Configuration();
+		Map<String, String> env = new HashMap<>();
+		env.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, "/hopefully/doesnt/exist");
+		env.put(YarnConfigKeys.KEYTAB_PRINCIPAL, "starlord");
+
+		Configuration configuration = loadConfiguration(initialConfiguration, env);
+
+		// both keytab and principal should be null
+		assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB), nullValue());
+		assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), nullValue());
+	}
+
 	@Nonnull
 	private static Configuration loadConfiguration(Configuration initialConfiguration) throws IOException {
-		final File workingDirectory = TEMPORARY_FOLDER.newFolder();
-		final Map<String, String> env = new HashMap<>(4);
-		env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
+		final Map<String, String> env = new HashMap<>();
+		return loadConfiguration(initialConfiguration, env);
+	}
 
+	@Nonnull
+	private static Configuration loadConfiguration(Configuration initialConfiguration, Map<String, String> env) throws IOException {
+		final File workingDirectory = TEMPORARY_FOLDER.newFolder();
+		env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
 		BootstrapTools.writeConfiguration(initialConfiguration, new File(workingDirectory, "flink-conf.yaml"));
 		return YarnEntrypointUtils.loadConfiguration(workingDirectory.getAbsolutePath(), env);
 	}
-
 }

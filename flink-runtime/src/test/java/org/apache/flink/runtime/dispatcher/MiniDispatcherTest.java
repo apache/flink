@@ -24,6 +24,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -37,23 +38,24 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.UUID;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
@@ -69,6 +71,9 @@ public class MiniDispatcherTest extends TestLogger {
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
 
 	private static JobGraph jobGraph;
 
@@ -87,8 +92,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
-
-	private TestingFatalErrorHandler testingFatalErrorHandler;
 
 	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
@@ -112,14 +115,8 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		highAvailabilityServices = new TestingHighAvailabilityServicesBuilder().build();
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
-	}
-
-	@After
-	public void teardown() throws Exception {
-		testingFatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
@@ -206,6 +203,33 @@ public class MiniDispatcherTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testShutdownIfJobCancelledInNormalMode() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.NORMAL);
+		miniDispatcher.start();
+
+		try {
+			// wait until we have submitted the job
+			final TestingJobManagerRunner testingJobManagerRunner = testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+			assertFalse(miniDispatcher.getTerminationFuture().isDone());
+
+			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
+
+			dispatcherGateway.cancelJob(jobGraph.getJobID(), Time.seconds(10L));
+			testingJobManagerRunner.completeResultFuture(new ArchivedExecutionGraphBuilder()
+				.setJobID(jobGraph.getJobID())
+				.setState(JobStatus.CANCELED)
+				.build());
+
+			ApplicationStatus applicationStatus = miniDispatcher.getShutDownFuture().get();
+			assertThat(applicationStatus, is(ApplicationStatus.CANCELED));
+		}
+		finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
 	// --------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------
@@ -214,7 +238,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private MiniDispatcher createMiniDispatcher(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		return new MiniDispatcher(
 			rpcService,
-			UUID.randomUUID().toString(),
 			DispatcherId.generate(),
 			new DispatcherServices(
 				configuration,
@@ -223,13 +246,14 @@ public class MiniDispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				archivedExecutionGraphStore,
-				testingFatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
-				testingJobManagerRunnerFactory),
-			jobGraph,
+				testingJobManagerRunnerFactory,
+				ForkJoinPool.commonPool()),
+			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 

@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.data.{JoinedRowData, RowData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer
-import org.apache.flink.table.runtime.util.ResettableExternalBuffer
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer
+import org.apache.flink.table.runtime.util.{LazyMemorySegmentPool, ResettableExternalBuffer}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex.RexNode
@@ -54,9 +54,7 @@ class NestedLoopJoinCodeGenerator(
     }
   }
 
-  def gen(): CodeGenOperatorFactory[BaseRow] = {
-    val config = ctx.tableConfig
-
+  def gen(): CodeGenOperatorFactory[RowData] = {
     val exprGenerator = new ExprCodeGenerator(ctx, joinType.isOuter)
         .bindInput(leftType).bindSecondInput(rightType)
 
@@ -69,7 +67,7 @@ class NestedLoopJoinCodeGenerator(
     val isBinaryRow = newName("isBinaryRow")
 
     if (singleRowJoin) {
-      ctx.addReusableMember(s"$BASE_ROW $buildRow = null;")
+      ctx.addReusableMember(s"$ROW_DATA $buildRow = null;")
     } else {
       ctx.addReusableMember(s"boolean $isFirstRow = true;")
       ctx.addReusableMember(s"boolean $isBinaryRow = false;")
@@ -78,8 +76,8 @@ class NestedLoopJoinCodeGenerator(
       def initSerializer(i: Int): Unit = {
         ctx.addReusableOpenStatement(
           s"""
-             |${className[AbstractRowSerializer[_]]} $serializer =
-             |  (${className[AbstractRowSerializer[_]]}) getOperatorConfig()
+             |${className[AbstractRowDataSerializer[_]]} $serializer =
+             |  (${className[AbstractRowDataSerializer[_]]}) getOperatorConfig()
              |    .getTypeSerializerIn$i(getUserCodeClassloader());
              |""".stripMargin)
       }
@@ -97,9 +95,9 @@ class NestedLoopJoinCodeGenerator(
     val buildRowSer = ctx.addReusableTypeSerializer(if (leftIsBuild) leftType else rightType)
 
     val buildProcessCode = if (singleRowJoin) {
-      s"this.$buildRow = ($BASE_ROW) $buildRowSer.copy($buildRow);"
+      s"this.$buildRow = ($ROW_DATA) $buildRowSer.copy($buildRow);"
     } else {
-      s"$buffer.add(($BASE_ROW) $buildRow);"
+      s"$buffer.add(($ROW_DATA) $buildRow);"
     }
 
     var (probeProcessCode, buildEndCode, probeEndCode) =
@@ -124,7 +122,7 @@ class NestedLoopJoinCodeGenerator(
       }
 
     // generator operatorExpression
-    val genOp = OperatorCodeGenerator.generateTwoInputStreamOperator[BaseRow, BaseRow, BaseRow](
+    val genOp = OperatorCodeGenerator.generateTwoInputStreamOperator[RowData, RowData, RowData](
       ctx,
       "BatchNestedLoopJoin",
       processCode1,
@@ -141,7 +139,7 @@ class NestedLoopJoinCodeGenerator(
          """.stripMargin),
       endInputCode1 = Some(endInputCode1),
       endInputCode2 = Some(endInputCode2))
-    new CodeGenOperatorFactory[BaseRow](genOp)
+    new CodeGenOperatorFactory[RowData](genOp)
   }
 
   /**
@@ -162,7 +160,7 @@ class NestedLoopJoinCodeGenerator(
     val isFull = joinType == FlinkJoinType.FULL
     val probeOuter = joinType.isOuter
 
-    ctx.addReusableOutputRecord(outputType, classOf[JoinedRow], joinedRowTerm)
+    ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], joinedRowTerm)
     ctx.addReusableNullRow(buildNullRow, buildArity)
 
     val bitSetTerm = classOf[util.BitSet].getCanonicalName
@@ -351,10 +349,11 @@ class NestedLoopJoinCodeGenerator(
     val open =
       s"""
          |$fieldTerm = new ${className[ResettableExternalBuffer]}(
-         |  $memManager,
          |  $ioManager,
-         |  $memManager.allocatePages(
-         |    getContainingTask(), (int) (computeMemorySize() / $memManager.getPageSize())),
+         |  new ${className[LazyMemorySegmentPool]}(
+         |    getContainingTask(),
+         |    $memManager,
+         |    (int) (computeMemorySize() / $memManager.getPageSize())),
          |  $serializer,
          |  false);
          |""".stripMargin

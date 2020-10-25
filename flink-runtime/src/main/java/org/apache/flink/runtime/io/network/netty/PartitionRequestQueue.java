@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 
@@ -140,20 +141,22 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	}
 
 	/**
-	 * Adds unannounced credits from the consumer and enqueues the corresponding reader for this
-	 * consumer (if not enqueued yet).
+	 * Adds unannounced credits from the consumer or resumes data consumption after an exactly-once
+	 * checkpoint and enqueues the corresponding reader for this consumer (if not enqueued yet).
 	 *
 	 * @param receiverId The input channel id to identify the consumer.
-	 * @param credit The unannounced credits of the consumer.
+	 * @param operation The operation to be performed (add credit or resume data consumption).
 	 */
-	void addCredit(InputChannelID receiverId, int credit) throws Exception {
+	void addCreditOrResumeConsumption(
+			InputChannelID receiverId,
+			Consumer<NetworkSequenceViewReader> operation) throws Exception {
 		if (fatalError) {
 			return;
 		}
 
 		NetworkSequenceViewReader reader = allReaders.get(receiverId);
 		if (reader != null) {
-			reader.addCredit(credit);
+			operation.accept(reader);
 
 			enqueueAvailableReader(reader);
 		} else {
@@ -233,7 +236,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 					BufferResponse msg = new BufferResponse(
 						next.buffer(),
-						reader.getSequenceNumber(),
+						next.getSequenceNumber(),
 						reader.getReceiverId(),
 						next.buffersInBacklog());
 

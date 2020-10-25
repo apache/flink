@@ -20,15 +20,15 @@ package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
 /**
@@ -40,19 +40,19 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
  *
  * <p>NOTE: Use {@link NonBufferOverWindowOperator} only when all frames do not need buffer data.
  */
-public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow> {
+public class NonBufferOverWindowOperator extends TableStreamOperator<RowData>
+		implements OneInputStreamOperator<RowData, RowData> {
 
 	private GeneratedAggsHandleFunction[] aggsHandlers;
 	private GeneratedRecordComparator genComparator;
 	private final boolean[] resetAccumulators;
 
 	private RecordComparator partitionComparator;
-	private BaseRow lastInput;
+	private RowData lastInput;
 	private AggsHandleFunction[] processors;
-	private JoinedRow[] joinedRows;
-	private StreamRecordCollector<BaseRow> collector;
-	private AbstractRowSerializer<BaseRow> serializer;
+	private JoinedRowData[] joinedRows;
+	private StreamRecordCollector<RowData> collector;
+	private AbstractRowDataSerializer<RowData> serializer;
 
 	public NonBufferOverWindowOperator(
 			GeneratedAggsHandleFunction[] aggsHandlers,
@@ -68,29 +68,29 @@ public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
 		super.open();
 
 		ClassLoader cl = getUserCodeClassloader();
-		serializer = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
+		serializer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
 		partitionComparator = genComparator.newInstance(cl);
 		genComparator = null;
 
 		collector = new StreamRecordCollector<>(output);
 		processors = new AggsHandleFunction[aggsHandlers.length];
-		joinedRows = new JoinedRow[aggsHandlers.length];
+		joinedRows = new JoinedRowData[aggsHandlers.length];
 		for (int i = 0; i < aggsHandlers.length; i++) {
 			AggsHandleFunction func = aggsHandlers[i].newInstance(cl);
 			func.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 			processors[i] = func;
-			joinedRows[i] = new JoinedRow();
+			joinedRows[i] = new JoinedRowData();
 		}
 		aggsHandlers = null;
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 		boolean changePartition = lastInput == null || partitionComparator.compare(lastInput, input) != 0;
 
 		//calculate the ACC
-		BaseRow output = input;
+		RowData output = input;
 		for (int i = 0; i < processors.length; i++) {
 			AggsHandleFunction processor = processors[i];
 
@@ -98,9 +98,9 @@ public class NonBufferOverWindowOperator extends TableStreamOperator<BaseRow>
 				processor.setAccumulators(processor.createAccumulators());
 			}
 
-			// TODO Reform AggsHandleFunction.getValue instead of use JoinedRow. Multilayer JoinedRow is slow.
+			// TODO Reform AggsHandleFunction.getValue instead of use JoinedRowData. Multilayer JoinedRowData is slow.
 			processor.accumulate(input);
-			BaseRow value = processor.getValue();
+			RowData value = processor.getValue();
 			output = joinedRows[i].replace(output, value);
 		}
 		collector.collect(output);

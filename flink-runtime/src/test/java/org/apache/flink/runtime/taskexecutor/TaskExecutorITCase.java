@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
@@ -36,14 +37,12 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -58,7 +57,6 @@ import static org.junit.Assert.assertThat;
 /**
  * Integration tests for the {@link TaskExecutor}.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class TaskExecutorITCase extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -106,11 +104,11 @@ public class TaskExecutorITCase extends TestLogger {
 
 		miniCluster.startTaskExecutor();
 
+		final JobGraph newJobGraph = createJobGraph(PARALLELISM);
 		BlockingOperator.unblock();
+		miniCluster.submitJob(newJobGraph).get();
 
-		miniCluster.submitJob(jobGraph).get();
-
-		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+		miniCluster.requestJobResult(newJobGraph.getJobID()).get();
 	}
 
 	/**
@@ -153,7 +151,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 		return () -> {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
-			return allExecutionsRunning.test(executionGraph);
+			return allExecutionsRunning.test(executionGraph) && executionGraph.getState() == JobStatus.RUNNING;
 		};
 	}
 

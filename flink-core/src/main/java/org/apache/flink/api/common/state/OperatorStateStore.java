@@ -20,7 +20,6 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.io.Serializable;
 import java.util.Set;
 
 /**
@@ -111,41 +110,4 @@ public interface OperatorStateStore {
 	 * @return set of names for all registered broadcast states.
 	 */
 	Set<String> getRegisteredBroadcastStateNames();
-
-	// -------------------------------------------------------------------------------------------
-	//  Deprecated methods
-	// -------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates (or restores) a list state. Each state is registered under a unique name.
-	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
-	 *
-	 * <p>The items in the list are repartitionable by the system in case of changed operator parallelism.
-	 *
-	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
-	 * @param <S> The generic type of the state
-	 *
-	 * @return A list for all state partitions.
-	 *
-	 * @deprecated since 1.3.0. This was deprecated as part of a refinement to the function names.
-	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
-	 */
-	@Deprecated
-	<S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception;
-
-	/**
-	 * Creates a state of the given name that uses Java serialization to persist the state. The items in the list
-	 * are repartitionable by the system in case of changed operator parallelism.
-	 *
-	 * <p>This is a simple convenience method. For more flexibility on how state serialization
-	 * should happen, use the {@link #getListState(ListStateDescriptor)} method.
-	 *
-	 * @param stateName The name of state to create
-	 * @return A list state using Java serialization to serialize state objects.
-	 *
-	 * @deprecated since 1.3.0. Using Java serialization for persisting state is not encouraged.
-	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
-	 */
-	@Deprecated
-	<T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception;
 }

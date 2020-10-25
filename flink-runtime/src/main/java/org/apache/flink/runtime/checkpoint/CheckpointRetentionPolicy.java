@@ -33,5 +33,5 @@ public enum CheckpointRetentionPolicy {
 	RETAIN_ON_FAILURE,
 
 	/** Checkpoints should always be cleaned up when an application reaches a terminal state. */
-	NEVER_RETAIN_AFTER_TERMINATION;
+	NEVER_RETAIN_AFTER_TERMINATION
 }

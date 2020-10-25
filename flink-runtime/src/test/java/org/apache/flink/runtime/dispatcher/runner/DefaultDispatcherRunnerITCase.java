@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
@@ -42,7 +44,6 @@ import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.minicluster.SessionDispatcherWithUUIDFactory;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -63,6 +64,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
@@ -101,7 +103,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
 	@Before
 	public void setup() {
-		dispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE);
+		dispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE);
 		jobGraph = createJobGraph();
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		fatalErrorHandler = new TestingFatalErrorHandler();
@@ -117,7 +119,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE,
-			null);
+			null,
+			ForkJoinPool.commonPool());
 	}
 
 	@After
@@ -205,13 +208,12 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		public Dispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrap dispatcherBootstrap,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
-				generateEndpointIdWithUUID(),
 				fencingToken,
-				recoveredJobs,
+				dispatcherBootstrap,
 				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
 		}
 	}

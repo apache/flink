@@ -259,14 +259,19 @@ public abstract class CatalogTest {
 		assertEquals(path1.getObjectName(), tables.get(0));
 
 		catalog.dropTable(path1, false);
+	}
+
+	@Test
+	public void testCreatePartitionedTable_Batch() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
 
 		// Partitioned table
-		table = createPartitionedTable();
+		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 
-		tables = catalog.listTables(db1);
+		List<String> tables = catalog.listTables(db1);
 
 		assertEquals(1, tables.size());
 		assertEquals(path1.getObjectName(), tables.get(0));
@@ -364,17 +369,6 @@ public abstract class CatalogTest {
 
 		catalog.dropTable(path1, false);
 
-		// Partitioned table
-		table = createPartitionedTable();
-		catalog.createTable(path1, table, false);
-
-		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
-
-		newTable = createAnotherPartitionedTable();
-		catalog.alterTable(path1, newTable, false);
-
-		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
-
 		// View
 		CatalogView view = createView();
 		catalog.createTable(path3, view, false);
@@ -386,6 +380,22 @@ public abstract class CatalogTest {
 
 		assertNotEquals(view, catalog.getTable(path3));
 		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path3));
+	}
+
+	@Test
+	public void testAlterPartitionedTable() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		// Partitioned table
+		CatalogTable table = createPartitionedTable();
+		catalog.createTable(path1, table, false);
+
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
+
+		CatalogTable newTable = createAnotherPartitionedTable();
+		catalog.alterTable(path1, newTable, false);
+
+		CatalogTestUtil.checkEquals(newTable, (CatalogTable) catalog.getTable(path1));
 	}
 
 	@Test
@@ -618,6 +628,16 @@ public abstract class CatalogTest {
 	}
 
 	@Test
+	public void testCreatePythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogFunction pythonFunction = createPythonFunction();
+		catalog.createFunction(path1, createPythonFunction(), false);
+
+		CatalogFunction actual = catalog.getFunction(path1);
+		checkEquals(pythonFunction, actual);
+	}
+
+	@Test
 	public void testCreateFunction_DatabaseNotExistException() throws Exception {
 		assertFalse(catalog.databaseExists(db1));
 
@@ -651,6 +671,23 @@ public abstract class CatalogTest {
 		checkEquals(func, catalog.getFunction(path1));
 
 		CatalogFunction newFunc = createAnotherFunction();
+		catalog.alterFunction(path1, newFunc, false);
+		CatalogFunction actual = catalog.getFunction(path1);
+
+		assertFalse(func.getClassName().equals(actual.getClassName()));
+		checkEquals(newFunc, actual);
+	}
+
+	@Test
+	public void testAlterPythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		checkEquals(func, catalog.getFunction(path1));
+
+		CatalogFunction newFunc = createPythonFunction();
 		catalog.alterFunction(path1, newFunc, false);
 		CatalogFunction actual = catalog.getFunction(path1);
 
@@ -1210,6 +1247,11 @@ public abstract class CatalogTest {
 	protected abstract CatalogFunction createFunction();
 
 	/**
+	 * Create a Python CatalogFunction instance by specific catalog implementation.
+	 */
+	protected abstract CatalogFunction createPythonFunction();
+
+	/**
 	 * Create another CatalogFunction instance by specific catalog implementation.
 	 *
 	 * @return another CatalogFunction instance
@@ -1293,7 +1335,7 @@ public abstract class CatalogTest {
 
 		@Override
 		public TableSchema getSchema() {
-			return null;
+			return TableSchema.builder().build();
 		}
 
 		@Override
@@ -1318,7 +1360,7 @@ public abstract class CatalogTest {
 	}
 
 	// ------ equality check utils ------
-	// Can be overriden by sub test class
+	// Can be overridden by sub test class
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());

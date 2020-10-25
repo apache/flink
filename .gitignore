@@ -36,6 +36,9 @@ flink-python/dev/.conda/
 flink-python/dev/log/
 flink-python/dev/.stage.txt
 flink-python/.eggs/
+flink-python/apache-flink-*.dev0/
+flink-python/**/*.c
+flink-python/**/*.so
 atlassian-ide-plugin.xml
 out/
 /docs/api

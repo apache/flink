@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -29,7 +28,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -47,7 +45,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 	 *
 	 * @param env The task environment for this task.
 	 */
-	public AbstractTwoInputStreamTask(Environment env) {
+	public AbstractTwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 
 		input1WatermarkGauge = new WatermarkGauge();
@@ -60,19 +58,16 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
-		int numberOfInputs = configuration.getNumberOfInputs();
-
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		ArrayList<IndexedInputGate> inputList1 = new ArrayList<>();
+		ArrayList<IndexedInputGate> inputList2 = new ArrayList<>();
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
+			IndexedInputGate reader = getEnvironment().getInputGate(i);
 			switch (inputType) {
 				case 1:
 					inputList1.add(reader);
@@ -85,18 +80,16 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 			}
 		}
 
-		createInputProcessor(inputList1, inputList2, inputDeserializer1, inputDeserializer2);
+		createInputProcessor(inputList1, inputList2);
 
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
 	}
 
 	protected abstract void createInputProcessor(
-		Collection<InputGate> inputGates1,
-		Collection<InputGate> inputGates2,
-		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) throws Exception;
+		List<IndexedInputGate> inputGates1,
+		List<IndexedInputGate> inputGates2) throws Exception;
 }

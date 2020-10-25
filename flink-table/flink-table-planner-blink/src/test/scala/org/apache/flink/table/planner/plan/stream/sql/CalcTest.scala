@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -76,6 +75,12 @@ class CalcTest extends TableTestBase {
   @Test
   def testIn(): Unit = {
     val sql = s"SELECT * FROM MyTable WHERE b IN (1, 3, 4, 5, 6) AND c = 'xx'"
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testFilterOnNonAsciiLiteral(): Unit = {
+    val sql = s"SELECT a, b, c, c || TRIM(' 世界 ') FROM MyTable WHERE c = '你好'"
     util.verifyPlan(sql)
   }
 

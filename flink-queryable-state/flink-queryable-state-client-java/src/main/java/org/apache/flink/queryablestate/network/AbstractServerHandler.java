@@ -55,6 +55,8 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractServerHandler.class);
 
+	private static final long UNKNOWN_REQUEST_ID = -1;
+
 	/** The owning server of this handler. */
 	private final AbstractServerBase<REQ, RESP> server;
 
@@ -101,13 +103,14 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		REQ request = null;
-		long requestId = -1L;
+		long requestId = UNKNOWN_REQUEST_ID;
 
 		try {
 			final ByteBuf buf = (ByteBuf) msg;
 			final MessageType msgType = MessageSerializer.deserializeHeader(buf);
 
 			requestId = MessageSerializer.getRequestId(buf);
+			LOG.trace("Handling request with ID {}", requestId);
 
 			if (msgType == MessageType.REQUEST) {
 
@@ -135,6 +138,10 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 				ctx.writeAndFlush(failure);
 			}
 		} catch (Throwable t) {
+			LOG.error("Error while handling request with ID [{}]",
+				requestId == UNKNOWN_REQUEST_ID ? "unknown" : requestId,
+				t);
+
 			final String stringifiedCause = ExceptionUtils.stringifyException(t);
 
 			String errMsg;
@@ -148,7 +155,6 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 				err = MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(errMsg));
 			}
 
-			LOG.debug(errMsg);
 			ctx.writeAndFlush(err);
 
 		} finally {
@@ -258,6 +264,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 					write.addListener(new RequestWriteListener());
 
 				} catch (BadRequestException e) {
+					LOG.debug("Bad request (request ID = {})", requestId, e);
 					try {
 						stats.reportFailedRequest();
 						final ByteBuf err = MessageSerializer.serializeRequestFailure(ctx.alloc(), requestId, e);
@@ -266,6 +273,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 						LOG.error("Failed to respond with the error after failed request", io);
 					}
 				} catch (Throwable t) {
+					LOG.error("Error while handling request with ID {}", requestId, t);
 					try {
 						stats.reportFailedRequest();
 
@@ -303,7 +311,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 					LOG.debug("Request {} was successfully answered after {} ms.", request, durationMillis);
 					stats.reportSuccessfulRequest(durationMillis);
 				} else {
-					LOG.debug("Request {} failed after {} ms due to: {}", request, durationMillis, future.cause());
+					LOG.debug("Request {} failed after {} ms", request, durationMillis, future.cause());
 					stats.reportFailedRequest();
 				}
 			}

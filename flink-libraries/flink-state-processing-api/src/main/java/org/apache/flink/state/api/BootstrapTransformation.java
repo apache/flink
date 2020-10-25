@@ -26,7 +26,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
@@ -36,7 +38,7 @@ import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.partitioner.HashSelector;
 import org.apache.flink.state.api.output.partitioner.KeyGroupRangePartitioner;
-import org.apache.flink.state.api.runtime.BoundedStreamConfig;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
@@ -155,8 +157,7 @@ public class BootstrapTransformation<T> {
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
 			config,
-			localMaxParallelism
-		);
+			localMaxParallelism);
 
 		MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates = input
 			.mapPartition(operatorRunner)
@@ -175,18 +176,26 @@ public class BootstrapTransformation<T> {
 
 	@VisibleForTesting
 	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
-		final StreamConfig config;
-		if (keyType == null) {
-			config = new BoundedStreamConfig();
-		} else {
+		// Eagerly perform a deep copy of the configuration, otherwise it will result in undefined behavior
+		// when deploying with multiple bootstrap transformations.
+		Configuration deepCopy = new Configuration(dataSet.getExecutionEnvironment().getConfiguration());
+		final StreamConfig config = new StreamConfig(deepCopy);
+		config.setChainStart();
+		config.setCheckpointingEnabled(true);
+		config.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
+
+		if (keyType != null) {
 			TypeSerializer<?> keySerializer = keyType.createSerializer(dataSet.getExecutionEnvironment().getConfig());
-			config = new BoundedStreamConfig(keySerializer, originalKeySelector);
+
+			config.setStateKeySerializer(keySerializer);
+			config.setStatePartitioner(0, originalKeySelector);
 		}
 
 		config.setStreamOperator(operator);
 		config.setOperatorName(operatorID.toHexString());
 		config.setOperatorID(operatorID);
 		config.setStateBackend(stateBackend);
+		config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
 		return config;
 	}
 

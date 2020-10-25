@@ -20,10 +20,8 @@ package org.apache.flink.state.api.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,6 +31,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +41,10 @@ import java.util.function.Function;
  * A test base that includes utilities for taking a savepoint.
  */
 public abstract class SavepointTestBase extends AbstractTestBase {
+
+	public <T> String takeSavepoint(T[] data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
+		return takeSavepoint(Arrays.asList(data), jobGraphFactory);
+	}
 
 	public <T> String takeSavepoint(Collection<T> data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
 
@@ -56,11 +59,11 @@ public abstract class SavepointTestBase extends AbstractTestBase {
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
 
 		try {
-			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
+			JobID jobID = client.submitJob(jobGraph).get();
 
 			return CompletableFuture
 				.runAsync(waitingSource::awaitSource)
-				.thenCompose(ignore -> triggerSavepoint(client, result.getJobID()))
+				.thenCompose(ignore -> triggerSavepoint(client, jobID))
 				.get(5, TimeUnit.MINUTES);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to take savepoint", e);

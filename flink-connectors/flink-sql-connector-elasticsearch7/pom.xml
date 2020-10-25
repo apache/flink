@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-elasticsearch7_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-elasticsearch7</name>
+	<name>Flink : Connectors : SQL : Elasticsearch 7</name>
 
 	<packaging>jar</packaging>
 
@@ -63,14 +63,10 @@ under the License.
 								</includes>
 								<excludes>
 									<!-- These dependencies are not required. -->
-									<exclude>com.carrotsearch:hppc</exclude>
 									<exclude>com.tdunning:t-digest</exclude>
 									<exclude>joda-time:joda-time</exclude>
 									<exclude>net.sf.jopt-simple:jopt-simple</exclude>
 									<exclude>org.elasticsearch:jna</exclude>
-									<exclude>org.elasticsearch:elasticsearch-geo</exclude>
-									<exclude>org.elasticsearch.plugin:lang-mustache-client</exclude>
-									<exclude>com.github.spullara.mustache.java:compiler</exclude>
 									<exclude>org.hdrhistogram:HdrHistogram</exclude>
 									<exclude>org.yaml:snakeyaml</exclude>
 								</excludes>
@@ -136,12 +132,16 @@ under the License.
 									<shadedPattern>org.apache.flink.elasticsearch7.shaded.org.elasticsearch</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.apache.logging</pattern>
-									<shadedPattern>org.apache.flink.elasticsearch7.shaded.org.apache.logging</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.carrotsearch.hppc</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.carrotsearch.hppc</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github.mustachejava</pattern>
+									<shadedPattern>org.apache.flink.elasticsearch7.shaded.com.github.mustachejava</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

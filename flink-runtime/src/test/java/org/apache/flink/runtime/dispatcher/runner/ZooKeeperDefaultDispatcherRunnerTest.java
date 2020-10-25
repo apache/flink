@@ -56,7 +56,8 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -70,6 +71,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
@@ -151,7 +153,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null);
+				null,
+				ForkJoinPool.commonPool());
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 

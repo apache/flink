@@ -19,23 +19,23 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.topology.BaseTopology;
 import org.apache.flink.runtime.topology.Result;
-import org.apache.flink.runtime.topology.Topology;
 import org.apache.flink.runtime.topology.Vertex;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility for computing pipelined regions.
@@ -44,35 +44,28 @@ public final class PipelinedRegionComputeUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
-	public static Set<PipelinedRegion> toPipelinedRegionsSet(
-			final Set<? extends Set<? extends SchedulingExecutionVertex<?, ?>>> distinctRegions) {
-
-		return distinctRegions.stream()
-			.map(toExecutionVertexIdSet())
-			.map(PipelinedRegion::from)
-			.collect(Collectors.toSet());
-	}
-
-	private static Function<Set<? extends SchedulingExecutionVertex<?, ?>>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
-		return failoverVertices -> failoverVertices.stream()
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-	}
-
 	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
-			final Topology<?, ?, V, R> topology) {
+			final BaseTopology<?, ?, V, R> topology) {
 
 		// currently we let a job with co-location constraints fail as one region
 		// putting co-located vertices in the same region with each other can be a future improvement
 		if (topology.containsCoLocationConstraints()) {
-			return uniqueRegions(buildOneRegionForAllVertices(topology));
+			return Collections.singleton(buildOneRegionForAllVertices(topology));
 		}
+
+		final Map<V, Set<V>> vertexToRegion = buildRawRegions(topology);
+
+		return mergeRegionsOnCycles(vertexToRegion);
+	}
+
+	private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Map<V, Set<V>> buildRawRegions(
+			final BaseTopology<?, ?, V, R> topology) {
 
 		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
 		for (V vertex : topology.getVertices()) {
-			Set<V> currentRegion = new HashSet<>(1);
+			Set<V> currentRegion = new HashSet<>();
 			currentRegion.add(vertex);
 			vertexToRegion.put(vertex, currentRegion);
 
@@ -90,50 +83,108 @@ public final class PipelinedRegionComputeUtil {
 					// check if it is the same as the producer region, if so skip the merge
 					// this check can significantly reduce compute complexity in All-to-All PIPELINED edge case
 					if (currentRegion != producerRegion) {
-						// merge current region and producer region
-						// merge the smaller region into the larger one to reduce the cost
-						final Set<V> smallerSet;
-						final Set<V> largerSet;
-						if (currentRegion.size() < producerRegion.size()) {
-							smallerSet = currentRegion;
-							largerSet = producerRegion;
-						} else {
-							smallerSet = producerRegion;
-							largerSet = currentRegion;
-						}
-						for (V v : smallerSet) {
-							vertexToRegion.put(v, largerSet);
-						}
-						largerSet.addAll(smallerSet);
-						currentRegion = largerSet;
+						currentRegion = mergeRegions(currentRegion, producerRegion, vertexToRegion);
 					}
 				}
 			}
 		}
 
-		return uniqueRegions(vertexToRegion);
+		return vertexToRegion;
 	}
 
-	private static <V extends Vertex<?, ?, V, ?>> Map<V, Set<V>> buildOneRegionForAllVertices(
-			final Topology<?, ?, V, ?> topology) {
+	private static <V extends Vertex<?, ?, V, ?>> Set<V> mergeRegions(
+			final Set<V> region1,
+			final Set<V> region2,
+			final Map<V, Set<V>> vertexToRegion) {
+
+		// merge the smaller region into the larger one to reduce the cost
+		final Set<V> smallerSet;
+		final Set<V> largerSet;
+		if (region1.size() < region2.size()) {
+			smallerSet = region1;
+			largerSet = region2;
+		} else {
+			smallerSet = region2;
+			largerSet = region1;
+		}
+		for (V v : smallerSet) {
+			vertexToRegion.put(v, largerSet);
+		}
+		largerSet.addAll(smallerSet);
+		return largerSet;
+	}
+
+	private static <V extends Vertex<?, ?, V, ?>> Set<V> buildOneRegionForAllVertices(
+			final BaseTopology<?, ?, V, ?> topology) {
 
 		LOG.warn("Cannot decompose the topology into individual failover regions due to use of " +
 			"Co-Location constraints (iterations). Job will fail over as one holistic unit.");
 
-		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
-
-		final Set<V> allVertices = new HashSet<>();
+		final Set<V> allVertices = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (V vertex : topology.getVertices()) {
 			allVertices.add(vertex);
-			vertexToRegion.put(vertex, allVertices);
 		}
-		return vertexToRegion;
+		return allVertices;
 	}
 
 	private static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(final Map<V, Set<V>> vertexToRegion) {
 		final Set<Set<V>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
 		distinctRegions.addAll(vertexToRegion.values());
 		return distinctRegions;
+	}
+
+	private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> mergeRegionsOnCycles(
+			final Map<V, Set<V>> vertexToRegion) {
+
+		final List<Set<V>> regionList = uniqueRegions(vertexToRegion).stream().collect(Collectors.toList());
+		final List<List<Integer>> outEdges = buildOutEdgesDesc(vertexToRegion, regionList);
+		final Set<Set<Integer>> sccs = StronglyConnectedComponentsComputeUtils.computeStronglyConnectedComponents(
+			outEdges.size(),
+			outEdges);
+
+		final Set<Set<V>> mergedRegions = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Set<Integer> scc : sccs) {
+			checkState(scc.size() > 0);
+
+			Set<V> mergedRegion = new HashSet<>();
+			for (int regionIndex : scc) {
+				mergedRegion = mergeRegions(mergedRegion, regionList.get(regionIndex), vertexToRegion);
+			}
+			mergedRegions.add(mergedRegion);
+		}
+
+		return mergedRegions;
+	}
+
+	private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> List<List<Integer>> buildOutEdgesDesc(
+			final Map<V, Set<V>> vertexToRegion,
+			final List<Set<V>> regionList) {
+
+		final Map<Set<V>, Integer> regionIndices = new IdentityHashMap<>();
+		for (int i = 0; i < regionList.size(); i++) {
+			regionIndices.put(regionList.get(i), i);
+		}
+
+		final List<List<Integer>> outEdges = new ArrayList<>(regionList.size());
+		for (int i = 0; i < regionList.size(); i++) {
+			final List<Integer> currentRegionOutEdges = new ArrayList<>();
+			final Set<V> currentRegion = regionList.get(i);
+			for (V vertex : currentRegion) {
+				for (R producedResult : vertex.getProducedResults()) {
+					if (producedResult.getResultType().isPipelined()) {
+						continue;
+					}
+					for (V consumerVertex : producedResult.getConsumers()) {
+						if (!currentRegion.contains(consumerVertex)) {
+							currentRegionOutEdges.add(regionIndices.get(vertexToRegion.get(consumerVertex)));
+						}
+					}
+				}
+			}
+			outEdges.add(currentRegionOutEdges);
+		}
+
+		return outEdges;
 	}
 
 	private PipelinedRegionComputeUtil() {

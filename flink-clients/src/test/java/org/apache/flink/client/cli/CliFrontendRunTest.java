@@ -72,12 +72,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			verifyCliFrontend(getCli(configuration), parameters, 42, false);
 		}
 
-		// test configure sysout logging
-		{
-			String[] parameters = {"-p", "2", "-q", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 2, false);
-		}
-
 		// test detached mode
 		{
 			String[] parameters = {"-p", "2", "-d", getTestJarPath()};
@@ -89,7 +83,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
@@ -103,7 +97,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
@@ -118,34 +112,13 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 				{ getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 			assertEquals("-arg1", programOptions.getProgramArgs()[0]);
 			assertEquals("value1", programOptions.getProgramArgs()[1]);
 			assertEquals("justavalue", programOptions.getProgramArgs()[2]);
 			assertEquals("--arg2", programOptions.getProgramArgs()[3]);
 			assertEquals("value2", programOptions.getProgramArgs()[4]);
-		}
-
-		// test python arguments
-		{
-			String[] parameters =
-				{
-					"-py", "test.py", "-pyfs", "test1.py,test2.zip,test3.egg,test4_dir", "-pyreq", "a.txt#b_dir",
-					"-pyarch", "c.zip#venv,d.zip", "-pyexec", "bin/python"
-				};
-			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
-			assertEquals("--python", programOptions.getProgramArgs()[0]);
-			assertEquals("test.py", programOptions.getProgramArgs()[1]);
-			assertEquals("--pyFiles", programOptions.getProgramArgs()[2]);
-			assertEquals("test1.py,test2.zip,test3.egg,test4_dir", programOptions.getProgramArgs()[3]);
-			assertEquals("--pyRequirements", programOptions.getProgramArgs()[4]);
-			assertEquals("a.txt#b_dir", programOptions.getProgramArgs()[5]);
-			assertEquals("--pyArchives", programOptions.getProgramArgs()[6]);
-			assertEquals("c.zip#venv,d.zip", programOptions.getProgramArgs()[7]);
-			assertEquals("--pyExecutable", programOptions.getProgramArgs()[8]);
-			assertEquals("bin/python", programOptions.getProgramArgs()[9]);
 		}
 	}
 

@@ -19,19 +19,27 @@
 package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
 import java.sql.Timestamp
+import java.time.Duration
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
+
+  private val extraDetails = if (extended) {
+    Array(ExplainDetail.CHANGELOG_MODE, ExplainDetail.ESTIMATED_COST)
+  } else {
+    Array.empty[ExplainDetail]
+  }
 
   private val util = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -50,75 +58,80 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
   @Test
   def testExplainTableSourceScan(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable", extended)
+    util.verifyExplain("SELECT * FROM MyTable", extraDetails:_*)
   }
 
   @Test
   def testExplainDataStreamScan(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1", extended)
+    util.verifyExplain("SELECT * FROM MyTable1", extraDetails:_*)
   }
 
   @Test
   def testExplainWithFilter(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extraDetails:_*)
   }
 
   @Test
   def testExplainWithAgg(): Unit = {
-    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extended)
+    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extraDetails:_*)
   }
 
   @Test
   def testExplainWithJoin(): Unit = {
-    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
+    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails:_*)
   }
 
   @Test
   def testExplainWithUnion(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extraDetails:_*)
   }
 
   @Test
   def testExplainWithSort(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extraDetails:_*)
   }
 
   @Test
   def testExplainWithSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.writeToSink(table, appendSink, "appendSink")
-    util.verifyExplain(extended)
+    util.verifyExplainInsert(table, appendSink, "appendSink", extraDetails: _*)
   }
 
   @Test
   def testExplainWithMultiSinks(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
     val upsertSink1 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table1, upsertSink1, "upsertSink1")
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink1", upsertSink1)
+    stmtSet.addInsert("upsertSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
     val upsertSink2 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table2, upsertSink2, "upsertSink2")
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink2", upsertSink2)
+    stmtSet.addInsert("upsertSink2", table2)
 
-    util.verifyExplain(extended)
+    util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
   @Test
   def testMiniBatchIntervalInfer(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     // Test emit latency propagate among RelNodeBlocks
     util.addDataStream[(Int, String, Timestamp)]("T1", 'id1, 'text, 'rowtime.rowtime)
     util.addDataStream[(Int, String, Int, String, Long, Timestamp)](
       "T2", 'id2, 'cnt, 'name, 'goods, 'rowtime.rowtime)
-    util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
-    util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
+    util.addTableWithWatermark("T3", util.tableEnv.from("T1"), "rowtime", 0)
+    util.addTableWithWatermark("T4", util.tableEnv.from("T2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(3))
     val table = util.tableEnv.sqlQuery(
       """
         |SELECT id1, T3.rowtime AS ts, text
@@ -136,7 +149,9 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
         |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table1, appendSink1, "appendSink1")
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery(
       """
@@ -145,9 +160,11 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
         |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table2, appendSink2, "appendSink2")
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink2", appendSink2)
+    stmtSet.addInsert("appendSink2", table2)
 
-    util.verifyExplain(extended)
+    util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
 }

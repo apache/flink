@@ -254,7 +254,7 @@ outer serializer, the compatibility of each nested serializer needs to be consid
 
 `CompositeTypeSerializerSnapshot` is provided to assist in the implementation of snapshots for these kind of
 composite serializers. It deals with reading and writing the nested serializer snapshots, as well as resolving
-the final compatibilty result taking into account the compatibility of all nested serializers.
+the final compatibility result taking into account the compatibility of all nested serializers.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
 <div data-lang="java" markdown="1">
@@ -309,7 +309,7 @@ the nested element serializer.
 In these cases, an additional three methods need to be implemented on the `CompositeTypeSerializerSnapshot`:
  * `#writeOuterSnapshot(DataOutputView)`: defines how the outer snapshot information is written.
  * `#readOuterSnapshot(int, DataInputView, ClassLoader)`: defines how the outer snapshot information is read.
- * `#isOuterSnapshotCompatible(TypeSerializer)`: checks whether the outer snapshot information remains identical.
+ * `#resolveOuterSchemaCompatibility(TypeSerializer)`: checks the compatibility based on the outer snapshot information.
 
 By default, the `CompositeTypeSerializerSnapshot` assumes that there isn't any outer snapshot information to
 read / write, and therefore have empty default implementations for the above methods. If the subclass
@@ -351,8 +351,10 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     }
 
     @Override
-    protected boolean isOuterSnapshotCompatible(GenericArraySerializer newSerializer) {
-        return this.componentClass == newSerializer.getComponentClass();
+    protected boolean resolveOuterSchemaCompatibility(GenericArraySerializer newSerializer) {
+        return (this.componentClass == newSerializer.getComponentClass())
+            ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+            : OuterSchemaCompatibility.INCOMPATIBLE;
     }
 
     @Override

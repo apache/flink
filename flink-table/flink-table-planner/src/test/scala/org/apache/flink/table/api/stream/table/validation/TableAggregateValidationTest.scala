@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.api.stream.table.validation
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.{EmptyTableAggFunc, TableTestBase}
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class TableAggregateValidationTest extends TableTestBase {
 

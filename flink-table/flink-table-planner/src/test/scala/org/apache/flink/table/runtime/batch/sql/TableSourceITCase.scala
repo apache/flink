@@ -19,10 +19,12 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -42,7 +44,7 @@ class TableSourceITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    tEnv.registerTableSource("csvTable", csvTable)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("csvTable", csvTable)
     val results = tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
@@ -66,7 +68,7 @@ class TableSourceITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    tEnv.registerTableSource("csvTable", csvTable)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("csvTable", csvTable)
     val results = tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
@@ -83,7 +85,8 @@ class TableSourceITCase(
     val tableEnv = BatchTableEnvironment.create(env, config)
     val nestedTable = CommonTestData.getNestedTableSource
 
-    tableEnv.registerTableSource("NestedPersons", nestedTable)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "NestedPersons", nestedTable)
 
     val result = tableEnv.sqlQuery("SELECT NestedPersons.firstName, NestedPersons.lastName," +
         "NestedPersons.address.street, NestedPersons.address.city AS city " +

@@ -33,7 +33,9 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   listOfNavigation = [
     { path: 'metrics', title: 'Metrics' },
     { path: 'logs', title: 'Logs' },
-    { path: 'stdout', title: 'Stdout' }
+    { path: 'stdout', title: 'Stdout' },
+    { path: 'log-list', title: 'Log List' },
+    { path: 'thread-dump', title: 'Thread Dump' }
   ];
   taskManagerDetail: TaskManagerDetailInterface;
   private destroy$ = new Subject();

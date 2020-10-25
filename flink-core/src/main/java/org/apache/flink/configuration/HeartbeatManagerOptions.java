@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -29,12 +30,14 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class HeartbeatManagerOptions {
 
 	/** Time interval for requesting heartbeat from sender side. */
+	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
 	public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
 			key("heartbeat.interval")
 			.defaultValue(10000L)
 			.withDescription("Time interval for requesting heartbeat from sender side.");
 
 	/** Timeout for requesting and receiving heartbeat for both sender and receiver sides. */
+	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
 	public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
 			key("heartbeat.timeout")
 			.defaultValue(50000L)

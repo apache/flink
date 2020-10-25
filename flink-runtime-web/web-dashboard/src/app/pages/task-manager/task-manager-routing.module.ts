@@ -18,11 +18,14 @@
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
+import { TaskManagerLogDetailComponent } from './log-detail/task-manager-log-detail.component';
+import { TaskManagerLogListComponent } from './log-list/task-manager-log-list.component';
 import { TaskManagerComponent } from './task-manager.component';
 import { TaskManagerListComponent } from './list/task-manager-list.component';
 import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
 import { TaskManagerMetricsComponent } from './metrics/task-manager-metrics.component';
 import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
+import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-thread-dump.component';
 
 const routes: Routes = [
   {
@@ -38,6 +41,27 @@ const routes: Routes = [
         component: TaskManagerMetricsComponent,
         data: {
           path: 'metrics'
+        }
+      },
+      {
+        path: 'log-list',
+        component: TaskManagerLogListComponent,
+        data: {
+          path: 'log-list'
+        }
+      },
+      {
+        path: 'thread-dump',
+        component: TaskManagerThreadDumpComponent,
+        data: {
+          path: 'thread-dump'
+        }
+      },
+      {
+        path: 'log-list/:logName',
+        component: TaskManagerLogDetailComponent,
+        data: {
+          path: 'log-list'
         }
       },
       {

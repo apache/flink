@@ -42,22 +42,23 @@ public interface ResultSubpartitionView {
 	 * after it has been consumed.
 	 */
 	@Nullable
-	BufferAndBacklog getNextBuffer() throws IOException, InterruptedException;
+	BufferAndBacklog getNextBuffer() throws IOException;
 
 	void notifyDataAvailable();
+
+	default void notifyPriorityEvent(int priorityBufferNumber) {
+	}
 
 	void releaseAllResources() throws IOException;
 
 	boolean isReleased();
 
+	void resumeConsumption();
+
 	Throwable getFailureCause();
 
-	/**
-	 * Returns whether the next buffer is an event or not.
-	 */
-	boolean nextBufferIsEvent();
-
-	boolean isAvailable();
+	boolean isAvailable(int numCreditsAvailable);
 
 	int unsynchronizedGetNumberOfQueuedBuffers();
+
 }

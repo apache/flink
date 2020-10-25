@@ -60,6 +60,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			int subpartitionIndex,
 			BufferAvailabilityListener availabilityListener) throws IOException {
 
+		final ResultSubpartitionView subpartitionView;
 		synchronized (registeredPartitions) {
 			final ResultPartition partition = registeredPartitions.get(partitionId);
 
@@ -69,8 +70,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 			LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
-			return partition.createSubpartitionView(subpartitionIndex, availabilityListener);
+			subpartitionView = partition.createSubpartitionView(subpartitionIndex, availabilityListener);
 		}
+
+		return subpartitionView;
 	}
 
 	public void releasePartition(ResultPartitionID partitionId, Throwable cause) {

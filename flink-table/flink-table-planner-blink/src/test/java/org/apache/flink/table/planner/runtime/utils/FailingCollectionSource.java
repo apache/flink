@@ -167,9 +167,9 @@ public class FailingCollectionSource<T>
 			if (!failedBefore) {
 				// delay a bit, if we have not failed before
 				Thread.sleep(1);
-				if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= failureAfterNumElements) {
-					// cause a failure if we have not failed before and have reached
-					// enough completed checkpoints and elements
+				if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= 1) {
+					// cause a failure if we have not failed before and have a completed checkpoint
+					// and have processed at least one element
 					failedBefore = true;
 					throw new Exception("Artificial Failure");
 				}
@@ -243,6 +243,10 @@ public class FailingCollectionSource<T>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		numSuccessfulCheckpoints++;
 		lastCheckpointedEmittedNum = checkpointedEmittedNums.get(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
 	}
 
 	public static void reset() {

@@ -79,17 +79,6 @@ public class StateTtlConfig implements Serializable {
 
 	/**
 	 * This option configures time scale to use for ttl.
-	 *
-	 * @deprecated will be removed in a future version in favor of {@link TtlTimeCharacteristic}
-	 */
-	@Deprecated
-	public enum TimeCharacteristic {
-		/** Processing time, see also <code>TimeCharacteristic.ProcessingTime</code>. */
-		ProcessingTime
-	}
-
-	/**
-	 * This option configures time scale to use for ttl.
 	 */
 	public enum TtlTimeCharacteristic {
 		/** Processing time, see also <code>org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>. */
@@ -222,22 +211,6 @@ public class StateTtlConfig implements Serializable {
 		/**
 		 * Sets the time characteristic.
 		 *
-		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
-		 *
-		 * @deprecated will be removed in a future version in favor of {@link #setTtlTimeCharacteristic}
-		 */
-		@Deprecated
-		@Nonnull
-		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
-			checkArgument(timeCharacteristic.equals(TimeCharacteristic.ProcessingTime),
-				"Only support TimeCharacteristic.ProcessingTime, this function has replaced by setTtlTimeCharacteristic.");
-			setTtlTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
-			return this;
-		}
-
-		/**
-		 * Sets the time characteristic.
-		 *
 		 * @param ttlTimeCharacteristic The time characteristic configures time scale to use for ttl.
 		 */
 		@Nonnull
@@ -298,28 +271,6 @@ public class StateTtlConfig implements Serializable {
 		/**
 		 * Cleanup expired state while Rocksdb compaction is running.
 		 *
-		 * <p>RocksDB runs periodic compaction of state updates and merges them to free storage.
-		 * During this process, the TTL filter checks timestamp of state entries and drops expired ones.
-		 * The feature has to be activated in RocksDb backend firstly
-		 * using the following Flink configuration option:
-		 * state.backend.rocksdb.ttl.compaction.filter.enabled.
-		 *
-		 * <p>Due to specifics of RocksDB compaction filter,
-		 * cleanup is not properly guaranteed if put and merge operations are used at the same time:
-		 * https://github.com/facebook/rocksdb/blob/master/include/rocksdb/compaction_filter.h#L69
-		 * It means that the TTL filter should be tested for List state taking into account this caveat.
-		 *
-		 * @deprecated Use more general configuration method {@link #cleanupInBackground()} instead
-		 */
-		@Nonnull
-		@Deprecated
-		public Builder cleanupInRocksdbCompactFilter() {
-			return cleanupInRocksdbCompactFilter(1000L);
-		}
-
-		/**
-		 * Cleanup expired state while Rocksdb compaction is running.
-		 *
 		 * <p>RocksDB compaction filter will query current timestamp,
 		 * used to check expiration, from Flink every time after processing {@code queryTimeAfterNumEntries} number of state entries.
 		 * Updating the timestamp more often can improve cleanup speed
@@ -336,23 +287,10 @@ public class StateTtlConfig implements Serializable {
 		}
 
 		/**
-		 * Enable default cleanup of expired state in background (enabled by default).
-		 *
-		 * <p>Depending on actually used backend, the corresponding default cleanup will kick in if supported.
-		 * If some specific cleanup is also configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
-		 * {@link #cleanupInRocksdbCompactFilter()}, then the specific one will kick in instead of default.
-		 */
-		@Nonnull
-		public Builder cleanupInBackground() {
-			isCleanupInBackground = true;
-			return this;
-		}
-
-		/**
 		 * Disable default cleanup of expired state in background (enabled by default).
 		 *
 		 * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
-		 * {@link #cleanupInRocksdbCompactFilter()}, this setting does not disable it.
+		 * {@link #cleanupInRocksdbCompactFilter(long)}, this setting does not disable it.
 		 */
 		@Nonnull
 		public Builder disableCleanupInBackground() {

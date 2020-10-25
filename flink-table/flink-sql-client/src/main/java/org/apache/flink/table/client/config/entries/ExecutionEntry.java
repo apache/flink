@@ -84,6 +84,8 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESULT_MODE_VALUE_TABLE = "table";
 
+	private static final String EXECUTION_RESULT_MODE_VALUE_TABLEAU = "tableau";
+
 	private static final String EXECUTION_MAX_TABLE_RESULT_ROWS = "max-table-result-rows";
 
 	private static final String EXECUTION_RESTART_STRATEGY_TYPE = "restart-strategy.type";
@@ -164,7 +166,7 @@ public class ExecutionEntry extends ConfigEntry {
 		}
 
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
 			builder.useOldPlanner();
@@ -189,7 +191,7 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public boolean isStreamingPlanner() {
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		// Blink planner is a streaming planner
 		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
@@ -205,7 +207,7 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public boolean isBatchPlanner() {
 		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-			.orElse(EXECUTION_PLANNER_VALUE_OLD);
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
 
 		// Blink planner is not a batch planner
 		if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
@@ -217,6 +219,15 @@ public class ExecutionEntry extends ConfigEntry {
 		}
 
 		return false;
+	}
+
+	public boolean isBlinkPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return false;
+		}
+		return true;
 	}
 
 	public TimeCharacteristic getTimeCharacteristic() {
@@ -253,9 +264,8 @@ public class ExecutionEntry extends ConfigEntry {
 			.orElseGet(() -> useDefaultValue(EXECUTION_MAX_STATE_RETENTION, 0L));
 	}
 
-	public int getParallelism() {
-		return properties.getOptionalInt(EXECUTION_PARALLELISM)
-			.orElseGet(() -> useDefaultValue(EXECUTION_PARALLELISM, 1));
+	public Optional<Integer> getParallelism() {
+		return properties.getOptionalInt(EXECUTION_PARALLELISM);
 	}
 
 	public int getMaxParallelism() {
@@ -320,6 +330,12 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 			.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
 			.orElse(false);
+	}
+
+	public boolean isTableauMode() {
+		return properties.getOptionalString(EXECUTION_RESULT_MODE)
+				.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLEAU))
+				.orElse(false);
 	}
 
 	public Map<String, String> asTopLevelMap() {

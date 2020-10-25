@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
@@ -94,7 +94,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal(0, getResultType())
+					/* sum0 = */ literal(0, getResultType().notNull())
 			};
 		}
 	}
@@ -111,7 +111,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal((byte) 0, getResultType())
+					/* sum0 = */ literal((byte) 0, getResultType().notNull())
 			};
 		}
 	}
@@ -128,7 +128,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal((short) 0, getResultType())
+					/* sum0 = */ literal((short) 0, getResultType().notNull())
 			};
 		}
 	}
@@ -145,7 +145,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal(0L, getResultType())
+					/* sum0 = */ literal(0L, getResultType().notNull())
 			};
 		}
 	}
@@ -162,7 +162,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal(0.0f, getResultType())
+					/* sum0 = */ literal(0.0f, getResultType().notNull())
 			};
 		}
 	}
@@ -179,7 +179,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal(0.0d, getResultType())
+					/* sum0 = */ literal(0.0d, getResultType().notNull())
 			};
 		}
 	}
@@ -203,7 +203,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public Expression[] initialValuesExpressions() {
 			return new Expression[] {
-					/* sum0 = */ literal(new BigDecimal(0), getResultType())
+					/* sum0 = */ literal(new BigDecimal(0), getResultType().notNull())
 			};
 		}
 	}

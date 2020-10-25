@@ -305,6 +305,10 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		// this is like the pre-commit of a 2-phase-commit transaction
 		// we are ready to commit and remember the transaction
@@ -484,7 +488,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		return String.format(
 			"%s %s/%s",
 			this.getClass().getSimpleName(),
-			getRuntimeContext().getIndexOfThisSubtask(),
+			getRuntimeContext().getIndexOfThisSubtask() + 1,
 			getRuntimeContext().getNumberOfParallelSubtasks());
 	}
 

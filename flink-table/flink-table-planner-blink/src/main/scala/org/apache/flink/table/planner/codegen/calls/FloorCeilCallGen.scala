@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, SQL_TIMESTAMP}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, TIMESTAMP_DATA}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
@@ -69,10 +69,10 @@ class FloorCeilCallGen(
             case YEAR | QUARTER | MONTH | DAY | HOUR
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
-              val timeZone = ctx.addReusableTimeZone()
+              val timeZone = ctx.addReusableSessionTimeZone()
               val longTerm = s"${terms.head}.getMillisecond()"
               s"""
-                 |$SQL_TIMESTAMP.fromEpochMillis(
+                 |$TIMESTAMP_DATA.fromEpochMillis(
                  |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
                  |  $longTerm,
                  |  $timeZone))
@@ -84,7 +84,7 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP.fromEpochMillis(
+                     |$TIMESTAMP_DATA.fromEpochMillis(
                      |  ${qualifyMethod(temporalMethod.get)}(${terms(1)}, $longTerm))
                    """.stripMargin
                 case _ =>
@@ -98,7 +98,7 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
+                     |$TIMESTAMP_DATA.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
                      |  $longTerm,
                      |  (long) ${unit.startUnit.multiplier.intValue()}))
                    """.stripMargin

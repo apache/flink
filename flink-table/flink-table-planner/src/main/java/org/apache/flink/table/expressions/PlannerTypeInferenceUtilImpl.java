@@ -28,6 +28,7 @@ import org.apache.flink.table.typeutils.TypeCoercion;
 import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -50,6 +51,9 @@ public final class PlannerTypeInferenceUtilImpl implements PlannerTypeInferenceU
 	public TypeInferenceUtil.Result runTypeInference(
 			UnresolvedCallExpression unresolvedCall,
 			List<ResolvedExpression> resolvedArgs) {
+		// We should use the resolved children as they might have been resolved with the new inference
+		// stack and the arguments might have been adapted.
+		unresolvedCall = unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
 		final PlannerExpression plannerCall = unresolvedCall.accept(CONVERTER);
 
 		if (plannerCall instanceof InputTypeSpec) {

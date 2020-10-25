@@ -19,21 +19,22 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -48,18 +49,18 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class String2HashJoinOperatorTest implements Serializable {
 
-	private BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private BaseRowTypeInfo joinedInfo = new BaseRowTypeInfo(
+	private InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
+	private InternalTypeInfo<RowData> joinedInfo = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
-	private transient TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness;
+	private transient TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness;
 	private ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 	private long initialTime = 0L;
 
 	public static LinkedBlockingQueue<Object> transformToBinary(LinkedBlockingQueue<Object> output) {
 		LinkedBlockingQueue<Object> ret = new LinkedBlockingQueue<>();
 		for (Object o : output) {
-			BaseRow row = ((StreamRecord<BaseRow>) o).getValue();
-			BinaryRow binaryRow;
+			RowData row = ((StreamRecord<RowData>) o).getValue();
+			BinaryRowData binaryRow;
 			if (row.isNullAt(0)) {
 				binaryRow = newRow(row.getString(2).toString(), row.getString(3) + "null");
 			} else if (row.isNullAt(2)) {
@@ -84,7 +85,7 @@ public class String2HashJoinOperatorTest implements Serializable {
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getStreamConfig().setStreamOperator(operator);
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -261,13 +262,13 @@ public class String2HashJoinOperatorTest implements Serializable {
 	/**
 	 * my project.
 	 */
-	public static final class MyProjection implements Projection<BinaryRow, BinaryRow> {
+	public static final class MyProjection implements Projection<BinaryRowData, BinaryRowData> {
 
-		BinaryRow innerRow = new BinaryRow(1);
+		BinaryRowData innerRow = new BinaryRowData(1);
 		BinaryRowWriter writer = new BinaryRowWriter(innerRow);
 
 		@Override
-		public BinaryRow apply(BinaryRow row) {
+		public BinaryRowData apply(BinaryRowData row) {
 			writer.reset();
 			writer.writeString(0, row.getString(0));
 			writer.complete();
@@ -275,15 +276,15 @@ public class String2HashJoinOperatorTest implements Serializable {
 		}
 	}
 
-	public static BinaryRow newRow(String... s) {
-		BinaryRow row = new BinaryRow(s.length);
+	public static BinaryRowData newRow(String... s) {
+		BinaryRowData row = new BinaryRowData(s.length);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 
 		for (int i = 0; i < s.length; i++) {
 			if (s[i] == null) {
 				writer.setNullAt(i);
 			} else {
-				writer.writeString(i, BinaryString.fromString(s[i]));
+				writer.writeString(i, StringData.fromString(s[i]));
 			}
 		}
 

@@ -239,7 +239,7 @@ public class InputDependencyConstraintCheckerTest extends TestLogger {
 		List<TestingSchedulingResultPartition> partitions) {
 
 		InputDependencyConstraintChecker inputChecker = new InputDependencyConstraintChecker();
-		for (SchedulingResultPartition<?, ?> partition : partitions) {
+		for (SchedulingResultPartition partition : partitions) {
 			inputChecker.addSchedulingResultPartition(partition);
 		}
 		return inputChecker;

@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 
 import org.junit.Test
@@ -474,7 +473,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testInWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     // TODO java.lang.RuntimeException: While invoking method
     // 'public RelDecorrelator$Frame RelDecorrelator.decorrelateRel(LogicalProject)'
@@ -602,7 +601,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testInWithCorrelatedOnWhere_ScalarQuery8(): Unit = {
     // nested correlation can not be converted joinType=[semi] now
     // TODO There are some bugs when decorrelating in RelDecorrelator
@@ -1256,7 +1255,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
@@ -1661,7 +1660,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // TODO some bugs in SubQueryRemoveRule
     //  the result RelNode (LogicalJoin(condition=[=($1, $8)], joinType=[left]))
     //  after SubQueryRemoveRule is unexpected
-    thrown.expect(classOf[RuntimeException])
+    thrown.expect(classOf[AssertionError])
 
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +

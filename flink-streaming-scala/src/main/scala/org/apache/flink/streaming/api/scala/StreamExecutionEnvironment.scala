@@ -19,25 +19,26 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.source.{Source, SourceSplit}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener}
-import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
-import scala.collection.JavaConverters._
 import _root_.scala.language.implicitConversions
+import scala.collection.JavaConverters._
 
 @Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
@@ -56,6 +57,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * Gets cache files.
     */
   def getCachedFiles = javaEnv.getCachedFiles
+
+  /**
+    * Gets the config JobListeners.
+    */
+  @PublicEvolving
+  def getJobListeners = javaEnv.getJobListeners
 
   /**
    * Sets the parallelism for operations executed through this environment.
@@ -253,15 +260,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * @deprecated Use [[StreamExecutionEnvironment.setStateBackend(StateBackend)]] instead.
-   */
-  @Deprecated
-  @PublicEvolving
-  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
-    setStateBackend(backend.asInstanceOf[StateBackend])
-  }
-
-  /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
   @PublicEvolving
@@ -390,7 +388,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]]
    *
    * @param characteristic The time characteristic.
+   * @deprecated In Flink 1.12 the default stream time characteristic has been changed to
+   *             [[TimeCharacteristic.EventTime]], thus you don't need to call this method for
+   *             enabling event-time support anymore. Explicitly using processing-time windows and
+   *             timers works in event-time mode. If you need to disable watermarks, please use
+   *             [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long]]. If
+   *             you are using [[TimeCharacteristic.IngestionTime]], please manually set an
+   *             appropriate [[WatermarkStrategy]]. If you are using generic "time window"
+   *             operations (for example [[KeyedStream.timeWindow()]] that change behaviour based
+   *             on the time characteristic, please use equivalent operations that explicitly
+   *             specify processing time or event time.
    */
+  @deprecated
   @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
@@ -652,6 +661,19 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       override def cancel() = {}
     }
     addSource(sourceFunction)
+  }
+
+  /**
+    * Create a DataStream using a [[Source]].
+    */
+  @Experimental
+  def fromSource[T: TypeInformation](
+      source: Source[T, _ <: SourceSplit, _],
+      watermarkStrategy: WatermarkStrategy[T],
+      sourceName: String): DataStream[T] = {
+
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.fromSource(source, watermarkStrategy, sourceName, typeInfo))
   }
 
   /**

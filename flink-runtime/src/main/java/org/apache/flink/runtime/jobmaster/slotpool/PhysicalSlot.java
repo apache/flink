@@ -41,10 +41,17 @@ public interface PhysicalSlot extends SlotContext {
 	interface Payload {
 
 		/**
-		 * Releases the payload
+		 * Releases the payload.
 		 *
 		 * @param cause of the payload release
 		 */
 		void release(Throwable cause);
+
+		/**
+		 * Returns whether the payload will occupy a physical slot indefinitely.
+		 *
+		 * @return true if the payload will occupy a physical slot indefinitely, otherwise false
+		 */
+		boolean willOccupySlotIndefinitely();
 	}
 }

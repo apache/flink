@@ -17,14 +17,14 @@
  */
 package org.apache.flink.streaming.api.scala
 
-import java.lang.reflect.Method
-
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 
-import scala.language.existentials
-
 import org.junit.Test
+
+import java.lang.reflect.Method
+
+import scala.language.existentials
 
 /**
  * This checks whether the streaming Scala API is up to feature parity with the Java API.
@@ -114,11 +114,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "ConnectedStreams", "ConnectedStreams",
       classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_,_]],
       classOf[ConnectedStreams[_,_]])
-
-    checkMethods(
-      "SplitStream", "SplitStream",
-      classOf[org.apache.flink.streaming.api.datastream.SplitStream[_]],
-      classOf[SplitStream[_]])
 
     checkMethods(
       "WindowedStream", "WindowedStream",

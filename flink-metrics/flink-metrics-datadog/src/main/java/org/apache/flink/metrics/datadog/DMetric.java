@@ -29,7 +29,6 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class DMetric {
-	private static final long MILLIS_TO_SEC = 1000L;
 
 	/**
 	 * Names of metric/type/tags field and their getters must not be changed
@@ -39,12 +38,14 @@ public abstract class DMetric {
 	private final MetricType type;
 	private final String host;
 	private final List<String> tags;
+	private final Clock clock;
 
-	public DMetric(MetricType metricType, String metric, String host, List<String> tags) {
+	public DMetric(MetricType metricType, String metric, String host, List<String> tags, Clock clock) {
 		this.type = metricType;
 		this.metric = metric;
 		this.host = host;
 		this.tags = tags;
+		this.clock = clock;
 	}
 
 	public MetricType getType() {
@@ -66,7 +67,7 @@ public abstract class DMetric {
 	public List<List<Number>> getPoints() {
 		// One single data point
 		List<Number> point = new ArrayList<>();
-		point.add(getUnixEpochTimestamp());
+		point.add(clock.getUnixEpochTimestamp());
 		point.add(getMetricValue());
 
 		List<List<Number>> points = new ArrayList<>();
@@ -78,7 +79,6 @@ public abstract class DMetric {
 	@JsonIgnore
 	public abstract Number getMetricValue();
 
-	public static long getUnixEpochTimestamp() {
-		return (System.currentTimeMillis() / MILLIS_TO_SEC);
+	public void ackReport() {
 	}
 }

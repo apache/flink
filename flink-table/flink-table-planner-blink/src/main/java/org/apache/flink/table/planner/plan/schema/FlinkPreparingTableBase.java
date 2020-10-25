@@ -115,7 +115,7 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 
 	@Override
 	public RelNode toRel(RelOptTable.ToRelContext context) {
-		return LogicalTableScan.create(context.getCluster(), this);
+		return LogicalTableScan.create(context.getCluster(), this, context.getTableHints());
 	}
 
 	/**
@@ -266,6 +266,11 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 		} else {
 			return names;
 		}
+	}
+
+	@Override
+	public List<ImmutableBitSet> getKeys() {
+		return statistic.getKeys();
 	}
 
 	/**

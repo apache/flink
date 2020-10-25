@@ -27,6 +27,7 @@ import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
@@ -108,11 +109,10 @@ public class RestServerSSLAuthITCase extends TestLogger {
 				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 
-			serverEndpoint = new RestServerEndpointITCase.TestRestServerEndpoint(
-				restServerConfig,
-				Arrays.asList(Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler)));
+			serverEndpoint = TestRestServerEndpoint.builder(restServerConfig)
+					.withHandler(testVersionHandler.getMessageHeaders(), testVersionHandler)
+					.buildAndStart();
 			restClient = new RestServerEndpointITCase.TestRestClient(restClientConfig);
-			serverEndpoint.start();
 
 			CompletableFuture<EmptyResponseBody> response = restClient.sendRequest(
 				serverEndpoint.getServerAddress().getHostName(),

@@ -22,6 +22,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, LogicalType, TimestampType}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 
 /**
   * Custom type system for Flink.
@@ -104,7 +105,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       type2: RelDataType): RelDataType = {
     if (SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
       (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
-      val result = FlinkTypeSystem.inferDivisionType(
+      val result = LogicalTypeMerging.findDivisionDecimalType(
         type1.getPrecision, type1.getScale,
         type2.getPrecision, type2.getScale)
       typeFactory.createSqlType(SqlTypeName.DECIMAL, result.getPrecision, result.getScale)
@@ -135,21 +136,6 @@ object FlinkTypeSystem {
       throw new RuntimeException("Unsupported argType for SUM(): " + argType)
   }
 
-  /**
-    * https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql.
-    */
-  def inferDivisionType(
-      precision1: Int, scale1: Int, precision2: Int, scale2: Int): DecimalType = {
-    // note: magic numbers are used directly here, because it's not really a general algorithm.
-    var scale = Math.max(6, scale1 + precision2 + 1)
-    var precision = precision1 - scale1 + scale2 + scale
-    if (precision > 38) {
-      scale = Math.max(6, 38 - (precision - scale))
-      precision = 38
-    }
-    new DecimalType(precision, scale)
-  }
-
   def inferIntDivType(precision1: Int, scale1: Int, scale2: Int): DecimalType = {
     val p = Math.min(38, precision1 - scale1 + scale2)
     new DecimalType(p, 0)
@@ -165,19 +151,8 @@ object FlinkTypeSystem {
     * however, we count by LONG, therefore divide by Decimal(20,0),
     * but the end result is actually the same, which is Decimal(38, max(6,s)).
     */
-  def inferAggAvgType(scale: Int): DecimalType = inferDivisionType(38, scale, 20, 0)
-
-  /**
-    * return type of Round( DECIMAL(p,s), r).
-    */
-  def inferRoundType(precision: Int, scale: Int, r: Int): DecimalType = {
-    if (r >= scale) new DecimalType(precision, scale)
-    else if (r < 0) new DecimalType(Math.min(38, 1 + precision - scale), 0)
-    else { // 0 <= r < s
-      new DecimalType(1 + precision - scale + r, r)
-    }
-    // NOTE: rounding may increase the digits by 1, therefore we need +1 on precisions.
-  }
+  def inferAggAvgType(scale: Int): DecimalType =
+    LogicalTypeMerging.findDivisionDecimalType(38, scale, 20, 0)
 
   val DECIMAL_SYSTEM_DEFAULT = new DecimalType(DecimalType.MAX_PRECISION, 18)
 }

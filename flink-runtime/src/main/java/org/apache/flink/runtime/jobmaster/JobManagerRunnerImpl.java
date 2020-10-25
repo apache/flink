@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -74,7 +73,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
-	private final LibraryCacheManager libraryCacheManager;
+	private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
 
 	private final Executor executor;
 
@@ -106,51 +105,40 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			final JobGraph jobGraph,
 			final JobMasterServiceFactory jobMasterFactory,
 			final HighAvailabilityServices haServices,
-			final LibraryCacheManager libraryCacheManager,
+			final LibraryCacheManager.ClassLoaderLease classLoaderLease,
 			final Executor executor,
-			final FatalErrorHandler fatalErrorHandler) throws Exception {
+			final FatalErrorHandler fatalErrorHandler,
+			long initializationTimestamp) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
 		this.leadershipOperation = CompletableFuture.completedFuture(null);
 
-		// make sure we cleanly shut down out JobManager services if initialization fails
+		this.jobGraph = checkNotNull(jobGraph);
+		this.classLoaderLease = checkNotNull(classLoaderLease);
+		this.executor = checkNotNull(executor);
+		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+
+		checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
+
+		// libraries and class loader first
+		final ClassLoader userCodeLoader;
 		try {
-			this.jobGraph = checkNotNull(jobGraph);
-			this.libraryCacheManager = checkNotNull(libraryCacheManager);
-			this.executor = checkNotNull(executor);
-			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-
-			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
-
-			// libraries and class loader first
-			try {
-				libraryCacheManager.registerJob(
-						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
-			} catch (IOException e) {
-				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
-			}
-
-			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
-			if (userCodeLoader == null) {
-				throw new Exception("The user code class loader could not be initialized.");
-			}
-
-			// high availability services next
-			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
-			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
-
-			this.leaderGatewayFuture = new CompletableFuture<>();
-
-			// now start the JobManager
-			this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
+			userCodeLoader = classLoaderLease.getOrResolveClassLoader(
+				jobGraph.getUserJarBlobKeys(),
+				jobGraph.getClasspaths()).asClassLoader();
+		} catch (IOException e) {
+			throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
 		}
-		catch (Throwable t) {
-			terminationFuture.completeExceptionally(t);
-			resultFuture.completeExceptionally(t);
 
-			throw new JobExecutionException(jobGraph.getJobID(), "Could not set up JobManager", t);
-		}
+		// high availability services next
+		this.runningJobsRegistry = haServices.getRunningJobsRegistry();
+		this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
+
+		this.leaderGatewayFuture = new CompletableFuture<>();
+
+		// now start the JobManager
+		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader, initializationTimestamp);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -205,7 +193,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
-						libraryCacheManager.unregisterJob(jobGraph.getJobID());
+						classLoaderLease.release();
 
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
@@ -285,7 +273,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	public void grantLeadership(final UUID leaderSessionID) {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.debug("JobManagerRunner cannot be granted leadership because it is already shut down.");
 				return;
 			}
 
@@ -378,7 +366,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	public void revokeLeadership() {
 		synchronized (lock) {
 			if (shutdown) {
-				log.info("JobManagerRunner already shutdown.");
+				log.debug("Ignoring revoking leadership because JobManagerRunner is already shut down.");
 				return;
 			}
 

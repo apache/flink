@@ -18,33 +18,21 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
-import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /**
  * Base class for aggregate function test.
@@ -53,29 +41,6 @@ import static org.junit.Assert.assertThat;
  * @param <ACC> accumulate type
  */
 public abstract class AggFunctionTestBase<T, ACC> {
-
-	/**
-	 * Spec for parameterized aggregate function tests.
-	 */
-	protected static class AggFunctionTestSpec<T, ACC> {
-		final AggregateFunction<T, ACC> aggregator;
-		final List<List<T>> inputValueSets;
-		final List<T> expectedResults;
-
-		public AggFunctionTestSpec(
-				AggregateFunction<T, ACC> aggregator,
-				List<List<T>> inputValueSets,
-				List<T> expectedResults) {
-			this.aggregator = aggregator;
-			this.inputValueSets = inputValueSets;
-			this.expectedResults = expectedResults;
-		}
-
-		@Override
-		public String toString() {
-			return aggregator.getClass().getSimpleName();
-		}
-	}
 
 	protected abstract List<List<T>> getInputValueSets();
 
@@ -109,13 +74,13 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			T expected = expectedResults.get(i);
 			ACC acc = accumulateValues(inputValues);
 			T result = aggregator.getValue(acc);
-			validateResult(expected, result, aggregator.getAccumulatorType());
+			validateResult(expected, result);
 
 			if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 				retractValues(acc, inputValues);
 				ACC expectedAcc = aggregator.createAccumulator();
 				// The two accumulators should be exactly same
-				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
+				validateResult(expectedAcc, acc);
 			}
 		}
 	}
@@ -144,17 +109,17 @@ public abstract class AggFunctionTestBase<T, ACC> {
 
 				ACC acc = accumulateValues(firstValues);
 
-				mergeFunc.invoke(aggregator, (Object) acc, accumulators);
+				mergeFunc.invoke(aggregator, acc, accumulators);
 
 				T result = aggregator.getValue(acc);
-				validateResult(expected, result, aggregator.getResultType());
+				validateResult(expected, result);
 
 				// 2. verify merge with accumulate & retract
 				if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
 					retractValues(acc, inputValues);
 					ACC expectedAcc = aggregator.createAccumulator();
 					// The two accumulators should be exactly same
-					validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
+					validateResult(expectedAcc, acc);
 				}
 			}
 
@@ -167,10 +132,10 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				accumulators.add(aggregator.createAccumulator());
 
 				ACC acc = accumulateValues(inputValues);
-				mergeFunc.invoke(aggregator, (Object) acc, accumulators);
+				mergeFunc.invoke(aggregator, acc, accumulators);
 
 				T result = aggregator.getValue(acc);
-				validateResult(expected, result, aggregator.getResultType());
+				validateResult(expected, result);
 			}
 		}
 	}
@@ -213,7 +178,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
 
 			// getValue
 			T result = aggregator.getValue(accWithSubset);
-			validateResult(expectedValue, result, aggregator.getResultType());
+			validateResult(expectedValue, result);
 		}
 	}
 
@@ -230,52 +195,17 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			// iterate over input sets
 			for (int i = 0; i < size; ++i) {
 				List<T> inputValues = inputValueSets.get(i);
-				T expected = expectedResults.get(i);
 				ACC acc = accumulateValues(inputValues);
-				resetAccFunc.invoke(aggregator, (Object) acc);
+				resetAccFunc.invoke(aggregator, acc);
 				ACC expectedAcc = aggregator.createAccumulator();
 				//The accumulator after reset should be exactly same as the new accumulator
-				validateResult(expectedAcc, acc, aggregator.getAccumulatorType());
+				validateResult(expectedAcc, acc);
 			}
 		}
 	}
 
-	protected <E> void validateResult(E expected, E result, TypeInformation<?> typeInfo) {
-		if (expected instanceof BigDecimal && result instanceof BigDecimal) {
-			// BigDecimal.equals() value and scale but we are only interested in value.
-			assertEquals(0, ((BigDecimal) expected).compareTo((BigDecimal) result));
-		} else if (expected instanceof MinWithRetractAccumulator &&
-				result instanceof MinWithRetractAccumulator) {
-			MinWithRetractAccumulator e = (MinWithRetractAccumulator) expected;
-			MinWithRetractAccumulator r = (MinWithRetractAccumulator) result;
-			assertEquals(e.min, r.min);
-			assertEquals(e.mapSize, r.mapSize);
-		} else if (expected instanceof MaxWithRetractAccumulator &&
-				result instanceof MaxWithRetractAccumulator) {
-			MaxWithRetractAccumulator e = (MaxWithRetractAccumulator) expected;
-			MaxWithRetractAccumulator r = (MaxWithRetractAccumulator) result;
-			assertEquals(e.max, r.max);
-			assertEquals(e.mapSize, r.mapSize);
-		} else if (expected instanceof BinaryGeneric && result instanceof BinaryGeneric) {
-			TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
-			assertThat(
-					(BinaryGeneric) result,
-					equivalent((BinaryGeneric) expected, new BinaryGenericSerializer(serializer)));
-		} else if (expected instanceof GenericRow && result instanceof GenericRow) {
-			validateGenericRow((GenericRow) expected, (GenericRow) result, (BaseRowTypeInfo) typeInfo);
-		} else {
-			assertEquals(expected, result);
-		}
-	}
-
-	private void validateGenericRow(GenericRow expected, GenericRow result, BaseRowTypeInfo typeInfo) {
-		assertEquals(expected.getArity(), result.getArity());
-
-		for (int i = 0; i < expected.getArity(); ++i) {
-			Object expectedObj = expected.getField(i);
-			Object resultObj = result.getField(i);
-			validateResult(expectedObj, resultObj, typeInfo.getTypeAt(i));
-		}
+	protected <E> void validateResult(E expected, E result) {
+		assertEquals(expected, result);
 	}
 
 	protected ACC accumulateValues(List<T> values)
@@ -285,9 +215,9 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		Method accumulateFunc = getAccumulateFunc();
 		for (T value : values) {
 			if (accumulateFunc.getParameterCount() == 1) {
-				accumulateFunc.invoke(aggregator, (Object) accumulator);
+				accumulateFunc.invoke(aggregator, accumulator);
 			} else if (accumulateFunc.getParameterCount() == 2) {
-				accumulateFunc.invoke(aggregator, (Object) accumulator, (Object) value);
+				accumulateFunc.invoke(aggregator, accumulator, value);
 			} else {
 				throw new TableException("Unsupported now");
 			}
@@ -301,9 +231,9 @@ public abstract class AggFunctionTestBase<T, ACC> {
 		Method retractFunc = getRetractFunc();
 		for (T value : values) {
 			if (retractFunc.getParameterCount() == 1) {
-				retractFunc.invoke(aggregator, (Object) accumulator);
+				retractFunc.invoke(aggregator, accumulator);
 			} else if (retractFunc.getParameterCount() == 2) {
-				retractFunc.invoke(aggregator, (Object) accumulator, (Object) value);
+				retractFunc.invoke(aggregator, accumulator, value);
 			} else {
 				throw new TableException("Unsupported now");
 			}

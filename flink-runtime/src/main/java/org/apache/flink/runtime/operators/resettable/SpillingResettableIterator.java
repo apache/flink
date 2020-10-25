@@ -58,9 +58,9 @@ public class SpillingResettableIterator<T> implements ResettableIterator<T> {
 	
 	protected final TypeSerializer<T> serializer;
 	
-	private int elementCount;
+	private long elementCount;
 	
-	private int currentElementNum;
+	private long currentElementNum;
 	
 	protected final SpillingBuffer buffer;
 	

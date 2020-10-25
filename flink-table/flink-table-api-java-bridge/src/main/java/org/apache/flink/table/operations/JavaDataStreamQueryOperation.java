@@ -21,8 +21,9 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.expressions.Expression;
 
 import javax.annotation.Nullable;
 
@@ -45,7 +46,7 @@ public class JavaDataStreamQueryOperation<E> implements QueryOperation {
 
 	/**
 	 * The table identifier registered under the environment. The identifier might be null when
-	 * the it is from {@link StreamTableEnvironment#fromDataStream(DataStream, String)}. But the
+	 * the it is from {@link StreamTableEnvironment#fromDataStream(DataStream, Expression...)}. But the
 	 * identifier should be not null if is from {@link StreamTableEnvironment#createTemporaryView(String, DataStream)}
 	 * with a registered name.
 	 */

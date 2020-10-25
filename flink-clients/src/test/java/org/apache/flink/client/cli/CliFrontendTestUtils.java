@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class CliFrontendTestUtils {
 
-	public static final String TEST_JAR_MAIN_CLASS = "org.apache.flink.client.testjar.WordCount";
+	public static final String TEST_JAR_MAIN_CLASS = "org.apache.flink.client.testjar.TestJob";
 
 	public static final String TEST_JAR_CLASSLOADERTEST_CLASS = "org.apache.flink.client.testjar.JobWithExternalDependency";
 

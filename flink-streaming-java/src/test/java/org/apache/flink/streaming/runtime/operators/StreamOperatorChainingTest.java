@@ -26,24 +26,26 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SplitStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorWrapper;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -131,12 +133,10 @@ public class StreamOperatorChainingTest {
 			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
 			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = createOperatorChain(streamConfig, environment, mockTask);
 
-			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
+			headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-				if (operator != null) {
-					operator.open();
-				}
+			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+				operatorWrapper.getStreamOperator().open();
 			}
 
 			headOperator.processElement(new StreamRecord<>(1));
@@ -151,7 +151,7 @@ public class StreamOperatorChainingTest {
 	private MockEnvironment createMockEnvironment(String taskName) {
 		return new MockEnvironmentBuilder()
 			.setTaskName(taskName)
-			.setMemorySize(3 * 1024 * 1024)
+			.setManagedMemorySize(3 * 1024 * 1024)
 			.setInputSplitProvider(new MockInputSplitProvider())
 			.setBufferSize(1024)
 			.build();
@@ -191,20 +191,25 @@ public class StreamOperatorChainingTest {
 		input = input
 				.map(value -> value);
 
-		SplitStream<Integer> split = input.split(new OutputSelector<Integer>() {
+		OutputTag<Integer> oneOutput = new OutputTag<Integer>("one") {};
+		OutputTag<Integer> otherOutput = new OutputTag<Integer>("other") {};
+		SingleOutputStreamOperator<Object> split = input.process(new ProcessFunction<Integer, Object>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Iterable<String> select(Integer value) {
+			public void processElement(
+					Integer value,
+					Context ctx, Collector<Object> out) throws Exception {
 				if (value.equals(1)) {
-					return Collections.singletonList("one");
+					ctx.output(oneOutput, value);
 				} else {
-					return Collections.singletonList("other");
+					ctx.output(otherOutput, value);
 				}
+
 			}
 		});
 
-		split.select("one")
+		split.getSideOutput(oneOutput)
 				.map(value -> "First 1: " + value)
 				.addSink(new SinkFunction<String>() {
 
@@ -214,7 +219,7 @@ public class StreamOperatorChainingTest {
 					}
 				});
 
-		split.select("one")
+		split.getSideOutput(oneOutput)
 				.map(value -> "First 2: " + value)
 				.addSink(new SinkFunction<String>() {
 
@@ -224,7 +229,7 @@ public class StreamOperatorChainingTest {
 					}
 				});
 
-		split.select("other")
+		split.getSideOutput(otherOutput)
 				.map(value -> "Second: " + value)
 				.addSink(new SinkFunction<String>() {
 
@@ -252,12 +257,10 @@ public class StreamOperatorChainingTest {
 			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
 			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = createOperatorChain(streamConfig, environment, mockTask);
 
-			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
+			headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
-			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-				if (operator != null) {
-					operator.open();
-				}
+			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+				operatorWrapper.getStreamOperator().open();
 			}
 
 			headOperator.processElement(new StreamRecord<>(1));

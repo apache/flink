@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
@@ -159,11 +160,12 @@ class ExecutionEnvironment(object):
         The program execution will be logged and displayed with the given job name.
 
         :param job_name: Desired name of the job, optional.
+        :return: The result of the job execution, containing elapsed time and accumulators.
         """
         if job_name is None:
-            self._j_execution_environment.execute()
+            return JobExecutionResult(self._j_execution_environment.execute())
         else:
-            self._j_execution_environment.execute(job_name)
+            return JobExecutionResult(self._j_execution_environment.execute(job_name))
 
     def get_execution_plan(self):
         """

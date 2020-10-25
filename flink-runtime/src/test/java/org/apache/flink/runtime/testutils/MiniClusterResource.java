@@ -172,6 +172,7 @@ public class MiniClusterResource extends ExternalResource {
 			.setConfiguration(configuration)
 			.setNumTaskManagers(miniClusterResourceConfiguration.getNumberTaskManagers())
 			.setNumSlotsPerTaskManager(miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
+			.setRpcServiceSharing(miniClusterResourceConfiguration.getRpcServiceSharing())
 			.build();
 
 		miniCluster = new MiniCluster(miniClusterConfiguration);

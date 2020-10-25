@@ -188,7 +188,7 @@ public class StreamTaskSelectiveReadingTest {
 
 		private volatile boolean started;
 
-		TestSelectiveReadingTask(Environment env) {
+		TestSelectiveReadingTask(Environment env) throws Exception {
 			super(env);
 			started = false;
 		}

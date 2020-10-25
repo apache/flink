@@ -39,9 +39,14 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     operand(classOf[FlinkLogicalTableSourceScan], none)),
   "PushFilterIntoTableSourceScanRule") {
 
+  // we don't offer a context for the legacy planner
+  private val tableConfig = TableConfig.getDefault
   private val defaultCatalog = "default_catalog"
-  private val catalogManager = new CatalogManager(
-    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+  private val catalogManager = CatalogManager.newBuilder()
+    .classLoader(Thread.currentThread().getContextClassLoader)
+    .config(tableConfig.getConfiguration)
+    .defaultCatalog(defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+    .build()
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
@@ -74,7 +79,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        new FunctionCatalog(TableConfig.getDefault, catalogManager, new ModuleManager))
+        new FunctionCatalog(tableConfig, catalogManager, new ModuleManager))
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return

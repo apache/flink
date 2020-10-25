@@ -29,6 +29,9 @@ import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -59,6 +62,8 @@ import static org.apache.flink.docs.util.Utils.escapeCharacters;
  */
 public class ConfigOptionsDocGenerator {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ConfigOptionsDocGenerator.class);
+
 	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
 		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.shuffle"),
@@ -68,10 +73,12 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
 		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
+		new OptionsClassLocation("flink-metrics/flink-metrics-influxdb", "org.apache.flink.metrics.influxdb"),
 		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state"),
 		new OptionsClassLocation("flink-table/flink-table-api-java", "org.apache.flink.table.api.config"),
 		new OptionsClassLocation("flink-python", "org.apache.flink.python"),
-		new OptionsClassLocation("flink-kubernetes", "org.apache.flink.kubernetes.configuration")
+		new OptionsClassLocation("flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
+		new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli")
 	};
 
 	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
@@ -100,7 +107,7 @@ public class ConfigOptionsDocGenerator {
 	 * every {@link ConfigOption}.
 	 *
 	 * <p>One additional table is generated containing all {@link ConfigOption ConfigOptions} that are annotated with
-	 * {@link org.apache.flink.annotation.docs.Documentation.CommonOption}.
+	 * {@link Documentation.Section}.
 	 *
 	 * @param args
 	 *  [0] output directory for the generated files
@@ -109,6 +116,13 @@ public class ConfigOptionsDocGenerator {
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		String outputDirectory = args[0];
 		String rootDir = args[1];
+
+		LOG.info("Searching the following locations; configured via {}#LOCATIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			Arrays.stream(LOCATIONS).map(OptionsClassLocation::toString).collect(Collectors.joining("\n\t", "\n\t", "")));
+		LOG.info("Excluding the following classes; configured via {}#EXCLUSIONS:{}",
+			ConfigOptionsDocGenerator.class.getCanonicalName(),
+			EXCLUSIONS.stream().collect(Collectors.joining("\n\t", "\n\t", "")));
 
 		for (OptionsClassLocation location : LOCATIONS) {
 			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory, DEFAULT_PATH_PREFIX);
@@ -119,28 +133,56 @@ public class ConfigOptionsDocGenerator {
 
 	@VisibleForTesting
 	static void generateCommonSection(String rootDir, String outputDirectory, OptionsClassLocation[] locations, String pathPrefix) throws IOException, ClassNotFoundException {
-		List<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		List<OptionWithMetaInfo> allSectionOptions = new ArrayList<>(32);
 		for (OptionsClassLocation location : locations) {
-			commonOptions.addAll(findCommonOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
+			allSectionOptions.addAll(findSectionOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
 		}
-		commonOptions.sort((o1, o2) -> {
-			int position1 = o1.field.getAnnotation(Documentation.CommonOption.class).position();
-			int position2 = o2.field.getAnnotation(Documentation.CommonOption.class).position();
-			if (position1 == position2) {
-				return o1.option.key().compareTo(o2.option.key());
-			} else {
-				return Integer.compare(position1, position2);
-			}
-		});
 
-		String commonHtmlTable = toHtmlTable(commonOptions);
-		Files.write(Paths.get(outputDirectory, COMMON_SECTION_FILE_NAME), commonHtmlTable.getBytes(StandardCharsets.UTF_8));
+		Map<String, List<OptionWithMetaInfo>> optionsGroupedBySection = allSectionOptions.stream()
+			.flatMap(option -> {
+				final String[] sections = option.field.getAnnotation(Documentation.Section.class).value();
+				if (sections.length == 0) {
+					throw new RuntimeException(String.format(
+						"Option %s is annotated with %s but the list of sections is empty.",
+						option.option.key(),
+						Documentation.Section.class.getSimpleName()));
+				}
+
+				return Arrays.stream(sections).map(section -> Tuple2.of(section, option));
+			})
+			.collect(Collectors.groupingBy(option -> option.f0, Collectors.mapping(option -> option.f1, Collectors.toList())));
+
+		optionsGroupedBySection.forEach(
+			(section, options) -> {
+				options.sort((o1, o2) -> {
+					int position1 = o1.field.getAnnotation(Documentation.Section.class).position();
+					int position2 = o2.field.getAnnotation(Documentation.Section.class).position();
+					if (position1 == position2) {
+						return o1.option.key().compareTo(o2.option.key());
+					} else {
+						return Integer.compare(position1, position2);
+					}
+				});
+
+				String sectionHtmlTable = toHtmlTable(options);
+				try {
+					Files.write(Paths.get(outputDirectory, getSectionFileName(section)), sectionHtmlTable.getBytes(StandardCharsets.UTF_8));
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}
+		);
 	}
 
-	private static Collection<OptionWithMetaInfo> findCommonOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
+	@VisibleForTesting
+	static String getSectionFileName(String section) {
+		return section + "_section.html";
+	}
+
+	private static Collection<OptionWithMetaInfo> findSectionOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
 		Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
 		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> extractConfigOptions(optionsClass).stream()
-			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null)
+			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.Section.class) != null)
 			.forEachOrdered(commonOptions::add));
 		return commonOptions;
 	}
@@ -155,15 +197,20 @@ public class ConfigOptionsDocGenerator {
 					if (!matcher.matches()) {
 						throw new RuntimeException("Pattern did not match for " + optionsClass.getSimpleName() + '.');
 					}
-					name = matcher.group(CLASS_PREFIX_GROUP).replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
+					name = matcher.group(CLASS_PREFIX_GROUP);
 				} else {
-					name = group.f0.name().replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
+					name = group.f0.name();
 				}
 
-				String outputFile = name + "_configuration.html";
+				String outputFile = toSnakeCase(name) + "_configuration.html";
 				Files.write(Paths.get(outputDirectory, outputFile), group.f1.getBytes(StandardCharsets.UTF_8));
 			}
 		});
+	}
+
+	@VisibleForTesting
+	static String toSnakeCase(String name) {
+		return name.replaceAll("(.)([A-Z][a-z])", "$1_$2").toLowerCase();
 	}
 
 	@VisibleForTesting
@@ -191,6 +238,10 @@ public class ConfigOptionsDocGenerator {
 		ConfigGroups configGroups = optionsClass.getAnnotation(ConfigGroups.class);
 		List<OptionWithMetaInfo> allOptions = extractConfigOptions(optionsClass);
 
+		if (allOptions.isEmpty()) {
+			return Collections.emptyList();
+		}
+
 		List<Tuple2<ConfigGroup, String>> tables;
 		if (configGroups != null) {
 			tables = new ArrayList<>(configGroups.groups().length + 1);
@@ -198,12 +249,16 @@ public class ConfigOptionsDocGenerator {
 
 			for (ConfigGroup group : configGroups.groups()) {
 				List<OptionWithMetaInfo> configOptions = tree.findConfigOptions(group);
-				sortOptions(configOptions);
-				tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
+				if (!configOptions.isEmpty()) {
+					sortOptions(configOptions);
+					tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
+				}
 			}
 			List<OptionWithMetaInfo> configOptions = tree.getDefaultOptions();
-			sortOptions(configOptions);
-			tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
+			if (!configOptions.isEmpty()) {
+				sortOptions(configOptions);
+				tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
+			}
 		} else {
 			sortOptions(allOptions);
 			tables = Collections.singletonList(Tuple2.of(null, toHtmlTable(allOptions)));
@@ -387,7 +442,7 @@ public class ConfigOptionsDocGenerator {
 			}
 			return "\"" + value + "\"";
 		} else if (value instanceof Duration) {
-			return TimeUtils.getStringInMillis((Duration) value);
+			return TimeUtils.formatWithHighestUnit((Duration) value);
 		} else if (value instanceof List) {
 			return ((List<Object>) value).stream()
 				.map(ConfigOptionsDocGenerator::stringifyObject)

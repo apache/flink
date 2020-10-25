@@ -31,6 +31,7 @@ import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.HiveShellContainer;
 import com.klarna.hiverunner.annotations.HiveProperties;
 import com.klarna.hiverunner.annotations.HiveResource;
+import com.klarna.hiverunner.annotations.HiveRunnerSetup;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import com.klarna.hiverunner.annotations.HiveSetupScript;
 import com.klarna.hiverunner.builder.HiveShellBuilder;
@@ -78,6 +79,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVEHISTORYFILELOC;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_IN_TEST;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.LOCALSCRATCHDIR;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORECONNECTURLKEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREWAREHOUSE;
@@ -115,7 +117,7 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 			@Override
 			protected void before() throws Throwable {
 				LOGGER.info("Setting up {} in {}", getName(), temporaryFolder.getRoot().getAbsolutePath());
-				hmsWatcher = startHMS(context, hmsPort);
+				hmsWatcher = startHMS(getTestClass().getJavaClass(), context, hmsPort);
 			}
 
 			@Override
@@ -218,6 +220,21 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		}
 
 		return shell;
+	}
+
+	private void loadAnnotatesHiveRunnerConfig(Class testClass) {
+		Set<Field> fields = ReflectionUtils.getAllFields(testClass, withAnnotation(HiveRunnerSetup.class));
+		Preconditions.checkState(fields.size() <= 1,
+				"Exact one field of type HiveRunnerConfig should to be annotated with @HiveRunnerSetup");
+
+		// Override the config with test case config. Taking care to not replace the config instance since it
+		// has been passes around and referenced by some of the other test rules.
+		if (!fields.isEmpty()) {
+			Field field = fields.iterator().next();
+			Preconditions.checkState(ReflectionUtils.isOfType(field, HiveRunnerConfig.class),
+					"Field annotated with @HiveRunnerSetup should be of type HiveRunnerConfig");
+			config.override(ReflectionUtils.getStaticFieldValue(testClass, field.getName(), HiveRunnerConfig.class));
+		}
 	}
 
 	private HiveShellField loadScriptsUnderTest(final Class testClass, HiveShellBuilder hiveShellBuilder) {
@@ -343,7 +360,9 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 	/**
 	 * Launches HMS process and returns a Future representing that process.
 	 */
-	private static Future<Void> startHMS(HiveServerContext context, int port) throws Exception {
+	private Future<Void> startHMS(Class testClass, HiveServerContext context, int port) throws Exception {
+		// need to load hive runner config before the context is inited
+		loadAnnotatesHiveRunnerConfig(testClass);
 		context.init();
 		HiveConf outsideConf = context.getHiveConf();
 		List<String> args = new ArrayList<>();
@@ -369,6 +388,10 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		File derbyLog = File.createTempFile("derby", ".log");
 		derbyLog.deleteOnExit();
 		args.add(hiveCmdLineConfig("derby.stream.error.file", derbyLog.getAbsolutePath()));
+		// config whether in test
+		if (outsideConf.getBoolVar(HIVE_IN_TEST)) {
+			args.add(hiveCmdLineConfig(HIVE_IN_TEST.varname, "true"));
+		}
 
 		args.add(HiveMetaStore.class.getCanonicalName());
 		args.add("-p");
@@ -376,45 +399,52 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 
 		ProcessBuilder builder = new ProcessBuilder(args);
 		Process process = builder.start();
-		Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
-		Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
-		inLogger.setDaemon(true);
-		inLogger.setName("HMS-IN-Logger");
-		errLogger.setDaemon(true);
-		errLogger.setName("HMS-ERR-Logger");
-		inLogger.start();
-		errLogger.start();
 
-		FutureTask<Void> res = new FutureTask<>(() -> {
-			try {
-				int r = process.waitFor();
-				inLogger.join();
-				errLogger.join();
-				if (r != 0) {
-					throw new RuntimeException("HMS process exited with " + r);
-				}
-			} catch (InterruptedException e) {
-				LOGGER.info("Shutting down HMS");
-			} finally {
-				if (process.isAlive()) {
-					// give it a chance to terminate gracefully
-					process.destroy();
-					try {
-						process.waitFor(5, TimeUnit.SECONDS);
-					} catch (InterruptedException e) {
-						LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+		try {
+			Thread inLogger = new Thread(new LogRedirect(process.getInputStream(), LOGGER));
+			Thread errLogger = new Thread(new LogRedirect(process.getErrorStream(), LOGGER));
+			inLogger.setDaemon(true);
+			inLogger.setName("HMS-IN-Logger");
+			errLogger.setDaemon(true);
+			errLogger.setName("HMS-ERR-Logger");
+			inLogger.start();
+			errLogger.start();
+
+			FutureTask<Void> res = new FutureTask<>(() -> {
+				try {
+					int r = process.waitFor();
+					inLogger.join();
+					errLogger.join();
+					if (r != 0) {
+						throw new RuntimeException("HMS process exited with " + r);
 					}
-					process.destroyForcibly();
+				} catch (InterruptedException e) {
+					LOGGER.info("Shutting down HMS");
+				} finally {
+					if (process.isAlive()) {
+						// give it a chance to terminate gracefully
+						process.destroy();
+						try {
+							process.waitFor(5, TimeUnit.SECONDS);
+						} catch (InterruptedException e) {
+							LOGGER.info("Interrupted waiting for HMS to shut down, killing it forcibly");
+						}
+						process.destroyForcibly();
+					}
 				}
-			}
-		}, null);
-		Thread thread = new Thread(res);
-		thread.setName("HMS-Watcher");
-		// we need the watcher thread to kill HMS, don't make it daemon
-		thread.setDaemon(false);
-		thread.start();
-		waitForHMSStart(port);
-		return res;
+			}, null);
+			Thread thread = new Thread(res);
+			thread.setName("HMS-Watcher");
+			// we need the watcher thread to kill HMS, don't make it daemon
+			thread.setDaemon(false);
+			thread.start();
+			waitForHMSStart(port);
+			return res;
+		} catch (Throwable e) {
+			// make sure to kill the process in case anything goes wrong
+			process.destroyForcibly();
+			throw e;
+		}
 	}
 
 	private static void waitForHMSStart(int port) throws Exception {

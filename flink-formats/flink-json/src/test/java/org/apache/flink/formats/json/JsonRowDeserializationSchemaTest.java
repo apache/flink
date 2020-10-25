@@ -26,25 +26,36 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Tests for the {@link JsonRowDeserializationSchema}.
  */
 public class JsonRowDeserializationSchemaTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	/**
 	 * Tests simple deserialization using type information.
@@ -211,6 +222,20 @@ public class JsonRowDeserializationSchemaTest {
 		assertThat(serializedJson,
 			whenDeserializedWith(deserializationSchema)
 				.failsWithException(hasCause(instanceOf(IllegalStateException.class))));
+
+		// ignore-parse-errors ignores missing field exception too
+		deserializationSchema = new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+			.ignoreParseErrors()
+			.build();
+		assertThat(serializedJson,
+			whenDeserializedWith(deserializationSchema).equalsTo(row));
+
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("JSON format doesn't support failOnMissingField and ignoreParseErrors are both true");
+		new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+			.failOnMissingField()
+			.ignoreParseErrors()
+			.build();
 	}
 
 	/**
@@ -226,6 +251,188 @@ public class JsonRowDeserializationSchemaTest {
 			Assert.fail("Did not throw expected Exception");
 		} catch (IllegalArgumentException ignored) {
 			// Expected
+		}
+	}
+
+	@Test
+	public void testJsonParse() {
+		for (TestSpec spec : testData) {
+			testIgnoreParseErrors(spec);
+			if (spec.errorMessage != null) {
+				testParseErrors(spec);
+			}
+		}
+	}
+
+	private void testIgnoreParseErrors(TestSpec spec) {
+		// the parsing field should be null and no exception is thrown
+		JsonRowDeserializationSchema ignoreErrorsSchema =
+			new JsonRowDeserializationSchema.Builder(spec.rowTypeInformation)
+				.ignoreParseErrors()
+				.build();
+		Row expected;
+		if (spec.expected != null) {
+			expected = spec.expected;
+		} else {
+			expected = new Row(1);
+		}
+		assertThat("Test Ignore Parse Error: " + spec.json,
+			spec.json.getBytes(),
+			whenDeserializedWith(ignoreErrorsSchema).equalsTo(expected));
+	}
+
+	private void testParseErrors(TestSpec spec) {
+		// expect exception if parse error is not ignored
+		JsonRowDeserializationSchema failingSchema =
+			new JsonRowDeserializationSchema.Builder(spec.rowTypeInformation)
+				.build();
+		assertThat("Test Parse Error: " + spec.json,
+			spec.json.getBytes(),
+			whenDeserializedWith(failingSchema)
+				.failsWithException(hasMessage(containsString(spec.errorMessage))));
+	}
+
+	private static List<TestSpec> testData = Arrays.asList(
+		TestSpec
+			.json("{\"id\": \"trueA\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.BOOLEAN))
+			.expect(Row.of(false)),
+
+		TestSpec
+			.json("{\"id\": true}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.BOOLEAN))
+			.expect(Row.of(true)),
+
+		TestSpec
+			.json("{\"id\":\"abc\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.INT))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+
+		TestSpec
+			.json("{\"id\":112.013}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.LONG))
+			.expect(Row.of(112L)),
+
+		TestSpec
+			.json("{\"id\":true}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("true")),
+
+		TestSpec
+			.json("{\"id\":123.234}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("123.234")),
+
+		TestSpec
+			.json("{\"id\":1234567}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("1234567")),
+
+		TestSpec
+			.json("{\"id\":\"string field\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("string field")),
+
+		TestSpec
+			.json("{\"id\":[\"array data1\",\"array data2\",123,234.345]}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("[\"array data1\",\"array data2\",123,234.345]")),
+
+		TestSpec
+			.json("{\"id\":{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}")),
+
+		TestSpec
+			.json("{\"id\":\"long\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.LONG))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"112.013.123\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.FLOAT))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"112.013.123\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.DOUBLE))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"18:00:243\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.SQL_TIME))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"20191112\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.SQL_DATE))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"2019-11-12 18:00:12\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.SQL_TIMESTAMP))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+
+		TestSpec
+			.json("{\"id\":\"abc\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.BIG_DEC))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+
+		TestSpec
+			.json("{\"row\":{\"id\":\"abc\"}}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"row"}, Types.ROW_NAMED(new String[]{"id"}, Types.INT)))
+			.expect(Row.of(new Row(1)))
+			.expectErrorMessage("Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'"),
+
+		TestSpec
+			.json("{\"array\":[123, \"abc\"]}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"array"}, Types.OBJECT_ARRAY(Types.INT)))
+			.expect(Row.of((Object) new Integer[]{123, null}))
+			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'"),
+
+		TestSpec
+			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"map"}, Types.MAP(Types.STRING, Types.INT)))
+			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
+
+
+	);
+
+	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {
+		Map<String, Integer> map = new HashMap<>();
+		map.put(k1, v1);
+		map.put(k2, v2);
+		return map;
+	}
+
+	private static class TestSpec {
+		private final String json;
+		private @Nullable TypeInformation<Row> rowTypeInformation;
+		private @Nullable Row expected;
+		private @Nullable String errorMessage;
+
+		private TestSpec(String json) {
+			this.json = json;
+		}
+
+		public static TestSpec json(String json) {
+			return new TestSpec(json);
+		}
+
+		TestSpec expect(Row row) {
+			this.expected = row;
+			return this;
+		}
+
+		TestSpec typeInfo(TypeInformation<Row> rowTypeInformation) {
+			this.rowTypeInformation = rowTypeInformation;
+			return this;
+		}
+
+		TestSpec expectErrorMessage(String errorMessage) {
+			this.errorMessage = errorMessage;
+			return this;
 		}
 	}
 }

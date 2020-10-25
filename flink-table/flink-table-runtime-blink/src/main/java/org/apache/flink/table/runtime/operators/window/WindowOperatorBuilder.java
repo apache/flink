@@ -29,6 +29,7 @@ import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.assigners.CumulativeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.InternalTimeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .tumble(Duration.ofMinutes(1))	// sliding(...), session(...)
  *   .withEventTime()	// withProcessingTime()
  *   .withAllowedLateness(Duration.ZERO)
- *   .withSendRetraction()
+ *   .produceUpdates()
  *   .aggregate(AggregationsFunction, accTypes, windowTypes)
  *   .build();
  * </pre>
@@ -69,7 +70,7 @@ public class WindowOperatorBuilder {
 	protected LogicalType[] aggResultTypes;
 	protected LogicalType[] windowPropertyTypes;
 	protected long allowedLateness = 0L;
-	protected boolean sendRetraction = false;
+	protected boolean produceUpdates = false;
 	protected int rowtimeIndex = -1;
 
 	public static WindowOperatorBuilder builder() {
@@ -90,6 +91,12 @@ public class WindowOperatorBuilder {
 	public WindowOperatorBuilder sliding(Duration size, Duration slide) {
 		checkArgument(windowAssigner == null);
 		this.windowAssigner = SlidingWindowAssigner.of(size, slide);
+		return this;
+	}
+
+	public WindowOperatorBuilder cumulative(Duration size, Duration step) {
+		checkArgument(windowAssigner == null);
+		this.windowAssigner = CumulativeWindowAssigner.of(size, step);
 		return this;
 	}
 
@@ -155,14 +162,12 @@ public class WindowOperatorBuilder {
 		checkArgument(!allowedLateness.isNegative());
 		if (allowedLateness.toMillis() > 0) {
 			this.allowedLateness = allowedLateness.toMillis();
-			// allow late element, which means this window will send retractions
-			this.sendRetraction = true;
 		}
 		return this;
 	}
 
-	public WindowOperatorBuilder withSendRetraction() {
-		this.sendRetraction = true;
+	public WindowOperatorBuilder produceUpdates() {
+		this.produceUpdates = true;
 		return this;
 	}
 
@@ -270,7 +275,7 @@ public class WindowOperatorBuilder {
 					windowOperatorBuilder.aggResultTypes,
 					windowOperatorBuilder.windowPropertyTypes,
 					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.sendRetraction,
+					windowOperatorBuilder.produceUpdates,
 					windowOperatorBuilder.allowedLateness);
 			} else {
 				//noinspection unchecked
@@ -284,7 +289,7 @@ public class WindowOperatorBuilder {
 					windowOperatorBuilder.aggResultTypes,
 					windowOperatorBuilder.windowPropertyTypes,
 					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.sendRetraction,
+					windowOperatorBuilder.produceUpdates,
 					windowOperatorBuilder.allowedLateness);
 			}
 		}
@@ -333,7 +338,7 @@ public class WindowOperatorBuilder {
 					windowOperatorBuilder.aggResultTypes,
 					windowOperatorBuilder.windowPropertyTypes,
 					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.sendRetraction,
+					windowOperatorBuilder.produceUpdates,
 					windowOperatorBuilder.allowedLateness);
 			} else {
 				//noinspection unchecked
@@ -348,7 +353,7 @@ public class WindowOperatorBuilder {
 					windowOperatorBuilder.aggResultTypes,
 					windowOperatorBuilder.windowPropertyTypes,
 					windowOperatorBuilder.rowtimeIndex,
-					windowOperatorBuilder.sendRetraction,
+					windowOperatorBuilder.produceUpdates,
 					windowOperatorBuilder.allowedLateness);
 			}
 		}

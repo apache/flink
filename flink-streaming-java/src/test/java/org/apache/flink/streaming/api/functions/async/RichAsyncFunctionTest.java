@@ -22,12 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -197,17 +195,6 @@ public class RichAsyncFunctionTest {
 		}
 
 		try {
-			runtimeContext.getFoldingState(new FoldingStateDescriptor<>("foobar", 0, new FoldFunction<Integer, Integer>() {
-				@Override
-				public Integer fold(Integer accumulator, Integer value) throws Exception {
-					return accumulator;
-				}
-			}, Integer.class));
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
 			runtimeContext.getMapState(new MapStateDescriptor<>("foobar", Integer.class, String.class));
 		} catch (UnsupportedOperationException e) {
 			// expected
@@ -250,13 +237,6 @@ public class RichAsyncFunctionTest {
 		try {
 			runtimeContext.getAccumulator("foobar");
 			fail("Expected getAccumulator to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
-			runtimeContext.getAllAccumulators();
-			fail("Expected getAllAccumulators to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}

@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-	<name>flink-table-planner</name>
+	<name>Flink : Table : Planner</name>
 	<description>
 		This module bridges Table/SQL API and runtime. It contains
 		all resources that are required during pre-flight and runtime
@@ -37,41 +37,22 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Common dependency of calcite-core and flink-test-utils -->
-			<dependency>
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>19.0</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and janino -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>commons-compiler</artifactId>
-				<version>${janino.version}</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and flink-table-planner -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>janino</artifactId>
-				<version>${janino.version}</version>
-			</dependency>
-			<!-- Common dependencies within calcite-core -->
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-annotations</artifactId>
-				<version>2.9.6</version>
-			</dependency>
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-core</artifactId>
-				<version>2.9.6</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
+		<!-- Mainly used for calcite-core, it would be relocated
+		     to org.apache.flink.calcite.shaded by the shade plugin -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>commons-compiler</artifactId>
+		</dependency>
+		<!-- Used for code generation -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+		</dependency>
 
 		<!-- core dependencies -->
 
@@ -101,6 +82,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>
 					<artifactId>calcite-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -132,12 +117,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for code generation -->
-		<dependency>
-			<groupId>org.codehaus.janino</groupId>
-			<artifactId>janino</artifactId>
-		</dependency>
-
 		<!-- Used for translation of table programs -->
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
@@ -146,21 +125,30 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.21:
+				"mvn dependency:tree" as of Calcite 1.26.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
-				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
+				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:compile
+				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
+				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
+				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
+				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
+				[INFO] |  +- commons-codec:commons-codec:jar:1.10:runtime
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.9.6:compile
-				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
-				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
+				[INFO] |  \- commons-io:commons-io:jar:2.4:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-server</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
@@ -168,6 +156,10 @@ under the License.
 				<exclusion>
 					<groupId>com.google.protobuf</groupId>
 					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
@@ -180,10 +172,6 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-dbcp2</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.esri.geometry</groupId>
-					<artifactId>esri-geometry-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -206,7 +194,21 @@ under the License.
 			<artifactId>joda-time</artifactId>
 		</dependency>
 
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
+		</dependency>
+
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -218,8 +220,9 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -252,14 +255,6 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 
@@ -326,7 +321,9 @@ under the License.
 									<include>org.apache.calcite.avatica:*</include>
 
 									<!-- Calcite's dependencies -->
+									<include>com.esri.geometry:esri-geometry-api</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 									<include>com.jayway.jsonpath:json-path</include>
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
@@ -338,6 +335,9 @@ under the License.
 									<include>org.codehaus.janino:*</include>
 									<include>joda-time:*</include>
 									<include>joda-convert:*</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 							<relocations>

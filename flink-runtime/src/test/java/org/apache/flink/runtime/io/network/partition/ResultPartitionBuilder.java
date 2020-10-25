@@ -22,9 +22,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -40,6 +39,8 @@ public class ResultPartitionBuilder {
 
 	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
 
+	private int partitionIndex = 0;
+
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -48,22 +49,27 @@ public class ResultPartitionBuilder {
 
 	private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1, 1);
+	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
 	private int networkBuffersPerChannel = 1;
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
+
 	private int networkBufferSize = 1;
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
-
-	private boolean releasedOnConsumption;
+	private Optional<SupplierWithException<BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
 	private String compressionCodec = "LZ4";
+
+	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
+		this.partitionIndex = partitionIndex;
+		return this;
+	}
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
@@ -123,13 +129,8 @@ public class ResultPartitionBuilder {
 	}
 
 	public ResultPartitionBuilder setBufferPoolFactory(
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 		this.bufferPoolFactory = Optional.of(bufferPoolFactory);
-		return this;
-	}
-
-	public ResultPartitionBuilder isReleasedOnConsumption(boolean releasedOnConsumption) {
-		this.releasedOnConsumption = releasedOnConsumption;
 		return this;
 	}
 
@@ -158,15 +159,16 @@ public class ResultPartitionBuilder {
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize,
-			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
-			compressionCodec);
+			compressionCodec,
+			maxBuffersPerChannel);
 
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
+		SupplierWithException<BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
 
 		return resultPartitionFactory.create(
 			"Result Partition task",
+			partitionIndex,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,

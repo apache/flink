@@ -54,8 +54,8 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 DataStream<String> text = [...]
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
-    .keyBy(0)
-    .timeWindow(Time.seconds(5))
+    .keyBy(value -> value.f0)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
@@ -70,8 +70,8 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(0)
-    .timeWindow(Time.seconds(5))
+    .keyBy(_._1)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5)
 wordCounts.print()
 
@@ -82,7 +82,7 @@ env.execute("Word Count Example")
 
 ### Execution Environment Level
 
-As mentioned [here]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program) Flink
+As mentioned [here]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program) Flink
 programs are executed in the context of an execution environment. An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
@@ -113,8 +113,8 @@ env.setParallelism(3)
 val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(0)
-    .timeWindow(Time.seconds(5))
+    .keyBy(_._1)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
 

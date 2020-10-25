@@ -25,9 +25,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,12 +63,6 @@ import java.util.Map;
  */
 @PublicEvolving
 public class TableConfig {
-
-	/**
-	 * Defines the zone id for timestamp with local time zone.
-	 */
-	private ZoneId localZoneId = ZoneId.systemDefault();
-
 	/**
 	 * Defines if all fields need to be checked for NULL first.
 	 */
@@ -84,33 +80,9 @@ public class TableConfig {
 	private MathContext decimalContext = MathContext.DECIMAL128;
 
 	/**
-	 * Specifies a threshold where generated code will be split into sub-function calls. Java has a
-	 * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
-	 */
-	private Integer maxGeneratedCodeLength = 64000; // just an estimate
-
-	/**
-	 * The minimum time until state which was not updated will be retained.
-	 * State might be cleared and removed if it was not updated for the defined period of time.
-	 */
-	private long minIdleStateRetentionTime = 0L;
-
-	/**
-	 * The maximum time until state which was not updated will be retained.
-	 * State will be cleared and removed if it was not updated for the defined period of time.
-	 */
-	private long maxIdleStateRetentionTime = 0L;
-
-	/**
 	 * A configuration object to hold all key/value configuration.
 	 */
 	private Configuration configuration = new Configuration();
-
-	/**
-	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
-	 * SQL grammar.
-	 */
-	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
 
 	/**
 	 * Gives direct access to the underlying key-value map for advanced configuration.
@@ -134,28 +106,70 @@ public class TableConfig {
 	 * Returns the current SQL dialect.
 	 */
 	public SqlDialect getSqlDialect() {
-		return this.sqlDialect;
+		return SqlDialect.valueOf(getConfiguration().getString(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
 	}
 
 	/**
 	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
 	 */
 	public void setSqlDialect(SqlDialect sqlDialect) {
-		this.sqlDialect = sqlDialect;
+		getConfiguration().setString(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
 	}
 
 	/**
-	 * Returns the zone id for timestamp with local time zone.
+	 * Returns the current session time zone id. It is used when converting to/from
+	 * {@code TIMESTAMP WITH LOCAL TIME ZONE}. See {@link #setLocalTimeZone(ZoneId)} for more
+	 * details.
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public ZoneId getLocalTimeZone() {
-		return localZoneId;
+		String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+		return "default".equals(zone) ? ZoneId.systemDefault() : ZoneId.of(zone);
 	}
 
 	/**
-	 * Sets the zone id for timestamp with local time zone.
+	 * Sets the current session time zone id. It is used when converting to/from
+	 * {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}. Internally, timestamps with local time zone are
+	 * always represented in the UTC time zone. However, when converting to data types that
+	 * don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), the session time zone
+	 * is used during conversion.
+	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * TableEnvironment tEnv = ...
+	 * TableConfig config = tEnv.getConfig
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+	 * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
+	 * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
+	 * }</pre>
+	 * should produce:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 2:00:00'
+	 *    2    | 2000-01-01 2:00:00'
+	 * </pre>
+	 * If we change the local time zone and query the same table:
+	 * <pre>{@code
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
+	 * }</pre>
+	 * we should get:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 0:00:00'
+	 *    2    | 2000-01-01 0:00:00'
+	 * </pre>
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public void setLocalTimeZone(ZoneId zoneId) {
-		this.localZoneId = Preconditions.checkNotNull(zoneId);
+		configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
 	}
 
 	/**
@@ -209,7 +223,7 @@ public class TableConfig {
 	 * necessary. Default is 64000.
 	 */
 	public Integer getMaxGeneratedCodeLength() {
-		return maxGeneratedCodeLength;
+		return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
 	}
 
 	/**
@@ -218,7 +232,7 @@ public class TableConfig {
 	 * necessary. Default is 64000.
 	 */
 	public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
-		this.maxGeneratedCodeLength = Preconditions.checkNotNull(maxGeneratedCodeLength);
+		this.configuration.setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
 	}
 
 	/**
@@ -236,34 +250,77 @@ public class TableConfig {
 	 * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
 	 * at least 5 minutes.
 	 *
+	 * <p>NOTE: Currently maxTime will be ignored and it will automatically derived from minTime
+	 * as 1.5 x minTime.
+	 *
 	 * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
 	 *                never clean-up the state.
 	 * @param maxTime The maximum time interval for which idle state is retained. Must be at least
 	 *                5 minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
+	 * @deprecated use {@link #setIdleStateRetention(Duration)} instead.
 	 */
+	@Deprecated
 	public void setIdleStateRetentionTime(Time minTime, Time maxTime) {
 		if (maxTime.toMilliseconds() - minTime.toMilliseconds() < 300000 &&
 			!(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
 			throw new IllegalArgumentException(
 				"Difference between minTime: " + minTime.toString() + " and maxTime: " + maxTime.toString() +
-					"shoud be at least 5 minutes.");
+					" should be at least 5 minutes.");
 		}
-		minIdleStateRetentionTime = minTime.toMilliseconds();
-		maxIdleStateRetentionTime = maxTime.toMilliseconds();
+		setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds()));
 	}
 
 	/**
+	 * Specifies a retention time interval for how long idle state, i.e., state which
+	 * was not updated, will be retained.
+	 * State will never be cleared until it was idle for less than the retention time and will be
+	 * cleared on a best effort basis after the retention time.
+	 *
+	 * <p>When new data arrives for previously cleaned-up state, the new data will be handled as if it
+	 * was the first data. This can result in previous results being overwritten.
+	 *
+	 * <p>Set to 0 (zero) to never clean-up the state.
+	 *
+	 * @param duration The retention time interval for which idle state is retained. Set to 0 (zero) to
+	 *                never clean-up the state.
+	 *
+	 * @see org.apache.flink.api.common.state.StateTtlConfig
+	 */
+	public void setIdleStateRetention(Duration duration){
+		configuration.set(ExecutionConfigOptions.IDLE_STATE_RETENTION, duration);
+	}
+
+	/**
+	 * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle state
+	 * retention time is supported. The min idle state retention is regarded as idle state retention and the
+	 * max idle state retention is derived from idle state retention as 1.5 x idle state retention.
+	 *
 	 * @return The minimum time until state which was not updated will be retained.
+	 * @deprecated use{@link getIdleStateRetention} instead.
 	 */
+	@Deprecated
 	public long getMinIdleStateRetentionTime() {
-		return minIdleStateRetentionTime;
+		return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
 	}
 
 	/**
+	 * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle state
+	 * retention time is supported. The min idle state retention is regarded as idle state retention and the
+	 * max idle state retention is derived from idle state retention as 1.5 x idle state retention.
+	 *
 	 * @return The maximum time until state which was not updated will be retained.
+	 * @deprecated use{@link getIdleStateRetention} instead.
 	 */
+	@Deprecated
 	public long getMaxIdleStateRetentionTime() {
-		return maxIdleStateRetentionTime;
+		return getMinIdleStateRetentionTime() * 3 / 2;
+	}
+
+	/**
+	 * @return The duration until state which was not updated will be retained.
+	 */
+	public Duration getIdleStateRetention() {
+		return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
 	}
 
 	/**

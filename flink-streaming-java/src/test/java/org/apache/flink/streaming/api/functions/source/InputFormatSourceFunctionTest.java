@@ -70,7 +70,7 @@ public class InputFormatSourceFunctionTest {
 		try (MockEnvironment environment =
 				new MockEnvironmentBuilder()
 					.setTaskName("no")
-					.setMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+					.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
 					.build()) {
 
 			reader.setRuntimeContext(new MockRuntimeContext(format, noOfSplits, environment));

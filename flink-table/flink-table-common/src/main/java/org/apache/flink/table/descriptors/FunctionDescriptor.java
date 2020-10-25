@@ -29,6 +29,7 @@ import java.util.Map;
 public class FunctionDescriptor implements Descriptor {
 	private String from;
 	private ClassInstance classInstance;
+	private String fullyQualifiedName;
 
 	/**
 	 * Creates a function from a class description.
@@ -36,6 +37,7 @@ public class FunctionDescriptor implements Descriptor {
 	public FunctionDescriptor fromClass(ClassInstance classType) {
 		from = FunctionDescriptorValidator.FROM_VALUE_CLASS;
 		this.classInstance = classType;
+		this.fullyQualifiedName = null;
 		return this;
 	}
 
@@ -50,6 +52,9 @@ public class FunctionDescriptor implements Descriptor {
 		}
 		if (classInstance != null) {
 			properties.putProperties(classInstance.toProperties());
+		}
+		if (fullyQualifiedName != null) {
+			properties.putString(PythonFunctionValidator.FULLY_QUALIFIED_NAME, fullyQualifiedName);
 		}
 		return properties.asMap();
 	}

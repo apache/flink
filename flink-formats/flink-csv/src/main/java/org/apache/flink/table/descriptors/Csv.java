@@ -28,6 +28,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ALLOW_COMMENTS;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_ESCAPE_CHARACTER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.CsvValidator.FORMAT_IGNORE_PARSE_ERRORS;
@@ -82,6 +83,14 @@ public class Csv extends FormatDescriptor {
 	public Csv lineDelimiter(String delimiter) {
 		Preconditions.checkNotNull(delimiter);
 		internalProperties.putString(FORMAT_LINE_DELIMITER, delimiter);
+		return this;
+	}
+
+	/**
+	 * Disable the quote character for enclosing field values.
+	 */
+	public Csv disableQuoteCharacter() {
+		internalProperties.putBoolean(FORMAT_DISABLE_QUOTE_CHARACTER, true);
 		return this;
 	}
 

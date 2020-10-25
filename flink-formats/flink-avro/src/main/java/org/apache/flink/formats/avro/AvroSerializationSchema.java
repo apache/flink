@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Serialization schema that serializes to Avro binary format.
@@ -161,5 +162,23 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 		}
 		this.arrayOutputStream = new ByteArrayOutputStream();
 		this.encoder = EncoderFactory.get().directBinaryEncoder(arrayOutputStream, null);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		AvroSerializationSchema<?> that = (AvroSerializationSchema<?>) o;
+		return recordClazz.equals(that.recordClazz) &&
+				Objects.equals(schema, that.schema);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(recordClazz, schema);
 	}
 }

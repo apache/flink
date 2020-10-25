@@ -20,6 +20,7 @@ package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerFactory;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
@@ -70,8 +71,8 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void initializeServices(Configuration config) throws Exception {
-		super.initializeServices(config);
+	protected void initializeServices(Configuration config, PluginManager pluginManager) throws Exception {
+		super.initializeServices(config, pluginManager);
 
 		final String hostname = config.getString(JobManagerOptions.ADDRESS);
 

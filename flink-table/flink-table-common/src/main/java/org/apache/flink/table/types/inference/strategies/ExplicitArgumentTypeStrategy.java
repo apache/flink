@@ -25,11 +25,13 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
 /**
  * Strategy for an argument that corresponds to an explicitly defined type. Implicit casts will be
@@ -50,11 +52,11 @@ public final class ExplicitArgumentTypeStrategy implements ArgumentTypeStrategy 
 		final LogicalType actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
 		// if logical types match, we return the expected data type
 		// for ensuring the expected conversion class
-		if (expectedType.equals(actualType)) {
+		if (supportsAvoidingCast(actualType, expectedType)) {
 			return Optional.of(expectedDataType);
 		}
 		// type coercion
-		if (!LogicalTypeCasts.supportsImplicitCast(actualType, expectedType)) {
+		if (!supportsImplicitCast(actualType, expectedType)) {
 			if (throwOnFailure) {
 				throw callContext.newValidationError(
 					"Unsupported argument type. Expected type '%s' but actual type was '%s'.",

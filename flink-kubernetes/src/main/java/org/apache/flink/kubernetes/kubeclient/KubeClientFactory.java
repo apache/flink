@@ -20,7 +20,8 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -29,7 +30,10 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Factory class to create {@link FlinkKubeClient}.
@@ -42,22 +46,35 @@ public class KubeClientFactory {
 
 		final Config config;
 
+		final String kubeContext = flinkConfig.getString(KubernetesConfigOptions.CONTEXT);
+		if (kubeContext != null) {
+			LOG.info("Configuring kubernetes client to use context {}.", kubeContext);
+		}
+
 		final String kubeConfigFile = flinkConfig.getString(KubernetesConfigOptions.KUBE_CONFIG_FILE);
 		if (kubeConfigFile != null) {
 			LOG.debug("Trying to load kubernetes config from file: {}.", kubeConfigFile);
 			try {
-				config = Config.fromKubeconfig(KubernetesUtils.getContentFromFile(kubeConfigFile));
+				// If kubeContext is null, the default context in the kubeConfigFile will be used.
+				// Note: the third parameter kubeconfigPath is optional and is set to null. It is only used to rewrite
+				// relative tls asset paths inside kubeconfig when a file is passed, and in the case that the kubeconfig
+				// references some assets via relative paths.
+				config = Config.fromKubeconfig(kubeContext, FileUtils.readFileUtf8(new File(kubeConfigFile)), null);
 			} catch (IOException e) {
 				throw new KubernetesClientException("Load kubernetes config failed.", e);
 			}
 		} else {
 			LOG.debug("Trying to load default kubernetes config.");
-			// Null means load from default context
-			config = Config.autoConfigure(null);
+
+			config = Config.autoConfigure(kubeContext);
 		}
 
 		final KubernetesClient client = new DefaultKubernetesClient(config);
 
-		return new Fabric8FlinkKubeClient(flinkConfig, client);
+		return new Fabric8FlinkKubeClient(flinkConfig, client, KubeClientFactory::createThreadPoolForAsyncIO);
+	}
+
+	private static ExecutorService createThreadPoolForAsyncIO() {
+		return Executors.newFixedThreadPool(2, new ExecutorThreadFactory("FlinkKubeClient-IO"));
 	}
 }

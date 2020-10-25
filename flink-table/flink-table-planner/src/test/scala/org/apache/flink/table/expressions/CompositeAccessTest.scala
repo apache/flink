@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.CompositeTypeTestBase
+
 import org.junit.Test
 
 class CompositeAccessTest extends CompositeTypeTestBase {

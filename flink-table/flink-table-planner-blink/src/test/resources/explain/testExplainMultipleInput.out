@@ -1,0 +1,44 @@
+MultipleInputNode(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+:     +- Calc(select=[a, b])
+:        +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+      +- Calc(select=[d, e])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+
+ : Data Source
+	content : Source: Collection Source
+
+ : Data Source
+	content : Source: Collection Source
+
+	 : Operator
+		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select=[a, b])
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : Calc(select=[d, e])
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : MultipleInputNode(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+								ship_strategy : HASH[d]
+

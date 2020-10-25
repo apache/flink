@@ -106,11 +106,6 @@ QueryableStateStream asQueryableState(
 // Shortcut for explicit ValueStateDescriptor variant
 QueryableStateStream asQueryableState(String queryableStateName)
 
-// FoldingState
-QueryableStateStream asQueryableState(
-    String queryableStateName,
-    FoldingStateDescriptor stateDescriptor)
-
 // ReducingState
 QueryableStateStream asQueryableState(
     String queryableStateName,
@@ -130,7 +125,7 @@ In a program like the following, all records of the keyed stream will be used to
 `ValueState.update(value)`:
 
 {% highlight java %}
-stream.keyBy(0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name")
 {% endhighlight %}
 
 This acts like the Scala API's `flatMapWithState`.
@@ -155,7 +150,7 @@ descriptor.setQueryable("query-name"); // queryable state name
 </div>
 
 This variant has no limitations as to which type of state can be made queryable. This means that this can be used for 
-any `ValueState`, `ReduceState`, `ListState`, `MapState`, `AggregatingState`, and the currently deprecated `FoldingState`.
+any `ValueState`, `ReduceState`, `ListState`, `MapState`, and `AggregatingState`.
 
 ## Querying State
 
@@ -180,7 +175,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 {% endhighlight %}
 </div>
 
-For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
+For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/project-configuration.html).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 
@@ -210,7 +205,7 @@ to serialize/deserialize it.
 
 The careful reader will notice that the returned future contains a value of type `S`, *i.e.* a `State` object containing
 the actual value. This can be any of the state types supported by Flink: `ValueState`, `ReduceState`, `ListState`, `MapState`,
-`AggregatingState`, and the currently deprecated `FoldingState`. 
+and `AggregatingState`. 
 
 <div class="alert alert-info">
   <strong>Note:</strong> These state objects do not allow modifications to the contained state. You can use them to get 

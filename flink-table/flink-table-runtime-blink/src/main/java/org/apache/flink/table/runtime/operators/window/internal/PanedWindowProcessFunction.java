@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.internal;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.PanedWindowAssigner;
@@ -48,7 +48,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public Collection<W> assignActualWindows(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignActualWindows(RowData inputRow, long timestamp) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(inputRow, timestamp);
 		List<W> actualWindows = new ArrayList<>(elementWindows.size());
 		for (W window : elementWindows) {
@@ -60,7 +60,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public Collection<W> assignStateNamespace(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignStateNamespace(RowData inputRow, long timestamp) throws Exception {
 		W pane = windowAssigner.assignPane(inputRow, timestamp);
 		if (!isPaneLate(pane)) {
 			return Collections.singleton(pane);
@@ -72,11 +72,11 @@ public class PanedWindowProcessFunction<K, W extends Window>
 	@Override
 	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
 		Iterable<W> panes = windowAssigner.splitIntoPanes(window);
-		BaseRow acc = windowAggregator.createAccumulators();
+		RowData acc = windowAggregator.createAccumulators();
 		// null namespace means use heap data views
 		windowAggregator.setAccumulators(null, acc);
 		for (W pane : panes) {
-			BaseRow paneAcc = ctx.getWindowAccumulators(pane);
+			RowData paneAcc = ctx.getWindowAccumulators(pane);
 			if (paneAcc != null) {
 				windowAggregator.merge(pane, paneAcc);
 			}

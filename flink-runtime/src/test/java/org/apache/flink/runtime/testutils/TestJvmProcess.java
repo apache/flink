@@ -137,7 +137,7 @@ public abstract class TestJvmProcess {
 		String[] cmd = new String[] {
 				javaCommandPath,
 				"-Dlog.level=DEBUG",
-				"-Dlog4j.configuration=file:" + log4jConfigFilePath,
+				"-Dlog4j.configurationFile=file:" + log4jConfigFilePath,
 				"-Xms" + jvmMemoryInMb + "m",
 				"-Xmx" + jvmMemoryInMb + "m",
 				"-classpath", getCurrentClasspath(),

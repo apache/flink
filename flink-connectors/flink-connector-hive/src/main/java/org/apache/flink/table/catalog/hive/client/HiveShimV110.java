@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.util.Preconditions;
 
@@ -33,6 +34,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.mapred.Reporter;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
@@ -43,21 +45,30 @@ import java.util.Properties;
 public class HiveShimV110 extends HiveShimV101 {
 
 	@Override
-	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
+	public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath) {
 		try {
-			Class outputFormatClz = Class.forName(outputFormatClzName);
 			Class utilClass = HiveFileFormatUtils.class;
-			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class);
-			outputFormatClz = (Class) utilMethod.invoke(null, outputFormatClz);
-			Preconditions.checkState(outputFormatClz != null, "No Hive substitute output format for " + outputFormatClzName);
 			OutputFormat outputFormat = (OutputFormat) outputFormatClz.newInstance();
-			utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, OutputFormat.class,
+			Method utilMethod = utilClass.getDeclaredMethod("getRecordWriter", JobConf.class, OutputFormat.class,
 					Class.class, boolean.class, Properties.class, Path.class, Reporter.class);
 			return (FileSinkOperator.RecordWriter) utilMethod.invoke(null,
 					jobConf, outputFormat, outValClz, isCompressed, tableProps, outPath, Reporter.NULL);
 		} catch (Exception e) {
 			throw new CatalogException("Failed to create Hive RecordWriter", e);
+		}
+	}
+
+	@Override
+	public Class getHiveOutputFormatClass(Class outputFormatClz) {
+		try {
+			Class utilClass = HiveFileFormatUtils.class;
+			Method utilMethod = utilClass.getDeclaredMethod("getOutputFormatSubstitute", Class.class);
+			Class res = (Class) utilMethod.invoke(null, outputFormatClz);
+			Preconditions.checkState(res != null, "No Hive substitute output format for " + outputFormatClz);
+			return res;
+		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+			throw new FlinkHiveException("Failed to get HiveOutputFormat for " + outputFormatClz, e);
 		}
 	}
 

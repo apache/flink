@@ -23,6 +23,7 @@ import { Observable, Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 import { JobService, StatusService } from 'services';
 import { deepFind, isNil } from 'utils';
+import { NzMessageService } from 'ng-zorro-antd';
 
 @Component({
   selector: 'flink-job-list',
@@ -64,13 +65,18 @@ export class JobListComponent implements OnInit, OnDestroy {
     return node.jid;
   }
 
-  navigateToJob(jid: string) {
-    this.router.navigate(['job', jid]).then();
+  navigateToJob(job: JobsItemInterface) {
+    if (job.state === 'INITIALIZING') {
+      this.nzMessageService.info('Job detail page is not available while it is in state INITIALIZING.');
+    } else {
+      this.router.navigate(['job', job.jid]).then();
+    }
   }
 
   constructor(
     private statusService: StatusService,
     private jobService: JobService,
+    private nzMessageService: NzMessageService,
     private activatedRoute: ActivatedRoute,
     private cdr: ChangeDetectorRef,
     private router: Router

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation}
 import org.apache.flink.table.api.TableException
@@ -68,12 +69,20 @@ trait ExecNode[E <: Planner, T] {
   protected def translateToPlanInternal(planner: E): Transformation[T]
 
   /**
-    * Returns an array of this node's inputs. If there are no inputs,
+    * Returns a list of this node's input nodes. If there are no inputs,
     * returns an empty list, not null.
     *
-    * @return Array of this node's inputs
+    * @return List of this node's input nodes
     */
   def getInputNodes: util.List[ExecNode[E, _]]
+
+  /**
+   * Returns a list of this node's input edges. If there are no inputs,
+   * returns an empty list, not null.
+   *
+   * @return List of this node's input edges
+   */
+  def getInputEdges: util.List[ExecEdge]
 
   /**
     * Replaces the <code>ordinalInParent</code><sup>th</sup> input.
@@ -112,15 +121,18 @@ object ExecNode {
   def setManagedMemoryWeight[T](
       transformation: Transformation[T],
       memoryBytes: Long = 0): Transformation[T] = {
-    if (transformation.getManagedMemoryWeight != Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT) {
-      throw new TableException("Managed memory weight has been set, this should not happen.")
-    }
 
     // Using Bytes can easily overflow
     // Using KibiBytes to cast to int
     // Careful about zero
-    val memoryKibiBytes = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 10).toInt)
-    transformation.setManagedMemoryWeight(memoryKibiBytes)
+    if (memoryBytes != 0) {
+      val memoryKibiBytes = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 10).toInt)
+      val previousWeight = transformation.declareManagedMemoryUseCaseAtOperatorScope(
+        ManagedMemoryUseCase.BATCH_OP, memoryKibiBytes)
+      if (previousWeight.isPresent) {
+        throw new TableException("Managed memory weight has been set, this should not happen.")
+      }
+    }
     transformation
   }
 

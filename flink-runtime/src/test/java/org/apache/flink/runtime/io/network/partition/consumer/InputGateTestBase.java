@@ -22,6 +22,8 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
+import org.junit.Before;
+
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -32,6 +34,13 @@ import static org.junit.Assert.assertTrue;
  * Test base for {@link InputGate}.
  */
 public abstract class InputGateTestBase {
+
+	int gateIndex;
+
+	@Before
+	public void resetGateIndex() {
+		gateIndex = 0;
+	}
 
 	protected void testIsAvailable(
 			InputGate inputGateToTest,
@@ -86,6 +95,7 @@ public abstract class InputGateTestBase {
 
 		SingleInputGateBuilder builder = new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfInputChannels)
+			.setSingleInputGateIndex(gateIndex++)
 			.setResultPartitionType(partitionType);
 
 		if (environment != null) {

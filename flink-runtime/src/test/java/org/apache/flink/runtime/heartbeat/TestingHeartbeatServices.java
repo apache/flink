@@ -23,6 +23,8 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,9 +40,9 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 
 	private static final long DEFAULT_HEARTBEAT_INTERVAL = 1000L;
 
-	private final Map<ResourceID, HeartbeatManagerImpl> heartbeatManagers = new ConcurrentHashMap<>();
+	private final Map<ResourceID, Collection<HeartbeatManagerImpl>> heartbeatManagers = new ConcurrentHashMap<>();
 
-	private final Map<ResourceID, HeartbeatManagerSenderImpl> heartbeatManagerSenders = new ConcurrentHashMap<>();
+	private final Map<ResourceID, Collection<HeartbeatManagerSenderImpl>> heartbeatManagerSenders = new ConcurrentHashMap<>();
 
 	public TestingHeartbeatServices() {
 		super(DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_TIMEOUT);
@@ -69,7 +71,19 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 			log,
 			new TestingHeartbeatMonitorFactory<>());
 
-		heartbeatManagers.put(resourceId, heartbeatManager);
+		heartbeatManagers.compute(resourceId, (resourceID, heartbeatManagers) -> {
+			final Collection<HeartbeatManagerImpl> result;
+
+			if (heartbeatManagers != null) {
+				result = heartbeatManagers;
+			} else {
+				result = new ArrayList<>();
+			}
+
+			result.add(heartbeatManager);
+			return result;
+		});
+
 		return heartbeatManager;
 	}
 
@@ -89,30 +103,46 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 			log,
 			new TestingHeartbeatMonitorFactory<>());
 
-		heartbeatManagerSenders.put(resourceId, heartbeatManager);
+		heartbeatManagerSenders.compute(resourceId, (resourceID, heartbeatManagers) -> {
+			final Collection<HeartbeatManagerSenderImpl> result;
+
+			if (heartbeatManagers != null) {
+				result = heartbeatManagers;
+			} else {
+				result = new ArrayList<>();
+			}
+
+			result.add(heartbeatManager);
+			return result;
+		});
+
 		return heartbeatManager;
 	}
 
 	public void triggerHeartbeatTimeout(ResourceID managerResourceId, ResourceID targetResourceId) {
 
 		boolean triggered = false;
-		HeartbeatManagerImpl heartbeatManager = heartbeatManagers.get(managerResourceId);
-		if (heartbeatManager != null) {
-			final TestingHeartbeatMonitor monitor =
-				(TestingHeartbeatMonitor) heartbeatManager.getHeartbeatTargets().get(targetResourceId);
-			if (monitor != null) {
-				monitor.triggerHeartbeatTimeout();
-				triggered = true;
+		Collection<HeartbeatManagerImpl> heartbeatManagerList = heartbeatManagers.get(managerResourceId);
+		if (heartbeatManagerList != null) {
+			for (HeartbeatManagerImpl heartbeatManager : heartbeatManagerList) {
+				final TestingHeartbeatMonitor monitor =
+					(TestingHeartbeatMonitor) heartbeatManager.getHeartbeatTargets().get(targetResourceId);
+				if (monitor != null) {
+					monitor.triggerHeartbeatTimeout();
+					triggered = true;
+				}
 			}
 		}
 
-		heartbeatManager = heartbeatManagerSenders.get(managerResourceId);
-		if (heartbeatManager != null) {
-			final TestingHeartbeatMonitor monitor =
-				(TestingHeartbeatMonitor) heartbeatManager.getHeartbeatTargets().get(targetResourceId);
-			if (monitor != null) {
-				monitor.triggerHeartbeatTimeout();
-				triggered = true;
+		final Collection<HeartbeatManagerSenderImpl> heartbeatManagerSenderList = this.heartbeatManagerSenders.get(managerResourceId);
+		if (heartbeatManagerSenderList != null) {
+			for (HeartbeatManagerSenderImpl heartbeatManagerSender : heartbeatManagerSenderList) {
+				final TestingHeartbeatMonitor monitor =
+					(TestingHeartbeatMonitor) heartbeatManagerSender.getHeartbeatTargets().get(targetResourceId);
+				if (monitor != null) {
+					monitor.triggerHeartbeatTimeout();
+					triggered = true;
+				}
 			}
 		}
 

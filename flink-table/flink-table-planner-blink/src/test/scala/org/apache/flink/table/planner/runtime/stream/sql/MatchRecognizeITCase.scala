@@ -21,10 +21,9 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -32,6 +31,7 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSource
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -196,7 +196,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testEventsAreProperlyOrdered(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = Seq(
@@ -254,7 +253,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testMatchRecognizeAppliedToWindowedGrouping(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -315,7 +313,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -419,7 +416,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testPartitionByWithParallelSource(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -596,7 +592,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env.fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
       s"""

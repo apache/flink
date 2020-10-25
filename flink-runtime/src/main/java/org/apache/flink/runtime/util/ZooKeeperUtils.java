@@ -25,6 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -38,15 +39,16 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
+
 import org.apache.commons.lang3.StringUtils;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.ACLProvider;
-import org.apache.curator.framework.imps.DefaultACLProvider;
-import org.apache.curator.framework.recipes.cache.PathChildrenCache;
-import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -345,7 +347,7 @@ public class ZooKeeperUtils {
 
 		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
-		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
+		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath, new DefaultLastStateConnectionStateListener());
 	}
 
 	/**

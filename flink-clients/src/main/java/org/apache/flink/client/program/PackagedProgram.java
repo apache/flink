@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
@@ -40,12 +39,6 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -227,12 +220,12 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
-		for (File tmpLib : this.extractedTempLibraries) {
+		for (File tmpLib : extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			} catch (MalformedURLException e) {
@@ -241,33 +234,35 @@ public class PackagedProgram {
 		}
 
 		if (isPython) {
-			String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
-			final List<Path> pythonJarPath = new ArrayList<>();
-			try {
-				Files.walkFileTree(FileSystems.getDefault().getPath(flinkOptPath), new SimpleFileVisitor<Path>() {
-					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						FileVisitResult result = super.visitFile(file, attrs);
-						if (file.getFileName().toString().startsWith("flink-python")) {
-							pythonJarPath.add(file);
-						}
-						return result;
-					}
-				});
-			} catch (IOException e) {
-				throw new RuntimeException(
-					"Exception encountered during finding the flink-python jar. This should not happen.", e);
-			}
+			libs.add(PackagedProgramUtils.getPythonJar());
+		}
 
-			if (pythonJarPath.size() != 1) {
-				throw new RuntimeException("Found " + pythonJarPath.size() + " flink-python jar.");
-			}
+		return libs;
+	}
 
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
+	public static List<URL> getJobJarAndDependencies(File jarFile, @Nullable String entryPointClassName) throws ProgramInvocationException {
+		URL jarFileUrl = loadJarFile(jarFile);
+
+		List<File> extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
+
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+
+		if (jarFileUrl != null) {
+			libs.add(jarFileUrl);
+		}
+		for (File tmpLib : extractedTempLibraries) {
 			try {
-				libs.add(pythonJarPath.get(0).toUri().toURL());
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			} catch (MalformedURLException e) {
 				throw new RuntimeException("URL is invalid. This should not happen.", e);
 			}
+		}
+
+		if (isPython(entryPointClassName)) {
+			libs.add(PackagedProgramUtils.getPythonJar());
 		}
 
 		return libs;

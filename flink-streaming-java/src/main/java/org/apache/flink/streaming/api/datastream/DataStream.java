@@ -21,6 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -47,18 +51,14 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
-import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -84,9 +84,9 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -96,6 +96,7 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -228,23 +229,6 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
-	 * Calling this method on an operator creates a new {@link SplitStream}.
-	 *
-	 * @param outputSelector
-	 *            The user defined
-	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
-	 *            for directing the tuples.
-	 * @return The {@link SplitStream}
-	 * @deprecated Please use side output instead.
-	 */
-	@Deprecated
-	public SplitStream<T> split(OutputSelector<T> outputSelector) {
-		return new SplitStream<>(this, clean(outputSelector));
-	}
-
-	/**
 	 * Creates a new {@link ConnectedStreams} by connecting
 	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
@@ -311,12 +295,14 @@ public class DataStream<T> {
 
 	/**
 	 * Partitions the operator state of a {@link DataStream} by the given key positions.
+	 * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
 	 *
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
 	 *            will be grouped.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
+	@Deprecated
 	public KeyedStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
@@ -330,12 +316,14 @@ public class DataStream<T> {
 	 * A field expression is either the name of a public field or a getter method with parentheses
 	 * of the {@link DataStream}'s underlying type. A dot can be used to drill
 	 * down into objects, as in {@code "field1.getInnerField2()" }.
+	 * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
 	 *
 	 * @param fields
 	 *            One or more field expressions on which the state of the {@link DataStream} operators will be
 	 *            partitioned.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 **/
+	@Deprecated
 	public KeyedStream<T, Tuple> keyBy(String... fields) {
 		return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
 	}
@@ -350,11 +338,13 @@ public class DataStream<T> {
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
 	 *
 	 * <p>Note: This method works only on single field keys.
+	 * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The field index on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
+	@Deprecated
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
 		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new int[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);
@@ -365,11 +355,13 @@ public class DataStream<T> {
 	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
 	 *
 	 * <p>Note: This method works only on single field keys.
+	 * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The expression for the field on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
+	@Deprecated
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
 		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new String[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);
@@ -517,7 +509,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -549,7 +541,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -783,7 +775,12 @@ public class DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(TumblingProcessingTimeWindows.of(size));
@@ -804,7 +801,12 @@ public class DataStream<T> {
 	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(SlidingProcessingTimeWindows.of(size, slide));
@@ -866,121 +868,80 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
-	 * The internal timestamps are, for example, used to to event-time window operations.
+	 * Assigns timestamps to the elements in the data stream and generates watermarks to signal
+	 * event time progress. The given {@link WatermarkStrategy} is used to create a {@link
+	 * TimestampAssigner} and {@link WatermarkGenerator}.
 	 *
-	 * <p>If you know that the timestamps are strictly increasing you can use an
-	 * {@link AscendingTimestampExtractor}. Otherwise,
-	 * you should provide a {@link TimestampExtractor} that also implements
-	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
+	 * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object,
+	 * long)} method is called to assign an event timestamp.
 	 *
-	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
+	 * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long,
+	 * WatermarkOutput)} will be called.
 	 *
-	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)}
-	 *             of {@link #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)}
-	 *             instead.
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
+	 * <p>Periodically (defined by the {@link ExecutionConfig#getAutoWatermarkInterval()}), the
+	 * {@link WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method will be called.
+	 *
+	 * <p>Common watermark generation patterns can be found as static methods in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategy} class.
+	 *
+	 * @param watermarkStrategy The strategy to generate watermarks based on event timestamps.
+	 * @return The stream after the transformation, with assigned timestamps and watermarks.
 	 */
-	@Deprecated
-	public SingleOutputStreamOperator<T> assignTimestamps(TimestampExtractor<T> extractor) {
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		int inputParallelism = getTransformation().getParallelism();
-		ExtractTimestampsOperator<T> operator = new ExtractTimestampsOperator<>(clean(extractor));
-		return transform("ExtractTimestamps", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
+			WatermarkStrategy<T> watermarkStrategy) {
+
+		final WatermarkStrategy<T> cleanedStrategy = clean(watermarkStrategy);
+
+		final TimestampsAndWatermarksOperator<T> operator =
+			new TimestampsAndWatermarksOperator<>(cleanedStrategy);
+
+		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
+		final int inputParallelism = getTransformation().getParallelism();
+
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+			.setParallelism(inputParallelism);
 	}
 
 	/**
 	 * Assigns timestamps to the elements in the data stream and periodically creates
 	 * watermarks to signal event time progress.
 	 *
-	 * <p>This method creates watermarks periodically (for example every second), based
-	 * on the watermarks indicated by the given watermark generator. Even when no new elements
-	 * in the stream arrive, the given watermark generator will be periodically checked for
-	 * new watermarks. The interval in which watermarks are generated is defined in
-	 * {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * <p>Use this method for the common cases, where some characteristic over all elements
-	 * should generate the watermarks, or where watermarks are simply trailing behind the
-	 * wall clock time by a certain amount.
-	 *
-	 * <p>For the second case and when the watermarks are required to lag behind the maximum
-	 * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
-	 * amount is known in advance, use the
-	 * {@link BoundedOutOfOrdernessTimestampExtractor}.
-	 *
-	 * <p>For cases where watermarks should be created in an irregular fashion, for example
-	 * based on certain markers that some element carry, use the
-	 * {@link AssignerWithPunctuatedWatermarks}.
-	 *
-	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.
-	 * @return The stream after the transformation, with assigned timestamps and watermarks.
-	 *
-	 * @see AssignerWithPeriodicWatermarks
-	 * @see AssignerWithPunctuatedWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
+	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
 
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPeriodicWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+		final WatermarkStrategy<T> wms = new AssignerWithPeriodicWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		TimestampsAndPeriodicWatermarksOperator<T> operator =
-				new TimestampsAndPeriodicWatermarksOperator<>(cleanedAssigner);
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	/**
-	 * Assigns timestamps to the elements in the data stream and creates watermarks to
-	 * signal event time progress based on the elements themselves.
+	 * Assigns timestamps to the elements in the data stream and creates watermarks based on events,
+	 * to signal event time progress.
 	 *
-	 * <p>This method creates watermarks based purely on stream elements. For each element
-	 * that is handled via {@link AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)},
-	 * the {@link AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark(Object, long)}
-	 * method is called, and a new watermark is emitted, if the returned watermark value is
-	 * non-negative and greater than the previous watermark.
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * <p>This method is useful when the data stream embeds watermark elements, or certain elements
-	 * carry a marker that can be used to determine the current event time watermark.
-	 * This operation gives the programmer full control over the watermark generation. Users
-	 * should be aware that too aggressive watermark generation (i.e., generating hundreds of
-	 * watermarks every second) can cost some performance.
-	 *
-	 * <p>For cases where watermarks should be created in a regular fashion, for example
-	 * every x milliseconds, use the {@link AssignerWithPeriodicWatermarks}.
-	 *
-	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.
-	 * @return The stream after the transformation, with assigned timestamps and watermarks.
-	 *
-	 * @see AssignerWithPunctuatedWatermarks
-	 * @see AssignerWithPeriodicWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
+	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
 
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPunctuatedWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+		final WatermarkStrategy<T> wms = new AssignerWithPunctuatedWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		TimestampsAndPunctuatedWatermarksOperator<T> operator =
-				new TimestampsAndPunctuatedWatermarksOperator<>(cleanedAssigner);
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1062,7 +1023,11 @@ public class DataStream<T> {
 	 *            The path pointing to the location the text file is written to.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path) {
 		return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
@@ -1081,7 +1046,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return The closed DataStream.
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
@@ -1100,7 +1069,11 @@ public class DataStream<T> {
 	 *            the path pointing to the location the text file is written to
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path) {
 		return writeAsCsv(path, null, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1120,7 +1093,11 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
 		return writeAsCsv(path, writeMode, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1144,8 +1121,12 @@ public class DataStream<T> {
 	 *            the delimiter for two fields
 	 *
 	 * @return the closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
 	@SuppressWarnings("unchecked")
+	@Deprecated
 	@PublicEvolving
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
@@ -1197,7 +1178,11 @@ public class DataStream<T> {
 	 *
 	 * @param format The output format
 	 * @return The closed DataStream
+	 *
+	 * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink} explicitly using the
+	 * {@link #addSink(SinkFunction)} method.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public DataStreamSink<T> writeUsingOutputFormat(OutputFormat<T> format) {
 		return addSink(new OutputFormatSinkFunction<>(format));

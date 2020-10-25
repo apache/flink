@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window.assigners;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
 import java.time.Duration;
@@ -58,7 +58,7 @@ public class TumblingWindowAssigner extends WindowAssigner<TimeWindow> implement
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(BaseRow element, long timestamp) {
+	public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
 		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}

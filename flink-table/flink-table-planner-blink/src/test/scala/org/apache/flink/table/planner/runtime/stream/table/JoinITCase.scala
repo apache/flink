@@ -21,13 +21,14 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Tumble, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, TestingRetractTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.utils.CountAggFunction
 import org.apache.flink.types.Row
 
@@ -134,9 +135,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       Array[String]("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG))
 
-    tEnv.registerTableSink("upsertSink", sink)
-    tEnv.insertInto("upsertSink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("upsertSink", sink)
+    t.executeInsert("upsertSink").await()
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -185,9 +185,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val t = leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-    tEnv.registerTableSink("retractSink", sink)
-    tEnv.insertInto("retractSink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("retractSink", sink)
+    t.executeInsert("retractSink").await()
 
     val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",
                        "5,5,5,5", "5,5,5,5")
@@ -626,7 +625,6 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // TODO
   @Ignore("Non-equi-join could be supported later.")
   @Test
   def testNonEqualInnerJoin(): Unit = {
@@ -642,7 +640,6 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  // TODO
   @Ignore("Non-equi-join could be supported later.")
   @Test
   def testNonEqualInnerJoinWithRetract(): Unit = {
@@ -792,9 +789,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    t.executeInsert("MySink").await()
 
     val expected = Seq("1,5,1,2")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -873,9 +869,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingRetractTableSink().configure(
       schema.getFieldNames, schema.getFieldTypes)
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    t.executeInsert("MySink").await()
 
     val expected = Seq("1,4,1,2", "1,5,1,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -1061,9 +1056,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    t.executeInsert("MySink").await()
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -1344,9 +1338,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.registerTableSink("sinkTests", sink)
-    tEnv.insertInto("sinkTests", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sinkTests", sink)
+    t.executeInsert("sinkTests").await()
 
     val expected = Seq("4,1,1,1")
     assertEquals(expected, sink.getUpsertResults)

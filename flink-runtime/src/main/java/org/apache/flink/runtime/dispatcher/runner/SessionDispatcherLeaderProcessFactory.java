@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
@@ -27,14 +28,15 @@ import java.util.concurrent.Executor;
 /**
  * Factory for the {@link SessionDispatcherLeaderProcess}.
  */
-class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
+@Internal
+public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
 
 	private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory;
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
 
-	SessionDispatcherLeaderProcessFactory(
+	public SessionDispatcherLeaderProcessFactory(
 			AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory dispatcherGatewayServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,

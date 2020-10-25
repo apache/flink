@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
@@ -49,11 +51,29 @@ import java.util.Optional;
 public interface Catalog {
 
 	/**
+	 * Returns a factory for creating instances from catalog objects.
+	 *
+	 * <p>This method enables bypassing the discovery process. Implementers can directly pass internal
+	 * catalog-specific objects to their own factory. For example, a custom {@link CatalogTable} can
+	 * be processed by a custom {@link DynamicTableFactory}.
+	 *
+	 * <p>Because all factories are interfaces, the returned {@link Factory} instance can implement multiple
+	 * supported extension points. An {@code instanceof} check is performed by the caller that checks
+	 * whether a required factory is implemented; otherwise the discovery process is used.
+	 */
+	default Optional<Factory> getFactory() {
+		return Optional.empty();
+	}
+
+	/**
 	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
 	 * instances stored in this catalog, instances such as source/sink.
 	 *
 	 * @return an optional TableFactory instance
+	 * @deprecated Use {@link #getFactory()} for the new factory stack. The new factory stack uses the
+	 *             new table sources and sinks defined in FLIP-95 and a slightly different discovery mechanism.
 	 */
+	@Deprecated
 	default Optional<TableFactory> getTableFactory() {
 		return Optional.empty();
 	}
@@ -307,7 +327,7 @@ public interface Catalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws TableNotExistException, TableNotPartitionedException, CatalogException;
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException;
 
 	/**
 	 * Get CatalogPartitionSpec of partitions by expression filters in the table.

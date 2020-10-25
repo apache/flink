@@ -96,13 +96,39 @@ public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
 		}
 
 		@Override
-		public void createPartition(LinkedHashMap<String, String> partSpec, Path path) throws Exception {
+		public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
+			Partition partition;
+			try {
+				partition = client.getPartition(database, tableName, new ArrayList<>(partitionSpec.values()));
+			} catch (NoSuchObjectException e) {
+				createPartition(partitionSpec, partitionPath);
+				return;
+			}
+			alterPartition(partitionSpec, partitionPath, partition);
+		}
+
+		private void createPartition(LinkedHashMap<String, String> partSpec, Path path) throws Exception {
 			StorageDescriptor newSd = new StorageDescriptor(sd);
 			newSd.setLocation(path.toString());
 			Partition partition = HiveTableUtil.createHivePartition(database, tableName,
 					new ArrayList<>(partSpec.values()), newSd, new HashMap<>());
 			partition.setValues(new ArrayList<>(partSpec.values()));
 			client.add_partition(partition);
+		}
+
+		private void alterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath,
+				Partition currentPartition) throws Exception {
+			StorageDescriptor partSD = currentPartition.getSd();
+			// the following logic copied from Hive::alterPartitionSpecInMemory
+			partSD.setOutputFormat(sd.getOutputFormat());
+			partSD.setInputFormat(sd.getInputFormat());
+			partSD.getSerdeInfo().setSerializationLib(sd.getSerdeInfo().getSerializationLib());
+			partSD.getSerdeInfo().setParameters(sd.getSerdeInfo().getParameters());
+			partSD.setBucketCols(sd.getBucketCols());
+			partSD.setNumBuckets(sd.getNumBuckets());
+			partSD.setSortCols(sd.getSortCols());
+			partSD.setLocation(partitionPath.toString());
+			client.alter_partition(database, tableName, currentPartition);
 		}
 
 		@Override

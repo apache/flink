@@ -16,15 +16,31 @@
 # limitations under the License.
 ################################################################################
 
-# Extensions to flink-container/docker/docker-compose.yml that mounts volumes needed for tests
+# Docker compose file for a Flink job cluster deployment.
+#
+# Parameters:
+# * FLINK_DOCKER_IMAGE_NAME - Image name to use for the deployment (default: flink-job:latest)
+# * FLINK_JOB - Name of the Flink job to execute (default: none)
+# * DEFAULT_PARALLELISM - Default parallelism with which to start the job (default: 1)
+# * FLINK_JOB_ARGUMENTS - Additional arguments which will be passed to the job cluster (default: none)
+# * SAVEPOINT_OPTIONS - Savepoint options to start the cluster with (default: none)
 
 version: "2.2"
 services:
   job-cluster:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
+    ports:
+        - "8081:8081"
+    command: standalone-job --job-classname ${FLINK_JOB} -Djobmanager.rpc.address=job-cluster -Dparallelism.default=${DEFAULT_PARALLELISM:-1} ${SAVEPOINT_OPTIONS} ${FLINK_JOB_ARGUMENTS}
     volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
       - ${INPUT_VOLUME}:${INPUT_PATH}
       - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
   taskmanager:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
+    command: taskmanager -Djobmanager.rpc.address=job-cluster
+    scale: ${DEFAULT_PARALLELISM:-1}
     volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
       - ${INPUT_VOLUME}:${INPUT_PATH}
       - ${OUTPUT_VOLUME}:${OUTPUT_PATH}

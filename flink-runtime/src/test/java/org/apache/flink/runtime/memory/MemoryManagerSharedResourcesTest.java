@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.apache.flink.core.memory.MemoryType;
-
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -77,18 +75,18 @@ public class MemoryManagerSharedResourcesTest {
 
 		memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.5);
 
-		assertEquals(memoryManager.getMemorySize() / 2, memoryManager.availableMemory(MemoryType.OFF_HEAP));
+		assertEquals(memoryManager.getMemorySize() / 2, memoryManager.availableMemory());
 	}
 
 	@Test
 	public void getExistingDoesNotAllocateAdditionalMemory() throws Exception {
 		final MemoryManager memoryManager = createMemoryManager();
 		memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.8);
-		final long freeMemory = memoryManager.availableMemory(MemoryType.OFF_HEAP);
+		final long freeMemory = memoryManager.availableMemory();
 
 		memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.8);
 
-		assertEquals(freeMemory, memoryManager.availableMemory(MemoryType.OFF_HEAP));
+		assertEquals(freeMemory, memoryManager.availableMemory());
 	}
 
 	@Test
@@ -117,6 +115,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource1.close();
 
 		assertFalse(resource1.getResourceHandle().closed);
+		assertFalse(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -132,6 +131,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource2.close();
 
 		assertTrue(resource1.getResourceHandle().closed);
+		assertTrue(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -145,6 +145,7 @@ public class MemoryManagerSharedResourcesTest {
 		resource1.close();
 
 		assertFalse(resource1.getResourceHandle().closed);
+		assertFalse(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -160,6 +161,7 @@ public class MemoryManagerSharedResourcesTest {
 
 		assertTrue(resource1.getResourceHandle().closed);
 		assertTrue(resource2.getResourceHandle().closed);
+		assertTrue(memoryManager.verifyEmpty());
 	}
 
 	@Test
@@ -214,11 +216,11 @@ public class MemoryManagerSharedResourcesTest {
 
 	private static MemoryManager createMemoryManager() {
 		final long size = 128 * 1024 * 1024;
-		final MemoryManager mm = MemoryManager.forDefaultPageSize(size);
+		final MemoryManager mm = MemoryManagerBuilder.newBuilder().setMemorySize(size).build();
 
 		// this is to guard test assumptions
 		assertEquals(size, mm.getMemorySize());
-		assertEquals(size, mm.availableMemory(MemoryType.OFF_HEAP));
+		assertEquals(size, mm.availableMemory());
 
 		return mm;
 	}

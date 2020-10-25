@@ -1,0 +1,81 @@
+== Abstract Syntax Tree ==
+LogicalSink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[d, e, f])
+  LogicalProject(a=[$0], b=[$1], c=[$2])
+    LogicalFilter(condition=[>($0, 2)])
+      LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')], c=[AS($2, _UTF-16LE'c')])
+        FlinkLogicalDataSetScan(ref=[], fields=[_1, _2, _3])
+
+LogicalSink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[i, j, k])
+  LogicalProject(a=[$0], b=[$1], c=[$2])
+    LogicalFilter(condition=[<=($0, 2)])
+      LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')], c=[AS($2, _UTF-16LE'c')])
+        FlinkLogicalDataSetScan(ref=[], fields=[_1, _2, _3])
+
+== Optimized Logical Plan ==
+DataSetSink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[d, e, f])
+  DataSetCalc(select=[_1 AS a, _2 AS b, _3 AS c], where=[>(_1, 2)])
+    DataSetScan(ref=[], fields=[_1, _2, _3])
+
+DataSetSink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[i, j, k])
+  DataSetCalc(select=[_1 AS a, _2 AS b, _3 AS c], where=[<=(_1, 2)])
+    DataSetScan(ref=[], fields=[_1, _2, _3])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+	Partitioning : RANDOM_PARTITIONED
+
+	 : Map
+		content : from: (_1, _2, _3)
+		ship_strategy : Forward
+		exchange_mode : PIPELINED
+		driver_strategy : Map
+		Partitioning : RANDOM_PARTITIONED
+
+		 : FlatMap
+			content : where: (>(_1, 2)), select: (_1 AS a, _2 AS b, _3 AS c)
+			ship_strategy : Forward
+			exchange_mode : PIPELINED
+			driver_strategy : FlatMap
+			Partitioning : RANDOM_PARTITIONED
+
+			 : Map
+				content : to: Row
+				ship_strategy : Forward
+				exchange_mode : PIPELINED
+				driver_strategy : Map
+				Partitioning : RANDOM_PARTITIONED
+
+				 : Data Sink
+					content : TextOutputFormat () - UTF-8
+					ship_strategy : Forward
+					exchange_mode : PIPELINED
+					Partitioning : RANDOM_PARTITIONED
+
+					 : Map
+						content : from: (_1, _2, _3)
+						ship_strategy : Forward
+						exchange_mode : PIPELINED
+						driver_strategy : Map
+						Partitioning : RANDOM_PARTITIONED
+
+						 : FlatMap
+							content : where: (<=(_1, 2)), select: (_1 AS a, _2 AS b, _3 AS c)
+							ship_strategy : Forward
+							exchange_mode : PIPELINED
+							driver_strategy : FlatMap
+							Partitioning : RANDOM_PARTITIONED
+
+							 : Map
+								content : to: Row
+								ship_strategy : Forward
+								exchange_mode : PIPELINED
+								driver_strategy : Map
+								Partitioning : RANDOM_PARTITIONED
+
+								 : Data Sink
+									content : TextOutputFormat () - UTF-8
+									ship_strategy : Forward
+									exchange_mode : PIPELINED
+									Partitioning : RANDOM_PARTITIONED
+

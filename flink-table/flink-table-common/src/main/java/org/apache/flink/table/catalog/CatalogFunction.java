@@ -61,13 +61,6 @@ public interface CatalogFunction {
 	boolean isGeneric();
 
 	/**
-	 * Distinguish if the function is a temporary function.
-	 *
-	 * @return whether the function is a generic function
-	 */
-	boolean isTemporary();
-
-	/**
 	 * Get the language used for the definition of function.
 	 *
 	 * @return  the language type of the function definition

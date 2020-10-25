@@ -36,7 +36,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
 /**
  * Tests for the RUN command using a {@link FlinkYarnSessionCli} inside the {@link CliFrontend}.

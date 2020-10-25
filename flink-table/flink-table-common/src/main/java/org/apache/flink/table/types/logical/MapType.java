@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -40,11 +41,11 @@ import java.util.Set;
 @PublicEvolving
 public final class MapType extends LogicalType {
 
-	private static final String FORMAT = "MAP<%s, %s>";
+	public static final String FORMAT = "MAP<%s, %s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Map.class.getName(),
-		"org.apache.flink.table.dataformat.BinaryMap");
+		MapData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = Map.class;
 

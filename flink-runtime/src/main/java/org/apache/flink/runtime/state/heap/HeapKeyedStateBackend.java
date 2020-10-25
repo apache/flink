@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -82,8 +81,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2.of(ListStateDescriptor.class, (StateFactory) HeapListState::create),
 			Tuple2.of(MapStateDescriptor.class, (StateFactory) HeapMapState::create),
 			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) HeapAggregatingState::create),
-			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) HeapReducingState::create),
-			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) HeapFoldingState::create)
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) HeapReducingState::create)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	/**
@@ -258,6 +256,18 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return table.getKeys(namespace);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
+		if (!registeredKVStates.containsKey(state)) {
+			return Stream.empty();
+		}
+
+		final StateSnapshotRestore stateSnapshotRestore = registeredKVStates.get(state);
+		StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateSnapshotRestore;
+		return table.getKeysAndNamespaces();
+	}
+
 	@Override
 	@Nonnull
 	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
@@ -309,6 +319,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
 		//Nothing to do
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		// nothing to do
 	}
 
 	@Override

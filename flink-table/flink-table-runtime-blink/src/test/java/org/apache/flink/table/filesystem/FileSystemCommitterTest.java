@@ -145,8 +145,7 @@ public class FileSystemCommitterTest {
 				}
 
 				@Override
-				public void createPartition(LinkedHashMap<String, String> partSpec,
-						Path path) {
+				public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
 				}
 
 				@Override

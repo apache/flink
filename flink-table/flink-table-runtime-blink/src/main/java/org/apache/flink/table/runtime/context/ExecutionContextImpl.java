@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.context;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 
@@ -40,12 +40,12 @@ public final class ExecutionContextImpl implements ExecutionContext {
 	}
 
 	@Override
-	public BaseRow currentKey() {
-		return (BaseRow) operator.getCurrentKey();
+	public RowData currentKey() {
+		return (RowData) operator.getCurrentKey();
 	}
 
 	@Override
-	public void setCurrentKey(BaseRow key) {
+	public void setCurrentKey(RowData key) {
 		operator.setCurrentKey(key);
 	}
 

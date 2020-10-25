@@ -35,19 +35,15 @@ public class FailoverStrategyLoader {
 	/** Config name for the {@link RestartAllStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartIndividualStrategy}. */
-	public static final String INDIVIDUAL_RESTART_STRATEGY_NAME = "individual";
-
-	/** Config name for the {@link AdaptedRestartPipelinedRegionStrategyNG}. */
-	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
-
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Loads a FailoverStrategy Factory from the given configuration.
 	 */
 	public static FailoverStrategy.Factory loadFailoverStrategy(Configuration config, @Nullable Logger logger) {
-		final String strategyParam = config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
+		final String strategyParam = config.getString(
+			JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
+			FULL_RESTART_STRATEGY_NAME);
 
 		if (StringUtils.isNullOrWhitespaceOnly(strategyParam)) {
 			if (logger != null) {
@@ -61,12 +57,6 @@ public class FailoverStrategyLoader {
 			switch (strategyParam.toLowerCase()) {
 				case FULL_RESTART_STRATEGY_NAME:
 					return new RestartAllStrategy.Factory();
-
-				case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-					return new AdaptedRestartPipelinedRegionStrategyNG.Factory();
-
-				case INDIVIDUAL_RESTART_STRATEGY_NAME:
-					return new RestartIndividualStrategy.Factory();
 
 				default:
 					// we could interpret the parameter as a factory class name and instantiate that

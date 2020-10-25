@@ -26,6 +26,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.Scheduled;
 
 import org.slf4j.Logger;
@@ -49,6 +50,7 @@ import java.util.NoSuchElementException;
  * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.statsd.StatsDReporterFactory")
 public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);

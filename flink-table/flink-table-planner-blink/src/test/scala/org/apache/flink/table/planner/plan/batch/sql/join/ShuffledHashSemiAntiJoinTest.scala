@@ -162,25 +162,4 @@ class ShuffledHashSemiAntiJoinTest extends SemiAntiJoinTestBase {
     super.testNotInWithUncorrelated_SimpleCondition3()
   }
 
-  @Test
-  override def testExistsWithCorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithCorrelated_LateralTableInSubQuery()
-  }
-
-  @Test
-  override def testInWithUncorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInWithUncorrelated_LateralTableInSubQuery()
-  }
-
-  @Test
-  override def testInWithCorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInWithCorrelated_LateralTableInSubQuery()
-  }
-
 }

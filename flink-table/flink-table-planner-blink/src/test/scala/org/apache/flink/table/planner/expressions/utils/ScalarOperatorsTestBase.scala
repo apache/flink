@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 import org.apache.flink.types.Row
 
 abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
@@ -46,8 +46,8 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(13, Row.of("foo", null))
     testData.setField(14, null)
     testData.setField(15, localDate("1996-11-10"))
-    testData.setField(16, Decimal.castFrom("0.00000000", 19, 8))
-    testData.setField(17, Decimal.castFrom("10.0", 19, 1))
+    testData.setField(16, DecimalDataUtils.castFrom("0.00000000", 19, 8))
+    testData.setField(17, DecimalDataUtils.castFrom("10.0", 19, 1))
     testData
   }
 
@@ -69,8 +69,8 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       /* 13 */ Types.ROW(Types.STRING, Types.STRING),
       /* 14 */ Types.STRING,
       /* 15 */ Types.LOCAL_DATE,
-      /* 16 */ DecimalTypeInfo.of(19, 8),
-      /* 17 */ DecimalTypeInfo.of(19, 1)
+      /* 16 */ DecimalDataTypeInfo.of(19, 8),
+      /* 17 */ DecimalDataTypeInfo.of(19, 1)
     )
   }
 

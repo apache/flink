@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
@@ -48,7 +47,7 @@ object ExecNodePlanDumper {
     * @param node               the ExecNode to convert
     * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
     * @param withExecNodeId     whether including ID of ExecNode
-    * @param withRetractTraits  whether including Retraction Traits of RelNode corresponding to
+    * @param withChangelogTraits  whether including changelog traits of RelNode corresponding to
     *                           an ExecNode (only apply to StreamPhysicalRel node at present)
     * @param withOutputType     whether including output rowType
     * @return                   explain plan of ExecNode
@@ -57,14 +56,14 @@ object ExecNodePlanDumper {
       node: ExecNode[_, _],
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
-      withRetractTraits: Boolean = false,
+      withChangelogTraits: Boolean = false,
       withOutputType: Boolean = false,
       withResource: Boolean = false): String = {
     doConvertTreeToString(
       node,
       detailLevel = detailLevel,
       withExecNodeId = withExecNodeId,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withOutputType = withOutputType,
       withResource = withResource)
   }
@@ -75,7 +74,7 @@ object ExecNodePlanDumper {
     * @param nodes              the ExecNodes to convert
     * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
     * @param withExecNodeId     whether including ID of ExecNode
-    * @param withRetractTraits  whether including Retraction Traits of RelNode corresponding to
+    * @param withChangelogTraits  whether including changelog traits of RelNode corresponding to
     *                           an ExecNode (only apply to StreamPhysicalRel node at present)
     * @param withOutputType     whether including output rowType
     * @return                   explain plan of ExecNode
@@ -84,7 +83,7 @@ object ExecNodePlanDumper {
       nodes: Seq[ExecNode[_, _]],
       detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withExecNodeId: Boolean = false,
-      withRetractTraits: Boolean = false,
+      withChangelogTraits: Boolean = false,
       withOutputType: Boolean = false,
       withResource: Boolean = false): String = {
     if (nodes.length == 1) {
@@ -92,7 +91,7 @@ object ExecNodePlanDumper {
         nodes.head,
         detailLevel,
         withExecNodeId = withExecNodeId,
-        withRetractTraits = withRetractTraits,
+        withChangelogTraits = withChangelogTraits,
         withOutputType = withOutputType,
         withResource = withResource)
     }
@@ -117,7 +116,8 @@ object ExecNodePlanDumper {
         }
         val reuseId = reuseInfoBuilder.getReuseId(node)
         val isReuseNode = reuseId.isDefined
-        if (node.isInstanceOf[Sink] || (isReuseNode && !reuseInfoMap.containsKey(node))) {
+        if (node.isInstanceOf[LegacySink] || node.isInstanceOf[Sink] ||
+            (isReuseNode && !reuseInfoMap.containsKey(node))) {
           if (isReuseNode) {
             reuseInfoMap.put(node, (reuseId.get, true))
           }
@@ -125,7 +125,7 @@ object ExecNodePlanDumper {
             node,
             detailLevel = detailLevel,
             withExecNodeId = withExecNodeId,
-            withRetractTraits = withRetractTraits,
+            withChangelogTraits = withChangelogTraits,
             withOutputType = withOutputType,
             stopExplainNodes = Some(stopExplainNodes),
             reuseInfoMap = Some(reuseInfoMap),
@@ -153,7 +153,7 @@ object ExecNodePlanDumper {
       node: ExecNode[_, _],
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
-      withRetractTraits: Boolean = false,
+      withChangelogTraits: Boolean = false,
       withOutputType: Boolean = false,
       stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
       reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
@@ -167,7 +167,7 @@ object ExecNodePlanDumper {
       new PrintWriter(sw),
       explainLevel = detailLevel,
       withExecNodeId = withExecNodeId,
-      withRetractTraits = withRetractTraits,
+      withChangelogTraits = withChangelogTraits,
       withOutputType = withOutputType,
       stopExplainNodes = stopExplainNodes,
       reuseInfoMap = reuseInfoMap,
@@ -221,7 +221,7 @@ class NodeTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withExecNodeId: Boolean = false,
-    withRetractTraits: Boolean = false,
+    withChangelogTraits: Boolean = false,
     withOutputType: Boolean = false,
     stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
     reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
@@ -331,15 +331,12 @@ class NodeTreeWriterImpl(
         printValues.add(Pair.of("__id__", rel.getId.toString))
       }
 
-      if (withRetractTraits) {
+      if (withChangelogTraits) {
         rel match {
           case streamRel: StreamPhysicalRel =>
-            val traitSet = streamRel.getTraitSet
+            val changelogMode = ChangelogPlanUtils.getChangelogMode(streamRel)
             printValues.add(
-              Pair.of("updateAsRetraction",
-                traitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)))
-            printValues.add(
-              Pair.of("accMode", traitSet.getTrait(AccModeTraitDef.INSTANCE)))
+              Pair.of("changelogMode", ChangelogPlanUtils.stringifyChangelogMode(changelogMode)))
           case _ => // ignore
         }
       }

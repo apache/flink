@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelFactories, FlinkTypeFactory}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggre
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
@@ -70,6 +71,7 @@ class BatchExecWindowAggregateRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalWindowAggregate],
       operand(classOf[RelNode], any)),
+    FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE,
     "BatchExecWindowAggregateRule")
   with BatchExecAggRuleBase {
 
@@ -88,7 +90,7 @@ class BatchExecWindowAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    true
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -156,6 +158,7 @@ class BatchExecWindowAggregateRule
 
     // TODO aggregate include projection now, so do not provide new trait will be safe
     val aggProvidedTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+
     val inputTimeFieldIndex = AggregateUtil.timeFieldIndex(
       input.getRowType, call.builder(), window.timeAttribute)
     val inputTimeFieldType = agg.getInput.getRowType.getFieldList.get(inputTimeFieldIndex).getType

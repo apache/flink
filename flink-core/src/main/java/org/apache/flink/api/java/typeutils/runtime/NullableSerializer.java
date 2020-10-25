@@ -218,7 +218,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		boolean isNull = source.readBoolean();
+		boolean isNull = deserializeNull(source);
 		target.writeBoolean(isNull);
 		if (isNull) {
 			target.write(padding);
@@ -348,8 +348,10 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		}
 
 		@Override
-		protected boolean isOuterSnapshotCompatible(NullableSerializer<T> newSerializer) {
-			return nullPaddingLength == newSerializer.nullPaddingLength();
+		protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(NullableSerializer<T> newSerializer) {
+			return (nullPaddingLength == newSerializer.nullPaddingLength())
+				? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+				: OuterSchemaCompatibility.INCOMPATIBLE;
 		}
 	}
 

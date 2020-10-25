@@ -27,13 +27,16 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter, BinaryString}
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+
 import org.junit.runners.Parameterized
 import org.junit.{After, Assert, Before}
 
@@ -77,17 +80,18 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   }
 
   @After
-  def after(): Unit = {
+  override def after(): Unit = {
+    super.after()
     Assert.assertTrue(FailingCollectionSource.failedBefore)
   }
 
   /**
-    * Creates a BinaryRow DataStream from the given non-empty [[Seq]].
+    * Creates a BinaryRowData DataStream from the given non-empty [[Seq]].
     */
-  def failingBinaryRowSource[T: TypeInformation](data: Seq[T]): DataStream[BaseRow] = {
+  def failingBinaryRowSource[T: TypeInformation](data: Seq[T]): DataStream[RowData] = {
     val typeInfo = implicitly[TypeInformation[_]].asInstanceOf[CompositeType[_]]
-    val result = new mutable.MutableList[BaseRow]
-    val reuse = new BinaryRow(typeInfo.getArity)
+    val result = new mutable.MutableList[RowData]
+    val reuse = new BinaryRowData(typeInfo.getArity)
     val writer = new BinaryRowWriter(reuse)
     data.foreach {
       case p: Product =>
@@ -97,7 +101,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
             case Types.INT => writer.writeInt(i, p.productElement(i).asInstanceOf[Int])
             case Types.LONG => writer.writeLong(i, p.productElement(i).asInstanceOf[Long])
             case Types.STRING => writer.writeString(i,
-              BinaryString.fromString(p.productElement(i).asInstanceOf[String]))
+              StringData.fromString(p.productElement(i).asInstanceOf[String]))
             case Types.BOOLEAN => writer.writeBoolean(i, p.productElement(i).asInstanceOf[Boolean])
           }
         }
@@ -105,9 +109,9 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
         result += reuse.copy()
       case _ => throw new UnsupportedOperationException
     }
-    val newTypeInfo = BaseRowTypeInfo.of(
+    val newTypeInfo = InternalTypeInfo.of(
       TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(typeInfo).asInstanceOf[RowType])
-    failingDataSource(result)(newTypeInfo.asInstanceOf[TypeInformation[BaseRow]])
+    failingDataSource(result)(newTypeInfo.asInstanceOf[TypeInformation[RowData]])
   }
 
   /**

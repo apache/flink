@@ -92,28 +92,24 @@ public class ConfigUtilsTest {
 	}
 
 	@Test
-	public void emptyCollectionPutsNothingInConfig() {
+	public void emptyCollectionPutsEmptyValueInConfig() {
 		final Configuration configurationUnderTest = new Configuration();
 		ConfigUtils.encodeCollectionToConfig(configurationUnderTest, TEST_OPTION, Collections.emptyList(), Object::toString);
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
-
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
+		final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
+		assertThat(recovered, is(empty()));
 
 		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
 		assertThat(recoveredList, is(empty()));
 	}
 
 	@Test
-	public void emptyArrayPutsNothingInConfig() {
+	public void emptyArrayPutsEmptyValueInConfig() {
 		final Configuration configurationUnderTest = new Configuration();
 		ConfigUtils.encodeArrayToConfig(configurationUnderTest, TEST_OPTION, new Integer[5], Object::toString);
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
-
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
+		final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
+		assertThat(recovered, is(empty()));
 
 		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
 		assertThat(recoveredList, is(empty()));

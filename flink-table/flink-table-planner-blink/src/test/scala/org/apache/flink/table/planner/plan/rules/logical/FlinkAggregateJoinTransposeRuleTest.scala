@@ -20,9 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -56,12 +55,12 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(RuleSets.ofList(
               AggregateReduceGroupingRule.INSTANCE,
-              FilterJoinRule.FILTER_ON_JOIN,
-              FilterJoinRule.JOIN,
-              FilterAggregateTransposeRule.INSTANCE,
-              FilterProjectTransposeRule.INSTANCE,
-              FilterMergeRule.INSTANCE,
-              AggregateProjectMergeRule.INSTANCE,
+              CoreRules.FILTER_INTO_JOIN,
+              CoreRules.JOIN_CONDITION_PUSH,
+              CoreRules.FILTER_AGGREGATE_TRANSPOSE,
+              CoreRules.FILTER_PROJECT_TRANSPOSE,
+              CoreRules.FILTER_MERGE,
+              CoreRules.AGGREGATE_PROJECT_MERGE,
               FlinkAggregateJoinTransposeRule.EXTENDED
             )).build(), "aggregate join transpose")
         .build()

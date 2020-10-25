@@ -19,11 +19,15 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 
+import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFBase64;
 import org.apache.hadoop.hive.ql.udf.UDFBin;
 import org.apache.hadoop.hive.ql.udf.UDFConv;
@@ -39,6 +43,9 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -48,6 +55,30 @@ import static org.junit.Assert.assertTrue;
  */
 public class HiveSimpleUDFTest {
 	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+
+	@Test
+	public void testBooleanUDF() {
+		HiveSimpleUDF udf = init(BooleanUDF.class, new DataType[]{ DataTypes.INT()});
+		assertTrue((boolean) udf.eval(1));
+	}
+
+	@Test
+	public void testFloatUDF() {
+		HiveSimpleUDF udf = init(FloatUDF.class, new DataType[]{ DataTypes.FLOAT()});
+		assertEquals(3.0f, (float) udf.eval(3.0f), 0);
+	}
+
+	@Test
+	public void testIntUDF() {
+		HiveSimpleUDF udf = init(IntUDF.class, new DataType[]{ DataTypes.INT()});
+		assertEquals(3, (int) udf.eval(3));
+	}
+
+	@Test
+	public void testStringUDF() {
+		HiveSimpleUDF udf = init(StringUDF.class, new DataType[]{ DataTypes.STRING()});
+		assertEquals("test", udf.eval("test"));
+	}
 
 	@Test
 	public void testUDFRand() {
@@ -223,11 +254,101 @@ public class HiveSimpleUDFTest {
 		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
 		// Hive UDF won't have literal args
-		udf.setArgumentTypesAndConstants(new Object[0], argTypes);
-		udf.getHiveResultType(new Object[0], argTypes);
+		CallContext callContext = new HiveUDFCallContext(new Object[0], argTypes);
+		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
 		udf.open(null);
 
 		return udf;
+	}
+
+	/**
+	 * Boolean Test UDF.
+	 */
+	public static class BooleanUDF extends UDF {
+		public boolean evaluate(int content) {
+			return content == 1;
+		}
+	}
+
+	/**
+	 * Float Test UDF.
+	 */
+	public static class FloatUDF extends UDF {
+		public float evaluate(float content) {
+			return content;
+		}
+	}
+
+	/**
+	 * Int Test UDF.
+	 */
+	public static class IntUDF extends UDF {
+		public int evaluate(int content) {
+			return content;
+		}
+	}
+
+	/**
+	 * String Test UDF.
+	 */
+	public static class StringUDF extends UDF {
+		public String evaluate(String content) {
+			return content;
+		}
+	}
+
+	/**
+	 * A CallContext implementation for Hive UDF tests.
+	 */
+	public static class HiveUDFCallContext implements CallContext {
+
+		private final Object[] constantArgs;
+		private final DataType[] argTypes;
+
+		public HiveUDFCallContext(Object[] constantArgs, DataType[] argTypes) {
+			this.constantArgs = constantArgs;
+			this.argTypes = argTypes;
+		}
+
+		@Override
+		public DataTypeFactory getDataTypeFactory() {
+			return null;
+		}
+
+		@Override
+		public FunctionDefinition getFunctionDefinition() {
+			return null;
+		}
+
+		@Override
+		public boolean isArgumentLiteral(int pos) {
+			return pos >= 0 && pos < constantArgs.length && constantArgs[pos] != null;
+		}
+
+		@Override
+		public boolean isArgumentNull(int pos) {
+			return false;
+		}
+
+		@Override
+		public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+			return (Optional<T>) Optional.of(constantArgs[pos]);
+		}
+
+		@Override
+		public String getName() {
+			return null;
+		}
+
+		@Override
+		public List<DataType> getArgumentDataTypes() {
+			return Arrays.asList(argTypes);
+		}
+
+		@Override
+		public Optional<DataType> getOutputDataType() {
+			return Optional.empty();
+		}
 	}
 }

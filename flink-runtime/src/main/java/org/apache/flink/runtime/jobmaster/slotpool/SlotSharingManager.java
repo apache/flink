@@ -574,6 +574,11 @@ public class SlotSharingManager {
 		}
 
 		@Override
+		public boolean willOccupySlotIndefinitely() {
+			throw new UnsupportedOperationException("Shared slot are not allowed for slot occupation check.");
+		}
+
+		@Override
 		public ResourceProfile getReservedResources() {
 			return reservedResources;
 		}
@@ -612,6 +617,10 @@ public class SlotSharingManager {
 				TaskSlot child = children.remove(childGroupId);
 
 				if (child != null) {
+					Preconditions.checkState(
+						child == allTaskSlots.get(child.getSlotRequestId()),
+						"The child task slot is no longer registered. This might indicate that its " +
+							"SlotRequestId has been reused for another slot which is not allowed.");
 					allTaskSlots.remove(child.getSlotRequestId());
 
 					// Update the resources of this slot and the parents

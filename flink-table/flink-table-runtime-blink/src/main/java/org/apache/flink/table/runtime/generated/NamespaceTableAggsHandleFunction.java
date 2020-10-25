@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 /**
@@ -34,5 +34,5 @@ public interface NamespaceTableAggsHandleFunction<N> extends NamespaceAggsHandle
 	 * @param key       the group key for the current emit.
 	 * @param out       the collector used to emit results.
 	 */
-	void emitValue(N namespace, BaseRow key, Collector<BaseRow> out) throws Exception;
+	void emitValue(N namespace, RowData key, Collector<RowData> out) throws Exception;
 }

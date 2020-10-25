@@ -263,7 +263,8 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 			Time.seconds(10),
 			log,
 			shuffleMaster,
-			partitionTracker);
+			partitionTracker,
+			System.currentTimeMillis());
 
 		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 

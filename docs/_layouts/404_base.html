@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+---
+layout: base
+---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -17,16 +19,21 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<html lang="en-US">
-  <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=https:{{ site.stable_baseurl }}">
-    <script type="text/javascript">
-      window.location.href = "https:{{ site.stable_baseurl }}"
-    </script>
-    <title>404</title>
-  </head>
-  <body>
-    <a href='https:{{ site.stable_baseurl }}'>Home</a>.
-  </body>
-</html>
+
+<noscript>
+  <meta http-equiv="refresh" content="5; url=https:{{ site.baseurl }}">
+</noscript>
+<script type="text/javascript">
+  var documentationRootUrl = "https:{{ site.baseurl }}";
+  var timeout = "5000";
+  window.onload = function() {
+    setTimeout(doRedirect, timeout);
+  }
+  function doRedirect() {
+    window.location.href = documentationRootUrl;
+  }
+</script>
+
+<h1>{{ page.title }}</h1>
+
+{{ content }}

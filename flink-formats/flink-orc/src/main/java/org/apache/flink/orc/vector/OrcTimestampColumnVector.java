@@ -18,31 +18,48 @@
 
 package org.apache.flink.orc.vector;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.TimestampData;
 
+import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 /**
  * This column vector is used to adapt hive's TimestampColumnVector to
  * Flink's TimestampColumnVector.
  */
 public class OrcTimestampColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.TimestampColumnVector {
+		org.apache.flink.table.data.vector.TimestampColumnVector {
 
 	private TimestampColumnVector vector;
 
-	public OrcTimestampColumnVector(TimestampColumnVector vector) {
+	public OrcTimestampColumnVector(ColumnVector vector) {
 		super(vector);
-		this.vector = vector;
+		this.vector = (TimestampColumnVector) vector;
 	}
 
 	@Override
-	public SqlTimestamp getTimestamp(int i, int precision) {
+	public TimestampData getTimestamp(int i, int precision) {
 		int index = vector.isRepeating ? 0 : i;
 		Timestamp timestamp = new Timestamp(vector.time[index]);
 		timestamp.setNanos(vector.nanos[index]);
-		return SqlTimestamp.fromTimestamp(timestamp);
+		return TimestampData.fromTimestamp(timestamp);
+	}
+
+	public static ColumnVector createFromConstant(int batchSize, Object value) {
+		TimestampColumnVector res = new TimestampColumnVector(batchSize);
+		if (value == null) {
+			res.noNulls = false;
+			res.isNull[0] = true;
+			res.isRepeating = true;
+		} else {
+			Timestamp timestamp = value instanceof LocalDateTime ?
+					Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
+			res.fill(timestamp);
+			res.isNull[0] = false;
+		}
+		return res;
 	}
 }

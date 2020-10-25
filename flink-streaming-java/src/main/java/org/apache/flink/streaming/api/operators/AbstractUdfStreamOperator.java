@@ -131,6 +131,15 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) throws Exception {
+		super.notifyCheckpointAborted(checkpointId);
+
+		if (userFunction instanceof CheckpointListener) {
+			((CheckpointListener) userFunction).notifyCheckpointAborted(checkpointId);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Output type configuration
 	// ------------------------------------------------------------------------

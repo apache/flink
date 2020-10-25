@@ -26,10 +26,14 @@ import org.apache.flink.ml.common.MLEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.types.Row;
+
+import java.util.Arrays;
 
 /**
  * Provide functions of conversions between DataStream and Table.
@@ -101,12 +105,9 @@ public class DataStreamConversionUtil {
 		if (null == colNames || colNames.length == 0) {
 			return session.getStreamTableEnvironment().fromDataStream(data);
 		} else {
-			StringBuilder sbd = new StringBuilder();
-			sbd.append(colNames[0]);
-			for (int i = 1; i < colNames.length; i++) {
-				sbd.append(",").append(colNames[i]);
-			}
-			return session.getStreamTableEnvironment().fromDataStream(data, sbd.toString());
+			return session.getStreamTableEnvironment().fromDataStream(
+				data,
+				Arrays.stream(colNames).map(Expressions::$).toArray(Expression[]::new));
 		}
 	}
 

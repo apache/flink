@@ -172,6 +172,18 @@ public class CsvRowDeSerializationSchemaTest {
 		assertArrayEquals(
 			"Test,12,Hello\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
+
+		serSchemaBuilder.setQuoteCharacter('#');
+
+		assertArrayEquals(
+			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
+
+		serSchemaBuilder.disableQuoteCharacter();
+
+		assertArrayEquals(
+			"Test,12,2019-12-26 12:12:12\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
 	}
 
 	@Test
@@ -193,6 +205,30 @@ public class CsvRowDeSerializationSchemaTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidType() throws Exception {
 		testNullableField(Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
+	}
+
+	@Test
+	public void testSerializeDeserializeNestedTypes() throws Exception {
+		final TypeInformation<Row> subDataType0 = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final TypeInformation<Row> subDataType1 = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final TypeInformation<Row> rowInfo = Types.ROW(subDataType0, subDataType1);
+
+		// serialization
+		CsvRowSerializationSchema.Builder serSchemaBuilder =
+			new CsvRowSerializationSchema.Builder(rowInfo);
+		// deserialization
+		CsvRowDeserializationSchema.Builder deserSchemaBuilder =
+			new CsvRowDeserializationSchema.Builder(rowInfo);
+
+		Row normalRow = Row.of(
+			Row.of("hello", 1, "This is 1st top column"),
+			Row.of("world", 2, "This is 2nd top column"));
+		testSerDeConsistency(normalRow, serSchemaBuilder, deserSchemaBuilder);
+
+		Row nullRow = Row.of(
+			null,
+			Row.of("world", 2, "This is 2nd top column after null"));
+		testSerDeConsistency(nullRow, serSchemaBuilder, deserSchemaBuilder);
 	}
 
 	private <T> void testNullableField(TypeInformation<T> fieldInfo, String string, T value) throws Exception {
@@ -255,6 +291,16 @@ public class CsvRowDeSerializationSchemaTest {
 			.setIgnoreParseErrors(allowParsingErrors)
 			.setAllowComments(allowComments);
 		return deserialize(deserSchemaBuilder, string);
+	}
+
+	private void testSerDeConsistency(
+			Row originalRow,
+			CsvRowSerializationSchema.Builder serSchemaBuilder,
+			CsvRowDeserializationSchema.Builder deserSchemaBuilder) throws Exception {
+		Row deserializedRow = deserialize(
+			deserSchemaBuilder,
+			new String(serialize(serSchemaBuilder, originalRow)));
+		assertEquals(deserializedRow, originalRow);
 	}
 
 	private static byte[] serialize(CsvRowSerializationSchema.Builder serSchemaBuilder, Row row) throws Exception {

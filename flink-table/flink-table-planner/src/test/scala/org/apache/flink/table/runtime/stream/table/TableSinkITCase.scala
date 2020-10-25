@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import java.io.File
-import java.lang.{Boolean => JBool}
-
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -31,29 +28,39 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Tumble, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Test}
+
+import java.io.File
+import java.lang.{Boolean => JBool}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class TableSinkITCase extends AbstractTestBase {
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  env.getConfig.enableObjectReuse()
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
+
+  @Before
+  def clear(): Unit = {
+    StreamITCase.clear
+  }
+
   @Test
   def testInsertIntoRegisteredTableSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
     val input = StreamTestData.get3TupleDataStream(env)
@@ -61,13 +68,14 @@ class TableSinkITCase extends AbstractTestBase {
     val fieldNames = Array("d", "e", "t")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
-    env.execute()
+     tEnv.execute("job name")
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.001,1",
@@ -80,19 +88,18 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testStreamTableSink(): Unit = {
-
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
     tmpFile.deleteOnExit()
     val path = tmpFile.toURI.toString
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(4)
 
-    tEnv.registerTableSink(
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
+
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "csvSink",
       new CsvTableSink(path).configure(
         Array[String]("nullableCol", "c", "b"),
@@ -107,7 +114,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
       .insertInto("csvSink")
 
-    env.execute()
+     tEnv.execute("job name")
 
     val expected = Seq(
       ",Hello world,1970-01-01 00:00:00.002",
@@ -125,16 +132,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testAppendSinkOnAppendTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
         .assignAscendingTimestamps(_._1.toLong)
         .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       new TestAppendSink().configure(
         Array[String]("t", "icnt", "nsum"),
@@ -145,7 +147,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("appendSink")
 
-    env.execute()
+     tEnv.execute("job name")
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List(
@@ -160,15 +162,10 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       new TestAppendSink().configure(
         Array[String]("c", "g"),
@@ -178,7 +175,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('c, 'g)
       .insertInto("appendSink")
 
-    env.execute()
+     tEnv.execute("job name")
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
@@ -187,16 +184,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testRetractSinkOnUpdatingTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       new TestRetractSink().configure(
         Array[String]("len", "icnt", "nsum"),
@@ -207,7 +199,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     val retracted = RowCollector.retractResults(results).sorted
@@ -225,16 +217,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testRetractSinkOnAppendTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       new TestRetractSink().configure(
         Array[String]("t", "icnt", "nsum"),
@@ -245,7 +232,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
       .insertInto("retractSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -266,16 +253,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testUpsertSinkOnUpdatingTableWithFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
         Array[String]("cnt", "lencnt", "cTrue"),
@@ -289,7 +271,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('count, 'len.count as 'lencnt, 'cTrue)
       .insertInto("upsertSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertTrue(
@@ -308,16 +290,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testUpsertSinkOnAppendingTableWithFullKey1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("wend", "num"), true).configure(
         Array[String]("num", "wend", "icnt"),
@@ -329,7 +306,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -353,16 +330,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testUpsertSinkOnAppendingTableWithFullKey2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
         Array[String]("wstart", "wend", "num", "icnt"),
@@ -374,7 +346,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
       .insertInto("upsertSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -398,16 +370,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testUpsertSinkOnAppendingTableWithoutFullKey1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(null, true).configure(
         Array[String]("wend", "cnt"),
@@ -418,7 +385,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('w.end as 'wend, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -442,16 +409,11 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testUpsertSinkOnAppendingTableWithoutFullKey2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(null, true).configure(
         Array[String]("num", "cnt"),
@@ -462,7 +424,7 @@ class TableSinkITCase extends AbstractTestBase {
       .select('num, 'id.count as 'cnt)
       .insertInto("upsertSink")
 
-    env.execute()
+     tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
     assertFalse(
@@ -486,12 +448,6 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testToAppendStreamRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
@@ -534,11 +490,6 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testToRetractStreamRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
@@ -581,11 +532,6 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test(expected = classOf[TableException])
   def testToAppendStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
@@ -600,11 +546,6 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test(expected = classOf[TableException])
   def testToRetractStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
@@ -622,10 +563,6 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
 
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
-
-  override def emitDataStream(s: DataStream[Row]): Unit = {
-    consumeDataStream(s)
-  }
 
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.map(
@@ -656,7 +593,7 @@ private[flink] class TestRetractSink extends RetractStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
 
-  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
+  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
     s.addSink(new RowSink)
   }
 
@@ -703,7 +640,7 @@ private[flink] class TestUpsertSink(
 
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
 
-  override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
+  override def consumeDataStream(s: DataStream[JTuple2[JBool, Row]]): DataStreamSink[_] = {
     s.addSink(new RowSink)
   }
 

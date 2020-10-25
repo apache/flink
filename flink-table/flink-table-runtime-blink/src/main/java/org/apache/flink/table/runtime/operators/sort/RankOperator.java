@@ -20,19 +20,19 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
 /**
  * Rank operator to compute top N.
  */
-public class RankOperator extends TableStreamOperator<BaseRow> implements OneInputStreamOperator<BaseRow, BaseRow> {
+public class RankOperator extends TableStreamOperator<RowData> implements OneInputStreamOperator<RowData, RowData> {
 
 	private GeneratedRecordComparator partitionByGenComp;
 	private GeneratedRecordComparator orderByGenComp;
@@ -44,11 +44,11 @@ public class RankOperator extends TableStreamOperator<BaseRow> implements OneInp
 	private transient RecordComparator orderByComp;
 	private transient long rowNum;
 	private transient long rank;
-	private transient GenericRow rankValueRow;
-	private transient JoinedRow joinedRow;
-	private transient BaseRow lastInput;
-	private transient StreamRecordCollector<BaseRow> collector;
-	private transient AbstractRowSerializer<BaseRow> inputSer;
+	private transient GenericRowData rankValueRow;
+	private transient JoinedRowData joinedRow;
+	private transient RowData lastInput;
+	private transient StreamRecordCollector<RowData> collector;
+	private transient AbstractRowDataSerializer<RowData> inputSer;
 
 	public RankOperator(
 			GeneratedRecordComparator partitionByGenComp, GeneratedRecordComparator orderByGenComp,
@@ -65,7 +65,7 @@ public class RankOperator extends TableStreamOperator<BaseRow> implements OneInp
 		super.open();
 
 		ClassLoader cl = getUserCodeClassloader();
-		inputSer = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
+		inputSer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
 
 		partitionByComp = partitionByGenComp.newInstance(cl);
 		partitionByGenComp = null;
@@ -74,16 +74,16 @@ public class RankOperator extends TableStreamOperator<BaseRow> implements OneInp
 		orderByGenComp = null;
 
 		if (outputRankFunColumn) {
-			joinedRow = new JoinedRow();
-			rankValueRow = new GenericRow(1);
+			joinedRow = new JoinedRowData();
+			rankValueRow = new GenericRowData(1);
 		}
 
 		collector = new StreamRecordCollector<>(output);
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 		// add 1 when meets a new row
 		rowNum += 1L;
 		if (lastInput == null || partitionByComp.compare(lastInput, input) != 0) {
@@ -99,10 +99,10 @@ public class RankOperator extends TableStreamOperator<BaseRow> implements OneInp
 		lastInput = inputSer.copy(input);
 	}
 
-	private void emitInternal(BaseRow element) {
+	private void emitInternal(RowData element) {
 		if (rank >= rankStart && rank <= rankEnd) {
 			if (outputRankFunColumn) {
-				rankValueRow.setLong(0, rank);
+				rankValueRow.setField(0, rank);
 				collector.collect(joinedRow.replace(element, rankValueRow));
 			} else {
 				collector.collect(element);

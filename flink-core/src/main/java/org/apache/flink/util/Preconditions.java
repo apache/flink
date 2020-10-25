@@ -30,6 +30,9 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 /**
  * A collection of static utility methods to validate input.
  *
@@ -248,6 +251,22 @@ public final class Preconditions {
 		checkArgument(size >= 0, "Size was negative.");
 		if (index < 0 || index >= size) {
 			throw new IndexOutOfBoundsException(String.valueOf(errorMessage) + " Index: " + index + ", Size: " + size);
+		}
+	}
+
+	/**
+	 * Ensures that future has completed normally.
+	 *
+	 * @throws IllegalStateException Thrown, if future has not completed or it has completed exceptionally.
+	 */
+	public static void checkCompletedNormally(CompletableFuture<?> future) {
+		checkState(future.isDone());
+		if (future.isCompletedExceptionally()) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new IllegalStateException(e);
+			}
 		}
 	}
 

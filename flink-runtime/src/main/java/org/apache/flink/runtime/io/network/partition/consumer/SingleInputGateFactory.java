@@ -54,25 +54,25 @@ public class SingleInputGateFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGateFactory.class);
 
 	@Nonnull
-	private final ResourceID taskExecutorResourceId;
+	protected final ResourceID taskExecutorResourceId;
 
-	private final int partitionRequestInitialBackoff;
+	protected final int partitionRequestInitialBackoff;
 
-	private final int partitionRequestMaxBackoff;
-
-	@Nonnull
-	private final ConnectionManager connectionManager;
+	protected final int partitionRequestMaxBackoff;
 
 	@Nonnull
-	private final ResultPartitionManager partitionManager;
+	protected final ConnectionManager connectionManager;
 
 	@Nonnull
-	private final TaskEventPublisher taskEventPublisher;
+	protected final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final NetworkBufferPool networkBufferPool;
+	protected final TaskEventPublisher taskEventPublisher;
 
-	private final int networkBuffersPerChannel;
+	@Nonnull
+	protected final NetworkBufferPool networkBufferPool;
+
+	protected final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
 
@@ -108,6 +108,7 @@ public class SingleInputGateFactory {
 	 */
 	public SingleInputGate create(
 			@Nonnull String owningTaskName,
+			int gateIndex,
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics) {
@@ -125,13 +126,15 @@ public class SingleInputGateFactory {
 
 		SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName,
+			gateIndex,
 			igdd.getConsumedResultId(),
 			igdd.getConsumedPartitionType(),
 			igdd.getConsumedSubpartitionIndex(),
 			igdd.getShuffleDescriptors().length,
 			partitionProducerStateProvider,
 			bufferPoolFactory,
-			bufferDecompressor);
+			bufferDecompressor,
+			networkBufferPool);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;
@@ -156,9 +159,8 @@ public class SingleInputGateFactory {
 				shuffleDescriptors[i],
 				channelStatistics,
 				metrics);
-			ResultPartitionID resultPartitionID = inputChannels[i].getPartitionId();
-			inputGate.setInputChannel(resultPartitionID.getPartitionId(), inputChannels[i]);
 		}
+		inputGate.setInputChannels(inputChannels);
 
 		LOG.debug("{}: Created {} input channels ({}).",
 			owningTaskName,
@@ -186,8 +188,8 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
-					metrics,
-					networkBufferPool);
+					networkBuffersPerChannel,
+					metrics);
 			},
 			nettyShuffleDescriptor ->
 				createKnownInputChannel(
@@ -198,7 +200,8 @@ public class SingleInputGateFactory {
 					metrics));
 	}
 
-	private InputChannel createKnownInputChannel(
+	@VisibleForTesting
+	protected InputChannel createKnownInputChannel(
 			SingleInputGate inputGate,
 			int index,
 			NettyShuffleDescriptor inputChannelDescriptor,
@@ -208,7 +211,7 @@ public class SingleInputGateFactory {
 		if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
 			// Consuming task is deployed to the same TaskManager as the partition => local
 			channelStatistics.numLocalChannels++;
-			return new LocalInputChannel(
+			return new LocalRecoveredInputChannel(
 				inputGate,
 				index,
 				partitionId,
@@ -216,11 +219,12 @@ public class SingleInputGateFactory {
 				taskEventPublisher,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		} else {
 			// Different instances => remote
 			channelStatistics.numRemoteChannels++;
-			return new RemoteInputChannel(
+			return new RemoteRecoveredInputChannel(
 				inputGate,
 				index,
 				partitionId,
@@ -228,8 +232,8 @@ public class SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
-				metrics,
-				networkBufferPool);
+				networkBuffersPerChannel,
+				metrics);
 		}
 	}
 
@@ -240,10 +244,14 @@ public class SingleInputGateFactory {
 			int floatingNetworkBuffersPerGate,
 			int size,
 			ResultPartitionType type) {
-		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
+		// Note that we should guarantee at-least one floating buffer for local channel state recovery.
+		return () -> bufferPoolFactory.createBufferPool(1, floatingNetworkBuffersPerGate);
 	}
 
-	private static class ChannelStatistics {
+	/**
+	 * Statistics of input channels.
+	 */
+	protected static class ChannelStatistics {
 		int numLocalChannels;
 		int numRemoteChannels;
 		int numUnknownChannels;

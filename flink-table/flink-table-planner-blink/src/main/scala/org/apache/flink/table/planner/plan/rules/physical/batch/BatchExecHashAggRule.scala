@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -68,7 +69,8 @@ class BatchExecHashAggRule
     }
     val agg: FlinkLogicalAggregate = call.rel(0)
     // HashAgg cannot process aggregate whose agg buffer is not fix length
-    isAggBufferFixedLength(agg)
+    isAggBufferFixedLength(agg) &&
+      !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -118,6 +120,17 @@ class BatchExecHashAggRule
       } else {
         Seq(FlinkRelDistribution.SINGLETON)
       }
+      // Remove the global agg call filters because the
+      // filter is already done by local aggregation.
+      val aggCallsWithoutFilter = aggCallsWithoutAuxGroupCalls.map {
+        aggCall =>
+          if (aggCall.filterArg > 0) {
+            aggCall.copy(aggCall.getArgList, -1, aggCall.getCollation)
+          } else {
+            aggCall
+          }
+      }
+      val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
       globalDistributions.foreach { globalDistribution =>
         val requiredTraitSet = localHashAgg.getTraitSet.replace(globalDistribution)
         val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
@@ -131,7 +144,7 @@ class BatchExecHashAggRule
           inputRowType,
           globalGroupSet,
           globalAuxGroupSet,
-          aggCallToAggFunction,
+          globalAggCallToAggFunction,
           isMerge = true)
         call.transformTo(globalHashAgg)
       }

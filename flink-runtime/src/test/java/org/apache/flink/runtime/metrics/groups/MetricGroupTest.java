@@ -25,6 +25,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.runtime.metrics.util.TestReporter;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -305,7 +305,7 @@ public class MetricGroupTest extends TestLogger {
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
 		JobVertexID vid = new JobVertexID();
-		AbstractID eid = new AbstractID();
+		ExecutionAttemptID eid = new ExecutionAttemptID();
 		MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");

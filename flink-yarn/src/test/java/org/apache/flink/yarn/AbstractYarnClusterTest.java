@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.hadoop.yarn.util.Records;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -82,26 +83,21 @@ public class AbstractYarnClusterTest extends TestLogger {
 		ApplicationId applicationId,
 		YarnApplicationState yarnApplicationState,
 		FinalApplicationStatus finalApplicationStatus) {
-		return ApplicationReport.newInstance(
-			applicationId,
-			ApplicationAttemptId.newInstance(applicationId, 0),
-			"user",
-			"queue",
-			"name",
-			"localhost",
-			42,
-			null,
-			yarnApplicationState,
-			null,
-			null,
-			1L,
-			2L,
-			finalApplicationStatus,
-			null,
-			null,
-			1.0f,
-			null,
-			null);
+
+		ApplicationReport applicationReport = Records.newRecord(ApplicationReport.class);
+		applicationReport.setApplicationId(applicationId);
+		applicationReport.setCurrentApplicationAttemptId(ApplicationAttemptId.newInstance(applicationId, 0));
+		applicationReport.setUser("user");
+		applicationReport.setQueue("queue");
+		applicationReport.setName("name");
+		applicationReport.setHost("localhost");
+		applicationReport.setRpcPort(42);
+		applicationReport.setYarnApplicationState(yarnApplicationState);
+		applicationReport.setStartTime(1L);
+		applicationReport.setFinishTime(2L);
+		applicationReport.setFinalApplicationStatus(finalApplicationStatus);
+		applicationReport.setProgress(1.0f);
+		return applicationReport;
 	}
 
 	private static final class TestingYarnClient extends YarnClientImpl {

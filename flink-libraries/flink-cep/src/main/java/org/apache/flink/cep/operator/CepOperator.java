@@ -42,6 +42,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -85,6 +86,8 @@ public class CepOperator<IN, KEY, OUT>
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
+	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+
 	private final boolean isProcessingTime;
 
 	private final TypeSerializer<IN> inputSerializer;
@@ -103,12 +106,6 @@ public class CepOperator<IN, KEY, OUT>
 	private transient InternalTimerService<VoidNamespace> timerService;
 
 	private transient NFA<IN> nfa;
-
-	/**
-	 * The last seen watermark. This will be used to
-	 * decide if an incoming element is late or not.
-	 */
-	private long lastWatermark;
 
 	/** Comparator for secondary sorting. Primary sorting is always done on time. */
 	private final EventComparator<IN> comparator;
@@ -133,6 +130,12 @@ public class CepOperator<IN, KEY, OUT>
 
 	/** Thin context passed to NFA that gives access to time related characteristics. */
 	private transient TimerService cepTimerService;
+
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+
+	private transient Counter numLateRecordsDropped;
 
 	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
@@ -183,7 +186,9 @@ public class CepOperator<IN, KEY, OUT>
 						LongSerializer.INSTANCE,
 						new ListSerializer<>(inputSerializer)));
 
-		migrateOldState();
+		if (context.isRestored()) {
+			migrateOldState();
+		}
 	}
 
 	private void migrateOldState() throws Exception {
@@ -221,6 +226,9 @@ public class CepOperator<IN, KEY, OUT>
 		context = new ContextFunctionImpl();
 		collector = new TimestampedCollector<>(output);
 		cepTimerService = new TimerServiceImpl();
+
+		// metrics
+		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 	}
 
 	@Override
@@ -258,7 +266,7 @@ public class CepOperator<IN, KEY, OUT>
 			// Events with timestamp smaller than or equal with the last seen watermark are considered late.
 			// Late events are put in a dedicated side output, if the user has specified one.
 
-			if (timestamp > lastWatermark) {
+			if (timestamp > timerService.currentWatermark()) {
 
 				// we have an event with a valid timestamp, so
 				// we buffer it until we receive the proper watermark.
@@ -269,6 +277,8 @@ public class CepOperator<IN, KEY, OUT>
 
 			} else if (lateDataOutputTag != null) {
 				output.collect(lateDataOutputTag, element);
+			} else {
+				numLateRecordsDropped.inc();
 			}
 		}
 	}
@@ -338,9 +348,6 @@ public class CepOperator<IN, KEY, OUT>
 		if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
 			saveRegisterWatermarkTimer();
 		}
-
-		// STEP 5
-		updateLastSeenWatermark(timerService.currentWatermark());
 	}
 
 	@Override
@@ -380,10 +387,6 @@ public class CepOperator<IN, KEY, OUT>
 	private Stream<IN> sort(Collection<IN> elements) {
 		Stream<IN> stream = elements.stream();
 		return (comparator == null) ? stream : stream.sorted(comparator);
-	}
-
-	private void updateLastSeenWatermark(long timestamp) {
-		this.lastWatermark = timestamp;
 	}
 
 	private NFAState getNFAState() throws IOException {
@@ -541,5 +544,10 @@ public class CepOperator<IN, KEY, OUT>
 			counter += elements.size();
 		}
 		return counter;
+	}
+
+	@VisibleForTesting
+	long getLateRecordsNumber() {
+		return numLateRecordsDropped.getCount();
 	}
 }

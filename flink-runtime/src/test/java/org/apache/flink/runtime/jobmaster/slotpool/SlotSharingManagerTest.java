@@ -545,14 +545,14 @@ public class SlotSharingManagerTest extends TestLogger {
 			.setTaskHeapMemoryMB(100)
 			.setTaskOffHeapMemoryMB(100)
 			.setManagedMemoryMB(100)
-			.setShuffleMemoryMB(100)
+			.setNetworkMemoryMB(100)
 			.build();
 		final ResourceProfile rp2 = ResourceProfile.newBuilder()
 			.setCpuCores(2.0)
 			.setTaskHeapMemoryMB(200)
 			.setTaskOffHeapMemoryMB(200)
 			.setManagedMemoryMB(200)
-			.setShuffleMemoryMB(200)
+			.setNetworkMemoryMB(200)
 			.addExtendedResource("gpu", new GPUResource(2.0))
 			.build();
 		final ResourceProfile rp3 = ResourceProfile.newBuilder()
@@ -560,7 +560,7 @@ public class SlotSharingManagerTest extends TestLogger {
 			.setTaskHeapMemoryMB(300)
 			.setTaskOffHeapMemoryMB(300)
 			.setManagedMemoryMB(300)
-			.setShuffleMemoryMB(300)
+			.setNetworkMemoryMB(300)
 			.addExtendedResource("gpu", new GPUResource(3.0))
 			.build();
 

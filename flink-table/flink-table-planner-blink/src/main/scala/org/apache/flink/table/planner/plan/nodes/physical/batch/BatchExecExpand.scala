@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExpandCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -50,7 +49,7 @@ class BatchExecExpand(
     expandIdIndex: Int)
   extends Expand(cluster, traitSet, input, outputRowType, projects, expandIdIndex)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecExpand(
@@ -70,11 +69,11 @@ class BatchExecExpand(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
   }
+
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 
   override def replaceInputNode(
       ordinalInParent: Int,
@@ -83,11 +82,11 @@ class BatchExecExpand(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+      .asInstanceOf[Transformation[RowData]]
+    val inputType = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val ctx = CodeGeneratorContext(config)
@@ -103,7 +102,7 @@ class BatchExecExpand(
       inputTransform,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       inputTransform.getParallelism)
   }
 }

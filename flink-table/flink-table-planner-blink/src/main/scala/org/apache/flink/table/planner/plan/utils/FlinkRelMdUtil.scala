@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.dataformat.BinaryRow
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -26,15 +26,15 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAg
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.TimeUnitRange._
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.{RelMdUtil, RelMetadataQuery}
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName.{TIME, TIMESTAMP}
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
@@ -525,7 +525,7 @@ object FlinkRelMdUtil {
     var length = 0d
     columnSizes.zip(binaryType.getChildren).foreach {
       case (columnSize, internalType) =>
-        if (BinaryRow.isInFixedLengthPart(internalType)) {
+        if (BinaryRowData.isInFixedLengthPart(internalType)) {
           length += 8
         } else {
           if (columnSize == null) {
@@ -538,7 +538,7 @@ object FlinkRelMdUtil {
           }
         }
     }
-    length += BinaryRow.calculateBitSetWidthInBytes(columnSizes.size())
+    length += BinaryRowData.calculateBitSetWidthInBytes(columnSizes.size())
     length
   }
 
@@ -548,7 +548,7 @@ object FlinkRelMdUtil {
     val normalizedKeyBytes = 16
     val rowCount = mq.getRowCount(inputOfSort)
     val averageRowSize = binaryRowAverageSize(inputOfSort)
-    val recordAreaInBytes = rowCount * (averageRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES)
+    val recordAreaInBytes = rowCount * (averageRowSize + LENGTH_SIZE_IN_BYTES)
     val indexAreaInBytes = rowCount * (normalizedKeyBytes + BinaryIndexedSortable.OFFSET_LEN)
     recordAreaInBytes + indexAreaInBytes
   }

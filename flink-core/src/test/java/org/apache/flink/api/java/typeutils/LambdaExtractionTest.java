@@ -232,6 +232,12 @@ public class LambdaExtractionTest {
 	}
 
 	@Test
+	public void testLambdaWithoutTypeErasure() {
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(Tuple1::of, BasicTypeInfo.STRING_TYPE_INFO, null, true);
+		assertTrue(ti instanceof MissingTypeInfo);
+	}
+
+	@Test
 	public void testPartitionerLambda() {
 		Partitioner<Tuple2<Integer, String>> partitioner = (key, numPartitions) -> key.f1.length() % numPartitions;
 		final TypeInformation<?> ti = TypeExtractor.getPartitionerTypes(partitioner, null, true);

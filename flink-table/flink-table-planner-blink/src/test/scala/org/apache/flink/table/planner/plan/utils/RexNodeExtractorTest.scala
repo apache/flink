@@ -20,18 +20,21 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.{DataTypes, TableConfig}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
+import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.planner.calcite.FlinkRexBuilder
+import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.expressions.utils.Func1
-import org.apache.flink.table.planner.expressions.{EqualTo, ExpressionBridge, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
+import org.apache.flink.table.utils.CatalogManagerMocks
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
@@ -42,6 +45,7 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
+
 import java.math.BigDecimal
 import java.time.ZoneId
 import java.util.{TimeZone, List => JList}
@@ -52,9 +56,7 @@ import scala.collection.JavaConverters._
   * Test for [[RexNodeExtractor]].
   */
 class RexNodeExtractorTest extends RexNodeTestBase {
-  val defaultCatalog = "default_catalog"
-  val catalogManager = new CatalogManager(
-    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val moduleManager = new ModuleManager
   private val functionCatalog = new FunctionCatalog(
     TableConfig.getDefault,
@@ -62,9 +64,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     moduleManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](
-      functionCatalog,
-      PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -223,7 +223,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
   @Test
   def testExtractSimpleCondition(): Unit = {
-    val builder: RexBuilder = new RexBuilder(typeFactory)
+    val builder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val expr = buildConditionExpr()
 
     val firstExp = ExpressionParser.parseExpression("id > 6")
@@ -238,7 +238,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         builder,
         functionCatalog)
 
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -252,7 +252,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // a = amount >= id
     val a = rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, t0, t1)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         a,
@@ -262,7 +262,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(ExpressionParser.parseExpression("amount >= id"))
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -301,7 +301,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // (a AND b) OR c OR e) AND (NOT d)
     val complexNode = rexBuilder.makeCall(SqlStdOperatorTable.AND, List(or, not).asJava)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         complexNode,
@@ -314,7 +314,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       ExpressionParser.parseExpression("amount < 100 || price == 100 || price === 200"),
       ExpressionParser.parseExpression("id > 100 || price == 100 || price === 200"),
       ExpressionParser.parseExpression("!(amount <= id)"))
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -341,7 +341,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // a AND b AND c AND d
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b, c, d).asJava)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         and,
@@ -357,7 +357,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       ExpressionParser.parseExpression("price === 100")
     )
 
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -386,7 +386,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // a AND b AND c AND d
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b, c, d).asJava)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         and,
@@ -406,7 +406,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(200.1))
     )
 
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -430,7 +430,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (converted, _) = extractConjunctiveConditions(
       and,
       -1,
@@ -453,24 +453,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       )
 
       assertExpressionArrayEquals(expected, converted)
-    }
-
-    {
-      val expected = Array[Expression](
-        EqualTo(
-          UnresolvedFieldReference("timestamp_col"),
-          Literal(datetime)
-        ),
-        EqualTo(
-          UnresolvedFieldReference("date_col"),
-          Literal(date)
-        ),
-        EqualTo(
-          UnresolvedFieldReference("time_col"),
-          Literal(time)
-        )
-      )
-      assertPlannerExpressionArrayEquals(expected, converted)
     }
   }
 
@@ -515,7 +497,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     ).asJava
 
     val complexExpr = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         complexExpr,
@@ -536,7 +518,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       ExpressionParser.parseExpression("amount * id == 100"),
       ExpressionParser.parseExpression("amount / id == 100")
     )
-    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -570,7 +552,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val complexExpr = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition1, condition2)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) = extractConjunctiveConditions(
       complexExpr,
       -1,
@@ -590,12 +572,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       )
       assertExpressionArrayEquals(expected, convertedExpressions)
       assertEquals(1, unconvertedRexNodes.length)
-    }
-
-    {
-      val expected: Array[Expression] = Array(
-        GreaterThan(Sum(UnresolvedFieldReference("amount")), Literal(100)))
-      assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     }
   }
 
@@ -627,7 +603,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       condition2,
       condition3)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         conditionExpr,
@@ -645,7 +621,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       convertedExpressions(2).toString)
     assertEquals(0, unconvertedRexNodes.length)
 
-    assertPlannerExpressionArrayEquals(
+    assertExpressionArrayEquals(
       Array(ExpressionParser.parseExpression("amount <= id")),
       Array(convertedExpressions(1)))
   }
@@ -683,7 +659,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND,
       List(trimBoth, trimLeading, trimTrailing).asJava)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         and,
@@ -709,7 +685,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     // my_udf(amount) >  100
     val condition = rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t2)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         condition,
@@ -866,7 +842,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
 
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
 
     val shanghai = ZoneId.of("Asia/Shanghai")
     val (converted, _) = extractConjunctiveConditions(
@@ -896,12 +872,12 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       fieldIndex: Integer,
       op: SqlPostfixOperator,
       expr: String) : Unit = {
-    rexBuilder = new RexBuilder(typeFactory)
+    rexBuilder = new FlinkRexBuilder(typeFactory)
 
     // flag
     val t0 = rexBuilder.makeInputRef(allFieldTypes.get(fieldIndex), fieldIndex)
     val conditionExpr = rexBuilder.makeCall(op, t0)
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
       extractConjunctiveConditions(
         conditionExpr,

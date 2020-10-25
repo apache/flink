@@ -21,10 +21,10 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSortLimit
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.planner.plan.utils.UndefinedStrategy
 
 /**
   * Rule that matches [[FlinkLogicalSort]] with non-empty sort fields and non-null fetch or offset,
@@ -60,7 +60,8 @@ class StreamExecSortLimitRule
       newInput,
       sort.collation,
       sort.offset,
-      sort.fetch)
+      sort.fetch,
+      UndefinedStrategy)
   }
 }
 

@@ -34,7 +34,6 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -42,7 +41,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -56,7 +54,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests which verify the cluster behaviour in case of leader changes.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -139,6 +136,9 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		submissionFuture.get();
 
 		CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
+
+		// need to wait until init is finished, so that the leadership revocation is possible
+		CommonTestUtils.waitUntilJobManagerIsInitialized(() -> miniCluster.getJobStatus(jobId).get());
 
 		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
 

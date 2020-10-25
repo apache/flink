@@ -76,7 +76,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 	@Before
 	public void createHDFS() throws IOException {
-		if (failoverStrategy.equals(FailoverStrategy.RestartPipelinedRegionStrategy)) {
+		if (failoverStrategy.equals(FailoverStrategy.RestartPipelinedRegionFailoverStrategy)) {
 			// TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
 			// for this ContinuousFileProcessingCheckpointITCase, using RestartPipelinedRegionStrategy would result in endless running.
 			throw new AssumptionViolatedException("ignored ContinuousFileProcessingCheckpointITCase when using RestartPipelinedRegionStrategy");
@@ -245,6 +245,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			this.successfulCheckpoints++;
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		private int getFileIdx(String line) {

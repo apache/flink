@@ -135,51 +135,56 @@ function wait_for_complete_result {
     done
 }
 
-start_cluster
+function run_streaming_file_sink_test {
+  start_cluster
 
-"${FLINK_DIR}/bin/taskmanager.sh" start
-"${FLINK_DIR}/bin/taskmanager.sh" start
-"${FLINK_DIR}/bin/taskmanager.sh" start
+  "${FLINK_DIR}/bin/taskmanager.sh" start
+  "${FLINK_DIR}/bin/taskmanager.sh" start
+  "${FLINK_DIR}/bin/taskmanager.sh" start
 
-echo "Submitting job."
-CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}")
-JOB_ID=$(echo "${CLIENT_OUTPUT}" | grep "Job has been submitted with JobID" | sed 's/.* //g')
+  echo "Submitting job."
+  CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}")
+  JOB_ID=$(echo "${CLIENT_OUTPUT}" | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-if [[ -z $JOB_ID ]]; then
-    echo "Job could not be submitted."
-    echo "${CLIENT_OUTPUT}"
-    exit 1
-fi
+  if [[ -z $JOB_ID ]]; then
+      echo "Job could not be submitted."
+      echo "${CLIENT_OUTPUT}"
+      exit 1
+  fi
 
-wait_job_running ${JOB_ID}
+  wait_job_running ${JOB_ID}
 
-wait_num_checkpoints "${JOB_ID}" 3
+  wait_num_checkpoints "${JOB_ID}" 3
 
-echo "Killing TM"
-kill_random_taskmanager
+  echo "Killing TM"
+  kill_random_taskmanager
 
-echo "Starting TM"
-"$FLINK_DIR/bin/taskmanager.sh" start
+  echo "Starting TM"
+  "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart_to_complete 0 ${JOB_ID}
+  wait_for_restart_to_complete 0 ${JOB_ID}
 
-echo "Killing 2 TMs"
-kill_random_taskmanager
-kill_random_taskmanager
+  echo "Killing 2 TMs"
+  kill_random_taskmanager
+  kill_random_taskmanager
 
-echo "Starting 2 TMs"
-"$FLINK_DIR/bin/taskmanager.sh" start
-"$FLINK_DIR/bin/taskmanager.sh" start
+  echo "Starting 2 TMs"
+  "$FLINK_DIR/bin/taskmanager.sh" start
+  "$FLINK_DIR/bin/taskmanager.sh" start
 
-wait_for_restart_to_complete 1 ${JOB_ID}
+  wait_for_restart_to_complete 1 ${JOB_ID}
 
-echo "Waiting until all values have been produced"
-wait_for_complete_result 60000 900
+  echo "Waiting until all values have been produced"
+  wait_for_complete_result 60000 900
 
-cancel_job "${JOB_ID}"
+  cancel_job "${JOB_ID}"
 
-wait_job_terminal_state "${JOB_ID}" "CANCELED"
+  wait_job_terminal_state "${JOB_ID}" "CANCELED"
 
-get_complete_result > "${TEST_DATA_DIR}/complete_result"
+  get_complete_result > "${TEST_DATA_DIR}/complete_result"
 
-check_result_hash "File Streaming Sink" "$TEST_DATA_DIR/complete_result" "6727342fdd3aae2129e61fc8f433fb6f"
+  check_result_hash "File Streaming Sink" "$TEST_DATA_DIR/complete_result" "6727342fdd3aae2129e61fc8f433fb6f"
+}
+
+# usual runtime is ~6 minutes
+run_test_with_timeout 900 run_streaming_file_sink_test

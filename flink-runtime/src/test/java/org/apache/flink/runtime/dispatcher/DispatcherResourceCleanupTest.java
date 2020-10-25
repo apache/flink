@@ -31,8 +31,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
-import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -47,8 +46,6 @@ import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
@@ -57,10 +54,11 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -78,9 +76,10 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -100,11 +99,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
+
 	private static final Time timeout = Time.seconds(10L);
 
 	private static TestingRpcService rpcService;
-
-	private static MetricRegistryImpl metricRegistry;
 
 	private JobID jobId;
 
@@ -121,8 +121,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private TestingDispatcher dispatcher;
 
 	private DispatcherGateway dispatcherGateway;
-
-	private TestingFatalErrorHandler fatalErrorHandler;
 
 	private BlobServer blobServer;
 
@@ -177,10 +175,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		// verify that we stored the blob also in the BlobStore
 		assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
-
-		fatalErrorHandler = new TestingFatalErrorHandler();
-
-		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 	}
 
 	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -199,15 +193,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
-
-		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		dispatcher = new TestingDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			DispatcherId.generate(),
-			Collections.emptyList(),
+			new DefaultDispatcherBootstrap(Collections.emptyList()),
 			new DispatcherServices(
 				configuration,
 				highAvailabilityServices,
@@ -215,12 +204,13 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				archivedExecutionGraphStore,
-				fatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				VoidHistoryServerArchivist.INSTANCE,
-				metricQueryServiceAddress,
+				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				jobGraphWriter,
-				jobManagerRunnerFactory));
+				jobManagerRunnerFactory,
+				ForkJoinPool.commonPool()));
 
 		dispatcher.start();
 
@@ -232,20 +222,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		if (dispatcher != null) {
 			dispatcher.close();
 		}
-
-		if (fatalErrorHandler != null) {
-			fatalErrorHandler.rethrowError();
-		}
 	}
 
 	@AfterClass
 	public static void teardownClass() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
 			rpcService.stopService().get();
-		}
-
-		if (metricRegistry != null) {
-			metricRegistry.shutdown().get();
 		}
 	}
 
@@ -302,15 +284,16 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@Test
 	public void testBlobServerCleanupWhenJobSubmissionFails() throws Exception {
 		startDispatcher(new FailingJobManagerRunnerFactory(new FlinkException("Test exception")));
-		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
+		dispatcherGateway.submitJob(jobGraph, timeout).get();
 
-		try {
-			submissionFuture.get();
-			fail("Job submission was expected to fail.");
-		} catch (ExecutionException ee) {
-			assertThat(ExceptionUtils.findThrowable(ee, JobSubmissionException.class).isPresent(), is(true));
-		}
+		Optional<SerializedThrowable> maybeError = dispatcherGateway.requestJobResult(
+			jobId,
+			timeout).get().getSerializedThrowable();
 
+		assertThat(maybeError.isPresent(), is(true));
+		Throwable exception = maybeError.get().deserializeError(this.getClass().getClassLoader());
+
+		assertThat(ExceptionUtils.findThrowable(exception, JobExecutionException.class).isPresent(), is(true));
 		assertThatHABlobsHaveBeenRemoved();
 	}
 
@@ -366,6 +349,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		runningJobsRegistry.setJobRunning(jobId);
 		final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
 		testingJobManagerRunner.completeResultFutureExceptionally(new JobNotFinishedException(jobId));
+
+		// wait until termination JobManagerRunner closeAsync has been called.
+		// this is necessary to avoid race conditions with completion of the 1st job and the submission of the 2nd job (DuplicateJobSubmissionException).
+		testingJobManagerRunner.getCloseAsyncCalledLatch().await();
 
 		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 
@@ -577,7 +564,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		}
 
 		@Override
-		public JobManagerRunner createJobManagerRunner(JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, JobManagerSharedServices jobManagerServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
+		public JobManagerRunner createJobManagerRunner(JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, JobManagerSharedServices jobManagerServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler, long initializationTimestamp) throws Exception {
 			throw testException;
 		}
 	}

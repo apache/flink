@@ -18,21 +18,18 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.configuration.Configuration;
-
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.Pod;
+
+import java.util.stream.Collectors;
 
 /**
  * Represent KubernetesPod resource in kubernetes.
  */
 public class KubernetesPod extends KubernetesResource<Pod> {
 
-	public KubernetesPod(Configuration flinkConfig) {
-		this(flinkConfig, new Pod());
-	}
-
-	public KubernetesPod(Configuration flinkConfig, Pod pod) {
-		super(flinkConfig, pod);
+	public KubernetesPod(Pod pod) {
+		super(pod);
 	}
 
 	public String getName() {
@@ -48,5 +45,27 @@ public class KubernetesPod extends KubernetesResource<Pod> {
 				.anyMatch(e -> e.getState() != null && e.getState().getTerminated() != null);
 		}
 		return false;
+	}
+
+	public String getTerminatedDiagnostics() {
+		final StringBuilder sb = new StringBuilder();
+		sb.append("Pod terminated, container termination statuses: [");
+		if (getInternalResource().getStatus() != null) {
+			sb.append(
+				getInternalResource().getStatus().getContainerStatuses()
+					.stream()
+					.filter(containerStatus -> containerStatus.getState() != null && containerStatus.getState().getTerminated() != null)
+					.map((containerStatus) -> {
+						final ContainerStateTerminated containerStateTerminated = containerStatus.getState().getTerminated();
+						return String.format("%s(exitCode=%d, reason=%s, message=%s)",
+							containerStatus.getName(),
+							containerStateTerminated.getExitCode(),
+							containerStateTerminated.getReason(),
+							containerStateTerminated.getMessage());
+					})
+					.collect(Collectors.joining(",")));
+		}
+		sb.append("]");
+		return sb.toString();
 	}
 }

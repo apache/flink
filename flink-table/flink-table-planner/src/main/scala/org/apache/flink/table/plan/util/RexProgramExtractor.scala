@@ -18,21 +18,23 @@
 
 package org.apache.flink.table.plan.util
 
-import java.sql.{Date, Time, Timestamp}
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.{FunctionCatalog, UnresolvedIdentifier}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.Preconditions
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.slf4j.{Logger, LoggerFactory}
+
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -81,14 +83,20 @@ object RexProgramExtractor {
         val expanded = rexProgram.expandLocalRef(condition)
         // converts the expanded expression to conjunctive normal form,
         // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
-        val cnf = RexUtil.toCnf(rexBuilder, expanded)
+        // CALCITE-4173: expand the Sarg, then converts to expressions.
+        val rewrite = if (expanded.getKind == SqlKind.SEARCH) {
+          RexUtil.expandSearch(rexBuilder, null, expanded)
+        } else {
+          expanded
+        }
+        val cnf = RexUtil.toCnf(rexBuilder, rewrite)
         // converts the cnf condition to a list of AND conditions
         val conjunctions = RelOptUtil.conjunctions(cnf)
 
         val convertedExpressions = new mutable.ArrayBuffer[Expression]
         val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
         val inputNames = rexProgram.getInputRowType.getFieldNames.asScala.toArray
-        val converter = new RexNodeToExpressionConverter(inputNames, catalog)
+        val converter = new RexNodeToExpressionConverter(rexBuilder, inputNames, catalog)
 
         conjunctions.asScala.foreach(rex => {
           rex.accept(converter) match {
@@ -146,6 +154,7 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
   * @param functionCatalog The function catalog
   */
 class RexNodeToExpressionConverter(
+    rexBuilder: RexBuilder,
     inputNames: Array[String],
     functionCatalog: FunctionCatalog)
     extends RexVisitor[Option[Expression]] {
@@ -230,7 +239,24 @@ class RexNodeToExpressionConverter(
     Some(Literal(literalValue, literalType))
   }
 
-  override def visitCall(call: RexCall): Option[Expression] = {
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  private def expandSearch(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    val shuttle = new RexShuttle() {
+      override def visitCall(call: RexCall): RexNode = {
+        if (call.getKind == SqlKind.SEARCH) {
+          RexUtil.expandSearch(rexBuilder, null, call)
+        } else {
+          super.visitCall(call)
+        }
+      }
+    }
+    rex.accept(shuttle)
+  }
+
+  override def visitCall(oriRexCall: RexCall): Option[Expression] = {
+    val call = expandSearch(
+      rexBuilder,
+      oriRexCall).asInstanceOf[RexCall]
     val operands = call.getOperands.map(
       operand => operand.accept(this).orNull
     )
@@ -276,7 +302,6 @@ class RexNodeToExpressionConverter(
   private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
     // TODO we assume only planner expression as a temporary solution to keep the old interfaces
     val expressionBridge = new ExpressionBridge[PlannerExpression](
-      functionCatalog,
       PlannerExpressionConverter.INSTANCE)
     JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(UnresolvedIdentifier.of(name)))
       .flatMap(result =>

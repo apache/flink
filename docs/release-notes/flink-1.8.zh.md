@@ -200,7 +200,7 @@ The `CompositeSerializerSnapshot` utility class has been removed. You should
 now use `CompositeTypeSerializerSnapshot` instead, for snapshots of composite
 serializers that delegate serialization to multiple nested serializers. Please
 see
-[here](/dev/stream/state/custom_serialization.html#implementing-a-compositetypeserializersnapshot)
+[here](http://ci.apache.org/projects/flink/flink-docs-release-1.8/dev/stream/state/custom_serialization.html#implementing-a-compositetypeserializersnapshot)
 for instructions on using `CompositeTypeSerializerSnapshot`.
 
 ### Memory management

@@ -99,7 +99,7 @@ public class KvStateServerTest {
 			KvStateRequestStats stats = new AtomicKvStateRequestStats();
 
 			server = new KvStateServerImpl(
-					InetAddress.getLocalHost(),
+					InetAddress.getLocalHost().getHostName(),
 					Collections.singletonList(0).iterator(),
 					1,
 					1,

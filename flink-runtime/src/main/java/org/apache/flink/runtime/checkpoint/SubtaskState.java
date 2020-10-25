@@ -20,8 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CompositeStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -90,7 +90,7 @@ public class SubtaskState implements CompositeStateHandle {
 		}
 	}
 
-	private static final long getSizeNullSafe(StateObject stateObject) throws Exception {
+	private static long getSizeNullSafe(StateObject stateObject) throws Exception {
 		return stateObject != null ? stateObject.getStateSize() : 0L;
 	}
 

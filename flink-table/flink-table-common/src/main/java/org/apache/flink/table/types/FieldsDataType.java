@@ -20,44 +20,43 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
- * A data type that contains field data types (e.g. {@code ROW} or structured types).
+ * A data type that contains field data types (i.e. row, structured, and distinct types).
  *
  * @see DataTypes for a list of supported data types
  */
 @PublicEvolving
 public final class FieldsDataType extends DataType {
 
-	private final Map<String, DataType> fieldDataTypes;
+	private final List<DataType> fieldDataTypes;
 
 	public FieldsDataType(
 			LogicalType logicalType,
 			@Nullable Class<?> conversionClass,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		super(logicalType, conversionClass);
-		this.fieldDataTypes = Collections.unmodifiableMap(
-			new HashMap<>(
-				Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.")));
+		Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+		this.fieldDataTypes = fieldDataTypes.stream()
+			.map(this::updateInnerDataType)
+			.collect(Collectors.toList());
 	}
 
 	public FieldsDataType(
 			LogicalType logicalType,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		this(logicalType, null, fieldDataTypes);
-	}
-
-	public Map<String, DataType> getFieldDataTypes() {
-		return fieldDataTypes;
 	}
 
 	@Override
@@ -85,6 +84,11 @@ public final class FieldsDataType extends DataType {
 	}
 
 	@Override
+	public List<DataType> getChildren() {
+		return fieldDataTypes;
+	}
+
+	@Override
 	public <R> R accept(DataTypeVisitor<R> visitor) {
 		return visitor.visit(this);
 	}
@@ -107,5 +111,14 @@ public final class FieldsDataType extends DataType {
 	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), fieldDataTypes);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private DataType updateInnerDataType(DataType innerDataType) {
+		if (conversionClass == RowData.class) {
+			return innerDataType.bridgedTo(toInternalConversionClass(innerDataType.getLogicalType()));
+		}
+		return innerDataType;
 	}
 }

@@ -22,8 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
@@ -56,35 +55,35 @@ public class SavepointOutputFormatTest {
 		Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
 		SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-		Savepoint savepoint = createSavepoint();
+		CheckpointMetadata metadata = createSavepoint();
 
 		format.open(0, 1);
-		format.writeRecord(savepoint);
+		format.writeRecord(metadata);
 		format.close();
 
-		Savepoint savepointOnDisk = SavepointLoader.loadSavepoint(path.getPath());
+		CheckpointMetadata metadataOnDisk = SavepointLoader.loadSavepointMetadata(path.getPath());
 
 		Assert.assertEquals(
 			"Incorrect checkpoint id",
-			savepoint.getCheckpointId(),
-			savepointOnDisk.getCheckpointId());
+			metadata.getCheckpointId(),
+			metadataOnDisk.getCheckpointId());
 
 		Assert.assertEquals(
 			"Incorrect number of operator states in savepoint",
-			savepoint.getOperatorStates().size(),
-			savepointOnDisk.getOperatorStates().size());
+			metadata.getOperatorStates().size(),
+			metadataOnDisk.getOperatorStates().size());
 
 		Assert.assertEquals(
 			"Incorrect operator state in savepoint",
-			savepoint.getOperatorStates().iterator().next(),
-			savepointOnDisk.getOperatorStates().iterator().next());
+			metadata.getOperatorStates().iterator().next(),
+			metadataOnDisk.getOperatorStates().iterator().next());
 	}
 
-	private SavepointV2 createSavepoint() {
+	private CheckpointMetadata createSavepoint() {
 		OperatorState operatorState = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 128);
 
 		operatorState.putState(0, new OperatorSubtaskState());
-		return new SavepointV2(0, Collections.singleton(operatorState), Collections.emptyList());
+		return new CheckpointMetadata(0, Collections.singleton(operatorState), Collections.emptyList());
 	}
 
 	private SavepointOutputFormat createSavepointOutputFormat(Path path) throws Exception {

@@ -180,7 +180,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 		isFinished = true;
 		flushCurrentBuffer();
-		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE));
+		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false));
 		data.finishWrite();
 	}
 
@@ -203,8 +203,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		synchronized (lock) {
 			checkState(!isReleased, "data partition already released");
 			checkState(isFinished, "writing of blocking partition not yet finished");
-
-			availability.notifyDataAvailable();
 
 			final BoundedBlockingSubpartitionReader reader = new BoundedBlockingSubpartitionReader(
 					this, data, numDataBuffersWritten, availability);
@@ -234,13 +232,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		if (readers.isEmpty()) {
 			data.close();
 		}
-	}
-
-	// ------------------------------ legacy ----------------------------------
-
-	@Override
-	public int releaseMemory() throws IOException {
-		return 0;
 	}
 
 	// ---------------------------- statistics --------------------------------

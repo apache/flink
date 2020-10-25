@@ -130,7 +130,7 @@ public class SlotPoolSlotSpreadOutTest extends TestLogger {
 	}
 
 	private ScheduledUnit createSimpleSlotRequest() {
-		return new ScheduledUnit(new JobVertexID(), null, null);
+		return new ScheduledUnit(new JobVertexID(), new SlotSharingGroupId(), null);
 	}
 
 	private CompletableFuture<LogicalSlot> allocateSlot(ScheduledUnit scheduledUnit) {

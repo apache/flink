@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -28,12 +30,12 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 
 import java.util.List;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
 
 /**
@@ -44,22 +46,32 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUne
 @Internal
 public final class TypeInferenceOperandInference implements SqlOperandTypeInference {
 
+	private final DataTypeFactory dataTypeFactory;
+
 	private final FunctionDefinition definition;
 
 	private final TypeInference typeInference;
 
 	public TypeInferenceOperandInference(
+			DataTypeFactory dataTypeFactory,
 			FunctionDefinition definition,
 			TypeInference typeInference) {
+		this.dataTypeFactory = dataTypeFactory;
 		this.definition = definition;
 		this.typeInference = typeInference;
 	}
 
 	@Override
 	public void inferOperandTypes(SqlCallBinding callBinding, RelDataType returnType, RelDataType[] operandTypes) {
-		final CallContext callContext = new CallBindingCallContext(definition, callBinding, returnType);
+		final CallContext callContext = new CallBindingCallContext(
+			dataTypeFactory,
+			definition,
+			callBinding,
+			returnType);
 		try {
-			inferOperandTypesOrError(callBinding.getTypeFactory(), callContext, operandTypes);
+			inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
+		} catch (ValidationException e) {
+			// let operand checker fail
 		} catch (Throwable t) {
 			throw createUnexpectedException(callContext, t);
 		}
@@ -67,9 +79,7 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
 
 	// --------------------------------------------------------------------------------------------
 
-	private void inferOperandTypesOrError(RelDataTypeFactory typeFactory, CallContext callContext, RelDataType[] operandTypes) {
-		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-
+	private void inferOperandTypesOrError(FlinkTypeFactory typeFactory, CallContext callContext, RelDataType[] operandTypes) {
 		final List<DataType> expectedDataTypes;
 		// typed arguments have highest priority
 		if (typeInference.getTypedArguments().isPresent()) {
@@ -87,7 +97,7 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
 
 		for (int i = 0; i < operandTypes.length; i++) {
 			final LogicalType inferredType = expectedDataTypes.get(i).getLogicalType();
-			operandTypes[i] = flinkTypeFactory.createFieldTypeFromLogicalType(inferredType);
+			operandTypes[i] = typeFactory.createFieldTypeFromLogicalType(inferredType);
 		}
 	}
 }

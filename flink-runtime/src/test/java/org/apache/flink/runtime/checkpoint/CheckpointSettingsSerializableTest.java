@@ -94,6 +94,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					true,
 					false,
+					false,
 					0),
 				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
 				serHooks);
@@ -122,7 +123,8 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			timeout,
 			log,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 
 		assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
 		assertTrue(jobGraph.getCheckpointingSettings().getDefaultStateBackend().deserializeValue(classLoader) instanceof CustomStateBackend);

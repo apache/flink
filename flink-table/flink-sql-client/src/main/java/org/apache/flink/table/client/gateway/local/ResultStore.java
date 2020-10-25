@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
@@ -60,41 +59,36 @@ public class ResultStore {
 	public <T> DynamicResult<T> createResult(
 			Environment env,
 			TableSchema schema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
-
-		final RowTypeInfo outputType = new RowTypeInfo(schema.getFieldTypes(), schema.getFieldNames());
+			ExecutionConfig config) {
 
 		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
 			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());
 
-			if (env.getExecution().isChangelogMode()) {
+			if (env.getExecution().isChangelogMode() || env.getExecution().isTableauMode()) {
 				return new ChangelogCollectStreamResult<>(
-						outputType,
 						schema,
 						config,
 						gatewayAddress,
-						gatewayPort,
-						classLoader);
+						gatewayPort);
 			} else {
 				return new MaterializedCollectStreamResult<>(
-						outputType,
 						schema,
 						config,
 						gatewayAddress,
 						gatewayPort,
-						env.getExecution().getMaxTableResultRows(),
-						classLoader);
+						env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {
 			// Batch Execution
-			if (!env.getExecution().isTableMode()) {
-				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
+			if (env.getExecution().isTableMode() || env.getExecution().isTableauMode()) {
+				return new MaterializedCollectBatchResult<>(schema, config);
+			} else {
+				throw new SqlExecutionException(
+						"Results of batch queries can only be served in table or tableau mode.");
 			}
-			return new MaterializedCollectBatchResult<>(schema, outputType, config, classLoader);
 		}
 	}
 

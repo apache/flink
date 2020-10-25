@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.expressions;
 
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
@@ -59,7 +59,11 @@ public class ExpressionBuilder {
 	}
 
 	public static ValueLiteralExpression literal(Object value, DataType type) {
-		return ApiExpressionUtils.valueLiteral(value, type);
+		if (value != null) {
+			return ApiExpressionUtils.valueLiteral(value, type.notNull());
+		} else {
+			return ApiExpressionUtils.valueLiteral(null, type.nullable());
+		}
 	}
 
 	public static UnresolvedCallExpression call(FunctionDefinition functionDefinition, Expression... args) {

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -34,7 +34,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchA
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMap
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -79,7 +80,7 @@ abstract class BatchExecHashWindowAggregateBase(
     enableAssignPane,
     isMerge,
     isFinal)
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val numOfGroupKey = grouping.length
@@ -115,10 +116,10 @@ abstract class BatchExecHashWindowAggregateBase(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val ctx = CodeGeneratorContext(config)
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
@@ -137,7 +138,7 @@ abstract class BatchExecHashWindowAggregateBase(
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
       inputType, outputType, groupBufferLimitSize, 0,
       windowSize, slideSize)
-    val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
+    val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
@@ -145,7 +146,7 @@ abstract class BatchExecHashWindowAggregateBase(
       input,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism,
       managedMemory)
   }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
+import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -52,13 +54,15 @@ public class HiveOutputFormatFactoryTest {
 	public void testCreateOutputFormat() {
 		TableSchema schema = TableSchema.builder().field("x", DataTypes.INT()).build();
 		SerDeInfo serDeInfo = new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
-		HiveOutputFormatFactory factory = new HiveOutputFormatFactory(
+		HiveWriterFactory writerFactory = new HiveWriterFactory(
 				new JobConf(),
-				VerifyURIOutputFormat.class.getName(),
+				VerifyURIOutputFormat.class,
 				serDeInfo, schema,
 				new String[0],
 				new Properties(),
-				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
+				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
+				false);
+		HiveOutputFormatFactory factory = new HiveOutputFormatFactory(writerFactory);
 		org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(TEST_URI_SCHEME, TEST_URI_AUTHORITY, "/foo/path");
 		factory.createOutputFormat(path);
 	}

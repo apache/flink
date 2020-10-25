@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 
 import java.util.List;
 
@@ -27,7 +26,7 @@ import java.util.List;
  * Interface that allows to implement different strategies for repartitioning of operator state as parallelism changes.
  */
 @Internal
-public interface OperatorStateRepartitioner {
+public interface OperatorStateRepartitioner<T> {
 
 	/**
 	 * @param previousParallelSubtaskStates List with one entry of state handles per parallel subtask of an operator, as they
@@ -38,8 +37,8 @@ public interface OperatorStateRepartitioner {
 	 * @return List with one entry per parallel subtask. Each subtask receives now one collection of states that build
 	 * of the new total state for this subtask.
 	 */
-	List<List<OperatorStateHandle>> repartitionState(
-			List<List<OperatorStateHandle>> previousParallelSubtaskStates,
+	List<List<T>> repartitionState(
+			List<List<T>> previousParallelSubtaskStates,
 			int oldParallelism,
 			int newParallelism);
 }

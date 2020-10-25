@@ -33,12 +33,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.getDataType;
 
 /**
  * Utility class to serialize and deserialize task events.
@@ -58,6 +61,8 @@ public class EventSerializer {
 	private static final int OTHER_EVENT = 3;
 
 	private static final int CANCEL_CHECKPOINT_MARKER_EVENT = 4;
+
+	private static final int END_OF_CHANNEL_STATE_EVENT = 5;
 
 	private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
@@ -79,6 +84,9 @@ public class EventSerializer {
 		}
 		else if (eventClass == EndOfSuperstepEvent.class) {
 			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_SUPERSTEP_EVENT });
+		}
+		else if (eventClass == EndOfChannelStateEvent.class) {
+			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_CHANNEL_STATE_EVENT });
 		}
 		else if (eventClass == CancelCheckpointMarker.class) {
 			CancelCheckpointMarker marker = (CancelCheckpointMarker) event;
@@ -129,6 +137,8 @@ public class EventSerializer {
 				return type == CHECKPOINT_BARRIER_EVENT;
 			} else if (eventClass.equals(EndOfSuperstepEvent.class)) {
 				return type == END_OF_SUPERSTEP_EVENT;
+			} else if (eventClass.equals(EndOfChannelStateEvent.class)) {
+				return type == END_OF_CHANNEL_STATE_EVENT;
 			} else if (eventClass.equals(CancelCheckpointMarker.class)) {
 				return type == CANCEL_CHECKPOINT_MARKER_EVENT;
 			} else {
@@ -161,6 +171,9 @@ public class EventSerializer {
 			}
 			else if (type == END_OF_SUPERSTEP_EVENT) {
 				return EndOfSuperstepEvent.INSTANCE;
+			}
+			else if (type == END_OF_CHANNEL_STATE_EVENT) {
+				return EndOfChannelStateEvent.INSTANCE;
 			}
 			else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {
 				long id = buffer.getLong();
@@ -208,7 +221,7 @@ public class EventSerializer {
 		final byte[] locationBytes = checkpointOptions.getTargetLocation().isDefaultReference() ?
 				null : checkpointOptions.getTargetLocation().getReferenceBytes();
 
-		final ByteBuffer buf = ByteBuffer.allocate(28 + (locationBytes == null ? 0 : locationBytes.length));
+		final ByteBuffer buf = ByteBuffer.allocate(30 + (locationBytes == null ? 0 : locationBytes.length));
 
 		// we do not use checkpointType.ordinal() here to make the serialization robust
 		// against changes in the enum (such as changes in the order of the values)
@@ -234,6 +247,8 @@ public class EventSerializer {
 			buf.putInt(locationBytes.length);
 			buf.put(locationBytes);
 		}
+		buf.put((byte) (checkpointOptions.isExactlyOnceMode() ? 1 : 0));
+		buf.put((byte) (checkpointOptions.isUnalignedCheckpoint() ? 1 : 0));
 
 		buf.flip();
 		return buf;
@@ -265,31 +280,36 @@ public class EventSerializer {
 			buffer.get(bytes);
 			locationRef = new CheckpointStorageLocationReference(bytes);
 		}
+		final boolean isExactlyOnceMode = buffer.get() == 1;
+		final boolean isUnalignedCheckpoint = buffer.get() == 1;
 
-		return new CheckpointBarrier(id, timestamp, new CheckpointOptions(checkpointType, locationRef));
+		return new CheckpointBarrier(
+			id,
+			timestamp,
+			new CheckpointOptions(checkpointType, locationRef, isExactlyOnceMode, isUnalignedCheckpoint));
 	}
 
 	// ------------------------------------------------------------------------
 	// Buffer helpers
 	// ------------------------------------------------------------------------
 
-	public static Buffer toBuffer(AbstractEvent event) throws IOException {
+	public static Buffer toBuffer(AbstractEvent event, boolean hasPriority) throws IOException {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 
-		final Buffer buffer = new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, false);
+		final Buffer buffer = new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;
 	}
 
-	public static BufferConsumer toBufferConsumer(AbstractEvent event) throws IOException {
+	public static BufferConsumer toBufferConsumer(AbstractEvent event, boolean hasPriority) throws IOException {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 
-		return new BufferConsumer(data, FreeingBufferRecycler.INSTANCE, false);
+		return new BufferConsumer(data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));
 	}
 
 	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) throws IOException {

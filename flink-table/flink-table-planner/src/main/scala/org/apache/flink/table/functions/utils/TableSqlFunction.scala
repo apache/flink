@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.functions.utils
 
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -40,10 +41,10 @@ class TableSqlFunction(
     functionImpl: FlinkTableFunctionImpl[_])
   extends SqlUserDefinedTableFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
+    SqlKind.OTHER_FUNCTION,
     ReturnTypes.CURSOR,
     createEvalOperandTypeInference(name, tableFunction, typeFactory),
-    createEvalOperandTypeChecker(name, tableFunction),
-    null,
+    createEvalOperandMetadata(name, tableFunction),
     functionImpl) {
 
   /**

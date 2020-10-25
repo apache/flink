@@ -49,7 +49,7 @@ public class NettyConnectionManager implements ConnectionManager {
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
 
-		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
+		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client, nettyConfig.getNetworkRetries());
 
 		this.nettyProtocol = new NettyProtocol(checkNotNull(partitionProvider), checkNotNull(taskEventPublisher));
 	}

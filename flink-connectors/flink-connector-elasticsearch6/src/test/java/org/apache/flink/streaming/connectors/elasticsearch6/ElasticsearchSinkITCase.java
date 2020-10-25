@@ -24,24 +24,38 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunc
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
- *
- * <p>The Elasticsearch ITCases for 6.x CANNOT be executed in the IDE directly, since it is required that the
- * Log4J-to-SLF4J adapter dependency must be excluded from the test classpath for the Elasticsearch embedded
- * node used in the tests to work properly.
  */
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
+
+	@Before
+	public void ensureClusterIsUp() throws IOException {
+		RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.1:9200"));
+		RestHighLevelClient client = new RestHighLevelClient(builder);
+		if (!client.ping()) {
+			throw new RuntimeException("Cannot ping cluster!");
+		}
+	}
 
 	@Test
 	public void testElasticsearchSink() throws Exception {
 		runElasticsearchSinkTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithSmile() throws Exception {
+		runElasticsearchSinkSmileTest();
 	}
 
 	@Test

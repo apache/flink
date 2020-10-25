@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
+import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
@@ -71,7 +72,7 @@ class DeclarativeAggCodeGen(
   private val bufferNullTerms = {
     val exprCodegen = new ExprCodeGenerator(ctx, false)
     bufferTerms.zip(bufferTypes).map {
-      case (name, t) => new LocalReferenceExpression(name, fromLogicalTypeToDataType(t))
+      case (name, t) => localRef(name, fromLogicalTypeToDataType(t))
     }.map(_.accept(rexNodeGen)).map(exprCodegen.generateExpression).map(_.nullTerm)
   }
 
@@ -242,7 +243,7 @@ class DeclarativeAggCodeGen(
             val t = argTypes(localIndex)
             toRexDistinctKey(relBuilder, name, t)
           } else {
-            // the distinct key is a BaseRow
+            // the distinct key is a RowData
             toRexInputRef(relBuilder, localIndex, argTypes(localIndex))
           }
         } else {
@@ -254,7 +255,7 @@ class DeclarativeAggCodeGen(
 
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
       // name => agg${aggInfo.aggIndex}_$name"
-      new LocalReferenceExpression(
+      localRef(
         bufferTerms(localIndex),
         fromLogicalTypeToDataType(bufferTypes(localIndex)))
     }

@@ -29,6 +29,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.shaded.guava18.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
@@ -62,6 +63,9 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	/** The RocksDB instance that serves as store. */
 	@Nonnull
 	private final RocksDB db;
+
+	@Nonnull
+	private final ReadOptions readOptions;
 
 	/** Handle to the column family of the RocksDB instance in which the elements are stored. */
 	@Nonnull
@@ -112,6 +116,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		@Nonnegative int keyGroupId,
 		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull RocksDB db,
+		@Nonnull ReadOptions readOptions,
 		@Nonnull ColumnFamilyHandle columnFamilyHandle,
 		@Nonnull TypeSerializer<E> byteOrderProducingSerializer,
 		@Nonnull DataOutputSerializer outputStream,
@@ -119,6 +124,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		@Nonnull RocksDBWriteBatchWrapper batchWrapper,
 		@Nonnull OrderedByteArraySetCache orderedByteArraySetCache) {
 		this.db = db;
+		this.readOptions = readOptions;
 		this.columnFamilyHandle = columnFamilyHandle;
 		this.byteOrderProducingSerializer = byteOrderProducingSerializer;
 		this.batchWrapper = batchWrapper;
@@ -304,7 +310,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		flushWriteBatch();
 		return new RocksBytesIterator(
 			new RocksIteratorWrapper(
-				db.newIterator(columnFamilyHandle)));
+				db.newIterator(columnFamilyHandle, readOptions)));
 	}
 
 	/**

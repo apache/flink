@@ -45,7 +45,9 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
-	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isStreamingMode) {
+	public CatalogManagerCalciteSchema(
+			CatalogManager catalogManager,
+			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
 		this.isStreamingMode = isStreamingMode;
 	}

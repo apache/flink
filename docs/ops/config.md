@@ -23,327 +23,431 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-**For single-node setups Flink is ready to go out of the box and you don't need to change the default configuration to get started.**
-
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
-
-This page lists the most common options that are typically needed to set up a well performing (distributed) installation. In addition a full list of all available configuration parameters is listed here.
-
 All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
 
-The system and run scripts parse the config at startup time. Changes to the configuration file require restarting the Flink JobManager and TaskManagers.
+The configuration is parsed and evaluated when the Flink processes are started. Changes to the configuration file require restarting the relevant processes.
 
-The configuration files for the TaskManagers can be different, Flink does not assume uniform machines in the cluster.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Common Options
+# Basic Setup
 
-{% include generated/common_section.html %}
+The default configuration supports starting a single-node Flink session cluster without any changes.
+The options in this section are the ones most commonly needed for a basic distributed Flink setup.
 
-## Full Reference
+**Hostnames / Ports**
 
-### HDFS
+These options are only necessary for *standalone* application- or session deployments ([simple standalone]({{site.baseurl}}/ops/deployment/cluster_setup.html) or [Kubernetes]({{site.baseurl}}/ops/deployment/kubernetes.html)).
 
-<div class="alert alert-warning">
-  <strong>Note:</strong> These keys are deprecated and it is recommended to configure the Hadoop path with the environment variable <code>HADOOP_CONF_DIR</code> instead.
-</div>
+If you use Flink with [Yarn]({{site.baseurl}}/ops/deployment/yarn_setup.html), [Mesos]({{site.baseurl}}/ops/deployment/mesos.html), or the [*active* Kubernetes integration]({{site.baseurl}}/ops/deployment/native_kubernetes.html), the hostnames and ports are automatically discovered.
 
-See also [how to configure Hadoop]({{ site.baseurl }}/ops/deployment/hadoop.html#configure-hadoop).
+  - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
-These parameters configure the default HDFS used by Flink. Setups that do not specify an HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
+  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({{site.baseurl}}/ops/jobmanager_high_availability.html) where the leader election mechanism is used to discover this automatically.
 
-- `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.
+**Memory Sizes** 
 
-- `fs.hdfs.hdfsdefault`: The absolute path of Hadoop's own configuration file "hdfs-default.xml" (DEFAULT: null).
+The default memory sizes support simple streaming/batch applications, but are too low to yield good performance for more complex applications.
 
-- `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
+  - `jobmanager.memory.process.size`: Total size of the *JobManager* (JobMaster / ResourceManager / Dispatcher) process.
+  - `taskmanager.memory.process.size`: Total size of the TaskManager process.
 
-### Core
+The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
 
-{% include generated/core_configuration.html %}
+These value are configured as memory sizes, for example *1536m* or *2g*.
 
-### Execution
+**Parallelism**
 
-{% include generated/deployment_configuration.html %}
-{% include generated/savepoint_config_configuration.html %}
-{% include generated/execution_configuration.html %}
+  - `taskmanager.numberOfTaskSlots`: The number of slots that a TaskManager offers *(default: 1)*. Each slot can take one task or pipeline.
+    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/flink-architecture.html#task-slots-and-resources) concepts section for details.
 
-### JobManager
+     Running more smaller TaskManagers with one slot each is a good starting point and leads to the best isolation between tasks. Dedicating the same resources to fewer larger TaskManagers with more slots can help to increase resource utilization, at the cost of weaker isolation between the tasks (more tasks share the same JVM).
 
-{% include generated/job_manager_configuration.html %}
+  - `parallelism.default`: The default parallelism used when no parallelism is specified anywhere *(default: 1)*.
 
-### Restart Strategies
+**Checkpointing**
 
-Configuration options to control Flink's restart behaviour in case of job failures.
+You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
+
+  - `state.backend`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
+  - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
+  - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+
+**Web UI**
+
+  - `web.submit.enable`: Enables uploading and starting jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still accept jobs through REST requests (HTTP calls). This flag only guards the feature to upload jobs in the UI.
+  - `web.upload.dir`: The directory where to store uploaded jobs. Only used when `web.submit.enable` is true.
+
+**Other**
+
+  - `io.tmp.dirs`: The directories where Flink puts local data, defaults to the system temp directory (`java.io.tmpdir` property). If a list of directories is configured, Flink will rotate files across the directories.
+    
+    The data put in these directories include by default the files created by RocksDB, spilled intermediate results (batch algorithms), and cached jar files.
+    
+    This data is NOT relied upon for persistence/recovery, but if this data gets deleted, it typically causes a heavyweight recovery operation. It is hence recommended to set this to a directory that is not automatically periodically purged.
+    
+    Yarn, Mesos, and Kubernetes setups automatically configure this value to the local working directories by default.
+
+----
+----
+
+# Common Setup Options
+
+*Common options to configure your Flink application or cluster.*
+
+### Hosts and Ports
+
+Options to configure hostnames and ports for the different Flink components.
+
+The JobManager hostname and port are only relevant for standalone setups without high-availability.
+In that setup, the config values are used by the TaskManagers to find (and connect to) the JobManager.
+In all highly-available setups, the TaskManagers discover the JobManager via the High-Availability-Service (for example ZooKeeper).
+
+Setups using resource orchestration frameworks (K8s, Yarn, Mesos) typically use the framework's service discovery facilities.
+
+You do not need to configure any TaskManager hosts and ports, unless the setup requires the use of specific port ranges or specific network interfaces to bind to.
+
+{% include generated/common_host_port_section.html %}
+
+### Fault Tolerance
+
+These configuration options control Flink's restart behaviour in case of failures during the execution. 
+By configuring these options in your `flink-conf.yaml`, you define the cluster's default restart strategy. 
+
+The default restart strategy will only take effect if no job specific restart strategy has been configured via the `ExecutionConfig`.
 
 {% include generated/restart_strategy_configuration.html %}
 
-#### Fixed Delay Restart Strategy
+**Fixed Delay Restart Strategy**
 
 {% include generated/fixed_delay_restart_strategy_configuration.html %}
 
-#### Failure Rate Restart Strategy
+**Failure Rate Restart Strategy**
 
 {% include generated/failure_rate_restart_strategy_configuration.html %}
 
-### TaskManager
+### Checkpoints and State Backends
 
-{% include generated/task_manager_configuration.html %}
+These options control the basic setup of state backends and checkpointing behavior.
 
-For *batch* jobs Flink allocates a fraction of 0.4 of the total flink memory (configured via taskmanager.memory.flink.size) for its managed memory. Managed memory helps Flink to run the batch operators efficiently. It prevents OutOfMemoryExceptions because Flink knows how much memory it can use to execute operations. If Flink runs out of managed memory, it utilizes disk space. Using managed memory, some operations can be performed directly on the raw data without having to deserialize the data to convert it into Java objects. All in all, managed memory improves the robustness and speed of the system.
+The options are only relevant for jobs/applications executing in a continuous streaming fashion.
+Jobs/applications executing in a batch fashion do not use state backends and checkpoints, but different internal data structures that are optimized for batch processing.
 
-The default fraction for managed memory can be adjusted using the taskmanager.memory.managed.fraction parameter. An absolute value may be set using taskmanager.memory.managed.size (overrides the fraction parameter). If desired, the managed memory may be allocated outside the JVM heap. This may improve performance in setups with large memory sizes.
+{% include generated/common_state_backends_section.html %}
 
-{% include generated/task_manager_memory_configuration.html %}
+### High Availability
 
-### Distributed Coordination
+High-availability here refers to the ability of the JobManager process to recover from failures.
 
-{% include generated/cluster_configuration.html %}
+The JobManager ensures consistency during recovery across TaskManagers. For the JobManager itself to recover consistently, an external service must store a minimal amount of recovery metadata (like "ID of last committed checkpoint"), as well as help to elect and lock which JobManager is the leader (to avoid split-brain situations).
 
-### Distributed Coordination (via Akka)
+{% include generated/common_high_availability_section.html %}
 
-{% include generated/akka_configuration.html %}
+**Options for high-availability setups with ZooKeeper**
 
-### REST
+{% include generated/common_high_availability_zk_section.html %}
 
-{% include generated/rest_configuration.html %}
+### Memory Configuration
 
-### Blob Server
+These configuration values control the way that TaskManagers and JobManagers use memory.
 
-{% include generated/blob_server_configuration.html %}
+Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
+In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performance tuning and fixing memory related errors.
 
-### Heartbeat Manager
+For a detailed explanation of how these options interact,
+see the documentation on [TaskManager]({% link ops/memory/mem_setup_tm.md %}) and
+[JobManager]({% link ops/memory/mem_setup_jobmanager.md %} ) memory configurations.
 
-{% include generated/heartbeat_manager_configuration.html %}
+{% include generated/common_memory_section.html %}
 
-### SSL Settings
+### Miscellaneous Options
 
-{% include generated/security_configuration.html %}
+{% include generated/common_miscellaneous_section.html %}
 
-### Netty Shuffle Environment
+----
+----
 
-{% include generated/netty_shuffle_environment_configuration.html %}
+# Security
 
-### Network Communication (via Netty)
+Options for configuring Flink's security and secure interaction with external systems.
 
-These parameters allow for advanced tuning. The default values are sufficient when running concurrent high-throughput jobs on a large cluster.
+### SSL
 
-{% include generated/network_netty_configuration.html %}
+Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({{site.baseurl}}/ops/security-ssl.html) for detailed setup guide and background.
 
-### Web Frontend
+{% include generated/security_ssl_section.html %}
 
-{% include generated/web_configuration.html %}
 
-### File Systems
+### Auth with External Systems
 
-{% include generated/file_system_configuration.html %}
+**ZooKeeper Authentication / Authorization**
 
-### Compiler/Optimizer
+These options are necessary when connecting to a secured ZooKeeper quorum.
 
-{% include generated/optimizer_configuration.html %}
+{% include generated/security_auth_zk_section.html %}
 
-### Runtime Algorithms
+**Kerberos-based Authentication / Authorization**
 
-{% include generated/algorithm_configuration.html %}
+Please refer to the [Flink and Kerberos Docs]({{site.baseurl}}/ops/security-kerberos.html) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
 
-### Resource Manager
+{% include generated/security_auth_kerberos_section.html %}
 
-The configuration keys in this section are independent of the used resource management framework (YARN, Mesos, Standalone, ...)
+----
+----
 
-{% include generated/resource_manager_configuration.html %}
+# Resource Orchestration Frameworks
 
-### Shuffle Service
+This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
 
-{% include generated/shuffle_service_configuration.html %}
+Note that is not always necessary to integrate Flink with the resource orchestration framework.
+For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({{site.baseurl}}/ops/deployment/kubernetes.html) for an example.
+
+The options in this section are necessary for setups where Flink itself actively requests and releases resources from the orchestrators.
 
 ### YARN
 
 {% include generated/yarn_config_configuration.html %}
 
-### Mesos
-
-{% include generated/mesos_configuration.html %}
-
-#### Mesos TaskManager
-
-{% include generated/mesos_task_manager_configuration.html %}
-
 ### Kubernetes
 
 {% include generated/kubernetes_config_configuration.html %}
 
-### High Availability (HA)
+### Mesos
 
-{% include generated/high_availability_configuration.html %}
+{% include generated/mesos_configuration.html %}
 
-#### ZooKeeper-based HA Mode
+**Mesos TaskManager**
 
-{% include generated/high_availability_zookeeper_configuration.html %}
+{% include generated/mesos_task_manager_configuration.html %}
 
-### ZooKeeper Security
+----
+----
 
-{% include generated/zoo_keeper_configuration.html %}
+# State Backends
 
-### Kerberos-based Security
-
-{% include generated/kerberos_configuration.html %}
-
-### Environment
-
-{% include generated/environment_configuration.html %}
-
-### Pipeline
-
-{% include generated/pipeline_configuration.html %}
-{% include generated/stream_pipeline_configuration.html %}
-
-### Checkpointing
-
-{% include generated/checkpointing_configuration.html %}
-{% include generated/execution_checkpointing_configuration.html %}
+Please refer to the [State Backend Documentation]({{site.baseurl}}/ops/state/state_backends.html) for background on State Backends.
 
 ### RocksDB State Backend
 
-{% include generated/rocks_db_configuration.html %}
+These are the options commonly needed to configure the RocksDB state backend. See the [Advanced RocksDB Backend Section](#advanced-rocksdb-state-backends-options) for options necessary for advanced low level configurations and trouble-shooting.
 
-### RocksDB Configurable Options
-Specific RocksDB configurable options, provided by Flink, to create a corresponding `ConfigurableOptionsFactory`.
-And the created one would be used as default `OptionsFactory` in `RocksDBStateBackend`
-unless user define a `OptionsFactory` and set via `RocksDBStateBackend.setOptions(optionsFactory)`
+{% include generated/state_backend_rocksdb_section.html %}
 
-{% include generated/rocks_db_configurable_configuration.html %}
+----
+----
 
-### Queryable State
+# Metrics
 
-{% include generated/queryable_state_configuration.html %}
-
-### Metrics
+Please refer to the [metrics system documentation]({{site.baseurl}}/monitoring/metrics.html) for background on Flink's metrics infrastructure.
 
 {% include generated/metric_configuration.html %}
 
 ### RocksDB Native Metrics
-Certain RocksDB native metrics may be forwarded to Flink's metrics reporter.
-All native metrics are scoped to operators and then further broken down by column family; values are reported as unsigned longs. 
+
+Flink can report metrics from RocksDB's native code, for applications using the RocksDB state backend.
+The metrics here are scoped to the operators and then further broken down by column family; values are reported as unsigned longs. 
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> Enabling native metrics may cause degraded performance and should be set carefully. 
+  <strong>Note:</strong> Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
 </div>
 
-{% include generated/rocks_db_native_metric_configuration.html %}
+{% include generated/rocksdb_native_metric_configuration.html %}
 
-### History Server
+----
+----
 
-You have to configure `jobmanager.archive.fs.dir` in order to archive terminated jobs and add it to the list of monitored directories via `historyserver.archive.fs.dir` if you want to display them via the HistoryServer's web frontend.
+# History Server
 
-- `jobmanager.archive.fs.dir`: Directory to upload information about terminated jobs to. You have to add this directory to the list of monitored directories of the history server via `historyserver.archive.fs.dir`.
+The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).
+
+See the [History Server Docs]({{site.baseurl}}/monitoring/historyserver.html) for details.
 
 {% include generated/history_server_configuration.html %}
 
-### Python
+----
+----
 
-{% include generated/python_configuration.html %}
+# Experimental
 
-## Legacy
+*Options for experimental features in Flink.*
 
-- `mode`: Execution mode of Flink. Possible values are `legacy` and `new`. In order to start the legacy components, you have to specify `legacy` (DEFAULT: `new`).
+### Queryable State
 
-## Background
+*Queryable State* is an experimental features that gives lets you access Flink's internal state like a key/value store.
+See the [Queryable State Docs]({{site.baseurl}}/dev/stream/state/queryable_state.html) for details.
 
-### Configuring the Network Buffers
+{% include generated/queryable_state_configuration.html %}
 
-If you ever see the Exception `java.io.IOException: Insufficient number of network buffers`, you
-need to adapt the amount of memory used for network buffers in order for your program to run on your
-task managers.
+----
+----
 
-Network buffers are a critical resource for the communication layers. They are used to buffer
-records before transmission over a network, and to buffer incoming data before dissecting it into
-records and handing them to the application. A sufficient number of network buffers is critical to
-achieve a good throughput.
-
-<div class="alert alert-info">
-Since Flink 1.3, you may follow the idiom "more is better" without any penalty on the latency (we
-prevent excessive buffering in each outgoing and incoming channel, i.e. *buffer bloat*, by limiting
-the actual number of buffers used by each channel).
-</div>
-
-In general, configure the task manager to have enough buffers that each logical network connection
-you expect to be open at the same time has a dedicated buffer. A logical network connection exists
-for each point-to-point exchange of data over the network, which typically happens at
-repartitioning or broadcasting steps (shuffle phase). In those, each parallel task inside the
-TaskManager has to be able to talk to all other parallel tasks.
+# Debugging & Expert Tuning
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> Since Flink 1.5, network buffers will always be allocated off-heap, i.e. outside of the JVM heap. This way, we can pass these buffers directly to the underlying network stack layers.
+  The options below here are meant for expert users and for fixing/debugging problems. Most setups should not need to configure these options.
 </div>
 
-#### Setting Memory Fractions
+### Class Loading
 
-Previously, the number of network buffers was set manually which became a quite error-prone task
-(see below). Since Flink 1.3, it is possible to define a fraction of memory that is being used for
-network buffers with the following configuration parameters:
+Flink dynamically loads the code for jobs submitted to a session cluster. In addition, Flink tries to hide many dependencies in the classpath from the application. This helps to reduce dependency conflicts between the application code and the dependencies in the classpath.
 
-- `taskmanager.memory.shuffle.fraction`: Fraction of JVM memory to use for network buffers (DEFAULT: 0.1),
-- `taskmanager.memory.shuffle.min`: Minimum memory size for network buffers (DEFAULT: 64MB),
-- `taskmanager.memory.shuffle.max`: Maximum memory size for network buffers (DEFAULT: 1GB), and
-- `taskmanager.memory.segment-size`: Size of memory buffers used by the memory manager and the
-network stack in bytes (DEFAULT: 32KB).
+Please refer to the [Debugging Classloading Docs]({{site.baseurl}}/monitoring/debugging_classloading.html) for details.
 
-#### Setting the Number of Network Buffers directly
+{% include generated/expert_class_loading_section.html %}
 
-<div class="alert alert-warning">
-  <strong>Note:</strong> This way of configuring the amount of memory used for network buffers is deprecated. Please consider using the method above by defining a fraction of memory to use.
-</div>
+### Advanced Options for the debugging
 
-The required number of buffers on a task manager is
-*total-degree-of-parallelism* (number of targets) \* *intra-node-parallelism* (number of sources in one task manager) \* *n*
-with *n* being a constant that defines how many repartitioning-/broadcasting steps you expect to be
-active at the same time. Since the *intra-node-parallelism* is typically the number of cores, and
-more than 4 repartitioning or broadcasting channels are rarely active in parallel, it frequently
-boils down to
+{% include generated/expert_debugging_and_tuning_section.html %}
 
-{% highlight plain %}
-#slots-per-TM^2 * #TMs * 4
-{% endhighlight %}
+### Advanced State Backends Options
 
-Where `#slots per TM` are the [number of slots per TaskManager](#configuring-taskmanager-processing-slots) and `#TMs` are the total number of task managers.
+{% include generated/expert_state_backends_section.html %}
 
-To support, for example, a cluster of 20 8-slot machines, you should use roughly 5000 network
-buffers for optimal throughput.
+### Advanced RocksDB State Backends Options
 
-Each network buffer has by default a size of 32 KiBytes. In the example above, the system would thus
-allocate roughly 300 MiBytes for network buffers.
+Advanced options to tune RocksDB and RocksDB checkpoints.
 
-The number and size of network buffers can be configured with the following parameters:
+{% include generated/expert_rocksdb_section.html %}
 
-- `taskmanager.network.numberOfBuffers`, and
-- `taskmanager.memory.segment-size`.
+**RocksDB Configurable Options**
 
-### Configuring Temporary I/O Directories
+These options give fine-grained control over the behavior and resoures of ColumnFamilies.
+With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
-Although Flink aims to process as much data in main memory as possible, it is not uncommon that more data needs to be processed than memory is available. Flink's runtime is designed to write temporary data to disk to handle these situations.
+{% include generated/rocksdb_configurable_configuration.html %}
 
-The `io.tmp.dirs` parameter specifies a list of directories into which Flink writes temporary files. The paths of the directories need to be separated by ':' (colon character). Flink will concurrently write (or read) one temporary file to (from) each configured directory. This way, temporary I/O can be evenly distributed over multiple independent I/O devices such as hard disks to improve performance. To leverage fast I/O devices (e.g., SSD, RAID, NAS), it is possible to specify a directory multiple times.
+### Advanced Fault Tolerance Options
 
-If the `io.tmp.dirs` parameter is not explicitly specified, Flink writes temporary data to the temporary directory of the operating system, such as */tmp* in Linux systems.
+*These parameters can help with problems related to failover and to components erroneously considering each other as failed.*
 
-### Configuring TaskManager processing slots
+{% include generated/expert_fault_tolerance_section.html %}
 
-Flink executes a program in parallel by splitting it into subtasks and scheduling these subtasks to processing slots.
+### Advanced Cluster Options
 
-Each Flink TaskManager provides processing slots in the cluster. The number of slots is typically proportional to the number of available CPU cores __of each__ TaskManager. As a general recommendation, the number of available CPU cores is a good default for `taskmanager.numberOfTaskSlots`.
+{% include generated/expert_cluster_section.html %}
 
-When starting a Flink application, users can supply the default number of slots to use for that job. The command line value therefore is called `-p` (for parallelism). In addition, it is possible to [set the number of slots in the programming APIs]({{site.baseurl}}/dev/parallel.html) for the whole application and for individual operators.
+### Advanced Scheduling Options
 
-<img src="{{ site.baseurl }}/fig/slots_parallelism.svg" class="img-responsive" />
+*These parameters can help with fine-tuning scheduling for specific situations.*
 
-### Configuration Runtime Environment Variables
-You have to set config with prefix `containerized.master.env.` and `containerized.taskmanager.env.` in order to set redefined environment variable in ApplicationMaster and TaskManager.
+{% include generated/expert_scheduling_section.html %}
 
-- `containerized.master.env.`: Prefix for passing custom environment variables to Flink's master process. 
-   For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+### Advanced High-availability Options
+
+{% include generated/expert_high_availability_section.html %}
+
+### Advanced High-availability ZooKeeper Options
+
+{% include generated/expert_high_availability_zk_section.html %}
+
+### Advanced SSL Security Options
+
+{% include generated/expert_security_ssl_section.html %}
+
+### Advanced Options for the REST endpoint and Client
+
+{% include generated/expert_rest_section.html %}
+
+### Advanced Options for Flink Web UI
+
+{% include generated/web_configuration.html %}
+
+### Full JobManager Options
+
+**JobManager**
+
+{% include generated/all_jobmanager_section.html %}
+
+**Blob Server**
+
+The Blob Server is a component in the JobManager. It is used for distribution of objects that are too large to be attached to a RPC message and that benefit from caching (like Jar files or large serialized code objects).
+
+{% include generated/blob_server_configuration.html %}
+
+**ResourceManager**
+
+These configuration keys control basic Resource Manager behavior, independent of the used resource orchestration management framework (YARN, Mesos, etc.)
+
+{% include generated/resource_manager_configuration.html %}
+
+### Full TaskManagerOptions
+
+{% include generated/all_taskmanager_section.html %}
+
+**Data Transport Network Stack**
+
+These options are for the network stack that handles the streaming and batch data exchanges between TaskManagers.
+
+{% include generated/all_taskmanager_network_section.html %}
+
+### RPC / Akka
+
+Flink uses Akka for RPC between components (JobManager/TaskManager/ResourceManager).
+Flink does not use Akka for data transport.
+
+{% include generated/akka_configuration.html %}
+
+----
+----
+
+# JVM and Logging Options
+
+{% include generated/environment_configuration.html %}
+
+# Forwarding Environment Variables
+
+You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn/Mesos.
+
+  - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
+   For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
     in the flink-conf.yaml.
-- `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
+
+  - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
+
+----
+----
+
+# Deprecated Options
+
+These options relate to parts of Flink that are not actively developed any more.
+These options may be removed in a future release.
+
+**DataSet API Optimizer**
+
+{% include generated/optimizer_configuration.html %}
+
+**DataSet API Runtime Algorithms**
+
+{% include generated/algorithm_configuration.html %}
+
+**DataSet File Sinks**
+
+{% include generated/deprecated_file_sinks_section.html %}
+
+----
+----
+
+# Backup
+
+#### Client
+
+{% include generated/client_configuration.html %}
+
+#### Execution
+
+{% include generated/deployment_configuration.html %}
+{% include generated/savepoint_config_configuration.html %}
+{% include generated/execution_configuration.html %}
+
+#### Pipeline
+
+{% include generated/pipeline_configuration.html %}
+{% include generated/stream_pipeline_configuration.html %}
+
+#### Checkpointing
+
+{% include generated/execution_checkpointing_configuration.html %}
 
 {% top %}

@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionConfigBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -57,7 +57,7 @@ public class JobConfigHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT(),
 			Collections.emptyMap(),
 			JobConfigHeaders.getInstance(),
-			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
+			new DefaultExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
 			TestingUtils.defaultExecutor());
 
 		final Map<String, String> globalJobParameters = new HashMap<>();

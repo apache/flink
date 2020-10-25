@@ -215,6 +215,11 @@ enum CompatibilityRoutines {
 							curProperties.get(oldPropertyWithKey.getKey())));
 					}
 				}
+			} else if (oldType.equals("string")) {
+				// enum
+				JsonNode oldEnumValues = oldProperty.get("enum");
+				JsonNode curEnumValues = curProperty.get("enum");
+				Assert.assertEquals(oldEnumValues, curEnumValues);
 			} // else assume basic types
 		}
 	}

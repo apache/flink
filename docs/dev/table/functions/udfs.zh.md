@@ -22,479 +22,887 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-User-defined functions are an important feature, because they significantly extend the expressiveness of queries.
+自定义函数（UDF）是一种扩展开发机制，可以用来在查询语句里调用难以用其他方式表达的频繁使用或自定义的逻辑。
+
+自定义函数可以用 JVM 语言（例如 Java 或 Scala）或 Python 实现，实现者可以在 UDF 中使用任意第三方库，本文聚焦于使用 JVM 语言开发自定义函数。
 
 * This will be replaced by the TOC
 {:toc}
 
-Register User-Defined Functions
--------------------------------
-In most cases, a user-defined function must be registered before it can be used in an query. It is not necessary to register functions for the Scala Table API. 
+概述
+--------
 
-Functions are registered at the `TableEnvironment` by calling a `registerFunction()` method. When a user-defined function is registered, it is inserted into the function catalog of the `TableEnvironment` such that the Table API or SQL parser can recognize and properly translate it. 
+当前 Flink 有如下几种函数：
 
-Please find detailed examples of how to register and how to call each type of user-defined function 
-(`ScalarFunction`, `TableFunction`, and `AggregateFunction`) in the following sub-sessions.
+- *标量函数* 将标量值转换成一个新标量值；
+- *表值函数* 将标量值转换成新的行数据；
+- *聚合函数* 将多行数据里的标量值转换成一个新标量值；
+- *表值聚合函数* 将多行数据里的标量值转换成新的行数据；
+- *异步表值函数* 是异步查询外部数据系统的特殊函数。
 
+<span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({% link dev/table/types.zh.md %})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
 
-{% top %}
+以下示例展示了如何创建一个基本的标量函数，以及如何在 Table API 和 SQL 里调用这个函数。
 
-Scalar Functions
-----------------
-
-If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
+函数用于 SQL 查询前要先经过注册；而在用于 Table API 时，函数可以先注册后调用，也可以 _内联_ 后直接使用。
 
 <div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
 
-The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
-
+<div data-lang="Java" markdown="1">
 {% highlight java %}
-public class HashCode extends ScalarFunction {
-  private int factor = 12;
-  
-  public HashCode(int factor) {
-      this.factor = factor;
-  }
-  
-  public int eval(String s) {
-      return s.hashCode() * factor;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+// 定义函数逻辑
+public static class SubstringFunction extends ScalarFunction {
+  public String eval(String s, Integer begin, Integer end) {
+    return s.substring(begin, end);
   }
 }
 
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
+TableEnvironment env = TableEnvironment.create(...);
 
-// register the function
-tableEnv.registerFunction("hashCode", new HashCode(10));
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(SubstringFunction.class, $("myField"), 5, 12));
 
-// use the function in Java Table API
-myTable.select("string, string.hashCode(), hashCode(string)");
+// 注册函数
+env.createTemporarySystemFunction("SubstringFunction", SubstringFunction.class);
 
-// use the function in SQL API
-tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
+// 在 Table API 里调用注册好的函数
+env.from("MyTable").select(call("SubstringFunction", $("myField"), 5, 12));
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable");
+
 {% endhighlight %}
+</div>
 
-By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
 
-The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
+// define function logic
+class SubstringFunction extends ScalarFunction {
+  def eval(s: String, begin: Integer, end: Integer): String = {
+    s.substring(begin, end)
+  }
+}
 
+val env = TableEnvironment.create(...)
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(classOf[SubstringFunction], $"myField", 5, 12))
+
+// 注册函数
+env.createTemporarySystemFunction("SubstringFunction", classOf[SubstringFunction])
+
+// 在 Table API 里调用注册好的函数
+env.from("MyTable").select(call("SubstringFunction", $"myField", 5, 12))
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable")
+
+{% endhighlight %}
+</div>
+
+</div>
+
+对于交互式会话，还可以在使用或注册函数之前对其进行参数化，这样可以把函数 _实例_ 而不是函数 _类_ 用作临时函数。
+
+为确保函数实例可应用于集群环境，参数必须是可序列化的。
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
 {% highlight java %}
-public static class TimestampModifier extends ScalarFunction {
-  public long eval(long t) {
-    return t % 1000;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+// 定义可参数化的函数逻辑
+public static class SubstringFunction extends ScalarFunction {
+
+  private boolean endInclusive;
+
+  public SubstringFunction(boolean endInclusive) {
+    this.endInclusive = endInclusive;
   }
 
-  public TypeInformation<?> getResultType(Class<?>[] signature) {
-    return Types.SQL_TIMESTAMP;
+  public String eval(String s, Integer begin, Integer end) {
+    return s.substring(a, endInclusive ? end + 1 : end);
   }
 }
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(new SubstringFunction(true), $("myField"), 5, 12));
+
+// 注册函数
+env.createTemporarySystemFunction("SubstringFunction", new SubstringFunction(true));
+
 {% endhighlight %}
 </div>
 
-<div data-lang="scala" markdown="1">
-In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `@varargs def eval(str: String*)`.
-
-The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
-
+<div data-lang="Scala" markdown="1">
 {% highlight scala %}
-// must be defined in static/object context
-class HashCode(factor: Int) extends ScalarFunction {
-  def eval(s: String): Int = {
-    s.hashCode() * factor
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
+
+// 定义可参数化的函数逻辑
+class SubstringFunction(val endInclusive) extends ScalarFunction {
+  def eval(s: String, begin: Integer, end: Integer): String = {
+    s.substring(endInclusive ? end + 1 : end)
   }
 }
 
-val tableEnv = BatchTableEnvironment.create(env)
+val env = TableEnvironment.create(...)
 
-// use the function in Scala Table API
-val hashCode = new HashCode(10)
-myTable.select('string, hashCode('string))
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(new SubstringFunction(true), $"myField", 5, 12))
 
-// register and use the function in SQL
-tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
-{% endhighlight %}
+// 注册函数
+env.createTemporarySystemFunction("SubstringFunction", new SubstringFunction(true))
 
-By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
-
-The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
-
-{% highlight scala %}
-object TimestampModifier extends ScalarFunction {
-  def eval(t: Long): Long = {
-    t % 1000
-  }
-
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.TIMESTAMP
-  }
-}
 {% endhighlight %}
 </div>
 
-<div data-lang="python" markdown="1">
-It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
-
-The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:
-
-{% highlight python %}
-'''
-Java code:
-
-// The Java class must have a public no-argument constructor and can be founded in current Java classloader.
-public class HashCode extends ScalarFunction {
-  private int factor = 12;
-
-  public int eval(String s) {
-      return s.hashCode() * factor;
-  }
-}
-'''
-
-class PyHashCode(ScalarFunction):
-  def __init__(self):
-    self.factor = 12
-
-  def eval(self, s):
-    return hash(s) * self.factor
-
-table_env = BatchTableEnvironment.create(env)
-
-# register the Java function
-table_env.register_java_function("hashCode", "my.java.function.HashCode")
-
-# register the Python function
-table_env.register_function("py_hash_code", udf(PyHashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
-
-# use the function in Python Table API
-my_table.select("string, bigint, string.hashCode(), hashCode(string), bigint.py_hash_code(), py_hash_code(bigint)")
-
-# use the function in SQL API
-table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigint) FROM MyTable")
-{% endhighlight %}
-
-There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
-
-<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.15.0 are required to run the Python scalar function.
-
-{% highlight python %}
-# option 1: extending the base class `ScalarFunction`
-class Add(ScalarFunction):
-  def eval(self, i, j):
-    return i + j
-
-add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 2: Python function
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
-def add(i, j):
-  return i + j
-
-# option 3: lambda function
-add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 4: callable function
-class CallableAdd(object):
-  def __call__(self, i, j):
-    return i + j
-
-add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 5: partial function
-def partial_add(i, j, k):
-  return i + j + k
-
-add = udf(functools.partial(partial_add, j=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-          DataTypes.BIGINT())
-
-# register the Python function
-table_env.register_function("add", add)
-# use the function in Python Table API
-my_table.select("add(a, b)")
-{% endhighlight %}
-
-If the python scalar function depends on third-party dependencies, you can specify the dependencies with the following table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line</a> directly when submitting the job.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-left">Description</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    <tr>
-      <td><strong>add_python_file</strong></td>
-      <td>
-        <p>Adds python file dependencies which could be python files, python packages or local directories. They will be added to the PYTHONPATH of the python UDF worker.</p>
-{% highlight python %}
-table_env.add_python_file(file_path)
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>set_python_requirements</strong></td>
-      <td>
-        <p>Specifies a requirements.txt file which defines the third-party dependencies. These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the python UDF worker. For the dependencies which could not be accessed in the cluster, a directory which contains the installation packages of these dependencies could be specified using the parameter "requirements_cached_dir". It will be uploaded to the cluster to support offline installation.</p>
-{% highlight python %}
-# commands executed in shell
-echo numpy==1.16.5 > requirements.txt
-pip download -d cached_dir -r requirements.txt --no-binary :all:
-
-# python code
-table_env.set_python_requirements("requirements.txt", "cached_dir")
-{% endhighlight %}
-        <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of SetupTools (version >= 37.0.0).</p>
-      </td>
-    </tr>
-    <tr>
-      <td><strong>add_python_archive</strong></td>
-      <td>
-        <p>Adds a python archive file dependency. The file will be extracted to the working directory of python UDF worker. If the parameter "target_dir" is specified, the archive file will be extracted to a directory named "target_dir". Otherwise, the archive file will be extracted to a directory with the same name of the archive file.</p>
-{% highlight python %}
-# command executed in shell
-# assert the relative path of python interpreter is py_env/bin/python
-zip -r py_env.zip py_env
-
-# python code
-table_env.add_python_archive("py_env.zip")
-# or
-table_env.add_python_archive("py_env.zip", "myenv")
-
-# the files contained in the archive file can be accessed in UDF
-def my_udf():
-    with open("myenv/py_env/data/data.txt") as f:
-        ...
-{% endhighlight %}
-        <p>Please make sure the uploaded python environment matches the platform that the cluster is running on. Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><strong>set_python_executable</strong></td>
-      <td>
-        <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
-{% highlight python %}
-table_env.add_python_archive("py_env.zip")
-table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
-{% endhighlight %}
-        <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
 </div>
 
 {% top %}
 
-Table Functions
----------------
+开发指南
+--------
 
-Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
+<span class="label label-danger">注意</span>在聚合函数使用新的类型系统前，本节仅适用于标量和表值函数。
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+所有的自定义函数都遵循一些基本的实现原则。
 
-In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+### 函数类
 
-The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
+实现类必须继承自合适的基类之一（例如 `org.apache.flink.table.functions.ScalarFunction` ）。
+
+该类必须声明为 `public` ，而不是 `abstract` ，并且可以被全局访问。不允许使用非静态内部类或匿名类。
+
+为了将自定义函数存储在持久化的 catalog 中，该类必须具有默认构造器，且在运行时可实例化。
+
+### 求值方法
+
+基类提供了一组可以被重写的方法，例如 `open()`、 `close()` 或 `isDeterministic()` 。
+
+但是，除了上述方法之外，作用于每条传入记录的主要逻辑还必须通过专门的 _求值方法_ 来实现。
+
+根据函数的种类，后台生成的运算符会在运行时调用诸如 `eval()`、`accumulate()` 或 `retract()` 之类的求值方法。
+
+这些方法必须声明为 `public` ，并带有一组定义明确的参数。
+
+常规的 JVM 方法调用语义是适用的。因此可以：
+- 实现重载的方法，例如 `eval(Integer)` 和 `eval(LocalDateTime)`；
+- 使用变长参数，例如 `eval(Integer...)`;
+- 使用对象继承，例如 `eval(Object)` 可接受 `LocalDateTime` 和 `Integer` 作为参数；
+- 也可组合使用，例如 `eval(Object...)` 可接受所有类型的参数。
+
+以下代码片段展示了一个重载函数的示例：
 
 <div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
+
+<div data-lang="Java" markdown="1">
 {% highlight java %}
-// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
-public class Split extends TableFunction<Tuple2<String, Integer>> {
-    private String separator = " ";
-    
-    public Split(String separator) {
-        this.separator = separator;
-    }
-    
-    public void eval(String str) {
-        for (String s : str.split(separator)) {
-            // use collect(...) to emit a row
-            collect(new Tuple2<String, Integer>(s, s.length()));
-        }
-    }
-}
+import org.apache.flink.table.functions.ScalarFunction;
 
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
-Table myTable = ...         // table schema: [a: String]
+// 有多个重载求值方法的函数
+public static class SumFunction extends ScalarFunction {
 
-// Register the function.
-tableEnv.registerFunction("split", new Split("#"));
+  public Integer eval(Integer a, Integer b) {
+    return a + b;
+  }
 
-// Use the table function in the Java Table API. "as" specifies the field names of the table.
-myTable.joinLateral("split(a) as (word, length)")
-    .select("a, word, length");
-myTable.leftOuterJoinLateral("split(a) as (word, length)")
-    .select("a, word, length");
+  public Integer eval(String a, String b) {
+    return Integer.valueOf(a) + Integer.valueOf();
+  }
 
-// Use the table function in SQL with LATERAL and TABLE keywords.
-// CROSS JOIN a table function (equivalent to "join" in Table API).
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API).
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
-class Split(separator: String) extends TableFunction[(String, Int)] {
-  def eval(str: String): Unit = {
-    // use collect(...) to emit a row.
-    str.split(separator).foreach(x => collect((x, x.length)))
+  public Integer eval(Double... d) {
+    double result = 0;
+    for (double value : d)
+      result += value;
+    return (int) result;
   }
 }
 
-val tableEnv = BatchTableEnvironment.create(env)
-val myTable = ...         // table schema: [a: String]
-
-// Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
-val split = new Split("#")
-// "as" specifies the field names of the generated table.
-myTable.joinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
-myTable.leftOuterJoinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
-
-// Register the table function to use it in SQL queries.
-tableEnv.registerFunction("split", new Split("#"))
-
-// Use the table function in SQL with LATERAL and TABLE keywords.
-// CROSS JOIN a table function (equivalent to "join" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
-**IMPORTANT:** Do not implement TableFunction as a Scala object. Scala object is a singleton and will cause concurrency issues.
 </div>
 
-<div data-lang="python" markdown="1">
-{% highlight python %}
-'''
-Java code:
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.functions.ScalarFunction
+import scala.annotation.varargs
 
-// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
-// The java class must have a public no-argument constructor and can be founded in current java classloader.
-public class Split extends TableFunction<Tuple2<String, Integer>> {
-    private String separator = " ";
-    
-    public void eval(String str) {
-        for (String s : str.split(separator)) {
-            // use collect(...) to emit a row
-            collect(new Tuple2<String, Integer>(s, s.length()));
-        }
-    }
+// 有多个重载求值方法的函数
+class SumFunction extends ScalarFunction {
+
+  def eval(a: Integer, b: Integer): Integer = {
+    a + b
+  }
+
+  def eval(a: String, b: String): Integer = {
+    Integer.valueOf(a) + Integer.valueOf(b)
+  }
+
+  @varargs // generate var-args like Java
+  def eval(d: Double*): Integer = {
+    d.sum.toInt
+  }
 }
-'''
 
-table_env = BatchTableEnvironment.create(env)
-my_table = ...  # type: Table, table schema: [a: String]
-
-# Register the java function.
-table_env.register_java_function("split", "my.java.function.Split")
-
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
-
-# Register the python function.
-
-# Use the table function in SQL with LATERAL and TABLE keywords.
-# CROSS JOIN a table function (equivalent to "join" in Table API).
-table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
-# LEFT JOIN a table function (equivalent to "left_outer_join" in Table API).
-table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 </div>
+
 </div>
 
-Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
+### 类型推导
 
-By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `TypeInformation`.
+Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({%link dev/table/types.zh.md %})。
 
-The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit type information. We define that the returned table type should be `RowTypeInfo(String, Integer)` by overriding `TableFunction#getResultType()`.
+从逻辑角度看，Planner 需要知道数据类型、精度和小数位数；从 JVM 角度来看，Planner 在调用自定义函数时需要知道如何将内部数据结构表示为 JVM 对象。
+
+术语 _类型推导_ 概括了意在验证输入值、派生出参数/返回值数据类型的逻辑。
+
+Flink 自定义函数实现了自动的类型推导提取，通过反射从函数的类及其求值方法中派生数据类型。如果这种隐式的反射提取方法不成功，则可以通过使用 `@DataTypeHint` 和 `@FunctionHint` 注解相关参数、类或方法来支持提取过程，下面展示了有关如何注解函数的例子。
+
+如果需要更高级的类型推导逻辑，实现者可以在每个自定义函数中显式重写 `getTypeInference()` 方法。但是，建议使用注解方式，因为它可使自定义类型推导逻辑保持在受影响位置附近，而在其他位置则保持默认状态。
+
+
+#### 自动类型推导
+
+自动类型推导会检查函数的类和求值方法，派生出函数参数和结果的数据类型， `@DataTypeHint` 和 `@FunctionHint` 注解支持自动类型推导。
+
+有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({%link dev/table/types.zh.md %}#数据类型注解)。
+
+**`@DataTypeHint`**
+
+在许多情况下，需要支持以 _内联_ 方式自动提取出函数参数、返回值的类型。
+
+以下例子展示了如何使用 `@DataTypeHint`，详情可参考该注解类的文档。
 
 <div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.InputGroup;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.types.Row;
+
+// 有多个重载求值方法的函数
+public static class OverloadedFunction extends ScalarFunction {
+
+  // no hint required
+  public Long eval(long a, long b) {
+    return a + b;
+  }
+
+  // 定义 decimal 的精度和小数位
+  public @DataTypeHint("DECIMAL(12, 3)") BigDecimal eval(double a, double b) {
+    return BigDecimal.valueOf(a + b);
+  }
+
+  // 定义嵌套数据类型
+  @DataTypeHint("ROW<s STRING, t TIMESTAMP(3) WITH LOCAL TIME ZONE>")
+  public Row eval(int i) {
+    return Row.of(String.valueOf(i), Instant.ofEpochSecond(i));
+  }
+
+  // 允许任意类型的符入，并输出序列化定制后的值
+  @DataTypeHint(value = "RAW", bridgedTo = ByteBuffer.class)
+  public ByteBuffer eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+    return MyUtils.serializeToByteBuffer(o);
+  }
+}
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.InputGroup
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.types.Row
+import scala.annotation.varargs
+
+// function with overloaded evaluation methods
+class OverloadedFunction extends ScalarFunction {
+
+  // no hint required
+  def eval(a: Long, b: Long): Long = {
+    a + b
+  }
+
+  // 定义 decimal 的精度和小数位
+  @DataTypeHint("DECIMAL(12, 3)")
+  def eval(double a, double b): BigDecimal = {
+    java.lang.BigDecimal.valueOf(a + b)
+  }
+
+  // 定义嵌套数据类型
+  @DataTypeHint("ROW<s STRING, t TIMESTAMP(3) WITH LOCAL TIME ZONE>")
+  def eval(Int i): Row = {
+    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  }
+
+  // 允许任意类型的符入，并输出定制序列化后的值
+  @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+    MyUtils.serializeToByteBuffer(o)
+  }
+}
+
+{% endhighlight %}
+</div>
+
+</div>
+
+**`@FunctionHint`**
+
+有时我们希望一种求值方法可以同时处理多种数据类型，有时又要求对重载的多个求值方法仅声明一次通用的结果类型。
+
+`@FunctionHint` 注解可以提供从入参数据类型到结果数据类型的映射，它可以在整个函数类或求值方法上注解输入、累加器和结果的数据类型。可以在类顶部声明一个或多个注解，也可以为类的所有求值方法分别声明一个或多个注解。所有的 hint 参数都是可选的，如果未定义参数，则使用默认的基于反射的类型提取。在函数类顶部定义的 hint 参数被所有求值方法继承。
+
+以下例子展示了如何使用 `@FunctionHint`，详情可参考该注解类的文档。
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.types.Row;
+
+// 为函数类的所有求值方法指定同一个输出类型
+@FunctionHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
+public static class OverloadedFunction extends TableFunction<Row> {
+
+  public void eval(int a, int b) {
+    collect(Row.of("Sum", a + b));
+  }
+
+  // overloading of arguments is still possible
+  public void eval() {
+    collect(Row.of("Empty args", -1));
+  }
+}
+
+// 解耦类型推导与求值方法，类型推导完全取决于 FunctionHint
+@FunctionHint(
+  input = [@DataTypeHint("INT"), @DataTypeHint("INT")],
+  output = @DataTypeHint("INT")
+)
+@FunctionHint(
+  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  output = @DataTypeHint("BIGINT")
+)
+@FunctionHint(
+  input = [],
+  output = @DataTypeHint("BOOLEAN")
+)
+public static class OverloadedFunction extends TableFunction<Object> {
+
+  // an implementer just needs to make sure that a method exists
+  // that can be called by the JVM
+  public void eval(Object... o) {
+    if (o.length == 0) {
+      collect(false);
+    }
+    collect(o[0]);
+  }
+}
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.FunctionHint
+import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.types.Row
+
+// 为函数类的所有求值方法指定同一个输出类型
+@FunctionHint(output = new DataTypeHint("ROW<s STRING, i INT>"))
+class OverloadedFunction extends TableFunction[Row] {
+
+  def eval(a: Int, b: Int): Unit = {
+    collect(Row.of("Sum", Int.box(a + b)))
+  }
+
+  // overloading of arguments is still possible
+  def eval(): Unit = {
+    collect(Row.of("Empty args", Int.box(-1)))
+  }
+}
+
+// 解耦类型推导与求值方法，类型推导完全取决于 @FunctionHint
+@FunctionHint(
+  input = Array(new DataTypeHint("INT"), new DataTypeHint("INT")),
+  output = new DataTypeHint("INT")
+)
+@FunctionHint(
+  input = Array(new DataTypeHint("BIGINT"), new DataTypeHint("BIGINT")),
+  output = new DataTypeHint("BIGINT")
+)
+@FunctionHint(
+  input = Array(),
+  output = new DataTypeHint("BOOLEAN")
+)
+class OverloadedFunction extends TableFunction[AnyRef] {
+
+  // an implementer just needs to make sure that a method exists
+  // that can be called by the JVM
+  @varargs
+  def eval(o: AnyRef*) = {
+    if (o.length == 0) {
+      collect(Boolean.box(false))
+    }
+    collect(o(0))
+  }
+}
+
+{% endhighlight %}
+</div>
+
+</div>
+
+#### 定制类型推导
+
+在大多数情况下，`@DataTypeHint` 和 `@FunctionHint` 足以构建自定义函数，然而通过重写 `getTypeInference()` 定制自动类型推导逻辑，实现者可以创建任意像系统内置函数那样有用的函数。
+
+以下用 Java 实现的例子展示了定制类型推导的潜力，它根据字符串参数来确定函数的结果类型。该函数带有两个字符串参数：第一个参数表示要分析的字符串，第二个参数表示目标类型。
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.types.Row;
+
+public static class LiteralFunction extends ScalarFunction {
+  public Object eval(String s, String type) {
+    switch (type) {
+      case "INT":
+        return Integer.valueOf(s);
+      case "DOUBLE":
+        return Double.valueOf(s);
+      case "STRING":
+      default:
+        return s;
+    }
+  }
+
+  // 禁用自动的反射式类型推导，使用如下逻辑进行类型推导
+  @Override
+  public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+    return TypeInference.newBuilder()
+      // 指定输入参数的类型，必要时参数会被隐式转换
+      .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+      // specify a strategy for the result data type of the function
+      .outputTypeStrategy(callContext -> {
+        if (!callContext.isArgumentLiteral(1) || callContext.isArgumentNull(1)) {
+          throw callContext.newValidationError("Literal expected for second argument.");
+        }
+        // 基于字符串值返回数据类型
+        final String literal = callContext.getArgumentValue(1, String.class).orElse("STRING");
+        switch (literal) {
+          case "INT":
+            return Optional.of(DataTypes.INT().notNull());
+          case "DOUBLE":
+            return Optional.of(DataTypes.DOUBLE().notNull());
+          case "STRING":
+          default:
+            return Optional.of(DataTypes.STRING());
+        }
+      })
+      .build();
+  }
+}
+
+{% endhighlight %}
+</div>
+
+</div>
+
+### 运行时集成
+-------------------
+
+有时候自定义函数需要获取一些全局信息，或者在真正被调用之前做一些配置（setup）/清理（clean-up）的工作。自定义函数也提供了 `open()` 和 `close()` 方法，你可以重写这两个方法做到类似于 DataStream API 中 `RichFunction` 的功能。
+
+open() 方法在求值方法被调用之前先调用。close() 方法在求值方法调用完之后被调用。
+
+open() 方法提供了一个 FunctionContext，它包含了一些自定义函数被执行时的上下文信息，比如 metric group、分布式文件缓存，或者是全局的作业参数等。
+
+下面的信息可以通过调用 `FunctionContext` 的对应的方法来获得：
+
+| 方法                                | 描述                                            |
+| :------------------------------------ | :----------------------------------------------------- |
+| `getMetricGroup()`                    | 执行该函数的 subtask 的 Metric Group。                |
+| `getCachedFile(name)`                 | 分布式文件缓存的本地临时文件副本。|
+| `getJobParameter(name, defaultValue)` | 跟对应的 key 关联的全局参数值。  |
+
+下面的例子展示了如何在一个标量函数中通过 FunctionContext 来获取一个全局的任务参数：
+
+<div class="codetabs" markdown="1">
+
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class CustomTypeSplit extends TableFunction<Row> {
-    public void eval(String str) {
-        for (String s : str.split(" ")) {
-            Row row = new Row(2);
-            row.setField(0, s);
-            row.setField(1, s.length());
-            collect(row);
-        }
-    }
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class HashCodeFunction extends ScalarFunction {
+
+    private int factor = 0;
 
     @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
+    public void open(FunctionContext context) throws Exception {
+        // 获取参数 "hashcode_factor"
+        // 如果不存在，则使用默认值 "12"
+        factor = Integer.parseInt(context.getJobParameter("hashcode_factor", "12"));
+    }
+
+    public int eval(String s) {
+        return s.hashCode() * factor;
     }
 }
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 设置任务参数
+env.getConfig().addJobParameter("hashcode_factor", "31");
+
+// 注册函数
+env.createTemporarySystemFunction("hashCode", HashCodeFunction.class);
+
+// 调用函数
+env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable");
+
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class CustomTypeSplit extends TableFunction[Row] {
-  def eval(str: String): Unit = {
-    str.split(" ").foreach({ s =>
-      val row = new Row(2)
-      row.setField(0, s)
-      row.setField(1, s.length)
-      collect(row)
-    })
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.FunctionContext
+import org.apache.flink.table.functions.ScalarFunction
+
+class HashCodeFunction extends ScalarFunction {
+
+  private var factor: Int = 0
+
+  override def open(context: FunctionContext): Unit = {
+    // 获取参数 "hashcode_factor"
+    // 如果不存在，则使用默认值 "12"
+    factor = context.getJobParameter("hashcode_factor", "12").toInt
   }
 
-  override def getResultType: TypeInformation[Row] = {
-    Types.ROW(Types.STRING, Types.INT)
+  def eval(s: String): Int = {
+    s.hashCode * factor
   }
 }
+
+val env = TableEnvironment.create(...)
+
+// 设置任务参数
+env.getConfig.addJobParameter("hashcode_factor", "31")
+
+// 注册函数
+env.createTemporarySystemFunction("hashCode", classOf[HashCodeFunction])
+
+// 调用函数
+env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
+
 {% endhighlight %}
 </div>
+
 </div>
 
 {% top %}
 
+标量函数
+----------------
 
-Aggregation Functions
+自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({%link dev/table/types.zh.md %})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
+
+想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法必须是 `public` 的，而且名字必须是 `eval`。
+
+下面的例子展示了如何实现一个求哈希值的函数并在查询里调用它，详情可参考[开发指南](#开发指南)：
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.annotation.InputGroup;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class HashFunction extends ScalarFunction {
+
+  // 接受任意类型输入，返回 INT 型输出
+  public int eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+    return o.hashCode();
+  }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(HashFunction.class, $("myField")));
+
+// 注册函数
+env.createTemporarySystemFunction("HashFunction", HashFunction.class);
+
+// 在 Table API 里调用注册好的函数
+env.from("MyTable").select(call("HashFunction", $("myField")));
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery("SELECT HashFunction(myField) FROM MyTable");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.annotation.InputGroup
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
+
+class HashFunction extends ScalarFunction {
+
+  // 接受任意类型输入，返回 INT 型输出
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: AnyRef): Int {
+    return o.hashCode();
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env.from("MyTable").select(call(classOf[HashFunction], $"myField"))
+
+// 注册函数
+env.createTemporarySystemFunction("HashFunction", classOf[HashFunction])
+
+// 在 Table API 里调用注册好的函数
+env.from("MyTable").select(call("HashFunction", $"myField"))
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
+
+{% endhighlight %}
+</div>
+
+</div>
+
+如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
+
+{% top %}
+
+表值函数
+---------------
+
+跟自定义标量函数一样，自定义表值函数的输入参数也可以是 0 到多个标量。但是跟标量函数只能返回一个值不同的是，它可以返回任意多行。返回的每一行可以包含 1 到多列，如果输出行只包含 1 列，会省略结构化信息并生成标量值，这个标量值在运行阶段会隐式地包装进行里。
+
+要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，可以通过实现多个名为 `eval` 的方法对求值方法进行重载。像其他函数一样，输入和输出类型也可以通过反射自动提取出来。表值函数返回的表的类型取决于 `TableFunction` 类的泛型参数 `T`，不同于标量函数，表值函数的求值方法本身不包含返回类型，而是通过 `collect(T)` 方法来发送要输出的行。
+
+在 Table API 中，表值函数是通过 `.joinLateral(...)` 或者 `.leftOuterJoinLateral(...)` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟跟表值函数返回的所有行（位于算子右侧）进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数返回的所有行（位于算子右侧）进行（cross）join，并且如果表值函数返回 0 行也会保留外表的这一行。
+
+在 SQL 里面用 `JOIN` 或者 以 `ON TRUE` 为条件的 `LEFT JOIN` 来配合 `LATERAL TABLE(<TableFunction>)` 的使用。
+
+下面的例子展示了如何实现一个分隔函数并在查询里调用它，详情可参考[开发指南](#开发指南)：
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.types.Row;
+import static org.apache.flink.table.api.Expressions.*;
+
+@FunctionHint(output = @DataTypeHint("ROW<word STRING, length INT>"))
+public static class SplitFunction extends TableFunction<Row> {
+
+  public void eval(String str) {
+    for (String s : str.split(" ")) {
+      // use collect(...) to emit a row
+      collect(Row.of(s, s.length()));
+    }
+  }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env
+  .from("MyTable")
+  .joinLateral(call(SplitFunction.class, $("myField")))
+  .select($("myField"), $("word"), $("length"));
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call(SplitFunction.class, $("myField")))
+  .select($("myField"), $("word"), $("length"));
+
+// 在 Table API 里重命名函数字段
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call(SplitFunction.class, $("myField")).as("newWord", "newLength"))
+  .select($("myField"), $("newWord"), $("newLength"));
+
+// 注册函数
+env.createTemporarySystemFunction("SplitFunction", SplitFunction.class);
+
+// 在 Table API 里调用注册好的函数
+env
+  .from("MyTable")
+  .joinLateral(call("SplitFunction", $("myField")))
+  .select($("myField"), $("word"), $("length"));
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call("SplitFunction", $("myField")))
+  .select($("myField"), $("word"), $("length"));
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery(
+  "SELECT myField, word, length " +
+  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))");
+env.sqlQuery(
+  "SELECT myField, word, length " +
+  "FROM MyTable " +
+  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE");
+
+// 在 SQL 里重命名函数字段
+env.sqlQuery(
+  "SELECT myField, newWord, newLength " +
+  "FROM MyTable " +
+  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.table.annotation.DataTypeHint
+import org.apache.flink.table.annotation.FunctionHint
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.types.Row
+
+@FunctionHint(output = new DataTypeHint("ROW<word STRING, length INT>"))
+class SplitFunction extends TableFunction[Row] {
+
+  def eval(str: String): Unit = {
+    // use collect(...) to emit a row
+    str.split(" ").foreach(s => collect(Row.of(s, Int.box(s.length))))
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// 在 Table API 里不经注册直接“内联”调用函数
+env
+  .from("MyTable")
+  .joinLateral(call(classOf[SplitFunction], $"myField")
+  .select($"myField", $"word", $"length")
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call(classOf[SplitFunction], $"myField"))
+  .select($"myField", $"word", $"length")
+
+// 在 Table API 里重命名函数字段
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call(classOf[SplitFunction], $"myField").as("newWord", "newLength"))
+  .select($"myField", $"newWord", $"newLength")
+
+// 注册函数
+env.createTemporarySystemFunction("SplitFunction", classOf[SplitFunction])
+
+// 在 Table API 里调用注册好的函数
+env
+  .from("MyTable")
+  .joinLateral(call("SplitFunction", $"myField"))
+  .select($"myField", $"word", $"length")
+env
+  .from("MyTable")
+  .leftOuterJoinLateral(call("SplitFunction", $"myField"))
+  .select($"myField", $"word", $"length")
+
+// 在 SQL 里调用注册好的函数
+env.sqlQuery(
+  "SELECT myField, word, length " +
+  "FROM MyTable, LATERAL TABLE(SplitFunction(myField))");
+env.sqlQuery(
+  "SELECT myField, word, length " +
+  "FROM MyTable " +
+  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) ON TRUE")
+
+// 在 SQL 里重命名函数字段
+env.sqlQuery(
+  "SELECT myField, newWord, newLength " +
+  "FROM MyTable " +
+  "LEFT JOIN LATERAL TABLE(SplitFunction(myField)) AS T(newWord, newLength) ON TRUE")
+
+{% endhighlight %}
+</div>
+
+</div>
+
+如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
+
+如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#表值函数)。
+
+{% top %}
+
+聚合函数
 ---------------------
 
-User-Defined Aggregate Functions (UDAGGs) aggregate a table (one or more rows with one or more attributes) to a scalar value. 
+自定义聚合函数（UDAGG）是把一个表（一行或者多行，每行可以有一列或者多列）聚合成一个标量值。
 
 <center>
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
 </center>
 
-The above figure shows an example of an aggregation. Assume you have a table that contains data about beverages. The table consists of three columns, `id`, `name` and `price` and 5 rows. Imagine you need to find the highest price of all beverages in the table, i.e., perform a `max()` aggregation. You would need to check each of the 5 rows and the result would be a single numeric value.
+上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
 
-User-defined aggregation functions are implemented by extending the `AggregateFunction` class. An `AggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `AggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `getValue()` method of the function is called to compute and return the final result. 
+自定义聚合函数是通过扩展 `AggregateFunction` 来实现的。`AggregateFunction` 的工作过程如下。首先，它需要一个 `accumulator`，它是一个数据结构，存储了聚合的中间结果。通过调用 `AggregateFunction` 的 `createAccumulator()` 方法创建一个空的 accumulator。接下来，对于每一行数据，会调用 `accumulate()` 方法来更新 accumulator。当所有的数据都处理完了之后，通过调用 `getValue` 方法来计算和返回最终的结果。
 
-**The following methods are mandatory for each `AggregateFunction`:**
+**下面几个方法是每个 `AggregateFunction` 必须要实现的：**
 
 - `createAccumulator()`
-- `accumulate()` 
+- `accumulate()`
 - `getValue()`
 
-Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `AggregateFunction` provides methods to specify the `TypeInformation` of the result type (through 
- `AggregateFunction#getResultType()`) and the type of the accumulator (through `AggregateFunction#getAccumulatorType()`).
- 
-Besides the above methods, there are a few contracted methods that can be 
-optionally implemented. While some of these methods allow the system more efficient query execution, others are mandatory for certain use cases. For instance, the `merge()` method is mandatory if the aggregation function should be applied in the context of a session group window (the accumulators of two session windows need to be joined when a row is observed that "connects" them). 
+Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的结果，比如那些非基本类型和普通的 POJO 类型的复杂类型。所以跟 `ScalarFunction` 和 `TableFunction` 一样，`AggregateFunction` 也提供了 `AggregateFunction#getResultType()` 和 `AggregateFunction#getAccumulatorType()` 来分别指定返回值类型和 accumulator 的类型，两个函数的返回值类型也都是 `TypeInformation`。
 
-**The following methods of `AggregateFunction` are required depending on the use case:**
+除了上面的方法，还有几个方法可以选择实现。这些方法有些可以让查询更加高效，而有些是在某些特定场景下必须要实现的。例如，如果聚合函数用在会话窗口（当两个会话窗口合并的时候需要 merge 他们的 accumulator）的话，`merge()` 方法就是必须要实现的。
 
-- `retract()` is required for aggregations on bounded `OVER` windows.
-- `merge()` is required for many batch aggregations and session window aggregations.
-- `resetAccumulator()` is required for many batch aggregations.
+**`AggregateFunction` 的以下方法在某些场景下是必须实现的：**
 
-All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a aggregate function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.
+- `retract()` 在 bounded `OVER` 窗口中是必须实现的。
+- `merge()` 在许多批式聚合和会话窗口聚合中是必须实现的。
+- `resetAccumulator()` 在许多批式聚合中是必须实现的。
 
-Detailed documentation for all methods of `AggregateFunction` is given below. 
+`AggregateFunction` 的所有方法都必须是 `public` 的，不能是 `static` 的，而且名字必须跟上面写的一样。`createAccumulator`、`getValue`、`getResultType` 以及 `getAccumulatorType` 这几个函数是在抽象类 `AggregateFunction` 中定义的，而其他函数都是约定的方法。如果要定义一个聚合函数，你需要扩展 `org.apache.flink.table.functions.AggregateFunction`，并且实现一个（或者多个）`accumulate` 方法。`accumulate` 方法可以重载，每个方法的参数类型不同，并且支持变长参数。
+
+`AggregateFunction` 的所有方法的详细文档如下。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -533,7 +941,7 @@ public abstract class UserDefinedAggregateFunction<T, ACC> extends UserDefinedFu
 }
 
 /**
-  * Base class for aggregation functions. 
+  * Base class for aggregation functions.
   *
   * @param <T>   the type of the aggregation result
   * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
@@ -642,7 +1050,7 @@ abstract class UserDefinedAggregateFunction[T, ACC] extends UserDefinedFunction 
 }
 
 /**
-  * Base class for aggregation functions. 
+  * Base class for aggregation functions.
   *
   * @tparam T   the type of the aggregation result
   * @tparam ACC the type of the aggregation accumulator. The accumulator is used to keep the
@@ -685,7 +1093,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
     *                     merged.
     */
   def merge(accumulator: ACC, its: java.lang.Iterable[ACC]): Unit // OPTIONAL
-  
+
   /**
     * Called every time when an aggregation result should be materialized.
     * The returned value could be either an early and incomplete result
@@ -718,15 +1126,15 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 </div>
 
 
-The following example shows how to
+下面的例子展示了如何：
 
-- define an `AggregateFunction` that calculates the weighted average on a given column, 
-- register the function in the `TableEnvironment`, and 
-- use the function in a query.  
+- 定义一个聚合函数来计算某一列的加权平均，
+- 在 `TableEnvironment` 中注册函数，
+- 在查询中使用函数。
 
-To calculate an weighted average value, the accumulator needs to store the weighted sum and count of all the data that has been accumulated. In our example we define a class `WeightedAvgAccum` to be the accumulator. Accumulators are automatically backup-ed by Flink's checkpointing mechanism and restored in case of a failure to ensure exactly-once semantics.
+为了计算加权平均值，accumulator 需要存储加权总和以及数据的条数。在我们的例子里，我们定义了一个类 `WeightedAvgAccum` 来作为 accumulator。Flink 的 checkpoint 机制会自动保存 accumulator，在失败时进行恢复，以此来保证精确一次的语义。
 
-The `accumulate()` method of our `WeightedAvg` `AggregateFunction` has three inputs. The first one is the `WeightedAvgAccum` accumulator, the other two are user-defined inputs: input value `ivalue` and weight of the input `iweight`. Although the `retract()`, `merge()`, and `resetAccumulator()` methods are not mandatory for most aggregation types, we provide them below as examples. Please note that we used Java primitive types and defined `getResultType()` and `getAccumulatorType()` methods in the Scala example because Flink type extraction does not work very well for Scala types.
+我们的 `WeightedAvg`（聚合函数）的 `accumulate` 方法有三个输入参数。第一个是 `WeightedAvgAccum` accumulator，另外两个是用户自定义的输入：输入的值 `ivalue` 和 输入的权重 `iweight`。尽管 `retract()`、`merge()`、`resetAccumulator()` 这几个方法在大多数聚合类型中都不是必须实现的，我们也在样例中提供了他们的实现。请注意我们在 Scala 样例中也是用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()`，因为 Flink 的类型推导对于 Scala 的类型推导做的不是很好。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -767,7 +1175,7 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
         acc.sum -= iValue * iWeight;
         acc.count -= iWeight;
     }
-    
+
     public void merge(WeightedAvgAccum acc, Iterable<WeightedAvgAccum> it) {
         Iterator<WeightedAvgAccum> iter = it.iterator();
         while (iter.hasNext()) {
@@ -776,18 +1184,18 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
             acc.sum += a.sum;
         }
     }
-    
+
     public void resetAccumulator(WeightedAvgAccum acc) {
         acc.count = 0;
         acc.sum = 0L;
     }
 }
 
-// register function
+// 注册函数
 StreamTableEnvironment tEnv = ...
 tEnv.registerFunction("wAvg", new WeightedAvg());
 
-// use function
+// 使用函数
 tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user");
 
 {% endhighlight %}
@@ -817,7 +1225,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   override def createAccumulator(): WeightedAvgAccum = {
     new WeightedAvgAccum
   }
-  
+
   override def getValue(acc: WeightedAvgAccum): JLong = {
     if (acc.count == 0) {
         null
@@ -825,7 +1233,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
         acc.sum / acc.count
     }
   }
-  
+
   def accumulate(acc: WeightedAvgAccum, iValue: JLong, iWeight: JInteger): Unit = {
     acc.sum += iValue * iWeight
     acc.count += iWeight
@@ -835,7 +1243,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
     acc.sum -= iValue * iWeight
     acc.count -= iWeight
   }
-    
+
   def merge(acc: WeightedAvgAccum, it: java.lang.Iterable[WeightedAvgAccum]): Unit = {
     val iter = it.iterator()
     while (iter.hasNext) {
@@ -857,11 +1265,11 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   override def getResultType: TypeInformation[JLong] = Types.LONG
 }
 
-// register function
+// 注册函数
 val tEnv: StreamTableEnvironment = ???
 tEnv.registerFunction("wAvg", new WeightedAvg())
 
-// use function
+// 使用函数
 tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user")
 
 {% endhighlight %}
@@ -881,6 +1289,7 @@ public static class WeightedAvgAccum {
 }
 
 // The java class must have a public no-argument constructor and can be founded in current java classloader.
+// Java 类必须有一个 public 的无参构造函数，并且可以在当前类加载器中加载到。
 
 /**
  * Weighted Average user-defined aggregate function.
@@ -910,7 +1319,7 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
         acc.sum -= iValue * iWeight;
         acc.count -= iWeight;
     }
-    
+
     public void merge(WeightedAvgAccum acc, Iterable<WeightedAvgAccum> it) {
         Iterator<WeightedAvgAccum> iter = it.iterator();
         while (iter.hasNext()) {
@@ -919,7 +1328,7 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
             acc.sum += a.sum;
         }
     }
-    
+
     public void resetAccumulator(WeightedAvgAccum acc) {
         acc.count = 0;
         acc.sum = 0L;
@@ -927,60 +1336,57 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
 }
 '''
 
-# register function
+# 注册函数
 t_env = ...  # type: StreamTableEnvironment
 t_env.register_java_function("wAvg", "my.java.function.WeightedAvg")
 
-# use function
+# 使用函数
 t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user")
 
 {% endhighlight %}
 </div>
 </div>
 
-
 {% top %}
 
-Table Aggregation Functions
+表值聚合函数
 ---------------------
 
-User-Defined Table Aggregate Functions (UDTAGGs) aggregate a table (one or more rows with one or more attributes) to a result table with multi rows and columns. 
+自定义表值聚合函数（UDTAGG）可以把一个表（一行或者多行，每行有一列或者多列）聚合成另一张表，结果中可以有多行多列。
 
 <center>
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udtagg-mechanism.png" width="80%">
 </center>
 
-The above figure shows an example of a table aggregation. Assume you have a table that contains data about beverages. The table consists of three columns, `id`, `name` and `price` and 5 rows. Imagine you need to find the top 2 highest prices of all beverages in the table, i.e., perform a `top2()` table aggregation. You would need to check each of the 5 rows and the result would be a table with the top 2 values.
+上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
 
-User-defined table aggregation functions are implemented by extending the `TableAggregateFunction` class. A `TableAggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `TableAggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `emitValue()` method of the function is called to compute and return the final results. 
+用户自定义表值聚合函数是通过扩展 `TableAggregateFunction` 类来实现的。一个 `TableAggregateFunction` 的工作过程如下。首先，它需要一个 `accumulator`，这个 `accumulator` 负责存储聚合的中间结果。 通过调用 `TableAggregateFunction` 的 `createAccumulator` 方法来构造一个空的 accumulator。接下来，对于每一行数据，会调用 `accumulate` 方法来更新 accumulator。当所有数据都处理完之后，调用 `emitValue` 方法来计算和返回最终的结果。
 
-**The following methods are mandatory for each `TableAggregateFunction`:**
+**下面几个 `TableAggregateFunction` 的方法是必须要实现的：**
 
 - `createAccumulator()`
-- `accumulate()` 
+- `accumulate()`
 
-Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `TableAggregateFunction` provides methods to specify the `TypeInformation` of the result type (through 
- `TableAggregateFunction#getResultType()`) and the type of the accumulator (through `TableAggregateFunction#getAccumulatorType()`).
- 
-Besides the above methods, there are a few contracted methods that can be 
-optionally implemented. While some of these methods allow the system more efficient query execution, others are mandatory for certain use cases. For instance, the `merge()` method is mandatory if the aggregation function should be applied in the context of a session group window (the accumulators of two session windows need to be joined when a row is observed that "connects" them). 
+Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的结果，比如那些非基本类型和普通的 POJO 类型的复杂类型。所以类似于 `ScalarFunction` 和 `TableFunction`，`TableAggregateFunction` 也提供了 `TableAggregateFunction#getResultType()` 和 `TableAggregateFunction#getAccumulatorType()` 方法来指定返回值类型和 accumulator 的类型，这两个方法都需要返回 `TypeInformation`。
 
-**The following methods of `TableAggregateFunction` are required depending on the use case:**
+除了上面的方法，还有几个其他的方法可以选择性的实现。有些方法可以让查询更加高效，而有些方法对于某些特定场景是必须要实现的。比如，在会话窗口（当两个会话窗口合并时会合并两个 accumulator）中使用聚合函数时，必须要实现`merge()` 方法。
 
-- `retract()` is required for aggregations on bounded `OVER` windows.
-- `merge()` is required for many batch aggregations and session window aggregations.
-- `resetAccumulator()` is required for many batch aggregations.
-- `emitValue()` is required for batch and window aggregations.
+**下面几个 `TableAggregateFunction` 的方法在某些特定场景下是必须要实现的：**
 
-**The following methods of `TableAggregateFunction` are used to improve the performance of streaming jobs:**
+- `retract()` 在 bounded `OVER` 窗口中的聚合函数必须要实现。
+- `merge()` 在许多批式聚合和会话窗口聚合中是必须要实现的。
+- `resetAccumulator()` 在许多批式聚合中是必须要实现的。
+- `emitValue()` 在批式聚合以及窗口聚合中是必须要实现的。
 
-- `emitUpdateWithRetract()` is used to emit values that have been updated under retract mode.
+**下面的 `TableAggregateFunction` 的方法可以提升流式任务的效率：**
 
-For `emitValue` method, it emits full data according to the accumulator. Take TopN as an example, `emitValue` emit all top n values each time. This may bring performance problems for streaming jobs. To improve the performance, a user can also implement `emitUpdateWithRetract` method to improve the performance. The method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The method will be used in preference to the `emitValue` method if they are all defined in the table aggregate function, because `emitUpdateWithRetract` is treated to be more efficient than `emitValue` as it can output values incrementally.
+- `emitUpdateWithRetract()` 在 retract 模式下，该方法负责发送被更新的值。
 
-All methods of `TableAggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getResultType`, and `getAccumulatorType` are defined in the parent abstract class of `TableAggregateFunction`, while others are contracted methods. In order to define a table aggregate function, one has to extend the base class `org.apache.flink.table.functions.TableAggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.
+`emitValue` 方法会发送所有 accumulator 给出的结果。拿 TopN 来说，`emitValue` 每次都会发送所有的最大的 n 个值。这在流式任务中可能会有一些性能问题。为了提升性能，用户可以实现 `emitUpdateWithRetract` 方法。这个方法在 retract 模式下会增量的输出结果，比如有数据更新了，我们必须要撤回老的数据，然后再发送新的数据。如果定义了 `emitUpdateWithRetract` 方法，那它会优先于 `emitValue` 方法被使用，因为一般认为 `emitUpdateWithRetract` 会更加高效，因为它的输出是增量的。
 
-Detailed documentation for all methods of `TableAggregateFunction` is given below. 
+`TableAggregateFunction` 的所有方法都必须是 `public` 的、非 `static` 的，而且名字必须跟上面提到的一样。`createAccumulator`、`getResultType` 和 `getAccumulatorType` 这三个方法是在抽象父类 `TableAggregateFunction` 中定义的，而其他的方法都是约定的方法。要实现一个表值聚合函数，你必须扩展 `org.apache.flink.table.functions.TableAggregateFunction`，并且实现一个（或者多个）`accumulate` 方法。`accumulate` 方法可以有多个重载的方法，也可以支持变长参数。
+
+`TableAggregateFunction` 的所有方法的详细文档如下。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1020,7 +1426,7 @@ public abstract class UserDefinedAggregateFunction<T, ACC> extends UserDefinedFu
 }
 
 /**
-  * Base class for table aggregation functions. 
+  * Base class for table aggregation functions.
   *
   * @param <T>   the type of the aggregation result
   * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
@@ -1073,7 +1479,7 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
     * @param out         the collector used to output data
     */
   public void emitValue(ACC accumulator, Collector<T> out); // OPTIONAL
-  
+
   /**
     * Called every time when an aggregation result should be materialized. The returned value
     * could be either an early and incomplete result (periodically emitted as data arrive) or
@@ -1093,7 +1499,7 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
     *                    records.
     */
   public void emitUpdateWithRetract(ACC accumulator, RetractableCollector<T> out); // OPTIONAL
-  
+
   /**
     * Collects a record and forwards it. The collector can output retract messages with the retract
     * method. Note: only use it in {@code emitRetractValueIncrementally}.
@@ -1147,7 +1553,7 @@ abstract class UserDefinedAggregateFunction[T, ACC] extends UserDefinedFunction 
 }
 
 /**
-  * Base class for table aggregation functions. 
+  * Base class for table aggregation functions.
   *
   * @tparam T   the type of the aggregation result
   * @tparam ACC the type of the aggregation accumulator. The accumulator is used to keep the
@@ -1190,7 +1596,7 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
     *                     merged.
     */
   def merge(accumulator: ACC, its: java.lang.Iterable[ACC]): Unit // OPTIONAL
-  
+
   /**
     * Called every time when an aggregation result should be materialized. The returned value
     * could be either an early and incomplete result  (periodically emitted as data arrive) or
@@ -1221,13 +1627,13 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
     *                    records.
     */
   def emitUpdateWithRetract(accumulator: ACC, out: RetractableCollector[T]): Unit // OPTIONAL
- 
+
   /**
     * Collects a record and forwards it. The collector can output retract messages with the retract
     * method. Note: only use it in `emitRetractValueIncrementally`.
     */
   trait RetractableCollector[T] extends Collector[T] {
-    
+
     /**
       * Retract a record.
       *
@@ -1241,15 +1647,15 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
 </div>
 
 
-The following example shows how to
+下面的例子展示了如何
 
-- define a `TableAggregateFunction` that calculates the top 2 values on a given column, 
-- register the function in the `TableEnvironment`, and 
-- use the function in a Table API query(TableAggregateFunction is only supported by Table API).  
+- 定义一个 `TableAggregateFunction` 来计算给定列的最大的 2 个值，
+- 在 `TableEnvironment` 中注册函数，
+- 在 Table API 查询中使用函数（当前只在 Table API 中支持 TableAggregateFunction）。
 
-To calculate the top 2 values, the accumulator needs to store the biggest 2 values of all the data that has been accumulated. In our example we define a class `Top2Accum` to be the accumulator. Accumulators are automatically backup-ed by Flink's checkpointing mechanism and restored in case of a failure to ensure exactly-once semantics.
+为了计算最大的 2 个值，accumulator 需要保存当前看到的最大的 2 个值。在我们的例子中，我们定义了类 `Top2Accum` 来作为 accumulator。Flink 的 checkpoint 机制会自动保存 accumulator，并且在失败时进行恢复，来保证精确一次的语义。
 
-The `accumulate()` method of our `Top2` `TableAggregateFunction` has two inputs. The first one is the `Top2Accum` accumulator, the other one is the user-defined input: input value `v`. Although the `merge()` method is not mandatory for most table aggregation types, we provide it below as examples. Please note that we used Java primitive types and defined `getResultType()` and `getAccumulatorType()` methods in the Scala example because Flink type extraction does not work very well for Scala types.
+我们的 `Top2` 表值聚合函数（`TableAggregateFunction`）的 `accumulate()` 方法有两个输入，第一个是 `Top2Accum` accumulator，另一个是用户定义的输入：输入的值 `v`。尽管 `merge()` 方法在大多数聚合类型中不是必须的，我们也在样例中提供了它的实现。请注意，我们在 Scala 样例中也使用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()` 方法，因为 Flink 的类型推导对于 Scala 的类型推导支持的不是很好。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1303,14 +1709,14 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
     }
 }
 
-// register function
+// 注册函数
 StreamTableEnvironment tEnv = ...
 tEnv.registerFunction("top2", new Top2());
 
-// init table
+// 初始化表
 Table tab = ...;
 
-// use function
+// 使用函数
 tab.groupBy("key")
     .flatAggregate("top2(a) as (v, rank)")
     .select("key, v, rank");
@@ -1373,10 +1779,10 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
   }
 }
 
-// init table
+// 初始化表
 val tab = ...
 
-// use function
+// 使用函数
 tab
   .groupBy('key)
   .flatAggregate(top2('a) as ('v, 'rank))
@@ -1387,7 +1793,7 @@ tab
 </div>
 
 
-The following example shows how to use `emitUpdateWithRetract` method to emit only updates. To emit only updates, in our example, the accumulator keeps both old and new top 2 values. Note: if the N of topN is big, it may inefficient to keep both old and new values. One way to solve this case is to store the input record into the accumulator in `accumulate` method and then perform calculation in `emitUpdateWithRetract`.
+下面的例子展示了如何使用 `emitUpdateWithRetract` 方法来只发送更新的数据。为了只发送更新的结果，accumulator 保存了上一次的最大的2个值，也保存了当前最大的2个值。注意：如果 TopN 中的 n 非常大，这种既保存上次的结果，也保存当前的结果的方式不太高效。一种解决这种问题的方式是把输入数据直接存储到 `accumulator` 中，然后在调用 `emitUpdateWithRetract` 方法时再进行计算。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1447,14 +1853,14 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
     }
 }
 
-// register function
+// 注册函数
 StreamTableEnvironment tEnv = ...
 tEnv.registerFunction("top2", new Top2());
 
-// init table
+// 初始化表
 Table tab = ...;
 
-// use function
+// 使用函数
 tab.groupBy("key")
     .flatAggregate("top2(a) as (v, rank)")
     .select("key, v, rank");
@@ -1524,10 +1930,10 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
   }
 }
 
-// init table
+// 初始化表
 val tab = ...
 
-// use function
+// 使用函数
 tab
   .groupBy('key)
   .flatAggregate(top2('a) as ('v, 'rank))
@@ -1537,104 +1943,4 @@ tab
 </div>
 </div>
 
-
 {% top %}
-
-Best Practices for Implementing UDFs
-------------------------------------
-
-The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.TIMESTAMP` can be represented as `long`. 
-
-We recommended that user-defined functions should be written by Java instead of Scala as Scala types pose a challenge for Flink's type extractor.
-
-{% top %}
-
-Integrating UDFs with the Runtime
----------------------------------
-
-Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
-
-The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
-
-The `open()` method provides a `FunctionContext` that contains information about the context in which user-defined functions are executed, such as the metric group, the distributed cache files, or the global job parameters.
-
-The following information can be obtained by calling the corresponding methods of `FunctionContext`:
-
-| Method                                | Description                                            |
-| :------------------------------------ | :----------------------------------------------------- |
-| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
-| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
-| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
-
-The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-public class HashCode extends ScalarFunction {
-
-    private int factor = 0;
-
-    @Override
-    public void open(FunctionContext context) throws Exception {
-        // access "hashcode_factor" parameter
-        // "12" would be the default value if parameter does not exist
-        factor = Integer.valueOf(context.getJobParameter("hashcode_factor", "12")); 
-    }
-
-    public int eval(String s) {
-        return s.hashCode() * factor;
-    }
-}
-
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
-
-// set job parameter
-Configuration conf = new Configuration();
-conf.setString("hashcode_factor", "31");
-env.getConfig().setGlobalJobParameters(conf);
-
-// register the function
-tableEnv.registerFunction("hashCode", new HashCode());
-
-// use the function in Java Table API
-myTable.select("string, string.hashCode(), hashCode(string)");
-
-// use the function in SQL
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-object hashCode extends ScalarFunction {
-
-  var hashcode_factor = 12
-
-  override def open(context: FunctionContext): Unit = {
-    // access "hashcode_factor" parameter
-    // "12" would be the default value if parameter does not exist
-    hashcode_factor = context.getJobParameter("hashcode_factor", "12").toInt
-  }
-
-  def eval(s: String): Int = {
-    s.hashCode() * hashcode_factor
-  }
-}
-
-val tableEnv = BatchTableEnvironment.create(env)
-
-// use the function in Scala Table API
-myTable.select('string, hashCode('string))
-
-// register and use the function in SQL
-tableEnv.registerFunction("hashCode", hashCode)
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
-{% endhighlight %}
-
-</div>
-</div>
-
-{% top %}
-

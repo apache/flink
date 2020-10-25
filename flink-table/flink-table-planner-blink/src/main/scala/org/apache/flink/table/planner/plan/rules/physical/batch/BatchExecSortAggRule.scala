@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -65,7 +66,9 @@ class BatchExecSortAggRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    !isOperatorDisabled(tableConfig, OperatorType.SortAgg)
+    val agg: FlinkLogicalAggregate = call.rel(0)
+    !isOperatorDisabled(tableConfig, OperatorType.SortAgg) &&
+      !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -73,10 +76,6 @@ class BatchExecSortAggRule
     val agg: FlinkLogicalAggregate = call.rel(0)
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
-
-    if (agg.indicator) {
-      throw new UnsupportedOperationException("Not support group sets aggregate now.")
-    }
 
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
@@ -124,6 +123,17 @@ class BatchExecSortAggRule
       } else {
         (Seq(FlinkRelDistribution.SINGLETON), RelCollations.EMPTY)
       }
+      // Remove the global agg call filters because the
+      // filter is already done by local aggregation.
+      val aggCallsWithoutFilter = aggCallsWithoutAuxGroupCalls.map {
+        aggCall =>
+          if (aggCall.filterArg > 0) {
+            aggCall.copy(aggCall.getArgList, -1, aggCall.getCollation)
+          } else {
+            aggCall
+          }
+      }
+      val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
       globalDistributions.foreach { globalDistribution =>
         val requiredTraitSet = localSortAgg.getTraitSet
           .replace(globalDistribution)
@@ -140,7 +150,7 @@ class BatchExecSortAggRule
           newLocalInput.getRowType,
           globalGroupSet,
           globalAuxGroupSet,
-          aggCallToAggFunction,
+          globalAggCallToAggFunction,
           isMerge = true)
         call.transformTo(globalSortAgg)
       }

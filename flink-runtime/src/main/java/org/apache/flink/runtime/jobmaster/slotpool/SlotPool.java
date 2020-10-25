@@ -26,12 +26,14 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -136,6 +138,14 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	Collection<SlotInfoWithUtilization> getAvailableSlotsInformation();
 
 	/**
+	 * Returns a list of {@link SlotInfo} objects about all slots that are currently allocated in the slot
+	 * pool.
+	 *
+	 * @return a list of {@link SlotInfo} objects about all slots that are currently allocated in the slot pool.
+	 */
+	Collection<SlotInfo> getAllocatedSlotsInformation();
+
+	/**
 	 * Allocates the available slot with the given allocation id under the given request id. This method returns
 	 * {@code null} if no slot with the given allocation id is available.
 	 *
@@ -161,7 +171,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
-		Time timeout);
+		@Nullable Time timeout);
 
 	/**
 	 * Requests the allocation of a new batch slot from the resource manager. Unlike the normal slot, a batch
@@ -176,6 +186,12 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile);
+
+	/**
+	 * Disables batch slot request timeout check. Invoked when someone else wants to
+	 * take over the timeout check responsibility.
+	 */
+	void disableBatchSlotRequestTimeoutCheck();
 
 	/**
 	 * Create report about the allocated slots belonging to the specified task manager.

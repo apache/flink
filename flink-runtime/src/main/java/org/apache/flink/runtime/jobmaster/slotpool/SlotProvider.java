@@ -66,9 +66,9 @@ public interface SlotProvider {
 	 * @return The future of the allocation
 	 */
 	default CompletableFuture<LogicalSlot> allocateBatchSlot(
-		SlotRequestId slotRequestId,
-		ScheduledUnit scheduledUnit,
-		SlotProfile slotProfile) {
+			SlotRequestId slotRequestId,
+			ScheduledUnit scheduledUnit,
+			SlotProfile slotProfile) {
 		throw new UnsupportedOperationException("Not properly implemented.");
 	}
 

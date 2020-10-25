@@ -31,8 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
-import static org.apache.flink.table.filesystem.PartitionPathUtils.listStatusWithoutHidden;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.listStatusWithoutHidden;
 
 /**
  * Loader to temporary files to final output path and meta store. According to overwrite,
@@ -71,9 +71,7 @@ public class PartitionLoader implements Closeable {
 				metaStore.getLocationPath(), generatePartitionPath(partSpec)));
 
 		overwriteAndRenameFiles(srcDirs, path);
-		if (!pathFromMeta.isPresent()) {
-			metaStore.createPartition(partSpec, path);
-		}
+		metaStore.createOrAlterPartition(partSpec, path);
 	}
 
 	/**
@@ -105,7 +103,7 @@ public class PartitionLoader implements Closeable {
 	}
 
 	/**
-	 * Moves files from srcDir to destDir. Delete files in destDir first when overwrite.
+	 * Moves files from srcDir to destDir.
 	 */
 	private void renameFiles(List<Path> srcDirs, Path destDir) throws Exception {
 		for (Path srcDir : srcDirs) {
@@ -115,12 +113,7 @@ public class PartitionLoader implements Closeable {
 					for (FileStatus srcFile : srcFiles) {
 						Path srcPath = srcFile.getPath();
 						Path destPath = new Path(destDir, srcPath.getName());
-						int count = 1;
-						while (!fs.rename(srcPath, destPath)) {
-							String name = srcPath.getName() + "_copy_" + count;
-							destPath = new Path(destDir, name);
-							count++;
-						}
+						fs.rename(srcPath, destPath);
 					}
 				}
 			}

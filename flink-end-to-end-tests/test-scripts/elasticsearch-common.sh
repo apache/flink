@@ -26,7 +26,12 @@ function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
     local downloadUrl=$1
-    local elasticsearch_version=${2-0}
+    local elasticsearch_version=$2
+
+    if [ -z $elasticsearch_version ]; then
+      echo "Elasticsearch version not declared."
+      exit 1
+    fi
 
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
@@ -74,7 +79,7 @@ function verify_result_line_number {
     while : ; do
       curl "localhost:9200/${index}/_search?q=*&pretty&size=21" > $TEST_DATA_DIR/output || true
 
-      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
+      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ] || [ -n "$(grep "\"value\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
           echo "Elasticsearch end to end test pass."
           break
       else

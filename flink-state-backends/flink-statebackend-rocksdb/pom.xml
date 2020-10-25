@@ -27,12 +27,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-rocksdb</name>
+	<name>Flink : State backends : RocksDB</name>
 
 	<packaging>jar</packaging>
 
@@ -67,13 +67,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>

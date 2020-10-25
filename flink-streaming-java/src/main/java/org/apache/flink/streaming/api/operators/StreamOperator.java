@@ -127,7 +127,7 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	/**
 	 * Provides a context to initialize all state in the operator.
 	 */
-	void initializeState() throws Exception;
+	void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  miscellaneous
@@ -136,10 +136,6 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
 
 	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
-
-	ChainingStrategy getChainingStrategy();
-
-	void setChainingStrategy(ChainingStrategy strategy);
 
 	MetricGroup getMetricGroup();
 

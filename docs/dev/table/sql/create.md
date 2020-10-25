@@ -31,13 +31,36 @@ Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
 - CREATE DATABASE
+- CREATE VIEW
 - CREATE FUNCTION
 
 ## Run a CREATE statement
 
-CREATE statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful CREATE operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 
-The following examples show how to run a CREATE statement in `TableEnvironment` and in SQL CLI.
+CREATE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
+
+The following examples show how to run a CREATE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+CREATE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
+
+The following examples show how to run a CREATE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+CREATE statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+
+The following examples show how to run a CREATE statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -47,16 +70,16 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)");
+// run an insert SQL on the Table and emit the result to the TableSink
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -68,38 +91,38 @@ val tableEnv = TableEnvironment.create(settings)
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-// SQL update with a registered table
+// Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// run a SQL update query on the Table and emit the result to the TableSink
-tableEnv.sqlUpdate(
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+// run an insert SQL on the Table and emit the result to the TableSink
+tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # SQL query with a registered table
 # register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 # run a SQL query on the Table and retrieve the result as a new Table
-result = tableEnv.sqlQuery(
+result = table_env.sql_query(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
-# SQL update with a registered table
+# Execute an INSERT SQL with a registered table
 # register a TableSink
-table_env.sql_update("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
-# run a SQL update query on the Table and emit the result to the TableSink
+table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH (...)")
+# run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \
-    .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+    .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 
@@ -126,19 +149,33 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   (
     { <column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-
+  [ LIKE source_table [( <like_options> )] ]
+   
 <column_definition>:
-  column_name column_type [COMMENT column_comment]
+  column_name column_type [ <column_constraint> ] [COMMENT column_comment]
+  
+<column_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY NOT ENFORCED
+
+<table_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
 
 <computed_column_definition>:
   column_name AS computed_column_expression [COMMENT column_comment]
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+  
+<like_options>:
+{
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+ | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
+}[, ...]
 
 {% endhighlight %}
 
@@ -175,24 +212,42 @@ Flink provides several commonly used watermark strategies.
 
 - Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`.
 
-  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp bigger to the max timestamp are not late.
 
 - Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal and smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp are not late.
 
-- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL 'string' timeUnit`.
+- Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`.
 
-  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtimeField - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
+  Emits watermarks, which are the maximum observed timestamp minus the specified delay, e.g., `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '5' SECOND` is a 5 seconds delayed watermark strategy.
 
 {% highlight sql %}
 CREATE TABLE Orders (
     user BIGINT,
     product STRING,
     order_time TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time - '5' SECONDS
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH ( . . . );
 {% endhighlight %}
+
+**PRIMARY KEY**
+
+Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.
+Neither of columns in a primary can be nullable. Primary key therefore uniquely identify a row in a table.
+
+Primary key constraint can be either declared along with a column definition (a column constraint) or as a single line (a table constraint).
+For both cases, it should only be declared as a singleton. If you define multiple primary key constraints at the same time, an exception would be thrown.
+
+##### Validity Check
+
+SQL standard specifies that a constraint can either be `ENFORCED` or `NOT ENFORCED`. This controls if the constraint checks are performed on the incoming/outgoing data.
+Flink does not own the data therefore the only mode we want to support is the `NOT ENFORCED` mode.
+It is up to the user to ensure that the query enforces key integrity.
+
+Flink will assume correctness of the primary key by assuming that the columns nullability is aligned with the columns in primary key. Connectors should ensure those are aligned.
+
+**Notes:** In a CREATE TABLE statement, creating a primary key constraint will alter the columns nullability, that means, a column with primary key constraint is not nullable.
 
 **PARTITIONED BY**
 
@@ -207,6 +262,119 @@ The key and value of expression `key1=val1` should both be string literal. See d
 **Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
 **Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
+
+**LIKE clause**
+
+The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
+can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
+
+You can use the clause to reuse (and potentially overwrite) certain connector properties or add watermarks to tables defined externally. For example, you can add a watermark to a table defined in Apache Hive. 
+
+Consider the example statement below:
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3)
+) WITH ( 
+    'connector' = 'kafka',
+    'scan.startup.mode' = 'earliest-offset'
+);
+
+CREATE TABLE Orders_with_watermark (
+    -- Add watermark definition
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    -- Overwrite the startup-mode
+    'scan.startup.mode' = 'latest-offset'
+)
+LIKE Orders;
+{% endhighlight %}
+
+The resulting table `Orders_with_watermark` will be equivalent to a table created with a following statement:
+{% highlight sql %}
+CREATE TABLE Orders_with_watermark (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector' = 'kafka',
+    'scan.startup.mode' = 'latest-offset'
+);
+{% endhighlight %}
+
+The merging logic of table features can be controlled with `like options`.
+
+You can control the merging behavior of:
+
+* CONSTRAINTS - constraints such as primary and unique keys
+* GENERATED - computed columns
+* OPTIONS - connector options that describe connector and format properties
+* PARTITIONS - partition of the tables
+* WATERMARKS - watermark declarations
+
+with three different merging strategies:
+
+* INCLUDING - Includes the feature of the source table, fails on duplicate entries, e.g. if an option with the same key exists in both tables.
+* EXCLUDING - Does not include the given feature of the source table.
+* OVERWRITING - Includes the feature of the source table, overwrites duplicate entries of the source table with properties of the new table, e.g. if an option with the same key exists in both tables, the one from the current statement will be used.
+
+Additionally, you can use the `INCLUDING/EXCLUDING ALL` option to specify what should be the strategy if there was no specific strategy defined, i.e. if you use `EXCLUDING ALL INCLUDING WATERMARKS` only the watermarks will be included from the source table.
+
+Example:
+{% highlight sql %}
+-- A source table stored in a filesystem
+CREATE TABLE Orders_in_file (
+    user BIGINT,
+    product STRING,
+    order_time_string STRING,
+    order_time AS to_timestamp(order_time)
+    
+)
+PARTITIONED BY user 
+WITH ( 
+    'connector' = 'filesystem'
+    'path' = '...'
+);
+
+-- A corresponding table we want to store in kafka
+CREATE TABLE Orders_in_kafka (
+    -- Add watermark definition
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector': 'kafka'
+    ...
+)
+LIKE Orders_in_file (
+    -- Exclude everything besides the computed columns which we need to generate the watermark for.
+    -- We do not want to have the partitions or filesystem options as those do not apply to kafka. 
+    EXCLUDING ALL
+    INCLUDING GENERATED
+);
+{% endhighlight %}
+
+If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used as a default.
+
+**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
+
+{% top %}
+
+## CREATE CATALOG
+
+{% highlight sql %}
+CREATE CATALOG catalog_name
+  WITH (key1=val1, key2=val2, ...)
+{% endhighlight %}
+
+Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+
+**WITH OPTIONS**
+
+Catalog properties used to store extra information related to this catalog.
+The key and value of expression `key1=val1` should both be string literal.
+
+Check out more details at [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
 
 {% top %}
 
@@ -231,14 +399,37 @@ The key and value of expression `key1=val1` should both be string literal.
 
 {% top %}
 
+## CREATE VIEW
+{% highlight sql %}
+CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
+  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  AS query_expression
+{% endhighlight %}
+
+Create a view with the given query expression. If a view with the same name already exists in the catalog, an exception is thrown.
+
+**TEMPORARY**
+
+Create temporary view that has catalog and database namespaces and overrides views.
+
+**IF NOT EXISTS**
+
+If the view already exists, nothing happens.
+
+{% top %}
+
 ## CREATE FUNCTION
 {% highlight sql%}
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA]
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+Create a catalog function that has catalog and database namespaces with the identifier and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+
+If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html) for more details.
+
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) for more details.
 
 **TEMPORARY**
 
@@ -252,6 +443,6 @@ Create temporary system function that has no namespace and overrides built-in fu
 
 If the function already exists, nothing happens.
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag to instruct Flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+Language tag to instruct Flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA. 

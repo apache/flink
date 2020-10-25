@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -32,8 +33,8 @@ public final class TumbleWithSizeOnTime {
 	private final Expression size;
 
 	TumbleWithSizeOnTime(Expression time, Expression size) {
-		this.time = time;
-		this.size = size;
+		this.time = ApiExpressionUtils.unwrapFromApi(time);
+		this.size = ApiExpressionUtils.unwrapFromApi(size);
 	}
 
 	/**

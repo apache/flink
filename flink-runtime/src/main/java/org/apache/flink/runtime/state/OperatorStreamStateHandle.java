@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * State handle for partitionable operator state. Besides being a {@link StreamStateHandle}, this also provides a
@@ -64,6 +65,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return delegateStateHandle.openInputStream();
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return delegateStateHandle.asBytesIfInMemory();
 	}
 
 	@Override

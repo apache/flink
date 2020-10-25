@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,7 +46,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	private static final long serialVersionUID = -973959257699390327L;
 
 	/** Tracker callback when the pending checkpoint is finalized or aborted. */
-	private transient final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
+	private final transient CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
 
 	/** The current number of acknowledged subtasks. */
 	private volatile int currentNumAcknowledgedSubtasks;
@@ -53,8 +54,9 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	/** Current checkpoint state size over all collected subtasks. */
 	private volatile long currentStateSize;
 
-	/** Current buffered bytes during alignment over all collected subtasks. */
-	private volatile long currentAlignmentBuffered;
+	private volatile long currentProcessedData;
+
+	private volatile long currentPersistedData;
 
 	/** Stats of the latest acknowledged subtask. */
 	private volatile SubtaskStateStats latestAcknowledgedSubtask;
@@ -97,8 +99,13 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	}
 
 	@Override
-	public long getAlignmentBuffered() {
-		return currentAlignmentBuffered;
+	public long getProcessedData() {
+		return currentProcessedData;
+	}
+
+	@Override
+	public long getPersistedData() {
+		return currentPersistedData;
 	}
 
 	@Override
@@ -126,11 +133,15 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 
 			currentStateSize += subtask.getStateSize();
 
-			long alignmentBuffered = subtask.getAlignmentBuffered();
-			if (alignmentBuffered > 0) {
-				currentAlignmentBuffered += alignmentBuffered;
+			long processedData = subtask.getProcessedData();
+			if (processedData > 0) {
+				currentProcessedData += processedData;
 			}
 
+			long persistedData = subtask.getPersistedData();
+			if (persistedData > 0) {
+				currentPersistedData += persistedData;
+			}
 			return true;
 		} else {
 			return false;
@@ -152,9 +163,10 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 			new HashMap<>(taskStats),
 			currentNumAcknowledgedSubtasks,
 			currentStateSize,
-			currentAlignmentBuffered,
+			currentProcessedData,
+			currentPersistedData,
 			latestAcknowledgedSubtask,
-				externalPointer);
+			externalPointer);
 
 		trackerCallback.reportCompletedCheckpoint(completed);
 
@@ -176,7 +188,8 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 			new HashMap<>(taskStats),
 			currentNumAcknowledgedSubtasks,
 			currentStateSize,
-			currentAlignmentBuffered,
+			currentProcessedData,
+			currentPersistedData,
 			failureTimestamp,
 			latestAcknowledgedSubtask,
 			cause);

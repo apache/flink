@@ -21,9 +21,11 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
@@ -43,10 +45,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -345,9 +350,7 @@ public class HiveGenericUDFTest {
 		Object[] result = (Object[]) udf2.eval(udf.eval(testInput));
 
 		assertEquals(3, result.length);
-		assertEquals("1", result[0]);
-		assertEquals("2", result[1]);
-		assertEquals("3", result[2]);
+		assertThat(Arrays.asList(result), containsInAnyOrder("1", "2", "3"));
 	}
 
 	@Test
@@ -390,8 +393,8 @@ public class HiveGenericUDFTest {
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
 		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
-		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-		udf.getHiveResultType(constantArgs, argTypes);
+		CallContext callContext = new HiveUDFCallContext(constantArgs, argTypes);
+		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
 		udf.open(null);
 

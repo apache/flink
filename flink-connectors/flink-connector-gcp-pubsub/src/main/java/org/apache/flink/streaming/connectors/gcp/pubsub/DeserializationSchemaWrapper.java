@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+import org.apache.flink.util.Collector;
 
 import com.google.pubsub.v1.PubsubMessage;
 
@@ -35,13 +36,23 @@ class DeserializationSchemaWrapper<T> implements PubSubDeserializationSchema<T> 
 	}
 
 	@Override
+	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+		this.deserializationSchema.open(context);
+	}
+
+	@Override
 	public boolean isEndOfStream(T t) {
 		return deserializationSchema.isEndOfStream(t);
 	}
 
 	@Override
 	public T deserialize(PubsubMessage pubsubMessage) throws Exception {
-		return deserializationSchema.deserialize(pubsubMessage.getData().toByteArray());
+		throw new UnsupportedOperationException("Should never be called");
+	}
+
+	@Override
+	public void deserialize(PubsubMessage message, Collector<T> out) throws Exception {
+		deserializationSchema.deserialize(message.getData().toByteArray(), out);
 	}
 
 	@Override

@@ -19,18 +19,18 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 
 /**
- * A test for the {@link BinaryRowSerializer}.
+ * A test for the {@link BinaryRowDataSerializer}.
  */
-public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRow> {
+public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRowData> {
 
 	@Override
-	protected BinaryRowSerializer createSerializer() {
-		return new BinaryRowSerializer(2);
+	protected BinaryRowDataSerializer createSerializer() {
+		return new BinaryRowDataSerializer(2);
 	}
 
 	@Override
@@ -39,13 +39,13 @@ public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRow> {
 	}
 
 	@Override
-	protected Class<BinaryRow> getTypeClass() {
-		return BinaryRow.class;
+	protected Class<BinaryRowData> getTypeClass() {
+		return BinaryRowData.class;
 	}
 
 	@Override
-	protected BinaryRow[] getTestData() {
-		return new BinaryRow[] {
+	protected BinaryRowData[] getTestData() {
+		return new BinaryRowData[] {
 				createRow("11", 1),
 				createRow("12", 2),
 				createRow("132", 3),
@@ -53,10 +53,10 @@ public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRow> {
 		};
 	}
 
-	private static BinaryRow createRow(String f0, int f1) {
-		BinaryRow row = new BinaryRow(2);
+	private static BinaryRowData createRow(String f0, int f1) {
+		BinaryRowData row = new BinaryRowData(2);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
-		writer.writeString(0, BinaryString.fromString(f0));
+		writer.writeString(0, StringData.fromString(f0));
 		writer.writeInt(1, f1);
 		writer.complete();
 		return row;

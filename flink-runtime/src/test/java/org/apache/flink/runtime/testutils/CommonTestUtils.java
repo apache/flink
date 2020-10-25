@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -31,6 +34,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -100,13 +106,17 @@ public class CommonTestUtils {
 
 	public static void printLog4jDebugConfig(File file) throws IOException {
 		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-			writer.println("log4j.rootLogger=DEBUG, console");
-			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
-			writer.println("log4j.appender.console.target = System.err");
-			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
-			writer.println("log4j.appender.console.layout.ConversionPattern=%d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
-			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
-			writer.println("log4j.logger.org.apache.zookeeper=OFF");
+			writer.println("rootLogger.level = INFO");
+			writer.println("rootLogger.appenderRef.console.ref = ConsoleAppender");
+			writer.println("appender.console.name = ConsoleAppender");
+			writer.println("appender.console.type = CONSOLE");
+			writer.println("appender.console.target = SYSTEM_ERR");
+			writer.println("appender.console.layout.type = PatternLayout");
+			writer.println("appender.console.layout.pattern = %d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
+			writer.println("logger.jetty.name = org.eclipse.jetty.util.log");
+			writer.println("logger.jetty.level = OFF");
+			writer.println("logger.zookeeper.name = org.apache.zookeeper");
+			writer.println("logger.zookeeper.level = OFF");
 			writer.flush();
 		}
 	}
@@ -124,6 +134,34 @@ public class CommonTestUtils {
 		if (!timeout.hasTimeLeft()) {
 			throw new TimeoutException("Condition was not met in given timeout.");
 		}
+	}
+
+	public static void waitForAllTaskRunning(
+			SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier) throws Exception {
+		waitForAllTaskRunning(executionGraphSupplier, Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+	}
+
+	public static void waitForAllTaskRunning(
+			SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
+			Deadline timeout) throws Exception {
+		waitUntilCondition(() -> {
+			final AccessExecutionGraph graph = executionGraphSupplier.get();
+			return graph.getState() == JobStatus.RUNNING &&
+				graph.getAllVertices().values().stream().allMatch(jobVertex ->
+					Arrays.stream(jobVertex.getTaskVertices()).allMatch(task ->
+						task.getExecutionState() == ExecutionState.RUNNING));
+		}, timeout);
+	}
+
+	public static void waitUntilJobManagerIsInitialized(SupplierWithException<JobStatus, Exception> jobStatusSupplier) throws
+		Exception {
+		waitUntilJobManagerIsInitialized(jobStatusSupplier, Deadline.fromNow(Duration.of(1,
+			ChronoUnit.MINUTES)));
+	}
+
+	public static void waitUntilJobManagerIsInitialized(SupplierWithException<JobStatus, Exception> jobStatusSupplier, Deadline timeout) throws
+		Exception {
+		waitUntilCondition(() -> jobStatusSupplier.get() != JobStatus.INITIALIZING, timeout, 20L);
 	}
 
 	/**

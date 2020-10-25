@@ -31,19 +31,18 @@ import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, MatchCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil._
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
-import org.apache.flink.table.runtime.operators.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.operators.`match`.{RowDataEventComparator, RowtimeProcessFunction}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.util.MathUtils
 
@@ -74,20 +73,12 @@ class StreamExecMatch(
     outputRowType: RelDataType)
   extends SingleRel(cluster, traitSet, inputNode)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
-  if (logicalMatch.measures.values().exists(containsPythonCall) ||
-    logicalMatch.patternDefinitions.values().exists(containsPythonCall)) {
+  if (logicalMatch.measures.values().exists(containsPythonCall(_)) ||
+    logicalMatch.patternDefinitions.values().exists(containsPythonCall(_))) {
     throw new TableException("Python Function can not be used in MATCH_RECOGNIZE for now.")
   }
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
-
-  override def producesUpdates: Boolean = false
 
   override def requireWatermark: Boolean = {
     val rowtimeFields = getInput.getRowType.getFieldList
@@ -142,7 +133,7 @@ class StreamExecMatch(
   private[flink] def translatePattern(
       config: TableConfig,
       relBuilder: RelBuilder,
-      inputRowType: RowType): (Pattern[BaseRow, BaseRow], Seq[String]) = {
+      inputRowType: RowType): (Pattern[RowData, RowData], Seq[String]) = {
     val patternVisitor = new PatternVisitor(config, relBuilder, inputRowType, logicalMatch)
     val cepPattern = if (logicalMatch.interval != null) {
       val interval = translateTimeBound(logicalMatch.interval)
@@ -166,15 +157,7 @@ class StreamExecMatch(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
-
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
-
-    if (inputIsAccRetract) {
-      throw new TableException(
-        "Retraction on match recognize is not supported. " +
-          "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
-    }
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val config = planner.getTableConfig
     val relBuilder = planner.getRelBuilder
@@ -182,7 +165,7 @@ class StreamExecMatch(
     val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     val (timestampedInput, comparator) = translateOrder(
       config, inputTransform, logicalMatch.orderKeys)
@@ -212,7 +195,7 @@ class StreamExecMatch(
       val partitionKeys = logicalMatch.partitionKeys
       val timeOrderField = SortUtil.getFirstSortField(logicalMatch.orderKeys, getInput.getRowType)
       val isProctime = FlinkTypeFactory.isProctimeIndicatorType(timeOrderField.getType)
-      val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
       val inputSerializer = inputTypeInfo.createSerializer(planner.getExecEnv.getConfig)
       val nfaFactory = NFACompiler.compileFactory(cepPattern, false)
       val generator = new MatchCodeGenerator(
@@ -225,7 +208,7 @@ class StreamExecMatch(
         returnType,
         partitionKeys,
         logicalMatch.measures)
-      val operator = new CepOperator[BaseRow, BaseRow, BaseRow](
+      val operator = new CepOperator[RowData, RowData, RowData](
         inputSerializer,
         isProctime,
         nfaFactory,
@@ -234,8 +217,8 @@ class StreamExecMatch(
         patternProcessFunction,
         null
       )
-      val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
-      val transformation = new OneInputTransformation[BaseRow, BaseRow](
+      val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+      val transformation = new OneInputTransformation[RowData, RowData](
         timestampedInput,
         getRelDetailedDescription,
         operator,
@@ -253,8 +236,8 @@ class StreamExecMatch(
 
   private def translateOrder(
       config: TableConfig,
-      inputTransform: Transformation[BaseRow],
-      orderKeys: RelCollation): (Transformation[BaseRow], EventComparator[BaseRow]) = {
+      inputTransform: Transformation[RowData],
+      orderKeys: RelCollation): (Transformation[RowData], EventComparator[RowData]) = {
 
     if (orderKeys.getFieldCollations.size() == 0) {
       throw new ValidationException("You must specify either rowtime or proctime for order by.")
@@ -280,12 +263,12 @@ class StreamExecMatch(
       val keyTypes = keys.map(inputType.getTypeAt)
       val rowComparator = ComparatorCodeGenerator.gen(
         config,
-        "BaseRowComparator",
+        "RowDataComparator",
         keys,
         keyTypes,
         orders,
         nullsIsLast)
-      new BaseRowEventComparator(rowComparator)
+      new RowDataEventComparator(rowComparator)
     } else {
       null
     }
@@ -315,9 +298,9 @@ class StreamExecMatch(
   }
 
   private def setKeySelector(
-      transform: OneInputTransformation[BaseRow, _],
-      inputTypeInfo: BaseRowTypeInfo): Unit = {
-    val selector = KeySelectorUtil.getBaseRowSelector(
+      transform: OneInputTransformation[RowData, _],
+      inputTypeInfo: InternalTypeInfo[RowData]): Unit = {
+    val selector = KeySelectorUtil.getRowDataSelector(
       logicalMatch.partitionKeys.toArray,
       inputTypeInfo)
     transform.setStateKeySelector(selector)
@@ -330,12 +313,12 @@ private class PatternVisitor(
     relBuilder: RelBuilder,
     inputRowType: RowType,
     logicalMatch: MatchRecognize)
-  extends RexDefaultVisitor[Pattern[BaseRow, BaseRow]] {
+  extends RexDefaultVisitor[Pattern[RowData, RowData]] {
 
-  private var pattern: Pattern[BaseRow, BaseRow] = _
+  private var pattern: Pattern[RowData, RowData] = _
   val names = new collection.mutable.LinkedHashSet[String]()
 
-  override def visitLiteral(literal: RexLiteral): Pattern[BaseRow, BaseRow] = {
+  override def visitLiteral(literal: RexLiteral): Pattern[RowData, RowData] = {
     val patternName = literal.getValueAs(classOf[String])
     pattern = translateSingleVariable(Option.apply(pattern), patternName)
 
@@ -356,7 +339,7 @@ private class PatternVisitor(
     }
   }
 
-  override def visitCall(call: RexCall): Pattern[BaseRow, BaseRow] = {
+  override def visitCall(call: RexCall): Pattern[RowData, RowData] = {
     call.getOperator match {
       case PATTERN_CONCAT =>
         val left = call.operands.get(0)
@@ -396,7 +379,7 @@ private class PatternVisitor(
     }
   }
 
-  override def visitNode(rexNode: RexNode): Pattern[BaseRow, BaseRow] = throw new TableException(
+  override def visitNode(rexNode: RexNode): Pattern[RowData, RowData] = throw new TableException(
     s"Unsupported expression within Pattern: [$rexNode]")
 
   private def translateSkipStrategy = {
@@ -419,9 +402,9 @@ private class PatternVisitor(
   }
 
   private def translateSingleVariable(
-      previousPattern: Option[Pattern[BaseRow, BaseRow]],
+      previousPattern: Option[Pattern[RowData, RowData]],
       patternName: String)
-    : Pattern[BaseRow, BaseRow] = {
+    : Pattern[RowData, RowData] = {
     if (names.contains(patternName)) {
       throw new TableException("Pattern variables must be unique. That might change in the future.")
     } else {
@@ -436,11 +419,11 @@ private class PatternVisitor(
   }
 
   private def applyQuantifier(
-      pattern: Pattern[BaseRow, BaseRow],
+      pattern: Pattern[RowData, RowData],
       startNum: Int,
       endNum: Int,
       greedy: Boolean)
-    : Pattern[BaseRow, BaseRow] = {
+    : Pattern[RowData, RowData] = {
     val isOptional = startNum == 0 && endNum == 1
 
     val newPattern = if (startNum == 0 && endNum == -1) { // zero or more

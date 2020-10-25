@@ -50,6 +50,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -425,6 +426,20 @@ public class CoGroupedStreams<T1, T2> {
 		public static <T1, T2> TaggedUnion<T1, T2> two(T2 two) {
 			return new TaggedUnion<>(null, two);
 		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			}
+
+			if (!(obj instanceof TaggedUnion)) {
+				return false;
+			}
+
+			TaggedUnion other = (TaggedUnion) obj;
+			return Objects.equals(one, other.one) && Objects.equals(two, other.two);
+		}
 	}
 
 	private static class UnionTypeInfo<T1, T2> extends TypeInformation<TaggedUnion<T1, T2>> {
@@ -503,9 +518,12 @@ public class CoGroupedStreams<T1, T2> {
 		}
 	}
 
+	/**
+	 * {@link TypeSerializer} for {@link TaggedUnion}.
+	 */
 	@VisibleForTesting
 	@Internal
-	static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
+	public static class UnionSerializer<T1, T2> extends TypeSerializer<TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
 		private final TypeSerializer<T1> oneSerializer;

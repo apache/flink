@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.over.frame.InsensitiveOverFrame;
@@ -57,6 +61,8 @@ import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowO
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.function;
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputSer;
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -69,7 +75,7 @@ public class BufferDataOverWindowOperatorTest {
 	private RowType valueType = new RowType(Collections.singletonList(
 			new RowType.RowField("f0", new BigIntType())));
 
-	private List<GenericRow> collect;
+	private List<GenericRowData> collect;
 	private MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 	private IOManager ioManager;
 	private BufferDataOverWindowOperator operator;
@@ -91,16 +97,16 @@ public class BufferDataOverWindowOperatorTest {
 		test(new OverWindowFrame[] {
 				new OffsetOverFrame(function, 2L, null),
 						new OffsetOverFrame(function, 2L, r -> (long) r.getInt(0))},
-				new GenericRow[] {
-				GenericRow.of(0, 1L, 4L, 1L, 1L),
-				GenericRow.of(0, 1L, 1L, 2L, 2L),
-				GenericRow.of(0, 1L, 1L, 1L, 3L),
-				GenericRow.of(0, 1L, 1L, 0L, 4L),
-				GenericRow.of(1, 5L, 2L, -5L, -5L),
-				GenericRow.of(2, 5L, 4L, 6L, 6L),
-				GenericRow.of(2, 6L, 2L, 12L, 12L),
-				GenericRow.of(2, 6L, 2L, 6L, 6L),
-				GenericRow.of(2, 6L, 2L, 0L, 0L)
+				new GenericRowData[] {
+				GenericRowData.of(0, 1L, 4L, 1L, 1L),
+				GenericRowData.of(0, 1L, 1L, 2L, 2L),
+				GenericRowData.of(0, 1L, 1L, 1L, 3L),
+				GenericRowData.of(0, 1L, 1L, 0L, 4L),
+				GenericRowData.of(1, 5L, 2L, -5L, -5L),
+				GenericRowData.of(2, 5L, 4L, 6L, 6L),
+				GenericRowData.of(2, 6L, 2L, 12L, 12L),
+				GenericRowData.of(2, 6L, 2L, 6L, 6L),
+				GenericRowData.of(2, 6L, 2L, 0L, 0L)
 		});
 	}
 
@@ -109,16 +115,16 @@ public class BufferDataOverWindowOperatorTest {
 		test(new OverWindowFrame[] {
 						new InsensitiveOverFrame(function),
 						new UnboundedOverWindowFrame(function, valueType)},
-				new GenericRow[] {
-						GenericRow.of(0, 1L, 4L, 1L, 4L),
-						GenericRow.of(0, 1L, 1L, 2L, 4L),
-						GenericRow.of(0, 1L, 1L, 3L, 4L),
-						GenericRow.of(0, 1L, 1L, 4L, 4L),
-						GenericRow.of(1, 5L, 2L, 5L, 5L),
-						GenericRow.of(2, 5L, 4L, 5L, 23L),
-						GenericRow.of(2, 6L, 2L, 11L, 23L),
-						GenericRow.of(2, 6L, 2L, 17L, 23L),
-						GenericRow.of(2, 6L, 2L, 23L, 23L)
+				new GenericRowData[] {
+						GenericRowData.of(0, 1L, 4L, 1L, 4L),
+						GenericRowData.of(0, 1L, 1L, 2L, 4L),
+						GenericRowData.of(0, 1L, 1L, 3L, 4L),
+						GenericRowData.of(0, 1L, 1L, 4L, 4L),
+						GenericRowData.of(1, 5L, 2L, 5L, 5L),
+						GenericRowData.of(2, 5L, 4L, 5L, 23L),
+						GenericRowData.of(2, 6L, 2L, 11L, 23L),
+						GenericRowData.of(2, 6L, 2L, 17L, 23L),
+						GenericRowData.of(2, 6L, 2L, 23L, 23L)
 				});
 	}
 
@@ -127,16 +133,16 @@ public class BufferDataOverWindowOperatorTest {
 		test(new OverWindowFrame[] {
 						new RowUnboundedPrecedingOverFrame(function, 1),
 						new RangeUnboundedPrecedingOverFrame(function, boundComparator)},
-				new GenericRow[] {
-						GenericRow.of(0, 1L, 4L, 2L, 4L),
-						GenericRow.of(0, 1L, 1L, 3L, 4L),
-						GenericRow.of(0, 1L, 1L, 4L, 4L),
-						GenericRow.of(0, 1L, 1L, 4L, 4L),
-						GenericRow.of(1, 5L, 2L, 5L, 5L),
-						GenericRow.of(2, 5L, 4L, 11L, 5L),
-						GenericRow.of(2, 6L, 2L, 17L, 23L),
-						GenericRow.of(2, 6L, 2L, 23L, 23L),
-						GenericRow.of(2, 6L, 2L, 23L, 23L)
+				new GenericRowData[] {
+						GenericRowData.of(0, 1L, 4L, 2L, 4L),
+						GenericRowData.of(0, 1L, 1L, 3L, 4L),
+						GenericRowData.of(0, 1L, 1L, 4L, 4L),
+						GenericRowData.of(0, 1L, 1L, 4L, 4L),
+						GenericRowData.of(1, 5L, 2L, 5L, 5L),
+						GenericRowData.of(2, 5L, 4L, 11L, 5L),
+						GenericRowData.of(2, 6L, 2L, 17L, 23L),
+						GenericRowData.of(2, 6L, 2L, 23L, 23L),
+						GenericRowData.of(2, 6L, 2L, 23L, 23L)
 				});
 	}
 
@@ -145,16 +151,16 @@ public class BufferDataOverWindowOperatorTest {
 		test(new OverWindowFrame[] {
 						new RowUnboundedFollowingOverFrame(valueType, function, -1),
 						new RangeUnboundedFollowingOverFrame(valueType, function, boundComparator)},
-				new GenericRow[] {
-						GenericRow.of(0, 1L, 4L, 4L, 4L),
-						GenericRow.of(0, 1L, 1L, 4L, 4L),
-						GenericRow.of(0, 1L, 1L, 3L, 4L),
-						GenericRow.of(0, 1L, 1L, 2L, 4L),
-						GenericRow.of(1, 5L, 2L, 5L, 5L),
-						GenericRow.of(2, 5L, 4L, 23L, 23L),
-						GenericRow.of(2, 6L, 2L, 23L, 18L),
-						GenericRow.of(2, 6L, 2L, 18L, 18L),
-						GenericRow.of(2, 6L, 2L, 12L, 18L)
+				new GenericRowData[] {
+						GenericRowData.of(0, 1L, 4L, 4L, 4L),
+						GenericRowData.of(0, 1L, 1L, 4L, 4L),
+						GenericRowData.of(0, 1L, 1L, 3L, 4L),
+						GenericRowData.of(0, 1L, 1L, 2L, 4L),
+						GenericRowData.of(1, 5L, 2L, 5L, 5L),
+						GenericRowData.of(2, 5L, 4L, 23L, 23L),
+						GenericRowData.of(2, 6L, 2L, 23L, 18L),
+						GenericRowData.of(2, 6L, 2L, 18L, 18L),
+						GenericRowData.of(2, 6L, 2L, 12L, 18L)
 				});
 	}
 
@@ -163,27 +169,33 @@ public class BufferDataOverWindowOperatorTest {
 		test(new OverWindowFrame[] {
 						new RowSlidingOverFrame(inputType, valueType, function, -1, 1),
 						new RangeSlidingOverFrame(inputType, valueType, function, boundComparator, boundComparator)},
-				new GenericRow[] {
-						GenericRow.of(0, 1L, 4L, 2L, 4L),
-						GenericRow.of(0, 1L, 1L, 3L, 4L),
-						GenericRow.of(0, 1L, 1L, 3L, 4L),
-						GenericRow.of(0, 1L, 1L, 2L, 4L),
-						GenericRow.of(1, 5L, 2L, 5L, 5L),
-						GenericRow.of(2, 5L, 4L, 11L, 5L),
-						GenericRow.of(2, 6L, 2L, 17L, 18L),
-						GenericRow.of(2, 6L, 2L, 18L, 18L),
-						GenericRow.of(2, 6L, 2L, 12L, 18L)
+				new GenericRowData[] {
+						GenericRowData.of(0, 1L, 4L, 2L, 4L),
+						GenericRowData.of(0, 1L, 1L, 3L, 4L),
+						GenericRowData.of(0, 1L, 1L, 3L, 4L),
+						GenericRowData.of(0, 1L, 1L, 2L, 4L),
+						GenericRowData.of(1, 5L, 2L, 5L, 5L),
+						GenericRowData.of(2, 5L, 4L, 11L, 5L),
+						GenericRowData.of(2, 6L, 2L, 17L, 18L),
+						GenericRowData.of(2, 6L, 2L, 18L, 18L),
+						GenericRowData.of(2, 6L, 2L, 12L, 18L)
 				});
 	}
 
-	private void test(OverWindowFrame[] frames, GenericRow[] expect) throws Exception {
+	private void test(OverWindowFrame[] frames, GenericRowData[] expect) throws Exception {
+		MockEnvironment env = new MockEnvironmentBuilder().setIOManager(ioManager).setMemoryManager(memoryManager).build();
+		StreamTask<Object, StreamOperator<Object>> task = new StreamTask<Object, StreamOperator<Object>>(env) {
+			@Override
+			protected void init() {
+			}
+		};
 		operator = new BufferDataOverWindowOperator(frames, comparator, true) {
 			{
-				output = new NonBufferOverWindowOperatorTest.ConsumerOutput(new Consumer<BaseRow>() {
+				output = new NonBufferOverWindowOperatorTest.ConsumerOutput(new Consumer<RowData>() {
 					@Override
-					public void accept(BaseRow r) {
-						collect.add(GenericRow.of(r.getInt(0), r.getLong(1),
-								r.getLong(2), r.getLong(3), r.getLong(4)));
+					public void accept(RowData r) {
+						collect.add(GenericRowData.of(r.getInt(0), r.getLong(1),
+							r.getLong(2), r.getLong(3), r.getLong(4)));
 					}
 				});
 			}
@@ -196,20 +208,15 @@ public class BufferDataOverWindowOperatorTest {
 			@Override
 			public StreamConfig getOperatorConfig() {
 				StreamConfig conf = mock(StreamConfig.class);
-				when(conf.<BaseRow>getTypeSerializerIn1(getUserCodeClassloader()))
+				when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
-				when(conf.getManagedMemoryFraction())
+				when(conf.getManagedMemoryFractionOperatorUseCaseOfSlot(eq(ManagedMemoryUseCase.BATCH_OP), any(Configuration.class), any(ClassLoader.class)))
 						.thenReturn(0.99);
 				return conf;
 			}
 
 			@Override
 			public StreamTask<?, ?> getContainingTask() {
-				StreamTask task = mock(StreamTask.class);
-				Environment env = mock(Environment.class);
-				when(task.getEnvironment()).thenReturn(env);
-				when(env.getMemoryManager()).thenReturn(memoryManager);
-				when(env.getIOManager()).thenReturn(ioManager);
 				return task;
 			}
 
@@ -229,12 +236,13 @@ public class BufferDataOverWindowOperatorTest {
 		addRow(2, 6L, 2L); /* 8 **/
 		addRow(2, 6L, 2L); /* 9 **/
 		operator.endInput();
-		GenericRow[] outputs = this.collect.toArray(new GenericRow[0]);
+		GenericRowData[] outputs = this.collect.toArray(new GenericRowData[0]);
 		Assert.assertArrayEquals(expect, outputs);
 		operator.close();
 	}
 
 	private void addRow(Object... fields) throws Exception {
-		operator.processElement(new StreamRecord<>(GenericRow.of(fields)));
+		operator.processElement(new StreamRecord<>(GenericRowData.of(fields)));
 	}
+
 }

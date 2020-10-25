@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Table API and SQL queries have the same semantics regardless whether their input is bounded batch input or unbounded stream input. In many cases, continuous queries on streaming input are capable of computing accurate results that are identical to offline computed results. However, this is not possible in general case because continuous queries have to restrict the size of the state they are maintaining in order to avoid to run out of storage and to be able to process unbounded streaming data over a long period of time. As a result, a continuous query might only be able to provide approximated results depending on the characteristics of the input data and the query itself.
+Table API and SQL queries have the same semantics regardless whether their input is a finite set of rows or an unbounded stream of table changes. In many cases, continuous queries on streaming input are able to compute accurate results that are identical to offline computed results. However, for some continuous queries you have to limit the size of the state they are maintaining in order to avoid to run out of storage while ingesting an unbounded stream of input. It depends on the characteristics of the input data and the query itself whether you need to limit the state size and whether and how it affects the accuracy of the computed results.
 
-Flink's Table API and SQL interface provide parameters to tune the accuracy and resource consumption of continuous queries. The parameters are specified via a `QueryConfig` object. The `QueryConfig` can be obtained from the `TableEnvironment` and is passed back when a `Table` is translated, i.e., when it is [transformed into a DataStream]({{ site.baseurl }}/dev/table/common.html#convert-a-table-into-a-datastream-or-dataset) or [emitted via a TableSink](../common.html#emit-a-table).
+Flink's Table API and SQL interface provide parameters to tune the accuracy and resource consumption of continuous queries. The parameters are specified via a `TableConfig` object, which can be obtained from the `TableEnvironment`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -33,9 +33,9 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // obtain query configuration from TableEnvironment
-StreamQueryConfig qConfig = tableEnv.queryConfig();
+TableConfig tConfig = tableEnv.getConfig();
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 // define query
 Table result = ...
@@ -51,10 +51,10 @@ tableEnv.registerTableSink(
   sink);                       // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable", qConfig);
+result.executeInsert("outputTable");
 
 // convert result Table into a DataStream<Row>
-DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class, qConfig);
+DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class);
 
 {% endhighlight %}
 </div>
@@ -64,9 +64,9 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 val tableEnv = StreamTableEnvironment.create(env)
 
 // obtain query configuration from TableEnvironment
-val qConfig: StreamQueryConfig = tableEnv.queryConfig
+val tConfig: TableConfig = tableEnv.getConfig
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 // define query
 val result: Table = ???
@@ -82,16 +82,16 @@ tableEnv.registerTableSink(
   sink)                           // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable", qConfig)
+result.executeInsert("outputTable")
 
 // convert result Table into a DataStream[Row]
-val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)
+val stream: DataStream[Row] = result.toAppendStream[Row]
 
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# use TableConfig instead of QueryConfig in python API
+# use TableConfig in python API
 t_config = TableConfig()
 # set query parameters
 t_config.set_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
@@ -116,7 +116,7 @@ result.insert_into("outputTable")
 </div>
 </div>
 
-In the following we describe the parameters of the `QueryConfig` and how they affect the accuracy and resource consumption of a query.
+In the following we describe the parameters of the `TableConfig` and how they affect the accuracy and resource consumption of a query.
 
 Idle State Retention Time
 -------------------------
@@ -145,30 +145,30 @@ The parameters are specified as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-StreamQueryConfig qConfig = ...
+TableConfig tConfig = ...
 
 // set idle state retention time: min = 12 hours, max = 24 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-val qConfig: StreamQueryConfig = ???
+val tConfig: TableConfig = ???
 
 // set idle state retention time: min = 12 hours, max = 24 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-q_config = ...  # type: StreamQueryConfig
+t_config = ...  # type: TableConfig
 
 # set idle state retention time: min = 12 hours, max = 24 hours
-q_config.with_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
+t_config.set_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
 
 {% endhighlight %}
 </div>

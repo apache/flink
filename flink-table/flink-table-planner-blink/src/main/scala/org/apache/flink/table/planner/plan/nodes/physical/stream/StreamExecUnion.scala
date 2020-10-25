@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.UnionTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 
@@ -44,17 +44,9 @@ class StreamExecUnion(
     outputRowType: RelDataType)
   extends Union(cluster, traitSet, inputRels, all)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   require(all, "Only support union all")
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -81,9 +73,9 @@ class StreamExecUnion(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val transformations = getInputNodes.map {
-      input => input.translateToPlan(planner).asInstanceOf[Transformation[BaseRow]]
+      input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
     }
     new UnionTransformation(transformations)
   }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{TableFunc2, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 /**

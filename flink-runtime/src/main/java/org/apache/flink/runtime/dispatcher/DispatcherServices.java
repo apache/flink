@@ -29,6 +29,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.concurrent.Executor;
 
 /**
  * {@link Dispatcher} services container.
@@ -62,7 +65,7 @@ public class DispatcherServices {
 	@Nonnull
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nonnull
+	@Nullable
 	private final String metricQueryServiceAddress;
 
 	@Nonnull
@@ -70,6 +73,9 @@ public class DispatcherServices {
 
 	@Nonnull
 	private final JobManagerRunnerFactory jobManagerRunnerFactory;
+
+	@Nonnull
+	private final Executor ioExecutor;
 
 	public DispatcherServices(
 			@Nonnull Configuration configuration,
@@ -80,10 +86,11 @@ public class DispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nonnull String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
 			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull JobGraphWriter jobGraphWriter,
-			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
+			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory,
+			@Nonnull Executor ioExecutor) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -96,6 +103,7 @@ public class DispatcherServices {
 		this.jobManagerMetricGroup = jobManagerMetricGroup;
 		this.jobGraphWriter = jobGraphWriter;
 		this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+		this.ioExecutor = ioExecutor;
 	}
 
 	@Nonnull
@@ -143,7 +151,7 @@ public class DispatcherServices {
 		return historyServerArchivist;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
 	}
@@ -156,6 +164,11 @@ public class DispatcherServices {
 	@Nonnull
 	JobManagerRunnerFactory getJobManagerRunnerFactory() {
 		return jobManagerRunnerFactory;
+	}
+
+	@Nonnull
+	public Executor getIoExecutor() {
+		return ioExecutor;
 	}
 
 	public static DispatcherServices from(
@@ -173,6 +186,7 @@ public class DispatcherServices {
 			partialDispatcherServicesWithJobGraphStore.getMetricQueryServiceAddress(),
 			partialDispatcherServicesWithJobGraphStore.getJobManagerMetricGroupFactory().create(),
 			partialDispatcherServicesWithJobGraphStore.getJobGraphWriter(),
-			jobManagerRunnerFactory);
+			jobManagerRunnerFactory,
+			partialDispatcherServicesWithJobGraphStore.getIoExecutor());
 	}
 }

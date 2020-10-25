@@ -64,7 +64,7 @@ public class StreamExecutionEnvironmentConfigurationTest {
 				.whenSetFromFile("pipeline.operator-chaining", "false")
 				.viaSetter((env, b) -> {
 					if (b) {
-						throw new IllegalArgumentException("Cannot programatically enable operator chaining");
+						throw new IllegalArgumentException("Cannot programmatically enable operator chaining");
 					} else {
 						env.disableOperatorChaining();
 					}

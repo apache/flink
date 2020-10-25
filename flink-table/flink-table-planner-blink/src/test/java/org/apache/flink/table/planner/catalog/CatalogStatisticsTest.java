@@ -55,6 +55,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -82,7 +83,7 @@ public class CatalogStatisticsTest {
 
 	@Before
 	public void setup() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
 		tEnv = TableEnvironment.create(settings);
 		catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
 		assertNotNull(catalog);
@@ -143,7 +144,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsFromCatalog() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionColumnStats("A", 1);
 		createPartitionStats("A", 2);
@@ -158,7 +159,9 @@ public class CatalogStatisticsTest {
 		// long type
 		assertEquals(46.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null), 0.0);
 		assertEquals(154.0, mq.getColumnNullCount(t1, 0), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(t1, 0));
+		assertEquals(
+				ValueInterval$.MODULE$.apply(BigDecimal.valueOf(-123L), BigDecimal.valueOf(763322L), true, true),
+				mq.getColumnInterval(t1, 0));
 
 		// string type
 		assertEquals(40.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null), 0.0);
@@ -168,7 +171,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithUnknownRowCount() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1, TableStats.UNKNOWN.getRowCount());
 		createPartitionColumnStats("A", 1);
 		createPartitionStats("A", 2);
@@ -183,7 +186,9 @@ public class CatalogStatisticsTest {
 		// long type
 		assertEquals(46.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(0), null), 0.0);
 		assertEquals(154.0, mq.getColumnNullCount(t1, 0), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(t1, 0));
+		assertEquals(
+				ValueInterval$.MODULE$.apply(BigDecimal.valueOf(-123L), BigDecimal.valueOf(763322L), true, true),
+				mq.getColumnInterval(t1, 0));
 
 		// string type
 		assertEquals(40.0, mq.getDistinctRowCount(t1, ImmutableBitSet.of(1), null), 0.0);
@@ -193,7 +198,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithUnknownColumnStats() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionStats("A", 2);
 		createPartitionColumnStats("A", 2);
@@ -215,7 +220,7 @@ public class CatalogStatisticsTest {
 
 	@Test
 	public void testGetPartitionStatsWithSomeUnknownColumnStats() throws Exception {
-		TestPartitionableSourceFactory.registerTableSource(tEnv, "PartT", true);
+		TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartT", true);
 		createPartitionStats("A", 1);
 		createPartitionColumnStats("A", 1, true);
 		createPartitionStats("A", 2);
@@ -324,7 +329,9 @@ public class CatalogStatisticsTest {
 		// long type
 		assertEquals(23.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(1), null), 0.0);
 		assertEquals(77.0, mq.getColumnNullCount(rel, 1), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123L, 763322L, true, true), mq.getColumnInterval(rel, 1));
+		assertEquals(
+				ValueInterval$.MODULE$.apply(BigDecimal.valueOf(-123L), BigDecimal.valueOf(763322L), true, true),
+				mq.getColumnInterval(rel, 1));
 
 		// string type
 		assertEquals(20.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(2), null), 0.0);
@@ -343,7 +350,9 @@ public class CatalogStatisticsTest {
 		// double type
 		assertEquals(73.0, mq.getDistinctRowCount(rel, ImmutableBitSet.of(4), null), 0.0);
 		assertEquals(27.0, mq.getColumnNullCount(rel, 4), 0.0);
-		assertEquals(ValueInterval$.MODULE$.apply(-123.35, 7633.22, true, true), mq.getColumnInterval(rel, 4));
+		assertEquals(
+				ValueInterval$.MODULE$.apply(BigDecimal.valueOf(-123.35), BigDecimal.valueOf(7633.22), true, true),
+				mq.getColumnInterval(rel, 4));
 	}
 
 	private void alterTableStatisticsWithUnknownRowCount(

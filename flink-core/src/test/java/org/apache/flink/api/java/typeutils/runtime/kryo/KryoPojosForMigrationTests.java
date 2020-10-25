@@ -24,6 +24,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * POJOS needed for {@link KryoPojosForMigrationTests}.
@@ -43,6 +44,23 @@ public class KryoPojosForMigrationTests {
 
 		public String getName() {
 			return name;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Dog dog = (Dog) o;
+			return Objects.equals(name, dog.name);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(name);
 		}
 	}
 

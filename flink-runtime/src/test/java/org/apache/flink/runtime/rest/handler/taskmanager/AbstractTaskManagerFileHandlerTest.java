@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerFileMessageParameters;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -123,7 +125,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 
 		handlerRequest = new HandlerRequest<>(
 			EmptyRequestBody.getInstance(),
-			new TaskManagerMessageParameters(),
+			new TaskManagerFileMessageParameters(),
 			Collections.singletonMap(TaskManagerIdPathParameter.KEY, EXPECTED_TASK_MANAGER_ID.getResourceIdString()),
 			Collections.emptyMap());
 	}
@@ -283,8 +285,8 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 		}
 
 		@Override
-		protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, ResourceID taskManagerResourceId) {
-			assertThat(taskManagerResourceId, is(equalTo(expectedTaskManagerId)));
+		protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName) {
+			assertThat(taskManagerIdAndFileName.f0, is(equalTo(expectedTaskManagerId)));
 			final CompletableFuture<TransientBlobKey> transientBlobKeyFuture = requestFileUploads.poll();
 
 			if (transientBlobKeyFuture != null) {

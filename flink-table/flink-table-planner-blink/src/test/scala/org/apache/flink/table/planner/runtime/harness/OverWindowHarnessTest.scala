@@ -22,12 +22,12 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor
-import org.apache.flink.table.runtime.util.StreamRecordUtils.{baserow, binaryrow}
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
+import org.apache.flink.table.runtime.util.StreamRecordUtils.{binaryrow, row}
 import org.apache.flink.types.Row
 
 import org.junit.runner.RunWith
@@ -45,7 +45,7 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   @Before
   override def before(): Unit = {
     super.before()
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
     val config = new TestTableConfig
     this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
   }
@@ -68,10 +68,17 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -121,33 +128,33 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
+      row(1L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
+      row(1L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
+      row(1L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 3L: JLong, null, 2L: JLong, 3L: JLong)))
+      row(1L: JLong, "aaa", 3L: JLong, null, 2L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
+      row(1L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 4L: JLong, null, 3L: JLong, 4L: JLong)))
+      row(1L: JLong, "aaa", 4L: JLong, null, 3L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 5L: JLong, null, 4L: JLong, 5L: JLong)))
+      row(1L: JLong, "aaa", 5L: JLong, null, 4L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "aaa", 6L: JLong, null, 5L: JLong, 6L: JLong)))
+      row(1L: JLong, "aaa", 6L: JLong, null, 5L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(1L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
+      row(1L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "aaa", 7L: JLong, null, 6L: JLong, 7L: JLong)))
+      row(2L: JLong, "aaa", 7L: JLong, null, 6L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 8L: JLong)))
+      row(2L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "aaa", 9L: JLong, null, 8L: JLong, 9L: JLong)))
+      row(2L: JLong, "aaa", 9L: JLong, null, 8L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "aaa", 10L: JLong, null, 9L: JLong, 10L: JLong)))
+      row(2L: JLong, "aaa", 10L: JLong, null, 9L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
+      row(2L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
@@ -177,13 +184,17 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
     testHarness.open()
 
-    // register cleanup timer with 3003
     testHarness.setProcessingTime(3)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 1L: JLong, null)))
@@ -194,7 +205,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 2L: JLong, null)))
 
-    // trigger cleanup timer and register cleanup timer with 6003
     testHarness.setProcessingTime(3003)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 3L: JLong, null)))
@@ -205,7 +215,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 4L: JLong, null)))
 
-    // register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
 
     testHarness.setProcessingTime(7002)
@@ -216,7 +225,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "bbb", 30L: JLong, null)))
 
-    // register cleanup timer with 14002
     testHarness.setProcessingTime(11002)
     testHarness.processElement(new StreamRecord(
       binaryrow(0L: JLong, "aaa", 7L: JLong, null)))
@@ -240,50 +248,35 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     // all elements at the same proc timestamp have the same value per key
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
+      row(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
+      row(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
+      row(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 3L: JLong, null, 1L: JLong, 4L: JLong)))
+      row(0L: JLong, "aaa", 3L: JLong, null, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
+      row(0L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 4L: JLong, null, 1L: JLong, 4L: JLong)))
+      row(0L: JLong, "aaa", 4L: JLong, null, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 5L: JLong, null, 3L: JLong, 6L: JLong)))
+      row(0L: JLong, "aaa", 5L: JLong, null, 3L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 6L: JLong, null, 3L: JLong, 6L: JLong)))
+      row(0L: JLong, "aaa", 6L: JLong, null, 3L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
+      row(0L: JLong, "bbb", 30L: JLong, null, 20L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 7L: JLong, null, 7L: JLong, 7L: JLong)))
+      row(0L: JLong, "aaa", 7L: JLong, null, 5L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 10L: JLong)))
+      row(0L: JLong, "aaa", 8L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 9L: JLong, null, 7L: JLong, 10L: JLong)))
+      row(0L: JLong, "aaa", 9L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 10L: JLong, null, 7L: JLong, 10L: JLong)))
+      row(0L: JLong, "aaa", 10L: JLong, null, 7L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
+      row(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
-
-    // test for clean-up timer NPE
-    testHarness.setProcessingTime(20000)
-
-    // timer registered for 23000
-    testHarness.processElement(new StreamRecord(
-      binaryrow(0L: JLong, "ccc", 10L: JLong, null)))
-
-    // update clean-up timer to 25500. Previous timer should not clean up
-    testHarness.setProcessingTime(22500)
-    testHarness.processElement(new StreamRecord(
-      binaryrow(0L: JLong, "ccc", 10L: JLong, null)))
-
-    // 23000 clean-up timer should fire but not fail with an NPE
-    testHarness.setProcessingTime(23001)
 
     testHarness.close()
   }
@@ -306,10 +299,16 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -353,33 +352,33 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
+      row(0L: JLong, "aaa", 1L: JLong, null, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
+      row(0L: JLong, "bbb", 10L: JLong, null, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
+      row(0L: JLong, "aaa", 2L: JLong, null, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 3L: JLong, null, 1L: JLong, 3L: JLong)))
+      row(0L: JLong, "aaa", 3L: JLong, null, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
+      row(0L: JLong, "bbb", 20L: JLong, null, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 4L: JLong, null, 1L: JLong, 4L: JLong)))
+      row(0L: JLong, "aaa", 4L: JLong, null, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 5L: JLong, null, 1L: JLong, 5L: JLong)))
+      row(0L: JLong, "aaa", 5L: JLong, null, 1L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 6L: JLong, null, 1L: JLong, 6L: JLong)))
+      row(0L: JLong, "aaa", 6L: JLong, null, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 30L: JLong, null, 10L: JLong, 30L: JLong)))
+      row(0L: JLong, "bbb", 30L: JLong, null, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 7L: JLong, null, 1L: JLong, 7L: JLong)))
+      row(0L: JLong, "aaa", 7L: JLong, null, 1L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 8L: JLong, null, 1L: JLong, 8L: JLong)))
+      row(0L: JLong, "aaa", 8L: JLong, null, 1L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 9L: JLong, null, 9L: JLong, 9L: JLong)))
+      row(0L: JLong, "aaa", 9L: JLong, null, 9L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "aaa", 10L: JLong, null, 9L: JLong, 10L: JLong)))
+      row(0L: JLong, "aaa", 10L: JLong, null, 9L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
+      row(0L: JLong, "bbb", 40L: JLong, null, 40L: JLong, 40L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
@@ -392,7 +391,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeBoundedRangeOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -409,10 +407,14 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -466,72 +468,39 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     testHarness.processWatermark(19000)
 
-    // test cleanup
-    testHarness.setProcessingTime(1000)
-    testHarness.processWatermark(20000)
-
-    // check that state is removed after max retention time
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20001L: JLong, "ccc", 1L: JLong))) // clean-up 3000
-    testHarness.setProcessingTime(2500)
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20002L: JLong, "ccc", 2L: JLong))) // clean-up 4500
-    testHarness.processWatermark(20010) // compute output
-
-    testHarness.setProcessingTime(4499)
-    testHarness.setProcessingTime(4500)
-
-    // check that state is only removed if all data was processed
-    testHarness.processElement(new StreamRecord(
-      binaryrow(20011L: JLong, "ccc", 3L: JLong))) // clean-up 6500
-
-    testHarness.setProcessingTime(6500) // clean-up attempt but rescheduled to 8500
-
-    testHarness.processWatermark(20020) // schedule emission
-
-    testHarness.setProcessingTime(8499) // clean-up
-    testHarness.setProcessingTime(8500) // clean-up
-
     val result = dropWatermarks(testHarness.getOutput.toArray)
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // all elements at the same row-time have the same value per key
     expectedOutput.add(new StreamRecord(
-      baserow(2L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(2L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(3L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      row(3L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4002L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
+      row(4002L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4003L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong)))
+      row(4003L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4801L: JLong, "bbb", 25L: JLong, 25L: JLong, 25L: JLong)))
+      row(4801L: JLong, "bbb", 25L: JLong, 25L: JLong, 25L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 5L: JLong, 2L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 5L: JLong, 2L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 6L: JLong, 2L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 6L: JLong, 2L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(7001L: JLong, "aaa", 7L: JLong, 2L: JLong, 7L: JLong)))
+      row(7001L: JLong, "aaa", 7L: JLong, 2L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(8001L: JLong, "aaa", 8L: JLong, 2L: JLong, 8L: JLong)))
+      row(8001L: JLong, "aaa", 8L: JLong, 2L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "bbb", 30L: JLong, 25L: JLong, 30L: JLong)))
+      row(6501L: JLong, "bbb", 30L: JLong, 25L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 9L: JLong, 8L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 9L: JLong, 8L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
-
-    expectedOutput.add(new StreamRecord(
-      baserow(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
-    expectedOutput.add(new StreamRecord(
-      baserow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
-    expectedOutput.add(new StreamRecord(
-      baserow(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
+      row(12001L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
@@ -541,7 +510,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeBoundedRowsOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -558,10 +526,15 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -643,40 +616,40 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      baserow(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      row(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
+      row(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
+      row(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4801L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong)))
+      row(4801L: JLong, "aaa", 4L: JLong, 2L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 5L: JLong, 3L: JLong, 5L: JLong)))
+      row(6501L: JLong, "aaa", 5L: JLong, 3L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 6L: JLong, 4L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 6L: JLong, 4L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
+      row(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(7001L: JLong, "aaa", 7L: JLong, 5L: JLong, 7L: JLong)))
+      row(7001L: JLong, "aaa", 7L: JLong, 5L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(8001L: JLong, "aaa", 8L: JLong, 6L: JLong, 8L: JLong)))
+      row(8001L: JLong, "aaa", 8L: JLong, 6L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 9L: JLong, 7L: JLong, 9L: JLong)))
+      row(12001L: JLong, "aaa", 9L: JLong, 7L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 10L: JLong, 8L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "bbb", 40L: JLong, 20L: JLong, 40L: JLong)))
+      row(12001L: JLong, "bbb", 40L: JLong, 20L: JLong, 40L: JLong)))
 
     expectedOutput.add(new StreamRecord(
-      baserow(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
+      row(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
@@ -689,7 +662,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeUnboundedRangeOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -706,10 +678,15 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -786,38 +763,38 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     // all elements at the same row-time have the same value per key
     expectedOutput.add(new StreamRecord(
-      baserow(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      row(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 3L: JLong)))
+      row(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
+      row(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
+      row(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
+      row(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
+      row(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
+      row(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong)))
+      row(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong)))
+      row(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong)))
 
     expectedOutput.add(new StreamRecord(
-      baserow(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
@@ -827,7 +804,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeUnboundedRowsOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -844,10 +820,15 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
-    val assertor = new BaseRowHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -923,38 +904,38 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      baserow(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(801L: JLong, "aaa", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
+      row(2501L: JLong, "bbb", 10L: JLong, 10L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(4001L: JLong, "aaa", 2L: JLong, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
+      row(4001L: JLong, "aaa", 3L: JLong, 1L: JLong, 3L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
+      row(4001L: JLong, "bbb", 20L: JLong, 10L: JLong, 20L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
+      row(4801L: JLong, "aaa", 4L: JLong, 1L: JLong, 4L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 5L: JLong)))
+      row(6501L: JLong, "aaa", 5L: JLong, 1L: JLong, 5L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
+      row(6501L: JLong, "aaa", 6L: JLong, 1L: JLong, 6L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
+      row(6501L: JLong, "bbb", 30L: JLong, 10L: JLong, 30L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
+      row(7001L: JLong, "aaa", 7L: JLong, 1L: JLong, 7L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong)))
+      row(8001L: JLong, "aaa", 8L: JLong, 1L: JLong, 8L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 9L: JLong)))
+      row(12001L: JLong, "aaa", 9L: JLong, 1L: JLong, 9L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong)))
+      row(12001L: JLong, "aaa", 10L: JLong, 1L: JLong, 10L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong)))
+      row(12001L: JLong, "bbb", 40L: JLong, 10L: JLong, 40L: JLong)))
 
     expectedOutput.add(new StreamRecord(
-      baserow(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
+      row(20001L: JLong, "ccc", 1L: JLong, 1L: JLong, 1L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
+      row(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()

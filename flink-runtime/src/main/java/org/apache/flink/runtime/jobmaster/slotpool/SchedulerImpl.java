@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
@@ -135,7 +134,7 @@ public class SchedulerImpl implements Scheduler {
 		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile,
 		@Nullable Time allocationTimeout) {
-		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getTaskToExecute());
+		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getJobVertexId());
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
@@ -155,9 +154,11 @@ public class SchedulerImpl implements Scheduler {
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
-		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
-			allocateSingleSlot(slotRequestId, slotProfile, allocationTimeout) :
-			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allocationTimeout);
+		CompletableFuture<LogicalSlot> allocationFuture = allocateSharedSlot(
+			slotRequestId,
+			scheduledUnit,
+			slotProfile,
+			allocationTimeout);
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
@@ -197,34 +198,6 @@ public class SchedulerImpl implements Scheduler {
 
 	//---------------------------
 
-	private CompletableFuture<LogicalSlot> allocateSingleSlot(
-			SlotRequestId slotRequestId,
-			SlotProfile slotProfile,
-			@Nullable Time allocationTimeout) {
-
-		Optional<SlotAndLocality> slotAndLocality = tryAllocateFromAvailable(slotRequestId, slotProfile);
-
-		if (slotAndLocality.isPresent()) {
-			// already successful from available
-			try {
-				return CompletableFuture.completedFuture(
-					completeAllocationByAssigningPayload(slotRequestId, slotAndLocality.get()));
-			} catch (FlinkException e) {
-				return FutureUtils.completedExceptionally(e);
-			}
-		} else {
-			// we allocate by requesting a new slot
-			return requestNewAllocatedSlot(slotRequestId, slotProfile, allocationTimeout)
-				.thenApply((PhysicalSlot allocatedSlot) -> {
-					try {
-						return completeAllocationByAssigningPayload(slotRequestId, new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
-					} catch (FlinkException e) {
-						throw new CompletionException(e);
-					}
-				});
-		}
-	}
-
 	@Nonnull
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			SlotRequestId slotRequestId,
@@ -234,30 +207,6 @@ public class SchedulerImpl implements Scheduler {
 			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
 		} else {
 			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
-		}
-	}
-
-	@Nonnull
-	private LogicalSlot completeAllocationByAssigningPayload(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull SlotAndLocality slotAndLocality) throws FlinkException {
-
-		final PhysicalSlot allocatedSlot = slotAndLocality.getSlot();
-
-		final SingleLogicalSlot singleTaskSlot = new SingleLogicalSlot(
-			slotRequestId,
-			allocatedSlot,
-			null,
-			slotAndLocality.getLocality(),
-			this);
-
-		if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
-			return singleTaskSlot;
-		} else {
-			final FlinkException flinkException =
-				new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
-			slotPool.releaseSlot(slotRequestId, flinkException);
-			throw flinkException;
 		}
 	}
 

@@ -17,12 +17,16 @@
 ################################################################################
 from __future__ import print_function
 
+import glob
 import io
 import os
+import platform
+import subprocess
 import sys
+from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
-from setuptools import setup
+from setuptools import setup, Extension
 
 if sys.version_info < (3, 5):
     print("Python versions prior to 3.5 are not supported for PyFlink.",
@@ -37,6 +41,73 @@ def remove_if_exists(file_path):
         else:
             assert os.path.isdir(file_path)
             rmtree(file_path)
+
+
+def find_file_path(pattern):
+    files = glob.glob(pattern)
+    if len(files) < 1:
+        print("Failed to find the file %s." % pattern)
+        exit(-1)
+    if len(files) > 1:
+        print("The file pattern %s is ambiguous: %s" % (pattern, files))
+        exit(-1)
+    return files[0]
+
+
+# Currently Cython optimizing doesn't support Windows.
+if platform.system() == 'Windows':
+    extensions = ([])
+else:
+    try:
+        from Cython.Build import cythonize
+        extensions = cythonize([
+            Extension(
+                name="pyflink.fn_execution.coder_impl_fast",
+                sources=["pyflink/fn_execution/coder_impl_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
+                name="pyflink.fn_execution.stream",
+                sources=["pyflink/fn_execution/stream.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_stream",
+                sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_operations_fast",
+                sources=["pyflink/fn_execution/beam/beam_operations_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
+        ])
+    except ImportError:
+        if os.path.exists("pyflink/fn_execution/coder_impl_fast.c"):
+            extensions = ([
+                Extension(
+                    name="pyflink.fn_execution.coder_impl_fast",
+                    sources=["pyflink/fn_execution/coder_impl_fast.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.stream",
+                    sources=["pyflink/fn_execution/stream.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_stream",
+                    sources=["pyflink/fn_execution/beam/beam_stream.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                    sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_operations_fast",
+                    sources=["pyflink/fn_execution/beam/beam_operations_fast.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+            ])
+        else:
+            extensions = ([])
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
@@ -65,9 +136,11 @@ LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
 PLUGINS_TEMP_PATH = os.path.join(TEMP_PATH, "plugins")
 SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
-LICENSE_FILE_TEMP_PATH = os.path.join("pyflink", "LICENSE")
-NOTICE_FILE_TEMP_PATH = os.path.join("pyflink", "NOTICE")
+LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
+NOTICE_FILE_TEMP_PATH = os.path.join(this_directory, "NOTICE")
 README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
+PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh"
+PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat"
 
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
                                  "ExecutionEnvironment.java")
@@ -75,7 +148,6 @@ in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/a
 # Due to changes in FLINK-14008, the licenses directory and NOTICE file may not exist in
 # build-target folder. Just ignore them in this case.
 exist_licenses = None
-exist_notice = None
 try:
     if in_flink_source:
 
@@ -102,6 +174,10 @@ run sdist.
 
         LIB_PATH = os.path.join(FLINK_HOME, "lib")
         OPT_PATH = os.path.join(FLINK_HOME, "opt")
+        OPT_PYTHON_JAR_NAME = os.path.basename(
+            find_file_path(os.path.join(OPT_PATH, "flink-python_*.jar")))
+        OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
+            find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
         CONF_PATH = os.path.join(FLINK_HOME, "conf")
         EXAMPLES_PATH = os.path.join(FLINK_HOME, "examples")
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
@@ -109,11 +185,9 @@ run sdist.
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_HOME, "LICENSE")
-        NOTICE_FILE_PATH = os.path.join(FLINK_HOME, "NOTICE")
         README_FILE_PATH = os.path.join(FLINK_HOME, "README.txt")
 
         exist_licenses = os.path.exists(LICENSES_PATH)
-        exist_notice = os.path.exists(NOTICE_FILE_PATH)
 
         if not os.path.isdir(LIB_PATH):
             print(incorrect_invocation_message, file=sys.stderr)
@@ -125,35 +199,49 @@ run sdist.
         except BaseException:  # pylint: disable=broad-except
             support_symlinks = False
 
+        os.mkdir(OPT_TEMP_PATH)
         if support_symlinks:
-            os.symlink(OPT_PATH, OPT_TEMP_PATH)
+            os.symlink(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                       os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
+            os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                       os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                os.symlink(LICENSES_PATH, LICENSES_TEMP_PATH)
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
-            os.symlink(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                os.symlink(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
         else:
             copytree(LIB_PATH, LIB_TEMP_PATH)
-            copytree(OPT_PATH, OPT_TEMP_PATH)
+            copy(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                 os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
+            copy(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                 os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
             copytree(CONF_PATH, CONF_TEMP_PATH)
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                copytree(LICENSES_PATH, LICENSES_TEMP_PATH)
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
-            copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                copy(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
         os.mkdir(LOG_TEMP_PATH)
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
+
+        # copy the udf runner scripts
+        copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
+        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_SH),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_SH))
+        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_BAT),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_BAT))
+
+        if exist_licenses and platform.system() != "Windows":
+            # regenerate the licenses directory and NOTICE file as we only copy part of the
+            # flink binary distribution.
+            collect_licenses_file_sh = os.path.abspath(os.path.join(
+                this_directory, "..", "tools", "releasing", "collect_license_files.sh"))
+            subprocess.check_output([collect_licenses_file_sh, TEMP_PATH, TEMP_PATH])
+            # move the NOTICE file to the root of the package
+            GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")
+            os.rename(GENERATED_NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
     else:
         if not os.path.isdir(LIB_TEMP_PATH) or not os.path.isdir(OPT_TEMP_PATH) \
                 or not os.path.isdir(SCRIPTS_TEMP_PATH):
@@ -162,7 +250,6 @@ run sdist.
                   "directory.")
             sys.exit(-1)
         exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
-        exist_notice = os.path.exists(NOTICE_FILE_TEMP_PATH)
 
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
@@ -175,6 +262,13 @@ run sdist.
                 'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
+                'pyflink.fn_execution.beam',
+                'pyflink.metrics',
+                'pyflink.ml',
+                'pyflink.ml.api',
+                'pyflink.ml.api.param',
+                'pyflink.ml.lib',
+                'pyflink.ml.lib.param',
                 'pyflink.lib',
                 'pyflink.opt',
                 'pyflink.conf',
@@ -193,7 +287,7 @@ run sdist.
         'pyflink.bin': TEMP_PATH + '/bin'}
 
     PACKAGE_DATA = {
-        'pyflink': ['LICENSE', 'README.txt'],
+        'pyflink': ['README.txt'],
         'pyflink.lib': ['*.jar'],
         'pyflink.opt': ['*.*', '*/*'],
         'pyflink.conf': ['*'],
@@ -202,13 +296,10 @@ run sdist.
         'pyflink.plugins': ['*', '*/*'],
         'pyflink.bin': ['*']}
 
-    if exist_licenses:
+    if exist_licenses and platform.system() != "Windows":
         PACKAGES.append('pyflink.licenses')
         PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
         PACKAGE_DATA['pyflink.licenses'] = ['*']
-
-    if exist_notice:
-        PACKAGE_DATA['pyflink'].append('NOTICE')
 
     setup(
         name='apache-flink',
@@ -223,18 +314,25 @@ run sdist.
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.5',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.15.0',
-                          'cloudpickle==1.2.2'],
+        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.23.0',
+                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,<=1.9.1', 'jsonpickle==1.2',
+                          'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
+                          'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
+                          'pyarrow>=0.15.1,<0.18.0', 'pytz>=2018.3'],
+        cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
         long_description=long_description,
         long_description_content_type='text/markdown',
+        zip_safe=False,
         classifiers=[
-            'Development Status :: 1 - Planning',
+            'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7']
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8'],
+        ext_modules=extensions
     )
 finally:
     if in_flink_source:

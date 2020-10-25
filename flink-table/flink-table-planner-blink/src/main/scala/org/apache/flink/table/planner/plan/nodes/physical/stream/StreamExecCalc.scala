@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CalcCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -49,10 +49,10 @@ class StreamExecCalc(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     // materialize time attributes in condition
     val condition = if (calcProgram.getCondition != null) {
       Some(calcProgram.expandLocalRef(calcProgram.getCondition))
@@ -72,14 +72,12 @@ class StreamExecCalc(
 //    }
 
     val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-      classOf[AbstractProcessStreamOperator[BaseRow]])
+      classOf[AbstractProcessStreamOperator[RowData]])
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
       ctx,
-      cluster,
       inputTransform,
       outputType,
-      config,
       calcProgram,
       condition,
       retainHeader = true,
@@ -89,7 +87,7 @@ class StreamExecCalc(
       inputTransform,
       getRelDetailedDescription,
       substituteStreamOperator,
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       inputTransform.getParallelism)
 
     if (inputsContainSingleton()) {

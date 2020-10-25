@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -36,30 +37,31 @@ public enum TaskSlotUtils {
 		.setTaskHeapMemory(new MemorySize(100 * 1024))
 		.setTaskOffHeapMemory(MemorySize.ZERO)
 		.setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
-		.setShuffleMemory(new MemorySize(100 * 1024))
+		.setNetworkMemory(new MemorySize(100 * 1024))
 		.build();
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots) {
+	public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(int numberOfSlots) {
 		return createTaskSlotTable(
 			numberOfSlots,
-			createDefaultTimerService(DEFAULT_SLOT_TIMEOUT));
+			createDefaultTimerService());
 	}
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots, Time timeout) {
+	public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(int numberOfSlots, Time timeout) {
 		return createTaskSlotTable(
 			numberOfSlots,
 			createDefaultTimerService(timeout.toMilliseconds()));
 	}
 
-	private static TaskSlotTable createTaskSlotTable(
+	private static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
 			int numberOfSlots,
 			TimerService<AllocationID> timerService) {
-		return new TaskSlotTable(
+		return new TaskSlotTableImpl<>(
 			numberOfSlots,
 			createTotalResourceProfile(numberOfSlots),
 			DEFAULT_RESOURCE_PROFILE,
 			MemoryManager.MIN_PAGE_SIZE,
-			timerService);
+			timerService,
+			Executors.newDirectExecutorService());
 	}
 
 	public static ResourceProfile createTotalResourceProfile(int numberOfSlots) {
@@ -68,6 +70,10 @@ public enum TaskSlotUtils {
 			result = result.merge(DEFAULT_RESOURCE_PROFILE);
 		}
 		return result;
+	}
+
+	public static TimerService<AllocationID> createDefaultTimerService() {
+		return createDefaultTimerService(DEFAULT_SLOT_TIMEOUT);
 	}
 
 	public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {

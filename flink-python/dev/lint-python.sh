@@ -28,10 +28,10 @@ function download() {
     local DOWNLOAD_STATUS=
     if hash "wget" 2>/dev/null; then
         # because of the difference of all versions of wget, so we turn of the option --show-progress
-        wget "$1" -O "$2" -q
+        wget "$1" -O "$2" -q -T20 -t3
         DOWNLOAD_STATUS="$?"
     else
-        curl "$1" -o "$2" --progress-bar
+        curl "$1" -o "$2" --progress-bar --connect-timeout 20 --retry 3
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then
@@ -219,7 +219,11 @@ function install_miniconda() {
 
 # Install some kinds of py env.
 function install_py_env() {
-    py_env=("3.5" "3.6" "3.7")
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        py_env=("3.8")
+    else
+        py_env=("3.5" "3.6" "3.7" "3.8")
+    fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
@@ -244,6 +248,7 @@ function install_py_env() {
 # Install tox.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
+    source $CONDA_HOME/bin/activate
     if [ -f "$TOX_PATH" ]; then
         $PIP_PATH uninstall tox -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
@@ -257,57 +262,62 @@ function install_tox() {
     # tox 3.14.0 depends on both 0.19 and 0.23 of importlib_metadata at the same time and
     # conda will try to install both these two versions and it will cause problems occasionally.
     # Using pip as the package manager could avoid this problem.
-    $PIP_PATH install -q virtualenv==16.0.0 tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q virtualenv==16.0.0 tox==3.14.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install tox failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
+    conda deactivate
 }
 
 # Install flake8.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
+    source $CONDA_HOME/bin/activate
     if [ -f "$FLAKE8_PATH" ]; then
-        $CONDA_PATH remove -p $CONDA_HOME flake8 -y -q 2>&1 >/dev/null
+        $PIP_PATH uninstall flake8 -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
-            echo "conda remove flake8 failed \
+            echo "pip uninstall flake8 failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
 
-    $CONDA_PATH install -p $CONDA_HOME -c anaconda flake8 -y -q 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==3.7.9 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
-        echo "conda install flake8 failed \
+        echo "pip install flake8 failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
+    conda deactivate
 }
 
 # Install sphinx.
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_sphinx() {
+    source $CONDA_HOME/bin/activate
     if [ -f "$SPHINX_PATH" ]; then
-        $CONDA_PATH remove -p $CONDA_HOME sphinx -y -q 2>&1 >/dev/null
+        $PIP_PATH uninstall Sphinx -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
-            echo "conda remove sphinx failed \
+            echo "pip uninstall sphinx failed \
             please try to exec the script again.\
             if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
             exit 1
         fi
     fi
 
-    $CONDA_PATH install -p $CONDA_HOME -c anaconda sphinx -y -q 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
-        echo "conda install sphinx failed \
+        echo "pip install sphinx failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
     fi
+    conda deactivate
 }
 
 function need_install_component() {
@@ -351,7 +361,7 @@ function install_environment() {
     print_function "STEP" "install miniconda... [SUCCESS]"
 
     # step-3 install python environment whcih includes
-    # 3.5 3.6 3.7
+    # 3.5 3.6 3.7 3.8
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -523,10 +533,20 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
+    LATEST_PYTHON="py38"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
-    $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    # Ensure the permission of the scripts set correctly
+    chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
+    chmod +x $FLINK_PYTHON_DIR/dev/*
+
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        # Only run test in latest python version triggered by a Git push
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+    else
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
     if [ $TOX_RESULT -eq '0' ]; then
@@ -600,7 +620,6 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 
 # FLINK_PYTHON_DIR is "flink/flink-python"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
-pushd "$FLINK_PYTHON_DIR" &> /dev/null
 
 # conda home path
 CONDA_HOME=$CURRENT_DIR/.conda
@@ -687,7 +706,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.5,3.6,3.7).
+  ./lint-python -s py_env       =>  install environment with python env(3.5,3.6,3.7,3.8).
   ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx etc.
   ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python -s tox -f       =>  reinstall environment with tox.
@@ -751,6 +770,7 @@ fi
 # install environment
 install_environment
 
+pushd "$FLINK_PYTHON_DIR" &> /dev/null
 # exec all selected checks
 if [ $skip_checks -eq 0 ]; then
     check_stage

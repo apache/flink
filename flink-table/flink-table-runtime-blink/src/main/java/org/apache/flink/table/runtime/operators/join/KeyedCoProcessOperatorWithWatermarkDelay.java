@@ -19,11 +19,13 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -51,10 +53,10 @@ public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		if (timeServiceManager != null) {
-			timeServiceManager.advanceWatermark(mark);
+		Optional<InternalTimeServiceManager<?>> timeServiceManager = getTimeServiceManager();
+		if (timeServiceManager.isPresent()) {
+			timeServiceManager.get().advanceWatermark(mark);
 		}
 		emitter.accept(mark);
 	}
-
 }

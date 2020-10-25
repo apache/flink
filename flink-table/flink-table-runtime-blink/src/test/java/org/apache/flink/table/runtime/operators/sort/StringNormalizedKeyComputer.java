@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 
 /**
@@ -26,19 +29,18 @@ import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 public class StringNormalizedKeyComputer implements NormalizedKeyComputer {
 
 	@Override
-	public void putKey(org.apache.flink.table.dataformat.BaseRow record,
-			org.apache.flink.core.memory.MemorySegment target, int offset) {
+	public void putKey(RowData record, MemorySegment target, int offset) {
 		if (record.isNullAt(0)) {
 			SortUtil.minNormalizedKey(target, offset, 8);
 		} else {
-			SortUtil.putStringNormalizedKey(record.getString(0), target, offset, 8);
+			SortUtil.putStringNormalizedKey((BinaryStringData) record.getString(0), target, offset, 8);
 		}
 		target.putLong(offset, Long.reverseBytes(target.getLong(offset)));
 	}
 
 	@Override
-	public int compareKey(org.apache.flink.core.memory.MemorySegment segI, int offsetI,
-			org.apache.flink.core.memory.MemorySegment segJ, int offsetJ) {
+	public int compareKey(
+			MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ) {
 		long l0 = segI.getLong(offsetI);
 		long l1 = segJ.getLong(offsetJ);
 		if (l0 != l1) {
@@ -48,8 +50,8 @@ public class StringNormalizedKeyComputer implements NormalizedKeyComputer {
 	}
 
 	@Override
-	public void swapKey(org.apache.flink.core.memory.MemorySegment segI, int offsetI,
-			org.apache.flink.core.memory.MemorySegment segJ, int offsetJ) {
+	public void swapKey(MemorySegment segI, int offsetI,
+			MemorySegment segJ, int offsetJ) {
 		long temp0 = segI.getLong(offsetI);
 		segI.putLong(offsetI, segJ.getLong(offsetJ));
 		segJ.putLong(offsetJ, temp0);

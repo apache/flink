@@ -316,7 +316,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		try (final MockEnvironment environment =
 				new MockEnvironmentBuilder()
 					.setTaskName("test task")
-					.setMemorySize(32 * 1024)
+					.setManagedMemorySize(32 * 1024)
 					.setInputSplitProvider(new MockInputSplitProvider())
 					.setBufferSize(256)
 					.setTaskConfiguration(taskConfiguration)

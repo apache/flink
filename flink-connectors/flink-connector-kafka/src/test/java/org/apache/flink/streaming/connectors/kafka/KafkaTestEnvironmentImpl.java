@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 
-import kafka.common.KafkaException;
 import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -38,6 +38,7 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.BindException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -135,7 +138,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
-		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("enable.auto.commit", "false");
@@ -148,11 +150,20 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public void deleteTestTopic(String topic) {
 		LOG.info("Deleting topic {}", topic);
-		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
+		Properties props = getSecureProperties();
+		props.putAll(getStandardProperties());
+		String clientId = Long.toString(new Random().nextLong());
+		props.put("client.id", clientId);
+		AdminClient adminClient = AdminClient.create(props);
+		// We do not use a try-catch clause here so we can apply a timeout to the admin client closure.
+		try {
 			tryDelete(adminClient, topic);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(String.format("Delete test topic : %s failed, %s", topic, e.getMessage()));
+		} finally {
+			adminClient.close(Duration.ofMillis(5000L));
+			maybePrintDanglingThreadStacktrace(clientId);
 		}
 	}
 
@@ -251,12 +262,16 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> StreamSink<T> getProducerSink(String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		return new StreamSink<>(new FlinkKafkaProducer<T>(
+	public <T> StreamSink<T> getProducerSink(
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
+			FlinkKafkaPartitioner<T> partitioner) {
+		return new StreamSink<>(new FlinkKafkaProducer<>(
 			topic,
 			serSchema,
 			props,
-			Optional.ofNullable(partitioner),
+			partitioner,
 			producerSemantic,
 			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
 	}
@@ -268,6 +283,22 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			serSchema,
 			props,
 			Optional.ofNullable(partitioner),
+			producerSemantic,
+			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+	}
+
+	@Override
+	public <T> DataStreamSink<T> produceIntoKafka(
+			DataStream<T> stream,
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
+			FlinkKafkaPartitioner<T> partitioner) {
+		return stream.addSink(new FlinkKafkaProducer<T>(
+			topic,
+			serSchema,
+			props,
+			partitioner,
 			producerSemantic,
 			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
 	}

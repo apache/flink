@@ -18,13 +18,6 @@
 
 package org.apache.flink.table.runtime.types;
 
-import org.apache.flink.table.dataformat.BaseArray;
-import org.apache.flink.table.dataformat.BaseMap;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -36,53 +29,5 @@ public class ClassLogicalTypeConverter {
 	@Deprecated
 	public static Class getDefaultExternalClassForType(LogicalType type) {
 		return TypeConversions.fromLogicalToDataType(type).getConversionClass();
-	}
-
-	/**
-	 * Get internal(sql engine execution data formats) class for {@link LogicalType}.
-	 */
-	public static Class getInternalClassForType(LogicalType type) {
-		switch (type.getTypeRoot()) {
-			case BOOLEAN:
-				return Boolean.class;
-			case TINYINT:
-				return Byte.class;
-			case SMALLINT:
-				return Short.class;
-			case INTEGER:
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case INTERVAL_YEAR_MONTH:
-				return Integer.class;
-			case BIGINT:
-			case INTERVAL_DAY_TIME:
-				return Long.class;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				return SqlTimestamp.class;
-			case FLOAT:
-				return Float.class;
-			case DOUBLE:
-				return Double.class;
-			case CHAR:
-			case VARCHAR:
-				return BinaryString.class;
-			case DECIMAL:
-				return Decimal.class;
-			case ARRAY:
-				return BaseArray.class;
-			case MAP:
-			case MULTISET:
-				return BaseMap.class;
-			case ROW:
-				return BaseRow.class;
-			case BINARY:
-			case VARBINARY:
-				return byte[].class;
-			case RAW:
-				return BinaryGeneric.class;
-			default:
-				throw new RuntimeException("Not support type: " + type);
-		}
 	}
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.runtime;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,13 +32,13 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +48,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manually test the throughput of the network stack.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class NetworkStackThroughputITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
@@ -108,7 +105,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				}
 			}
 			finally {
-				writer.clearBuffers();
+				writer.close();
 				writer.flushAll();
 			}
 		}
@@ -142,7 +139,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			}
 			finally {
 				reader.clearBuffers();
-				writer.clearBuffers();
+				writer.close();
 				writer.flushAll();
 			}
 		}
@@ -269,22 +266,22 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			final boolean isSlowSender,
 			final boolean isSlowReceiver,
 			final int parallelism) throws Exception {
-		ClusterClient<?> client = cluster.getClusterClient();
+		final ClusterClient<?> client = cluster.getClusterClient();
+		final JobGraph jobGraph = createJobGraph(
+			dataVolumeGb,
+			useForwarder,
+			isSlowSender,
+			isSlowReceiver,
+			parallelism);
+		final JobResult jobResult = client.submitJob(jobGraph)
+			.thenCompose(client::requestJobResult)
+			.get();
 
-		JobExecutionResult jer = ClientUtils.submitJobAndWaitForResult(
-			client,
-			createJobGraph(
-				dataVolumeGb,
-				useForwarder,
-				isSlowSender,
-				isSlowReceiver,
-				parallelism),
-			getClass().getClassLoader());
+		Assert.assertFalse(jobResult.getSerializedThrowable().isPresent());
 
-		long dataVolumeMbit = dataVolumeGb * 8192;
-		long runtimeSecs = jer.getNetRuntime(TimeUnit.SECONDS);
-
-		int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
+		final long dataVolumeMbit = dataVolumeGb * 8192;
+		final long runtimeSecs = TimeUnit.SECONDS.convert(jobResult.getNetRuntime(), TimeUnit.MILLISECONDS);
+		final int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
 
 		LOG.info(String.format("Test finished with throughput of %d MBit/s (runtime [secs]: %d, " +
 			"data volume [gb/mbits]: %d/%d)", mbitPerSecond, runtimeSecs, dataVolumeGb, dataVolumeMbit));

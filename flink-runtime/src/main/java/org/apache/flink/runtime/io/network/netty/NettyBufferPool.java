@@ -53,7 +53,7 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 
 	/**
 	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
-	 * chunks of 16 MB.
+	 * chunks of 4 MB.
 	 *
 	 * @see #MAX_ORDER
 	 */
@@ -61,11 +61,13 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 
 	/**
 	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
-	 * chunks of 16 MB.
+	 * chunks of 4 MB, which is smaller than the previous default (16 MB) to further reduce the
+	 * netty memory overhead. According to the test result, after introducing client side zero-copy
+	 * in FLINK-10742, 4 MB is enough to support large-scale netty shuffle.
 	 *
 	 * @see #PAGE_SIZE
 	 */
-	private static final int MAX_ORDER = 11;
+	private static final int MAX_ORDER = 9;
 
 	/**
 	 * Creates Netty's buffer pool with the specified number of direct arenas.
@@ -78,8 +80,8 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 			PREFER_DIRECT,
 			// No heap arenas, please.
 			0,
-			// Number of direct arenas. Each arena allocates a chunk of 16 MB, i.e.
-			// we allocate numDirectArenas * 16 MB of direct memory. This can grow
+			// Number of direct arenas. Each arena allocates a chunk of 4 MB, i.e.
+			// we allocate numDirectArenas * 4 MB of direct memory. This can grow
 			// to multiple chunks per arena during runtime, but this should only
 			// happen with a large amount of connections per task manager. We
 			// control the memory allocations with low/high watermarks when writing
@@ -92,7 +94,7 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 		this.numberOfArenas = numberOfArenas;
 
 		// Arenas allocate chunks of pageSize << maxOrder bytes. With these
-		// defaults, this results in chunks of 16 MB.
+		// defaults, this results in chunks of 4 MB.
 
 		this.chunkSize = PAGE_SIZE << MAX_ORDER;
 
@@ -223,31 +225,31 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 	}
 
 	// ------------------------------------------------------------------------
-	// Prohibit heap buffer allocations
+	// Fakes heap buffer allocations with direct buffers currently.
 	// ------------------------------------------------------------------------
 
 	@Override
 	public ByteBuf heapBuffer() {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer();
 	}
 
 	@Override
 	public ByteBuf heapBuffer(int initialCapacity) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer(initialCapacity);
 	}
 
 	@Override
 	public ByteBuf heapBuffer(int initialCapacity, int maxCapacity) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer(initialCapacity, maxCapacity);
 	}
 
 	@Override
 	public CompositeByteBuf compositeHeapBuffer() {
-		throw new UnsupportedOperationException("Heap buffer");
+		return compositeDirectBuffer();
 	}
 
 	@Override
 	public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return compositeDirectBuffer(maxNumComponents);
 	}
 }

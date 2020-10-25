@@ -32,7 +32,8 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- TemporalSort(orderBy=[proctime ASC, c ASC])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -136,7 +137,8 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

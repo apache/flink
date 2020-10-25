@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -29,6 +30,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MULTISET;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
@@ -60,9 +62,10 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isTimeInterval(LogicalType type) {
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
-			case INTERVAL_DAY_TIME:
 			case INTERVAL_YEAR_MONTH:
+			case INTERVAL_DAY_TIME:
 				return true;
 			default:
 				return false;
@@ -109,6 +112,10 @@ public class TypeCheckUtils {
 		return type.getTypeRoot() == MAP;
 	}
 
+	public static boolean isMultiset(LogicalType type) {
+		return type.getTypeRoot() == MULTISET;
+	}
+
 	public static boolean isRaw(LogicalType type) {
 		return type.getTypeRoot() == RAW;
 	}
@@ -118,26 +125,32 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isComparable(LogicalType type) {
-		return !isRaw(type) && !isMap(type) && !isRow(type) && !isArray(type);
+		return !isRaw(type) && !isMap(type) && !isMultiset(type) && !isRow(type) && !isArray(type);
 	}
 
 	public static boolean isMutable(LogicalType type) {
-		// the internal representation of String is BinaryString which is mutable
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
-			case VARCHAR:
 			case CHAR:
+			case VARCHAR: // the internal representation of String is StringData which is mutable
 			case ARRAY:
 			case MULTISET:
 			case MAP:
 			case ROW:
+			case STRUCTURED_TYPE:
 			case RAW:
 				return true;
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException("Unsupported type: " + type);
+			case DISTINCT_TYPE:
+				return isMutable(((DistinctType) type).getSourceType());
 			default:
 				return false;
 		}
 	}
 
 	public static boolean isReference(LogicalType type) {
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
 			case TINYINT:
@@ -153,6 +166,10 @@ public class TypeCheckUtils {
 			case INTERVAL_YEAR_MONTH:
 			case INTERVAL_DAY_TIME:
 				return false;
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException("Unsupported type: " + type);
+			case DISTINCT_TYPE:
+				return isReference(((DistinctType) type).getSourceType());
 			default:
 				return true;
 		}

@@ -19,8 +19,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.BlockBasedTableConfig;
@@ -333,16 +333,16 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 	));
 
 	/**
-	 * Creates a {@link DefaultConfigurableOptionsFactory} instance from a {@link Configuration}.
+	 * Creates a {@link DefaultConfigurableOptionsFactory} instance from a {@link ReadableConfig}.
 	 *
 	 * <p>If no options within {@link RocksDBConfigurableOptions} has ever been configured,
-	 * the created OptionsFactory would not override anything defined in {@link PredefinedOptions}.
+	 * the created RocksDBOptionsFactory would not override anything defined in {@link PredefinedOptions}.
 	 *
-	 * @param configuration Configuration to be used for the ConfigurableOptionsFactory creation
-	 * @return A ConfigurableOptionsFactory created from the given configuration
+	 * @param configuration Configuration to be used for the ConfigurableRocksDBOptionsFactory creation
+	 * @return A ConfigurableRocksDBOptionsFactory created from the given configuration
 	 */
 	@Override
-	public DefaultConfigurableOptionsFactory configure(Configuration configuration) {
+	public DefaultConfigurableOptionsFactory configure(ReadableConfig configuration) {
 		for (ConfigOption<?> option : CANDIDATE_CONFIGS) {
 			Optional<?> newValue = configuration.getOptional(option);
 

@@ -1,7 +1,7 @@
 ---
 title: "Scala REPL"
 nav-parent_id: ops
-nav-pos: 7
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -77,7 +77,7 @@ Scala-Flink> val textStreaming = senv.fromElements(
   "Or to take arms against a sea of troubles,")
 Scala-Flink> val countsStreaming = textStreaming
     .flatMap { _.toLowerCase.split("\\W+") }
-    .map { (_, 1) }.keyBy(0).sum(1)
+    .map { (_, 1) }.keyBy(_._1).sum(1)
 Scala-Flink> countsStreaming.print()
 Scala-Flink> senv.execute("Streaming Wordcount")
 {% endhighlight %}
@@ -243,7 +243,7 @@ For example, to start a Yarn cluster for the Scala Shell with two TaskManagers
 use the following:
 
 {% highlight bash %}
- bin/start-scala-shell.sh yarn -n 2
+bin/start-scala-shell.sh yarn -n 2
 {% endhighlight %}
 
 For all other options, see the full reference at the bottom.
@@ -255,7 +255,7 @@ If you have previously deployed a Flink cluster using the Flink Yarn Session,
 the Scala shell can connect with it using the following command:
 
 {% highlight bash %}
- bin/start-scala-shell.sh yarn
+bin/start-scala-shell.sh yarn
 {% endhighlight %}
 
 

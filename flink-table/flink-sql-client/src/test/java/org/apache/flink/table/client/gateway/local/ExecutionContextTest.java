@@ -18,16 +18,22 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.StreamPipelineOptions;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -37,12 +43,17 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.functions.python.PythonScalarFunction;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.net.URL;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,10 +62,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -64,24 +77,58 @@ public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
-	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+	public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
+	private static final String FUNCTION_ENVIRONMENT_FILE = "test-sql-client-python-functions.yaml";
+	private static final String EXECUTION_ENVIRONMENT_FILE = "test-sql-client-execution.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
-		final ExecutionConfig config = context.getExecutionConfig();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
+		final TableConfig tableConfig = tableEnv.getConfig();
 
-		assertEquals(99, config.getAutoWatermarkInterval());
+		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
+		assertEquals(1_000 * 3 / 2, tableConfig.getMaxIdleStateRetentionTime());
+		Configuration conf = tableConfig.getConfiguration();
 
-		final RestartStrategies.RestartStrategyConfiguration restartConfig = config.getRestartStrategy();
-		assertTrue(restartConfig instanceof RestartStrategies.FailureRateRestartStrategyConfiguration);
-		final RestartStrategies.FailureRateRestartStrategyConfiguration failureRateStrategy =
-			(RestartStrategies.FailureRateRestartStrategyConfiguration) restartConfig;
-		assertEquals(10, failureRateStrategy.getMaxFailureRate());
-		assertEquals(99_000, failureRateStrategy.getFailureInterval().toMilliseconds());
-		assertEquals(1_000, failureRateStrategy.getDelayBetweenAttemptsInterval().toMilliseconds());
+		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
+		assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
+
+		assertEquals(TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
+		assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
+
+		assertEquals("failure-rate", conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
+		assertEquals(10, conf.getInteger(
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL));
+		assertEquals(Duration.ofMillis(99_000), conf.get(
+				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
+		assertEquals(Duration.ofMillis(1_000), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
+	}
+
+	@Test
+	public void testDefaultExecutionConfig() throws Exception {
+		final ExecutionContext<?> context = createExecutionExecutionContext();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
+		final TableConfig tableConfig = tableEnv.getConfig();
+
+		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
+		assertEquals(1_000 * 3 / 2, tableConfig.getMaxIdleStateRetentionTime());
+		Configuration conf = tableConfig.getConfiguration();
+
+		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
+		assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
+
+		assertEquals(TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
+		assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
+
+		assertNull(conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
+		assertEquals(1, conf.getInteger(
+			RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL));
+		assertEquals(Duration.ofMinutes(1), conf.get(
+			RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
+		assertEquals(Duration.ofSeconds(1), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
 	}
 
 	@Test
@@ -144,6 +191,8 @@ public class ExecutionContextTest {
 			),
 			allCatalogs
 		);
+
+		context.close();
 	}
 
 	@Test
@@ -175,6 +224,8 @@ public class ExecutionContextTest {
 		tableEnv.useDatabase(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
 		assertEquals(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, tableEnv.getCurrentDatabase());
+
+		context.close();
 	}
 
 	@Test
@@ -186,6 +237,22 @@ public class ExecutionContextTest {
 		Arrays.sort(expected);
 		Arrays.sort(actual);
 		assertArrayEquals(expected, actual);
+	}
+
+	@Test
+	public void testPythonFunction() throws Exception {
+		PythonFunctionFactory pythonFunctionFactory = PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.get();
+		PythonFunctionFactory testFunctionFactory = (moduleName, objectName) ->
+			new PythonScalarFunction(null, null, null, null, null, false, null);
+		try {
+			PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(testFunctionFactory);
+			ExecutionContext context = createPythonFunctionExecutionContext();
+			final String[] expected = new String[]{"pythonudf"};
+			final String[] actual = context.getTableEnvironment().listUserDefinedFunctions();
+			assertArrayEquals(expected, actual);
+		} finally {
+			PythonFunctionFactory.PYTHON_FUNCTION_FACTORY_REF.set(pythonFunctionFactory);
+		}
 	}
 
 	@Test
@@ -213,7 +280,13 @@ public class ExecutionContextTest {
 
 		assertArrayEquals(
 			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
-			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
+			tableEnv.from("TemporalTableUsage").getSchema().getFieldNames());
+
+		// Please delete this test after removing registerTableSourceInternal in SQL-CLI.
+		TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
+		LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
+		assertTrue(timestampType instanceof TimestampType);
+		assertEquals(TimestampKind.ROWTIME, ((TimestampType) timestampType).getKind());
 	}
 
 	@Test
@@ -221,35 +294,23 @@ public class ExecutionContextTest {
 		final ExecutionContext<?> context = createConfigurationExecutionContext();
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 
-		assertEquals(
-			100,
-			tableEnv.getConfig().getConfiguration().getInteger(
-				ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT));
-		assertTrue(
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
-		assertEquals(
-			"128kb",
-			tableEnv.getConfig().getConfiguration().getString(
-				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
+		Configuration conf = tableEnv.getConfig().getConfiguration();
+		assertEquals(100, conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT));
+		assertTrue(conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
+		assertEquals("128kb", conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
 
-		assertTrue(
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
+		assertTrue(conf.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
 
 		// these options are not modified and should be equal to their default value
 		assertEquals(
 			ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue(),
-			tableEnv.getConfig().getConfiguration().getBoolean(
-				ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
+			conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
 		assertEquals(
 			ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.defaultValue(),
-			tableEnv.getConfig().getConfiguration().getString(
-				ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
+			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
 		assertEquals(
 			OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD.defaultValue().longValue(),
-			tableEnv.getConfig().getConfiguration().getLong(
-				OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
+			conf.getLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
 	}
 
 	@Test
@@ -333,17 +394,37 @@ public class ExecutionContextTest {
 		return createExecutionContext(STREAMING_ENVIRONMENT_FILE, replaceVars);
 	}
 
+	private <T> ExecutionContext<T> createExecutionExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = createDefaultReplaceVars();
+		return createExecutionContext(EXECUTION_ENVIRONMENT_FILE, replaceVars);
+	}
+
 	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
 		return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
+	}
+
+	private <T> ExecutionContext<T> createPythonFunctionExecutionContext() throws Exception {
+		return createExecutionContext(FUNCTION_ENVIRONMENT_FILE, new HashMap<>());
 	}
 
 	// a catalog that requires the thread context class loader to be a user code classloader during construction and opening
 	private static class TestClassLoaderCatalog extends GenericInMemoryCatalog {
 
-		private static final Class parentFirstCL = FlinkUserCodeClassLoaders.parentFirst(
-				new URL[0], TestClassLoaderCatalog.class.getClassLoader()).getClass();
-		private static final Class childFirstCL = FlinkUserCodeClassLoaders.childFirst(
-				new URL[0], TestClassLoaderCatalog.class.getClassLoader(), new String[0]).getClass();
+		private static final Class parentFirstCL = FlinkUserCodeClassLoaders
+			.parentFirst(
+				new URL[0],
+				TestClassLoaderCatalog.class.getClassLoader(),
+				NOOP_EXCEPTION_HANDLER,
+				true)
+			.getClass();
+		private static final Class childFirstCL = FlinkUserCodeClassLoaders
+			.childFirst(
+				new URL[0],
+				TestClassLoaderCatalog.class.getClassLoader(),
+				new String[0],
+				NOOP_EXCEPTION_HANDLER,
+				true)
+			.getClass();
 
 		TestClassLoaderCatalog(String name) {
 			super(name);

@@ -20,10 +20,11 @@ package org.apache.flink.table.api.batch.table.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.{TableException, ValidationException, _}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
+
 import org.junit._
 
 class JoinValidationTest extends TableTestBase {
@@ -142,6 +143,6 @@ class JoinValidationTest extends TableTestBase {
     val in1 = tEnv1.fromDataSet(ds1, 'a, 'b, 'c)
     val in2 = tEnv2.fromDataSet(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
-    in1.join(in2).where("a === d").select("g.count")
+    in1.join(in2).where($"a" === $"d").select($"g".count)
   }
 }

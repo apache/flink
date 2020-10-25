@@ -20,22 +20,21 @@ package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
 class MatchRecognizeValidationTest extends TableTestBase {
 
   private val streamUtil = scalaStreamTestUtil()
-  streamUtil.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   streamUtil.addDataStream[(Int, String, Timestamp)](
     "MyTable", 'a, 'b, 'rowtime.rowtime, 'proctime.proctime)
   streamUtil.addDataStream[(String, Long, Int, Int)](
@@ -124,8 +123,8 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testUpdatesInUpstreamOperatorNotSupported(): Unit = {
-    thrown.expectMessage("Retraction on match recognize is not supported. Note: Match " +
-      "recognize should not follow a non-windowed GroupBy aggregation.")
+    thrown.expectMessage("Match Recognize doesn't support consuming update changes " +
+      "which is produced by node GroupAggregate(")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =
@@ -313,8 +312,6 @@ class MatchRecognizeValidationTest extends TableTestBase {
     streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
-  @Ignore("Calcite doesn't throw exception when parse distinct aggregate, " +
-    "and doesn't provide information about distinct")
   @Test
   def testDistinctAggregationsNotSupported(): Unit = {
     thrown.expect(classOf[ValidationException])

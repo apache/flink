@@ -346,10 +346,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	public static Plan getTPCH3Plan() throws Exception {
-		return tcph3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
+		return tpch3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
 	}
 
-	public static Plan tcph3(String[] args) throws Exception {
+	public static Plan tpch3(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 

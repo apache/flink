@@ -2402,7 +2402,7 @@ public abstract class AbstractByteBufTest extends TestLogger {
                 }
             }).start();
         }
-        latch.await(10, TimeUnit.SECONDS);
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
         barrier.await(5, TimeUnit.SECONDS);
         buffer.release();
     }
@@ -2457,7 +2457,7 @@ public abstract class AbstractByteBufTest extends TestLogger {
                 }
             }).start();
         }
-        latch.await(10, TimeUnit.SECONDS);
+		assertTrue(latch.await(10, TimeUnit.SECONDS));
         barrier.await(5, TimeUnit.SECONDS);
         buffer.release();
     }
@@ -2512,7 +2512,7 @@ public abstract class AbstractByteBufTest extends TestLogger {
                 }
             }).start();
         }
-        latch.await(10, TimeUnit.SECONDS);
+		assertTrue(latch.await(10, TimeUnit.SECONDS));
         barrier.await(5, TimeUnit.SECONDS);
         assertNull(cause.get());
         buffer.release();

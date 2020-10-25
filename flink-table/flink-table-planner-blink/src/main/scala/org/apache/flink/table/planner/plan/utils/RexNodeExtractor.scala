@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
+import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
@@ -36,7 +36,7 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
-import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
+import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.util.{TimestampString, Util}
 
 import java.util
@@ -97,7 +97,14 @@ object RexNodeExtractor extends Logging {
       timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
-    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
+
+    // CALCITE-4173: expand the Sarg, then converts to expressions.
+    val rewrite = if (expr.getKind == SqlKind.SEARCH) {
+      RexUtil.expandSearch(rexBuilder, null, expr)
+    } else {
+      expr
+    }
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, rewrite)
     // converts the cnf condition to a list of AND conditions
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
@@ -105,8 +112,7 @@ object RexNodeExtractor extends Logging {
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = inputFieldNames.asScala.toArray
     val converter = new RexNodeToExpressionConverter(
-      inputNames, functionCatalog, catalogManager, timeZone)
-
+      rexBuilder, inputNames, functionCatalog, catalogManager, timeZone)
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
         case Some(expression) => convertedExpressions += expression
@@ -312,6 +318,7 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   * @param functionCatalog The function catalog
   */
 class RexNodeToExpressionConverter(
+    rexBuilder: RexBuilder,
     inputNames: Array[String],
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
@@ -402,11 +409,13 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue,
-      fromLogicalTypeToDataType(literalType)))
+    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
   }
 
-  override def visitCall(rexCall: RexCall): Option[ResolvedExpression] = {
+  override def visitCall(oriRexCall: RexCall): Option[ResolvedExpression] = {
+    val rexCall = FlinkRexUtil.expandSearch(
+      rexBuilder,
+      oriRexCall).asInstanceOf[RexCall]
     val operands = rexCall.getOperands.map(
       operand => operand.accept(this).orNull
     )

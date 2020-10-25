@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
@@ -37,9 +36,10 @@ class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
-    withRetractTraits: Boolean = false,
+    withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
-    withTreeStyle: Boolean = true)
+    withTreeStyle: Boolean = true,
+    borders: Array[RelNode] = Array())
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   var lastChildren: Seq[Boolean] = Nil
@@ -69,6 +69,12 @@ class RelTreeWriterImpl(
       s.append(rel.getId).append(":")
     }
 
+    val borderIndex = borders.indexOf(rel)
+    val reachBorder = borderIndex >= 0
+    if (reachBorder) {
+      s.append("[#").append(borderIndex + 1).append("] ")
+    }
+
     rel.getRelTypeName match {
       case name if name.startsWith("BatchExec") => s.append(name.substring(9))
       case name if name.startsWith("StreamExec") => s.append(name.substring(10))
@@ -80,14 +86,11 @@ class RelTreeWriterImpl(
       printValues.addAll(values)
     }
 
-    if (withRetractTraits) rel match {
+    if (withChangelogTraits) rel match {
       case streamRel: StreamPhysicalRel =>
-        val traitSet = streamRel.getTraitSet
+        val changelogMode = ChangelogPlanUtils.getChangelogMode(streamRel)
         printValues.add(
-          Pair.of("updateAsRetraction",
-            traitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)))
-        printValues.add(
-          Pair.of("accMode", traitSet.getTrait(AccModeTraitDef.INSTANCE)))
+          Pair.of("changelogMode", ChangelogPlanUtils.stringifyChangelogMode(changelogMode)))
       case _ => // ignore
     }
 
@@ -114,6 +117,10 @@ class RelTreeWriterImpl(
         .append(mq.getCumulativeCost(rel))
     }
     pw.println(s)
+    if (reachBorder) {
+      return
+    }
+
     if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
       if (withTreeStyle) {
         depth = depth + 1

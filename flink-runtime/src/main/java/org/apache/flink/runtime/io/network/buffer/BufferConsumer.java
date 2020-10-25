@@ -25,6 +25,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -53,7 +54,7 @@ public class BufferConsumer implements Closeable {
 			PositionMarker currentWriterPosition,
 			int currentReaderPosition) {
 		this(
-			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
+			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler)),
 			currentWriterPosition,
 			currentReaderPosition);
 	}
@@ -61,15 +62,15 @@ public class BufferConsumer implements Closeable {
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
-		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, Buffer.DataType dataType) {
+		this(memorySegment, recycler, memorySegment.size(), dataType);
 	}
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
-		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, Buffer.DataType dataType) {
+		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), dataType),
 				() -> -size,
 				0);
 		checkState(memorySegment.size() > 0);
@@ -79,6 +80,7 @@ public class BufferConsumer implements Closeable {
 	private BufferConsumer(Buffer buffer, BufferBuilder.PositionMarker currentWriterPosition, int currentReaderPosition) {
 		this.buffer = checkNotNull(buffer);
 		this.writerPosition = new CachedPositionMarker(checkNotNull(currentWriterPosition));
+		checkArgument(currentReaderPosition <= writerPosition.getCached(), "Reader position larger than writer position");
 		this.currentReaderPosition = currentReaderPosition;
 	}
 
@@ -118,8 +120,24 @@ public class BufferConsumer implements Closeable {
 		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);
 	}
 
+	/**
+	 * Returns a retained copy with separate indexes and sets the reader position to the given value. This allows to
+	 * read from the same {@link MemorySegment} twice starting from the supplied position.
+	 *
+	 * @param readerPosition the new reader position. Can be less than the {@link #currentReaderPosition}, but may not
+	 * 						 exceed the current writer's position.
+	 * @return a retained copy of self with separate indexes
+	 */
+	public BufferConsumer copyWithReaderPosition(int readerPosition) {
+		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, readerPosition);
+	}
+
 	public boolean isBuffer() {
 		return buffer.isBuffer();
+	}
+
+	public Buffer.DataType getDataType() {
+		return buffer.getDataType();
 	}
 
 	@Override

@@ -28,12 +28,6 @@ import org.apache.flink.configuration.ConfigOptions;
 @Internal
 public class KubernetesConfigOptionsInternal {
 
-	public static final ConfigOption<String> SERVICE_ID = ConfigOptions
-		.key("kubernetes.internal.service.id")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("The service id will be set in configuration after created. It will be used for gc.");
-
 	public static final ConfigOption<String> ENTRY_POINT_CLASS = ConfigOptions
 		.key("kubernetes.internal.jobmanager.entrypoint.class")
 		.stringType()

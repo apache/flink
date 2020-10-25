@@ -32,27 +32,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The {@code AllocatedSlot} represents a slot that the JobMaster allocated from a TaskExecutor.
  * It represents a slice of allocated resources from the TaskExecutor.
- * 
+ *
  * <p>To allocate an {@code AllocatedSlot}, the requests a slot from the ResourceManager. The
  * ResourceManager picks (or starts) a TaskExecutor that will then allocate the slot to the
  * JobMaster and notify the JobMaster.
- * 
+ *
  * <p>Note: Prior to the resource management changes introduced in (Flink Improvement Proposal 6),
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
- * JobManager. All slots had a default unknown resource profile. 
+ * JobManager. All slots had a default unknown resource profile.
  */
 class AllocatedSlot implements PhysicalSlot {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
 
-	/** The location information of the TaskManager to which this slot belongs */
+	/** The location information of the TaskManager to which this slot belongs. */
 	private final TaskManagerLocation taskManagerLocation;
 
-	/** The resource profile of the slot provides */
+	/** The resource profile of the slot provides. */
 	private final ResourceProfile resourceProfile;
 
-	/** RPC gateway to call the TaskManager that holds this slot */
+	/** RPC gateway to call the TaskManager that holds this slot. */
 	private final TaskManagerGateway taskManagerGateway;
 
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
@@ -93,9 +93,9 @@ class AllocatedSlot implements PhysicalSlot {
 
 	/**
 	 * Gets the ID of the TaskManager on which this slot was allocated.
-	 * 
-	 * <p>This is equivalent to {@link #getTaskManagerLocation()#getTaskManagerId()}.
-	 * 
+	 *
+	 * <p>This is equivalent to {@link #getTaskManagerLocation()}.{@link #getTaskManagerId()}.
+	 *
 	 * @return This slot's TaskManager's ID.
 	 */
 	public ResourceID getTaskManagerId() {
@@ -105,6 +105,11 @@ class AllocatedSlot implements PhysicalSlot {
 	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
+	}
+
+	@Override
+	public boolean willBeOccupiedIndefinitely() {
+		return isUsed() && payloadReference.get().willOccupySlotIndefinitely();
 	}
 
 	@Override

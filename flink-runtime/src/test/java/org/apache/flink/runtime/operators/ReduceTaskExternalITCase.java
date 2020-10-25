@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.runtime.operators.sort.Sorter;
+import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -31,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
-import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
@@ -120,24 +122,31 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 	}
 	
 	@Test
-	public void testSingleLevelMergeCombiningReduceTask()
-	{
+	public void testSingleLevelMergeCombiningReduceTask() throws IOException {
 		final int keyCnt = 8192;
 		final int valCnt = 8;
 		
 		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
-		
-		CombiningUnilateralSortMerger<Record> sorter = null;
+
+		Sorter<Record> sorter = null;
 		try {
-			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
-				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
-				getContainingTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
-					this.perSortFractionMem,
-					2, 0.8f, true /* use large record handler */, true);
+			sorter =
+				ExternalSorter.newBuilder(
+						getMemoryManager(),
+						getContainingTask(),
+						RecordSerializerFactory.get().getSerializer(),
+						this.comparator.duplicate())
+					.maxNumFileHandles(2)
+					.withCombiner(new MockCombiningReduceStub())
+					.enableSpilling(getIOManager(), 0.8f)
+					.memoryFraction(this.perSortFractionMem)
+					.objectReuse(true)
+					.largeRecords(true)
+					.build(new UniformRecordGenerator(keyCnt, valCnt, false));
 			addInput(sorter.getIterator());
-			
+
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -166,7 +175,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 	
 	
 	@Test
-	public void testMultiLevelMergeCombiningReduceTask() {
+	public void testMultiLevelMergeCombiningReduceTask() throws IOException {
 
 		int keyCnt = 32768;
 		int valCnt = 8;
@@ -175,13 +184,21 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
-		CombiningUnilateralSortMerger<Record> sorter = null;
+		Sorter<Record> sorter = null;
 		try {
-			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
-				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
-				getContainingTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
-					this.perSortFractionMem,
-					2, 0.8f, true /* use large record handler */, false);
+			sorter =
+				ExternalSorter.newBuilder(
+						getMemoryManager(),
+						getContainingTask(),
+						RecordSerializerFactory.get().getSerializer(),
+						this.comparator.duplicate())
+					.maxNumFileHandles(2)
+					.withCombiner(new MockCombiningReduceStub())
+					.enableSpilling(getIOManager(), 0.8f)
+					.memoryFraction(this.perSortFractionMem)
+					.objectReuse(false)
+					.largeRecords(true)
+					.build(new UniformRecordGenerator(keyCnt, valCnt, false));
 			addInput(sorter.getIterator());
 			
 			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();

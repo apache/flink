@@ -16,7 +16,26 @@
   ~ limitations under the License.
   -->
 
-<nz-button-group nzSize="small">
+
+<nz-button-group nzSize="small" *ngIf="compactMode; else defaultTemplate">
   <a nz-button (click)="reload.next()"><i nz-icon type="reload"></i></a>
   <a nz-button [attr.download]="downloadName" [attr.href]="downloadHref"><i nz-icon type="download"></i></a>
 </nz-button-group>
+
+<ng-template #defaultTemplate>
+  <span *ngIf="isLoading; else reloadTpl;">Loading...</span>
+  <ng-template #reloadTpl>
+    <a (click)="reload.emit()"><i nz-icon class="operate-icon" nzType="sync" nzTheme="outline"></i> Reload</a>
+  </ng-template>
+  <nz-divider nzType="vertical"></nz-divider>
+  <a [attr.download]="downloadName" [attr.href]="downloadHref"><i nz-icon class="operate-icon" nzType="download" nzTheme="outline"></i> Download</a>
+  <nz-divider nzType="vertical"></nz-divider>
+  <a (click)="toggleFullScreen()">
+    <ng-container *ngIf="isFullScreen; else exitFullScreenTpl;">
+      <i nz-icon class="operate-icon" nzType="fullscreen-exit" nzTheme="outline"></i> Exit FullScreen
+    </ng-container>
+    <ng-template #exitFullScreenTpl>
+      <i nz-icon class="operate-icon" nzType="fullscreen" nzTheme="outline"></i> FullScreen
+    </ng-template>
+  </a>
+</ng-template>

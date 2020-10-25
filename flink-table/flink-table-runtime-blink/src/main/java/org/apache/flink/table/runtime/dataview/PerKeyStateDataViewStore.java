@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -25,14 +26,15 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.table.dataview.ListViewTypeInfo;
-import org.apache.flink.table.dataview.MapViewTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * Default implementation of StateDataViewStore that currently forwards state registration
+ * Default implementation of {@link StateDataViewStore} that currently forwards state registration
  * to a {@link RuntimeContext}.
  */
-public class PerKeyStateDataViewStore implements StateDataViewStore {
+@Internal
+public final class PerKeyStateDataViewStore implements StateDataViewStore {
+
 	private static final String NULL_STATE_POSTFIX = "_null_state";
 
 	private final RuntimeContext ctx;
@@ -42,19 +44,23 @@ public class PerKeyStateDataViewStore implements StateDataViewStore {
 	}
 
 	@Override
-	public <N, UK, UV> StateMapView<N, UK, UV> getStateMapView(String stateName, MapViewTypeInfo<UK, UV> mapViewTypeInfo) throws Exception {
-		MapStateDescriptor<UK, UV> mapStateDescriptor = new MapStateDescriptor<>(
+	public <N, EK, EV> StateMapView<N, EK, EV> getStateMapView(
+			String stateName,
+			boolean supportNullKey,
+			TypeSerializer<EK> keySerializer,
+			TypeSerializer<EV> valueSerializer) {
+		final MapStateDescriptor<EK, EV> mapStateDescriptor = new MapStateDescriptor<>(
 			stateName,
-			mapViewTypeInfo.getKeyType(),
-			mapViewTypeInfo.getValueType());
+			keySerializer,
+			valueSerializer);
 
-		MapState<UK, UV> mapState = ctx.getMapState(mapStateDescriptor);
+		final MapState<EK, EV> mapState = ctx.getMapState(mapStateDescriptor);
 
-		if (mapViewTypeInfo.isNullAware()) {
-			ValueStateDescriptor<UV> nullStateDescriptor = new ValueStateDescriptor<>(
+		if (supportNullKey) {
+			final ValueStateDescriptor<EV> nullStateDescriptor = new ValueStateDescriptor<>(
 				stateName + NULL_STATE_POSTFIX,
-				mapViewTypeInfo.getValueType());
-			ValueState<UV> nullState = ctx.getState(nullStateDescriptor);
+				valueSerializer);
+			final ValueState<EV> nullState = ctx.getState(nullStateDescriptor);
 			return new StateMapView.KeyedStateMapViewWithKeysNullable<>(mapState, nullState);
 		} else {
 			return new StateMapView.KeyedStateMapViewWithKeysNotNull<>(mapState);
@@ -62,12 +68,14 @@ public class PerKeyStateDataViewStore implements StateDataViewStore {
 	}
 
 	@Override
-	public <N, V> StateListView<N, V> getStateListView(String stateName, ListViewTypeInfo<V> listViewTypeInfo) throws Exception {
-		ListStateDescriptor<V> listStateDesc = new ListStateDescriptor<>(
+	public <N, EE> StateListView<N, EE> getStateListView(
+			String stateName,
+			TypeSerializer<EE> elementSerializer) {
+		final ListStateDescriptor<EE> listStateDescriptor = new ListStateDescriptor<>(
 			stateName,
-			listViewTypeInfo.getElementType());
+			elementSerializer);
 
-		ListState<V> listState = ctx.getListState(listStateDesc);
+		final ListState<EE> listState = ctx.getListState(listStateDescriptor);
 
 		return new StateListView.KeyedStateListView<>(listState);
 	}

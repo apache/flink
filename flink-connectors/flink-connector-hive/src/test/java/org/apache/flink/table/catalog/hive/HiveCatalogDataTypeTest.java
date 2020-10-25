@@ -154,7 +154,6 @@ public class HiveCatalogDataTypeTest {
 		};
 
 		exception.expect(CatalogException.class);
-		exception.expectMessage("HiveCatalog doesn't support char type with length of '256'. The maximum length is 255");
 		verifyDataTypes(types);
 	}
 
@@ -165,7 +164,6 @@ public class HiveCatalogDataTypeTest {
 		};
 
 		exception.expect(CatalogException.class);
-		exception.expectMessage("HiveCatalog doesn't support varchar type with length of '65536'. The maximum length is 65535");
 		verifyDataTypes(types);
 	}
 

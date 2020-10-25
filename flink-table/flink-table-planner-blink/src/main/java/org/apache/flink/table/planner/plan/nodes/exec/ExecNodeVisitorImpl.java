@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 /**
  * Implement of {@link ExecNodeVisitor}.
+ * An exec node may be visited multiple times if it's the input of multiple nodes.
  */
 public class ExecNodeVisitorImpl implements ExecNodeVisitor {
 

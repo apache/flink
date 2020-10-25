@@ -21,19 +21,19 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -56,13 +56,13 @@ class BatchExecExchange(
     relDistribution: RelDistribution)
   extends CommonPhysicalExchange(cluster, traitSet, inputRel, relDistribution)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   // TODO reuse PartitionTransformation
   // currently, an Exchange' input transformation will be reused if it is reusable,
   // and different PartitionTransformation objects will be created which have same input.
   // cache input transformation to reuse
-  private var reusedInput: Option[Transformation[BaseRow]] = None
+  private var reusedInput: Option[Transformation[RowData]] = None
   // the required shuffle mode for reusable ExchangeBatchExec
   // if it's None, use value from getShuffleMode
   private var requiredShuffleMode: Option[ShuffleMode] = None
@@ -92,7 +92,7 @@ class BatchExecExchange(
       case Some(mode) if mode eq ShuffleMode.BATCH => mode
       case _ =>
         if (tableConf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-            .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
+            .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString)) {
           ShuffleMode.BATCH
         } else {
           ShuffleMode.UNDEFINED
@@ -100,20 +100,32 @@ class BatchExecExchange(
     }
   }
 
-  override def getDamBehavior: DamBehavior = {
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
     if (shuffleMode eq ShuffleMode.BATCH) {
-      return DamBehavior.FULL_DAM
-    }
-    distribution.getType match {
-      case RelDistribution.Type.RANGE_DISTRIBUTED => DamBehavior.FULL_DAM
-      case _ => DamBehavior.PIPELINED
+      List(
+        ExecEdge.builder()
+          .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+          .build())
+    } else {
+      distribution.getType match {
+        case RelDistribution.Type.RANGE_DISTRIBUTED =>
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+              .build())
+        case _ =>
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+              .build())
+      }
     }
   }
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
@@ -122,18 +134,18 @@ class BatchExecExchange(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val input = reusedInput match {
       case Some(transformation) => transformation
       case None =>
         val input = getInputNodes.get(0).translateToPlan(planner)
-            .asInstanceOf[Transformation[BaseRow]]
+            .asInstanceOf[Transformation[RowData]]
         reusedInput = Some(input)
         input
     }
 
-    val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val inputType = input.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val outputRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val conf = planner.getTableConfig
     val shuffleMode = getShuffleMode(conf.getConfiguration)
@@ -151,7 +163,7 @@ class BatchExecExchange(
       case RelDistribution.Type.SINGLETON =>
         val transformation = new PartitionTransformation(
           input,
-          new GlobalPartitioner[BaseRow],
+          new GlobalPartitioner[RowData],
           shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation.setParallelism(1)
@@ -160,7 +172,7 @@ class BatchExecExchange(
       case RelDistribution.Type.RANDOM_DISTRIBUTED =>
         val transformation = new PartitionTransformation(
           input,
-          new RebalancePartitioner[BaseRow],
+          new RebalancePartitioner[RowData],
           shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
@@ -169,7 +181,7 @@ class BatchExecExchange(
       case RelDistribution.Type.BROADCAST_DISTRIBUTED =>
         val transformation = new PartitionTransformation(
           input,
-          new BroadcastPartitioner[BaseRow],
+          new BroadcastPartitioner[RowData],
           shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT)
@@ -181,7 +193,7 @@ class BatchExecExchange(
         val partitioner = new BinaryHashPartitioner(
           HashCodeGenerator.generateRowHash(
             CodeGeneratorContext(planner.getTableConfig),
-            RowType.of(inputType.getLogicalTypes: _*),
+            RowType.of(inputType.toRowFieldTypes: _*),
             "HashPartitioner",
             keys.map(_.intValue()).toArray),
           keys.map(getInput.getRowType.getFieldNames.get(_)).toArray

@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
+
 import org.junit.{Before, Test}
 
 abstract class DistinctAggregateTestBase extends TableTestBase {
@@ -180,6 +180,13 @@ abstract class DistinctAggregateTestBase extends TableTestBase {
     val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
       "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
       "FROM MyTable2 GROUP BY d"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testDistinctAggWithDuplicateFilterField(): Unit = {
+    val sqlQuery = "SELECT a, COUNT(c) FILTER (WHERE b > 1),\n" +
+      "COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a"
     util.verifyPlan(sqlQuery)
   }
 

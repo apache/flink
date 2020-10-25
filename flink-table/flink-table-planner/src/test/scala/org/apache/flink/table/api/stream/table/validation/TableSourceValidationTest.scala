@@ -20,9 +20,10 @@ package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, TableSchema, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSourceWithoutExplainSourceOverride, TestProjectableTableSourceWithoutExplainSourceOverride}
+
 import org.hamcrest.Matchers
 import org.junit.Test
 
@@ -41,7 +42,7 @@ class TableSourceValidationTest extends TableTestBase {
       Array("id", "name", "val", "rtime"))
 
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSourceWithoutExplainSourceOverride(
         tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -59,12 +60,13 @@ class TableSourceValidationTest extends TableTestBase {
     val tableSource = TestFilterableTableSourceWithoutExplainSourceOverride()
     val util = batchTestUtil()
 
-    util.tableEnv.registerTableSource("T", tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("T", tableSource)
 
     val t = util.tableEnv
       .scan("T")
       .select('price, 'id, 'amount)
-      .where("price * 2 < 32")
+      .where($"price" * 2 < 32)
 
     // must fail since pushed filter is not explained in source
     util.explain(t)

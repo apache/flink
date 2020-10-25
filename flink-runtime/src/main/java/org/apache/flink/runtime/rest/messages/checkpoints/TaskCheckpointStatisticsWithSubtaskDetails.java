@@ -51,6 +51,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
+			@JsonProperty(FIELD_NAME_PROCESSED_DATA) long processedData,
+			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonProperty(FIELD_NAME_SUMMARY) Summary summary,
@@ -62,6 +64,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			stateSize,
 			duration,
 			alignmentBuffered,
+			processedData,
+			persistedData,
 			numSubtasks,
 			numAckSubtasks);
 
@@ -107,6 +111,12 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 	 */
 	public static final class Summary {
 
+		/**
+		 * The accurate name of this field should be 'checkpointed_data_size',
+		 * keep it as before to not break backwards compatibility for old web UI.
+		 *
+		 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+		 */
 		public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
@@ -114,6 +124,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 		public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint_duration";
 
 		public static final String FIELD_NAME_ALIGNMENT = "alignment";
+
+		public static final String FIELD_NAME_START_DELAY = "start_delay";
 
 		@JsonProperty(FIELD_NAME_STATE_SIZE)
 		private final MinMaxAvgStatistics stateSize;
@@ -127,16 +139,21 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 		@JsonProperty(FIELD_NAME_ALIGNMENT)
 		private final CheckpointAlignment checkpointAlignment;
 
+		@JsonProperty(FIELD_NAME_START_DELAY)
+		private final MinMaxAvgStatistics checkpointStartDelay;
+
 		@JsonCreator
 		public Summary(
 				@JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
 				@JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
 				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment) {
+				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment,
+				@JsonProperty(FIELD_NAME_START_DELAY) MinMaxAvgStatistics checkpointStartDelay) {
 			this.stateSize = Preconditions.checkNotNull(stateSize);
 			this.duration = Preconditions.checkNotNull(duration);
 			this.checkpointDuration = Preconditions.checkNotNull(checkpointDuration);
 			this.checkpointAlignment = Preconditions.checkNotNull(checkpointAlignment);
+			this.checkpointStartDelay = Preconditions.checkNotNull(checkpointStartDelay);
 		}
 
 		public MinMaxAvgStatistics getStateSize() {
@@ -155,6 +172,10 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			return checkpointAlignment;
 		}
 
+		public MinMaxAvgStatistics getCheckpointStartDelay() {
+			return checkpointStartDelay;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -167,12 +188,18 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			return Objects.equals(stateSize, summary.stateSize) &&
 				Objects.equals(duration, summary.duration) &&
 				Objects.equals(checkpointDuration, summary.checkpointDuration) &&
-				Objects.equals(checkpointAlignment, summary.checkpointAlignment);
+				Objects.equals(checkpointAlignment, summary.checkpointAlignment) &&
+				Objects.equals(checkpointStartDelay, summary.checkpointStartDelay);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(stateSize, duration, checkpointDuration, checkpointAlignment);
+			return Objects.hash(
+				stateSize,
+				duration,
+				checkpointDuration,
+				checkpointAlignment,
+				checkpointStartDelay);
 		}
 	}
 
@@ -233,10 +260,20 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 
 		public static final String FIELD_NAME_BUFFERED_DATA = "buffered";
 
+		public static final String FIELD_NAME_PROCESSED = "processed";
+
+		public static final String FIELD_NAME_PERSISTED = "persisted";
+
 		public static final String FIELD_NAME_DURATION = "duration";
 
 		@JsonProperty(FIELD_NAME_BUFFERED_DATA)
 		private final MinMaxAvgStatistics bufferedData;
+
+		@JsonProperty(FIELD_NAME_PROCESSED)
+		private final MinMaxAvgStatistics processedData;
+
+		@JsonProperty(FIELD_NAME_PERSISTED)
+		private final MinMaxAvgStatistics persistedData;
 
 		@JsonProperty(FIELD_NAME_DURATION)
 		private final MinMaxAvgStatistics duration;
@@ -244,13 +281,25 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 		@JsonCreator
 		public CheckpointAlignment(
 			@JsonProperty(FIELD_NAME_BUFFERED_DATA) MinMaxAvgStatistics bufferedData,
+			@JsonProperty(FIELD_NAME_PROCESSED) MinMaxAvgStatistics processedData,
+			@JsonProperty(FIELD_NAME_PERSISTED) MinMaxAvgStatistics persistedData,
 			@JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration) {
 			this.bufferedData = bufferedData;
+			this.processedData = processedData;
+			this.persistedData = persistedData;
 			this.duration = duration;
 		}
 
 		public MinMaxAvgStatistics getBufferedData() {
 			return bufferedData;
+		}
+
+		public MinMaxAvgStatistics getProcessedData() {
+			return processedData;
+		}
+
+		public MinMaxAvgStatistics getPersistedData() {
+			return persistedData;
 		}
 
 		public MinMaxAvgStatistics getDuration() {
@@ -267,12 +316,18 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			}
 			CheckpointAlignment alignment = (CheckpointAlignment) o;
 			return Objects.equals(bufferedData, alignment.bufferedData) &&
+				Objects.equals(processedData, alignment.processedData) &&
+				Objects.equals(persistedData, alignment.persistedData) &&
 				Objects.equals(duration, alignment.duration);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(bufferedData, duration);
+			return Objects.hash(
+				bufferedData,
+				processedData,
+				persistedData,
+				duration);
 		}
 	}
 }

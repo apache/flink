@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import net.jcip.annotations.NotThreadSafe;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
@@ -42,6 +42,7 @@ import org.junit.rules.TemporaryFolder;
 import sun.net.util.IPAddressUtil;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
@@ -203,6 +204,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setString(AkkaOptions.LOOKUP_TIMEOUT, "10 ms");
 		return new UnmodifiableConfiguration(config);
 	}
 

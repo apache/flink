@@ -25,10 +25,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * Class that creates {@link ExecutionVertexSchedulingRequirements} for an {@link ExecutionVertex}.
@@ -47,9 +43,9 @@ public final class ExecutionVertexSchedulingRequirementsMapper {
 			.withPreviousAllocationId(latestPriorAllocation)
 			.withTaskResourceProfile(executionVertex.getResourceProfile())
 			.withPhysicalSlotResourceProfile(getPhysicalSlotResourceProfile(executionVertex))
-			.withSlotSharingGroupId(slotSharingGroup == null ? null : slotSharingGroup.getSlotSharingGroupId())
+			.withSlotSharingGroupId(slotSharingGroup.getSlotSharingGroupId())
 			.withCoLocationConstraint(executionVertex.getLocationConstraint())
-			.withPreferredLocations(getPreferredLocationBasedOnState(executionVertex)).build();
+			.build();
 	}
 
 	/**
@@ -62,16 +58,7 @@ public final class ExecutionVertexSchedulingRequirementsMapper {
 	 */
 	public static ResourceProfile getPhysicalSlotResourceProfile(final ExecutionVertex executionVertex) {
 		final SlotSharingGroup slotSharingGroup = executionVertex.getJobVertex().getSlotSharingGroup();
-		return slotSharingGroup == null
-			? executionVertex.getResourceProfile()
-			: ResourceProfile.fromResourceSpec(slotSharingGroup.getResourceSpec(), MemorySize.ZERO);
-	}
-
-	private static Collection<TaskManagerLocation> getPreferredLocationBasedOnState(final ExecutionVertex executionVertex) {
-		return executionVertex
-			.getPreferredLocationBasedOnState()
-			.map(Collections::singleton)
-			.orElse(Collections.emptySet());
+		return ResourceProfile.fromResourceSpec(slotSharingGroup.getResourceSpec(), MemorySize.ZERO);
 	}
 
 	private ExecutionVertexSchedulingRequirementsMapper() {

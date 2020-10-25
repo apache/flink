@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
@@ -54,11 +54,11 @@ public class RowTimeRowsUnboundedPrecedingFunction<K> extends AbstractRowTimeUnb
 
 	@Override
 	public void processElementsWithSameTimestamp(
-			List<BaseRow> curRowList,
-			Collector<BaseRow> out) throws Exception {
+			List<RowData> curRowList,
+			Collector<RowData> out) throws Exception {
 		int i = 0;
 		while (i < curRowList.size()) {
-			BaseRow curRow = curRowList.get(i);
+			RowData curRow = curRowList.get(i);
 			// accumulate current row
 			function.accumulate(curRow);
 			// prepare output row
