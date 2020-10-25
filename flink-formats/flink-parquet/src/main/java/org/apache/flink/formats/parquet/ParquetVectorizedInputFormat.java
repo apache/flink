@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.Pool;
@@ -69,7 +70,7 @@ import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
  * Parquet {@link BulkFormat} that reads data from the file to {@link VectorizedColumnBatch} in
  * vectorized mode.
  */
-public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
+public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T, FileSourceSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -99,10 +100,13 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 
 	@Override
 	public ParquetReader createReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength) throws IOException {
+			final Configuration config,
+			final FileSourceSplit split) throws IOException {
+
+		final Path filePath = split.path();
+		final long splitOffset = split.offset();
+		final long splitLength = split.length();
+
 		org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
 		ParquetMetadata footer = readFooter(
 				hadoopConfig.conf(), hadoopPath, range(splitOffset, splitOffset + splitLength));
@@ -134,15 +138,16 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 
 	@Override
 	public ParquetReader restoreReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength,
-			CheckpointedPosition checkpointedPosition) throws IOException {
+			final Configuration config,
+			final FileSourceSplit split) throws IOException {
+
+		assert split.getReaderPosition().isPresent();
+		final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
+
 		Preconditions.checkArgument(
 				checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET,
 				"The offset of CheckpointedPosition should always be NO_OFFSET");
-		ParquetReader reader = createReader(config, filePath, splitOffset, splitLength);
+		ParquetReader reader = createReader(config, split);
 		reader.seek(checkpointedPosition.getRecordsAfterOffset());
 		return reader;
 	}

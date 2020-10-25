@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
@@ -61,7 +62,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
 	}
 
 	@Override
-	protected BulkFormat<Integer> wrapWithAdapter(StreamFormat<Integer> format) {
+	protected BulkFormat<Integer, FileSourceSplit> wrapWithAdapter(StreamFormat<Integer> format) {
 		return new StreamFormatAdapter<>(format);
 	}
 
@@ -88,7 +89,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
 		final Configuration config = new Configuration();
 		config.set(StreamFormat.FETCH_IO_SIZE, new MemorySize(batchSize));
 		final StreamFormatAdapter<Integer> format = new StreamFormatAdapter<>(new CheckpointedIntFormat());
-		final BulkFormat.Reader<Integer> reader = format.createReader(config, testPath, 0L, FILE_LEN);
+		final BulkFormat.Reader<Integer> reader = format.createReader(config, new FileSourceSplit("test-id", testPath, 0L, FILE_LEN));
 
 		final List<Integer> result = new ArrayList<>();
 		readNumbers(reader, result, NUM_NUMBERS);

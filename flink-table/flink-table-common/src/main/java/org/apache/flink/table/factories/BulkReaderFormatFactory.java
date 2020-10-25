@@ -20,6 +20,7 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.data.RowData;
@@ -30,7 +31,7 @@ import org.apache.flink.table.data.RowData;
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
  */
 @Internal
-public interface BulkReaderFormatFactory extends DecodingFormatFactory<BulkFormat<RowData>> {
+public interface BulkReaderFormatFactory extends DecodingFormatFactory<BulkFormat<RowData, FileSourceSplit>> {
 
 	/**
 	 * Creates a {@link BulkDecodingFormat} from the given context and format options.

@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -29,7 +30,7 @@ import java.util.List;
  * A {@link Format} for a {@link DynamicTableSource} for reading rows by {@link BulkFormat}.
  */
 @Internal
-public interface BulkDecodingFormat<T> extends DecodingFormat<BulkFormat<T>> {
+public interface BulkDecodingFormat<T> extends DecodingFormat<BulkFormat<T, FileSourceSplit>> {
 
 	/**
 	 * Provides the expected maximum number of produced records for limiting on a best-effort basis.

@@ -21,6 +21,7 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -65,7 +66,7 @@ public class ParquetFileSystemFormatFactory implements BulkReaderFormatFactory, 
 			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 		return new BulkDecodingFormat<RowData>() {
 			@Override
-			public BulkFormat<RowData> createRuntimeDecoder(
+			public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
 					DynamicTableSource.Context sourceContext,
 					DataType producedDataType) {
 				return ParquetColumnarRowInputFormat.createPartitionedFormat(

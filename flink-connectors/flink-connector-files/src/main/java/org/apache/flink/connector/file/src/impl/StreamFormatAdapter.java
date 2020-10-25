@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -45,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Adapter to turn a {@link StreamFormat} into a {@link BulkFormat}.
  */
 @Internal
-public final class StreamFormatAdapter<T> implements BulkFormat<T> {
+public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -58,15 +59,14 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T> {
 	@Override
 	public BulkFormat.Reader<T> createReader(
 			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength) throws IOException {
+			final FileSourceSplit split) throws IOException {
 
-		final TrackingFsDataInputStream trackingStream = openStream(filePath, config, splitOffset);
+		final TrackingFsDataInputStream trackingStream = openStream(split.path(), config, split.offset());
+		final long splitEnd = split.offset() + split.length();
 
 		return doWithCleanupOnException(trackingStream, () -> {
 			final StreamFormat.Reader<T> streamReader = streamFormat.createReader(
-					config, trackingStream, trackingStream.getFileLength(), splitOffset + splitLength);
+					config, trackingStream, trackingStream.getFileLength(), splitEnd);
 			return new Reader<>(streamReader, trackingStream, CheckpointedPosition.NO_OFFSET, 0L);
 		});
 	}
@@ -74,22 +74,23 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T> {
 	@Override
 	public BulkFormat.Reader<T> restoreReader(
 			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength,
-			final CheckpointedPosition checkpointedPosition) throws IOException {
+			final FileSourceSplit split) throws IOException {
 
-		final TrackingFsDataInputStream trackingStream = openStream(filePath, config, splitOffset);
+		assert split.getReaderPosition().isPresent();
+		final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
+
+		final TrackingFsDataInputStream trackingStream = openStream(split.path(), config, split.offset());
+		final long splitEnd = split.offset() + split.length();
 
 		return doWithCleanupOnException(trackingStream, () -> {
 			// if there never was a checkpointed offset, yet, we need to initialize the reader like a fresh reader.
 			// see the JavaDocs on StreamFormat.restoreReader() for details
 			final StreamFormat.Reader<T> streamReader = checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
 					? streamFormat.createReader(
-							config, trackingStream, trackingStream.getFileLength(), splitOffset + splitLength)
+							config, trackingStream, trackingStream.getFileLength(), splitEnd)
 					: streamFormat.restoreReader(
 							config, trackingStream, checkpointedPosition.getOffset(),
-							trackingStream.getFileLength(), splitOffset + splitLength);
+							trackingStream.getFileLength(), splitEnd);
 
 			// skip the records to skip, but make sure we close the reader if something goes wrong
 			doWithCleanupOnException(streamReader, () -> {

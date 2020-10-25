@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -40,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The FormatReaderAdapter turns a {@link FileRecordFormat} into a {@link BulkFormat}.
  */
 @Internal
-public final class FileRecordFormatAdapter<T> implements BulkFormat<T> {
+public final class FileRecordFormatAdapter<T> implements BulkFormat<T, FileSourceSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -53,11 +54,11 @@ public final class FileRecordFormatAdapter<T> implements BulkFormat<T> {
 	@Override
 	public BulkFormat.Reader<T> createReader(
 			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength) throws IOException {
+			final FileSourceSplit split) throws IOException {
 
-		final FileRecordFormat.Reader<T> reader = fileFormat.createReader(config, filePath, splitOffset, splitLength);
+		final FileRecordFormat.Reader<T> reader =
+				fileFormat.createReader(config, split.path(), split.offset(), split.length());
+
 		return doWithCleanupOnException(reader, () -> {
 			//noinspection CodeBlock2Expr
 			return wrapReader(reader, config, CheckpointedPosition.NO_OFFSET, 0L);
@@ -67,10 +68,14 @@ public final class FileRecordFormatAdapter<T> implements BulkFormat<T> {
 	@Override
 	public BulkFormat.Reader<T> restoreReader(
 			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength,
-			final CheckpointedPosition checkpointedPosition) throws IOException {
+			final FileSourceSplit split) throws IOException {
+
+		assert split.getReaderPosition().isPresent();
+		final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
+
+		final Path filePath = split.path();
+		final long splitOffset = split.offset();
+		final long splitLength = split.length();
 
 		final FileRecordFormat.Reader<T> reader = checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
 				? fileFormat.createReader(config, filePath, splitOffset, splitLength)

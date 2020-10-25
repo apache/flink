@@ -27,6 +27,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -94,7 +95,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		SupportsPartitioning,
 		SupportsOverwrite {
 
-	@Nullable private final DecodingFormat<BulkFormat<RowData>> bulkReaderFormat;
+	@Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
 	@Nullable private final EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat;
 	@Nullable private final EncodingFormat<SerializationSchema<RowData>> serializationFormat;
 	@Nullable private final FileSystemFormatFactory formatFactory;
@@ -105,7 +106,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 	FileSystemTableSink(
 			DynamicTableFactory.Context context,
-			@Nullable DecodingFormat<BulkFormat<RowData>> bulkReaderFormat,
+			@Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
 			@Nullable EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat,
 			@Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
@@ -241,7 +242,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	private Optional<CompactReader.Factory<RowData>> createCompactReaderFactory(Context context) {
 		DataType producedDataType = schema.toRowDataType();
 		if (bulkReaderFormat != null) {
-			BulkFormat<RowData> format = bulkReaderFormat.createRuntimeDecoder(
+			BulkFormat<RowData, FileSourceSplit> format = bulkReaderFormat.createRuntimeDecoder(
 					createSourceContext(context), producedDataType);
 			return Optional.of(CompactBulkReader.factory(format));
 		} else if (formatFactory != null) {

@@ -50,7 +50,6 @@ import static org.junit.Assert.assertTrue;
  * Simple integration test case for writing bulk encoded files with the
  * {@link StreamingFileSink} with Parquet.
  */
-@SuppressWarnings("serial")
 public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
 
 	@Rule

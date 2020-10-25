@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -56,7 +57,7 @@ public class FileRecordFormatAdapterTest extends AdapterTestBase<FileRecordForma
 	}
 
 	@Override
-	protected BulkFormat<Integer> wrapWithAdapter(FileRecordFormat<Integer> format) {
+	protected BulkFormat<Integer, FileSourceSplit> wrapWithAdapter(FileRecordFormat<Integer> format) {
 		return new FileRecordFormatAdapter<>(format);
 	}
 
