@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -125,6 +126,10 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
 	@Override
 	public int getInputGateIndex() {
 		return inputGateIndex;
+	}
+
+	@Override
+	public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
 	}
 
 	@Override

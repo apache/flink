@@ -183,6 +183,9 @@ public abstract class InputChannel {
 	public void checkpointStopped(long checkpointId) {
 	}
 
+	public void convertToPriorityEvent(int sequenceNumber) throws IOException {
+	}
+
 	// ------------------------------------------------------------------------
 	// Task events
 	// ------------------------------------------------------------------------
