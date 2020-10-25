@@ -44,6 +44,13 @@ It also assumes that you are familiar with basic relational concepts such as `SE
 If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
 In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
 
+<div class="alert alert-info">
+If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
+For example <b>docker-entrypoint.sh</b> for <b>table-walkthrough_data-generator_1</b> container requires bash.
+If unavailable, it will throw an error <b>standard_init_linux.go:211: exec user process caused "no such file or directory"</b>.
+A workaround is to switch the shell to <b>sh</b> on the first line of <b>docker-entrypoint.sh</b>.
+</div>
+
 ## How To Follow Along
 
 If you want to follow along, you will require a computer with: 
