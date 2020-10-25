@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final Runnable shutdownHook;
 	private final AtomicBoolean wakeUp;
 	private final AtomicBoolean closed;
-	private FetchTask<E, SplitT> fetchTask;
+	private final FetchTask<E, SplitT> fetchTask;
 	private volatile SplitFetcherTask runningTask = null;
 
 	/** Flag whether this fetcher has no work assigned at the moment.
@@ -91,8 +92,13 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				runOnce();
 			}
 		} finally {
-			shutdownHook.run();
 			LOG.info("Split fetcher {} exited.", id);
+			shutdownHook.run();
+			try {
+				splitReader.close();
+			} catch (Exception e) {
+				ExceptionUtils.rethrow(e);
+			}
 		}
 	}
 
