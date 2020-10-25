@@ -100,10 +100,6 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
 	 * created for a split that was assigned from the enumerator. This method may also be called on
 	 * recovery from a checkpoint, if the reader never stored an offset in the checkpoint
 	 * (see {@link #restoreReader(Configuration, Path, long, long, long)} for details.
-	 *
-	 * <p>The {@code fileLen} is the length of the entire file, while {@code splitEnd} is the offset of
-	 * the first byte after the split end boundary (exclusive end boundary). For non-splittable formats,
-	 * both values are identical.
 	 */
 	FileRecordFormat.Reader<T> createReader(
 			Configuration config,
@@ -121,10 +117,6 @@ public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T
 	 * this method is not called, and the reader is created in the same way as a fresh reader via the method
 	 * {@link #createReader(Configuration, Path, long, long)} and the appropriate number of
 	 * records are read and discarded, to position to reader to the checkpointed position.
-	 *
-	 * <p>The {@code fileLen} is the length of the entire file, while {@code splitEnd} is the offset of
-	 * the first byte after the split end boundary (exclusive end boundary). For non-splittable formats,
-	 * both values are identical.
 	 */
 	FileRecordFormat.Reader<T> restoreReader(
 			Configuration config,

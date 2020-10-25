@@ -139,7 +139,7 @@ public interface StreamFormat<T> extends Serializable, ResultTypeQueryable<T> {
 	 * <p>Having a different method for restoring readers to a checkpointed position allows readers to
 	 * seek to the start position differently in that case, compared to when the reader is created from
 	 * a split offset generated at the enumerator. In the latter case, the offsets are commonly "approximate",
-	 * because the enumerator typically generates splits based only on metadata. Reader then have to skip some
+	 * because the enumerator typically generates splits based only on metadata. Readers then have to skip some
 	 * bytes while searching for the next position to start from (based on a delimiter, sync marker, block
 	 * offset, etc.). In contrast, checkpointed offsets are often precise, because they were recorded as the
 	 * reader when through the data stream. Starting a reader from a checkpointed offset may hence not
