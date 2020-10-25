@@ -199,6 +199,14 @@ public class FileSourceSplit implements SourceSplit, Serializable {
 		return Optional.ofNullable(readerPosition);
 	}
 
+	/**
+	 * Creates a copy of this split where the checkpointed position is replaced by the
+	 * given new position.
+	 */
+	public FileSourceSplit updateWithCheckpointedPosition(@Nullable CheckpointedPosition position) {
+		return new FileSourceSplit(id, filePath, offset, length, hostnames, position);
+	}
+
 	// ------------------------------------------------------------------------
 	//  utils
 	// ------------------------------------------------------------------------

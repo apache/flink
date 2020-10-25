@@ -95,12 +95,6 @@ public final class FileSourceSplitState {
 				(offset == CheckpointedPosition.NO_OFFSET && recordsToSkipAfterOffset == 0) ?
 						null : new CheckpointedPosition(offset, recordsToSkipAfterOffset);
 
-		return new FileSourceSplit(
-				split.splitId(),
-				split.path(),
-				split.offset(),
-				split.length(),
-				split.hostnames(),
-				position);
+		return split.updateWithCheckpointedPosition(position);
 	}
 }
