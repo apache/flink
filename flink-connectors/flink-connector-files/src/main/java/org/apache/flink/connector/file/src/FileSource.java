@@ -19,22 +19,11 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SplitEnumerator;
-import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.LocalityAwareSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
-import org.apache.flink.connector.file.src.impl.ContinuousFileSplitEnumerator;
 import org.apache.flink.connector.file.src.impl.FileRecordFormatAdapter;
-import org.apache.flink.connector.file.src.impl.FileSourceReader;
-import org.apache.flink.connector.file.src.impl.StaticFileSplitEnumerator;
 import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.FileRecordFormat;
@@ -42,15 +31,10 @@ import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,7 +91,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the events/records produced by this source.
  */
 @PublicEvolving
-public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>>, ResultTypeQueryable<T> {
+public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -134,19 +118,6 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 
 	// ------------------------------------------------------------------------
 
-	private final Path[] inputPaths;
-
-	private final FileEnumerator.Provider enumeratorFactory;
-
-	private final FileSplitAssigner.Provider assignerFactory;
-
-	private final BulkFormat<T, FileSourceSplit> readerFormat;
-
-	@Nullable
-	private final ContinuousEnumerationSettings continuousEnumerationSettings;
-
-	// ------------------------------------------------------------------------
-
 	private FileSource(
 			final Path[] inputPaths,
 			final FileEnumerator.Provider fileEnumerator,
@@ -154,106 +125,12 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 			final BulkFormat<T, FileSourceSplit> readerFormat,
 			@Nullable final ContinuousEnumerationSettings continuousEnumerationSettings) {
 
-		checkArgument(inputPaths.length > 0);
-		this.inputPaths = inputPaths;
-		this.enumeratorFactory = checkNotNull(fileEnumerator);
-		this.assignerFactory = checkNotNull(splitAssigner);
-		this.readerFormat = checkNotNull(readerFormat);
-		this.continuousEnumerationSettings = continuousEnumerationSettings;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Source API Methods
-	// ------------------------------------------------------------------------
-
-	@Override
-	public Boundedness getBoundedness() {
-		return continuousEnumerationSettings == null ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
-	}
-
-	@Override
-	public SourceReader<T, FileSourceSplit> createReader(SourceReaderContext readerContext) {
-		return new FileSourceReader<>(readerContext, readerFormat, readerContext.getConfiguration());
-	}
-
-	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> createEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> enumContext) {
-
-		final FileEnumerator enumerator = enumeratorFactory.create();
-
-		// read the initial set of splits (which is also the total set of splits for bounded sources)
-		final Collection<FileSourceSplit> splits;
-		try {
-			// TODO - in the next cleanup pass, we should try to remove the need to "wrap unchecked" here
-			splits = enumerator.enumerateSplits(inputPaths, enumContext.currentParallelism());
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Could not enumerate file splits", e);
-		}
-
-		return createSplitEnumerator(enumContext, enumerator, splits, null);
-	}
-
-	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> restoreEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> enumContext,
-			PendingSplitsCheckpoint<FileSourceSplit> checkpoint) throws IOException {
-
-		final FileEnumerator enumerator = enumeratorFactory.create();
-
-		return createSplitEnumerator(enumContext, enumerator, checkpoint.getSplits(), checkpoint.getAlreadyProcessedPaths());
+		super(inputPaths, fileEnumerator, splitAssigner, readerFormat, continuousEnumerationSettings);
 	}
 
 	@Override
 	public SimpleVersionedSerializer<FileSourceSplit> getSplitSerializer() {
 		return FileSourceSplitSerializer.INSTANCE;
-	}
-
-	@Override
-	public SimpleVersionedSerializer<PendingSplitsCheckpoint<FileSourceSplit>> getEnumeratorCheckpointSerializer() {
-		return new PendingSplitsCheckpointSerializer<>(getSplitSerializer());
-	}
-
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return readerFormat.getProducedType();
-	}
-
-	// ------------------------------------------------------------------------
-	//  helpers
-	// ------------------------------------------------------------------------
-
-	private SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> createSplitEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> context,
-			FileEnumerator enumerator,
-			Collection<FileSourceSplit> splits,
-			@Nullable Collection<Path> alreadyProcessedPaths) {
-
-		final FileSplitAssigner splitAssigner = assignerFactory.create(splits);
-
-		if (continuousEnumerationSettings == null) {
-			// bounded case
-			return new StaticFileSplitEnumerator(context, splitAssigner);
-		} else {
-			// unbounded case
-			if (alreadyProcessedPaths == null) {
-				alreadyProcessedPaths = splitsToPaths(splits);
-			}
-
-			return new ContinuousFileSplitEnumerator(
-					context,
-					enumerator,
-					splitAssigner,
-					inputPaths,
-					alreadyProcessedPaths,
-					continuousEnumerationSettings.getDiscoveryInterval().toMillis());
-		}
-	}
-
-	private static Collection<Path> splitsToPaths(Collection<FileSourceSplit> splits) {
-		return splits.stream()
-			.map(FileSourceSplit::path)
-			.collect(Collectors.toCollection(HashSet::new));
 	}
 
 	// ------------------------------------------------------------------------
@@ -321,117 +198,27 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	 *   <li>{@link FileSource#forRecordFileFormat(FileRecordFormat, Path...)}</li>
 	 * </ul>
 	 */
-	public static final class FileSourceBuilder<T> extends AbstractFileSourceBuilder<T, FileSourceBuilder<T>> {
-		public FileSourceBuilder(Path[] inputPaths, BulkFormat<T, FileSourceSplit> readerFormat) {
-			super(inputPaths, readerFormat);
-		}
-	}
+	public static final class FileSourceBuilder<T>
+			extends AbstractFileSourceBuilder<T, FileSourceSplit, FileSourceBuilder<T>> {
 
-	/**
-	 * The generic base builder. This builder carries a <i>SELF</i> type to make it convenient to
-	 * extend this for subclasses, using the following pattern.
-	 * <pre>{@code
-	 * public class SubBuilder<T> extends AbstractFileSourceBuilder<T, SubBuilder<T>> {
-	 *     ...
-	 * }
-	 * }</pre>
-	 * That way, all return values from builder method defined here are typed to the sub-class
-	 * type and support fluent chaining.
-	 *
-	 * <p>We don't make the publicly visible builder generic with a SELF type, because it leads to
-	 * generic signatures that can look complicated and confusing.
-	 */
-	public static class AbstractFileSourceBuilder<T, SELF extends AbstractFileSourceBuilder<T, SELF>> {
-
-		// mandatory - have no defaults
-		private final Path[] inputPaths;
-		private final BulkFormat<T, FileSourceSplit> readerFormat;
-
-		// optional - have defaults
-		private FileEnumerator.Provider fileEnumerator;
-		private FileSplitAssigner.Provider splitAssigner;
-		@Nullable
-		private ContinuousEnumerationSettings continuousSourceSettings;
-
-		protected AbstractFileSourceBuilder(Path[] inputPaths, BulkFormat<T, FileSourceSplit> readerFormat) {
-			this.inputPaths = checkNotNull(inputPaths);
-			this.readerFormat = checkNotNull(readerFormat);
-
-			this.fileEnumerator = readerFormat.isSplittable()
-					? DEFAULT_SPLITTABLE_FILE_ENUMERATOR
-					: DEFAULT_NON_SPLITTABLE_FILE_ENUMERATOR;
-			this.splitAssigner = DEFAULT_SPLIT_ASSIGNER;
+		FileSourceBuilder(Path[] inputPaths, BulkFormat<T, FileSourceSplit> readerFormat) {
+			super(
+				inputPaths,
+				readerFormat,
+				readerFormat.isSplittable()
+						? DEFAULT_SPLITTABLE_FILE_ENUMERATOR
+						: DEFAULT_NON_SPLITTABLE_FILE_ENUMERATOR,
+				DEFAULT_SPLIT_ASSIGNER);
 		}
 
-		/**
-		 * Creates the file source with the settings applied to this builder.
-		 */
+		@Override
 		public FileSource<T> build() {
 			return new FileSource<>(
-				inputPaths,
-				fileEnumerator,
-				splitAssigner,
-				readerFormat,
-				continuousSourceSettings);
-		}
-
-		/**
-		 * Sets this source to streaming ("continuous monitoring") mode.
-		 *
-		 * <p>This makes the source a "continuous streaming" source that keeps running, monitoring
-		 * for new files, and reads these files when they appear and are discovered by the monitoring.
-		 *
-		 * <p>The interval in which the source checks for new files is the {@code discoveryInterval}.
-		 * Shorter intervals mean that files are discovered more quickly, but also imply more frequent
-		 * listing or directory traversal of the file system / object store.
-		 */
-		public SELF monitorContinuously(Duration discoveryInterval) {
-			checkNotNull(discoveryInterval, "discoveryInterval");
-			checkArgument(!(discoveryInterval.isNegative() || discoveryInterval.isZero()), "discoveryInterval must be > 0");
-
-			this.continuousSourceSettings = new ContinuousEnumerationSettings(discoveryInterval);
-			return self();
-		}
-
-		/**
-		 * Sets this source to bounded (batch) mode.
-		 *
-		 * <p>In this mode, the source processes the files that are under the given paths when the
-		 * application is started. Once all files are processed, the source will finish.
-		 *
-		 * <p>This setting is also the default behavior. This method is mainly here to "switch back" to
-		 * bounded (batch) mode, or to make it explicit in the source construction.
-		 */
-		public SELF processStaticFileSet() {
-			this.continuousSourceSettings = null;
-			return self();
-		}
-
-		/**
-		 * Configures the {@link FileEnumerator} for the source.
-		 * The File Enumerator is responsible for selecting from the input path the set of files
-		 * that should be processed (and which to filter out). Furthermore, the File Enumerator
-		 * may split the files further into sub-regions, to enable parallelization beyond the number
-		 * of files.
-		 */
-		public SELF setFileEnumerator(FileEnumerator.Provider fileEnumerator) {
-			this.fileEnumerator = checkNotNull(fileEnumerator);
-			return self();
-		}
-
-		/**
-		 * Configures the {@link FileSplitAssigner} for the source.
-		 * The File Split Assigner determines which parallel reader instance gets which
-		 * {@link FileSourceSplit}, and in which order these splits are assigned.
-		 */
-		public SELF setSplitAssigner(FileSplitAssigner.Provider splitAssigner) {
-			this.splitAssigner = checkNotNull(splitAssigner);
-			return self();
-		}
-
-		@SuppressWarnings("unchecked")
-		private SELF self() {
-			return (SELF) this;
+					inputPaths,
+					fileEnumerator,
+					splitAssigner,
+					readerFormat,
+					continuousSourceSettings);
 		}
 	}
 }
