@@ -107,7 +107,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the events/records produced by this source.
  */
 @PublicEvolving
-public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint>, ResultTypeQueryable<T> {
+public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>>, ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -177,7 +177,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	}
 
 	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> createEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext) {
 
 		final FileEnumerator enumerator = enumeratorFactory.create();
@@ -195,9 +195,9 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	}
 
 	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
+	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> restoreEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext,
-			PendingSplitsCheckpoint checkpoint) throws IOException {
+			PendingSplitsCheckpoint<FileSourceSplit> checkpoint) throws IOException {
 
 		final FileEnumerator enumerator = enumeratorFactory.create();
 
@@ -210,8 +210,8 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	}
 
 	@Override
-	public SimpleVersionedSerializer<PendingSplitsCheckpoint> getEnumeratorCheckpointSerializer() {
-		return PendingSplitsCheckpointSerializer.INSTANCE;
+	public SimpleVersionedSerializer<PendingSplitsCheckpoint<FileSourceSplit>> getEnumeratorCheckpointSerializer() {
+		return new PendingSplitsCheckpointSerializer<>(getSplitSerializer());
 	}
 
 	@Override
@@ -223,7 +223,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	//  helpers
 	// ------------------------------------------------------------------------
 
-	private SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> createSplitEnumerator(
+	private SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> createSplitEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> context,
 			FileEnumerator enumerator,
 			Collection<FileSourceSplit> splits,

@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A continuously monitoring enumerator.
  */
 @Internal
-public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
+public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint<FileSourceSplit>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileSplitEnumerator.class);
 
@@ -123,7 +123,7 @@ public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSource
 	}
 
 	@Override
-	public PendingSplitsCheckpoint snapshotState() throws Exception {
+	public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() throws Exception {
 		return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits(), pathsAlreadyProcessed);
 	}
 
