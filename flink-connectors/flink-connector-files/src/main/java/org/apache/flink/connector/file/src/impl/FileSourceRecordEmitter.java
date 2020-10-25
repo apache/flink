@@ -33,13 +33,14 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
  * the current offset and records-to-skip need to always point to the record after the emitted record.
  */
 @Internal
-final class FileSourceRecordEmitter<T> implements RecordEmitter<RecordAndPosition<T>, T, FileSourceSplitState> {
+final class FileSourceRecordEmitter<T, SplitT extends FileSourceSplit>
+		implements RecordEmitter<RecordAndPosition<T>, T, FileSourceSplitState<SplitT>> {
 
 	@Override
 	public void emitRecord(
 			final RecordAndPosition<T> element,
 			final SourceOutput<T> output,
-			final FileSourceSplitState splitState) {
+			final FileSourceSplitState<SplitT> splitState) {
 
 		output.collect(element.getRecord());
 		splitState.setPosition(element.getOffset(), element.getRecordSkipCount());
