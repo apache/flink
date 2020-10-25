@@ -532,7 +532,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		public abstract void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
 		@Override
-		public void checkpointComplete(long checkpointId) {}
+		public void notifyCheckpointComplete(long checkpointId) {}
 
 		@Override
 		public void resetToCheckpoint(byte[] checkpointData) throws Exception {}
