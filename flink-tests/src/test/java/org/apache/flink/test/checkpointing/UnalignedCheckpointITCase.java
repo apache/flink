@@ -308,7 +308,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public List<LongSplit> snapshotState() {
+			public List<LongSplit> snapshotState(long checkpointId) {
 				if (split == null) {
 					return Collections.emptyList();
 				}
