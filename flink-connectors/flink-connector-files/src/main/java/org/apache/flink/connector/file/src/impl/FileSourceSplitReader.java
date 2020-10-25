@@ -48,7 +48,7 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 	private static final Logger LOG = LoggerFactory.getLogger(FileSourceSplitReader.class);
 
 	private final Configuration config;
-	private final BulkFormat<T> readerFactory;
+	private final BulkFormat<T, FileSourceSplit> readerFactory;
 
 	private final Queue<FileSourceSplit> splits;
 
@@ -57,7 +57,7 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 	@Nullable
 	private String currentSplitId;
 
-	public FileSourceSplitReader(Configuration config, BulkFormat<T> readerFactory) {
+	public FileSourceSplitReader(Configuration config, BulkFormat<T, FileSourceSplit> readerFactory) {
 		this.config = config;
 		this.readerFactory = readerFactory;
 		this.splits = new ArrayDeque<>();
@@ -99,8 +99,8 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 
 		final Optional<CheckpointedPosition> position = nextSplit.getReaderPosition();
 		currentReader = position.isPresent()
-				? readerFactory.restoreReader(config, nextSplit.path(), nextSplit.offset(), nextSplit.length(), position.get())
-				: readerFactory.createReader(config, nextSplit.path(), nextSplit.offset(), nextSplit.length());
+				? readerFactory.restoreReader(config, nextSplit)
+				: readerFactory.createReader(config, nextSplit);
 	}
 
 	private FileRecords<T> finishSplit() throws IOException {

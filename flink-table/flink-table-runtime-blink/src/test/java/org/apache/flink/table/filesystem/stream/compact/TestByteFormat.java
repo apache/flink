@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem.stream.compact;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
@@ -31,6 +32,7 @@ import java.io.IOException;
 /**
  * Test byte stream format.
  */
+@SuppressWarnings("serial")
 public class TestByteFormat extends SimpleStreamFormat<Byte> {
 
 	@Override
@@ -58,7 +60,7 @@ public class TestByteFormat extends SimpleStreamFormat<Byte> {
 		return BasicTypeInfo.BYTE_TYPE_INFO;
 	}
 
-	public static BulkFormat<Byte> bulkFormat() {
+	public static BulkFormat<Byte, FileSourceSplit> bulkFormat() {
 		return new StreamFormatAdapter<>(new TestByteFormat());
 	}
 }

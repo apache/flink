@@ -140,7 +140,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 
 	private final FileSplitAssigner.Provider assignerFactory;
 
-	private final BulkFormat<T> readerFormat;
+	private final BulkFormat<T, FileSourceSplit> readerFormat;
 
 	@Nullable
 	private final ContinuousEnumerationSettings continuousEnumerationSettings;
@@ -151,7 +151,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 			final Path[] inputPaths,
 			final FileEnumerator.Provider fileEnumerator,
 			final FileSplitAssigner.Provider splitAssigner,
-			final BulkFormat<T> readerFormat,
+			final BulkFormat<T, FileSourceSplit> readerFormat,
 			@Nullable final ContinuousEnumerationSettings continuousEnumerationSettings) {
 
 		checkArgument(inputPaths.length > 0);
@@ -273,7 +273,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 		checkNotNull(paths, "paths");
 		checkArgument(paths.length > 0, "paths must not be empty");
 
-		final BulkFormat<T> bulkFormat = new StreamFormatAdapter<>(reader);
+		final BulkFormat<T, FileSourceSplit> bulkFormat = new StreamFormatAdapter<>(reader);
 		return new FileSourceBuilder<>(paths, bulkFormat);
 	}
 
@@ -283,7 +283,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	 *
 	 * <p>Examples for bulk readers are compressed and vectorized formats such as ORC or Parquet.
 	 */
-	public static <T> FileSourceBuilder<T> forBulkFileFormat(final BulkFormat<T> reader, final Path... paths) {
+	public static <T> FileSourceBuilder<T> forBulkFileFormat(final BulkFormat<T, FileSourceSplit> reader, final Path... paths) {
 		checkNotNull(reader, "reader");
 		checkNotNull(paths, "paths");
 		checkArgument(paths.length > 0, "paths must not be empty");
@@ -303,7 +303,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 		checkNotNull(paths, "paths");
 		checkArgument(paths.length > 0, "paths must not be empty");
 
-		final BulkFormat<T> bulkFormat = new FileRecordFormatAdapter<>(reader);
+		final BulkFormat<T, FileSourceSplit> bulkFormat = new FileRecordFormatAdapter<>(reader);
 		return new FileSourceBuilder<>(paths, bulkFormat);
 	}
 
@@ -322,7 +322,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	 * </ul>
 	 */
 	public static final class FileSourceBuilder<T> extends AbstractFileSourceBuilder<T, FileSourceBuilder<T>> {
-		public FileSourceBuilder(Path[] inputPaths, BulkFormat<T> readerFormat) {
+		public FileSourceBuilder(Path[] inputPaths, BulkFormat<T, FileSourceSplit> readerFormat) {
 			super(inputPaths, readerFormat);
 		}
 	}
@@ -345,7 +345,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 
 		// mandatory - have no defaults
 		private final Path[] inputPaths;
-		private final BulkFormat<T> readerFormat;
+		private final BulkFormat<T, FileSourceSplit> readerFormat;
 
 		// optional - have defaults
 		private FileEnumerator.Provider fileEnumerator;
@@ -353,7 +353,7 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 		@Nullable
 		private ContinuousEnumerationSettings continuousSourceSettings;
 
-		protected AbstractFileSourceBuilder(Path[] inputPaths, BulkFormat<T> readerFormat) {
+		protected AbstractFileSourceBuilder(Path[] inputPaths, BulkFormat<T, FileSourceSplit> readerFormat) {
 			this.inputPaths = checkNotNull(inputPaths);
 			this.readerFormat = checkNotNull(readerFormat);
 

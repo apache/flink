@@ -38,7 +38,7 @@ import java.util.Collection;
 public final class FileSourceReader<T>
 		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
 
-	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T> readerFormat, Configuration config) {
+	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T, FileSourceSplit> readerFormat, Configuration config) {
 		super(
 			() -> new FileSourceSplitReader<>(config, readerFormat),
 			new FileSourceRecordEmitter<>(),

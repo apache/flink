@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
@@ -73,7 +74,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		SupportsPartitionPushDown,
 		SupportsFilterPushDown {
 
-	@Nullable private final DecodingFormat<BulkFormat<RowData>> bulkReaderFormat;
+	@Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
 	@Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
 	@Nullable private final FileSystemFormatFactory formatFactory;
 
@@ -84,7 +85,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	public FileSystemTableSource(
 			DynamicTableFactory.Context context,
-			@Nullable DecodingFormat<BulkFormat<RowData>> bulkReaderFormat,
+			@Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
 			@Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
@@ -124,7 +125,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 	}
 
 	private SourceProvider sourceProvider(
-			DecodingFormat<BulkFormat<RowData>> decodingFormat, ScanContext scanContext) {
+			DecodingFormat<BulkFormat<RowData, FileSourceSplit>> decodingFormat, ScanContext scanContext) {
 		if (decodingFormat instanceof BulkDecodingFormat) {
 			BulkDecodingFormat<RowData> bulkFormat = (BulkDecodingFormat<RowData>) decodingFormat;
 			if (limit != null) {
@@ -134,7 +135,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 				bulkFormat.applyFilters(filters);
 			}
 		}
-		BulkFormat<RowData> bulkFormat = decodingFormat.createRuntimeDecoder(
+		BulkFormat<RowData, FileSourceSplit> bulkFormat = decodingFormat.createRuntimeDecoder(
 				scanContext, getProducedDataType());
 		FileSource.FileSourceBuilder<RowData> builder = FileSource
 				.forBulkFileFormat(bulkFormat, paths());

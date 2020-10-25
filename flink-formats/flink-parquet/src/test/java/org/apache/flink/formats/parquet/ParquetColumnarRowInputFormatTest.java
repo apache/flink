@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.Path;
@@ -225,7 +226,7 @@ public class ParquetColumnarRowInputFormatTest {
 				true);
 
 		AtomicInteger cnt = new AtomicInteger(0);
-		forEachRemaining(format.createReader(EMPTY_CONF, testPath, 0, Long.MAX_VALUE), row -> {
+		forEachRemaining(format.createReader(EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)), row -> {
 			int i = cnt.get();
 			assertEquals(i, row.getDouble(0), 0);
 			assertEquals((byte) i, row.getByte(1));
@@ -352,10 +353,13 @@ public class ParquetColumnarRowInputFormatTest {
 
 		BulkFormat.Reader<RowData> reader = format.restoreReader(
 				EMPTY_CONF,
-				path,
-				splitStart,
-				splitLength,
-				new CheckpointedPosition(CheckpointedPosition.NO_OFFSET, seekToRow));
+				new FileSourceSplit(
+						"id",
+						path,
+						splitStart,
+						splitLength,
+						new String[0],
+						new CheckpointedPosition(CheckpointedPosition.NO_OFFSET, seekToRow)));
 
 		AtomicInteger cnt = new AtomicInteger(0);
 		forEachRemaining(reader, row -> {
@@ -483,7 +487,7 @@ public class ParquetColumnarRowInputFormatTest {
 				true);
 
 		AtomicInteger cnt = new AtomicInteger(0);
-		forEachRemaining(format.createReader(EMPTY_CONF, testPath, 0, Long.MAX_VALUE), row -> {
+		forEachRemaining(format.createReader(EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)), row -> {
 			int i = cnt.get();
 			// common values
 			assertEquals(i, row.getDouble(0), 0);
