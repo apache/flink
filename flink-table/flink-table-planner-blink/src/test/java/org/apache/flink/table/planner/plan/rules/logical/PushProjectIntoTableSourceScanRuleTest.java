@@ -80,9 +80,23 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
 						" 'nested-projection-supported' = 'true'," +
-						"  'bounded' = 'true'\n" +
+						" 'bounded' = 'true'\n" +
 						")";
 		util().tableEnv().executeSql(ddl3);
+
+		String ddl4 =
+				"CREATE TABLE MetadataTable(\n" +
+						"  id int,\n" +
+						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
+						"  metadata_1 int metadata,\n" +
+						"  metadata_2 string metadata\n" +
+						") WITH (" +
+						" 'connector' = 'values'," +
+						" 'nested-projection-supported' = 'true'," +
+						" 'bounded' = 'true',\n" +
+						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
+						")";
+		util().tableEnv().executeSql(ddl4);
 	}
 
 	@Override
@@ -103,6 +117,16 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"    deepNested.nested1.name AS nestedName,\n" +
 				"    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n" +
 				"FROM NestedTable";
+		util().verifyPlan(sqlQuery);
+	}
+
+	@Test
+	public void testNestProjectWithMetadata() {
+		String sqlQuery = "SELECT id," +
+				"    deepNested.nested1 AS nested1,\n" +
+				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
+				"FROM MetadataTable";
+
 		util().verifyPlan(sqlQuery);
 	}
 }

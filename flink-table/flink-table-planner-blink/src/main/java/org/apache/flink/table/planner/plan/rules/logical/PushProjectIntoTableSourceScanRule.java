@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -32,6 +31,8 @@ import org.apache.flink.table.planner.plan.utils.RexNodeRewriter;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.DynamicSourceUtils;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
@@ -42,14 +43,18 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan}
@@ -74,20 +79,19 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		if (tableSourceTable == null || !(tableSourceTable.tableSource() instanceof SupportsProjectionPushDown)) {
 			return false;
 		}
-		SupportsProjectionPushDown pushDownSource = (SupportsProjectionPushDown) tableSourceTable.tableSource();
-		if (pushDownSource.supportsNestedProjection()) {
-			throw new TableException("Nested projection push down is unsupported now. \n" +
-					"Please disable nested projection (SupportsProjectionPushDown#supportsNestedProjection returns false), " +
-					"planner will push down the top-level columns.");
-		} else {
-			return true;
-		}
+		return Arrays.stream(tableSourceTable.extraDigests()).noneMatch(digest -> digest.startsWith("project=["));
 	}
 
 	@Override
 	public void onMatch(RelOptRuleCall call) {
 		final LogicalProject project = call.rel(0);
 		final LogicalTableScan scan = call.rel(1);
+
+		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+
+		final boolean supportsNestedProjection =
+				((SupportsProjectionPushDown) oldTableSourceTable.tableSource()).supportsNestedProjection();
+		final boolean supportsReadingMetaData = oldTableSourceTable.tableSource() instanceof SupportsReadingMetadata;
 
 		final List<String> fieldNames = scan.getRowType().getFieldNames();
 		final int fieldCount = fieldNames.size();
@@ -109,13 +113,9 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			usedFields = refFields;
 		}
 		// if no fields can be projected, we keep the original plan.
-		if (usedFields.length == fieldCount) {
+		if (!supportsNestedProjection && usedFields.length == fieldCount) {
 			return;
 		}
-
-		final List<String> projectedFieldNames = IntStream.of(usedFields)
-			.mapToObj(fieldNames::get)
-			.collect(Collectors.toList());
 
 		final TableSchema oldSchema = oldTableSourceTable.catalogTable().getSchema();
 		final DynamicTableSource oldSource = oldTableSourceTable.tableSource();
@@ -123,59 +123,57 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		final int physicalFieldCount = fieldCount - metadataKeys.size();
 		final DynamicTableSource newSource = oldSource.copy();
 
-		// remove metadata columns from the projection push down and store it in a separate list
-		// the projection push down itself happens purely on physical columns
-		final int[] usedPhysicalFields;
-		final List<String> usedMetadataKeys;
-		if (newSource instanceof SupportsReadingMetadata) {
-			usedPhysicalFields = IntStream.of(usedFields)
-				// select only physical columns
-				.filter(i -> i < physicalFieldCount)
-				.toArray();
-			final List<String> usedMetadataKeysUnordered = IntStream.of(usedFields)
-				// select only metadata columns
-				.filter(i -> i >= physicalFieldCount)
-				// map the indices to keys
-				.mapToObj(i -> metadataKeys.get(fieldCount - i - 1))
-				.collect(Collectors.toList());
-			// order the keys according to the source's declaration
-			usedMetadataKeys = metadataKeys
-				.stream()
-				.filter(usedMetadataKeysUnordered::contains)
-				.collect(Collectors.toList());
+		final List<List<Integer>> usedFieldsCoordinates = new ArrayList<>();
+		final Map<Integer, Map<List<String>, Integer>> fieldCoordinatesToOrder = new HashMap<>();
+
+		if (supportsNestedProjection) {
+			getCoordinatesAndMappingOfPhysicalColumnWithNestedProjection(
+					project, oldSchema, usedFields, physicalFieldCount, usedFieldsCoordinates, fieldCoordinatesToOrder);
 		} else {
-			usedPhysicalFields = usedFields;
-			usedMetadataKeys = Collections.emptyList();
+			for (int usedField : usedFields) {
+				// filter metadata columns
+				if (usedField >= physicalFieldCount) {
+					continue;
+				}
+				fieldCoordinatesToOrder.put(usedField,
+						Collections.singletonMap(Collections.singletonList("*"), usedFieldsCoordinates.size()));
+				usedFieldsCoordinates.add(Collections.singletonList(usedField));
+			}
 		}
 
-		final int[][] projectedPhysicalFields = IntStream.of(usedPhysicalFields)
-			.mapToObj(i -> new int[]{ i })
-			.toArray(int[][]::new);
+		final int[][] projectedPhysicalFields = usedFieldsCoordinates
+				.stream()
+				.map(list -> list.stream().mapToInt(i -> i).toArray())
+				.toArray(int[][]::new);
 
 		// push down physical projection
 		((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
 
-		// push down metadata projection
-		applyUpdatedMetadata(
-			oldSource,
-			oldSchema,
-			newSource,
-			metadataKeys,
-			usedMetadataKeys,
-			physicalFieldCount,
-			projectedPhysicalFields);
+		DataType producedDataType = TypeConversions.fromLogicalToDataType(DynamicSourceUtils.createProducedType(oldSchema, oldSource));
+		// add metadata information into coordinates && mapping
+
+		DataType newProducedDataType = supportsReadingMetaData ?
+				applyUpdateMetadataAndGetNewDataType(
+						newSource, producedDataType,  metadataKeys, usedFields, physicalFieldCount, usedFieldsCoordinates, fieldCoordinatesToOrder) :
+				DataTypeUtils.projectRow(producedDataType, projectedPhysicalFields);
 
 		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
-		RelDataType newRowType = flinkTypeFactory.projectStructType(oldTableSourceTable.getRowType(), usedFields);
+		RelDataType newRowType = flinkTypeFactory.buildRelNodeRowType((RowType) newProducedDataType.getLogicalType());
 
 		// project push down does not change the statistic, we can reuse origin statistic
 		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
-				newSource, newRowType, new String[] { ("project=[" + String.join(", ", projectedFieldNames) + "]") });
+				newSource, newRowType, new String[] {
+						("project=[" + String.join(", ", newRowType.getFieldNames()) + "]") });
 
 		LogicalTableScan newScan = new LogicalTableScan(
 				scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
 		// rewrite input field in projections
-		List<RexNode> newProjects = RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects(), usedFields);
+		List<RexNode> newProjects = RexNodeRewriter.rewriteNestedProjectionWithNewFieldInput(
+				project.getProjects(),
+				fieldCoordinatesToOrder,
+				newRowType.getFieldList().stream().map(RelDataTypeField::getType).collect(Collectors.toList()),
+				call.builder().getRexBuilder());
+
 		LogicalProject newProject = project.copy(
 				project.getTraitSet(),
 				newScan,
@@ -190,35 +188,82 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		}
 	}
 
-	private void applyUpdatedMetadata(
-			DynamicTableSource oldSource,
-			TableSchema oldSchema,
+	private DataType applyUpdateMetadataAndGetNewDataType(
 			DynamicTableSource newSource,
+			DataType producedDataType,
 			List<String> metadataKeys,
-			List<String> usedMetadataKeys,
+			int[] usedFields,
 			int physicalFieldCount,
-			int[][] projectedPhysicalFields) {
-		if (newSource instanceof SupportsReadingMetadata) {
-			final DataType producedDataType = TypeConversions.fromLogicalToDataType(
-				DynamicSourceUtils.createProducedType(oldSchema, oldSource));
+			List<List<Integer>> usedFieldsCoordinates,
+			Map<Integer, Map<List<String>, Integer>> fieldCoordinatesToOrder) {
+		final List<String> usedMetadataKeysUnordered = IntStream.of(usedFields)
+				// select only metadata columns
+				.filter(i -> i >= physicalFieldCount)
+				// map the indices to keys
+				.mapToObj(i -> metadataKeys.get(i - physicalFieldCount))
+				.collect(Collectors.toList());
+		// order the keys according to the source's declaration
+		final List<String> usedMetadataKeys = metadataKeys
+				.stream()
+				.filter(usedMetadataKeysUnordered::contains)
+				.collect(Collectors.toList());
 
-			final int[][] projectedMetadataFields = usedMetadataKeys
+		final List<List<Integer>> projectedMetadataFields = usedMetadataKeys
 				.stream()
 				.map(metadataKeys::indexOf)
-				.map(i -> new int[]{ physicalFieldCount + i })
+				.map(i -> {
+					fieldCoordinatesToOrder.put(physicalFieldCount + i, Collections.singletonMap(Collections.singletonList("*"), fieldCoordinatesToOrder.size()));
+					return Collections.singletonList(physicalFieldCount + i); })
+				.collect(Collectors.toList());
+		usedFieldsCoordinates.addAll(projectedMetadataFields);
+
+		int[][] allFields = usedFieldsCoordinates
+				.stream()
+				.map(coordinates -> coordinates.stream().mapToInt(i -> i).toArray())
 				.toArray(int[][]::new);
 
-			final int[][] projectedFields = Stream
-				.concat(
-					Stream.of(projectedPhysicalFields),
-					Stream.of(projectedMetadataFields)
-				)
-				.toArray(int[][]::new);
+		DataType newProducedDataType = DataTypeUtils.projectRow(producedDataType, allFields);
 
-			// create a new, final data type that includes all projections
-			final DataType newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+		((SupportsReadingMetadata) newSource).applyReadableMetadata(usedMetadataKeys, newProducedDataType);
+		return newProducedDataType;
+	}
 
-			((SupportsReadingMetadata) newSource).applyReadableMetadata(usedMetadataKeys, newProducedDataType);
+	private void getCoordinatesAndMappingOfPhysicalColumnWithNestedProjection(
+			LogicalProject project,
+			TableSchema oldSchema,
+			int[] usedFields,
+			int physicalCount,
+			List<List<Integer>> usedPhysicalFieldsCoordinates,
+			Map<Integer, Map<List<String>, Integer>> fieldCoordinatesToOrder) {
+		List<String>[][] accessFieldNames =
+				RexNodeExtractor.extractRefNestedInputFields(project.getProjects(), usedFields);
+		int order = 0;
+		for (int index = 0; index < usedFields.length; index++) {
+			// filter metadata columns
+			if (usedFields[index] >= physicalCount) {
+				continue;
+			}
+			int indexInOldSchema = usedFields[index];
+			Map<List<String>, Integer> mapping = new HashMap<>();
+			if (accessFieldNames[index][0].get(0).equals("*")) {
+				usedPhysicalFieldsCoordinates.add(Collections.singletonList(indexInOldSchema));
+				mapping.put(Collections.singletonList("*"), order++);
+			} else {
+				for (List<String> fields : accessFieldNames[index]) {
+					LogicalType dataType = oldSchema.getFieldDataType(indexInOldSchema).get().getLogicalType();
+					List<Integer> coordinates = new LinkedList<>();
+					coordinates.add(indexInOldSchema);
+					for (String subFieldName : fields) {
+						RowType rowType = (RowType) dataType;
+						int fieldsIndex = rowType.getFieldIndex(subFieldName);
+						dataType = rowType.getTypeAt(fieldsIndex);
+						coordinates.add(fieldsIndex);
+					}
+					usedPhysicalFieldsCoordinates.add(coordinates);
+					mapping.put(fields, order++);
+				}
+			}
+			fieldCoordinatesToOrder.put(indexInOldSchema, mapping);
 		}
 	}
 

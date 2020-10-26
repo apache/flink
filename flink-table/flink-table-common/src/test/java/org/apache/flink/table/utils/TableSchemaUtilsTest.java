@@ -112,15 +112,13 @@ public class TableSchemaUtilsTest {
 	public void testProjectSchemaWithNameConflict() {
 		TableSchema schema = TableSchema.builder()
 				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
-				.field("a_f0", DataTypes.STRING())
-				.field("`a`_`f0`", DataTypes.STRING())
+				.field("f0", DataTypes.STRING())
 				.build();
-		int[][] projectedFields = {{0, 0}, {1}, {2}};
+		int[][] projectedFields = {{0, 0}, {1}};
 		TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
 		TableSchema expected = TableSchema.builder()
 				.field("a_f0", DataTypes.STRING())
-				.field("a_f0@`a_f0`", DataTypes.STRING())
-				.field("`a`_`f0`", DataTypes.STRING())
+				.field("f0", DataTypes.STRING())
 				.build();
 		assertEquals(expected, projected);
 	}
