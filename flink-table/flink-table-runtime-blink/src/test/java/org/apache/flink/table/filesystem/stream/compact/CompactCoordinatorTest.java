@@ -104,7 +104,7 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
 		CompactCoordinator coordinator = new CompactCoordinator(
 				() -> folder.getFileSystem(), TARGET_SIZE);
 		try (OneInputStreamOperatorTestHarness<CoordinatorInput, CoordinatorOutput> harness =
-				     new OneInputStreamOperatorTestHarness<>(coordinator)) {
+					new OneInputStreamOperatorTestHarness<>(coordinator)) {
 			consumer.accept(harness);
 		}
 	}

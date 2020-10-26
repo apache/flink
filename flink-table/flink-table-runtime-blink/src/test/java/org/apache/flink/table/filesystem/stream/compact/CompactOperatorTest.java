@@ -129,7 +129,7 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 
 		);
 		try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness =
-				     new OneInputStreamOperatorTestHarness<>(operator)) {
+					new OneInputStreamOperatorTestHarness<>(operator)) {
 			consumer.accept(harness);
 		}
 	}
