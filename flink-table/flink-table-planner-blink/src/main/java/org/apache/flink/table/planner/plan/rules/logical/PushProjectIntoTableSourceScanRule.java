@@ -99,7 +99,6 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
 		final int[] usedFields;
 
-		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
 		if (isUpsertSource(oldTableSourceTable)) {
 			// primary key fields are needed for upsert source
 			List<String> keyFields = oldTableSourceTable.catalogTable().getSchema()

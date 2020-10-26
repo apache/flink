@@ -113,7 +113,7 @@ class RexNodeRewriterTest extends RexNodeTestBase {
   def testRewriteRexProgramWithDeepNestedProject(): Unit ={
     val exprs = buildExprsWithDeepNesting()
     assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "*(10, $1.amount)",
+      "*($1.amount, 10)",
       "$0.passport.status",
       "$2.with.deep.entry",
       "$2.with.deeper.entry.inside.entry",
