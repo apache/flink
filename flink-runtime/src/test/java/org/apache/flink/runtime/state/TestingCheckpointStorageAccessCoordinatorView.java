@@ -40,7 +40,7 @@ import java.util.HashMap;
  * A testing implementation of the {@link CheckpointStorageCoordinatorView}.
  */
 @SuppressWarnings("serial")
-public class TestingCheckpointStorageCoordinatorView implements CheckpointStorage, java.io.Serializable {
+public class TestingCheckpointStorageAccessCoordinatorView implements CheckpointStorageAccess, java.io.Serializable {
 
 	private final HashMap<String, TestingCompletedCheckpointStorageLocation> registeredSavepoints = new HashMap<>();
 
@@ -151,9 +151,9 @@ public class TestingCheckpointStorageCoordinatorView implements CheckpointStorag
 	 */
 	private static final class FactoringStateBackend implements StateBackend {
 
-		private final TestingCheckpointStorageCoordinatorView testingCoordinatorView;
+		private final TestingCheckpointStorageAccessCoordinatorView testingCoordinatorView;
 
-		private FactoringStateBackend(TestingCheckpointStorageCoordinatorView testingCoordinatorView) {
+		private FactoringStateBackend(TestingCheckpointStorageAccessCoordinatorView testingCoordinatorView) {
 			this.testingCoordinatorView = testingCoordinatorView;
 		}
 
@@ -164,7 +164,7 @@ public class TestingCheckpointStorageCoordinatorView implements CheckpointStorag
 		}
 
 		@Override
-		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
 			return testingCoordinatorView;
 		}
 

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of durable checkpoint storage to file systems.
  */
-public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
+public abstract class AbstractFsCheckpointStorageAccess implements CheckpointStorageAccess {
 
 	// ------------------------------------------------------------------------
 	//  Constants
@@ -79,7 +79,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @param jobId The ID of the job that writes the checkpoints.
 	 * @param defaultSavepointDirectory The default location for savepoints, or null, if none is set.
 	 */
-	protected AbstractFsCheckpointStorage(
+	protected AbstractFsCheckpointStorageAccess(
 			JobID jobId,
 			@Nullable Path defaultSavepointDirectory) {
 

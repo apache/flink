@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -27,9 +27,9 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import javax.annotation.Nullable;
 
 /**
- * A dummy {@link CheckpointStorage} which does not perform checkpoints.
+ * A dummy {@link CheckpointStorageAccess} which does not perform checkpoints.
  */
-class NonCheckpointingStorage implements CheckpointStorage {
+class NonCheckpointingStorageAccess implements CheckpointStorageAccess {
 	@Override
 	public boolean supportsHighlyAvailableStorage() {
 		return false;

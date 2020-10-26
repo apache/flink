@@ -21,7 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -93,8 +93,8 @@ public class MockStreamTaskBuilder {
 		return this;
 	}
 
-	public MockStreamTaskBuilder setCheckpointStorage(CheckpointStorage checkpointStorage) {
-		this.checkpointStorage = checkpointStorage;
+	public MockStreamTaskBuilder setCheckpointStorage(CheckpointStorageAccess checkpointStorageAccess) {
+		this.checkpointStorage = checkpointStorageAccess;
 		return this;
 	}
 

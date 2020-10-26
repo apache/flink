@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of durable checkpoint storage to file systems.
  */
-public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
+public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
 	private final FileSystem fileSystem;
 
@@ -54,7 +54,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 
 	private boolean baseLocationsInitialized = false;
 
-	public FsCheckpointStorage(
+	public FsCheckpointStorageAccess(
 			Path checkpointBaseDirectory,
 			@Nullable Path defaultSavepointDirectory,
 			JobID jobId,
@@ -69,7 +69,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 				writeBufferSize);
 	}
 
-	public FsCheckpointStorage(
+	public FsCheckpointStorageAccess(
 			FileSystem fs,
 			Path checkpointBaseDirectory,
 			@Nullable Path defaultSavepointDirectory,

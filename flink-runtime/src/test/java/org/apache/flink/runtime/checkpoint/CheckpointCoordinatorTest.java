@@ -39,7 +39,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -53,7 +53,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
@@ -2485,8 +2485,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 				// Throw exception when finalizing the checkpoint.
 				@Override
-				public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-					return new MemoryBackendCheckpointStorage(jobId, null, null, 100) {
+				public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+					return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 100) {
 						@Override
 						public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException {
 							return new NonPersistentMetadataCheckpointStorageLocation(1000) {
