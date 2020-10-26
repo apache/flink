@@ -27,11 +27,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, 
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.runtime.operators.multipleinput.{BatchMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.util
+
+import org.apache.flink.streaming.api.operators.ChainingStrategy
 
 import scala.collection.JavaConversions._
 
@@ -48,7 +48,8 @@ class BatchExecMultipleInputNode(
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
     outputRel: RelNode,
-    inputEdges: Array[ExecEdge])
+    inputEdges: Array[ExecEdge],
+    withSourceChaining: Boolean = false)
   extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputEdges.map(_.getPriority))
   with BatchExecNode[RowData]
   with BatchPhysicalRel {
@@ -98,6 +99,14 @@ class BatchExecMultipleInputNode(
     multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
     val memoryKB = generator.getManagedMemoryWeight
     ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024)
+
+    if (withSourceChaining) {
+      // set chaining strategy for source chaining
+      multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)
+    } else {
+      // multiple input can only be the head of an operator chain
+      multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD)
+    }
 
     multipleInputTransform
   }

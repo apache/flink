@@ -42,7 +42,8 @@ class StreamExecMultipleInputNode(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
-    outputRel: RelNode)
+    outputRel: RelNode,
+    withSourceChaining: Boolean = false)
   extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputRels.map(_ => 0))
   with StreamExecNode[RowData]
   with StreamPhysicalRel {

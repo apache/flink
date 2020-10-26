@@ -41,9 +41,8 @@ class DeadlockBreakupProcessor extends DAGProcessor {
       throw new TableException("Only BatchExecNode DAG is supported now")
     }
 
-    val resolver = new InputPriorityConflictResolver(
+    val resolver = new InputPriorityConflictResolverWithExchange(
       rootNodes,
-      Set[ExecNode[_, _]](),
       ExecEdge.DamBehavior.END_INPUT,
       ShuffleMode.BATCH)
     resolver.detectAndResolve()

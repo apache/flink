@@ -104,7 +104,7 @@ public class OptimizerConfigOptions {
 	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
 		key("table.optimizer.multiple-input-enabled")
 			.defaultValue(false)
-			.withDescription("Enables creating multiple input nodes to reduce shuffling. " +
+			.withDescription("Enables creating multiple input operators to reduce shuffling. " +
 				"Default is disabled as currently its physical operators are not implemented. " +
 				"This option is currently only used for plan test cases.");
 }

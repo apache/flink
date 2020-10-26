@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
@@ -32,15 +33,15 @@ import org.apache.flink.table.planner.plan.reuse.{DeadlockBreakupProcessor, Mult
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
+
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
+
 import java.util
 
-import org.apache.flink.table.api.config.OptimizerConfigOptions
-
-import _root_.scala.collection.JavaConversions._
+import scala.collection.JavaConversions._
 
 class BatchPlanner(
     executor: Executor,
