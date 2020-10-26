@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -644,7 +644,7 @@ public class CheckpointCoordinatorTestingUtils {
         private CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
 
-        private StateBackend checkpointStateBackend = new MemoryStateBackend();
+        private CheckpointStorage checkpointStorage = new MemoryStateBackend();
 
         private Executor ioExecutor = Executors.directExecutor();
 
@@ -717,12 +717,6 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setCheckpointStateBackend(
-                StateBackend checkpointStateBackend) {
-            this.checkpointStateBackend = checkpointStateBackend;
-            return this;
-        }
-
         public CheckpointCoordinatorBuilder setIoExecutor(Executor ioExecutor) {
             this.ioExecutor = ioExecutor;
             return this;
@@ -745,8 +739,8 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setStateBackEnd(StateBackend stateBackEnd) {
-            this.checkpointStateBackend = stateBackEnd;
+        public CheckpointCoordinatorBuilder setCheckpointStorage(CheckpointStorage stateBackEnd) {
+            this.checkpointStorage = stateBackEnd;
             return this;
         }
 
@@ -760,7 +754,7 @@ public class CheckpointCoordinatorTestingUtils {
                     coordinatorsToCheckpoint,
                     checkpointIDCounter,
                     completedCheckpointStore,
-                    checkpointStateBackend,
+                    checkpointStorage,
                     ioExecutor,
                     checkpointsCleaner,
                     timer,

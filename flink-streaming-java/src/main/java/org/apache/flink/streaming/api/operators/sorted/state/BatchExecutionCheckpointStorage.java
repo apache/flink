@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.ttl.mock.MockCheckpointStorage;
-import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 
-/** Test suite for mock state TTL. */
-public class MockTtlStateTest extends TtlStateTestBase {
+/** A simple {@link CheckpointStorage} which is used in a BATCH style execution. */
+public class BatchExecutionCheckpointStorage implements CheckpointStorage {
 
     @Override
-    protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
-        return new StateBackendTestContext(timeProvider) {
-            @Override
-            protected StateBackend createStateBackend() {
-                return new MockStateBackend();
-            }
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
+        throw new UnsupportedOperationException(
+                "Checkpoints are not supported in a batch execution");
+    }
 
-            @Override
-            protected CheckpointStorage createCheckpointStorage() {
-                return new MockCheckpointStorage();
-            }
-        };
+    @Override
+    public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
+        return new NonCheckpointingStorageAccess();
     }
 }

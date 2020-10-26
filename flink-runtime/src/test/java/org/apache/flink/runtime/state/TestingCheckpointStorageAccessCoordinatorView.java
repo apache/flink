@@ -19,21 +19,13 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashMap;
 
 /** A testing implementation of the {@link CheckpointStorageCoordinatorView}. */
@@ -109,8 +101,8 @@ public class TestingCheckpointStorageAccessCoordinatorView
     //  Utils
     // ------------------------------------------------------------------------
 
-    public StateBackend asStateBackend() {
-        return new FactoringStateBackend(this);
+    public CheckpointStorage asCheckpointStorage() {
+        return new FactoringCheckpointStorage(this);
     }
 
     // ------------------------------------------------------------------------
@@ -151,11 +143,11 @@ public class TestingCheckpointStorageAccessCoordinatorView
     // ------------------------------------------------------------------------
 
     /** A StateBackend whose only purpose is to create a given CheckpointStorage. */
-    private static final class FactoringStateBackend implements StateBackend {
+    private static final class FactoringCheckpointStorage implements CheckpointStorage {
 
         private final TestingCheckpointStorageAccessCoordinatorView testingCoordinatorView;
 
-        private FactoringStateBackend(
+        private FactoringCheckpointStorage(
                 TestingCheckpointStorageAccessCoordinatorView testingCoordinatorView) {
             this.testingCoordinatorView = testingCoordinatorView;
         }
@@ -169,33 +161,6 @@ public class TestingCheckpointStorageAccessCoordinatorView
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
             return testingCoordinatorView;
-        }
-
-        @Override
-        public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                Environment env,
-                JobID jobID,
-                String operatorIdentifier,
-                TypeSerializer<K> keySerializer,
-                int numberOfKeyGroups,
-                KeyGroupRange keyGroupRange,
-                TaskKvStateRegistry kvStateRegistry,
-                TtlTimeProvider ttlTimeProvider,
-                MetricGroup metricGroup,
-                @Nonnull Collection<KeyedStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
-            throw new UnsupportedOperationException();
         }
     }
 }

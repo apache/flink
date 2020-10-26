@@ -2964,7 +2964,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setCoordinatorsToCheckpoint(
                                 Collections.singleton(coordinatorCheckpointContext))
-                        .setStateBackEnd(
+                        .setCheckpointStorage(
                                 new MemoryStateBackend() {
                                     private static final long serialVersionUID =
                                             8134582566514272546L;

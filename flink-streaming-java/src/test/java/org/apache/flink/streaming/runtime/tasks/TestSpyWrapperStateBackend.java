@@ -26,12 +26,14 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
@@ -45,11 +47,11 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 /**
  * This class wraps an {@link AbstractStateBackend} and enriches all the created objects as spies.
  */
-public class TestSpyWrapperStateBackend extends AbstractStateBackend {
+public class TestSpyWrapperStateBackend extends AbstractStateBackend implements CheckpointStorage {
 
-    private final AbstractStateBackend delegate;
+    private final MemoryStateBackend delegate;
 
-    public TestSpyWrapperStateBackend(AbstractStateBackend delegate) {
+    public TestSpyWrapperStateBackend(MemoryStateBackend delegate) {
         this.delegate = Preconditions.checkNotNull(delegate);
     }
 

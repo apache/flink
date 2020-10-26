@@ -25,6 +25,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 
 import javax.annotation.Nullable;
@@ -67,7 +68,8 @@ import java.net.URI;
  * AbstractFsCheckpointStorageAccess#METADATA_FILE_NAME}'.
  */
 @PublicEvolving
-public abstract class AbstractFileStateBackend extends AbstractStateBackend {
+public abstract class AbstractFileStateBackend extends AbstractStateBackend
+        implements CheckpointStorage {
 
     private static final long serialVersionUID = 1L;
 

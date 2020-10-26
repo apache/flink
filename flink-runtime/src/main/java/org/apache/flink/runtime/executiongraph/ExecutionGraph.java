@@ -459,7 +459,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         operatorCoordinators,
                         checkpointIDCounter,
                         checkpointStore,
-                        checkpointStateBackend,
+                        checkpointStorage,
                         ioExecutor,
                         checkpointsCleaner,
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
@@ -487,7 +487,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
         }
 
         this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
-        this.checkpointStorageName = checkpointStorageName.getClass().getSimpleName();
+        this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
     @Nullable

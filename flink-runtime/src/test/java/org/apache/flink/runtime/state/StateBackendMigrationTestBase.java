@@ -75,6 +75,18 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
     protected abstract B getStateBackend() throws Exception;
 
+    protected CheckpointStorage getCheckpointStorage() throws Exception {
+        StateBackend stateBackend = getStateBackend();
+        if (stateBackend instanceof CheckpointStorage) {
+            return (CheckpointStorage) stateBackend;
+        }
+
+        throw new IllegalStateException(
+                "The state backend under test does not implement CheckpointStorage."
+                        + "Please override 'createCheckpointStorage' and provide an appropriate"
+                        + "checkpoint storage instance");
+    }
+
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Before
@@ -1245,7 +1257,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
     private CheckpointStreamFactory createStreamFactory() throws Exception {
         if (checkpointStorageLocation == null) {
             CheckpointStorageAccess checkpointStorageAccess =
-                    getStateBackend().createCheckpointStorage(new JobID());
+                    getCheckpointStorage().createCheckpointStorage(new JobID());
             checkpointStorageAccess.initializeBaseLocations();
             checkpointStorageLocation = checkpointStorageAccess.initializeLocationForCheckpoint(1L);
         }

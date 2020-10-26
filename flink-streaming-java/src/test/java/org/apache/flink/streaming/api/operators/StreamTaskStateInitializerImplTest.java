@@ -34,9 +34,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -62,7 +60,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -140,17 +137,6 @@ public class StreamTaskStateInitializerImplTest {
         StateBackend mockingBackend =
                 spy(
                         new StateBackend() {
-                            @Override
-                            public CompletedCheckpointStorageLocation resolveCheckpoint(
-                                    String pointer) throws IOException {
-                                throw new UnsupportedOperationException();
-                            }
-
-                            @Override
-                            public CheckpointStorageAccess createCheckpointStorage(JobID jobId)
-                                    throws IOException {
-                                throw new UnsupportedOperationException();
-                            }
 
                             @Override
                             public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(

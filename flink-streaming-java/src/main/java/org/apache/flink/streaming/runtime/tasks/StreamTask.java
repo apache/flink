@@ -1147,9 +1147,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 LOG);
     }
 
-
     private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
-        final CheckpointStorage fromApplication = configuration.getCheckpointStorage(getUserCodeClassLoader());
+        final CheckpointStorage fromApplication =
+                configuration.getCheckpointStorage(getUserCodeClassLoader());
 
         return CheckpointStorageLoader.load(
                 fromApplication,

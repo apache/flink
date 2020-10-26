@@ -31,6 +31,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -96,7 +97,7 @@ public class StateBackendITCase extends AbstractTestBase {
         }
     }
 
-    private static class FailingStateBackend implements StateBackend {
+    private static class FailingStateBackend implements StateBackend, CheckpointStorage {
         private static final long serialVersionUID = 1L;
 
         @Override
