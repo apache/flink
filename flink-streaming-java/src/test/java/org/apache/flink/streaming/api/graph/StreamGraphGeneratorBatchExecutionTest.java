@@ -23,12 +23,12 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
+import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -405,15 +406,26 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 		final FeedbackTransformation<Integer> feedbackTransformation =
 				new FeedbackTransformation<>(bounded, 5L);
 
+		testNoSupportForIterationsInBatchHelper(bounded, feedbackTransformation);
+	}
+
+	@Test
+	public void testCoFeedbackThrowsExceptionInBatch() {
+		final CoFeedbackTransformation<Integer> coFeedbackTransformation =
+				new CoFeedbackTransformation<>(2, TypeInformation.of(Integer.TYPE), 5L);
+		testNoSupportForIterationsInBatchHelper(coFeedbackTransformation);
+	}
+
+	private void testNoSupportForIterationsInBatchHelper(final Transformation<?>... transformations) {
 		final List<Transformation<?>> registeredTransformations = new ArrayList<>();
-		Collections.addAll(registeredTransformations, bounded, feedbackTransformation);
+		Collections.addAll(registeredTransformations, transformations);
 
 		StreamGraphGenerator streamGraphGenerator =
 				new StreamGraphGenerator(
 						registeredTransformations,
 						new ExecutionConfig(),
 						new CheckpointConfig());
-		streamGraphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.AUTOMATIC);
+		streamGraphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.BATCH);
 
 		expectedException.expect(UnsupportedOperationException.class);
 		expectedException.expectMessage("Iterations are not supported in BATCH execution mode.");

@@ -523,6 +523,12 @@ public class StreamGraphGenerator {
 	 */
 	private <F> Collection<Integer> transformCoFeedback(CoFeedbackTransformation<F> coIterate) {
 
+		if (shouldExecuteInBatchMode) {
+			throw new UnsupportedOperationException("Iterations are not supported in BATCH" +
+					" execution mode. If you want to execute such a pipeline, please set the " +
+					"'" + ExecutionOptions.RUNTIME_MODE.key() + "'=" + RuntimeExecutionMode.STREAMING.name());
+		}
+
 		// For Co-Iteration we don't need to transform the input and wire the input to the
 		// head operator by returning the input IDs, the input is directly wired to the left
 		// input of the co-operation. This transform only needs to return the ids of the feedback
