@@ -238,7 +238,6 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			List<String> inputFieldNames) {
 		// get partitions from table/catalog and prune
 		Optional<Catalog> catalogOptional = context.getCatalogManager().getCatalog(tableSourceTable.tableIdentifier().getCatalogName());
-		List<Map<String, String>> remainingPartitions;
 
 		DynamicTableSource dynamicTableSource = tableSourceTable.tableSource();
 		ObjectIdentifier identifier = tableSourceTable.tableIdentifier();
@@ -315,8 +314,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			ObjectPath tablePath,
 			Function<List<Map<String, String>>, List<Map<String, String>>> pruner)
 			throws TableNotExistException, CatalogException, TableNotPartitionedException {
-		List<Map<String, String>> allPartitions, remainingPartitions;
-		allPartitions = catalog.listPartitions(tablePath)
+		List<Map<String, String>> allPartitions = catalog.listPartitions(tablePath)
 			.stream()
 			.map(CatalogPartitionSpec::getPartitionSpec)
 			.collect(Collectors.toList());
