@@ -201,7 +201,8 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 				this,
 				keySerializer,
 				cancelables,
-				metrics);
+				metrics,
+				false);
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), cancelables);
 		timeServiceManager = context.internalTimerServiceManager();
