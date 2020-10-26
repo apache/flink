@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -46,7 +46,7 @@ public final class SavepointLoader {
 	 *     the path points to a location that does not seem to be a savepoint.
 	 */
 	public static CheckpointMetadata loadSavepointMetadata(String savepointPath) throws IOException {
-		CompletedCheckpointStorageLocation location = AbstractFsCheckpointStorage
+		CompletedCheckpointStorageLocation location = AbstractFsCheckpointStorageAccess
 			.resolveCheckpointPointer(savepointPath);
 
 		try (DataInputStream stream = new DataInputStream(location.getMetadataHandle().openInputStream())) {

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
 import javax.annotation.Nullable;
@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Depending on whether this is created with a checkpoint location, the setup supports
  * durable checkpoints (durable metadata) or not.
  */
-public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage {
+public class MemoryBackendCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
 	/** The target directory for checkpoints (here metadata files only). Null, if not configured. */
 	@Nullable
@@ -66,7 +66,7 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	 * @throws IOException Thrown if a checkpoint base directory is given configured and the
 	 *                     checkpoint directory cannot be created within that directory.
 	 */
-	public MemoryBackendCheckpointStorage(
+	public MemoryBackendCheckpointStorageAccess(
 			JobID jobId,
 			@Nullable Path checkpointsBaseDirectory,
 			@Nullable Path defaultSavepointLocation,

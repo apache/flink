@@ -27,8 +27,8 @@ import org.junit.Test;
 
 import java.util.Random;
 
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.decodePathFromReference;
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.encodePathAsReference;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.decodePathFromReference;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.encodePathAsReference;
 import static org.junit.Assert.assertEquals;
 
 /**

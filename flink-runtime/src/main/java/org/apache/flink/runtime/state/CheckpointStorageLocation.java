@@ -25,8 +25,8 @@ import java.io.IOException;
  * and lifecycle/cleanup methods.
  *
  * <p>CheckpointStorageLocations are typically created and initialized via
- * {@link CheckpointStorage#initializeLocationForCheckpoint(long)} or
- * {@link CheckpointStorage#initializeLocationForSavepoint(long, String)}.
+ * {@link CheckpointStorageAccess#initializeLocationForCheckpoint(long)} or
+ * {@link CheckpointStorageAccess#initializeLocationForSavepoint(long, String)}.
  */
 public interface CheckpointStorageLocation extends CheckpointStreamFactory {
 

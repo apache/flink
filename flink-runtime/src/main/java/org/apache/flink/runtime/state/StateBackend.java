@@ -115,7 +115,7 @@ public interface StateBackend extends java.io.Serializable {
 	 *
 	 * @throws IOException Thrown if the checkpoint storage cannot be initialized.
 	 */
-	CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException;
+	CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Structure Backends 

@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -623,7 +623,7 @@ public abstract class MetadataV2V3SerializerBase {
 
 		private static Path createExclusiveDirPath(String externalPointer) throws IOException {
 			try {
-				return AbstractFsCheckpointStorage.resolveCheckpointPointer(externalPointer).getExclusiveCheckpointDir();
+				return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(externalPointer).getExclusiveCheckpointDir();
 			} catch (IOException e) {
 				throw new IOException("Could not parse external pointer as state base path", e);
 			}

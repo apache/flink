@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointMetadataOutputStream;
 
 import java.io.IOException;
@@ -60,7 +60,7 @@ public class PersistentMetadataCheckpointStorageLocation
 
 		this.fileSystem = checkNotNull(fileSystem);
 		this.checkpointDirectory = checkNotNull(checkpointDir);
-		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
 	}
 
 	// ------------------------------------------------------------------------

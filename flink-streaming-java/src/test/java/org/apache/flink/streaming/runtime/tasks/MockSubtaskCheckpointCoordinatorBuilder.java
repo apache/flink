@@ -25,7 +25,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import java.io.IOException;
@@ -79,7 +79,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
 			this.environment = MockEnvironment.builder().build();
 		}
 		if (checkpointStorage == null) {
-			this.checkpointStorage = new MemoryBackendCheckpointStorage(environment.getJobID(), null, null, 1024);
+			this.checkpointStorage = new MemoryBackendCheckpointStorageAccess(environment.getJobID(), null, null, 1024);
 		}
 		if (asyncExceptionHandler == null) {
 			this.asyncExceptionHandler = new NonHandleAsyncException();

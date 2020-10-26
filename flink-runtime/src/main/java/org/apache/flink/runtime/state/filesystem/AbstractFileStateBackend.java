@@ -63,7 +63,7 @@ import java.net.URI;
  * <h1>Metadata File</h1>
  *
  * <p>A completed checkpoint writes its metadata into a file
- * '{@value AbstractFsCheckpointStorage#METADATA_FILE_NAME}'.
+ * '{@value AbstractFsCheckpointStorageAccess#METADATA_FILE_NAME}'.
  */
 @PublicEvolving
 public abstract class AbstractFileStateBackend extends AbstractStateBackend {
@@ -162,7 +162,7 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
-		return AbstractFsCheckpointStorage.resolveCheckpointPointer(pointer);
+		return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(pointer);
 	}
 
 	// ------------------------------------------------------------------------
