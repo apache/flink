@@ -690,9 +690,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				LOG.info("Consumer subtask {} initially has no partitions to read from.",
 					getRuntimeContext().getIndexOfThisSubtask());
 			}
-
-			this.deserializer.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		}
+
+		this.deserializer.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 	}
 
 	@Override
