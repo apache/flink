@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -91,6 +92,8 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 false,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+                        new SerializedValue<CheckpointStorage>(
+                                new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
 
         final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
@@ -182,6 +185,29 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class CustomCheckpointStorage implements CheckpointStorage {
+
+        private static final long serialVersionUID = -6107964383429395816L;
+        /** Simulate a custom option that is not in the normal classpath. */
+        @SuppressWarnings("unused")
+        private Serializable customOption;
+
+        public CustomCheckpointStorage(Serializable customOption) {
+            this.customOption = customOption;
+        }
+
+        @Override
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
+                throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+            return mock(CheckpointStorageAccess.class);
         }
     }
 }

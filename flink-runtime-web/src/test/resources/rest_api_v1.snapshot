@@ -1240,6 +1240,9 @@
         "state_backend" : {
           "type" : "string"
         },
+        "checkpoint_storage" : {
+          "type" : "string"
+        },
         "unaligned_checkpoints" : {
           "type" : "boolean"
         },
