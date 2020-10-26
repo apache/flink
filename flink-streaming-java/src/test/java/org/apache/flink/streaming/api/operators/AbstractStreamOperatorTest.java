@@ -37,8 +37,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-
 import org.apache.flink.util.Preconditions;
+
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -444,39 +444,65 @@ public class AbstractStreamOperatorTest {
 		final int maxParallelism = 10;
 		final int numSubtasks = 1;
 		final int subtaskIndex = 0;
-		final List<Integer> keyGroupsToWrite = Arrays.asList(2, 3, 8);
-
+		final Iterable<Integer> allKeyGroups = KeyGroupRange.of(0, maxParallelism - 1);
 		final byte[] testSnapshotData = "TEST".getBytes();
+
+		final Map<Integer, byte[]> restored = snapshotAndRestoreRawKeyedState(
+			maxParallelism, numSubtasks, subtaskIndex, testSnapshotData, allKeyGroups);
+		assertThat(restored, hasRestoredKeyGroupsWith(testSnapshotData, allKeyGroups));
+	}
+
+	@Test
+	public void testCustomRawKeyedStateSnapshotAndRestorePartialWrittenKeyGroups() throws Exception {
+		// setup: 10 key groups, all assigned to single subtask
+		final int maxParallelism = 10;
+		final int numSubtasks = 1;
+		final int subtaskIndex = 0;
+		final List<Integer> keyGroupsToWrite = Arrays.asList(2, 3, 8);
+		final byte[] testSnapshotData = "TEST".getBytes();
+
+		final Map<Integer, byte[]> restored = snapshotAndRestoreRawKeyedState(
+			maxParallelism, numSubtasks, subtaskIndex, testSnapshotData, keyGroupsToWrite);
+		assertThat(restored, hasRestoredKeyGroupsWith(testSnapshotData, keyGroupsToWrite));
+	}
+
+	private Map<Integer, byte[]> snapshotAndRestoreRawKeyedState(
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex,
+			byte[] testSnapshotData,
+			Iterable<Integer> keyGroupsToWrite) throws Exception {
+
 		final CustomRawKeyedStateTestOperator testOperator =
 			new CustomRawKeyedStateTestOperator(testSnapshotData, keyGroupsToWrite);
 
 		// snapshot and then restore
 		OperatorSubtaskState snapshot;
 		try (KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness(
-				maxParallelism,
-				numSubtasks,
-				subtaskIndex,
-				testOperator,
-				input -> input,
-				BasicTypeInfo.STRING_TYPE_INFO)) {
+			maxParallelism,
+			numSubtasks,
+			subtaskIndex,
+			testOperator,
+			input -> input,
+			BasicTypeInfo.STRING_TYPE_INFO)) {
 			testHarness.setup();
 			testHarness.open();
 			snapshot = testHarness.snapshot(0, 0);
 		}
 
 		try (KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness(
-				maxParallelism,
-				numSubtasks,
-				subtaskIndex,
-				testOperator,
-				input -> input,
-				BasicTypeInfo.STRING_TYPE_INFO)) {
+			maxParallelism,
+			numSubtasks,
+			subtaskIndex,
+			testOperator,
+			input -> input,
+			BasicTypeInfo.STRING_TYPE_INFO)) {
 			testHarness.setup();
 			testHarness.initializeState(snapshot);
 			testHarness.open();
 		}
 
-		assertThat(testOperator.restoredRawKeyedState, hasRestoredKeyGroupsWith(testSnapshotData, keyGroupsToWrite));
+		return testOperator.restoredRawKeyedState;
 	}
 
 	/**
@@ -580,11 +606,11 @@ public class AbstractStreamOperatorTest {
 		private static final long serialVersionUID = 1L;
 
 		private final byte[] snapshotBytes;
-		private final List<Integer> keyGroupsToWrite;
+		private final Iterable<Integer> keyGroupsToWrite;
 
 		private Map<Integer, byte[]> restoredRawKeyedState;
 
-		CustomRawKeyedStateTestOperator(byte[] snapshotBytes, List<Integer> keyGroupsToWrite) {
+		CustomRawKeyedStateTestOperator(byte[] snapshotBytes, Iterable<Integer> keyGroupsToWrite) {
 			this.snapshotBytes = Arrays.copyOf(snapshotBytes, snapshotBytes.length);
 			this.keyGroupsToWrite = Preconditions.checkNotNull(keyGroupsToWrite);
 		}
@@ -632,21 +658,19 @@ public class AbstractStreamOperatorTest {
 		return result;
 	}
 
-	private static Matcher<Map<Integer, byte[]>> hasRestoredKeyGroupsWith(byte[] testSnapshotData, List<Integer> writtenKeyGroups) {
+	private static Matcher<Map<Integer, byte[]>> hasRestoredKeyGroupsWith(byte[] testSnapshotData, Iterable<Integer> writtenKeyGroups) {
 		return new TypeSafeMatcher<Map<Integer, byte[]>>() {
 			@Override
 			protected boolean matchesSafely(Map<Integer, byte[]> restored) {
-				if (restored.size() != writtenKeyGroups.size()) {
-					return false;
-				}
-
+				int numWrittenKeyGroups = 0;
 				for (int writtenKeyGroupId : writtenKeyGroups) {
+					numWrittenKeyGroups++;
 					if (!Arrays.equals(restored.get(writtenKeyGroupId), testSnapshotData)) {
 						return false;
 					}
 				}
 
-				return true;
+				return restored.size() == numWrittenKeyGroups;
 			}
 
 			@Override
