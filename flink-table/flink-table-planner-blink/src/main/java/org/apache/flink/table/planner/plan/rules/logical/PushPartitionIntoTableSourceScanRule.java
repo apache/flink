@@ -239,41 +239,40 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 		// get partitions from table/catalog and prune
 		Optional<Catalog> catalogOptional = context.getCatalogManager().getCatalog(tableSourceTable.tableIdentifier().getCatalogName());
 		List<Map<String, String>> remainingPartitions;
-		Optional<List<Map<String, String>>> optionalPartitions;
 
 		DynamicTableSource dynamicTableSource = tableSourceTable.tableSource();
 		ObjectIdentifier identifier = tableSourceTable.tableIdentifier();
-		try {
-			optionalPartitions = ((SupportsPartitionPushDown) dynamicTableSource).listPartitions();
-			if (optionalPartitions.isPresent() && !optionalPartitions.get().isEmpty()) {
+		Optional<List<Map<String, String>>> optionalPartitions = ((SupportsPartitionPushDown) dynamicTableSource).listPartitions();
+		if (optionalPartitions.isPresent()) {
+			if (optionalPartitions.get().isEmpty()) {
+				return Optional.empty();
+			} else {
 				remainingPartitions = pruner.apply(optionalPartitions.get());
 				return remainingPartitions != null ? Optional.of(remainingPartitions) : Optional.empty();
-			} else {
-				return Optional.empty();
 			}
-		} catch (UnsupportedOperationException e) {
+		} else {
 			// check catalog whether is available
 			// we will read partitions from catalog if table doesn't support listPartitions.
 			if (!catalogOptional.isPresent()) {
 				throw new TableException(
-					String.format("Table %s must from a catalog, but %s is not a catalog",
-						identifier.asSummaryString(), identifier.getCatalogName()), e);
+						String.format("Table %s must from a catalog, but %s is not a catalog",
+								identifier.asSummaryString(), identifier.getCatalogName()));
 			}
 			try {
 				return readPartitionFromCatalogAndPrune(
-					rexBuilder,
-					context,
-					catalogOptional.get(),
-					identifier,
-					inputFieldNames,
-					partitionPredicate,
-					pruner);
+						rexBuilder,
+						context,
+						catalogOptional.get(),
+						identifier,
+						inputFieldNames,
+						partitionPredicate,
+						pruner);
 			} catch (TableNotExistException tableNotExistException) {
-				throw new TableException(String.format("Table %s is not found in catalog.", identifier.asSummaryString()), e);
+				throw new TableException(String.format("Table %s is not found in catalog.", identifier.asSummaryString()));
 			} catch (TableNotPartitionedException tableNotPartitionedException) {
 				throw new TableException(
-					String.format("Table %s is not a partitionable source. Validator should have checked it.", identifier.asSummaryString()),
-					tableNotPartitionedException);
+						String.format("Table %s is not a partitionable source. Validator should have checked it.", identifier.asSummaryString()),
+						tableNotPartitionedException);
 			}
 		}
 	}

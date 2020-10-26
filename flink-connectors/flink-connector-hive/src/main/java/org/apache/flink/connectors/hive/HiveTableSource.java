@@ -134,28 +134,7 @@ public class HiveTableSource implements
 		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
-		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-	}
-
-	// A constructor mainly used to create copies during optimizations like partition pruning and projection push down.
-	private HiveTableSource(
-			JobConf jobConf,
-			ReadableConfig flinkConf,
-			ObjectPath tablePath,
-			CatalogTable catalogTable,
-			@Nullable List<Map<String, String>> remainingPartitions,
-			String hiveVersion,
-			int[] projectedFields,
-			long limit) {
-		this.jobConf = Preconditions.checkNotNull(jobConf);
-		this.flinkConf = Preconditions.checkNotNull(flinkConf);
-		this.tablePath = Preconditions.checkNotNull(tablePath);
-		this.catalogTable = Preconditions.checkNotNull(catalogTable);
-		this.remainingPartitions = remainingPartitions;
-		this.hiveVersion = hiveVersion;
-		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		this.projectedFields = projectedFields;
-		this.limit = limit;
+		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 	}
 
 	@Override
@@ -536,14 +515,10 @@ public class HiveTableSource implements
 
 	@Override
 	public DynamicTableSource copy() {
-		return new HiveTableSource(
-				jobConf,
-				flinkConf,
-				tablePath,
-				catalogTable,
-				remainingPartitions,
-				hiveVersion,
-				projectedFields,
-				limit);
+		HiveTableSource source = new HiveTableSource(jobConf, flinkConf, tablePath, catalogTable);
+		source.remainingPartitions = remainingPartitions;
+		source.projectedFields = projectedFields;
+		source.limit = limit;
+		return source;
 	}
 }
