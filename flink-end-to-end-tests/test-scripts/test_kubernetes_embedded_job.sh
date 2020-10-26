@@ -19,7 +19,8 @@
 
 source "$(dirname "$0")"/common_kubernetes.sh
 
-IMAGE_BUILD_RETRIES=3
+local IMAGE_BUILD_RETRIES=3
+local IMAGE_BUILD_BACKOFF=2
 
 export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
 export FLINK_IMAGE_NAME=test_kubernetes_embedded_job
@@ -38,7 +39,7 @@ start_kubernetes
 
 mkdir -p $OUTPUT_VOLUME
 
-if ! retry_times $IMAGE_BUILD_RETRIES 2 "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
 	echo "ERROR: Could not build image. Aborting..."
 	exit 1
 fi
