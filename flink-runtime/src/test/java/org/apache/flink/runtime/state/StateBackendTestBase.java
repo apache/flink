@@ -165,12 +165,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     protected abstract B getStateBackend() throws Exception;
 
+    protected CheckpointStorage getCheckpointStorage() throws Exception {
+        StateBackend stateBackend = getStateBackend();
+        if (stateBackend instanceof CheckpointStorage) {
+            return (CheckpointStorage) stateBackend;
+        }
+
+        throw new IllegalStateException(
+                "The state backend under test does not implement CheckpointStorage."
+                        + "Please override 'createCheckpointStorage' and provide an appropriate"
+                        + "checkpoint storage instance");
+    }
+
     protected abstract boolean isSerializerPresenceRequiredOnRestore();
 
     protected CheckpointStreamFactory createStreamFactory() throws Exception {
         if (checkpointStreamFactory == null) {
             checkpointStreamFactory =
-                    getStateBackend()
+                    getCheckpointStorage()
                             .createCheckpointStorage(new JobID())
                             .resolveCheckpointStorageLocation(
                                     1L, CheckpointStorageLocationReference.getDefault());

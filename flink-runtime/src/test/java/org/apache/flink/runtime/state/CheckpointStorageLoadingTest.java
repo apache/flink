@@ -167,17 +167,6 @@ public class CheckpointStorageLoadingTest {
     static final class ModernStateBackend implements StateBackend {
 
         @Override
-        public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer)
-                throws IOException {
-            return null;
-        }
-
-        @Override
-        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return null;
-        }
-
-        @Override
         public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
                 Environment env,
                 JobID jobID,

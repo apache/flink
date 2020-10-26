@@ -695,6 +695,7 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
+        config.setCheckpointStorage(streamGraph.getCheckpointStorage());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
@@ -1293,9 +1294,8 @@ public class StreamingJobGraphGenerator {
             try {
                 serializedCheckpointStorage =
                         new SerializedValue<>(streamGraph.getCheckpointStorage());
-            }
-            catch (IOException e) {
-                throw new FlinkRuntimeException("State backend is not serializable", e);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException("Checkpoint storage is not serializable", e);
             }
         }
 

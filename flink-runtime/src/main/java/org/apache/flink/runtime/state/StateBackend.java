@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -90,37 +89,6 @@ import java.util.Collection;
 @PublicEvolving
 public interface StateBackend extends java.io.Serializable {
 
-    // ------------------------------------------------------------------------
-    //  Checkpoint storage - the durable persistence of checkpoint data
-    // ------------------------------------------------------------------------
-
-    /**
-     * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
-     * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
-     *
-     * <p>If the state backend cannot understand the format of the pointer (for example because it
-     * was created by a different state backend) this method should throw an {@code IOException}.
-     *
-     * @param externalPointer The external checkpoint pointer to resolve.
-     * @return The checkpoint location handle.
-     * @throws IOException Thrown, if the state backend does not understand the pointer, or if the
-     *     pointer could not be resolved due to an I/O error.
-     */
-    CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
-
-    /**
-     * Creates a storage for checkpoints for the given job. The checkpoint storage is used to write
-     * checkpoint data and metadata.
-     *
-     * @param jobId The job to store checkpoint data for.
-     * @return A checkpoint storage for the given job.
-     * @throws IOException Thrown if the checkpoint storage cannot be initialized.
-     */
-    CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException;
-
-    // ------------------------------------------------------------------------
-    //  Structure Backends
-    // ------------------------------------------------------------------------
     /**
      * Creates a new {@link CheckpointableKeyedStateBackend} that is responsible for holding
      * <b>keyed state</b> and checkpointing it.

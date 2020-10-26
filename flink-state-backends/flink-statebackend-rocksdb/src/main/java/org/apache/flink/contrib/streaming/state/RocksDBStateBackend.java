@@ -33,6 +33,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
@@ -91,7 +92,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * #setRocksDBOptions(RocksDBOptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
-        implements ConfigurableStateBackend {
+        implements CheckpointStorage, ConfigurableStateBackend {
 
     /** The options to chose for the type of priority queue state. */
     public enum PriorityQueueStateType {
@@ -116,7 +117,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
 
     // -- configuration values, set in the application / configuration
 
-    /** The state backend that we use for creating checkpoint streams. */
+    /** The checkpoint storage that we use for creating checkpoint streams. */
     private final StateBackend checkpointStreamBackend;
 
     /**
@@ -246,7 +247,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * checkpoint data streams. Typically, one would supply a filesystem or database state backend
      * here where the snapshots from RocksDB would be stored.
      *
-     * <p>The snapshots of the RocksDB state will be stored using the given backend's {@link
+     * <p>The snapshots of the RocksDB state will be stored using the given backend's {@code
      * StateBackend#createCheckpointStorage(JobID)}.
      *
      * @param checkpointStreamBackend The backend write the checkpoint streams to.
@@ -260,7 +261,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * checkpoint data streams. Typically, one would supply a filesystem or database state backend
      * here where the snapshots from RocksDB would be stored.
      *
-     * <p>The snapshots of the RocksDB state will be stored using the given backend's {@link
+     * <p>The snapshots of the RocksDB state will be stored using the given backend's {@code
      * StateBackend#createCheckpointStorage(JobID)}.
      *
      * @param checkpointStreamBackend The backend write the checkpoint streams to.
@@ -268,6 +269,11 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      */
     public RocksDBStateBackend(
             StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
+        if (!(checkpointStreamBackend instanceof CheckpointStorage)) {
+            throw new IllegalStateException(
+                    "RocksDBStateBackend can only checkpoint"
+                            + "to state backends that also implement CheckpointStorage.");
+        }
         this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
         this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
         this.numberOfTransferThreads = UNDEFINED_NUMBER_OF_TRANSFER_THREADS;
@@ -468,12 +474,12 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
 
     @Override
     public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
-        return checkpointStreamBackend.resolveCheckpoint(pointer);
+        return ((CheckpointStorage) checkpointStreamBackend).resolveCheckpoint(pointer);
     }
 
     @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-        return checkpointStreamBackend.createCheckpointStorage(jobId);
+        return ((CheckpointStorage) checkpointStreamBackend).createCheckpointStorage(jobId);
     }
 
     // ------------------------------------------------------------------------

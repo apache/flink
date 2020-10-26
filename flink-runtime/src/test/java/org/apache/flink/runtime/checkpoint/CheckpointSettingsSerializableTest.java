@@ -150,17 +150,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
         }
 
         @Override
-        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
-                throws IOException {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return mock(CheckpointStorageAccess.class);
-        }
-
-        @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
                 Environment env,
                 JobID jobID,
