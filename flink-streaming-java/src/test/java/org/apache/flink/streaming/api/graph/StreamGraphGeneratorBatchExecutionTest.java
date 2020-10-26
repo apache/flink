@@ -18,14 +18,22 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
@@ -38,11 +46,14 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
+import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -51,6 +62,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -379,6 +391,33 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 		expectedException.expectMessage(
 			"Batch state backend and sorting inputs are not supported in graphs with an InputSelectable operator.");
 		graphGenerator.generate();
+	}
+
+	@Test
+	public void testFeedbackThrowsExceptionInBatch() {
+		final SourceTransformation<Integer> bounded =
+				new SourceTransformation<>(
+						"Bounded Source",
+						new SourceOperatorFactory<>(new MockSource(Boundedness.BOUNDED, 100), WatermarkStrategy.noWatermarks()),
+						IntegerTypeInfo.of(Integer.class),
+						1);
+
+		final FeedbackTransformation<Integer> feedbackTransformation =
+				new FeedbackTransformation<>(bounded, 5L);
+
+		final List<Transformation<?>> registeredTransformations = new ArrayList<>();
+		Collections.addAll(registeredTransformations, bounded, feedbackTransformation);
+
+		StreamGraphGenerator streamGraphGenerator =
+				new StreamGraphGenerator(
+						registeredTransformations,
+						new ExecutionConfig(),
+						new CheckpointConfig());
+		streamGraphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.AUTOMATIC);
+
+		expectedException.expect(UnsupportedOperationException.class);
+		expectedException.expectMessage("Iterations are not supported in BATCH execution mode.");
+		streamGraphGenerator.generate();
 	}
 
 	private static final KeyedProcessFunction<Integer, Integer, Integer> DUMMY_PROCESS_FUNCTION =

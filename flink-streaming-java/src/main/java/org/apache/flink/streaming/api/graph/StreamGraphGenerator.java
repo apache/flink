@@ -434,6 +434,12 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformFeedback(FeedbackTransformation<T> iterate) {
 
+		if (shouldExecuteInBatchMode) {
+			throw new UnsupportedOperationException("Iterations are not supported in BATCH" +
+					" execution mode. If you want to execute such a pipeline, please set the " +
+					"'" + ExecutionOptions.RUNTIME_MODE.key() + "'=" + RuntimeExecutionMode.STREAMING.name());
+		}
+
 		if (iterate.getFeedbackEdges().size() <= 0) {
 			throw new IllegalStateException("Iteration " + iterate + " does not have any feedback edges.");
 		}
