@@ -150,7 +150,7 @@ class DataStreamMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val (timestampedInput, rowComparator, isProcessingTime) = translateOrder(planner,
+    val (timestampedInput, rowComparator, timeCharacteristic) = translateOrder(planner,
       crowInput,
       logicalMatch.orderKeys)
 
@@ -179,21 +179,18 @@ class DataStreamMatch(
     val partitionKeys = logicalMatch.partitionKeys
     val partitionedStream = applyPartitioning(partitionKeys, inputDS)
 
-    val patternStream: PatternStream[Row] = if (rowComparator.isDefined) {
-      val stream = CEP.pattern[Row](partitionedStream, cepPattern,
-        new EventRowComparator(rowComparator.get))
-      if (isProcessingTime) {
-        stream.inProcessingTime()
-      } else {
-        stream
-      }
+    val tmpPatternStream: PatternStream[Row] = if (rowComparator.isDefined) {
+      CEP.pattern[Row](partitionedStream, cepPattern, new EventRowComparator(rowComparator.get))
     } else {
-      val stream = CEP.pattern[Row](partitionedStream, cepPattern)
-      if (isProcessingTime) {
-        stream.inProcessingTime()
-      } else {
-        stream
-      }
+      CEP.pattern[Row](partitionedStream, cepPattern)
+    }
+
+    val patternStream = if (timeCharacteristic == TimeCharacteristic.ProcessingTime) {
+      tmpPatternStream.inProcessingTime();
+    } else if (timeCharacteristic == TimeCharacteristic.EventTime) {
+      tmpPatternStream.inEventTime()
+    } else {
+      throw new IllegalStateException(s"Unknown TimeCharacteristic ${timeCharacteristic}.")
     }
 
     val measures = logicalMatch.measures
@@ -214,7 +211,7 @@ class DataStreamMatch(
       planner: StreamPlanner,
       crowInput: DataStream[CRow],
       orderKeys: RelCollation)
-    : (DataStream[CRow], Option[RowComparator], Boolean) = {
+    : (DataStream[CRow], Option[RowComparator], TimeCharacteristic.Value) = {
 
     if (orderKeys.getFieldCollations.size() == 0) {
       throw new ValidationException("You must specify either rowtime or proctime for order by.")
@@ -248,9 +245,10 @@ class DataStreamMatch(
         (crowInput.process(
           new RowtimeProcessFunction(timeOrderField.getIndex, CRowTypeInfo(inputSchema.typeInfo))
         ).setParallelism(crowInput.getParallelism),
-          rowComparator, false)
+          rowComparator,
+          TimeCharacteristic.EventTime)
       case _ =>
-        (crowInput, rowComparator, true)
+        (crowInput, rowComparator, TimeCharacteristic.ProcessingTime)
     }
   }
 
@@ -264,6 +262,10 @@ class DataStreamMatch(
       inputDs
     }
   }
+}
+
+object TimeCharacteristic extends Enumeration {
+  val ProcessingTime, EventTime = Value
 }
 
 private class PatternVisitor(
