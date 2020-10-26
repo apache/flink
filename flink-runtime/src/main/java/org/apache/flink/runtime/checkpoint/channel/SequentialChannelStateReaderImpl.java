@@ -65,8 +65,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
 	}
 
 	@Override
-	public void readOutputData(ResultPartitionWriter[] writers) throws IOException, InterruptedException {
-		try (ResultSubpartitionRecoveredStateHandler stateHandler = new ResultSubpartitionRecoveredStateHandler(writers)) {
+	public void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) throws IOException, InterruptedException {
+		try (ResultSubpartitionRecoveredStateHandler stateHandler = new ResultSubpartitionRecoveredStateHandler(writers, notifyAndBlockOnCompletion)) {
 			read(stateHandler, groupByDelegate(streamSubtaskStates(), OperatorSubtaskState::getResultSubpartitionState));
 		}
 	}
