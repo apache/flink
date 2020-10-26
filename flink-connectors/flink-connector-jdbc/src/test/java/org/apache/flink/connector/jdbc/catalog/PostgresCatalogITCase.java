@@ -173,7 +173,9 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                         + "[b, c, d], "
                         + "[2016-06-22T19:10:25, 2019-06-22T19:10:25], "
                         + "[2015-01-01, 2020-01-01], "
-                        + "[00:51:03, 00:59:03]]]",
+                        + "[00:51:03, 00:59:03], "
+                        + "null, "
+                        + "null]]",
                 results.toString());
     }
 
