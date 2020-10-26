@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -52,6 +53,9 @@ public class JobCheckpointingSettings implements Serializable {
     /** The default state backend, if configured by the user in the job */
     @Nullable private final SerializedValue<StateBackend> defaultStateBackend;
 
+    /** The default checkpoint storage, if configured by the user in the job */
+    @Nullable private final SerializedValue<CheckpointStorage> defaultCheckpointStorage;
+
     /** (Factories for) hooks that are executed on the checkpoint coordinator */
     @Nullable private final SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks;
 
@@ -68,6 +72,7 @@ public class JobCheckpointingSettings implements Serializable {
                 verticesToConfirm,
                 checkpointCoordinatorConfiguration,
                 defaultStateBackend,
+                null,
                 null);
     }
 
@@ -77,6 +82,7 @@ public class JobCheckpointingSettings implements Serializable {
             List<JobVertexID> verticesToConfirm,
             CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration,
             @Nullable SerializedValue<StateBackend> defaultStateBackend,
+            @Nullable SerializedValue<CheckpointStorage> defaultCheckpointStorage,
             @Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks) {
 
         this.verticesToTrigger = requireNonNull(verticesToTrigger);
@@ -85,6 +91,7 @@ public class JobCheckpointingSettings implements Serializable {
         this.checkpointCoordinatorConfiguration =
                 Preconditions.checkNotNull(checkpointCoordinatorConfiguration);
         this.defaultStateBackend = defaultStateBackend;
+        this.defaultCheckpointStorage = defaultCheckpointStorage;
         this.masterHooks = masterHooks;
     }
 
@@ -109,6 +116,11 @@ public class JobCheckpointingSettings implements Serializable {
     @Nullable
     public SerializedValue<StateBackend> getDefaultStateBackend() {
         return defaultStateBackend;
+    }
+
+    @Nullable
+    public SerializedValue<CheckpointStorage> getDefaultCheckpointStorage() {
+        return defaultCheckpointStorage;
     }
 
     @Nullable

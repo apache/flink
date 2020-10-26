@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -113,6 +114,7 @@ public class StreamGraph implements Pipeline {
     protected Map<Integer, String> vertexIDtoBrokerID;
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
     private StateBackend stateBackend;
+    private CheckpointStorage checkpointStorage;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
     private InternalTimeServiceManager.Provider timerServiceProvider;
 
@@ -174,6 +176,14 @@ public class StreamGraph implements Pipeline {
 
     public StateBackend getStateBackend() {
         return this.stateBackend;
+    }
+
+    public void setCheckpointStorage(CheckpointStorage checkpointStorage) {
+        this.checkpointStorage = checkpointStorage;
+    }
+
+    public CheckpointStorage getCheckpointStorage() {
+        return this.checkpointStorage;
     }
 
     public InternalTimeServiceManager.Provider getTimerServiceProvider() {

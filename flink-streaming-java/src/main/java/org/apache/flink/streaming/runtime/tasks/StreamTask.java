@@ -52,6 +52,8 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -183,8 +185,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /** The configuration of this streaming task. */
     protected final StreamConfig configuration;
 
-    /** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
+    /** Our state backend. We use this to create a keyed state backend. */
     protected final StateBackend stateBackend;
+
+    /** Our checkpoint storage. We use this to create checkpoint streams. */
+    protected final CheckpointStorage checkpointStorage;
 
     private final SubtaskCheckpointCoordinator subtaskCheckpointCoordinator;
 
@@ -315,10 +320,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
         this.stateBackend = createStateBackend();
+        this.checkpointStorage = createCheckpointStorage(stateBackend);
 
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        stateBackend.createCheckpointStorage(getEnvironment().getJobID()),
+                        checkpointStorage.createCheckpointStorage(getEnvironment().getJobID()),
                         getName(),
                         actionExecutor,
                         getCancelables(),
@@ -1136,6 +1142,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
+                getEnvironment().getTaskManagerInfo().getConfiguration(),
+                getUserCodeClassLoader(),
+                LOG);
+    }
+
+
+    private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
+        final CheckpointStorage fromApplication = configuration.getCheckpointStorage(getUserCodeClassLoader());
+
+        return CheckpointStorageLoader.load(
+                fromApplication,
+                backend,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);
