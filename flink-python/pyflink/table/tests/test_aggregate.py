@@ -22,7 +22,7 @@ import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.common import Row
-from pyflink.fn_execution.state_impl import RemovableIterator
+from pyflink.fn_execution.state_impl import RemovableConcatIterator
 from pyflink.table import DataTypes
 from pyflink.table.data_view import ListView, MapView
 from pyflink.table.expressions import col
@@ -184,7 +184,7 @@ class TestIterateAggregateFunction(AggregateFunction):
         accumulator[0][input_str] -= 1
         if accumulator[0][input_str] == 0:
             # test removable iterator
-            key_iter = iter(accumulator[0].keys())  # type: RemovableIterator
+            key_iter = iter(accumulator[0].keys())  # type: RemovableConcatIterator
             while True:
                 try:
                     key = next(key_iter)
