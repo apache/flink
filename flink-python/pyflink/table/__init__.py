@@ -66,7 +66,7 @@ Important classes of Flink Table API:
 """
 from __future__ import absolute_import
 
-from pyflink.table.data_view import DataView, ListView
+from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
@@ -100,6 +100,7 @@ __all__ = [
     'GroupWindowedTable',
     'GroupedTable',
     'ListView',
+    'MapView',
     'Module',
     'OverWindowedTable',
     'ResultKind',

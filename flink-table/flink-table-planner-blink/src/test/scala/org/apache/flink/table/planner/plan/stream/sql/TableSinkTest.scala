@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.LogicalType
 
 import org.junit.Test
 
@@ -29,10 +28,6 @@ class TableSinkTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-  val STRING: LogicalType = DataTypes.STRING().getLogicalType
-  val LONG: LogicalType = DataTypes.BIGINT().getLogicalType
-  val INT: LogicalType = DataTypes.INT().getLogicalType
 
   @Test
   def testInsertMismatchTypeForEmptyChar(): Unit = {
@@ -49,7 +44,7 @@ class TableSinkTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
-        "Sink schema: [name: STRING, email: STRING, message_offset: BIGINT]")
+      "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
     util.verifyPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
   }
 
@@ -306,4 +301,101 @@ class TableSinkTest extends TableTestBase {
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testExceptionForWritingVirtualMetadataColumn(): Unit = {
+    // test reordering, skipping, casting of (virtual) metadata columns
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `m_3` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `m_2` INT METADATA FROM 'metadata_2',
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+         |)
+       """.stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO MetadataTable
+        |SELECT *
+        |FROM MetadataTable
+        |""".stripMargin
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
+      "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
+
+    util.verifyPlan(stmtSet)
+  }
+
+  @Test
+  def testExceptionForWritingInvalidMetadataColumn(): Unit = {
+    // test casting of metadata columns
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `metadata_1` TIMESTAMP(3) METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'writable-metadata' = 'metadata_1:BOOLEAN'
+         |)
+       """.stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO MetadataTable
+        |SELECT TIMESTAMP '1990-10-14 06:00:00.000'
+        |""".stripMargin
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Invalid data type for metadata column 'metadata_1' of table " +
+      "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
+      "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
+
+    util.verifyPlan(stmtSet)
+  }
+
+  @Test
+  def testMetadataColumn(): Unit = {
+    // test reordering, skipping, casting of (virtual) metadata columns
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `m_3` INT METADATA FROM 'metadata_3' VIRTUAL,
+         |  `m_2` INT METADATA FROM 'metadata_2',
+         |  `b` BIGINT,
+         |  `c` INT,
+         |  `metadata_1` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+         |)
+       """.stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO MetadataTable
+        |SELECT `a`, `m_2`, `b`, `c`, `metadata_1`
+        |FROM MetadataTable
+        |""".stripMargin
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+
+    util.verifyPlan(stmtSet)
+  }
 }

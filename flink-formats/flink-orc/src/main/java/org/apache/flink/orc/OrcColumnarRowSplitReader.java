@@ -46,7 +46,7 @@ public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<RowData, BA
 			TypeDescription schema,
 			int[] selectedFields,
 			ColumnBatchGenerator<BATCH> batchGenerator,
-			List<Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,

@@ -768,7 +768,8 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		tEnv().executeSql(
-				"INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t")
+				"INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable source, "
+						+ "LATERAL TABLE(RowTableFunction(source.s)) t")
 				.await();
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));

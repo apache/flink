@@ -19,14 +19,14 @@ limitations under the License.
   <TestCase name="testAppendSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.appendSink], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c])
 +- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(table=[default_catalog.default_database.appendSink], fields=[a, b], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c], changelogMode=[NONE])
 +- Calc(select=[+(a, b) AS EXPR$0, c], changelogMode=[I])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
@@ -98,6 +98,27 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min],
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertMismatchTypeForEmptyChar">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO my_sink SELECT a, '', '' FROM MyTable]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataColumn">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
++- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_1=[$3], metadata_2=[CAST(CAST($4):INTEGER):BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
++- Calc(select=[a, b, c, metadata_1, CAST(CAST(metadata_2)) AS metadata_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[a, b, c, metadata_1, metadata_2]]], fields=[a, b, c, metadata_1, metadata_2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractAndUpsertSink">
     <Resource name="planBefore">
       <![CDATA[
@@ -115,7 +136,7 @@ LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt]
          +- LogicalProject(b=[$1], a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt])
+LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[cnt, frequency])
 +- LogicalAggregate(group=[{0}], frequency=[COUNT($1)])
    +- LogicalProject(cnt=[$1], b=[$0])
       +- LogicalFilter(condition=[<($0, 4)])
@@ -138,10 +159,10 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[b, cnt], chan
 +- Reused(reference_id=[2])
 
 Sink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt], changelogMode=[NONE])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], changelogMode=[I,UB,UA])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
    +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.upsertSink], fields=[cnt, frequency], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(b) AS frequency], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[cnt]], changelogMode=[I,UB,UA])
       +- Reused(reference_id=[2])

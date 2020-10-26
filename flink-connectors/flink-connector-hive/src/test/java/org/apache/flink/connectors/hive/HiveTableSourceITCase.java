@@ -21,15 +21,14 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.HiveVersionTestUtil;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -46,14 +45,10 @@ import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
-import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
-import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
-import org.apache.flink.table.planner.runtime.utils.TestingAppendSink;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import com.klarna.hiverunner.HiveShell;
@@ -74,6 +69,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -488,55 +484,42 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				.addRow(new Object[]{0, "0"})
 				.commit("ts='2020-05-06 00:00:00'");
 
-		Table src = tEnv.from("hive.source_db.stream_test");
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_test");
+		CloseableIterator<Row> iter = result.collect();
 
-		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(InternalTypeInfo.ofFields(
-				DataTypes.INT().getLogicalType(),
-				DataTypes.STRING().getLogicalType(),
-				DataTypes.STRING().getLogicalType()));
-		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
-		out.print(); // add print to see streaming reading
-		out.addSink(sink);
+		Assert.assertEquals(
+				Row.of(0, "0", "2020-05-06 00:00:00").toString(),
+				fetchRows(iter, 1).get(0));
 
-		JobClient job = env.executeAsync("job");
-
-		Runnable runnable = () -> {
-			for (int i = 1; i < 6; i++) {
-				try {
-					Thread.sleep(5_000);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-				HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-						.addRow(new Object[]{i, String.valueOf(i)})
-						.addRow(new Object[]{i, i + "_copy"})
-						.commit("ts='2020-05-06 00:" + i + "0:00'");
+		for (int i = 1; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
 			}
-		};
-		Thread thread = new Thread(runnable);
-		thread.setDaemon(true);
-		thread.start();
-		thread.join();
-		Thread.sleep(5_000);
+			HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+					.addRow(new Object[]{i, String.valueOf(i)})
+					.addRow(new Object[]{i, i + "_copy"})
+					.commit("ts='2020-05-06 00:" + i + "0:00'");
 
-		List<String> expected = Arrays.asList(
-				"+I(0,0,2020-05-06 00:00:00)",
-				"+I(1,1,2020-05-06 00:10:00)",
-				"+I(1,1_copy,2020-05-06 00:10:00)",
-				"+I(2,2,2020-05-06 00:20:00)",
-				"+I(2,2_copy,2020-05-06 00:20:00)",
-				"+I(3,3,2020-05-06 00:30:00)",
-				"+I(3,3_copy,2020-05-06 00:30:00)",
-				"+I(4,4,2020-05-06 00:40:00)",
-				"+I(4,4_copy,2020-05-06 00:40:00)",
-				"+I(5,5,2020-05-06 00:50:00)",
-				"+I(5,5_copy,2020-05-06 00:50:00)"
-		);
-		List<String> results = sink.getJavaAppendResults();
-		results.sort(String::compareTo);
-		assertEquals(expected, results);
-		job.cancel();
-		StreamTestSink.clear();
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, String.valueOf(i), "2020-05-06 00:" + i + "0:00").toString(),
+							Row.of(i, i + "_copy", "2020-05-06 00:" + i + "0:00").toString()),
+					fetchRows(iter, 2));
+		}
+
+		result.getJobClient().get().cancel();
+	}
+
+	private static List<String> fetchRows(Iterator<Row> iter, int size) {
+		List<String> strings = new ArrayList<>(size);
+		for (int i = 0; i < size; i++) {
+			Assert.assertTrue(iter.hasNext());
+			strings.add(iter.next().toString());
+		}
+		strings.sort(String::compareTo);
+		return strings;
 	}
 
 	@Test(timeout = 30000)
@@ -565,45 +548,22 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				"  'streaming-source.monitor-interval'='100ms'" +
 				")");
 
-		Table src = tEnv.sqlQuery("select * from hive.source_db." + tblName);
+		TableResult result = tEnv.executeSql("select * from hive.source_db." + tblName);
+		CloseableIterator<Row> iter = result.collect();
 
-		TestingAppendSink sink = new TestingAppendSink();
-		tEnv.toAppendStream(src, Row.class).addSink(sink);
-		final JobClient jobClient = env.executeAsync();
-
-		Runnable runnable = () -> {
-			for (int i = 0; i < 3; ++i) {
-				hiveShell.execute("insert into table source_db." + tblName + " values (1,'a'), (2,'b')");
-				try {
-					Thread.sleep(2_000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					break;
-				}
+		for (int i = 1; i < 3; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
 			}
-		};
-		Thread thread = new Thread(runnable);
-		thread.setDaemon(true);
-		thread.start();
-		// Waiting for writing test data to finish
-		thread.join();
-		// Wait up to 20 seconds for all data to be processed
-		for (int i = 0; i < 20; ++i) {
-			if (sink.getAppendResults().size() == 6) {
-				break;
-			} else {
-				Thread.sleep(1000);
-			}
+			hiveShell.execute("insert into table source_db." + tblName + " values (1,'a'), (2,'b')");
+			Assert.assertEquals(
+					Arrays.asList(Row.of(1, "a").toString(), Row.of(2, "b").toString()),
+					fetchRows(iter, 2));
 		}
 
-		// check the result
-		List<String> actual = new ArrayList<>(JavaScalaConversionUtil.toJava(sink.getAppendResults()));
-		actual.sort(String::compareTo);
-		List<String> expected = Arrays.asList("1,a", "1,a", "1,a", "2,b", "2,b", "2,b");
-		expected.sort(String::compareTo);
-		assertEquals(expected, actual);
-		// cancel the job
-		jobClient.cancel();
+		result.getJobClient().get().cancel();
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {

@@ -43,7 +43,7 @@ public class OrcRowSplitReader extends OrcSplitReader<Row, VectorizedRowBatch> {
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
-			List<Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,

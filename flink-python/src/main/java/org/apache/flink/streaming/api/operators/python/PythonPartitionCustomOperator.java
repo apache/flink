@@ -22,11 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 
 /**
  * The {@link PythonPartitionCustomOperator} enables us to set the number of partitions for current
@@ -53,21 +58,23 @@ public class PythonPartitionCustomOperator<IN, OUT> extends
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
 		PythonEnvironmentManager pythonEnvironmentManager = createPythonEnvironmentManager();
-		if (pythonEnvironmentManager instanceof ProcessPythonEnvironmentManager) {
-			ProcessPythonEnvironmentManager envManager = (ProcessPythonEnvironmentManager) pythonEnvironmentManager;
-			envManager.setEnvironmentVariable(DATA_STREAM_NUM_PARTITIONS,
-				String.valueOf(this.numPartitions));
-		}
+		Map<String, String> internalParameters = new HashMap<>();
+		internalParameters.put(DATA_STREAM_NUM_PARTITIONS, String.valueOf(this.numPartitions));
 		return new BeamDataStreamStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			pythonEnvironmentManager,
 			inputTypeInfo,
 			outputTypeInfo,
 			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
-			getUserDefinedDataStreamFunctionsProto(),
+			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), internalParameters),
 			DATA_STREAM_MAP_FUNCTION_CODER_URN,
 			jobOptions,
-			getFlinkMetricContainer()
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager(),
+			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.PYTHON,
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
 		);
 	}
 

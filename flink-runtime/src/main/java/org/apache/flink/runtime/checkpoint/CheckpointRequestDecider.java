@@ -62,6 +62,7 @@ class CheckpointRequestDecider {
 	private final Clock clock;
 	private final long minPauseBetweenCheckpoints;
 	private final Supplier<Integer> pendingCheckpointsSizeSupplier;
+	private final Supplier<Integer> numberOfCleaningCheckpointsSupplier;
 	private final NavigableSet<CheckpointTriggerRequest> queuedRequests = new TreeSet<>(checkpointTriggerRequestsComparator());
 	private final int maxQueuedRequests;
 
@@ -70,13 +71,15 @@ class CheckpointRequestDecider {
 			Consumer<Long> rescheduleTrigger,
 			Clock clock,
 			long minPauseBetweenCheckpoints,
-			Supplier<Integer> pendingCheckpointsSizeSupplier) {
+			Supplier<Integer> pendingCheckpointsSizeSupplier,
+			Supplier<Integer> numberOfCleaningCheckpointsSupplier) {
 		this(
 			maxConcurrentCheckpointAttempts,
 			rescheduleTrigger,
 			clock,
 			minPauseBetweenCheckpoints,
 			pendingCheckpointsSizeSupplier,
+			numberOfCleaningCheckpointsSupplier,
 			DEFAULT_MAX_QUEUED_REQUESTS
 		);
 	}
@@ -87,6 +90,7 @@ class CheckpointRequestDecider {
 			Clock clock,
 			long minPauseBetweenCheckpoints,
 			Supplier<Integer> pendingCheckpointsSizeSupplier,
+			Supplier<Integer> numberOfCleaningCheckpointsSupplier,
 			int maxQueuedRequests) {
 		Preconditions.checkArgument(maxConcurrentCheckpointAttempts > 0);
 		Preconditions.checkArgument(maxQueuedRequests > 0);
@@ -95,6 +99,7 @@ class CheckpointRequestDecider {
 		this.clock = clock;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.pendingCheckpointsSizeSupplier = pendingCheckpointsSizeSupplier;
+		this.numberOfCleaningCheckpointsSupplier = numberOfCleaningCheckpointsSupplier;
 		this.maxQueuedRequests = maxQueuedRequests;
 	}
 
@@ -134,10 +139,10 @@ class CheckpointRequestDecider {
 	 * @return request that should be executed
 	 */
 	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(boolean isTriggering, long lastCompletionMs) {
-		if (isTriggering || queuedRequests.isEmpty()) {
+		if (isTriggering || queuedRequests.isEmpty()
+			|| numberOfCleaningCheckpointsSupplier.get() > maxConcurrentCheckpointAttempts) {
 			return Optional.empty();
 		}
-
 		if (pendingCheckpointsSizeSupplier.get() >= maxConcurrentCheckpointAttempts) {
 			return Optional.of(queuedRequests.first())
 				.filter(CheckpointTriggerRequest::isForce)

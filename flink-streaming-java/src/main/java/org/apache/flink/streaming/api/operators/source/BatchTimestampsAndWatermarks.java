@@ -77,6 +77,7 @@ public class BatchTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<
 
 		private final PushingAsyncDataInput.DataOutput<T> output;
 		private final TimestampAssigner<T> timestampAssigner;
+		private final StreamRecord<T> reusingRecord;
 
 		private TimestampsOnlyOutput(
 				PushingAsyncDataInput.DataOutput<T> output,
@@ -84,6 +85,7 @@ public class BatchTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<
 
 			this.output = output;
 			this.timestampAssigner = timestampAssigner;
+			this.reusingRecord = new StreamRecord<>(null);
 		}
 
 		@Override
@@ -94,7 +96,7 @@ public class BatchTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<
 		@Override
 		public void collect(T record, long timestamp) {
 			try {
-				output.emitRecord(new StreamRecord<>(record, timestampAssigner.extractTimestamp(record, timestamp)));
+				output.emitRecord(reusingRecord.replace(record, timestampAssigner.extractTimestamp(record, timestamp)));
 			} catch (ExceptionInChainedOperatorException e) {
 				throw e;
 			} catch (Exception e) {

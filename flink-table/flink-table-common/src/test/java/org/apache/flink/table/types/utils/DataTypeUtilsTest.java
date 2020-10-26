@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -57,6 +58,36 @@ import static org.junit.Assert.fail;
  * Tests for {@link DataTypeUtils}.
  */
 public class DataTypeUtilsTest {
+
+	@Test
+	public void testProjectRow() {
+		final DataType thirdLevelRow = ROW(
+			FIELD("c0", BOOLEAN()),
+			FIELD("c1", DOUBLE()),
+			FIELD("c2", INT())
+		);
+		final DataType secondLevelRow = ROW(
+			FIELD("b0", BOOLEAN()),
+			FIELD("b1", thirdLevelRow),
+			FIELD("b2", INT())
+		);
+		final DataType topLevelRow = ROW(
+			FIELD("a0", INT()),
+			FIELD("a1", secondLevelRow)
+		);
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{0}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("a0", INT()), FIELD("c0", BOOLEAN()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1}, {0}}),
+			equalTo(ROW(FIELD("b1", thirdLevelRow), FIELD("a0", INT()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 2}, {1, 1, 1}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("c2", INT()), FIELD("c1", DOUBLE()), FIELD("c0", BOOLEAN()))));
+	}
 
 	@Test
 	public void testIsInternalClass() {

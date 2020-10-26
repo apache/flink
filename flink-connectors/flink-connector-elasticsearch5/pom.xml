@@ -120,13 +120,6 @@ under the License.
 			<version>4.1.44.Final</version>
 		</dependency>
 
-		<dependency>
-			<!-- Bumped for security purposes and making it work with Jackson dependencies (2.10.1) -->
-			<groupId>org.yaml</groupId>
-			<artifactId>snakeyaml</artifactId>
-			<version>1.27</version>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>

@@ -83,7 +83,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTableStateless
 		FlinkMetricContainer flinkMetricContainer,
 		boolean isBatchOverWindow) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
-			coderUrn, jobOptions, flinkMetricContainer);
+			coderUrn, jobOptions, flinkMetricContainer, null, 0.0);
 		this.buffer = new LinkedList<>();
 		this.isBatchOverWindow = isBatchOverWindow;
 		arrowSerializer = new RowDataArrowSerializer(inputType, outputType);

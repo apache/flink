@@ -28,10 +28,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 
 /**
  * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. This operator
@@ -43,10 +41,7 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 	private static final long serialVersionUID = 1L;
 
 	private final int rowtimeFieldIndex;
-	private final int[] notNullFieldIndices;
-	private final String[] allFieldNames;
-	private final NotNullEnforcer notNullEnforcer;
-	private final boolean notNullCheck;
+	private final SinkNotNullEnforcer enforcer;
 
 	private transient SimpleContext sinkContext;
 
@@ -56,15 +51,10 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 	public SinkOperator(
 			SinkFunction<RowData> sinkFunction,
 			int rowtimeFieldIndex,
-			NotNullEnforcer notNullEnforcer,
-			int[] notNullFieldIndices,
-			String[] allFieldNames) {
+			SinkNotNullEnforcer enforcer) {
 		super(sinkFunction);
 		this.rowtimeFieldIndex = rowtimeFieldIndex;
-		this.notNullFieldIndices = notNullFieldIndices;
-		this.notNullEnforcer = notNullEnforcer;
-		this.notNullCheck = notNullFieldIndices.length > 0;
-		this.allFieldNames = allFieldNames;
+		this.enforcer = enforcer;
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
@@ -78,30 +68,9 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 	public void processElement(StreamRecord<RowData> element) throws Exception {
 		sinkContext.element = element;
 		RowData row = element.getValue();
-		if (notNullCheck) {
-			if (failOrFilterNullValues(row)) {
-				return;
-			}
+		if (enforcer.filter(row)) {
+			userFunction.invoke(row, sinkContext);
 		}
-		userFunction.invoke(row, sinkContext);
-	}
-
-	private boolean failOrFilterNullValues(RowData row) {
-		for (int index : notNullFieldIndices) {
-			if (row.isNullAt(index)) {
-				if (notNullEnforcer == NotNullEnforcer.ERROR) {
-					String optionKey = ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key();
-					throw new TableException(
-						String.format("Column '%s' is NOT NULL, however, a null value is being written into it. " +
-							"You can set job configuration '" + optionKey + "'='drop' " +
-							"to suppress this exception and drop such records silently.", allFieldNames[index]));
-				} else {
-					// simply drop the record
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 
 	@Override
@@ -140,8 +109,13 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 
 		@Override
 		public Long timestamp() {
-			if (rowtimeFieldIndex > 0) {
-				return element.getValue().getLong(rowtimeFieldIndex);
+			if (rowtimeFieldIndex >= 0) {
+				TimestampData timestamp = element.getValue().getTimestamp(rowtimeFieldIndex, 3);
+				if (timestamp != null) {
+					return timestamp.getMillisecond();
+				} else {
+					return null;
+				}
 			}
 			return null;
 		}

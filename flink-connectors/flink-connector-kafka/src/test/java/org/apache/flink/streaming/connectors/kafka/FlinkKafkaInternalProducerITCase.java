@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaInternalProducer;
+import org.apache.flink.streaming.connectors.kafka.internals.FlinkKafkaInternalProducer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 

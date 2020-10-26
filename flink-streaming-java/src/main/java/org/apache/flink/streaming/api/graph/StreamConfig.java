@@ -33,6 +33,7 @@ import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -94,6 +95,7 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 
 	private static final String STATE_BACKEND = "statebackend";
+	private static final String TIMER_SERVICE_PROVIDER = "timerservice";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
@@ -533,6 +535,24 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+		}
+	}
+
+	public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
+		if (timerServiceProvider != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(timerServiceProvider, this.config, TIMER_SERVICE_PROVIDER);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize timer service provider.", e);
+			}
+		}
+	}
+
+	public InternalTimeServiceManager.Provider getTimerServiceProvider(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TIMER_SERVICE_PROVIDER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate timer service provider.", e);
 		}
 	}
 

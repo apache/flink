@@ -237,7 +237,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
 		testHarness.setup(getOutputTypeSerializer(dataType));
 		return testHarness;
 	}

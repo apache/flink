@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.common
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.connector.source.{InputFormatProvider, ScanTableSource, SourceFunctionProvider}
+import org.apache.flink.table.connector.source.{DataStreamScanProvider, InputFormatProvider, ScanTableSource, SourceFunctionProvider, SourceProvider}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
@@ -79,6 +80,12 @@ abstract class CommonPhysicalTableSourceScan(
       case provider: InputFormatProvider =>
         val inputFormat = provider.createInputFormat()
         createInputFormatTransformation(env, inputFormat, name, outTypeInfo)
+      case provider: SourceProvider =>
+      // TODO: Push down watermark strategy to source scan
+        val strategy: WatermarkStrategy[RowData] = WatermarkStrategy.noWatermarks()
+        env.fromSource(provider.createSource(), strategy, name).getTransformation
+      case provider: DataStreamScanProvider =>
+        provider.produceDataStream(env).getTransformation
     }
   }
 

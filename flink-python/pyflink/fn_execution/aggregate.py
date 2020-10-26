@@ -21,11 +21,11 @@ from typing import List
 from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
-from pyflink.common.state import ListState
+from pyflink.common.state import ListState, MapState
 from pyflink.fn_execution.coders import from_proto
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext
-from pyflink.table.data_view import ListView
+from pyflink.table.data_view import ListView, MapView
 
 
 def join_row(left: Row, right: Row):
@@ -47,10 +47,10 @@ def extract_data_view_specs(udfs):
         for spec_proto in udf_data_view_specs_proto:
             state_id = spec_proto.name
             field_index = spec_proto.field_index
-            if spec_proto.list_view is not None:
+            if spec_proto.HasField("list_view"):
                 element_coder = from_proto(spec_proto.list_view.element_type)
                 extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
-            elif spec_proto.map_view is not None:
+            elif spec_proto.HasField("map_view"):
                 key_coder = from_proto(spec_proto.map_view.key_type)
                 value_coder = from_proto(spec_proto.map_view.value_type)
                 extracted_specs.append(MapViewSpec(state_id, field_index, key_coder, value_coder))
@@ -82,6 +82,43 @@ class StateListView(ListView):
 
     def __hash__(self) -> int:
         return hash([i for i in self.get()])
+
+
+class StateMapView(MapView):
+
+    def __init__(self, map_state: MapState):
+        super().__init__()
+        self._map_state = map_state
+
+    def get(self, key):
+        return self._map_state.get(key)
+
+    def put(self, key, value) -> None:
+        self._map_state.put(key, value)
+
+    def put_all(self, dict_value) -> None:
+        self._map_state.put_all(dict_value)
+
+    def remove(self, key) -> None:
+        self._map_state.remove(key)
+
+    def contains(self, key) -> bool:
+        return self._map_state.contains(key)
+
+    def items(self):
+        raise NotImplementedError
+
+    def keys(self):
+        raise NotImplementedError
+
+    def values(self):
+        raise NotImplementedError
+
+    def is_empty(self) -> bool:
+        return self._map_state.is_empty()
+
+    def clear(self) -> None:
+        return self._map_state.clear()
 
 
 class DataViewSpec(object):
@@ -136,6 +173,10 @@ class StateDataViewStore(object):
 
     def get_state_list_view(self, state_name, element_coder):
         return StateListView(self._keyed_state_backend.get_list_state(state_name, element_coder))
+
+    def get_state_map_view(self, state_name, key_coder, value_coder):
+        return StateMapView(
+            self._keyed_state_backend.get_map_state(state_name, key_coder, value_coder))
 
 
 class AggsHandleFunction(ABC):
@@ -268,6 +309,12 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
+                            PickleCoder())
+                elif isinstance(data_view_spec, MapViewSpec):
+                    data_views[data_view_spec.field_index] = \
+                        state_data_view_store.get_state_map_view(
+                            data_view_spec.state_id,
+                            PickleCoder(),
                             PickleCoder())
             self._udf_data_views.append(data_views)
 

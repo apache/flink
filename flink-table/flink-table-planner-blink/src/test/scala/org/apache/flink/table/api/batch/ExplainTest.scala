@@ -21,13 +21,21 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInputNode}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.{ExecutorUtils, PlanUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
+import org.apache.calcite.rel.RelNode
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.util.Collections
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
@@ -115,6 +123,58 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     stmtSet.addInsert("sink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)
+  }
+
+  @Test
+  def testExplainMultipleInput(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |select * from
+        |   (select a, sum(b) from MyTable1 group by a) v1,
+        |   (select d, sum(e) from MyTable2 group by d) v2
+        |   where a = d
+        |""".stripMargin
+    // TODO use `util.verifyExplain` to verify the result
+    //  after supporting converting rel nodes to multiple input node
+    val relNode = TableTestUtil.toRelNode(util.tableEnv.sqlQuery(sql))
+    val batchRelNode = util.getPlanner.optimize(relNode).asInstanceOf[BatchExecHashJoin]
+    val firstBorder = batchRelNode.getInputNodes.get(0)
+    val firstInput = firstBorder.getInputNodes.get(0)
+    val firstEdge = firstBorder.getInputEdges.get(0)
+    val secondBorder = batchRelNode.getInputNodes.get(1)
+    val secondInput = secondBorder.getInputNodes.get(0)
+    val secondEdge = secondBorder.getInputEdges.get(0)
+    val multipleInputRel = new BatchExecMultipleInputNode(
+      batchRelNode.getCluster,
+      batchRelNode.getTraitSet,
+      Array(firstInput.asInstanceOf[RelNode], secondInput.asInstanceOf[RelNode]),
+      batchRelNode,
+      Array(
+        ExecEdge.builder()
+          .requiredShuffle(firstEdge.getRequiredShuffle)
+          .damBehavior(firstEdge.getDamBehavior)
+          .priority(0)
+          .build(),
+        ExecEdge.builder()
+          .requiredShuffle(secondEdge.getRequiredShuffle)
+          .damBehavior(secondEdge.getDamBehavior)
+          .priority(1)
+          .build()))
+
+    val ast = FlinkRelOptUtil.toString(multipleInputRel)
+
+    val transform = multipleInputRel.translateToPlan(
+      util.getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[BatchPlanner])
+    val streamGraph = ExecutorUtils.generateStreamGraph(
+      util.getStreamEnv, Collections.singletonList(transform))
+    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
+
+    val actual = ast + "\n" + executionPlan
+
+    val expected = TableTestUtil.readFromResource("/explain/testExplainMultipleInput.out")
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
 }

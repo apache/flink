@@ -52,7 +52,7 @@ public abstract class AbstractBatchArrowPythonAggregateFunctionOperatorTest
 
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
 		testHarness.setup(new RowDataSerializer(outputType));
 		return testHarness;
 	}

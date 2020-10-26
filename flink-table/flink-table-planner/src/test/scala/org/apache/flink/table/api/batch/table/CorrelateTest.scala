@@ -25,7 +25,7 @@ import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableFunc0, TableFunc1, TableTestBase}
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
@@ -170,9 +170,9 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
 
     val logicalRuleSet = FlinkRuleSets.LOGICAL_OPT_RULES.filter {
-        case CalcMergeRule.INSTANCE => false
-        case FilterCalcMergeRule.INSTANCE => false
-        case ProjectCalcMergeRule.INSTANCE => false
+        case CoreRules.CALC_MERGE => false
+        case CoreRules.FILTER_CALC_MERGE => false
+        case CoreRules.PROJECT_CALC_MERGE => false
         case _ => true
       }
 

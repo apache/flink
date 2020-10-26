@@ -53,6 +53,7 @@ import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
@@ -905,9 +906,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		//In Integration test setup, the Yarn containers created by YarnMiniCluster does not have the Yarn site XML
 		//and KRB5 configuration files. We are adding these files as container local resources for the container
 		//applications (JM/TMs) to have proper secure cluster setup
-		Path remoteKrb5Path = null;
 		Path remoteYarnSiteXmlPath = null;
-		boolean hasKrb5 = false;
 		if (System.getenv("IN_TESTS") != null) {
 			File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
 			LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
@@ -919,21 +918,26 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				LocalResourceType.FILE,
 				false,
 				false).getPath();
+			if (System.getProperty("java.security.krb5.conf") != null) {
+				configuration.set(SecurityOptions.KERBEROS_KRB5_PATH, System.getProperty("java.security.krb5.conf"));
+			}
+		}
 
-			String krb5Config = System.getProperty("java.security.krb5.conf");
-			if (krb5Config != null && krb5Config.length() != 0) {
-				File krb5 = new File(krb5Config);
-				LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
-				Path krb5ConfPath = new Path(krb5.getAbsolutePath());
-				remoteKrb5Path = fileUploader.registerSingleLocalResource(
+		Path remoteKrb5Path = null;
+		boolean hasKrb5 = false;
+		String krb5Config = configuration.get(SecurityOptions.KERBEROS_KRB5_PATH);
+		if (!StringUtils.isNullOrWhitespaceOnly(krb5Config)) {
+			final File krb5 = new File(krb5Config);
+			LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
+			final Path krb5ConfPath = new Path(krb5.getAbsolutePath());
+			remoteKrb5Path = fileUploader.registerSingleLocalResource(
 					Utils.KRB5_FILE_NAME,
 					krb5ConfPath,
 					"",
 					LocalResourceType.FILE,
 					false,
 					false).getPath();
-				hasKrb5 = true;
-			}
+			hasKrb5 = true;
 		}
 
 		Path remotePathKeytab = null;
@@ -1492,7 +1496,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
 			javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
 		}
-		//applicable only for YarnMiniCluster secure test run
+
 		//krb5.conf file will be available as local resource in JM/TM container
 		if (hasKrb5) {
 			javaOpts += " -Djava.security.krb5.conf=krb5.conf";

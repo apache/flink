@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +35,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -144,6 +145,10 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		int numberOfInitialCheckpoints = initialCheckpoints.size();
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
+		if (haveAllDownloaded(initialCheckpoints)) {
+			LOG.info("All {} checkpoints found are already downloaded.", numberOfInitialCheckpoints);
+			return;
+		}
 
 		// Try and read the state handles from storage. We try until we either successfully read
 		// all of them or when we reach a stable state, i.e. when we successfully read the same set
@@ -159,6 +164,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		// of checkpoints that we don't read due to transient storage outages.
 		List<CompletedCheckpoint> lastTryRetrievedCheckpoints = new ArrayList<>(numberOfInitialCheckpoints);
 		List<CompletedCheckpoint> retrievedCheckpoints = new ArrayList<>(numberOfInitialCheckpoints);
+		Exception retrieveException = null;
 		do {
 			LOG.info("Trying to fetch {} checkpoints from storage.", numberOfInitialCheckpoints);
 
@@ -178,6 +184,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 					}
 				} catch (Exception e) {
 					LOG.warn("Could not retrieve checkpoint, not adding to list of recovered checkpoints.", e);
+					retrieveException = e;
 				}
 			}
 
@@ -192,7 +199,8 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		if (completedCheckpoints.isEmpty() && numberOfInitialCheckpoints > 0) {
 			throw new FlinkException(
-				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.");
+				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.",
+				retrieveException);
 		} else if (completedCheckpoints.size() != numberOfInitialCheckpoints) {
 			LOG.warn(
 				"Could only fetch {} of {} checkpoints from storage.",
@@ -201,13 +209,26 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		}
 	}
 
+	private boolean haveAllDownloaded(List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointPointers) {
+		if (completedCheckpoints.size() != checkpointPointers.size()) {
+			return false;
+		}
+		Set<Long> localIds = completedCheckpoints.stream().map(CompletedCheckpoint::getCheckpointID).collect(Collectors.toSet());
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> initialCheckpoint : checkpointPointers) {
+			if (!localIds.contains(pathToCheckpointId(initialCheckpoint.f1))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * Synchronously writes the new checkpoints to ZooKeeper and asynchronously removes older ones.
 	 *
 	 * @param checkpoint Completed checkpoint to add.
 	 */
 	@Override
-	public void addCheckpoint(final CompletedCheckpoint checkpoint) throws Exception {
+	public void addCheckpoint(final CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
 
 		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
@@ -220,23 +241,20 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (completedCheckpoints.size() > maxNumberOfCheckpointsToRetain) {
 			final CompletedCheckpoint completedCheckpoint = completedCheckpoints.removeFirst();
-			tryRemoveCompletedCheckpoint(completedCheckpoint, CompletedCheckpoint::discardOnSubsume);
+			tryRemoveCompletedCheckpoint(completedCheckpoint, completedCheckpoint.shouldBeDiscardedOnSubsume(), checkpointsCleaner, postCleanup);
 		}
 
 		LOG.debug("Added {} to {}.", checkpoint, path);
 	}
 
-	private void tryRemoveCompletedCheckpoint(CompletedCheckpoint completedCheckpoint, ThrowingConsumer<CompletedCheckpoint, Exception> discardCallback) {
+	private void tryRemoveCompletedCheckpoint(
+			CompletedCheckpoint completedCheckpoint,
+			boolean shouldDiscard,
+			CheckpointsCleaner checkpointsCleaner,
+			Runnable postCleanup) {
 		try {
 			if (tryRemove(completedCheckpoint.getCheckpointID())) {
-				executor.execute(() -> {
-					try {
-						discardCallback.accept(completedCheckpoint);
-					} catch (Exception e) {
-						LOG.warn("Could not discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
-					}
-				});
-
+				checkpointsCleaner.cleanCheckpoint(completedCheckpoint, shouldDiscard, postCleanup, executor);
 			}
 		} catch (Exception e) {
 			LOG.warn("Failed to subsume the old checkpoint", e);
@@ -259,14 +277,16 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {
+	public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : completedCheckpoints) {
 				tryRemoveCompletedCheckpoint(
 					checkpoint,
-					completedCheckpoint -> completedCheckpoint.discardOnShutdown(jobStatus));
+					checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
+					checkpointsCleaner,
+					postCleanup);
 			}
 
 			completedCheckpoints.clear();

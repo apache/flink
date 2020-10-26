@@ -71,7 +71,7 @@ public class TableSchemaTest {
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
 			" |-- f3: BIGINT AS f0 + 1\n" +
-			" |-- f4: BIGINT METADATA FROM other.key VIRTUAL\n" +
+			" |-- f4: BIGINT METADATA FROM 'other.key' VIRTUAL\n" +
 			" |-- WATERMARK FOR f1.q2: TIMESTAMP(3) AS now()\n";
 		assertEquals(expected, schema.toString());
 
@@ -92,6 +92,27 @@ public class TableSchemaTest {
 		// test copy() and equals()
 		assertEquals(schema, schema.copy());
 		assertEquals(schema.hashCode(), schema.copy().hashCode());
+	}
+
+	@Test
+	public void testPersistedRowDataType() {
+		final TableSchema schema = TableSchema.builder()
+			.add(TableColumn.physical("f0", DataTypes.BIGINT()))
+			.add(TableColumn.metadata("f1", DataTypes.BIGINT(), true))
+			.add(TableColumn.metadata("f2", DataTypes.BIGINT(), false))
+			.add(TableColumn.physical("f3", DataTypes.STRING()))
+			.add(TableColumn.computed("f4", DataTypes.BIGINT(), "f0 + 1"))
+			.add(TableColumn.metadata("f5", DataTypes.BIGINT(), false))
+			.build();
+
+		final DataType expectedDataType = DataTypes.ROW(
+			DataTypes.FIELD("f0", DataTypes.BIGINT()),
+			DataTypes.FIELD("f2", DataTypes.BIGINT()),
+			DataTypes.FIELD("f3", DataTypes.STRING()),
+			DataTypes.FIELD("f5", DataTypes.BIGINT())
+		);
+
+		assertThat(schema.toPersistedRowDataType(), equalTo(expectedDataType));
 	}
 
 	@Test

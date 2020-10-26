@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.DeploymentOption;
@@ -70,7 +69,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 	private void init() {
 		for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
 			for (SchedulingResultPartition partition : region.getConsumedResults()) {
-				checkState(partition.getResultType() == ResultPartitionType.BLOCKING);
+				checkState(partition.getResultType().isBlocking());
 
 				partitionConsumerRegions.computeIfAbsent(partition.getId(), pid -> new HashSet<>()).add(region);
 				correlatedResultPartitions.computeIfAbsent(partition.getResultId(), rid -> new HashSet<>()).add(partition);

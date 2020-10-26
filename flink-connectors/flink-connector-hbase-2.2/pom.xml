@@ -311,6 +311,10 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish</groupId>
+					<artifactId>javax.el</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -363,6 +367,10 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish</groupId>
+					<artifactId>javax.el</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

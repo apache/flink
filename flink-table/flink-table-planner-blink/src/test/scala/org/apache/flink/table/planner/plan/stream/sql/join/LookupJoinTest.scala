@@ -99,14 +99,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "SQL parse failed",
       classOf[SqlParserException])
 
-    // can't as of non-proctime field
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN LookupTable " +
-        "FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id",
-      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' " +
-        "left table's proctime field",
-      classOf[TableException])
-
     // can't query a dim table directly
     expectExceptionThrown(
       "SELECT * FROM LookupTable FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
@@ -136,7 +128,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF PROCTIME() AS D ON T.a = D.id",
       "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' " +
-        "left table's proctime field, doesn't support 'PROCTIME()'",
+        "left table's time attribute field, doesn't support 'PROCTIME()'",
       classOf[TableException]
     )
   }
@@ -259,16 +251,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
     util.verifyPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
-  }
-
-  @Test
-  def testJoinInvalidNonTemporalTable(): Unit = {
-    // can't follow a period specification
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN nonTemporal " +
-        "FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id",
-      "Temporal table join only support join on a LookupTableSource",
-      classOf[TableException])
   }
 
   @Test

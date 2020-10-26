@@ -19,6 +19,7 @@
 package org.apache.flink.orc.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.orc.vector.Vectorizer;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -44,15 +46,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
-
-	/*
-	A dummy Hadoop Path to work around the current implementation of ORC WriterImpl which
-	works on the basis of a Hadoop FileSystem and Hadoop Path but since we use a customised
-	ORC PhysicalWriter implementation that uses Flink's own FSDataOutputStream as the
-	underlying/internal stream instead of Hadoop's FSDataOutputStream, we don't have to worry
-	about this usage.
-	 */
-	private static final Path FIXED_PATH = new Path(".");
 
 	private final Vectorizer<T> vectorizer;
 	private final Properties writerProperties;
@@ -106,10 +99,16 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 		OrcFile.WriterOptions opts = getWriterOptions();
 		opts.physicalWriter(new PhysicalWriterImpl(out, opts));
 
-		return new OrcBulkWriter<>(vectorizer, new WriterImpl(null, FIXED_PATH, opts));
+		// The path of the Writer is not used to indicate the destination file
+		// in this case since we have used a dedicated physical writer to write
+		// to the give output stream directly. However, the path would be used as
+		// the key of writer in the ORC memory manager, thus we need to make it unique.
+		Path unusedPath = new Path(UUID.randomUUID().toString());
+		return new OrcBulkWriter<>(vectorizer, new WriterImpl(null, unusedPath, opts));
 	}
 
-	private OrcFile.WriterOptions getWriterOptions() {
+	@VisibleForTesting
+	protected OrcFile.WriterOptions getWriterOptions() {
 		if (null == writerOptions) {
 			Configuration conf = new ThreadLocalClassLoaderConfiguration();
 			for (Map.Entry<String, String> entry : confMap.entrySet()) {

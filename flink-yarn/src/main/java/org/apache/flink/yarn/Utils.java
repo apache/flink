@@ -21,10 +21,8 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -404,8 +402,6 @@ public final class Utils {
 
 		//To support Yarn Secure Integration Test Scenario
 		LocalResource yarnConfResource = null;
-		LocalResource krb5ConfResource = null;
-		boolean hasKrb5 = false;
 		if (remoteYarnConfPath != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
@@ -413,8 +409,11 @@ public final class Utils {
 			yarnConfResource = registerLocalResource(fs, yarnConfPath, LocalResourceType.FILE);
 		}
 
+		// register krb5.conf
+		LocalResource krb5ConfResource = null;
+		boolean hasKrb5 = false;
 		if (remoteKrb5Path != null) {
-			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
+			log.info("Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
 			FileSystem fs = krb5ConfPath.getFileSystem(yarnConfig);
 			krb5ConfResource = registerLocalResource(fs, krb5ConfPath, LocalResourceType.FILE);
@@ -533,30 +532,6 @@ public final class Utils {
 			}
 		}
 		return resourceDescriptors;
-	}
-
-	static TaskExecutorProcessSpecContainerResourceAdapter createTaskExecutorProcessSpecContainerResourceAdapter(
-		org.apache.flink.configuration.Configuration flinkConfig,
-		YarnConfiguration yarnConfig) {
-
-		Resource unitResource = getUnitResource(yarnConfig);
-
-		return new TaskExecutorProcessSpecContainerResourceAdapter(
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
-			unitResource.getMemory(),
-			unitResource.getVirtualCores(),
-			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 	}
 
 	@VisibleForTesting

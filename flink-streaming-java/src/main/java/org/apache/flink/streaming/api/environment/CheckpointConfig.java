@@ -101,7 +101,38 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
+	/**
+	 * Creates a deep copy of the provided {@link CheckpointConfig}.
+	 * @param checkpointConfig the config to copy.
+	 */
+	public CheckpointConfig(final CheckpointConfig checkpointConfig) {
+		checkNotNull(checkpointConfig);
+
+		this.checkpointInterval = checkpointConfig.checkpointInterval;
+		this.checkpointingMode = checkpointConfig.checkpointingMode;
+		this.checkpointTimeout = checkpointConfig.checkpointTimeout;
+		this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
+		this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
+		this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+		this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
+		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
+		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+	}
+
+	public CheckpointConfig() {
+
+	}
+
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Disables checkpointing.
+	 */
+	public void disableCheckpointing() {
+		this.checkpointInterval = -1;
+	}
 
 	/**
 	 * Checks whether checkpointing is enabled.

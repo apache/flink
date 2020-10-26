@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
+
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.common import Row
 from pyflink.table import DataTypes
-from pyflink.table.data_view import ListView
+from pyflink.table.data_view import ListView, MapView
 from pyflink.table.udf import AggregateFunction, udaf
 from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
@@ -97,6 +99,44 @@ class ConcatAggregateFunction(AggregateFunction):
         return DataTypes.STRING()
 
 
+class CountDistinctAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
+        return accumulator[1]
+
+    def create_accumulator(self):
+        return Row(MapView(), 0)
+
+    def accumulate(self, accumulator, *args):
+        input_str = args[0]
+        if accumulator[0].is_empty() or input_str not in accumulator[0] \
+                or accumulator[0][input_str] is None:
+            accumulator[0][input_str] = 1
+            accumulator[1] += 1
+        else:
+            accumulator[0][input_str] += 1
+        if input_str == "clear":
+            accumulator[0].clear()
+            accumulator[1] = 0
+
+    def retract(self, accumulator, *args):
+        input_str = args[0]
+        if accumulator[0].is_empty() or input_str not in accumulator[0]:
+            return
+        accumulator[0].put_all({input_str: accumulator[0][input_str] - 1})
+        if accumulator[0][input_str] <= 0:
+            accumulator[1] -= 1
+            accumulator[0][input_str] = None
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.BIGINT()
+
+
 class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_double_aggregate(self):
@@ -130,7 +170,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.assertTrue(plan.find("PythonGroupAggregate(groupBy=[c], ") >= 0)
         self.assertEqual(result_type, DataTypes.INT())
 
-    def test_data_view(self):
+    def test_list_view(self):
         my_concat = udaf(ConcatAggregateFunction())
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "2")
@@ -140,13 +180,68 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
                                       (3, 'Hi2', 'hi'),
-                                      (3, 'Hi', 'hi2'),
-                                      (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                                      (3, 'Hi', 'hi'),
+                                      (2, 'Hi', 'Hello'),
+                                      (1, 'Hi2', 'Hello'),
+                                      (3, 'Hi3', 'hi'),
+                                      (3, 'Hi2', 'Hello'),
+                                      (3, 'Hi3', 'hi'),
+                                      (2, 'Hi3', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c).select(my_concat(t.b, ',').alias("a"), t.c)
         assert_frame_equal(result.to_pandas(),
-                           pd.DataFrame([["Hi,Hi2", "hi"],
-                                         ["Hi", "hi2"],
-                                         ["Hi,Hi", "Hello"]], columns=['a', 'c']))
+                           pd.DataFrame([["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"]], columns=['a', 'c']))
+
+    def test_map_view(self):
+        my_count = udaf(CountDistinctAggregateFunction())
+        self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "2")
+        # trigger the cache eviction in a bundle.
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache.size", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.map-state.read.cache.size", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.map-state.write.cache.size", "1")
+        t = self.t_env.from_elements(
+            [(1, 'Hi_', 'hi'),
+             (1, 'Hi', 'hi'),
+             (2, 'hello', 'hello'),
+             (3, 'Hi_', 'hi'),
+             (3, 'Hi', 'hi'),
+             (4, 'hello', 'hello'),
+             (5, 'Hi2_', 'hi'),
+             (5, 'Hi2', 'hi'),
+             (6, 'hello2', 'hello'),
+             (7, 'Hi', 'hi'),
+             (8, 'hello', 'hello'),
+             (9, 'Hi2', 'hi'),
+             (13, 'Hi3', 'hi')], ['a', 'b', 'c'])
+        self.t_env.create_temporary_view("source", t)
+        table_with_retract_message = self.t_env.sql_query(
+            "select LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
+        result = table_with_retract_message.group_by(t.c).select(my_count(t.b).alias("a"), t.c)
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([[2, "hello"],
+                                         [3, "hi"]], columns=['a', 'c']))
+
+    def test_data_view_clear(self):
+        my_count = udaf(CountDistinctAggregateFunction())
+        self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "2")
+        # trigger the cache eviction in a bundle.
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache.size", "1")
+        t = self.t_env.from_elements(
+            [(2, 'hello', 'hello'),
+             (4, 'clear', 'hello'),
+             (6, 'hello2', 'hello'),
+             (8, 'hello', 'hello')], ['a', 'b', 'c'])
+        result = t.group_by(t.c).select(my_count(t.b).alias("a"), t.c)
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([[2, "hello"]], columns=['a', 'c']))
 
 
 if __name__ == '__main__':

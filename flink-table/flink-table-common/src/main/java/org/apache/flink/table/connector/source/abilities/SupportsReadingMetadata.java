@@ -119,9 +119,9 @@ public interface SupportsReadingMetadata {
 	 *
 	 * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
 	 *                     by the iteration order of returned map
-	 * @param outputDataType the final output type of the source
+	 * @param producedDataType the final output type of the source
 	 *
 	 * @see DecodingFormat#applyReadableMetadata(List)
 	 */
-	void applyReadableMetadata(List<String> metadataKeys, DataType outputDataType);
+	void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType);
 }

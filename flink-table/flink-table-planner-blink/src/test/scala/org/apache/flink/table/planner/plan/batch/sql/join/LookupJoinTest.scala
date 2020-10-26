@@ -204,16 +204,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   }
 
   @Test
-  def testJoinInvalidNonTemporalTable(): Unit = {
-    // can't follow a period specification
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN nonTemporal " +
-        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Temporal table join only support join on a LookupTableSource",
-      classOf[TableException])
-  }
-
-  @Test
   def testJoinTemporalTable(): Unit = {
     val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"

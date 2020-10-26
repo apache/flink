@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -114,6 +115,7 @@ public class StreamGraph implements Pipeline {
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private StateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
+	private InternalTimeServiceManager.Provider timerServiceProvider;
 
 	public StreamGraph(ExecutionConfig executionConfig, CheckpointConfig checkpointConfig, SavepointRestoreSettings savepointRestoreSettings) {
 		this.executionConfig = checkNotNull(executionConfig);
@@ -172,6 +174,14 @@ public class StreamGraph implements Pipeline {
 
 	public StateBackend getStateBackend() {
 		return this.stateBackend;
+	}
+
+	public InternalTimeServiceManager.Provider getTimerServiceProvider() {
+		return timerServiceProvider;
+	}
+
+	public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
+		this.timerServiceProvider = checkNotNull(timerServiceProvider);
 	}
 
 	public ScheduleMode getScheduleMode() {

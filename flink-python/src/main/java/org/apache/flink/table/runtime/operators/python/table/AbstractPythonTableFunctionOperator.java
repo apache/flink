@@ -21,11 +21,11 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
-import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 

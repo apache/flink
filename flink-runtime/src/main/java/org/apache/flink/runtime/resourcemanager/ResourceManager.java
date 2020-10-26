@@ -65,6 +65,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -214,8 +216,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public final void onStart() throws Exception {
 		try {
 			startResourceManagerServices();
-		} catch (Exception e) {
-			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), e);
+		} catch (Throwable t) {
+			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
@@ -476,6 +478,27 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					jobManagerRegistration.getJobMasterId() + " does not match the received id " + jobMasterId + '.'));
 			}
 
+		} else {
+			return FutureUtils.completedExceptionally(new ResourceManagerException("Could not find registered job manager for job " + jobId + '.'));
+		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> declareRequiredResources(JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+		final JobID jobId = resourceRequirements.getJobId();
+		final JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+
+		if (null != jobManagerRegistration) {
+			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
+				log.info("Received resource declaration for job {}: {}", jobId, resourceRequirements.getResourceRequirements());
+
+				slotManager.processResourceRequirements(resourceRequirements);
+
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			} else {
+				return FutureUtils.completedExceptionally(new ResourceManagerException("The job leader's id " +
+					jobManagerRegistration.getJobMasterId() + " does not match the received id " + jobMasterId + '.'));
+			}
 		} else {
 			return FutureUtils.completedExceptionally(new ResourceManagerException("Could not find registered job manager for job " + jobId + '.'));
 		}
@@ -861,6 +884,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			jmResourceIdRegistrations.remove(jobManagerResourceId);
 
+			slotManager.processResourceRequirements(ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+
 			// tell the job manager about the disconnect
 			jobMasterGateway.disconnectResourceManager(getFencingToken(), cause);
 		} else {
@@ -1189,6 +1214,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			if (jobManagerRegistration != null) {
 				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
 			}
+		}
+
+		@Override
+		public void notifyNotEnoughResourcesAvailable(JobID jobId, Collection<ResourceRequirement> acquiredResources) {
+			validateRunsInMainThread();
 		}
 	}
 

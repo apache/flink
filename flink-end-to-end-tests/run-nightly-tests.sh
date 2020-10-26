@@ -40,6 +40,11 @@ if [ ! -z "$TF_BUILD" ] ; then
 	export ARTIFACTS_DIR="${END_TO_END_DIR}/artifacts"
 	mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
+	function run_on_exit {
+		collect_coredumps $(pwd) $ARTIFACTS_DIR
+		compress_logs
+	}
+
 	# compress and register logs for publication on exit
 	function compress_logs {
 		echo "COMPRESSING build artifacts."
@@ -48,7 +53,7 @@ if [ ! -z "$TF_BUILD" ] ; then
 		tar -zcvf compressed-archive-dir/${COMPRESSED_ARCHIVE} -C $ARTIFACTS_DIR .
 		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
 	}
-	on_exit compress_logs
+	on_exit run_on_exit
 fi
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
@@ -218,8 +223,7 @@ run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-script
 run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
 
 if [[ `uname -i` != 'aarch64' ]]; then
-    run_test "PyFlink Table end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink_table.sh" "skip_check_exceptions"
-    run_test "PyFlink DataStream end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink_datastream.sh" "skip_check_exceptions"
+    run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
 fi
 
 ################################################################################

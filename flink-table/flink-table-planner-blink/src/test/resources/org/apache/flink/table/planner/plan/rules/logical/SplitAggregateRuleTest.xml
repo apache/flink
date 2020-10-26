@@ -78,9 +78,9 @@ LogicalProject(c=[$0], b=[$1], d=[$2], a=[$3], a0=[$4], b0=[$5], c0=[$6])
     <Resource name="planAfter">
       <![CDATA[
 FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
-:- FlinkLogicalCalc(select=[c, d AS b, d, a])
-:  +- FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($2)], agg#1=[$SUM0($3)])
-:     +- FlinkLogicalAggregate(group=[{2, 3}], agg#0=[$SUM0($1) FILTER $4], agg#1=[COUNT(DISTINCT $0) FILTER $5])
+:- FlinkLogicalCalc(select=[$f2 AS c, CAST($f1) AS b, CAST($f1) AS d, $f2_0 AS a])
+:  +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($2)], agg#1=[$SUM0($3)])
+:     +- FlinkLogicalAggregate(group=[{2, 3}], agg#0=[SUM($1) FILTER $4], agg#1=[COUNT(DISTINCT $0) FILTER $5])
 :        +- FlinkLogicalCalc(select=[a, $f1, $f2, $f3, =($e, 1) AS $g_1, =($e, 0) AS $g_0])
 :           +- FlinkLogicalExpand(projects=[a, $f1, $f2, $f3, $e])
 :              +- FlinkLogicalCalc(select=[a, $f1, $f2, MOD(HASH_CODE(a), 1024) AS $f3])

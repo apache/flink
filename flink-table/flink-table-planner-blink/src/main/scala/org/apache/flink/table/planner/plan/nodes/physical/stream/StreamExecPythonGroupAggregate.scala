@@ -24,6 +24,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
@@ -33,13 +34,12 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConversions._
 import java.util
-
-import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 /**
   * Stream physical RelNode for Python unbounded group aggregate.
@@ -160,6 +160,10 @@ class StreamExecPythonGroupAggregate(
     if (inputsContainSingleton()) {
       ret.setParallelism(1)
       ret.setMaxParallelism(1)
+    }
+
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
 
     // set KeyType and Selector for state

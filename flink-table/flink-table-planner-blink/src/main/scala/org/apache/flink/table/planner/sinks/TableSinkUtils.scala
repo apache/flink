@@ -46,63 +46,10 @@ import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
 
+/**
+ * Note: We aim to gradually port the logic in this class to [[DynamicSinkUtils]].
+ */
 object TableSinkUtils {
-
-  /**
-    * Checks if the given query can be written into the given sink. It checks the field types
-    * should be compatible (types should equal including precisions). If types are not compatible,
-    * but can be implicitly casted, a cast projection will be applied. Otherwise, an exception will
-    * be thrown.
-    *
-    * @param query the query to be checked
-    * @param sinkSchema the schema of sink to be checked
-    * @param typeFactory type factory
-    * @return the query RelNode which may be applied the implicitly cast projection.
-    */
-  def validateSchemaAndApplyImplicitCast(
-      query: RelNode,
-      sinkSchema: TableSchema,
-      typeFactory: FlinkTypeFactory,
-      sinkIdentifier: Option[String] = None): RelNode = {
-
-    val queryLogicalType = FlinkTypeFactory.toLogicalRowType(query.getRowType)
-    val sinkDataType = sinkSchema.toRowDataType
-    val sinkLogicalType = DataTypeUtils
-      // we recognize legacy decimal is the same to default decimal
-      // we ignore NULL constraint, the NULL constraint will be checked during runtime
-      // see StreamExecSink and BatchExecSink
-      .transform(sinkDataType, legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable)
-      .getLogicalType
-      .asInstanceOf[RowType]
-    if (supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
-      // the query can be written into sink
-      // but we may need to add a cast project if the types are not compatible
-      if (supportsAvoidingCast(queryLogicalType, sinkLogicalType)) {
-        query
-      } else {
-        // otherwise, add a cast project
-        val castedDataType = typeFactory.buildRelNodeRowType(
-          sinkLogicalType.getFieldNames,
-          sinkLogicalType.getFields.map(_.getType))
-        RelOptUtil.createCastRel(query, castedDataType, true)
-      }
-    } else {
-      // format query and sink schema strings
-      val srcSchema = queryLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
-        .mkString("[", ", ", "]")
-      val sinkSchema = sinkLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
-        .mkString("[", ", ", "]")
-
-      val sinkDesc: String = sinkIdentifier.getOrElse("")
-
-      throw new ValidationException(
-        s"Field types of query result and registered TableSink $sinkDesc do not match.\n" +
-          s"Query schema: $srcSchema\n" +
-          s"Sink schema: $sinkSchema")
-    }
-  }
 
   /**
     * It checks whether the [[TableSink]] is compatible to the INSERT INTO clause, e.g.
@@ -146,54 +93,6 @@ object TableSinkUtils {
         assert(!sinkOperation.isOverwrite, "INSERT OVERWRITE requires " +
           s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
           sink.getClass.getName)
-    }
-  }
-
-  /**
-   * It checks whether the [[DynamicTableSink]] is compatible to the INSERT INTO clause, e.g.
-   * whether the sink implements [[SupportsOverwrite]] and [[SupportsPartitioning]].
-   *
-   * @param sinkOperation The sink operation with the query that is supposed to be written.
-   * @param sinkIdentifier Tha path of the sink. It is needed just for logging. It does not
-   *                      participate in the validation.
-   * @param sink     The sink that we want to write to.
-   * @param partitionKeys The partition keys of this table.
-   */
-  def validateTableSink(
-    sinkOperation: CatalogSinkModifyOperation,
-    sinkIdentifier: ObjectIdentifier,
-    sink: DynamicTableSink,
-    partitionKeys: Seq[String]): Unit = {
-
-    // check partitions are valid
-    if (partitionKeys.nonEmpty) {
-      sink match {
-        case _: SupportsPartitioning => // pass
-        case _ => throw new TableException(
-          s"'${sinkIdentifier.asSummaryString()}' is a partitioned table, " +
-            s"but the underlying [${sink.asSummaryString()}] DynamicTableSink " +
-            s"doesn't implement SupportsPartitioning interface.")
-      }
-    }
-
-    val staticPartitions = sinkOperation.getStaticPartitions
-    if (staticPartitions != null && !staticPartitions.isEmpty) {
-      staticPartitions.map(_._1) foreach { p =>
-        if (!partitionKeys.contains(p)) {
-          throw new ValidationException(s"Static partition column $p should be in the partition" +
-            s" fields list $partitionKeys for table '$sinkIdentifier'.")
-        }
-      }
-    }
-
-    sink match {
-      case overwritable: SupportsOverwrite =>
-        overwritable.applyOverwrite(sinkOperation.isOverwrite)
-      case _ =>
-        if (sinkOperation.isOverwrite) {
-          throw new ValidationException(s"INSERT OVERWRITE requires ${sink.asSummaryString()} " +
-            "DynamicTableSink to implement SupportsOverwrite interface.")
-        }
     }
   }
 

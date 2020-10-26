@@ -336,12 +336,11 @@ public class StreamNode {
 		this.userHash = userHash;
 	}
 
-	@VisibleForTesting
 	public void setSortedInputs(boolean sortedInputs) {
 		this.sortedInputs = sortedInputs;
 	}
 
-	boolean getSortedInputs() {
+	public boolean getSortedInputs() {
 		return sortedInputs;
 	}
 

@@ -990,6 +990,29 @@ class MapType(DataType):
                             for k, v in obj.items())
 
 
+class MapViewType(DataType):
+
+    def __init__(self, key_type, value_type):
+        assert isinstance(key_type, DataType), \
+            "element_type %s should be an instance of %s" % (key_type, DataType)
+        assert isinstance(value_type, DataType), \
+            "element_type %s should be an instance of %s" % (value_type, DataType)
+        super(MapViewType, self).__init__(False)
+        self._key_type = key_type
+        self._value_type = value_type
+
+    def __repr__(self):
+        return "MapViewType(%s, %s)" % (repr(self._key_type), repr(self._value_type))
+
+    def to_sql_type(self, obj):
+        raise Exception("MapViewType can only be used in accumulator type declaration of "
+                        "AggregateFunction.")
+
+    def from_sql_type(self, obj):
+        raise Exception("MapViewType can only be used in accumulator type declaration of "
+                        "AggregateFunction.")
+
+
 class MultisetType(DataType):
     """
     MultisetType data type.
@@ -1739,6 +1762,11 @@ def _to_java_type(data_type):
     elif isinstance(data_type, MapType):
         return Types.MAP(_to_java_type(data_type.key_type), _to_java_type(data_type.value_type))
 
+    # MapViewType
+    elif isinstance(data_type, MapViewType):
+        return gateway.jvm.org.apache.flink.table.dataview.MapViewTypeInfo(
+            _to_java_type(data_type._key_type), _to_java_type(data_type._value_type))
+
     # MultisetType
     elif isinstance(data_type, MultisetType):
         return Types.MULTISET(_to_java_type(data_type.element_type))
@@ -1840,6 +1868,11 @@ def _from_java_type(j_data_type):
             elif type_info.getClass() == \
                     get_java_class(gateway.jvm.org.apache.flink.table.dataview.ListViewTypeInfo):
                 data_type = DataTypes.LIST_VIEW(_from_java_type(type_info.getElementType()))
+            elif type_info.getClass() == \
+                    get_java_class(gateway.jvm.org.apache.flink.table.dataview.MapViewTypeInfo):
+                data_type = DataTypes.MAP_VIEW(
+                    _from_java_type(type_info.getKeyType()),
+                    _from_java_type(type_info.getValueType()))
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)
@@ -1988,6 +2021,9 @@ def _to_java_data_type(data_type: DataType):
     elif isinstance(data_type, ListViewType):
         return gateway.jvm.org.apache.flink.table.api.dataview.ListView.newListViewDataType(
             _to_java_data_type(data_type._element_type))
+    elif isinstance(data_type, MapViewType):
+        return gateway.jvm.org.apache.flink.table.api.dataview.MapView.newMapViewDataType(
+            _to_java_data_type(data_type._key_type), _to_java_data_type(data_type._value_type))
     else:
         raise TypeError("Unsupported data type: %s" % data_type)
 
@@ -2672,6 +2708,18 @@ class DataTypes(object):
         :param nullable: boolean, whether the type can be null (None) or not.
         """
         return MapType(key_type, value_type, nullable)
+
+    @staticmethod
+    def MAP_VIEW(key_type: DataType, value_type: DataType):
+        """
+        Data type of a :class:`pyflink.table.data_view.ListView`.
+
+        It can only be used in accumulator type declaration of an Aggregate Function.
+
+        :param key_type: :class:`DataType` of the keys in the map view.
+        :param value_type: :class:`DataType` of the values in the map view.
+        """
+        return MapViewType(key_type, value_type)
 
     @staticmethod
     def MULTISET(element_type, nullable=True):

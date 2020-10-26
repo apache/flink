@@ -39,9 +39,11 @@ public final class MapDataUtil {
 		ArrayData keyArray = map.keyArray();
 		ArrayData valueArray = map.valueArray();
 		Map<Object, Object> javaMap = new HashMap<>();
+		ArrayData.ElementGetter keyGetter = ArrayData.createElementGetter(keyType);
+		ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(valueType);
 		for (int i = 0; i < map.size(); i++) {
-			Object key = ArrayData.get(keyArray, i, keyType);
-			Object value = ArrayData.get(valueArray, i, valueType);
+			Object key = keyGetter.getElementOrNull(keyArray, i);
+			Object value = valueGetter.getElementOrNull(valueArray, i);
 			javaMap.put(key, value);
 		}
 		return javaMap;

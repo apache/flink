@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -112,10 +112,13 @@ class BatchExecSortLimit(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build())
 
   override def replaceInputNode(
       ordinalInParent: Int,

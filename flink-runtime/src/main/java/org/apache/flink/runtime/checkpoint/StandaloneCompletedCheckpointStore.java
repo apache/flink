@@ -62,7 +62,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
+	public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 
 		checkpoints.addLast(checkpoint);
 
@@ -92,7 +92,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {
+	public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 		try {
 			LOG.info("Shutting down");
 

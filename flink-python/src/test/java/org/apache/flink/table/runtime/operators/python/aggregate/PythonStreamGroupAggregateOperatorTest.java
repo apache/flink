@@ -343,7 +343,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 				1,
 				1,
 				0);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
 		testHarness.setup(new RowDataSerializer(outputType));
 		return testHarness;
 	}

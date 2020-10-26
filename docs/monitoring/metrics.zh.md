@@ -846,6 +846,8 @@ Thus, in order to infer the metric identifier:
 </table>
 
 ### Memory
+The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place. 
+Some metrics might not be exposed when using other JVM implementations (e.g. IBM's J9).
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -858,8 +860,8 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
-      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="12">Status.JVM.Memory</td>
+      <th rowspan="17"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="15">Status.JVM.Memory</td>
       <td>Heap.Used</td>
       <td>The amount of heap memory currently used (in bytes).</td>
       <td>Gauge</td>
@@ -890,6 +892,21 @@ Thus, in order to infer the metric identifier:
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>Metaspace.Used</td>
+      <td>The amount of memory currently used in the Metaspace memory pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Metaspace.Committed</td>
+      <td>The amount of memory guaranteed to be available to the JVM in the Metaspace memory pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Metaspace.Max</td>
+      <td>The maximum amount of memory that can be used in the Metaspace memory pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>Direct.Count</td>
       <td>The number of buffers in the direct buffer pool.</td>
       <td>Gauge</td>
@@ -917,6 +934,17 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>Mapped.TotalCapacity</td>
       <td>The number of buffers in the mapped buffer pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Status.Flink.Memory</td>
+      <td>Managed.Used</td>
+      <td>The amount of managed memory currently used.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Managed.Total</td>
+      <td>The total amount of managed memory.</td>
       <td>Gauge</td>
     </tr>
   </tbody>

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorEx
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
@@ -60,6 +61,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -105,6 +107,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	private volatile Function<ResourceID, CompletableFuture<TaskManagerInfo>> requestTaskManagerInfoFunction;
 
 	private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction;
+
+	private volatile BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>> declareRequiredResourcesFunction = (ignoredA, ignoredB) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -192,6 +196,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestThreadDumpFunction = requestThreadDumpFunction;
 	}
 
+	public void setDeclareRequiredResourcesFunction(BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>> declareRequiredResourcesFunction) {
+		this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
+	}
+
 	@Override
 	public CompletableFuture<RegistrationResponse> registerJobManager(JobMasterId jobMasterId, ResourceID jobMasterResourceId, String jobMasterAddress, JobID jobId, Time timeout) {
 		final QuadFunction<JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>> currentConsumer = registerJobManagerFunction;
@@ -224,6 +232,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> declareRequiredResources(JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
+		return declareRequiredResourcesFunction.apply(jobMasterId, resourceRequirements);
 	}
 
 	@Override

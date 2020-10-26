@@ -27,29 +27,14 @@ import javax.annotation.Nonnull;
 /**
  * Default slot pool factory.
  */
-public class DefaultSlotPoolFactory implements SlotPoolFactory {
-
-	@Nonnull
-	private final Clock clock;
-
-	@Nonnull
-	private final Time rpcTimeout;
-
-	@Nonnull
-	private final Time slotIdleTimeout;
-
-	@Nonnull
-	private final Time batchSlotTimeout;
+public class DefaultSlotPoolFactory extends AbstractSlotPoolFactory {
 
 	public DefaultSlotPoolFactory(
 			@Nonnull Clock clock,
 			@Nonnull Time rpcTimeout,
 			@Nonnull Time slotIdleTimeout,
 			@Nonnull Time batchSlotTimeout) {
-		this.clock = clock;
-		this.rpcTimeout = rpcTimeout;
-		this.slotIdleTimeout = slotIdleTimeout;
-		this.batchSlotTimeout = batchSlotTimeout;
+		super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
 	}
 
 	@Override
