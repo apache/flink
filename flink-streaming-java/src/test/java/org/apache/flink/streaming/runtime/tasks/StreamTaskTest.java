@@ -1420,7 +1420,7 @@ public class StreamTaskTest extends TestLogger {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 
-		protected AbstractStateBackend createInnerBackend(ReadableConfig config) {
+		protected MemoryStateBackend createInnerBackend(ReadableConfig config) {
 			return new MemoryStateBackend();
 		}
 	}

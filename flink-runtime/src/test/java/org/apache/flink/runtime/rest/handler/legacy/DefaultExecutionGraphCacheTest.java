@@ -300,7 +300,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 				null,
 				null,
 				"stateBackendName",
-					"checkpointStorageName");
+				"checkpointStorageName");
 
 			jobStatus = super.getState();
 		}

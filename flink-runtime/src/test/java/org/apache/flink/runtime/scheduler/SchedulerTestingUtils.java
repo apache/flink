@@ -69,6 +69,7 @@ import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStra
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -191,10 +192,10 @@ public class SchedulerTestingUtils {
 	}
 
 	public static void enableCheckpointing(final JobGraph jobGraph) {
-		enableCheckpointing(jobGraph, null);
+		enableCheckpointing(jobGraph, null, null);
 	}
 
-	public static void enableCheckpointing(final JobGraph jobGraph, @Nullable StateBackend stateBackend) {
+	public static void enableCheckpointing(final JobGraph jobGraph, @Nullable StateBackend backend, @Nullable CheckpointStorage checkpointStorage) {
 		final List<JobVertexID> triggerVertices = new ArrayList<>();
 		final List<JobVertexID> allVertices = new ArrayList<>();
 
@@ -217,17 +218,26 @@ public class SchedulerTestingUtils {
 			0);
 
 		SerializedValue<StateBackend> serializedStateBackend = null;
-		if (stateBackend != null) {
+		if (backend != null) {
 			try {
-				serializedStateBackend = new SerializedValue<>(stateBackend);
+				serializedStateBackend = new SerializedValue<>(backend);
 			} catch (IOException e) {
 				throw new RuntimeException("could not serialize state backend", e);
 			}
 		}
 
+		SerializedValue<CheckpointStorage> serializedCheckpointStorage = null;
+		if (checkpointStorage != null) {
+			try {
+				serializedCheckpointStorage = new SerializedValue<>(checkpointStorage);
+			} catch (IOException e) {
+				throw new RuntimeException("could not serialize checkpoint storage", e);
+			}
+		}
+
 		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 				triggerVertices, allVertices, allVertices,
-				config, serializedStateBackend));
+				config, serializedStateBackend, serializedCheckpointStorage, null));
 	}
 
 	public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(DefaultScheduler scheduler) {

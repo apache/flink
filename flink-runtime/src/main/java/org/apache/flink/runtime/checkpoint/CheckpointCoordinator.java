@@ -234,53 +234,13 @@ public class CheckpointCoordinator {
 				coordinatorsToCheckpoint,
 				checkpointIDCounter,
 				completedCheckpointStore,
-				null,
+				checkpointStorage,
 				executor,
 				checkpointsCleaner,
 				timer,
 				sharedStateRegistryFactory,
 				failureManager,
 				SystemClock.getInstance());
-	}
-
-	/**
-	 * @deprecated Please pass a {@link CheckpointStorage} object directly.
-	 * This constructor only exists for to keep coordinator tests passing and
-	 * may be dropped once concrete checkpoint storage classes are implemented.
-	 */
-	@Deprecated
-	public CheckpointCoordinator(
-		JobID job,
-		CheckpointCoordinatorConfiguration chkConfig,
-		ExecutionVertex[] tasksToTrigger,
-		ExecutionVertex[] tasksToWaitFor,
-		ExecutionVertex[] tasksToCommitTo,
-		Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
-		CheckpointIDCounter checkpointIDCounter,
-		CompletedCheckpointStore completedCheckpointStore,
-		StateBackend stateBackend,
-		Executor executor,
-		CheckpointsCleaner checkpointsCleaner,
-		ScheduledExecutor timer,
-		SharedStateRegistryFactory sharedStateRegistryFactory,
-		CheckpointFailureManager failureManager) {
-
-		this(
-			job,
-			chkConfig,
-			tasksToTrigger,
-			tasksToWaitFor,
-			tasksToCommitTo,
-			coordinatorsToCheckpoint,
-			checkpointIDCounter,
-			completedCheckpointStore,
-			asCheckpointStorage(stateBackend),
-			executor,
-			checkpointsCleaner,
-			timer,
-			sharedStateRegistryFactory,
-			failureManager,
-			SystemClock.getInstance());
 	}
 
 	@VisibleForTesting

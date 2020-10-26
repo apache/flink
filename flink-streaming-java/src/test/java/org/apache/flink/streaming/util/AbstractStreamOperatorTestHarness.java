@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -129,7 +130,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	// use this as default for tests
 	protected StateBackend stateBackend = new MemoryStateBackend();
 
-	private CheckpointStorageAccess checkpointStorageAccess = stateBackend.createCheckpointStorage(new JobID());
+	protected CheckpointStorage checkpointStorage = new MemoryStateBackend();
+
+	private CheckpointStorageAccess checkpointStorageAccess = checkpointStorage.createCheckpointStorage(new JobID());
 
 	private final Object checkpointLock;
 
@@ -318,8 +321,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	public void setStateBackend(StateBackend stateBackend) {
 		this.stateBackend = stateBackend;
 
+		if (stateBackend instanceof CheckpointStorage) {
+			setCheckpointStorage((CheckpointStorage) stateBackend);
+		}
+	}
+
+	public void setCheckpointStorage(CheckpointStorage storage) {
+		if (stateBackend instanceof CheckpointStorage) {
+			return;
+		}
+
 		try {
-			this.checkpointStorageAccess = stateBackend.createCheckpointStorage(new JobID());
+			this.checkpointStorageAccess = storage.createCheckpointStorage(new JobID());
 		} catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}

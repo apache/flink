@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -40,9 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -139,7 +135,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
-			new TestCheckpointStorage(),
+			new MemoryStateBackend(),
 			statsTracker);
 
 		runtimeGraph.setJsonPlan("{}");
@@ -345,19 +341,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		@Override
 		public Map<String, String> toMap() {
 			return parameters;
-		}
-	}
-
-	private static class TestCheckpointStorage implements CheckpointStorage {
-
-		@Override
-		public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {
-			throw new RuntimeException("Unimplemented");
-		}
-
-		@Override
-		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-			throw new RuntimeException("Unimplemented");
 		}
 	}
 }
