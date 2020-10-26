@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
@@ -291,7 +292,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	private static final ConfigOption<String> SINK_CHANGELOG_MODE_ENFORCED = ConfigOptions
 		.key("sink-changelog-mode-enforced")
 		.stringType()
-		.defaultValue("I");
+		.noDefaultValue();
 
 	private static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
@@ -452,6 +453,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			PARTITION_LIST,
 			READABLE_METADATA,
 			SINK_PARALLELISM,
+			SINK_CHANGELOG_MODE_ENFORCED,
 			WRITABLE_METADATA));
 	}
 
@@ -941,7 +943,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private DataType consumedDataType;
 		private int[] primaryKeyIndices;
 		private final String tableName;
-		private final boolean isInsertOnly;
+		private final boolean
+			isInsertOnly;
 		private final String runtimeSink;
 		private final int expectedNum;
 		private final Map<String, DataType> writableMetadata;
@@ -971,7 +974,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-			// if param [changelogMode] is passed in, return it directly
+			// if param [changelogModeEnforced] is passed in, return it directly
 			if (changelogModeEnforced != null) {
 				return changelogModeEnforced;
 			}
@@ -997,23 +1000,43 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
 			DataStructureConverter converter = context.createDataStructureConverter(consumedDataType);
-			final Optional<Integer> parallelism = Optional.ofNullable(this.parallelism);
+			final Optional<Integer> parallelismOption = Optional.ofNullable(this.parallelism);
+			final Boolean isEnforcedInsertOnly = Optional.ofNullable(changelogModeEnforced)
+				.map(changelogMode -> changelogMode.equals(ChangelogMode.insertOnly()))
+				.orElse(false);
+			final Boolean isInsertOnly = isEnforcedInsertOnly || this.isInsertOnly;
 			if (isInsertOnly) {
 				checkArgument(expectedNum == -1,
 					"Appending Sink doesn't support '" + SINK_EXPECTED_MESSAGES_NUM.key() + "' yet.");
 				switch (runtimeSink) {
 					case "SinkFunction":
-						return SinkFunctionProvider.of(
-								new AppendingSinkFunction(
+						return new SinkFunctionProvider() {
+								@Override
+								public Optional<Integer> getParallelism() {
+									return parallelismOption;
+								}
+
+								@Override
+								public SinkFunction<RowData> createSinkFunction() {
+									return new AppendingSinkFunction(
 										tableName,
-										converter),
-										parallelism);
+										converter);
+								}
+							};
 					case "OutputFormat":
-						return OutputFormatProvider.of(
-								new AppendingOutputFormat(
+						return new OutputFormatProvider() {
+								@Override
+								public OutputFormat<RowData> createOutputFormat() {
+									return new AppendingOutputFormat(
 										tableName,
-										converter),
-										parallelism);
+										converter);
+								}
+
+								@Override
+								public Optional<Integer> getParallelism() {
+									return parallelismOption;
+								}
+							};
 					case "DataStream":
 						return (DataStreamSinkProvider) dataStream ->
 								dataStream.addSink(new AppendingSinkFunction(tableName, converter));
