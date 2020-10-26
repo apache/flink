@@ -79,7 +79,7 @@ public class KubernetesSessionCli {
 		this.cli = new GenericCLI(baseConfiguration, configDir);
 	}
 
-	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
+	Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
 		final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
 		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
 		effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
