@@ -852,6 +852,18 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
 	}
 
+	@Test
+	public void testOpenWithRestoreState() throws Exception {
+		MockDeserializationSchema<String> deserializationSchema = new MockDeserializationSchema<>();
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
+				new KafkaDeserializationSchemaWrapper<>(deserializationSchema));
+
+		final TestingListState<Tuple2<KafkaTopicPartition, Long>> restoredListState = new TestingListState<>();
+		setupConsumer(consumer, true, restoredListState, true, 0, 1);
+
+		assertThat("DeserializationSchema's open method was not invoked", deserializationSchema.isOpenCalled(), is(true));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static <T> AbstractStreamOperatorTestHarness<T> createTestHarness(
