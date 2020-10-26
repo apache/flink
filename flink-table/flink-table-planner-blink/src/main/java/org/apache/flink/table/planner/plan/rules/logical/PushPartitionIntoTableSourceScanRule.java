@@ -184,11 +184,11 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			.build();
 
 		String extraDigest = "partitions=[" +
-				String.join(", ", remainingPartitions
-						.stream()
-						.map(Object::toString)
-						.toArray(String[]::new)) +
-				"]";
+			String.join(", ", remainingPartitions
+				.stream()
+				.map(Object::toString)
+				.toArray(String[]::new)) +
+			"]";
 		TableSourceTable newTableSourceTable = tableSourceTable.copy(dynamicTableSource, newStatistic, new String[]{extraDigest});
 		LogicalTableScan newScan = LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
 
@@ -250,24 +250,24 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 			// we will read partitions from catalog if table doesn't support listPartitions.
 			if (!catalogOptional.isPresent()) {
 				throw new TableException(
-						String.format("Table %s must from a catalog, but %s is not a catalog",
-								identifier.asSummaryString(), identifier.getCatalogName()));
+					String.format("Table %s must from a catalog, but %s is not a catalog",
+						identifier.asSummaryString(), identifier.getCatalogName()));
 			}
 			try {
 				return readPartitionFromCatalogAndPrune(
-						rexBuilder,
-						context,
-						catalogOptional.get(),
-						identifier,
-						inputFieldNames,
-						partitionPredicate,
-						pruner);
+					rexBuilder,
+					context,
+					catalogOptional.get(),
+					identifier,
+					inputFieldNames,
+					partitionPredicate,
+					pruner);
 			} catch (TableNotExistException tableNotExistException) {
 				throw new TableException(String.format("Table %s is not found in catalog.", identifier.asSummaryString()));
 			} catch (TableNotPartitionedException tableNotPartitionedException) {
 				throw new TableException(
-						String.format("Table %s is not a partitionable source. Validator should have checked it.", identifier.asSummaryString()),
-						tableNotPartitionedException);
+					String.format("Table %s is not a partitionable source. Validator should have checked it.", identifier.asSummaryString()),
+					tableNotPartitionedException);
 			}
 		}
 	}
