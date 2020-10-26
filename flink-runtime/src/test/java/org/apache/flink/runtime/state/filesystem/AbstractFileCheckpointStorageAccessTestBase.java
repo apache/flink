@@ -25,10 +25,12 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
+
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,10 +52,10 @@ import static org.junit.Assert.fail;
 
 /**
  * Test base for file-system-based checkoint storage, such as the
- * {@link org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage} and the
- * {@link FsCheckpointStorage}.
+ * {@link MemoryBackendCheckpointStorageAccess} and the
+ * {@link FsCheckpointStorageAccess}.
  */
-public abstract class AbstractFileCheckpointStorageTestBase {
+public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -62,9 +64,9 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	//  factories for the actual state storage to be tested
 	// ------------------------------------------------------------------------
 
-	protected abstract CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception;
+	protected abstract CheckpointStorageAccess createCheckpointStorage(Path checkpointDir) throws Exception;
 
-	protected abstract CheckpointStorage createCheckpointStorageWithSavepointDir(
+	protected abstract CheckpointStorageAccess createCheckpointStorageWithSavepointDir(
 			Path checkpointDir,
 			Path savepointDir) throws Exception;
 
@@ -75,7 +77,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	@Test
 	public void testPointerPathResolution() throws Exception {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
-		final Path metadataFile = new Path(Path.fromLocalFile(tmp.newFolder()), AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+		final Path metadataFile = new Path(Path.fromLocalFile(tmp.newFolder()), AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
 
 		final String basePointer = metadataFile.getParent().toString();
 
@@ -84,7 +86,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		final String pointer3 = metadataFile.getParent().toString() + '/';
 
 		// create the storage for some random checkpoint directory
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
 
 		final byte[] data = new byte[23686];
 		new Random().nextBytes(data);
@@ -116,7 +118,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 	@Test
 	public void testFailingPointerPathResolution() throws Exception {
 		// create the storage for some random checkpoint directory
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
 
 		// null value
 		try {
@@ -158,9 +160,9 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage1 = createCheckpointStorage(checkpointDir);
+		final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir);
 		storage1.initializeBaseLocations();
-		final CheckpointStorage storage2 = createCheckpointStorage(checkpointDir);
+		final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir);
 		storage2.initializeBaseLocations();
 
 		final CheckpointStorageLocation loc1 = storage1.initializeLocationForCheckpoint(checkpointId);
@@ -195,8 +197,8 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		assertTrue(job1Files.length >= 1);
 		assertTrue(job2Files.length >= 1);
 
-		assertTrue(fs.exists(new Path(result1, AbstractFsCheckpointStorage.METADATA_FILE_NAME)));
-		assertTrue(fs.exists(new Path(result2, AbstractFsCheckpointStorage.METADATA_FILE_NAME)));
+		assertTrue(fs.exists(new Path(result1, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)));
+		assertTrue(fs.exists(new Path(result2, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)));
 
 		// check that both storages can resolve each others contents
 		validateContents(storage1.resolveCheckpoint(result1).getMetadataHandle(), data1);
@@ -210,7 +212,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 		final byte[] data = {8, 8, 4, 5, 2, 6, 3};
 		final long checkpointId = 177;
 
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
 		storage.initializeBaseLocations();
 		final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
@@ -254,7 +256,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 
 	@Test
 	public void testNoSavepointPathConfiguredNoTarget() throws Exception {
-		final CheckpointStorage storage = createCheckpointStorage(randomTempPath());
+		final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
 
 		try {
 			storage.initializeLocationForSavepoint(1337, null);
@@ -268,7 +270,7 @@ public abstract class AbstractFileCheckpointStorageTestBase {
 			@Nullable Path customDir,
 			Path expectedParent) throws Exception {
 
-		final CheckpointStorage storage = savepointDir == null ?
+		final CheckpointStorageAccess storage = savepointDir == null ?
 				createCheckpointStorage(randomTempPath()) :
 				createCheckpointStorageWithSavepointDir(randomTempPath(), savepointDir);
 

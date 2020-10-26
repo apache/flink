@@ -21,12 +21,12 @@ package org.apache.flink.runtime.state.memory;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageTestBase;
+import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageAccessTestBase;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
 import org.junit.Test;
@@ -45,10 +45,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link MemoryBackendCheckpointStorage}, which implements the checkpoint storage
+ * Tests for the {@link MemoryBackendCheckpointStorageAccess}, which implements the checkpoint storage
  * aspects of the {@link MemoryStateBackend}.
  */
-public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTestBase {
+public class MemoryCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
 	private static final int DEFAULT_MAX_STATE_SIZE = MemoryStateBackend.DEFAULT_MAX_STATE_SIZE;
 
@@ -57,13 +57,13 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
+	protected CheckpointStorageAccess createCheckpointStorage(Path checkpointDir) throws Exception {
+		return new MemoryBackendCheckpointStorageAccess(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
 	}
 
 	@Override
-	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
+	protected CheckpointStorageAccess createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
+		return new MemoryBackendCheckpointStorageAccess(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -76,8 +76,8 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 		MemoryStateBackend backend = new MemoryStateBackend();
 
-		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(jid);
+		MemoryBackendCheckpointStorageAccess storage =
+				(MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(jid);
 
 		assertFalse(storage.supportsHighlyAvailableStorage());
 		assertFalse(storage.hasDefaultSavepointLocation());
@@ -94,8 +94,8 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		MemoryStateBackend backend = new MemoryStateBackend(
 				checkpointPath.toString(), savepointPath.toString());
 
-		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(jid);
+		MemoryBackendCheckpointStorageAccess storage =
+				(MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(jid);
 
 		assertTrue(storage.supportsHighlyAvailableStorage());
 		assertTrue(storage.hasDefaultSavepointLocation());
@@ -109,15 +109,15 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		final int maxSize = 17;
 
 		MemoryStateBackend backend = new MemoryStateBackend(maxSize);
-		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(new JobID());
+		MemoryBackendCheckpointStorageAccess storage =
+				(MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(new JobID());
 
 		assertEquals(maxSize, storage.getMaxStateSize());
 	}
 
 	@Test
 	public void testNonPersistentCheckpointLocation() throws Exception {
-		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+		MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
 
 		CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(9);
@@ -142,7 +142,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	public void testLocationReference() throws Exception {
 		// non persistent memory state backend for checkpoint
 		{
-			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+			MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
@@ -150,7 +150,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 		// non persistent memory state backend for checkpoint
 		{
-			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+			MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 					new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
@@ -158,7 +158,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 		// memory state backend for savepoint
 		{
-			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+			MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForSavepoint(
 					1337, randomTempPath().toString());
@@ -170,7 +170,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	public void testTaskOwnedStateStream() throws Exception {
 		final List<String> state = Arrays.asList("Flopsy", "Mopsy", "Cotton Tail", "Peter");
 
-		final MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+		final MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
 
 		StreamStateHandle stateHandle;
@@ -193,7 +193,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	 */
 	@Test
 	public void testStorageLocationMkdirs() throws Exception {
-		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+		MemoryBackendCheckpointStorageAccess storage = new MemoryBackendCheckpointStorageAccess(
 			new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
 
 		File baseDir = new File(storage.getCheckpointsDirectory().getPath());

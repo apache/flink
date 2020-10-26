@@ -23,5 +23,5 @@ package org.apache.flink.runtime.state;
  * which defined in {@link CheckpointStorageCoordinatorView}. And also implement methods acting as a worker role,
  * which defined in {@link CheckpointStorageWorkerView}.
  */
-public interface CheckpointStorage extends CheckpointStorageCoordinatorView, CheckpointStorageWorkerView {
+public interface CheckpointStorageAccess extends CheckpointStorageCoordinatorView, CheckpointStorageWorkerView {
 }
