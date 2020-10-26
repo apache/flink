@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link JobClient} to interact with the program.
  */
 @Internal
-public final class ClientAndIterator<E> {
+public final class ClientAndIterator<E> implements AutoCloseable {
 
 	public final JobClient client;
 	public final CloseableIterator<E> iterator;
@@ -38,5 +38,11 @@ public final class ClientAndIterator<E> {
 	public ClientAndIterator(JobClient client, CloseableIterator<E> iterator) {
 		this.client = checkNotNull(client);
 		this.iterator = checkNotNull(iterator);
+	}
+
+	@Override
+	public void close() throws Exception {
+		iterator.close();
+		client.cancel();
 	}
 }

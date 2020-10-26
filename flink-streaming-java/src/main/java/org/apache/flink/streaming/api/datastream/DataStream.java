@@ -1354,9 +1354,7 @@ public class DataStream<T> {
 	public List<T> executeAndCollect(String jobExecutionName, int limit) throws Exception {
 		Preconditions.checkState(limit > 0, "Limit must be greater than 0");
 
-		ClientAndIterator<T> clientAndIterator = executeAndCollectWithClient(jobExecutionName);
-
-		try {
+		try (ClientAndIterator<T> clientAndIterator = executeAndCollectWithClient(jobExecutionName)){
 			List<T> results = new ArrayList<>(limit);
 			while (clientAndIterator.iterator.hasNext() && limit > 0) {
 				results.add(clientAndIterator.iterator.next());
@@ -1364,13 +1362,10 @@ public class DataStream<T> {
 			}
 
 			return results;
-		} finally {
-			clientAndIterator.iterator.close();
-			clientAndIterator.client.cancel();
 		}
 	}
 
-	private ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+	ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
 		TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
 		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 

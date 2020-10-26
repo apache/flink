@@ -19,23 +19,16 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
-import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -73,7 +66,7 @@ public final class DataStreamUtils {
 	@Deprecated
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream, String executionJobName) {
 		try {
-			return collectWithClient(stream, executionJobName).iterator;
+			return stream.executeAndCollect(executionJobName);
 		} catch (Exception e) {
 			// this "wrap as unchecked" step is here only to preserve the exception signature
 			// backwards compatible.
@@ -90,24 +83,7 @@ public final class DataStreamUtils {
 	public static <OUT> ClientAndIterator<OUT> collectWithClient(
 			DataStream<OUT> stream,
 			String jobExecutionName) throws Exception {
-
-		TypeSerializer<OUT> serializer = stream.getType().createSerializer(
-				stream.getExecutionEnvironment().getConfig());
-		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
-
-		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
-		CollectSinkOperatorFactory<OUT> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-		CollectSinkOperator<OUT> operator = (CollectSinkOperator<OUT>) factory.getOperator();
-		CollectResultIterator<OUT> iterator = new CollectResultIterator<>(
-				operator.getOperatorIdFuture(), serializer, accumulatorName, env.getCheckpointConfig());
-		CollectStreamSink<OUT> sink = new CollectStreamSink<>(stream, factory);
-		sink.name("Data stream collect sink");
-		env.addOperator(sink.getTransformation());
-
-		final JobClient jobClient = env.executeAsync(jobExecutionName);
-		iterator.setJobClient(jobClient);
-
-		return new ClientAndIterator<>(jobClient, iterator);
+		return stream.executeAndCollectWithClient(jobExecutionName);
 	}
 
 	/**
