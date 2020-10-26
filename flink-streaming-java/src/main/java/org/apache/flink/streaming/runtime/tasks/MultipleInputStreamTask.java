@@ -131,7 +131,8 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			mainMailboxExecutor,
 			inputGates,
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			checkpointBarrierHandler);
+			checkpointBarrierHandler,
+			configuration);
 
 		inputProcessor = StreamMultipleInputProcessorFactory.create(
 			this,

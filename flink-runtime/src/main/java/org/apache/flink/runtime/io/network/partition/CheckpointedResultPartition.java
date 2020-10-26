@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import java.io.IOException;
+
 /**
  * Interface for partitions that are checkpointed, meaning they store data as part of unaligned checkpoints.
  */
@@ -28,4 +30,5 @@ public interface CheckpointedResultPartition {
 	 */
 	CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex);
 
+	void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException;
 }

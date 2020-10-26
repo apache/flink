@@ -88,14 +88,16 @@ public class InputProcessorUtil {
 			mailboxExecutor,
 			inputGates,
 			taskIOMetricGroup,
-			barrierHandler);
+			barrierHandler,
+			config);
 	}
 
 	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
 			MailboxExecutor mailboxExecutor,
 			List<IndexedInputGate>[] inputGates,
 			TaskIOMetricGroup taskIOMetricGroup,
-			CheckpointBarrierHandler barrierHandler) {
+			CheckpointBarrierHandler barrierHandler,
+			StreamConfig config) {
 
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
@@ -104,7 +106,11 @@ public class InputProcessorUtil {
 			.toArray(InputGate[]::new);
 
 		return Arrays.stream(unionedInputGates)
-			.map(unionedInputGate -> new CheckpointedInputGate(unionedInputGate, barrierHandler, mailboxExecutor))
+			.map(unionedInputGate -> new CheckpointedInputGate(
+				unionedInputGate,
+				barrierHandler,
+				mailboxExecutor,
+				config.isGraphContainingLoops() ? UpstreamRecoveryTracker.NO_OP : UpstreamRecoveryTracker.forInputGate(unionedInputGate)))
 			.toArray(CheckpointedInputGate[]::new);
 	}
 

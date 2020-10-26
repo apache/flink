@@ -87,7 +87,7 @@ public class PipelinedApproximateSubpartition extends PipelinedSubpartition {
 			readView = null;
 
 			isPartialBufferCleanupRequired = true;
-			isBlockedByCheckpoint = false;
+			isBlocked = false;
 			sequenceNumber = 0;
 		}
 	}

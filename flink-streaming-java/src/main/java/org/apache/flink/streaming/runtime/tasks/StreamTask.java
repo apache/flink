@@ -512,7 +512,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void readRecoveredChannelState() throws IOException, InterruptedException {
 		SequentialChannelStateReader reader = getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
-		reader.readOutputData(getEnvironment().getAllWriters());
+		reader.readOutputData(getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 		channelIOExecutor.execute(() -> {
 			try {
 				reader.readInputData(getEnvironment().getAllInputGates());

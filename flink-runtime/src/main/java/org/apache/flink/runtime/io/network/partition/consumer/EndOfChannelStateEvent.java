@@ -23,7 +23,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.RuntimeEvent;
 
 /**
- * This event marks a {@link RecoveredInputChannel} as fully consumed.
+ * Marks the end of recovered state of {@link RecoveredInputChannel} of this subtask or {@link
+ * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} on the upstream.
  */
 public class EndOfChannelStateEvent extends RuntimeEvent {
 

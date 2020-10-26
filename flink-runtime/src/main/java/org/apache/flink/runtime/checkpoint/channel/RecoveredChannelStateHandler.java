@@ -86,9 +86,11 @@ class InputChannelRecoveredStateHandler implements RecoveredChannelStateHandler<
 class ResultSubpartitionRecoveredStateHandler implements RecoveredChannelStateHandler<ResultSubpartitionInfo, Tuple2<BufferBuilder, BufferConsumer>> {
 
 	private final ResultPartitionWriter[] writers;
+	private final boolean notifyAndBlockOnCompletion;
 
-	ResultSubpartitionRecoveredStateHandler(ResultPartitionWriter[] writers) {
+	ResultSubpartitionRecoveredStateHandler(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion) {
 		this.writers = writers;
+		this.notifyAndBlockOnCompletion = notifyAndBlockOnCompletion;
 	}
 
 	@Override
@@ -121,6 +123,11 @@ class ResultSubpartitionRecoveredStateHandler implements RecoveredChannelStateHa
 	}
 
 	@Override
-	public void close() {
+	public void close() throws IOException {
+		for (ResultPartitionWriter writer : writers) {
+			if (writer instanceof CheckpointedResultPartition) {
+				((CheckpointedResultPartition) writer).finishReadRecoveredState(notifyAndBlockOnCompletion);
+			}
+		}
 	}
 }
