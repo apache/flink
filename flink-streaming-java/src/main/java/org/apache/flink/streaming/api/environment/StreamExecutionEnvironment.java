@@ -862,7 +862,6 @@ public class StreamExecutionEnvironment {
 	 *    The number to stop at (inclusive)
 	 * @return A data stream, containing parallel sequences covering the range [from, to] (both boundaries are inclusive)
 	 */
-	@Experimental
 	public DataStreamSource<Long> fromSequence(long from, long to) {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");

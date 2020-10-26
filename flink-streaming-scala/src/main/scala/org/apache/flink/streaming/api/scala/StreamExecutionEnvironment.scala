@@ -455,7 +455,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a new DataStream that contains a sequence of numbers (long).
    * This source is a parallel [[Source]].
    */
-  @Experimental
   def fromSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.fromSequence(from, to))
       .asInstanceOf[DataStream[Long]]
