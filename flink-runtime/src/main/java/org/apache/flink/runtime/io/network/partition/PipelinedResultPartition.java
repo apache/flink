@@ -162,4 +162,11 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 			type == ResultPartitionType.PIPELINED_APPROXIMATE);
 		return type;
 	}
+
+	@Override
+	public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
+		for (ResultSubpartition subpartition : subpartitions) {
+			((CheckpointedResultSubpartition) subpartition).finishReadRecoveredState(notifyAndBlockOnCompletion);
+		}
+	}
 }

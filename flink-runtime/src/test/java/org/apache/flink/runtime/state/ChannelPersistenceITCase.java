@@ -63,14 +63,35 @@ import java.util.stream.Collectors;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN;
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.RECOVERY_COMPLETION;
 import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * ChannelPersistenceITCase.
  */
 public class ChannelPersistenceITCase {
 	private static final Random RANDOM = new Random(System.currentTimeMillis());
+
+	@Test
+	public void testUpstreamBlocksAfterRecoveringState() throws Exception {
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
+		byte[] dataAfterRecovery = randomBytes(1024);
+		try {
+			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, 0, 1);
+			new SequentialChannelStateReaderImpl(new TaskStateSnapshot()).readOutputData(new BufferWritingResultPartition[]{resultPartition}, true);
+			resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
+			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+			assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
+			assertNull(view.getNextBuffer());
+			view.resumeConsumption();
+			assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
+		} finally {
+			networkBufferPool.destroy();
+		}
+	}
 
 	@Test
 	public void testReadWritten() throws Exception {
@@ -92,7 +113,7 @@ public class ChannelPersistenceITCase {
 			assertArrayEquals(inputChannelInfoData, collectBytes(() -> gate.pollNext().map(BufferOrEvent::getBuffer)));
 
 			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, partitionIndex, numChannels);
-			reader.readOutputData(new BufferWritingResultPartition[]{resultPartition});
+			reader.readOutputData(new BufferWritingResultPartition[]{resultPartition}, false);
 			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
 			assertArrayEquals(resultSubpartitionInfoData, collectBytes(() -> Optional.ofNullable(view.getNextBuffer()).map(BufferAndBacklog::buffer)));
 		} finally {
@@ -129,7 +150,9 @@ public class ChannelPersistenceITCase {
 	private byte[] collectBytes(SupplierWithException<Optional<Buffer>, Exception> bufferSupplier) throws Exception {
 		ArrayList<Buffer> buffers = new ArrayList<>();
 		for (Optional<Buffer> buffer = bufferSupplier.get(); buffer.isPresent(); buffer = bufferSupplier.get()){
-			buffers.add(buffer.get());
+			if (buffer.get().getDataType().isBuffer()) {
+				buffers.add(buffer.get());
+			}
 		}
 		ByteBuffer result = ByteBuffer.wrap(new byte[buffers.stream().mapToInt(Buffer::getSize).sum()]);
 		buffers.forEach(buffer -> {

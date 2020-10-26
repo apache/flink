@@ -112,7 +112,7 @@ public class SequentialChannelStateReaderImplTest {
 		SequentialChannelStateReader reader = new SequentialChannelStateReaderImpl(buildSnapshot(writePermuted(inputChannelsData, resultPartitionsData)));
 
 		withResultPartitions(resultPartitions -> {
-			reader.readOutputData(resultPartitions);
+			reader.readOutputData(resultPartitions, false);
 			assertBuffersEquals(resultPartitionsData, collectBuffers(resultPartitions));
 		});
 
@@ -130,7 +130,9 @@ public class SequentialChannelStateReaderImplTest {
 				ResultSubpartitionInfo info = resultPartition.getAllPartitions()[i].getSubpartitionInfo();
 				ResultSubpartitionView view = resultPartition.createSubpartitionView(info.getSubPartitionIdx(), new NoOpBufferAvailablityListener());
 				for (BufferAndBacklog buffer = view.getNextBuffer(); buffer != null; buffer = view.getNextBuffer()) {
-					actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(buffer.buffer());
+					if (buffer.buffer().isBuffer()) {
+						actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(buffer.buffer());
+					}
 				}
 			}
 		}

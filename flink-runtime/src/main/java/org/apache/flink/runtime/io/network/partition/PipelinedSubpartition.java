@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecordLength;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
@@ -97,9 +98,9 @@ public class PipelinedSubpartition extends ResultSubpartition
 	/** Writes in-flight data. */
 	private ChannelStateWriter channelStateWriter;
 
-	/** Whether this subpartition is blocked by exactly once checkpoint and is waiting for resumption. */
+	/** Whether this subpartition is blocked (e.g. by exactly once checkpoint) and is waiting for resumption. */
 	@GuardedBy("buffers")
-	boolean isBlockedByCheckpoint = false;
+	boolean isBlocked = false;
 
 	int sequenceNumber = 0;
 
@@ -118,6 +119,13 @@ public class PipelinedSubpartition extends ResultSubpartition
 	@Override
 	public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) {
 		return add(bufferConsumer, partialRecordLength, false);
+	}
+
+	@Override
+	public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
+		if (notifyAndBlockOnCompletion) {
+			add(EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false), 0, false);
+		}
 	}
 
 	@Override
@@ -196,7 +204,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 					inflightBuffers.toArray(new Buffer[0]));
 			}
 		}
-		return numPriorityElements == 1;
+		return numPriorityElements == 1
+			&& !isBlocked; // if subpartition is blocked then downstream doesn't expect any notifications
 	}
 
 	@Nullable
@@ -249,7 +258,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	@Nullable
 	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
-			if (isBlockedByCheckpoint) {
+			if (isBlocked) {
 				return null;
 			}
 
@@ -293,7 +302,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 
 			if (buffer.getDataType().isBlockingUpstream()) {
-				isBlockedByCheckpoint = true;
+				isBlocked = true;
 			}
 
 			updateStatistics(buffer);
@@ -310,9 +319,9 @@ public class PipelinedSubpartition extends ResultSubpartition
 
 	void resumeConsumption() {
 		synchronized (buffers) {
-			checkState(isBlockedByCheckpoint, "Should be blocked by checkpoint.");
+			checkState(isBlocked, "Should be blocked by checkpoint.");
 
-			isBlockedByCheckpoint = false;
+			isBlocked = false;
 		}
 	}
 
@@ -355,7 +364,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	private boolean isDataAvailableUnsafe() {
 		assert Thread.holdsLock(buffers);
 
-		return !isBlockedByCheckpoint && (flushRequested || getNumberOfFinishedBuffers() > 0);
+		return !isBlocked && (flushRequested || getNumberOfFinishedBuffers() > 0);
 	}
 
 	private Buffer.DataType getNextBufferTypeUnsafe() {
@@ -413,7 +422,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
+			notifyDataAvailable = !isBlocked && buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
@@ -483,7 +492,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	@GuardedBy("buffers")
 	private boolean shouldNotifyDataAvailable() {
 		// Notify only when we added first finished buffer.
-		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == 1;
+		return readView != null && !flushRequested && !isBlocked && getNumberOfFinishedBuffers() == 1;
 	}
 
 	private void notifyDataAvailable() {
