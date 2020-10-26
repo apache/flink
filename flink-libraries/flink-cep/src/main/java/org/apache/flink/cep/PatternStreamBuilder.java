@@ -60,29 +60,18 @@ final class PatternStreamBuilder<IN> {
 	private final OutputTag<IN> lateDataOutputTag;
 
 	/**
+	 * The time behaviour to specify processing time or event time.
+	 * Default time behaviour is {@link TimeBehaviour#EventTime}.
+	 */
+	private final TimeBehaviour timeBehaviour;
+
+	/**
 	 * The time behaviour enum defines how the system determines time for time-dependent order and
 	 * operations that depend on time.
 	 */
 	enum TimeBehaviour {
 		ProcessingTime,
 		EventTime
-	}
-
-	/**
-	 * The time behaviour to specify processing time or event time.
-	 * Default time behaviour is {@link TimeBehaviour#EventTime}.
-	 */
-	private TimeBehaviour timeBehaviour = TimeBehaviour.EventTime;
-
-	private PatternStreamBuilder(
-			final DataStream<IN> inputStream,
-			final Pattern<IN, ?> pattern,
-			@Nullable final EventComparator<IN> comparator,
-			@Nullable final OutputTag<IN> lateDataOutputTag) {
-		this.inputStream = checkNotNull(inputStream);
-		this.pattern = checkNotNull(pattern);
-		this.comparator = comparator;
-		this.lateDataOutputTag = lateDataOutputTag;
 	}
 
 	private PatternStreamBuilder(
@@ -113,11 +102,11 @@ final class PatternStreamBuilder<IN> {
 	}
 
 	PatternStreamBuilder<IN> withComparator(final EventComparator<IN> comparator) {
-		return new PatternStreamBuilder<>(inputStream, pattern, checkNotNull(comparator), lateDataOutputTag);
+		return new PatternStreamBuilder<>(inputStream, pattern, timeBehaviour, checkNotNull(comparator), lateDataOutputTag);
 	}
 
 	PatternStreamBuilder<IN> withLateDataOutputTag(final OutputTag<IN> lateDataOutputTag) {
-		return new PatternStreamBuilder<>(inputStream, pattern, comparator, checkNotNull(lateDataOutputTag));
+		return new PatternStreamBuilder<>(inputStream, pattern, timeBehaviour, comparator, checkNotNull(lateDataOutputTag));
 	}
 
 	PatternStreamBuilder<IN> inProcessingTime() {
@@ -183,6 +172,6 @@ final class PatternStreamBuilder<IN> {
 	// ---------------------------------------- factory-like methods ---------------------------------------- //
 
 	static <IN> PatternStreamBuilder<IN> forStreamAndPattern(final DataStream<IN> inputStream, final Pattern<IN, ?> pattern) {
-		return new PatternStreamBuilder<>(inputStream, pattern, null, null);
+		return new PatternStreamBuilder<>(inputStream, pattern, TimeBehaviour.EventTime, null, null);
 	}
 }
