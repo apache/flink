@@ -19,14 +19,19 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.source.InputFormatProvider;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
@@ -36,6 +41,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import java.util.ArrayList;
@@ -82,7 +89,23 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-		return InputFormatProvider.of(getInputFormat());
+		return new DataStreamScanProvider() {
+			@Override
+			public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+				TypeInformation<RowData> typeInfo = InternalTypeInfo.of(
+						getProducedDataType().getLogicalType());
+				// Avoid using ContinuousFileMonitoringFunction
+				return execEnv.addSource(
+						new InputFormatSourceFunction<>(getInputFormat(), typeInfo),
+						String.format("Filesystem(%s)", tableIdentifier),
+						typeInfo);
+			}
+
+			@Override
+			public boolean isBounded() {
+				return true;
+			}
+		};
 	}
 
 	private InputFormat<RowData, ?> getInputFormat() {
@@ -226,5 +249,16 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		return projectedFields == null ?
 				IntStream.range(0, schema.getFieldCount()).toArray() :
 				Arrays.stream(projectedFields).mapToInt(array -> array[0]).toArray();
+	}
+
+	private DataType getProducedDataType() {
+		int[] fields = readFields();
+		String[] schemaFieldNames = schema.getFieldNames();
+		DataType[] schemaTypes = schema.getFieldDataTypes();
+
+		return DataTypes.ROW(Arrays.stream(fields)
+				.mapToObj(i -> DataTypes.FIELD(schemaFieldNames[i], schemaTypes[i]))
+				.toArray(DataTypes.Field[]::new))
+				.bridgedTo(RowData.class);
 	}
 }
