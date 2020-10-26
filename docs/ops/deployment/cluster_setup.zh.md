@@ -35,10 +35,10 @@ under the License.
 
 ### 软件需求
 
-Flink 运行在所有*类 UNIX 环境*下，例如 **Linux**，**Mac OS X** 和 **Cygwin** （Windows），并且认为集群由**一个 master 节点**以及**一个或多个 worker 节点**构成。在配置系统之前，请确保**在每个节点上**安装有以下软件：
+Flink 运行在所有*类 UNIX 环境*下，例如 **Linux**，**Mac OS X** 和 **Cygwin** （Windows），集群由**一个 master 节点**以及**一个或多个 worker 节点**构成。在配置系统之前，请确保**在每个节点上**安装有以下软件：
 
 - **Java 1.8.x** 或更高版本，
-- **ssh** （必须运行 sshd 以使用 Flink 脚本管理远程组件）
+- **ssh** （必须运行 sshd 以执行用于管理 Flink 各组件的脚本）
 
 如果集群不满足软件要求，那么你需要安装/更新这些软件。
 
@@ -52,7 +52,7 @@ Flink 运行在所有*类 UNIX 环境*下，例如 **Linux**，**Mac OS X** 和 
 
 Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并指向你的 Java 安装目录。
 
-你可以在 `conf/flink-conf.yaml` 文件中通过 `env.java.home` 键来设置此变量。
+你可以在 `conf/flink-conf.yaml` 文件中通过 `env.java.home` 配置项来设置此变量。
 
 {% top %}
 
@@ -75,9 +75,9 @@ cd flink-*
 
 在解压完文件后，你需要编辑 *conf/flink-conf.yaml* 文件来为集群配置 Flink。
 
-设置 `jobmanager.rpc.address` 键指向 master 节点。你也应该通过设置 `jobmanager.memory.process.size` 和 `taskmanager.memory.process.size` 键来定义 Flink 允许在每个节点上分配的最大内存值。
+设置 `jobmanager.rpc.address` 配置项指向 master 节点。你也应该通过设置 `jobmanager.memory.process.size` 和 `taskmanager.memory.process.size` 配置项来定义 Flink 允许在每个节点上分配的最大内存值。
 
-这些值是以 MB 为单位所给出的。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 *conf/flink-conf.yaml* 文件中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
+这些值的单位是 MB。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 *conf/flink-conf.yaml* 文件中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
 
 最后，你必须提供集群上会被用作为 worker 节点的所有节点列表，也就是运行 TaskManager 的节点。编辑文件 *conf/workers* 并输入每个 worker 节点的 IP 或主机名。
 
