@@ -39,10 +39,6 @@ scala_version: "2.11"
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
 
-# Plain flink-shaded version is needed for e.g. the hive connector.
-# Please update the shaded_version once new flink-shaded is released.
-shaded_version: "8.0"
-
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
 website_url: "https://flink.apache.org"
