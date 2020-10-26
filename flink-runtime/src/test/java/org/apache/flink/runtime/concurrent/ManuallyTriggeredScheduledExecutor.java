@@ -150,15 +150,12 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 	}
 
 	public void triggerNonPeriodicScheduledTasks() {
-		final Iterator<ScheduledTask<?>> iterator = nonPeriodicScheduledTasks.iterator();
-
-		while (iterator.hasNext()) {
-			final ScheduledTask<?> scheduledTask = iterator.next();
+		while (!nonPeriodicScheduledTasks.isEmpty()) {
+			final ScheduledTask<?> scheduledTask = nonPeriodicScheduledTasks.poll();
 
 			if (!scheduledTask.isCancelled()) {
 				scheduledTask.execute();
 			}
-			iterator.remove();
 		}
 	}
 
