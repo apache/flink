@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -136,6 +137,8 @@ public class StreamGraphGenerator {
     private final ReadableConfig configuration;
 
     private StateBackend stateBackend;
+
+    private CheckpointStorage checkpointStorage;
 
     private boolean chaining = true;
 
@@ -300,6 +303,7 @@ public class StreamGraphGenerator {
             setBatchStateBackendAndTimerService(graph);
         } else {
             graph.setStateBackend(stateBackend);
+            graph.setCheckpointStorage(checkpointStorage);
             graph.setScheduleMode(ScheduleMode.EAGER);
 
             if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {

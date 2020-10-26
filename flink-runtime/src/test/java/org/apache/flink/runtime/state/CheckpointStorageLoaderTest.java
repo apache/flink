@@ -38,18 +38,15 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collection;
 
-import static org.junit.Assert.assertNull;
-
 /** This test validates that checkpoint storage is properly loaded from configuration. */
-public class CheckpointStorageLoadingTest {
+public class CheckpointStorageLoaderTest {
 
     private final ClassLoader cl = getClass().getClassLoader();
 
     @Test
     public void testNoCheckpointStorageDefined() throws Exception {
-        assertNull(
-                CheckpointStorageLoader.fromConfig(
-                        new Configuration(), cl, null));
+        Assert.assertFalse(
+                CheckpointStorageLoader.fromConfig(new Configuration(), cl, null).isPresent());
     }
 
     @Test
@@ -58,24 +55,22 @@ public class CheckpointStorageLoadingTest {
         CheckpointStorage storage = new MockStorage();
 
         CheckpointStorage configured =
-                CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                        storage, legacy, new Configuration(), cl, null);
+                CheckpointStorageLoader.load(storage, legacy, new Configuration(), cl, null);
 
         Assert.assertEquals(
-                "Legacy state backends should always take precendence", legacy, configured);
+                "Legacy state backends should always take precedence", legacy, configured);
     }
 
     @Test
     public void testModernStateBackendDoesNotTakePrecedence() throws Exception {
-        StateBackend legacy = new ModernStateBackend();
+        StateBackend modern = new ModernStateBackend();
         CheckpointStorage storage = new MockStorage();
 
         CheckpointStorage configured =
-                CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                        storage, legacy, new Configuration(), cl, null);
+                CheckpointStorageLoader.load(storage, modern, new Configuration(), cl, null);
 
         Assert.assertEquals(
-                "Modern state backends should never take precendence", storage, configured);
+                "Modern state backends should never take precedence", storage, configured);
     }
 
     @Test
@@ -84,8 +79,7 @@ public class CheckpointStorageLoadingTest {
 
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, WorkingFactory.class.getName());
         CheckpointStorage storage =
-                CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                        null, new ModernStateBackend(), config, cl, null);
+                CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
         Assert.assertThat(storage, Matchers.instanceOf(MockStorage.class));
     }
 
@@ -95,8 +89,7 @@ public class CheckpointStorageLoadingTest {
 
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, "does.not.exist");
         try {
-            CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                    null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (DynamicCodeLoadingException e) {
             // expected
@@ -105,8 +98,7 @@ public class CheckpointStorageLoadingTest {
         // try a class that is not a factory
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, java.io.File.class.getName());
         try {
-            CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                    null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (DynamicCodeLoadingException e) {
             // expected
@@ -115,8 +107,7 @@ public class CheckpointStorageLoadingTest {
         // try a factory that fails
         config.setString(CheckpointingOptions.CHECKPOINT_STORAGE, FailingFactory.class.getName());
         try {
-            CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-                    null, new ModernStateBackend(), config, cl, null);
+            CheckpointStorageLoader.load(null, new ModernStateBackend(), config, cl, null);
             Assert.fail("should fail with exception");
         } catch (IllegalConfigurationException e) {
             // expected

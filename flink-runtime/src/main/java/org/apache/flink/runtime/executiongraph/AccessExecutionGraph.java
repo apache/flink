@@ -172,4 +172,11 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return The state backend name, or an empty Optional in the case of batch jobs
      */
     Optional<String> getStateBackendName();
+
+    /**
+     * Returns the checkpoint storage name for this ExecutionGraph.
+     *
+     * @return The checkpoint storage name, or an empty Optional in the case of batch jobs
+     */
+    Optional<String> getCheckpointStorageName();
 }

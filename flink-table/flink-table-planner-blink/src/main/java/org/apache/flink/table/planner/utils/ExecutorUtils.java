@@ -69,6 +69,7 @@ public class ExecutorUtils {
         streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
         streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
         streamGraph.setStateBackend(null);
+        streamGraph.setCheckpointStorage(null);
         if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
         }

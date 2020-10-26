@@ -116,6 +116,7 @@ public class CheckpointConfigHandler
                             retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
             String stateBackendName = executionGraph.getStateBackendName().orElse(null);
+            String checkpointStorageName = executionGraph.getCheckpointStorageName().orElse(null);
 
             return new CheckpointConfigInfo(
                     checkpointCoordinatorConfiguration.isExactlyOnce()
@@ -127,6 +128,7 @@ public class CheckpointConfigHandler
                     checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
                     externalizedCheckpointInfo,
                     stateBackendName,
+                    checkpointStorageName,
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
                     checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber());
         }
