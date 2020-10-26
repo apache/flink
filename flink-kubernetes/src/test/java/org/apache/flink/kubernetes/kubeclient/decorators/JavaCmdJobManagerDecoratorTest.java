@@ -211,7 +211,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	@Test
@@ -239,7 +239,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging) {
