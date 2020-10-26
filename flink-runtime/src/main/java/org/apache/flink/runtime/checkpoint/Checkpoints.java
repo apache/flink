@@ -28,6 +28,8 @@ import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -216,14 +218,14 @@ public class Checkpoints {
 
 	public static void disposeSavepoint(
 			String pointer,
-			StateBackend stateBackend,
+			CheckpointStorage checkpointStorage,
 			ClassLoader classLoader) throws IOException, FlinkException {
 
 		checkNotNull(pointer, "location");
-		checkNotNull(stateBackend, "stateBackend");
+		checkNotNull(checkpointStorage, "checkpointStorage");
 		checkNotNull(classLoader, "classLoader");
 
-		final CompletedCheckpointStorageLocation checkpointLocation = stateBackend.resolveCheckpoint(pointer);
+		final CompletedCheckpointStorageLocation checkpointLocation = checkpointStorage.resolveCheckpoint(pointer);
 
 		final StreamStateHandle metadataHandle = checkpointLocation.getMetadataHandle();
 
@@ -279,13 +281,12 @@ public class Checkpoints {
 		checkNotNull(configuration, "configuration");
 		checkNotNull(classLoader, "classLoader");
 
-		StateBackend backend = loadStateBackend(configuration, classLoader, logger);
-
-		disposeSavepoint(pointer, backend, classLoader);
+		CheckpointStorage storage = loadCheckpointStorage(configuration, classLoader, logger);
+		disposeSavepoint(pointer, storage, classLoader);
 	}
 
 	@Nonnull
-	public static StateBackend loadStateBackend(Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
+	private static StateBackend loadStateBackend(Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
 		if (logger != null) {
 			logger.info("Attempting to load configured state backend for savepoint disposal");
 		}
@@ -313,6 +314,30 @@ public class Checkpoints {
 			backend = new MemoryStateBackend();
 		}
 		return backend;
+	}
+
+	@Nonnull
+	public static CheckpointStorage loadCheckpointStorage(Configuration configuration, ClassLoader classLoader, @Nullable Logger logger) {
+		StateBackend backend = loadStateBackend(configuration, classLoader, logger);
+
+		if (logger != null) {
+			logger.info("Attempting to load configured checkpoint storage for savepoint disposal");
+		}
+
+		CheckpointStorage checkpointStorage = null;
+		try {
+			checkpointStorage = CheckpointStorageLoader
+					.fromApplicationOrConfigOrDefault(null, backend, configuration, classLoader, null);
+		}
+		catch (Throwable t) {
+			// catches exceptions and errors (like linking errors)
+			if (logger != null) {
+				logger.info("Could not load configured state backend.");
+				logger.debug("Detailed exception:", t);
+			}
+		}
+
+		return checkpointStorage;
 	}
 
 	// ------------------------------------------------------------------------

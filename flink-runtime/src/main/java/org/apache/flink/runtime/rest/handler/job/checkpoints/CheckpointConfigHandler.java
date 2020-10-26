@@ -101,6 +101,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 					retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
 			String stateBackendName = executionGraph.getStateBackendName().orElse(null);
+			String checkpointStorageName = executionGraph.getCheckpointStorageName().orElse(null);
 
 			return new CheckpointConfigInfo(
 				checkpointCoordinatorConfiguration.isExactlyOnce() ? CheckpointConfigInfo.ProcessingMode.EXACTLY_ONCE : CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
@@ -110,6 +111,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 				checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointInfo,
 				stateBackendName,
+				checkpointStorageName,
 				checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled());
 		}
 	}

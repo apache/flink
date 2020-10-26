@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -30,6 +31,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
@@ -37,6 +41,7 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -168,6 +173,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 				counter,
 				store,
 				new MemoryStateBackend(),
+				new TestingCheckpointStorage(),
 				CheckpointStatsTrackerTest.createTestTracker());
 
 		return executionGraph;
@@ -251,6 +257,19 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		@Override
 		public boolean requiresExternalizedCheckpoints() {
 			throw new UnsupportedOperationException("Not implemented.");
+		}
+	}
+
+	private static final class TestingCheckpointStorage implements CheckpointStorage {
+
+		@Override
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {
+			throw new RuntimeException("Unimplemented");
+		}
+
+		@Override
+		public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+			throw new RuntimeException("Unimplemented");
 		}
 	}
 }

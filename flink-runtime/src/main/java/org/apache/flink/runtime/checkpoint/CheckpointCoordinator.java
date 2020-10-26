@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -134,7 +135,7 @@ public class CheckpointCoordinator {
 
 	/** The root checkpoint state backend, which is responsible for initializing the
 	 * checkpoint, storing the metadata, and cleaning up the checkpoint. */
-	private final CheckpointStorageCoordinatorView checkpointStorage;
+	private final CheckpointStorageCoordinatorView checkpointStorageView;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones). */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
@@ -209,6 +210,46 @@ public class CheckpointCoordinator {
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
+			JobID job,
+			CheckpointCoordinatorConfiguration chkConfig,
+			ExecutionVertex[] tasksToTrigger,
+			ExecutionVertex[] tasksToWaitFor,
+			ExecutionVertex[] tasksToCommitTo,
+			Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
+			CheckpointIDCounter checkpointIDCounter,
+			CompletedCheckpointStore completedCheckpointStore,
+			CheckpointStorage checkpointStorage,
+			Executor executor,
+			CheckpointsCleaner checkpointsCleaner,
+			ScheduledExecutor timer,
+			SharedStateRegistryFactory sharedStateRegistryFactory,
+			CheckpointFailureManager failureManager) {
+
+		this(
+				job,
+				chkConfig,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				coordinatorsToCheckpoint,
+				checkpointIDCounter,
+				completedCheckpointStore,
+				null,
+				executor,
+				checkpointsCleaner,
+				timer,
+				sharedStateRegistryFactory,
+				failureManager,
+				SystemClock.getInstance());
+	}
+
+	/**
+	 * @deprecated Please pass a {@link CheckpointStorage} object directly.
+	 * This constructor only exists for to keep coordinator tests passing and
+	 * may be dropped once concrete checkpoint storage classes are implemented.
+	 */
+	@Deprecated
+	public CheckpointCoordinator(
 		JobID job,
 		CheckpointCoordinatorConfiguration chkConfig,
 		ExecutionVertex[] tasksToTrigger,
@@ -217,7 +258,7 @@ public class CheckpointCoordinator {
 		Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
 		CheckpointIDCounter checkpointIDCounter,
 		CompletedCheckpointStore completedCheckpointStore,
-		StateBackend checkpointStateBackend,
+		StateBackend stateBackend,
 		Executor executor,
 		CheckpointsCleaner checkpointsCleaner,
 		ScheduledExecutor timer,
@@ -233,7 +274,7 @@ public class CheckpointCoordinator {
 			coordinatorsToCheckpoint,
 			checkpointIDCounter,
 			completedCheckpointStore,
-			checkpointStateBackend,
+			asCheckpointStorage(stateBackend),
 			executor,
 			checkpointsCleaner,
 			timer,
@@ -252,7 +293,7 @@ public class CheckpointCoordinator {
 			Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			StateBackend checkpointStateBackend,
+			CheckpointStorage checkpointStorage,
 			Executor executor,
 			CheckpointsCleaner checkpointsCleaner,
 			ScheduledExecutor timer,
@@ -261,7 +302,7 @@ public class CheckpointCoordinator {
 			Clock clock) {
 
 		// sanity checks
-		checkNotNull(checkpointStateBackend);
+		checkNotNull(checkpointStorage);
 
 		// max "in between duration" can be one year - this is to prevent numeric overflows
 		long minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
@@ -305,8 +346,8 @@ public class CheckpointCoordinator {
 		this.checkpointProperties = CheckpointProperties.forCheckpoint(chkConfig.getCheckpointRetentionPolicy());
 
 		try {
-			this.checkpointStorage = checkpointStateBackend.createCheckpointStorage(job);
-			checkpointStorage.initializeBaseLocations();
+			this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
+			checkpointStorageView.initializeBaseLocations();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side.", e);
 		}
@@ -638,9 +679,9 @@ public class CheckpointCoordinator {
 				long checkpointID = checkpointIdCounter.getAndIncrement();
 
 				CheckpointStorageLocation checkpointStorageLocation = props.isSavepoint() ?
-					checkpointStorage
+					checkpointStorageView
 						.initializeLocationForSavepoint(checkpointID, externalSavepointLocation) :
-					checkpointStorage.initializeLocationForCheckpoint(checkpointID);
+					checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
 
 				return new CheckpointIdAndStorageLocation(checkpointID, checkpointStorageLocation);
 			} catch (Throwable throwable) {
@@ -1404,7 +1445,7 @@ public class CheckpointCoordinator {
 		LOG.info("Starting job {} from savepoint {} ({})",
 				job, savepointPointer, (allowNonRestored ? "allowing non restored state" : ""));
 
-		final CompletedCheckpointStorageLocation checkpointLocation = checkpointStorage.resolveCheckpoint(savepointPointer);
+		final CompletedCheckpointStorageLocation checkpointLocation = checkpointStorageView.resolveCheckpoint(savepointPointer);
 
 		// Load the savepoint as a checkpoint into the system
 		CompletedCheckpoint savepoint = Checkpoints.loadAndValidateCheckpoint(
@@ -1449,8 +1490,8 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public CheckpointStorageCoordinatorView getCheckpointStorage() {
-		return checkpointStorage;
+	public CheckpointStorageCoordinatorView getCheckpointStorageView() {
+		return checkpointStorageView;
 	}
 
 	public CompletedCheckpointStore getCheckpointStore() {
@@ -1859,5 +1900,13 @@ public class CheckpointCoordinator {
 		public boolean isForce() {
 			return props.forceCheckpoint();
 		}
+	}
+
+	private static CheckpointStorage asCheckpointStorage(StateBackend backend) {
+		if (backend instanceof CheckpointStorage) {
+			return (CheckpointStorage) backend;
+		}
+
+		throw new IllegalStateException("Provided state backend does not implement checkpoint storage");
 	}
 }

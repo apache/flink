@@ -140,7 +140,8 @@ public class ArchivedExecutionGraphBuilder {
 			isStoppable,
 			null,
 			null,
-			"stateBackendName"
+			"stateBackendName",
+			"checkpointStorageName"
 		);
 	}
 }

@@ -758,7 +758,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		if (checkpointCoordinator == null) {
 			throw new IllegalStateException(
 				String.format("Job %s is not a streaming job.", jobGraph.getJobID()));
-		} else if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
+		} else if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorageView().hasDefaultSavepointLocation()) {
 			log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
 
 			throw new IllegalStateException(
@@ -870,7 +870,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
 		}
 
-		if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
+		if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorageView().hasDefaultSavepointLocation()) {
 			log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
 
 			return FutureUtils.completedExceptionally(new IllegalStateException(

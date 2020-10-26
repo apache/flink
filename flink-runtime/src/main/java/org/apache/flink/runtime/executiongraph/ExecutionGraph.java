@@ -74,6 +74,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -310,6 +311,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	@Nullable
 	private String stateBackendName;
 
+	@Nullable
+	private String checkpointStorageName;
+
 	private String jsonPlan;
 
 	/** Shuffle master to register partitions for task deployment. */
@@ -447,6 +451,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return Optional.ofNullable(stateBackendName);
 	}
 
+	@Override
+	public Optional<String> getCheckpointStorageName() {
+		return Optional.ofNullable(checkpointStorageName);
+	}
+
 	public void enableCheckpointing(
 			CheckpointCoordinatorConfiguration chkConfig,
 			List<ExecutionJobVertex> verticesToTrigger,
@@ -456,6 +465,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			StateBackend checkpointStateBackend,
+			CheckpointStorage checkpointStorage,
 			CheckpointStatsTracker statsTracker) {
 
 		checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
@@ -500,7 +510,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			operatorCoordinators,
 			checkpointIDCounter,
 			checkpointStore,
-			checkpointStateBackend,
+			checkpointStorage,
 			ioExecutor,
 			new CheckpointsCleaner(),
 			new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
@@ -525,6 +535,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 
 		this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
+		this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
 	}
 
 	@Nullable

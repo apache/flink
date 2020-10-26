@@ -984,10 +984,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1077,10 +1077,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1228,6 +1228,9 @@
         "state_backend" : {
           "type" : "string"
         },
+        "checkpoint_storage" : {
+          "type" : "string"
+        },
         "unaligned_checkpoints" : {
           "type" : "boolean"
         }
@@ -1281,10 +1284,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"
@@ -1378,10 +1381,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"
