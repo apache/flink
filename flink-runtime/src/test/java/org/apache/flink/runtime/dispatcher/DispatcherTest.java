@@ -84,7 +84,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -569,7 +568,6 @@ public class DispatcherTest extends TestLogger {
 
     /** Tests that we can dispose a savepoint. */
     @Test
-    @Ignore("Ignored until MemoryStateBackend implements CheckpointStorage")
     public void testSavepointDisposal() throws Exception {
         final URI externalPointer = createTestingSavepoint();
         final Path savepointPath = Paths.get(externalPointer);

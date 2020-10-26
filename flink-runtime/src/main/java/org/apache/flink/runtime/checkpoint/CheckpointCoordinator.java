@@ -42,7 +42,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -251,47 +250,7 @@ public class CheckpointCoordinator {
                 coordinatorsToCheckpoint,
                 checkpointIDCounter,
                 completedCheckpointStore,
-                null,
-                executor,
-                checkpointsCleaner,
-                timer,
-                sharedStateRegistryFactory,
-                failureManager,
-                SystemClock.getInstance());
-    }
-
-    /**
-     * @deprecated Please pass a {@link CheckpointStorage} object directly. This constructor only
-     *     exists for to keep coordinator tests passing and may be dropped once concrete checkpoint
-     *     storage classes are implemented.
-     */
-    @Deprecated
-    public CheckpointCoordinator(
-            JobID job,
-            CheckpointCoordinatorConfiguration chkConfig,
-            ExecutionVertex[] tasksToTrigger,
-            ExecutionVertex[] tasksToWaitFor,
-            ExecutionVertex[] tasksToCommitTo,
-            Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
-            CheckpointIDCounter checkpointIDCounter,
-            CompletedCheckpointStore completedCheckpointStore,
-            StateBackend checkpointStateBackend,
-            Executor executor,
-            CheckpointsCleaner checkpointsCleaner,
-            ScheduledExecutor timer,
-            SharedStateRegistryFactory sharedStateRegistryFactory,
-            CheckpointFailureManager failureManager) {
-
-        this(
-                job,
-                chkConfig,
-                tasksToTrigger,
-                tasksToWaitFor,
-                tasksToCommitTo,
-                coordinatorsToCheckpoint,
-                checkpointIDCounter,
-                completedCheckpointStore,
-                asCheckpointStorage(checkpointStateBackend),
+                checkpointStorage,
                 executor,
                 checkpointsCleaner,
                 timer,
@@ -2148,14 +2107,5 @@ public class CheckpointCoordinator {
 
         /** Coordinators are not restored during this checkpoint restore. */
         SKIP;
-    }
-
-    private static CheckpointStorage asCheckpointStorage(StateBackend backend) {
-        if (backend instanceof CheckpointStorage) {
-            return (CheckpointStorage) backend;
-        }
-
-        throw new IllegalStateException(
-                "Provided state backend does not implement checkpoint storage");
     }
 }

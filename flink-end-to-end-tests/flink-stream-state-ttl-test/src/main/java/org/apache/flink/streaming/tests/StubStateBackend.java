@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -40,12 +41,13 @@ import java.io.IOException;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A stub implementation of the {@link StateBackend} that allows the use of a custom {@link
  * TtlTimeProvider}.
  */
-final class StubStateBackend implements StateBackend {
+final class StubStateBackend implements StateBackend, CheckpointStorage {
 
     private static final long serialVersionUID = 1L;
 
@@ -53,20 +55,26 @@ final class StubStateBackend implements StateBackend {
 
     private final StateBackend backend;
 
+    private final CheckpointStorage storage;
+
     StubStateBackend(final StateBackend wrappedBackend, final TtlTimeProvider ttlTimeProvider) {
+        checkState(
+                wrappedBackend instanceof CheckpointStorage,
+                "The wrapped state backend must implement CheckpointStorage");
         this.backend = checkNotNull(wrappedBackend);
+        this.storage = (CheckpointStorage) wrappedBackend;
         this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
     }
 
     @Override
     public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer)
             throws IOException {
-        return backend.resolveCheckpoint(externalPointer);
+        return storage.resolveCheckpoint(externalPointer);
     }
 
     @Override
     public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-        return backend.createCheckpointStorage(jobId);
+        return storage.createCheckpointStorage(jobId);
     }
 
     @Override
