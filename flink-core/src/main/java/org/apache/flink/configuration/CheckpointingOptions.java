@@ -34,6 +34,16 @@ public class CheckpointingOptions {
                     .noDefaultValue()
                     .withDescription("The state backend to be used to store and checkpoint state.");
 
+    /** The checkpoint storage used to checkpoint state. */
+    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
+    @Documentation.ExcludeFromDocumentation(
+            "Hidden until FileSystemStorage and JobManagerStorage are implemented")
+    public static final ConfigOption<String> CHECKPOINT_STORAGE =
+            ConfigOptions.key("state.checkpoint-storage")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The state backend to be used to checkpoint state.");
+
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =
