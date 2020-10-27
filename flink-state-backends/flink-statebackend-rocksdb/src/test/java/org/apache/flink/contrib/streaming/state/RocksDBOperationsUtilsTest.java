@@ -79,6 +79,7 @@ public class RocksDBOperationsUtilsTest {
 		}
 	}
 
+	@Test
 	public void testSanityCheckArenaBlockSize() {
 		long testWriteBufferSize = 56 * 1024 * 1024L;
 		long testDefaultArenaSize = RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(testWriteBufferSize);
