@@ -21,8 +21,8 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.annotation.Internal;
 
 /**
- * PythonFunctionInfo contains the execution information of a Python aggregate function, such as:
- * the actual Python function, the input arguments, the filter arg, the distinct flag, etc.
+ * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function, such as:
+ * the actual Python aggregation function, the input arguments, the filter arg, the distinct flag, etc.
  */
 @Internal
 public class PythonAggregateFunctionInfo extends PythonFunctionInfo {

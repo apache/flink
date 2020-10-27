@@ -390,15 +390,6 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "2")
-        # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
-            "python.state.cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
-            "python.map-state.read-cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
-            "python.map-state.write-cache-size", "2")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
              (1, 'Hi', 'hi'),
