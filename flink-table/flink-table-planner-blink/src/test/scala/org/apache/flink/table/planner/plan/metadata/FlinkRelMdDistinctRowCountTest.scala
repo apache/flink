@@ -75,10 +75,10 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
   def testGetDistinctRowCountOnValues(): Unit = {
     assertEquals(1.0, mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(), null))
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+      assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
         mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(idx), null))
     }
-    assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+    assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
       mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(0, 1), null))
 
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
@@ -660,4 +660,19 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(null, mq.getDistinctRowCount(testRel, ImmutableBitSet.of(0), null))
   }
 
+  @Test
+  def testGetDistinctRowCountOnLargeDomainSize(): Unit = {
+    relBuilder.clear()
+    val rel = relBuilder
+      .scan("MyTable1")
+      .project(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(SUBSTRING, relBuilder.field(3), relBuilder.literal(10)))
+      .build()
+    assertEquals(
+      7.999999964933156E8,
+      mq.getDistinctRowCount(rel, ImmutableBitSet.of(0, 1, 2), null),
+      1e-2)
+  }
 }
