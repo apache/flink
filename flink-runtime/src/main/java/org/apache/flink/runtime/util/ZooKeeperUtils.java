@@ -40,9 +40,9 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFactory;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
-import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
