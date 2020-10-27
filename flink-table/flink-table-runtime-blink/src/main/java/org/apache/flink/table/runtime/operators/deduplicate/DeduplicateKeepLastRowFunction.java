@@ -27,7 +27,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRow;
+import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnInsertOnly;
 import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
@@ -40,6 +41,7 @@ public class DeduplicateKeepLastRowFunction
 	private final InternalTypeInfo<RowData> rowTypeInfo;
 	private final boolean generateUpdateBefore;
 	private final boolean generateInsert;
+	private final boolean inputIsInsertOnly;
 
 	private final long minRetentionTime;
 	// state stores complete row.
@@ -49,11 +51,13 @@ public class DeduplicateKeepLastRowFunction
 			long minRetentionTime,
 			InternalTypeInfo<RowData> rowTypeInfo,
 			boolean generateUpdateBefore,
-			boolean generateInsert) {
+			boolean generateInsert,
+			boolean inputInsertOnly) {
 		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateUpdateBefore = generateUpdateBefore;
 		this.generateInsert = generateInsert;
+		this.inputIsInsertOnly = inputInsertOnly;
 	}
 
 	@Override
@@ -69,7 +73,10 @@ public class DeduplicateKeepLastRowFunction
 
 	@Override
 	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		processLastRow(input, generateUpdateBefore, generateInsert, state, out);
+		if (inputIsInsertOnly) {
+			processLastRowOnInsertOnly(input, generateUpdateBefore, generateInsert, state, out);
+		} else {
+			processLastRowOnChangelog(input, generateUpdateBefore, state, out);
+		}
 	}
-
 }

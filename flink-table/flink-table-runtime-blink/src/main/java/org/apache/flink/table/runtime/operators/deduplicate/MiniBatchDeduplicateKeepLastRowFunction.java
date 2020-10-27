@@ -32,7 +32,8 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRow;
+import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnInsertOnly;
 import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
@@ -46,6 +47,8 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	private final InternalTypeInfo<RowData> rowTypeInfo;
 	private final boolean generateUpdateBefore;
 	private final boolean generateInsert;
+	private final boolean inputInsertOnly;
+
 	private final TypeSerializer<RowData> typeSerializer;
 	private final long minRetentionTime;
 	// state stores complete row.
@@ -55,12 +58,14 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 			InternalTypeInfo<RowData> rowTypeInfo,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
+			boolean inputInsertOnly,
 			TypeSerializer<RowData> typeSerializer,
 			long minRetentionTime) {
 		this.minRetentionTime = minRetentionTime;
 		this.rowTypeInfo = rowTypeInfo;
 		this.generateUpdateBefore = generateUpdateBefore;
 		this.generateInsert = generateInsert;
+		this.inputInsertOnly = inputInsertOnly;
 		this.typeSerializer = typeSerializer;
 	}
 
@@ -88,7 +93,11 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 			RowData currentKey = entry.getKey();
 			RowData currentRow = entry.getValue();
 			ctx.setCurrentKey(currentKey);
-			processLastRow(currentRow, generateUpdateBefore, generateInsert, state, out);
+			if (inputInsertOnly) {
+				processLastRowOnInsertOnly(currentRow, generateUpdateBefore, generateInsert, state, out);
+			} else {
+				processLastRowOnChangelog(currentRow, generateUpdateBefore, state, out);
+			}
 		}
 	}
 }
