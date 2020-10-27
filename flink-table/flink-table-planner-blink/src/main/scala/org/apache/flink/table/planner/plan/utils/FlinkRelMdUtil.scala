@@ -223,6 +223,32 @@ object FlinkRelMdUtil {
   }
 
   /**
+   * Returns the number of distinct values provided numSelected are selected
+   * where there are domainSize distinct values.
+   *
+   * <p>Current implementation of RelMdUtil#numDistinctVals in Calcite 1.26
+   * has precision problem, so we treat small and large inputs differently
+   * here and handle large inputs with the old implementation of
+   * RelMdUtil#numDistinctVals in Calcite 1.22.
+   *
+   * <p>This method should be removed once CALCITE-4351 is fixed. See CALCITE-4351
+   * and FLINK-19780.
+   */
+  def numDistinctVals(domainSize: Double, numSelected: Double): Double = {
+    val EPS = 1e-9
+    if (Math.abs(1 / domainSize) < EPS) {
+      // ln(1+x) ~= x for small x
+      val dSize = RelMdUtil.capInfinity(domainSize)
+      val numSel = RelMdUtil.capInfinity(numSelected)
+      val res = if (dSize > 0) (1.0 - Math.exp(-1 * numSel / dSize)) * dSize else 0
+      // fix the boundary cases
+      Math.max(0, Math.min(res, Math.min(dSize, numSel)))
+    } else {
+      RelMdUtil.numDistinctVals(domainSize, numSelected)
+    }
+  }
+
+  /**
     * Estimates outputRowCount of local aggregate.
     *
     * output rowcount of local agg is (1 - pow((1 - 1/x) , n/m)) * m * x, based on two assumption:
@@ -653,12 +679,12 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        RelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
+        FlinkRelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
       }
     }
 
     override def visitLiteral(literal: RexLiteral): JDouble = {
-      RelMdUtil.numDistinctVals(1D, mq.getAverageRowSize(calc))
+      FlinkRelMdUtil.numDistinctVals(1D, mq.getAverageRowSize(calc))
     }
 
     override def visitCall(call: RexCall): JDouble = {
@@ -733,7 +759,7 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        RelMdUtil.numDistinctVals(distinctRowCount, rowCount)
+        FlinkRelMdUtil.numDistinctVals(distinctRowCount, rowCount)
       }
     }
 
