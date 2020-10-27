@@ -104,7 +104,7 @@ class TopologyGraph {
 	 * <p>Distance of a node is defined as the number of edges one needs to go through from the
 	 * nodes without inputs to this node.
 	 */
-	Map<ExecNode<?, ?>, Integer> calculateDistance() {
+	Map<ExecNode<?, ?>, Integer> calculateMaximumDistance() {
 		Map<ExecNode<?, ?>, Integer> result = new HashMap<>();
 		Map<TopologyNode, Integer> inputsVisitedMap = new HashMap<>();
 

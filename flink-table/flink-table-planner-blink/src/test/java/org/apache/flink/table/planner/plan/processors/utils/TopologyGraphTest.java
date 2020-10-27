@@ -125,12 +125,12 @@ public class TopologyGraphTest {
 	}
 
 	@Test
-	public void testCalculateDistance() {
+	public void testCalculateMaximumDistance() {
 		Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
 		TopologyGraph graph = tuple2.f0;
 		TestingBatchExecNode[] nodes = tuple2.f1;
 
-		Map<ExecNode<?, ?>, Integer> result = graph.calculateDistance();
+		Map<ExecNode<?, ?>, Integer> result = graph.calculateMaximumDistance();
 		Assert.assertEquals(8, result.size());
 		Assert.assertEquals(0, result.get(nodes[0]).intValue());
 		Assert.assertEquals(1, result.get(nodes[1]).intValue());
@@ -143,12 +143,12 @@ public class TopologyGraphTest {
 	}
 
 	@Test
-	public void testBoundedCalculateDistance() {
+	public void testBoundedCalculateMaximumDistance() {
 		Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildBoundedTopologyGraph();
 		TopologyGraph graph = tuple2.f0;
 		TestingBatchExecNode[] nodes = tuple2.f1;
 
-		Map<ExecNode<?, ?>, Integer> result = graph.calculateDistance();
+		Map<ExecNode<?, ?>, Integer> result = graph.calculateMaximumDistance();
 		Assert.assertEquals(6, result.size());
 		Assert.assertEquals(0, result.get(nodes[2]).intValue());
 		Assert.assertEquals(0, result.get(nodes[3]).intValue());

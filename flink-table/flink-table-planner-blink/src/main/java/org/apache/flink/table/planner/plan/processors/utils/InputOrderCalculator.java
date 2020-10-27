@@ -59,7 +59,7 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
 
 	public Map<ExecNode<?, ?>, Integer> calculate() {
 		createTopologyGraph();
-		Map<ExecNode<?, ?>, Integer> distances = graph.calculateDistance();
+		Map<ExecNode<?, ?>, Integer> distances = graph.calculateMaximumDistance();
 
 		// extract only the distances of the boundaries and renumbering the distances
 		// so that the smallest value starts from 0
