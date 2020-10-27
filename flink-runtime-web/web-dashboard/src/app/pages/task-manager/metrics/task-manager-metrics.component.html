@@ -22,7 +22,7 @@
       <thead>
       <tr>
         <th colspan="2" class="table-header">Flink Memory Model</th>
-        <th class="table-header">Effective Configuration</th>
+        <th class="table-header">Configured Values</th>
         <th class="table-header">Metric</th>
       </tr>
       </thead>
@@ -54,7 +54,7 @@
         <td class="table-header">Framework Off-Heap</td>
         <td>{{ taskManagerDetail.memoryConfiguration.frameworkOffHeap | humanizeBytes}}</td>
         <td rowspan="2">
-          <i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored" nzType="info-circle"></i>
+          <i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools." nzType="info-circle"></i>
         </td>
       </tr>
       <tr>
@@ -80,7 +80,7 @@
       <tr>
         <td class="table-header">JVM Overhead</td>
         <td>{{taskManagerDetail.memoryConfiguration.jvmOverhead | humanizeBytes}}</td>
-        <td><i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored" nzType="info-circle"></i></td>
+        <td><i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools." nzType="info-circle"></i></td>
       </tr>
       </tbody>
     </nz-table>
