@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
-import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 
 import java.io.Serializable;

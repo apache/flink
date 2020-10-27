@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.runtime.stream
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.runtime.state.CheckpointListener
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -30,13 +29,13 @@ import org.apache.flink.table.filesystem.FileSystemOptions._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
-
 import org.junit.Assert.assertEquals
 import org.junit.rules.Timeout
 import org.junit.{Assert, Before, Rule, Test}
-
 import java.io.File
 import java.net.URI
+
+import org.apache.flink.api.common.state.CheckpointListener
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
