@@ -332,7 +332,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 	@Override
 	public String asSummaryString() {
-		return "filesystem";
+		return "Filesystem";
 	}
 
 	@Override

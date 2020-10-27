@@ -223,7 +223,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	@Override
 	public String asSummaryString() {
-		return "filesystem";
+		return "Filesystem";
 	}
 
 	private List<Map<String, String>> getOrFetchPartitions() {

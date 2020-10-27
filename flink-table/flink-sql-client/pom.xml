@@ -96,12 +96,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-csv</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- CLI for SQL CLI client -->
 		<dependency>
 			<groupId>org.jline</groupId>
@@ -122,6 +116,13 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

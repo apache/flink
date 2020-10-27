@@ -27,14 +27,13 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.DataGenTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests for {@link DataGenTableSourceFactory}.
+ * Tests for {@link FileSystemTableFactory}.
  */
 public class FileSystemTableFactoryTest {
 
@@ -45,11 +44,14 @@ public class FileSystemTableFactoryTest {
 			.build();
 
 	@Test
-	public void testSourceSink() throws Exception {
+	public void testSourceSink() {
 		DescriptorProperties descriptor = new DescriptorProperties();
 		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
 		descriptor.putString("path", "/tmp");
 		descriptor.putString("format", "csv");
+
+		// test ignore format options
+		descriptor.putString("csv.my_option", "my_value");
 
 		DynamicTableSource source = createSource(descriptor);
 		Assert.assertTrue(source instanceof FileSystemTableSource);
@@ -141,7 +143,7 @@ public class FileSystemTableFactoryTest {
 	private static DynamicTableSource createSource(DescriptorProperties properties) {
 		return FactoryUtil.createTableSource(
 				null,
-				ObjectIdentifier.of("", "", ""),
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
 				new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
 				new Configuration(),
 				Thread.currentThread().getContextClassLoader(),
@@ -151,7 +153,7 @@ public class FileSystemTableFactoryTest {
 	private static DynamicTableSink createSink(DescriptorProperties properties) {
 		return FactoryUtil.createTableSink(
 				null,
-				ObjectIdentifier.of("", "", ""),
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
 				new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
 				new Configuration(),
 				Thread.currentThread().getContextClassLoader(),

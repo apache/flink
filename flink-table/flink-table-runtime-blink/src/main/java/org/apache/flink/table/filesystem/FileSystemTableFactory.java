@@ -61,7 +61,7 @@ public class FileSystemTableFactory implements
 	}
 
 	private void validate(FactoryUtil.TableFactoryHelper helper) {
-		// Except format options, some format like parquet and orc can not list all support options.
+		// Except format options, some formats like parquet and orc can not list all supported options.
 		helper.validateExcept(helper.getOptions().get(FactoryUtil.FORMAT) + ".");
 	}
 
