@@ -511,7 +511,7 @@ public class HiveTableSinkITCase {
 
 		@Override
 		public DataType getProducedDataType() {
-			return TypeConversions.fromLegacyInfoToDataType(rowTypeInfo);
+			return TypeConversions.fromLegacyInfoToDataType(rowTypeInfo).notNull();
 		}
 
 		@Override

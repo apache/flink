@@ -60,7 +60,7 @@ public interface TableSource<T> {
 		if (legacyType == null) {
 			throw new TableException("Table source does not implement a produced data type.");
 		}
-		return fromLegacyInfoToDataType(legacyType);
+		return fromLegacyInfoToDataType(legacyType).notNull();
 	}
 
 	/**
