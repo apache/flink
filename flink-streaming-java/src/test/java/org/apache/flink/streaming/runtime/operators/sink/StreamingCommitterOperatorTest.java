@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
@@ -31,7 +31,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.buildSubtaskState;
@@ -52,7 +51,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void throwExceptionWithoutSerializer() throws Exception {
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.TestCommitter(), null);
+				createTestHarness(new TestSink.DefaultCommitter(), null);
 		testHarness.initializeEmptyState();
 		testHarness.open();
 	}
@@ -60,7 +59,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void throwExceptionWithoutCommitter() throws Exception {
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(null, SimpleVersionedStringSerializer.INSTANCE);
+				createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
 		testHarness.initializeEmptyState();
 		testHarness.open();
 	}
@@ -85,7 +84,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void closeCommitter() throws Exception {
-		final TestSink.TestCommitter committer = new TestSink.TestCommitter();
+		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				committer);
 		testHarness.initializeEmptyState();
@@ -107,7 +106,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 				createTestHarness(),
 				input2);
 
-		final TestSink.TestCommitter committer = new TestSink.TestCommitter();
+		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				committer);
 
@@ -142,7 +141,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 	@Test
 	public void commitMultipleStagesTogether() throws Exception {
 
-		final TestSink.TestCommitter committer = new TestSink.TestCommitter();
+		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 
 		final List<String> input1 = Arrays.asList("cautious", "nature");
 		final List<String> input2 = Arrays.asList("count", "over");
@@ -192,25 +191,24 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 	}
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness() throws Exception {
-		return createTestHarness(new TestSink.TestCommitter(), SimpleVersionedStringSerializer.INSTANCE);
+		return createTestHarness(
+				new TestSink.DefaultCommitter(),
+				TestSink.StringCommittableSerializer.INSTANCE);
 	}
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness(Committer<String> committer) throws Exception {
-		return createTestHarness(committer, SimpleVersionedStringSerializer.INSTANCE);
+		return createTestHarness(committer, TestSink.StringCommittableSerializer.INSTANCE);
 	}
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
 			Committer<String> committer,
-			SimpleVersionedStringSerializer serializer) throws Exception {
+			SimpleVersionedSerializer<String> serializer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new StreamingCommitterOperatorFactory<>(
-						TestSink.create(
-								() -> TestSink.DEFAULT_WRITER,
-								() -> Optional.ofNullable(committer),
-								() -> Optional.ofNullable(serializer),
-								// Can not use method reference because compiler cant not speculate the type
-								() -> Optional.empty(),
-								() -> Optional.empty())),
+				new StreamingCommitterOperatorFactory<>(TestSink
+						.newBuilder()
+						.setCommitter(committer)
+						.setCommittableSerializer(serializer)
+						.build()),
 				StringSerializer.INSTANCE);
 	}
 }

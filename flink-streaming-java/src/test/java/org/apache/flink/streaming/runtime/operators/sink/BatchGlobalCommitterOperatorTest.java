@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
@@ -29,11 +28,10 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.runtime.operators.sink.TestSink.DEFAULT_WRITER;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
 /**
@@ -63,7 +61,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void endOfInput() throws Exception {
-		final TestSink.TestGlobalCommitter globalCommitter = new TestSink.TestGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
 				createTestHarness(globalCommitter);
 		final List<String> inputs = Arrays.asList("compete", "swear", "shallow");
@@ -71,9 +69,10 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 		testHarness.initializeEmptyState();
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>("compete"));
-		testHarness.processElement(new StreamRecord<>("swear"));
-		testHarness.processElement(new StreamRecord<>("shallow"));
+		testHarness.processElements(inputs
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
 
 		testHarness.endInput();
 
@@ -81,7 +80,9 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 				globalCommitter.combine(inputs),
 				"end of input");
 
-		assertThat(globalCommitter.getCommittedData(), equalTo(expectedCommittedData));
+		assertThat(
+				globalCommitter.getCommittedData(),
+				containsInAnyOrder(expectedCommittedData.toArray()));
 
 		testHarness.close();
 
@@ -89,7 +90,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void close() throws Exception {
-		final TestSink.TestGlobalCommitter globalCommitter = new TestSink.TestGlobalCommitter("");
+		final TestSink.DefaultGlobalCommitter globalCommitter = new TestSink.DefaultGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
 				createTestHarness(globalCommitter);
 		testHarness.initializeEmptyState();
@@ -103,12 +104,11 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 			GlobalCommitter<String, String> globalCommitter) throws Exception {
 
 		return new OneInputStreamOperatorTestHarness<>(
-				new BatchGlobalCommitterOperatorFactory<>(TestSink.create(
-						() -> DEFAULT_WRITER,
-						() -> Optional.empty(),
-						() -> Optional.empty(),
-						() -> Optional.ofNullable(globalCommitter),
-						() -> Optional.of(SimpleVersionedStringSerializer.INSTANCE))),
+				new BatchGlobalCommitterOperatorFactory<>(TestSink
+						.newBuilder()
+						.setGlobalCommitter(globalCommitter)
+						.setGlobalCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.build()),
 				StringSerializer.INSTANCE);
 	}
 }
