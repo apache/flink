@@ -86,8 +86,8 @@ public class SimpleCatalogFactory implements CatalogFactory {
 			public DataType getProducedDataType() {
 				return DataTypes.ROW(
 					DataTypes.FIELD("id", DataTypes.INT()),
-					DataTypes.FIELD("string", DataTypes.STRING())
-				);
+					DataTypes.FIELD("string", DataTypes.STRING()))
+					.notNull();
 			}
 		};
 

@@ -21,6 +21,7 @@ package org.apache.flink.connector.hbase.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -315,10 +316,9 @@ public class HBaseTableSchema implements Serializable {
 					int familyIndex = i < rowKeyInfo.rowKeyIndex ? i : i - 1;
 					String family = familyNames[familyIndex];
 					fieldNames[i] = family;
-					fieldTypes[i] = TableSchema.builder()
-						.fields(getQualifierNames(family), getQualifierDataTypes(family))
-						.build()
-						.toRowDataType();
+					fieldTypes[i] = getRowDataType(
+						getQualifierNames(family),
+						getQualifierDataTypes(family));
 				}
 			}
 			return TableSchema.builder().fields(fieldNames, fieldTypes).build();
@@ -328,13 +328,28 @@ public class HBaseTableSchema implements Serializable {
 			for (int i = 0; i < fieldNames.length; i++) {
 				String family = familyNames[i];
 				fieldNames[i] = family;
-				fieldTypes[i] = TableSchema.builder()
-					.fields(getQualifierNames(family), getQualifierDataTypes(family))
-					.build()
-					.toRowDataType();
+				fieldTypes[i] = getRowDataType(
+					getQualifierNames(family),
+					getQualifierDataTypes(family));
 			}
 			return TableSchema.builder().fields(fieldNames, fieldTypes).build();
 		}
+	}
+
+	/**
+	 * Returns row data type with given field names {@code fieldNames}
+	 * and data types {@code fieldTypes}.
+	 *
+	 * @param fieldNames the field names
+	 * @param fieldTypes the field types
+	 * @return nullable row type
+	 */
+	private static DataType getRowDataType(String[] fieldNames, DataType[] fieldTypes) {
+		final DataTypes.Field[] fields = new DataTypes.Field[fieldNames.length];
+		for (int j = 0; j < fieldNames.length; j++) {
+			fields[j] = DataTypes.FIELD(fieldNames[j], fieldTypes[j]);
+		}
+		return DataTypes.ROW(fields);
 	}
 
 	/**

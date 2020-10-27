@@ -63,7 +63,7 @@ class PandasConversionTestBase(object):
                  [DataTypes.FIELD("a", DataTypes.INT()),
                   DataTypes.FIELD("b", DataTypes.STRING()),
                   DataTypes.FIELD("c", DataTypes.TIMESTAMP(3)),
-                  DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.INT()))]))])
+                  DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.INT()))]))], False)
         cls.pdf = cls.create_pandas_data_frame()
 
     @classmethod

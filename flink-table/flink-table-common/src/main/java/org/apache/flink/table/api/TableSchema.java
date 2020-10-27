@@ -245,7 +245,8 @@ public class TableSchema {
 		final Field[] fields = columns.stream()
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
-		return ROW(fields);
+		// The row should be never null.
+		return ROW(fields).notNull();
 	}
 
 	/**
@@ -263,7 +264,8 @@ public class TableSchema {
 			.filter(TableColumn::isPhysical)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
-		return ROW(fields);
+		// The row should be never null.
+		return ROW(fields).notNull();
 	}
 
 	/**
@@ -283,7 +285,8 @@ public class TableSchema {
 			.filter(TableColumn::isPersisted)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
-		return ROW(fields);
+		// The row should be never null.
+		return ROW(fields).notNull();
 	}
 
 	/**

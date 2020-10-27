@@ -104,80 +104,79 @@ public class AvroSchemaConverterTest {
 				DataTypes.FIELD("row3", DataTypes.ROW(DataTypes.FIELD("c", DataTypes.STRING())))))
 			.build().toRowDataType().getLogicalType();
 		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-		assertEquals("[ {\n" +
-				"  \"type\" : \"record\",\n" +
-				"  \"name\" : \"record\",\n" +
-				"  \"fields\" : [ {\n" +
-				"    \"name\" : \"row1\",\n" +
-				"    \"type\" : [ {\n" +
-				"      \"type\" : \"record\",\n" +
-				"      \"name\" : \"record_row1\",\n" +
-				"      \"fields\" : [ {\n" +
-				"        \"name\" : \"a\",\n" +
-				"        \"type\" : [ \"string\", \"null\" ]\n" +
-				"      } ]\n" +
-				"    }, \"null\" ]\n" +
-				"  }, {\n" +
-				"    \"name\" : \"row2\",\n" +
-				"    \"type\" : [ {\n" +
-				"      \"type\" : \"record\",\n" +
-				"      \"name\" : \"record_row2\",\n" +
-				"      \"fields\" : [ {\n" +
-				"        \"name\" : \"b\",\n" +
-				"        \"type\" : [ \"string\", \"null\" ]\n" +
-				"      } ]\n" +
-				"    }, \"null\" ]\n" +
-				"  }, {\n" +
-				"    \"name\" : \"row3\",\n" +
-				"    \"type\" : [ {\n" +
-				"      \"type\" : \"record\",\n" +
-				"      \"name\" : \"record_row3\",\n" +
-				"      \"fields\" : [ {\n" +
-				"        \"name\" : \"row3\",\n" +
-				"        \"type\" : [ {\n" +
-				"          \"type\" : \"record\",\n" +
-				"          \"name\" : \"record_row3_row3\",\n" +
-				"          \"fields\" : [ {\n" +
-				"            \"name\" : \"c\",\n" +
-				"            \"type\" : [ \"string\", \"null\" ]\n" +
-				"          } ]\n" +
-				"        }, \"null\" ]\n" +
-				"      } ]\n" +
-				"    }, \"null\" ]\n" +
-				"  } ]\n" +
-				"}, \"null\" ]", schema.toString(true));
+		assertEquals("{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"record\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"row1\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row1\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"a\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"row2\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row2\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"b\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"row3\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row3\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"row3\",\n" +
+			"        \"type\" : [ {\n" +
+			"          \"type\" : \"record\",\n" +
+			"          \"name\" : \"record_row3_row3\",\n" +
+			"          \"fields\" : [ {\n" +
+			"            \"name\" : \"c\",\n" +
+			"            \"type\" : [ \"string\", \"null\" ]\n" +
+			"          } ]\n" +
+			"        }, \"null\" ]\n" +
+			"      } ]\n" +
+			"    }, \"null\" ]\n" +
+			"  } ]\n" +
+			"}", schema.toString(true));
 	}
 
 	/**
 	 * Test convert nullable data type to Avro schema then converts back.
 	 */
 	@Test
-	public void testConversionIntegralityNullable() {
+	public void testDataTypeToSchemaToDataTypeNullable() {
 		DataType dataType = DataTypes.ROW(
-				DataTypes.FIELD("f_null", DataTypes.NULL()),
-				DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN()),
-				// tinyint and smallint all convert to int
-				DataTypes.FIELD("f_int", DataTypes.INT()),
-				DataTypes.FIELD("f_bigint", DataTypes.BIGINT()),
-				DataTypes.FIELD("f_float", DataTypes.FLOAT()),
-				DataTypes.FIELD("f_double", DataTypes.DOUBLE()),
-				// char converts to string
-				DataTypes.FIELD("f_string", DataTypes.STRING()),
-				// binary converts to bytes
-				DataTypes.FIELD("f_varbinary", DataTypes.BYTES()),
-				DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3)),
-				DataTypes.FIELD("f_date", DataTypes.DATE()),
-				DataTypes.FIELD("f_time", DataTypes.TIME(3)),
-				DataTypes.FIELD("f_decimal", DataTypes.DECIMAL(10, 0)),
-				DataTypes.FIELD("f_row", DataTypes.ROW(
-					DataTypes.FIELD("f0", DataTypes.INT()),
-					DataTypes.FIELD("f1", DataTypes.TIMESTAMP(3)))),
-				// multiset converts to map
-				// map key is always not null
-				DataTypes.FIELD("f_map",
-						DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.INT())),
-				DataTypes.FIELD("f_array", DataTypes.ARRAY(DataTypes.INT())))
-				.notNull();
+			DataTypes.FIELD("f_null", DataTypes.NULL()),
+			DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN()),
+			// tinyint and smallint all convert to int
+			DataTypes.FIELD("f_int", DataTypes.INT()),
+			DataTypes.FIELD("f_bigint", DataTypes.BIGINT()),
+			DataTypes.FIELD("f_float", DataTypes.FLOAT()),
+			DataTypes.FIELD("f_double", DataTypes.DOUBLE()),
+			// char converts to string
+			DataTypes.FIELD("f_string", DataTypes.STRING()),
+			// binary converts to bytes
+			DataTypes.FIELD("f_varbinary", DataTypes.BYTES()),
+			DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3)),
+			DataTypes.FIELD("f_date", DataTypes.DATE()),
+			DataTypes.FIELD("f_time", DataTypes.TIME(3)),
+			DataTypes.FIELD("f_decimal", DataTypes.DECIMAL(10, 0)),
+			DataTypes.FIELD("f_row", DataTypes.ROW(
+				DataTypes.FIELD("f0", DataTypes.INT()),
+				DataTypes.FIELD("f1", DataTypes.TIMESTAMP(3)))),
+			// multiset converts to map
+			// map key is always not null
+			DataTypes.FIELD("f_map",
+				DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.INT())),
+			DataTypes.FIELD("f_array", DataTypes.ARRAY(DataTypes.INT())));
 		Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
 		DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
 		assertEquals(dataType, converted);
@@ -187,39 +186,223 @@ public class AvroSchemaConverterTest {
 	 * Test convert non-nullable data type to Avro schema then converts back.
 	 */
 	@Test
-	public void testConversionIntegralityNonNullable() {
+	public void testDataTypeToSchemaToDataTypeNonNullable() {
 		DataType dataType = DataTypes.ROW(
-				DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN().notNull()),
-				// tinyint and smallint all convert to int
-				DataTypes.FIELD("f_int", DataTypes.INT().notNull()),
-				DataTypes.FIELD("f_bigint", DataTypes.BIGINT().notNull()),
-				DataTypes.FIELD("f_float", DataTypes.FLOAT().notNull()),
-				DataTypes.FIELD("f_double", DataTypes.DOUBLE().notNull()),
-				// char converts to string
-				DataTypes.FIELD("f_string", DataTypes.STRING().notNull()),
-				// binary converts to bytes
-				DataTypes.FIELD("f_varbinary", DataTypes.BYTES().notNull()),
-				DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3).notNull()),
-				DataTypes.FIELD("f_date", DataTypes.DATE().notNull()),
-				DataTypes.FIELD("f_time", DataTypes.TIME(3).notNull()),
-				DataTypes.FIELD("f_decimal",
-						DataTypes.DECIMAL(10, 0).notNull()),
-				DataTypes.FIELD("f_row", DataTypes.ROW(
-						DataTypes.FIELD("f0", DataTypes.INT().notNull()),
-						DataTypes.FIELD("f1", DataTypes.TIMESTAMP(3).notNull()))
-						.notNull()),
-				// multiset converts to map
-				// map key is always not null
-				DataTypes.FIELD("f_map",
-						DataTypes.MAP(
-								DataTypes.STRING().notNull(),
-								DataTypes.INT().notNull())
-								.notNull()),
-				DataTypes.FIELD("f_array",
-						DataTypes.ARRAY(DataTypes.INT().notNull()).notNull()));
+			DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN().notNull()),
+			// tinyint and smallint all convert to int
+			DataTypes.FIELD("f_int", DataTypes.INT().notNull()),
+			DataTypes.FIELD("f_bigint", DataTypes.BIGINT().notNull()),
+			DataTypes.FIELD("f_float", DataTypes.FLOAT().notNull()),
+			DataTypes.FIELD("f_double", DataTypes.DOUBLE().notNull()),
+			// char converts to string
+			DataTypes.FIELD("f_string", DataTypes.STRING().notNull()),
+			// binary converts to bytes
+			DataTypes.FIELD("f_varbinary", DataTypes.BYTES().notNull()),
+			DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3).notNull()),
+			DataTypes.FIELD("f_date", DataTypes.DATE().notNull()),
+			DataTypes.FIELD("f_time", DataTypes.TIME(3).notNull()),
+			DataTypes.FIELD("f_decimal",
+				DataTypes.DECIMAL(10, 0).notNull()),
+			DataTypes.FIELD("f_row", DataTypes.ROW(
+				DataTypes.FIELD("f0", DataTypes.INT().notNull()),
+				DataTypes.FIELD("f1", DataTypes.TIMESTAMP(3).notNull()))
+				.notNull()),
+			// multiset converts to map
+			// map key is always not null
+			DataTypes.FIELD("f_map",
+				DataTypes.MAP(
+					DataTypes.STRING().notNull(),
+					DataTypes.INT().notNull())
+					.notNull()),
+			DataTypes.FIELD("f_array",
+				DataTypes.ARRAY(DataTypes.INT().notNull()).notNull()))
+			.notNull();
 		Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
 		DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
 		assertEquals(dataType, converted);
+	}
+
+	/**
+	 * Test convert nullable Avro schema to data type then converts back.
+	 */
+	@Test
+	public void testSchemaToDataTypeToSchemaNullable() {
+		String schemaStr = "{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"record\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"f_null\",\n" +
+			"    \"type\" : \"null\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_boolean\",\n" +
+			"    \"type\" : [ \"boolean\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_int\",\n" +
+			"    \"type\" : [ \"int\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_bigint\",\n" +
+			"    \"type\" : [ \"long\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_float\",\n" +
+			"    \"type\" : [ \"float\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_double\",\n" +
+			"    \"type\" : [ \"double\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_string\",\n" +
+			"    \"type\" : [ \"string\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_varbinary\",\n" +
+			"    \"type\" : [ \"bytes\", \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_timestamp\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"long\",\n" +
+			"      \"logicalType\" : \"timestamp-millis\"\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_date\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"int\",\n" +
+			"      \"logicalType\" : \"date\"\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_time\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"int\",\n" +
+			"      \"logicalType\" : \"time-millis\"\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_decimal\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"bytes\",\n" +
+			"      \"logicalType\" : \"decimal\",\n" +
+			"      \"precision\" : 10,\n" +
+			"      \"scale\" : 0\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_row\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_f_row\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"f0\",\n" +
+			"        \"type\" : [ \"int\", \"null\" ]\n" +
+			"      }, {\n" +
+			"        \"name\" : \"f1\",\n" +
+			"        \"type\" : [ {\n" +
+			"          \"type\" : \"long\",\n" +
+			"          \"logicalType\" : \"timestamp-millis\"\n" +
+			"        }, \"null\" ]\n" +
+			"      } ]\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_map\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"map\",\n" +
+			"      \"values\" : [ \"int\", \"null\" ]\n" +
+			"    }, \"null\" ]\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_array\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"array\",\n" +
+			"      \"items\" : [ \"int\", \"null\" ]\n" +
+			"    }, \"null\" ]\n" +
+			"  } ]\n" +
+			"}";
+		DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
+		Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
+		assertEquals(new Schema.Parser().parse(schemaStr), schema);
+	}
+
+	/**
+	 * Test convert non-nullable Avro schema to data type then converts back.
+	 */
+	@Test
+	public void testSchemaToDataTypeToSchemaNonNullable() {
+		String schemaStr = "{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"record\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"f_boolean\",\n" +
+			"    \"type\" : \"boolean\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_int\",\n" +
+			"    \"type\" : \"int\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_bigint\",\n" +
+			"    \"type\" : \"long\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_float\",\n" +
+			"    \"type\" : \"float\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_double\",\n" +
+			"    \"type\" : \"double\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_string\",\n" +
+			"    \"type\" : \"string\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_varbinary\",\n" +
+			"    \"type\" : \"bytes\"\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_timestamp\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"long\",\n" +
+			"      \"logicalType\" : \"timestamp-millis\"\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_date\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"int\",\n" +
+			"      \"logicalType\" : \"date\"\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_time\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"int\",\n" +
+			"      \"logicalType\" : \"time-millis\"\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_decimal\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"bytes\",\n" +
+			"      \"logicalType\" : \"decimal\",\n" +
+			"      \"precision\" : 10,\n" +
+			"      \"scale\" : 0\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_row\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_f_row\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"f0\",\n" +
+			"        \"type\" : \"int\"\n" +
+			"      }, {\n" +
+			"        \"name\" : \"f1\",\n" +
+			"        \"type\" : {\n" +
+			"          \"type\" : \"long\",\n" +
+			"          \"logicalType\" : \"timestamp-millis\"\n" +
+			"        }\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_map\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"map\",\n" +
+			"      \"values\" : \"int\"\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"f_array\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"array\",\n" +
+			"      \"items\" : \"int\"\n" +
+			"    }\n" +
+			"  } ]\n" +
+			"}";
+		DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
+		Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
+		assertEquals(new Schema.Parser().parse(schemaStr), schema);
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {
@@ -320,7 +503,7 @@ public class AvroSchemaConverterTest {
 				DataTypes.FIELD("type_nested", address),
 				DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
 				DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
-				DataTypes.FIELD("type_time_millis", DataTypes.TIME().notNull()),
+				DataTypes.FIELD("type_time_millis", DataTypes.TIME(3).notNull()),
 				DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
 				DataTypes.FIELD("type_timestamp_millis",
 						DataTypes.TIMESTAMP(3).notNull()),

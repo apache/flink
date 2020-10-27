@@ -1534,7 +1534,7 @@ class TableEnvironment(object):
             jvm = get_gateway().jvm
 
             data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
-                .fromLegacyInfoToDataType(_to_java_type(result_type))
+                .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
             if self._is_blink_planner:
                 data_type = data_type.bridgedTo(
                     load_java_class('org.apache.flink.table.data.RowData'))

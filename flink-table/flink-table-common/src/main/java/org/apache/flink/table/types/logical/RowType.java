@@ -292,10 +292,14 @@ public final class RowType extends LogicalType {
 	}
 
 	public static RowType of(LogicalType[] types, String[] names) {
+		return of(true, types, names);
+	}
+
+	public static RowType of(boolean nullable, LogicalType[] types, String[] names) {
 		List<RowField> fields = new ArrayList<>();
 		for (int i = 0; i < types.length; i++) {
 			fields.add(new RowField(names[i], types[i]));
 		}
-		return new RowType(fields);
+		return new RowType(nullable, fields);
 	}
 }

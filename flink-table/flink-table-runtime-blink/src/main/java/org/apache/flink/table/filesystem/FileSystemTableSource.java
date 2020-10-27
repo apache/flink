@@ -296,6 +296,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		return DataTypes.ROW(Arrays.stream(fields)
 				.mapToObj(i -> DataTypes.FIELD(schemaFieldNames[i], schemaTypes[i]))
 				.toArray(DataTypes.Field[]::new))
-				.bridgedTo(RowData.class);
+				.bridgedTo(RowData.class)
+			.notNull();
 	}
 }

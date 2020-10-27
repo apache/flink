@@ -95,7 +95,8 @@ public class AvroRowDataDeSerializationSchemaTest {
 			FIELD("map", MAP(STRING(), BIGINT())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
 			FIELD("map2array", MAP(STRING(), ARRAY(INT()))),
-			FIELD("nullEntryMap", MAP(STRING(), STRING())));
+			FIELD("nullEntryMap", MAP(STRING(), STRING())))
+			.notNull();
 		final RowType rowType = (RowType) dataType.getLogicalType();
 		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 
@@ -182,9 +183,10 @@ public class AvroRowDataDeSerializationSchemaTest {
 		byte[] input = byteArrayOutputStream.toByteArray();
 
 		DataType dataType = ROW(
-				FIELD("type_timestamp_millis", TIMESTAMP(3)),
-				FIELD("type_date", DATE()),
-				FIELD("type_time_millis", TIME(3)));
+				FIELD("type_timestamp_millis", TIMESTAMP(3).notNull()),
+				FIELD("type_date", DATE().notNull()),
+				FIELD("type_time_millis", TIME(3).notNull()))
+			.notNull();
 		final RowType rowType = (RowType) dataType.getLogicalType();
 		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);

@@ -134,6 +134,7 @@ public interface FileSystemFormatFactory extends Factory {
 		 */
 		default RowType getFormatRowType() {
 			return RowType.of(
+				false,
 				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
@@ -198,6 +199,7 @@ public interface FileSystemFormatFactory extends Factory {
 		 */
 		default RowType getFormatRowType() {
 			return RowType.of(
+				false,
 				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
