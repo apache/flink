@@ -122,7 +122,9 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 		CoordinatorOutput value = element.getValue();
 		if (value instanceof CompactionUnit) {
 			CompactionUnit unit = (CompactionUnit) value;
-			if (unit.isTaskMessage(getRuntimeContext().getNumberOfParallelSubtasks())) {
+			if (unit.isTaskMessage(
+					getRuntimeContext().getNumberOfParallelSubtasks(),
+					getRuntimeContext().getIndexOfThisSubtask())) {
 				String partition = unit.getPartition();
 				List<Path> paths = unit.getPaths();
 

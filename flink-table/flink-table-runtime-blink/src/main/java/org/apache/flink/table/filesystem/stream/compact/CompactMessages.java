@@ -126,8 +126,8 @@ public class CompactMessages {
 					.toArray(String[]::new);
 		}
 
-		public boolean isTaskMessage(int taskId) {
-			return unitId % taskId == 0;
+		public boolean isTaskMessage(int taskNumber, int taskId) {
+			return unitId % taskNumber == taskId;
 		}
 
 		public int getUnitId() {

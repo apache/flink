@@ -63,7 +63,7 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 			harness.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
 			harness.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
 			harness.processElement(new CompactionUnit(2, "p1", Arrays.asList(f2, f5)), 0);
-			harness.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f6)), 0);
+			harness.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
 
 			harness.processElement(new EndCompaction(1), 0);
 
@@ -105,8 +105,63 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 		});
 	}
 
+	@Test
+	public void testUnitSelection() throws Exception {
+		OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness0 = create(2, 0);
+		harness0.setup();
+		harness0.open();
+
+		OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness1 = create(2, 1);
+		harness1.setup();
+		harness1.open();
+
+		Path f0 = newFile(".uncompacted-f0", 3);
+		Path f1 = newFile(".uncompacted-f1", 2);
+		Path f2 = newFile(".uncompacted-f2", 2);
+		Path f3 = newFile(".uncompacted-f3", 5);
+		Path f4 = newFile(".uncompacted-f4", 1);
+		Path f5 = newFile(".uncompacted-f5", 5);
+		Path f6 = newFile(".uncompacted-f6", 4);
+		FileSystem fs = f0.getFileSystem();
+
+		// broadcast
+		harness0.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+		harness0.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+		harness0.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+		harness0.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
+
+		harness1.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+		harness1.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+		harness1.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+		harness1.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
+
+		harness0.processElement(new EndCompaction(1), 0);
+
+		// check all compacted file generated
+		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f0")));
+		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f2")));
+
+		harness1.processElement(new EndCompaction(1), 0);
+
+		// check all compacted file generated
+		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f3")));
+		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f6")));
+
+		harness0.close();
+		harness1.close();
+	}
+
 	private void runCompact(ThrowingConsumer<
 			OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo>, Exception> consumer) throws Exception {
+		try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness =
+				     create(1, 0)) {
+			consumer.accept(harness);
+		}
+	}
+
+	private OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> create(
+			int parallelism,
+			int subtaskIndex) throws Exception {
 		CompactOperator<Byte> operator = new CompactOperator<>(
 				() -> folder.getFileSystem(),
 				CompactBulkReader.factory(TestByteFormat.bulkFormat()),
@@ -128,9 +183,6 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 				}
 
 		);
-		try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness =
-					new OneInputStreamOperatorTestHarness<>(operator)) {
-			consumer.accept(harness);
-		}
+		return new OneInputStreamOperatorTestHarness<>(operator, parallelism, parallelism, subtaskIndex);
 	}
 }
