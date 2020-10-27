@@ -52,6 +52,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 			inputRowType,
 			generateUpdateBefore,
 			generateInsert,
+			true,
 			typeSerializer,
 			minRetentionTime);
 	}

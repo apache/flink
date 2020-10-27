@@ -42,7 +42,8 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 			minTime.toMilliseconds(),
 			inputRowType,
 			generateUpdateBefore,
-			generateInsert);
+			generateInsert,
+			true);
 	}
 
 	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

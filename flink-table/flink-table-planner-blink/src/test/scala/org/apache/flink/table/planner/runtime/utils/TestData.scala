@@ -490,6 +490,15 @@ object TestData {
     changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
     changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
 
+  val userUpsertlog: Seq[Row] = Seq(
+    changelogRow("+U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+U", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+    changelogRow("+U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+    changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
   // [amount, currency]
   val ordersData: Seq[Row] = Seq(
     row(2L, "Euro"),
@@ -507,6 +516,15 @@ object TestData {
     changelogRow("-U", "Euro", JLong.valueOf(114L)),
     changelogRow("+U", "Euro", JLong.valueOf(116L)),
     changelogRow("-U", "Euro", JLong.valueOf(116L)),
+    changelogRow("+U", "Euro", JLong.valueOf(119L)),
+    changelogRow("-D", "Yen", JLong.valueOf(1L))
+  )
+
+  val ratesUpsertData: Seq[Row] = Seq(
+    changelogRow("+U", "US Dollar", JLong.valueOf(102L)),
+    changelogRow("+U", "Euro", JLong.valueOf(114L)),
+    changelogRow("+U", "Yen", JLong.valueOf(1L)),
+    changelogRow("+U", "Euro", JLong.valueOf(116L)),
     changelogRow("+U", "Euro", JLong.valueOf(119L)),
     changelogRow("-D", "Yen", JLong.valueOf(1L))
   )
