@@ -342,6 +342,9 @@ public class HiveTableSource implements
 	public void applyPartitions(List<Map<String, String>> remainingPartitions) {
 		if (catalogTable.getPartitionKeys() != null && catalogTable.getPartitionKeys().size() != 0) {
 			this.remainingPartitions = remainingPartitions;
+		} else {
+			throw new UnsupportedOperationException(
+					"Should not apply partitions to a non-partitioned table.");
 		}
 	}
 
