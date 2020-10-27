@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -29,9 +29,9 @@ import org.junit.Test;
 import java.util.Collections;
 
 /**
- * Tests for {@link InputPriorityConflictResolverWithExchange}.
+ * Tests for {@link InputPriorityConflictResolver}.
  */
-public class InputPriorityConflictResolverWithExchangeTest {
+public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testDetectAndResolve() {
@@ -65,7 +65,7 @@ public class InputPriorityConflictResolverWithExchangeTest {
 		nodes[7].addInput(nodes[5], ExecEdge.builder().priority(10).build());
 		nodes[7].addInput(nodes[6], ExecEdge.builder().priority(100).build());
 
-		InputPriorityConflictResolverWithExchange resolver = new InputPriorityConflictResolverWithExchange(
+		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
 			Collections.singletonList(nodes[7]),
 			ExecEdge.DamBehavior.END_INPUT,
 			ShuffleMode.BATCH);

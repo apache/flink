@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -31,17 +31,17 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Subclass of the {@link AbstractInputPriorityConflictResolver}.
+ * Subclass of the {@link InputPriorityGraphGenerator}.
  *
  * <p>This class resolve conflicts by inserting a {@link BatchExecExchange} into the conflicting input.
  */
 @Internal
-public class InputPriorityConflictResolverWithExchange extends AbstractInputPriorityConflictResolver {
+public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
 	private final ShuffleMode shuffleMode;
 
 	/**
-	 * Create a {@link InputPriorityConflictResolverWithExchange} for the given {@link ExecNode} graph.
+	 * Create a {@link InputPriorityConflictResolver} for the given {@link ExecNode} graph.
 	 *
 	 * @param roots the first layer of nodes on the output side of the graph
 	 * @param safeDamBehavior when checking for conflicts we'll ignore the edges with
@@ -49,7 +49,7 @@ public class InputPriorityConflictResolverWithExchange extends AbstractInputPrio
 	 * @param shuffleMode when a conflict occurs we'll insert an {@link BatchExecExchange} node
 	 * 	                  with this shuffleMode to resolve conflict
 	 */
-	public InputPriorityConflictResolverWithExchange(
+	public InputPriorityConflictResolver(
 			List<ExecNode<?, ?>> roots,
 			ExecEdge.DamBehavior safeDamBehavior,
 			ShuffleMode shuffleMode) {
@@ -58,11 +58,11 @@ public class InputPriorityConflictResolverWithExchange extends AbstractInputPrio
 	}
 
 	public void detectAndResolve() {
-		createTopologyGraphAndResolveConflict();
+		createTopologyGraph();
 	}
 
 	@Override
-	protected void resolveConflict(ExecNode<?, ?> node, int conflictInput) {
+	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput) {
 		ExecNode<?, ?> conflictNode = node.getInputNodes().get(conflictInput);
 		if (conflictNode instanceof BatchExecExchange) {
 			BatchExecExchange exchange = (BatchExecExchange) conflictNode;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -31,13 +31,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Subclass of the {@link AbstractInputPriorityConflictResolver}.
+ * Subclass of the {@link InputPriorityGraphGenerator}.
  *
  * <p>This class only calculates the input order for the given boundary nodes
  * and will throw exception when a conflict is detected.
  */
 @Internal
-public class InputOrderCalculator extends AbstractInputPriorityConflictResolver {
+public class InputOrderCalculator extends InputPriorityGraphGenerator {
 
 	private final Set<ExecNode<?, ?>> boundaries;
 
@@ -58,7 +58,7 @@ public class InputOrderCalculator extends AbstractInputPriorityConflictResolver 
 	}
 
 	public Map<ExecNode<?, ?>, Integer> calculate() {
-		createTopologyGraphAndResolveConflict();
+		createTopologyGraph();
 		Map<ExecNode<?, ?>, Integer> distances = graph.calculateDistance();
 
 		// extract only the distances of the boundaries and renumbering the distances
@@ -79,7 +79,7 @@ public class InputOrderCalculator extends AbstractInputPriorityConflictResolver 
 	}
 
 	@Override
-	protected void resolveConflict(ExecNode<?, ?> node, int conflictInput) {
+	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput) {
 		throw new IllegalStateException("A conflict is detected. This is unexpected.");
 	}
 }

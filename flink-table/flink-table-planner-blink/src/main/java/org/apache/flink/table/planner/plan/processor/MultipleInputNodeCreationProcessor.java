@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -33,6 +33,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataS
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInputNode;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
+import org.apache.flink.table.planner.plan.processor.utils.InputOrderCalculator;
+import org.apache.flink.table.planner.plan.processor.utils.InputPriorityConflictResolver;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.util.Preconditions;
 
@@ -73,7 +75,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			// If conflict is detected under this stricter constraint,
 			// we add a PIPELINED exchange to mark that its input and output node cannot be merged
 			// into the same multiple input node
-			InputPriorityConflictResolverWithExchange resolver = new InputPriorityConflictResolverWithExchange(
+			InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
 				roots,
 				ExecEdge.DamBehavior.BLOCKING,
 				ShuffleMode.PIPELINED);
@@ -380,21 +382,15 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			List<Tuple2<ExecNode<?, ?>, ExecEdge>> inputs) {
 		RelNode outputRel = (RelNode) group.root.execNode;
 		RelNode[] inputRels = new RelNode[inputs.size()];
-		boolean withSourceChaining = false;
 		for (int i = 0; i < inputs.size(); i++) {
-			ExecNode<?, ?> inputNode = inputs.get(i).f0;
-			inputRels[i] = (RelNode) inputNode;
-			if (isChainableSource(inputNode)) {
-				withSourceChaining = true;
-			}
+			inputRels[i] = (RelNode) inputs.get(i).f0;
 		}
 
 		return new StreamExecMultipleInputNode(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
-			outputRel,
-			withSourceChaining);
+			outputRel);
 	}
 
 	private BatchExecMultipleInputNode createBatchMultipleInputNode(
@@ -426,15 +422,12 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				.build();
 		}
 
-		boolean withSourceChaining = inputSet.stream().anyMatch(this::isChainableSource);
-
 		return new BatchExecMultipleInputNode(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
 			outputRel,
-			inputEdges,
-			withSourceChaining);
+			inputEdges);
 	}
 
 	// --------------------------------------------------------------------------------

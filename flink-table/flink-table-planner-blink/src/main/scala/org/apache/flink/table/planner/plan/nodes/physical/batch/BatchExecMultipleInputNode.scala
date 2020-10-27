@@ -48,8 +48,7 @@ class BatchExecMultipleInputNode(
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
     outputRel: RelNode,
-    inputEdges: Array[ExecEdge],
-    withSourceChaining: Boolean = false)
+    inputEdges: Array[ExecEdge])
   extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputEdges.map(_.getPriority))
   with BatchExecNode[RowData]
   with BatchPhysicalRel {
@@ -100,13 +99,8 @@ class BatchExecMultipleInputNode(
     val memoryKB = generator.getManagedMemoryWeight
     ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024)
 
-    if (withSourceChaining) {
-      // set chaining strategy for source chaining
-      multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)
-    } else {
-      // multiple input can only be the head of an operator chain
-      multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD)
-    }
+    // set chaining strategy for source chaining
+    multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)
 
     multipleInputTransform
   }

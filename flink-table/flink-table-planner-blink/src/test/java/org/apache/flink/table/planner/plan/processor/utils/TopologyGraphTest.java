@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;

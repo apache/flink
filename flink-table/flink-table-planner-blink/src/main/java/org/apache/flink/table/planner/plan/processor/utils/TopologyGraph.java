@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -98,7 +98,7 @@ class TopologyGraph {
 
 	/**
 	 * Calculate the maximum distance of the currently added nodes from the nodes without inputs.
-	 * The smallest order is 0 (which are exactly the nodes without inputs) and the distances of
+	 * The smallest distance is 0 (which are exactly the nodes without inputs) and the distances of
 	 * other nodes are the largest distances in their inputs plus 1.
 	 */
 	Map<ExecNode<?, ?>, Integer> calculateDistance() {

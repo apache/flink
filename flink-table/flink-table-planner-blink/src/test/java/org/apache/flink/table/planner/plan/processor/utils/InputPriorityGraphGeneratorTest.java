@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Tests for {@link AbstractInputPriorityConflictResolver}.
+ * Tests for {@link InputPriorityGraphGenerator}.
  */
-public class AbstractInputPriorityConflictResolverTest {
+public class InputPriorityGraphGeneratorTest {
 
 	@Test
 	public void testCalculateAncestors() {
@@ -89,7 +89,7 @@ public class AbstractInputPriorityConflictResolverTest {
 		Assert.assertTrue(ancestors.contains(nodes[1]));
 	}
 
-	private static class TestingInputPriorityConflictResolver extends AbstractInputPriorityConflictResolver {
+	private static class TestingInputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
 		private TestingInputPriorityConflictResolver(
 				List<ExecNode<?, ?>> roots,
@@ -99,7 +99,7 @@ public class AbstractInputPriorityConflictResolverTest {
 		}
 
 		@Override
-		protected void resolveConflict(ExecNode<?, ?> node, int conflictInput) {
+		protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput) {
 			// do nothing
 		}
 	}

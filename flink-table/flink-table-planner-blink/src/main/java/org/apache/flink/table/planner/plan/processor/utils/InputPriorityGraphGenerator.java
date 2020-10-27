@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processor.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -82,7 +82,7 @@ import java.util.TreeMap;
  * <a href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design doc</a>.
  */
 @Internal
-public abstract class AbstractInputPriorityConflictResolver {
+public abstract class InputPriorityGraphGenerator {
 
 	private final List<ExecNode<?, ?>> roots;
 	private final Set<ExecNode<?, ?>> boundaries;
@@ -91,14 +91,14 @@ public abstract class AbstractInputPriorityConflictResolver {
 	protected TopologyGraph graph;
 
 	/**
-	 * Create an {@link AbstractInputPriorityConflictResolver} for the given {@link ExecNode} sub-graph.
+	 * Create an {@link InputPriorityGraphGenerator} for the given {@link ExecNode} sub-graph.
 	 *
 	 * @param roots the first layer of nodes on the output side of the sub-graph
 	 * @param boundaries the first layer of nodes on the input side of the sub-graph
 	 * @param safeDamBehavior when checking for conflicts we'll ignore the edges with
 	 *                        {@link ExecEdge.DamBehavior} stricter or equal than this
 	 */
-	public AbstractInputPriorityConflictResolver(
+	public InputPriorityGraphGenerator(
 			List<ExecNode<?, ?>> roots,
 			Set<ExecNode<?, ?>> boundaries,
 			ExecEdge.DamBehavior safeDamBehavior) {
@@ -110,7 +110,7 @@ public abstract class AbstractInputPriorityConflictResolver {
 		this.safeDamBehavior = safeDamBehavior;
 	}
 
-	protected void createTopologyGraphAndResolveConflict() {
+	protected void createTopologyGraph() {
 		// build an initial topology graph
 		graph = new TopologyGraph(roots, boundaries);
 
@@ -121,13 +121,13 @@ public abstract class AbstractInputPriorityConflictResolver {
 				if (!boundaries.contains(node)) {
 					visitInputs(node);
 				}
-				updateTopologyGraphAndResolveConflict(node);
+				updateTopologyGraph(node);
 			}
 		};
 		roots.forEach(n -> n.accept(inputPriorityVisitor));
 	}
 
-	private void updateTopologyGraphAndResolveConflict(ExecNode<?, ?> node) {
+	private void updateTopologyGraph(ExecNode<?, ?> node) {
 		// group inputs by input priorities
 		TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
 		Preconditions.checkState(
@@ -164,7 +164,7 @@ public abstract class AbstractInputPriorityConflictResolver {
 				linkedEdges.add(Tuple2.of(higherNode, ancestor));
 			} else {
 				// a conflict occurs, resolve it and revert all linked edges
-				resolveConflict(node, lowerInput);
+				resolveInputPriorityConflict(node, lowerInput);
 				for (Tuple2<ExecNode<?, ?>, ExecNode<?, ?>> linkedEdge : linkedEdges) {
 					graph.unlink(linkedEdge.f0, linkedEdge.f1);
 				}
@@ -205,5 +205,5 @@ public abstract class AbstractInputPriorityConflictResolver {
 		return ret;
 	}
 
-	protected abstract void resolveConflict(ExecNode<?, ?> node, int conflictInput);
+	protected abstract void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput);
 }
