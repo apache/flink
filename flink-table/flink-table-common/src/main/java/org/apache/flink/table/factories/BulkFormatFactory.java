@@ -36,6 +36,7 @@ public interface BulkFormatFactory extends DecodingFormatFactory<BulkFormat<RowD
 	/**
 	 * Creates a {@link BulkDecodingFormat} from the given context and format options.
 	 */
+	@Override
 	BulkDecodingFormat<RowData> createDecodingFormat(
 			DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }

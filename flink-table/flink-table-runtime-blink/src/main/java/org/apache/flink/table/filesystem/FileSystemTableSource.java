@@ -43,7 +43,6 @@ import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDo
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.factories.BulkFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -94,13 +93,13 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
-		Optional<BulkFormatFactory> bulkFormatOptional = createBulkFormatFactory();
+		Optional<BulkDecodingFormat<RowData>> bulkDecodingFormat = discoverBulkDecodingFormat();
 
 		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
 			// When this table has no partition, just return a empty source.
 			return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
-		} else if (bulkFormatOptional.isPresent()) {
-			return SourceProvider.of(createBulkFormatSource(bulkFormatOptional.get(), scanContext));
+		} else if (bulkDecodingFormat.isPresent()) {
+			return SourceProvider.of(createBulkFormatSource(bulkDecodingFormat.get(), scanContext));
 		}
 
 		return new DataStreamScanProvider() {
@@ -123,12 +122,11 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 	}
 
 	private FileSource<RowData> createBulkFormatSource(
-			BulkFormatFactory bulkFormatFactory, ScanContext scanContext) {
-		ReadableConfig formatOptions = formatOptions(bulkFormatFactory.factoryIdentifier());
-		BulkDecodingFormat<RowData> bulkDecodingFormat = bulkFormatFactory.createDecodingFormat(context, formatOptions);
-		bulkDecodingFormat.applyLimit(pushedDownLimit());
-		bulkDecodingFormat.applyFilters(pushedDownFilters());
-		BulkFormat<RowData> bulkFormat = bulkDecodingFormat.createRuntimeDecoder(scanContext, getProducedDataType());
+			BulkDecodingFormat<RowData> decodingFormat, ScanContext scanContext) {
+		decodingFormat.applyLimit(pushedDownLimit());
+		decodingFormat.applyFilters(pushedDownFilters());
+		BulkFormat<RowData> bulkFormat = decodingFormat.createRuntimeDecoder(
+				scanContext, getProducedDataType());
 		FileSource.FileSourceBuilder<RowData> builder = FileSource
 				.forBulkFileFormat(bulkFormat, paths());
 		return builder.build();

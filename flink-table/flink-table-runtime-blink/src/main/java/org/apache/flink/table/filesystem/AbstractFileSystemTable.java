@@ -25,10 +25,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.BulkFormatFactory;
-import org.apache.flink.table.factories.BulkWriterFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.EncoderFactory;
+import org.apache.flink.table.factories.EncodingFormatFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
@@ -75,22 +77,47 @@ abstract class AbstractFileSystemTable {
 				tableOptions.get(FactoryUtil.FORMAT));
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	Optional<BulkFormatFactory> createBulkFormatFactory() {
-		return tryCreateFormatFactory(BulkFormatFactory.class);
+	@SuppressWarnings("rawtypes")
+	<F extends EncodingFormatFactory<?>> Optional<EncodingFormat> discoverOptionalEncodingFormat(
+			Class<F> formatFactoryClass) {
+		return discoverOptionalFormatFactory(formatFactoryClass)
+				.map(formatFactory -> {
+					String format = formatFactory.factoryIdentifier();
+					try {
+						return formatFactory.createEncodingFormat(context, formatOptions(format));
+					} catch (Throwable t) {
+						throw new ValidationException(
+								String.format(
+										"Error creating sink format '%s' in option space '%s'.",
+										formatFactory.factoryIdentifier(),
+										format),
+								t);
+					}
+				});
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	Optional<BulkWriterFactory> createBulkWriterFactory() {
-		return tryCreateFormatFactory(BulkWriterFactory.class);
+	Optional<BulkDecodingFormat<RowData>> discoverBulkDecodingFormat() {
+		return discoverOptionalFormatFactory(BulkFormatFactory.class)
+				.map(formatFactory -> {
+					String format = formatFactory.factoryIdentifier();
+					try {
+						return formatFactory.createDecodingFormat(context, formatOptions(format));
+					} catch (Throwable t) {
+						throw new ValidationException(
+								String.format(
+										"Error creating scan format '%s' in option space '%s'.",
+										formatFactory.factoryIdentifier(),
+										format),
+								t);
+					}
+				});
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	Optional<EncoderFactory> createEncoderFactory() {
-		return tryCreateFormatFactory(EncoderFactory.class);
-	}
-
-	<T extends Factory> Optional<T> tryCreateFormatFactory(Class<T> clazz) {
+	/**
+	 * Unlike {@link FactoryUtil#discoverFactory}, it will not throw an exception if it cannot
+	 * find the factory.
+	 */
+	private <T extends Factory> Optional<T> discoverOptionalFormatFactory(Class<T> clazz) {
 		String format = tableOptions.get(FactoryUtil.FORMAT);
 		if (format == null) {
 			throw new ValidationException(String.format(

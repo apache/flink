@@ -41,14 +41,15 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.BulkWriterFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.EncoderFactory;
-import org.apache.flink.table.factories.EncodingFormatFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
@@ -208,13 +209,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 				path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
 	}
 
-	private <I> I createEncoder(EncodingFormatFactory<I> factory, Context sinkContext) {
-		ReadableConfig formatOptions = formatOptions(factory.factoryIdentifier());
-		return factory
-				.createEncodingFormat(context, formatOptions)
-				.createRuntimeEncoder(sinkContext, getFormatDataType());
-	}
-
 	private DataType getFormatDataType() {
 		TableSchema.Builder builder = TableSchema.builder();
 		schema.getTableColumns().forEach(column -> {
@@ -226,14 +220,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	private Object createWriter(Context sinkContext) {
-		Optional<? extends EncodingFormatFactory<?>> bulkOptional = createBulkWriterFactory();
-		if (bulkOptional.isPresent()) {
-			return createEncoder(bulkOptional.get(), sinkContext);
-		}
-
-		Optional<EncoderFactory> encoderOptional = createEncoderFactory();
-		if (encoderOptional.isPresent()) {
-			return createEncoder(encoderOptional.get(), sinkContext);
+		@SuppressWarnings("rawtypes")
+		Optional<EncodingFormat> encodingFormat = discoverOptionalEncodingFormat(BulkWriterFactory.class)
+				.map(Optional::of).orElseGet(() -> discoverOptionalEncodingFormat(EncoderFactory.class));
+		if (encodingFormat.isPresent()) {
+			return encodingFormat.get().createRuntimeEncoder(sinkContext, getFormatDataType());
 		}
 
 		FileSystemFormatFactory formatFactory = createFormatFactory();
