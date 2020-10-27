@@ -144,7 +144,7 @@ public class PythonOptions {
 	 */
 	@Experimental
 	public static final ConfigOption<Integer> STATE_CACHE_SIZE = ConfigOptions
-		.key("python.state.cache.size")
+		.key("python.state.cache-size")
 		.defaultValue(1000)
 		.withDescription("The maximum number of states cached in a Python UDF worker. Note that this " +
 			"is an experimental flag and might not be available in future releases.");
@@ -154,7 +154,7 @@ public class PythonOptions {
 	 */
 	@Experimental
 	public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE = ConfigOptions
-		.key("python.map-state.read.cache.size")
+		.key("python.map-state.read-cache-size")
 		.defaultValue(1000)
 		.withDescription("The maximum number of cached entries for a single Python MapState. " +
 			"Note that this is an experimental flag and might not be available in future releases.");
@@ -164,11 +164,23 @@ public class PythonOptions {
 	 */
 	@Experimental
 	public static final ConfigOption<Integer> MAP_STATE_WRITE_CACHE_SIZE = ConfigOptions
-		.key("python.map-state.write.cache.size")
+		.key("python.map-state.write-cache-size")
 		.defaultValue(1000)
 		.withDescription("The maximum number of cached write requests for a single Python " +
 			"MapState. The write requests will be flushed to the state backend (managed in " +
 			"the Java operator) when the number of cached write requests exceed this limit. " +
 			"Note that this is an experimental flag and might not be available in future " +
 			"releases.");
+
+	/**
+	 * The maximum number of entries sent to Python UDF worker per request when iterating a Python MapState.
+	 */
+	@Experimental
+	public static final ConfigOption<Integer> MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE = ConfigOptions
+		.key("python.map-state.iterate-response-batch-size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of the MapState keys/entries sent to Python UDF worker " +
+			"in each batch when iterating a Python MapState. Note that this is an experimental flag " +
+			"and might not be available " +
+			"in future releases.");
 }

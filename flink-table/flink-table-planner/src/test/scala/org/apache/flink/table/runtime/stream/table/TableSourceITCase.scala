@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JExecEnv}
 import org.apache.flink.streaming.api.functions.ProcessFunction

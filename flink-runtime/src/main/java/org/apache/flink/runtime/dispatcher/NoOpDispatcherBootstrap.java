@@ -21,26 +21,18 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
-import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * A base class for a {@link DispatcherBootstrap}.
- *
- * <p>NOTE TO IMPLEMENTERS: This is meant as a bridge between the package-private
- * {@link Dispatcher#runRecoveredJob(JobGraph)} method, and dispatcher bootstrap
- * implementations in other packages.
+ * A {@link DispatcherBootstrap} which submits the provided {@link JobGraph job graphs}
+ * for execution upon dispatcher initialization.
  */
 @Internal
-public abstract class AbstractDispatcherBootstrap implements DispatcherBootstrap {
+public class NoOpDispatcherBootstrap implements DispatcherBootstrap {
 
-	protected void launchRecoveredJobGraphs(final Dispatcher dispatcher, final Collection<JobGraph> recoveredJobGraphs) {
-		checkNotNull(dispatcher);
-		checkNotNull(recoveredJobGraphs);
+	public NoOpDispatcherBootstrap() {
+	}
 
-		for (JobGraph recoveredJob : recoveredJobGraphs) {
-			dispatcher.runRecoveredJob(recoveredJob);
-		}
+	@Override
+	public void stop() throws Exception {
+		// do nothing
 	}
 }

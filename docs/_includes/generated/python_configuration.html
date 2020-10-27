@@ -57,13 +57,19 @@
             <td>If set, the Python worker will configure itself to use the managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory of the task slot. In this case, users should set the Task Off-Heap Memory using the configuration key taskmanager.memory.task.off-heap.size.</td>
         </tr>
         <tr>
-            <td><h5>python.map-state.read.cache.size</h5></td>
+            <td><h5>python.map-state.iterate-response-batch-size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of the MapState keys/entries sent to Python UDF worker in each batch when iterating a Python MapState. Note that this is an experimental flag and might not be available in future releases.</td>
+        </tr>
+        <tr>
+            <td><h5>python.map-state.read-cache-size</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
             <td>The maximum number of cached entries for a single Python MapState. Note that this is an experimental flag and might not be available in future releases.</td>
         </tr>
         <tr>
-            <td><h5>python.map-state.write.cache.size</h5></td>
+            <td><h5>python.map-state.write-cache-size</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
             <td>The maximum number of cached write requests for a single Python MapState. The write requests will be flushed to the state backend (managed in the Java operator) when the number of cached write requests exceed this limit. Note that this is an experimental flag and might not be available in future releases.</td>
@@ -81,7 +87,7 @@
             <td>Specify a requirements.txt file which defines the third-party dependencies. These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. A directory which contains the installation packages of these dependencies could be specified optionally. Use '#' as the separator if the optional parameter exists. The option is equivalent to the command line option "-pyreq".</td>
         </tr>
         <tr>
-            <td><h5>python.state.cache.size</h5></td>
+            <td><h5>python.state.cache-size</h5></td>
             <td style="word-wrap: break-word;">1000</td>
             <td>Integer</td>
             <td>The maximum number of states cached in a Python UDF worker. Note that this is an experimental flag and might not be available in future releases.</td>

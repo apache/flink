@@ -101,7 +101,7 @@ class ResultSubpartitionRecoveredStateHandler implements RecoveredChannelStateHa
 	public void recover(ResultSubpartitionInfo subpartitionInfo, Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer) throws IOException {
 		bufferBuilderAndConsumer.f0.finish();
 		if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
-			boolean added = getSubpartition(subpartitionInfo).add(bufferBuilderAndConsumer.f1);
+			boolean added = getSubpartition(subpartitionInfo).add(bufferBuilderAndConsumer.f1, Integer.MIN_VALUE);
 			if (!added) {
 				throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
 			}

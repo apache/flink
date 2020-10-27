@@ -20,34 +20,16 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-
-import java.util.Collection;
-import java.util.HashSet;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 /**
- * A {@link DispatcherBootstrap} which submits the provided {@link JobGraph job graphs}
- * for execution upon dispatcher initialization.
+ * A factory to create a {@link DispatcherBootstrap}.
  */
 @Internal
-public class DefaultDispatcherBootstrap extends AbstractDispatcherBootstrap {
+public interface DispatcherBootstrapFactory {
 
-	private final Collection<JobGraph> recoveredJobs;
-
-	public DefaultDispatcherBootstrap(final Collection<JobGraph> recoveredJobsGraphs) {
-		this.recoveredJobs = new HashSet<>(checkNotNull(recoveredJobsGraphs));
-	}
-
-	@Override
-	public void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) {
-		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
-		recoveredJobs.clear();
-	}
-
-	@Override
-	public void stop() throws Exception {
-		// do nothing
-	}
+	DispatcherBootstrap create(
+			final DispatcherGateway dispatcher,
+			final ScheduledExecutor scheduledExecutor,
+			final FatalErrorHandler errorHandler) throws Exception;
 }

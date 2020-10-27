@@ -265,7 +265,7 @@ public class MiniCluster implements AutoCloseableAsync {
 				// bring up all the RPC services
 				LOG.info("Starting RPC Service(s)");
 
-				final RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory;
+				final RpcServiceFactory dispatcherResourceManagerComponentRpcServiceFactory;
 				final RpcService metricQueryServiceRpcService;
 
 				if (useSingleRpcService) {
@@ -273,7 +273,7 @@ public class MiniCluster implements AutoCloseableAsync {
 					commonRpcService = createLocalRpcService(configuration);
 					final CommonRpcServiceFactory commonRpcServiceFactory = new CommonRpcServiceFactory(commonRpcService);
 					taskManagerRpcServiceFactory = commonRpcServiceFactory;
-					dispatcherResourceManagreComponentRpcServiceFactory = commonRpcServiceFactory;
+					dispatcherResourceManagerComponentRpcServiceFactory = commonRpcServiceFactory;
 					metricQueryServiceRpcService = MetricUtils.startLocalMetricsRpcService(configuration);
 				} else {
 
@@ -285,7 +285,7 @@ public class MiniCluster implements AutoCloseableAsync {
 					final String jobManagerBindAddress = miniClusterConfiguration.getJobManagerBindAddress();
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 
-					dispatcherResourceManagreComponentRpcServiceFactory =
+					dispatcherResourceManagerComponentRpcServiceFactory =
 						new DedicatedRpcServiceFactory(
 							configuration,
 							jobManagerExternalAddress,
@@ -331,7 +331,7 @@ public class MiniCluster implements AutoCloseableAsync {
 
 				MetricQueryServiceRetriever metricQueryServiceRetriever = new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService());
 
-				setupDispatcherResourceManagerComponents(configuration, dispatcherResourceManagreComponentRpcServiceFactory, metricQueryServiceRetriever);
+				setupDispatcherResourceManagerComponents(configuration, dispatcherResourceManagerComponentRpcServiceFactory, metricQueryServiceRetriever);
 
 				resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 				dispatcherLeaderRetriever = haServices.getDispatcherLeaderRetriever();

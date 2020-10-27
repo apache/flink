@@ -19,10 +19,10 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -35,6 +35,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,15 +80,16 @@ public class ApplicationDispatcherGatewayServiceFactory implements AbstractDispa
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
 
-		final DispatcherBootstrap bootstrap =
-				new ApplicationDispatcherBootstrap(application, recoveredJobs, configuration);
+		final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
 
 		final Dispatcher dispatcher;
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 					rpcService,
 					fencingToken,
-					bootstrap,
+					recoveredJobs,
+					(dispatcherGateway, scheduledExecutor, errorHandler) -> new ApplicationDispatcherBootstrap(
+							application, recoveredJobIds, configuration, dispatcherGateway, scheduledExecutor, errorHandler),
 					PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
@@ -95,5 +98,12 @@ public class ApplicationDispatcherGatewayServiceFactory implements AbstractDispa
 		dispatcher.start();
 
 		return DefaultDispatcherGatewayService.from(dispatcher);
+	}
+
+	private List<JobID> getRecoveredJobIds(final Collection<JobGraph> recoveredJobs) {
+		return recoveredJobs
+				.stream()
+				.map(JobGraph::getJobID)
+				.collect(Collectors.toList());
 	}
 }

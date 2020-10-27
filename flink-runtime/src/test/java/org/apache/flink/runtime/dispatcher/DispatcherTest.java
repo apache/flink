@@ -218,7 +218,10 @@ public class DispatcherTest extends TestLogger {
 	 */
 	public class TestingDispatcherBuilder {
 
-		private DispatcherBootstrap dispatcherBootstrap = new DefaultDispatcherBootstrap(Collections.emptyList());
+		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+
+		private DispatcherBootstrapFactory dispatcherBootstrapFactory =
+				(dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap();
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -238,8 +241,14 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setDispatcherBootstrap(DispatcherBootstrap dispatcherBootstrap) {
-			this.dispatcherBootstrap = dispatcherBootstrap;
+		TestingDispatcherBuilder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
+			this.initialJobGraphs = initialJobGraphs;
+			return this;
+		}
+
+		TestingDispatcherBuilder setDispatcherBootstrapFactory(
+				DispatcherBootstrapFactory dispatcherBootstrapFactory) {
+			this.dispatcherBootstrapFactory = dispatcherBootstrapFactory;
 			return this;
 		}
 
@@ -261,7 +270,8 @@ public class DispatcherTest extends TestLogger {
 			return new TestingDispatcher(
 				rpcService,
 				DispatcherId.generate(),
-				dispatcherBootstrap,
+				initialJobGraphs,
+				dispatcherBootstrapFactory,
 				new DispatcherServices(
 					configuration,
 					haServices,
@@ -582,7 +592,7 @@ public class DispatcherTest extends TestLogger {
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(failingJobGraph)))
+			.setInitialJobGraphs(Collections.singleton(failingJobGraph))
 			.build();
 
 		dispatcher.start();
@@ -737,7 +747,7 @@ public class DispatcherTest extends TestLogger {
 			.build();
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(jobGraph)))
+			.setInitialJobGraphs(Collections.singleton(jobGraph))
 			.setJobGraphWriter(testingJobGraphStore)
 			.build();
 		dispatcher.start();

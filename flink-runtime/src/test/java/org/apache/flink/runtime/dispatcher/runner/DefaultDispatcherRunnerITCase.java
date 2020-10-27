@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
+import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -208,12 +208,14 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		public Dispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
+			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 			return new StandaloneDispatcher(
 				rpcService,
 				fencingToken,
-				dispatcherBootstrap,
+				recoveredJobs,
+				dispatcherBootstrapFactory,
 				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
 		}
 	}
