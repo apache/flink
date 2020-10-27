@@ -17,7 +17,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:dynamodb-streams-kinesis-adapter:1.5.0
 - com.amazonaws:jmespath-java:1.11.788
 - org.apache.httpcomponents:httpclient:4.5.9
-- org.apache.httpcomponents:httpcore:4.4.6
+- org.apache.httpcomponents:httpcore:4.4.11
 - software.amazon.ion:ion-java:jar:1.0.2
 - software.amazon.awssdk:kinesis:jar:2.13.52
 - software.amazon.awssdk:aws-cbor-protocol:jar:2.13.52
