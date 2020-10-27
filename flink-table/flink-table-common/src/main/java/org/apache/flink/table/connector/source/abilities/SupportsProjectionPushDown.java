@@ -40,10 +40,6 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * data generation. A projection is only selecting fields that are used by a query (possibly in a different
  * field order). It does not contain any computation. A projection can either be performed on the fields of
  * the top-level row only or consider nested fields as well (see {@link #supportsNestedProjection()}).
- *
- * <p>Note: If a source implements {@link SupportsComputedColumnPushDown}, the projection must be applied
- * to the physical data in the first step. The {@link SupportsComputedColumnPushDown} (already aware of the projection)
- * will then use the projected physical data and insert computed columns into the result.
  */
 @PublicEvolving
 public interface SupportsProjectionPushDown {

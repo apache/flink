@@ -30,7 +30,6 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
-import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
@@ -41,7 +40,6 @@ import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,8 +55,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class DynamicSourceUtils {
 
-	private static final List<Class<?>> UNSUPPORTED_ABILITIES = Arrays.asList(
-		SupportsComputedColumnPushDown.class,
+	private static final List<Class<?>> UNSUPPORTED_ABILITIES = Collections.singletonList(
 		SupportsWatermarkPushDown.class);
 
 	/**
