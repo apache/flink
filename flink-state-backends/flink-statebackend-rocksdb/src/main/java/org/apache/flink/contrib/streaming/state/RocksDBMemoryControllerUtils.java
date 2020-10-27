@@ -107,7 +107,8 @@ public class RocksDBMemoryControllerUtils {
 	static long calculateRocksDBDefaultArenaBlockSize(long writeBufferSize) {
 		long arenaBlockSize = writeBufferSize / 8;
 
-		long align = 4 * 1024;
+		// Align up to 4k
+		final long align = 4 * 1024;
 		return ((arenaBlockSize + align - 1) / align) * align;
 	}
 
