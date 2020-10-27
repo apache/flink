@@ -20,6 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowUtils;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -48,7 +49,7 @@ public final class TableTestMatchers {
 		};
 	}
 
-	public static Matcher<List<Row>> deepEqualTo(List<Row> rows) {
+	public static Matcher<List<Row>> deepEqualTo(List<Row> rows, boolean ignoreOrder) {
 		return new BaseMatcher<List<Row>>() {
 
 			@Override
@@ -57,14 +58,15 @@ public final class TableTestMatchers {
 			}
 
 			@Override
+			@SuppressWarnings("unchecked")
 			public void describeMismatch(Object item, Description description) {
-				description.appendText("was ").appendValueList("", "\n", "", rows);
+				description.appendText("was ").appendValueList("", "\n", "", (List<Row>) item);
 			}
 
 			@Override
 			@SuppressWarnings("unchecked")
 			public boolean matches(Object item) {
-				return Row.deepEquals(rows, (List<Row>) item);
+				return RowUtils.compareRows(rows, (List<Row>) item, ignoreOrder);
 			}
 		};
 	}

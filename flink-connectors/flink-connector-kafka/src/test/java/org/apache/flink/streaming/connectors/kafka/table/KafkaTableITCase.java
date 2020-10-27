@@ -328,9 +328,9 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						+ "  `physical_1` STRING,\n"
 						+ "  `physical_2` INT,\n"
 						// metadata fields are out of order on purpose
+						// offset is ignored because it might not be deterministic
 						+ "  `timestamp-type` STRING METADATA VIRTUAL,\n"
 						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
-						+ "  `offset` BIGINT METADATA VIRTUAL,\n"
 						+ "  `leader-epoch` INT METADATA VIRTUAL,\n"
 						+ "  `headers` MAP<STRING, BYTES> METADATA,\n"
 						+ "  `partition` INT METADATA VIRTUAL,\n"
@@ -371,12 +371,12 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		headers3.put("k2", new byte[]{(byte) 0x20});
 
 		final List<Row> expected = Arrays.asList(
-				Row.of("data 1", 1, "CreateTime", LocalDateTime.parse("2020-03-08T13:12:11.123"), 0L, 0, headers1, 0, topic, true),
-				Row.of("data 2", 2, "CreateTime", LocalDateTime.parse("2020-03-09T13:12:11.123"), 1L, 0, Collections.emptyMap(), 0, topic, false),
-				Row.of("data 3", 3, "CreateTime", LocalDateTime.parse("2020-03-10T13:12:11.123"), 2L, 0, headers3, 0, topic, true)
+				Row.of("data 1", 1, "CreateTime", LocalDateTime.parse("2020-03-08T13:12:11.123"), 0, headers1, 0, topic, true),
+				Row.of("data 2", 2, "CreateTime", LocalDateTime.parse("2020-03-09T13:12:11.123"), 0, Collections.emptyMap(), 0, topic, false),
+				Row.of("data 3", 3, "CreateTime", LocalDateTime.parse("2020-03-10T13:12:11.123"), 0, headers3, 0, topic, true)
 		);
 
-		assertThat(result, deepEqualTo(expected));
+		assertThat(result, deepEqualTo(expected, true));
 
 		// ------------- cleanup -------------------
 
