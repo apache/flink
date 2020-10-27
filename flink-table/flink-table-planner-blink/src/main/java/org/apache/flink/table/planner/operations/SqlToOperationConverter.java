@@ -192,33 +192,7 @@ public class SqlToOperationConverter {
 		// validate the query
 		final SqlNode validated = flinkPlanner.validate(sqlNode);
 		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner, catalogManager);
-		if (validated instanceof SqlCreateTable) {
-			return Optional.of(converter.createTableConverter.convertCreateTable((SqlCreateTable) validated));
-		} else if (validated instanceof SqlDropTable) {
-			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
-		} else if (validated instanceof SqlAlterTable) {
-			return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
-		} else if (validated instanceof SqlAlterView) {
-			return Optional.of(converter.convertAlterView((SqlAlterView) validated));
-		} else if (validated instanceof SqlCreateFunction) {
-			return Optional.of(converter.convertCreateFunction((SqlCreateFunction) validated));
-		} else if (validated instanceof SqlAlterFunction) {
-			return Optional.of(converter.convertAlterFunction((SqlAlterFunction) validated));
-		} else if (validated instanceof SqlDropFunction) {
-			return Optional.of(converter.convertDropFunction((SqlDropFunction) validated));
-		} else if (validated instanceof RichSqlInsert) {
-			return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
-		} else if (validated instanceof SqlUseCatalog) {
-			return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
-		} else if (validated instanceof SqlUseDatabase) {
-			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
-		} else if (validated instanceof SqlCreateDatabase) {
-			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
-		} else if (validated instanceof SqlDropDatabase) {
-			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
-		} else if (validated instanceof SqlAlterDatabase) {
-			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
-		} else if (validated instanceof SqlCreateCatalog) {
+		if (validated instanceof SqlCreateCatalog) {
 			return Optional.of(converter.convertCreateCatalog((SqlCreateCatalog) validated));
 		} else if (validated instanceof SqlDropCatalog) {
 			return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
@@ -226,26 +200,52 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
 		} else if (validated instanceof SqlShowCurrentCatalog){
 			return Optional.of(converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
+		} else if (validated instanceof SqlUseCatalog) {
+			return Optional.of(converter.convertUseCatalog((SqlUseCatalog) validated));
+		} else if (validated instanceof SqlCreateDatabase) {
+			return Optional.of(converter.convertCreateDatabase((SqlCreateDatabase) validated));
+		} else if (validated instanceof SqlDropDatabase) {
+			return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
+		} else if (validated instanceof SqlAlterDatabase) {
+			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
 		} else if (validated instanceof SqlShowDatabases) {
 			return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
 		} else if (validated instanceof SqlShowCurrentDatabase) {
 			return Optional.of(converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
+		} else if (validated instanceof SqlUseDatabase) {
+			return Optional.of(converter.convertUseDatabase((SqlUseDatabase) validated));
+		} else if (validated instanceof SqlCreateTable) {
+			return Optional.of(converter.createTableConverter.convertCreateTable((SqlCreateTable) validated));
+		} else if (validated instanceof SqlDropTable) {
+			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
+		} else if (validated instanceof SqlAlterTable) {
+			return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
 		} else if (validated instanceof SqlShowTables) {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
-		} else if (validated instanceof SqlShowFunctions) {
-			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
-		} else if (validated instanceof SqlShowPartitions) {
-			return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
 		} else if (validated instanceof SqlCreateView) {
 			return Optional.of(converter.convertCreateView((SqlCreateView) validated));
 		} else if (validated instanceof SqlDropView) {
 			return Optional.of(converter.convertDropView((SqlDropView) validated));
+		} else if (validated instanceof SqlAlterView) {
+			return Optional.of(converter.convertAlterView((SqlAlterView) validated));
 		} else if (validated instanceof SqlShowViews) {
 			return Optional.of(converter.convertShowViews((SqlShowViews) validated));
+		} else if (validated instanceof SqlCreateFunction) {
+			return Optional.of(converter.convertCreateFunction((SqlCreateFunction) validated));
+		} else if (validated instanceof SqlDropFunction) {
+			return Optional.of(converter.convertDropFunction((SqlDropFunction) validated));
+		} else if (validated instanceof SqlAlterFunction) {
+			return Optional.of(converter.convertAlterFunction((SqlAlterFunction) validated));
+		} else if (validated instanceof SqlShowFunctions) {
+			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
+		} else if (validated instanceof SqlShowPartitions) {
+			return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
 		} else if (validated instanceof SqlExplain) {
 			return Optional.of(converter.convertExplain((SqlExplain) validated));
 		} else if (validated instanceof SqlRichDescribeTable) {
 			return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
+		} else if (validated instanceof RichSqlInsert) {
+			return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -550,7 +550,7 @@ public class SqlToOperationConverter {
 
 	/** Convert use catalog statement. */
 	private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
-		return new UseCatalogOperation(useCatalog.getCatalogName());
+		return new UseCatalogOperation(useCatalog.catalogName());
 	}
 
 	/** Convert CREATE CATALOG statement. */
