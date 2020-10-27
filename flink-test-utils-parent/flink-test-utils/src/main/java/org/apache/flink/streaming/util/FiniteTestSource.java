@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import javax.annotation.Nullable;

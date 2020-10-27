@@ -18,10 +18,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Disposable;
