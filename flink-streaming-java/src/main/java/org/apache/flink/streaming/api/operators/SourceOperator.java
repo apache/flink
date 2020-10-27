@@ -96,6 +96,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	/** Host name of the machine where the operator runs, to support locality aware work assignment. */
 	private final String localHostname;
 
+	/**
+	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
+	 * input.
+	 */
+	private final boolean emitProgressiveWatermarks;
+
 	// ---- lazily initialized fields (these fields are the "hot" fields) ----
 
 	/** The source reader that does most of the work. */
@@ -119,7 +125,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			WatermarkStrategy<OUT> watermarkStrategy,
 			ProcessingTimeService timeService,
 			Configuration configuration,
-			String localHostname) {
+			String localHostname,
+			boolean emitProgressiveWatermarks) {
 
 		this.readerFactory = checkNotNull(readerFactory);
 		this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -128,6 +135,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		this.processingTimeService = timeService;
 		this.configuration = checkNotNull(configuration);
 		this.localHostname = checkNotNull(localHostname);
+		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
 	}
 
 	@Override
@@ -161,14 +169,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			}
 		};
 
-		// in the future when we support both batch and streaming modes for the source operator,
-		// and when this one is migrated to the "eager initialization" operator (StreamOperatorV2),
-		// then we should evaluate this during operator construction.
-		eventTimeLogic = TimestampsAndWatermarks.createProgressiveEventTimeLogic(
-				watermarkStrategy,
-				metricGroup,
-				getProcessingTimeService(),
-				getExecutionConfig().getAutoWatermarkInterval());
+		// in the future when we this one is migrated to the "eager initialization" operator
+		// (StreamOperatorV2), then we should evaluate this during operator construction.
+		if (emitProgressiveWatermarks) {
+			eventTimeLogic = TimestampsAndWatermarks.createProgressiveEventTimeLogic(
+					watermarkStrategy,
+					metricGroup,
+					getProcessingTimeService(),
+					getExecutionConfig().getAutoWatermarkInterval());
+		} else {
+			eventTimeLogic = TimestampsAndWatermarks.createNoOpEventTimeLogic(
+					watermarkStrategy,
+					metricGroup);
+		}
 
 		sourceReader = readerFactory.apply(context);
 
