@@ -66,3 +66,7 @@ log_upload_watchdog &
 
 # ts from moreutils prepends the time to each line
 ( $COMMAND & PID=$! ; wait $PID ) | ts | tee $OUTPUT_FILE
+TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+# properly forward exit code
+exit $TEST_EXIT_CODE
