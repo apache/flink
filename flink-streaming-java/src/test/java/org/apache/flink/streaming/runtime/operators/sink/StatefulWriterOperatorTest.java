@@ -38,8 +38,7 @@ import static org.junit.Assert.assertThat;
 public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 
 	@Override
-	protected <InputT, CommT> AbstractWriterOperatorFactory<InputT, CommT> createWriterOperator(
-			TestSink<InputT, CommT, ?, ?> sink) {
+	protected AbstractWriterOperatorFactory createWriterOperator(TestSink sink) {
 		return new StatefulWriterOperatorFactory<>(sink);
 	}
 
@@ -47,10 +46,13 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 	public void stateIsRestored() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, Tuple3<Integer, Long, Long>> testHarness =
-				createTestHarness(TestSink.create(
-						SnapshottingBufferingWriter::new,
-						stateSerializer()));
+		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+				createTestHarness(TestSink
+						.newBuilder()
+						.setWriter(new SnapshottingBufferingWriter())
+						.withWriterState()
+						.build());
+
 		testHarness.open();
 
 		testHarness.processWatermark(initialTime);
@@ -68,10 +70,12 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 
 		testHarness.close();
 
-		final OneInputStreamOperatorTestHarness<Integer, Tuple3<Integer, Long, Long>> restoredTestHarness =
-				createTestHarness(TestSink.create(
-						SnapshottingBufferingWriter::new,
-						stateSerializer()));
+		final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
+				createTestHarness(TestSink
+						.newBuilder()
+						.setWriter(new SnapshottingBufferingWriter())
+						.withWriterState()
+						.build());
 
 		restoredTestHarness.initializeState(snapshot);
 		restoredTestHarness.open();
@@ -82,21 +86,23 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		assertThat(
 				restoredTestHarness.getOutput(),
 				contains(
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime)),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime))));
+						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
+						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
 	}
 
 	/**
 	 * A {@link Writer} buffers elements and snapshots them when asked.
 	 */
 	static class SnapshottingBufferingWriter extends BufferingWriter {
-		public SnapshottingBufferingWriter(List<Tuple3<Integer, Long, Long>> state) {
-			this.elements = state;
+
+		@Override
+		public List<String> snapshotState() {
+			return elements;
 		}
 
 		@Override
-		public List<Tuple3<Integer, Long, Long>> snapshotState() {
-			return elements;
+		void restoredFrom(List<String> states) {
+			this.elements = states;
 		}
 	}
 }

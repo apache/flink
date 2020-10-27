@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
@@ -29,12 +28,10 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.runtime.operators.sink.TestSink.DEFAULT_WRITER;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
 /**
@@ -64,7 +61,7 @@ public class BatchCommitterOperatorTest extends TestLogger {
 	@Test
 	public void commit() throws Exception {
 
-		final TestSink.TestCommitter committer = new TestSink.TestCommitter();
+		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				committer);
 
@@ -78,8 +75,11 @@ public class BatchCommitterOperatorTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.close();
 
-		assertThat(committer.getCommittedData(), equalTo(expectedCommittedData));
-		assertThat(testHarness.getOutput().toArray(), equalTo(expectedCommittedData
+		assertThat(
+				committer.getCommittedData(),
+				containsInAnyOrder(expectedCommittedData.toArray()));
+
+		assertThat(testHarness.getOutput(), containsInAnyOrder(expectedCommittedData
 				.stream()
 				.map(StreamRecord::new)
 				.toArray()));
@@ -87,7 +87,7 @@ public class BatchCommitterOperatorTest extends TestLogger {
 
 	@Test
 	public void close() throws Exception {
-		final TestSink.TestCommitter committer = new TestSink.TestCommitter();
+		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
 				committer);
 		testHarness.initializeEmptyState();
@@ -99,13 +99,11 @@ public class BatchCommitterOperatorTest extends TestLogger {
 
 	private OneInputStreamOperatorTestHarness<String, String> createTestHarness(Committer<String> committer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new BatchCommitterOperatorFactory<>(
-						TestSink.create(
-								() -> DEFAULT_WRITER,
-								() -> Optional.ofNullable(committer),
-								() -> Optional.of(SimpleVersionedStringSerializer.INSTANCE),
-								() -> Optional.empty(),
-								() -> Optional.empty())),
+				new BatchCommitterOperatorFactory<>(TestSink
+						.newBuilder()
+						.setCommitter(committer)
+						.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.build()),
 				StringSerializer.INSTANCE);
 	}
 }
