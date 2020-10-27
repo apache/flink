@@ -139,7 +139,9 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 		RowType rowType = (RowType) dataType.getLogicalType();
 
 		AvroRowDataSerializationSchema serializer = getSerializationSchema(rowType, schema);
-		AvroRowDataDeserializationSchema deserializer = getDeserializationSchema(rowType, schema);
+		Schema writeSchema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
+		AvroRowDataDeserializationSchema deserializer =
+				getDeserializationSchema(rowType, writeSchema);
 
 		serializer.open(null);
 		deserializer.open(null);
