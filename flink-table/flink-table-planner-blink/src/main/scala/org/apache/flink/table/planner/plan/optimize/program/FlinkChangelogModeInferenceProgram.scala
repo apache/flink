@@ -292,6 +292,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           union, children, new ModifyKindSetTrait(providedKindSet), requiredTrait, requester)
 
+      case materialize: StreamExecChangelogNormalize =>
+        // changelog normalize support update&delete input
+        val children = visitChildren(materialize, ModifyKindSetTrait.ALL_CHANGES)
+        // changelog normalize will output all changes
+        val providedTrait = ModifyKindSetTrait.ALL_CHANGES
+        createNewNode(materialize, children, providedTrait, requiredTrait, requester)
+
       case ts: StreamExecTableSourceScan =>
         // ScanTableSource supports produces updates and deletions
         val providedTrait = ModifyKindSetTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
@@ -625,15 +632,16 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(union, Some(children.flatten), providedTrait)
         }
 
+      case materialize: StreamExecChangelogNormalize =>
+        // changelog normalize currently only supports input only sending UPDATE_AFTER
+        val children = visitChildren(materialize, UpdateKindTrait.ONLY_UPDATE_AFTER)
+        // use requiredTrait as providedTrait,
+        // because changelog normalize supports all kinds of UpdateKind
+        createNewNode(rel, children, requiredTrait)
+
       case ts: StreamExecTableSourceScan =>
         // currently only support BEFORE_AND_AFTER if source produces updates
         val providedTrait = UpdateKindTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
-        if (providedTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
-          throw new UnsupportedOperationException(
-            "Currently, ScanTableSource doesn't support producing ChangelogMode " +
-              "which contains UPDATE_AFTER but no UPDATE_BEFORE. Please update the " +
-              "implementation of '" + ts.tableSource.asSummaryString() + "' source.")
-        }
         createNewNode(rel, Some(List()), providedTrait)
 
       case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
@@ -672,7 +680,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             val providedTrait = newChild.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
             if (!providedTrait.satisfies(requiredChildrenTrait)) {
               // the provided trait can't satisfy required trait, thus we should return None.
-              // for example, the changelog source can't provide ONLY_UPDATE_AFTER.
               return None
             }
             newChild

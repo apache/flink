@@ -131,6 +131,29 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testScanOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+      "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+      "messages than just INSERT.")
+    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
   def testDDLWithComputedColumn(): Unit = {
     util.verifyPlan("SELECT * FROM computed_column_t")
   }

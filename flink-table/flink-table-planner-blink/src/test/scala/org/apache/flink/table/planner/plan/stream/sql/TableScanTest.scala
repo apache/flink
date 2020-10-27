@@ -329,6 +329,193 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testScanOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  id1 STRING,
+        |  a INT,
+        |  id2 BIGINT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (id2, id1) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA'
+        |)
+      """.stripMargin)
+    // projection should be pushed down, but the full primary key (id2, id1) should be kept
+    util.verifyPlan("SELECT id1, a, b FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpsertSourceWithComputedColumnAndWatermark(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the last node should keep UB because there is a filter on the changelog stream
+    util.verifyPlan("SELECT a, b, c FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnionUpsertSourceAndAggregation(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE upsert_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE append_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I'
+        |)
+      """.stripMargin)
+
+    val query =
+      """
+        |SELECT b, ts, a
+        |FROM (
+        |  SELECT * FROM upsert_src
+        |  UNION ALL
+        |  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+        |)
+        |""".stripMargin
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testAggregateOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  c STRING,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the MAX and MIN should work in retract mode
+    util.verifyPlan(
+      "SELECT b, COUNT(*), MAX(ts), MIN(ts) FROM src GROUP BY b",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testAggregateOnUpsertSourcePrimaryKey(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  c STRING,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    // the MAX and MIN should work in retract mode
+    util.verifyPlan(
+      "SELECT a, COUNT(*), MAX(ts), MIN(ts) FROM src GROUP BY a",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testJoinOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency STRING
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE rates_history (
+        |  currency STRING PRIMARY KEY NOT ENFORCED,
+        |  rate BIGINT
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o JOIN rates_history AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency STRING,
+        |  proctime AS PROCTIME()
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE rates_history (
+        |  currency STRING PRIMARY KEY NOT ENFORCED,
+        |  rate BIGINT
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o LEFT JOIN rates_history FOR SYSTEM_TIME AS OF o.proctime AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
     util.addTable(
       """
@@ -377,7 +564,7 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testUnsupportedSourceChangelogMode(): Unit = {
+  def testMissingPrimaryKeyForUpsertSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
@@ -390,11 +577,9 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Unsupported source for table 'default_catalog.default_database.src'. Currently, a " +
-      "ScanTableSource doesn't support a changelog which contains UPDATE_AFTER but no " +
-      "UPDATE_BEFORE. Please adapt the implementation of class 'org.apache.flink.table.planner." +
-      "factories.TestValuesTableFactory$TestValuesScanLookupTableSource'.")
+    thrown.expectMessage("Table 'default_catalog.default_database.src' produces a " +
+      "changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. " +
+      "This requires to define primary key constraint on the table.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 
