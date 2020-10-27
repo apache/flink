@@ -800,6 +800,6 @@ class CounterSource
 </div>
 </div>
 
-希望订阅 checkpoint 成功消息的算子，可以参考 `org.apache.flink.runtime.state.CheckpointListener` 接口。
+希望订阅 checkpoint 成功消息的算子，可以参考 `org.apache.flink.api.common.state.CheckpointListener` 接口。
 
 {% top %}

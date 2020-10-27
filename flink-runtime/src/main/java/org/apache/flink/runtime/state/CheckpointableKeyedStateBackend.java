@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.CheckpointListener;
+
 import java.io.Closeable;
 
 /**
