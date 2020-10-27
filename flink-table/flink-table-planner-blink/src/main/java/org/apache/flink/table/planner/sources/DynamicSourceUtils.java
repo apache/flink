@@ -241,7 +241,7 @@ public final class DynamicSourceUtils {
 		validateWatermarks(sourceIdentifier, schema);
 
 		if (isStreamingMode) {
-			validateScanSourceForStreaming(sourceIdentifier, scanSource, changelogMode);
+			validateScanSourceForStreaming(sourceIdentifier, schema, scanSource, changelogMode);
 		} else {
 			validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
 		}
@@ -249,6 +249,7 @@ public final class DynamicSourceUtils {
 
 	private static void validateScanSourceForStreaming(
 			ObjectIdentifier sourceIdentifier,
+			TableSchema schema,
 			ScanTableSource scanSource,
 			ChangelogMode changelogMode) {
 		// sanity check for produced ChangelogMode
@@ -256,15 +257,15 @@ public final class DynamicSourceUtils {
 		final boolean hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER);
 		if (!hasUpdateBefore && hasUpdateAfter) {
 			// only UPDATE_AFTER
-			throw new TableException(
-				String.format(
-					"Unsupported source for table '%s'. Currently, a %s doesn't support a changelog which contains " +
-						"UPDATE_AFTER but no UPDATE_BEFORE. Please adapt the implementation of class '%s'.",
-					sourceIdentifier.asSummaryString(),
-					ScanTableSource.class.getSimpleName(),
-					scanSource.getClass().getName()
-				)
-			);
+			if (!schema.getPrimaryKey().isPresent()) {
+				throw new TableException(
+					String.format(
+						"Table '%s' produces a changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. " +
+							"This requires to define primary key constraint on the table.",
+						sourceIdentifier.asSummaryString()
+					)
+				);
+			}
 		} else if (hasUpdateBefore && !hasUpdateAfter) {
 			// only UPDATE_BEFORE
 			throw new ValidationException(
