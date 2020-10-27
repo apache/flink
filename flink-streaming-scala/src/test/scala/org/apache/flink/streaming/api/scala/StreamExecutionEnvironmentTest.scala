@@ -37,11 +37,10 @@ import scala.collection.JavaConversions._
 class StreamExecutionEnvironmentTest {
 
   /**
-   * Verifies that calls to timeWindow() instantiate a regular
-   * windowOperator instead of an aligned one.
+   * Verifies that calls to fromSource() don't throw and create a stream of the expected type.
    */
   @Test
-  def testAlignedWindowDeprecation(): Unit = {
+  def testFromSource(): Unit = {
     implicit val typeInfo: TypeInformation[Integer] = new MockTypeInfo()
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
