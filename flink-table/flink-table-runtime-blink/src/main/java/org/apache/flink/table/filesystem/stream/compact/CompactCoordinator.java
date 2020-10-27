@@ -36,8 +36,8 @@ import org.apache.flink.table.filesystem.stream.TaskTracker;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CompactionUnit;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorInput;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorOutput;
+import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCheckpoint;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCompaction;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndInputFile;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.table.runtime.util.BinPacking;
 import org.apache.flink.util.function.SupplierWithException;
@@ -60,6 +60,11 @@ import java.util.function.Function;
  * - Receives in-flight input files inside checkpoint.
  * - Receives all upstream end input messages after the checkpoint completes successfully,
  *   starts coordination.
+ *
+ * <p>{@link CompactionUnit} and {@link EndCompaction} must be sent to the downstream in an orderly
+ * manner, while {@link EndCompaction} is broadcast emitting, so unit and endCompaction use the
+ * broadcast emitting mechanism together. Since unit is broadcast, we want it to be processed by
+ * a single task, so we carry the ID in the unit and let the downstream task select its own unit.
  *
  * <p>NOTE: The coordination is a stable algorithm, which can ensure that the downstream can
  *          perform compaction at any time without worrying about fail over.
@@ -119,18 +124,20 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
 		if (value instanceof InputFile) {
 			InputFile file = (InputFile) value;
 			currentInputFiles.computeIfAbsent(file.getPartition(), k -> new ArrayList<>()).add(file.getFile());
-		} else if (value instanceof EndInputFile) {
-			EndInputFile endInputFile = (EndInputFile) value;
+		} else if (value instanceof EndCheckpoint) {
+			EndCheckpoint endCheckpoint = (EndCheckpoint) value;
 			if (inputTaskTracker == null) {
-				inputTaskTracker = new TaskTracker(endInputFile.getNumberOfTasks());
+				inputTaskTracker = new TaskTracker(endCheckpoint.getNumberOfTasks());
 			}
 
 			// ensure all files are ready to be compacted.
 			boolean triggerCommit = inputTaskTracker.add(
-					endInputFile.getCheckpointId(), endInputFile.getTaskId());
+					endCheckpoint.getCheckpointId(), endCheckpoint.getTaskId());
 			if (triggerCommit) {
-				commitUpToCheckpoint(endInputFile.getCheckpointId());
+				commitUpToCheckpoint(endCheckpoint.getCheckpointId());
 			}
+		} else {
+			throw new UnsupportedOperationException("Unsupported input message: " + value);
 		}
 	}
 

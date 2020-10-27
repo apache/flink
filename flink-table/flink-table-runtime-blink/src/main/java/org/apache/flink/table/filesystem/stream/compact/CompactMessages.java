@@ -49,6 +49,9 @@ public class CompactMessages {
 	 * A partitioned input file.
 	 */
 	public static class InputFile implements CoordinatorInput {
+
+		private static final long serialVersionUID = 1L;
+
 		private final String partition;
 		private final Path file;
 
@@ -67,14 +70,17 @@ public class CompactMessages {
 	}
 
 	/**
-	 * A flag to end file input.
+	 * A flag to end checkpoint, coordinator can start coordinating one checkpoint.
 	 */
-	public static class EndInputFile implements CoordinatorInput {
+	public static class EndCheckpoint implements CoordinatorInput {
+
+		private static final long serialVersionUID = 1L;
+
 		private final long checkpointId;
 		private final int taskId;
 		private final int numberOfTasks;
 
-		public EndInputFile(long checkpointId, int taskId, int numberOfTasks) {
+		public EndCheckpoint(long checkpointId, int taskId, int numberOfTasks) {
 			this.checkpointId = checkpointId;
 			this.taskId = taskId;
 			this.numberOfTasks = numberOfTasks;
@@ -102,6 +108,8 @@ public class CompactMessages {
 	 * The unit of a single compaction.
 	 */
 	public static class CompactionUnit implements CoordinatorOutput {
+
+		private static final long serialVersionUID = 1L;
 
 		private final int unitId;
 		private final String partition;
@@ -142,6 +150,9 @@ public class CompactMessages {
 	 * A flag to end compaction.
 	 */
 	public static class EndCompaction implements CoordinatorOutput {
+
+		private static final long serialVersionUID = 1L;
+
 		private final long checkpointId;
 
 		public EndCompaction(long checkpointId) {
