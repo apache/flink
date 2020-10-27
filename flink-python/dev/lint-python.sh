@@ -235,9 +235,21 @@ function install_py_env() {
             fi
         fi
         print_function "STEP" "installing python${py_env[i]}..."
-        $CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "conda install ${py_env[i]} failed.\
+        max_retry_times=3
+        retry_times=0
+        install_command="$CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]}"
+        ${install_command} 2>&1 >/dev/null
+        status=$?
+        while [[ ${status} -ne 0 ]] && [[ ${retry_times} -lt ${max_retry_times} ]]; do
+            retry_times=$((retry_times+1))
+            # sleep 3 seconds and then reinstall.
+            sleep 3
+            echo "conda install ${py_env[i]} retrying ${retry_times}"
+            ${install_command} 2>&1 >/dev/null
+            status=$?
+        done
+        if [[ ${status} -ne 0 ]]; then
+            echo "conda install ${py_env[i]} failed after retry ${max_retry_times}.\
             You can retry to exec the script."
             exit 1
         fi
