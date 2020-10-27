@@ -120,6 +120,11 @@ public class PythonStreamGroupAggregateOperator
 	private final int indexOfCountStar;
 
 	/**
+	 * True if the count(*) agg is inserted by the planner.
+	 */
+	private final boolean countStarInserted;
+
+	/**
 	 * Generate retract messages if true.
 	 */
 	private final boolean generateUpdateBefore;
@@ -209,6 +214,7 @@ public class PythonStreamGroupAggregateOperator
 			DataViewUtils.DataViewSpec[][] dataViewSpecs,
 			int[] grouping,
 			int indexOfCountStar,
+			boolean countStarInserted,
 			boolean generateUpdateBefore,
 			long minRetentionTime,
 			long maxRetentionTime) {
@@ -220,6 +226,7 @@ public class PythonStreamGroupAggregateOperator
 		this.jobOptions = buildJobOptions(config);
 		this.grouping = grouping;
 		this.indexOfCountStar = indexOfCountStar;
+		this.countStarInserted = countStarInserted;
 		this.generateUpdateBefore = generateUpdateBefore;
 		this.minRetentionTime = minRetentionTime;
 		this.maxRetentionTime = maxRetentionTime;
@@ -415,6 +422,7 @@ public class PythonStreamGroupAggregateOperator
 		builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));
 		builder.setGenerateUpdateBefore(generateUpdateBefore);
 		builder.setIndexOfCountStar(indexOfCountStar);
+		builder.setCountStarInserted(countStarInserted);
 		builder.setKeyType(toProtoType(getKeyType()));
 		builder.setStateCleaningEnabled(stateCleaningEnabled);
 		builder.setStateCacheSize(stateCacheSize);

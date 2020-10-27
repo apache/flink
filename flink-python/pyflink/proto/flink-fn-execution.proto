@@ -157,6 +157,8 @@ message UserDefinedAggregateFunctions {
   int32 map_state_read_cache_size = 9;
   // The map_state_write_cache_size.
   int32 map_state_write_cache_size = 10;
+  // True if the count(*) agg is inserted by the planner.
+  bool count_star_inserted = 11;
 }
 
 // A representation of the data schema.

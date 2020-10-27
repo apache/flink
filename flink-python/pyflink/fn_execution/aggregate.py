@@ -23,6 +23,7 @@ from apache_beam.coders import PickleCoder, Coder
 from pyflink.common import Row, RowKind
 from pyflink.common.state import ListState, MapState
 from pyflink.fn_execution.coders import from_proto
+from pyflink.fn_execution.operation_utils import is_built_in_function, load_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext
 from pyflink.table.data_view import ListView, MapView
@@ -37,26 +38,52 @@ def join_row(left: Row, right: Row):
     return Row(*fields)
 
 
+def extract_data_view_specs_from_accumulator(current_index, accumulator):
+    # for built in functions we extract the data view specs from their accumulator
+    i = -1
+    extracted_specs = []
+    for field in accumulator:
+        i += 1
+        # TODO: infer the coder from the input types and output type of the built-in functions
+        if isinstance(field, MapView):
+            extracted_specs.append(MapViewSpec(
+                "builtInAgg%df%d" % (current_index, i), i, PickleCoder(), PickleCoder()))
+        elif isinstance(field, ListView):
+            extracted_specs.append(ListViewSpec(
+                "builtInAgg%df%d" % (current_index, i), i, PickleCoder()))
+    return extracted_specs
+
+
 def extract_data_view_specs(udfs):
     extracted_udf_data_view_specs = []
+    current_index = -1
     for udf in udfs:
+        current_index += 1
         udf_data_view_specs_proto = udf.specs
-        if udf_data_view_specs_proto is None:
-            extracted_udf_data_view_specs.append([])
-        extracted_specs = []
-        for spec_proto in udf_data_view_specs_proto:
-            state_id = spec_proto.name
-            field_index = spec_proto.field_index
-            if spec_proto.HasField("list_view"):
-                element_coder = from_proto(spec_proto.list_view.element_type)
-                extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
-            elif spec_proto.HasField("map_view"):
-                key_coder = from_proto(spec_proto.map_view.key_type)
-                value_coder = from_proto(spec_proto.map_view.value_type)
-                extracted_specs.append(MapViewSpec(state_id, field_index, key_coder, value_coder))
+        if not udf_data_view_specs_proto:
+            if is_built_in_function(udf.payload):
+                built_in_function = load_aggregate_function(udf.payload)
+                accumulator = built_in_function.create_accumulator()
+                extracted_udf_data_view_specs.append(
+                    extract_data_view_specs_from_accumulator(current_index, accumulator))
             else:
-                raise Exception("Unsupported data view spec type: " + spec_proto.type)
-        extracted_udf_data_view_specs.append(extracted_specs)
+                extracted_udf_data_view_specs.append([])
+        else:
+            extracted_specs = []
+            for spec_proto in udf_data_view_specs_proto:
+                state_id = spec_proto.name
+                field_index = spec_proto.field_index
+                if spec_proto.HasField("list_view"):
+                    element_coder = from_proto(spec_proto.list_view.element_type)
+                    extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
+                elif spec_proto.HasField("map_view"):
+                    key_coder = from_proto(spec_proto.map_view.key_type)
+                    value_coder = from_proto(spec_proto.map_view.value_type)
+                    extracted_specs.append(
+                        MapViewSpec(state_id, field_index, key_coder, value_coder))
+                else:
+                    raise Exception("Unsupported data view spec type: " + spec_proto.type)
+            extracted_udf_data_view_specs.append(extracted_specs)
     if all([len(i) == 0 for i in extracted_udf_data_view_specs]):
         return []
     return extracted_udf_data_view_specs
@@ -300,6 +327,7 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
                  udfs: List[AggregateFunction],
                  input_extractors: List,
                  index_of_count_star: int,
+                 count_star_inserted: bool,
                  udf_data_view_specs: List[List[DataViewSpec]],
                  filter_args: List[int],
                  distinct_indexes: List[int],
@@ -308,7 +336,7 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
         self._input_extractors = input_extractors
         self._accumulators = None  # type: Row
         self._get_value_indexes = [i for i in range(len(udfs))]
-        if index_of_count_star >= 0:
+        if index_of_count_star >= 0 and count_star_inserted:
             # The record count is used internally, should be ignored by the get_value method.
             self._get_value_indexes.remove(index_of_count_star)
         self._udf_data_view_specs = udf_data_view_specs

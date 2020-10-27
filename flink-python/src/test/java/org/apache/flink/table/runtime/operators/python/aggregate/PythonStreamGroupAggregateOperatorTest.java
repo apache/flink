@@ -260,6 +260,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 			getGrouping(),
 			-1,
 			false,
+			false,
 			stateTtl,
 			stateTtl);
 	}
@@ -274,6 +275,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 			PythonAggregateFunctionInfo[] aggregateFunctions,
 			int[] grouping,
 			int indexOfCountStar,
+			boolean countStarInserted,
 			boolean generateUpdateBefore,
 			long minRetentionTime,
 			long maxRetentionTime) {
@@ -285,6 +287,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 				new DataViewUtils.DataViewSpec[0][0],
 				grouping,
 				indexOfCountStar,
+				countStarInserted,
 				generateUpdateBefore,
 				minRetentionTime,
 				maxRetentionTime);

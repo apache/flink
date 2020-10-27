@@ -21,7 +21,7 @@ import datetime
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
-from pyflink.common import Row
+from pyflink.common import Row, RowKind
 from pyflink.fn_execution.state_impl import RemovableConcatIterator
 from pyflink.table import DataTypes
 from pyflink.table.data_view import ListView, MapView
@@ -91,11 +91,13 @@ class ConcatAggregateFunction(AggregateFunction):
         return Row([], '')
 
     def accumulate(self, accumulator, *args):
-        accumulator[1] = args[1]
-        accumulator[0].append(args[0])
+        if args[0] is not None:
+            accumulator[1] = args[1]
+            accumulator[0].append(args[0])
 
     def retract(self, accumulator, *args):
-        accumulator[0].remove(args[0])
+        if args[0] is not None:
+            accumulator[0].remove(args[0])
 
     def get_accumulator_type(self):
         return DataTypes.ROW([
@@ -253,8 +255,38 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                                       (3, 'Hi', 'hi2'),
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c).select("my_count(a) as a, my_sum(a) as b, c") \
-            .select("my_count(a) as a, my_sum(b) as b")
-        assert_frame_equal(result.to_pandas(), pd.DataFrame([[3, 12]], columns=['a', 'b']))
+            .select("my_count(a) as a, my_sum(b) as b, sum0(b) as c, sum0(b.cast(double)) as d")
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
+
+    def test_mixed_with_built_in_functions_with_retract(self):
+        self.env.set_parallelism(1)
+        self.t_env.create_temporary_system_function(
+            "concat",
+            ConcatAggregateFunction())
+        t = self.t_env.from_elements(
+            [(1, 'Hi_', 1),
+             (1, 'Hi', 2),
+             (2, 'Hi_', 3),
+             (2, 'Hi', 4),
+             (3, None, None),
+             (3, None, None),
+             (4, 'hello2_', 7),
+             (4, 'hello2', 8),
+             (5, 'hello_', 9),
+             (5, 'hello', 10)], ['a', 'b', 'c'])
+        self.t_env.create_temporary_view("source", t)
+        table_with_retract_message = self.t_env.sql_query(
+            "select a, LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
+        self.t_env.create_temporary_view("retract_table", table_with_retract_message)
+        result_table = self.t_env.sql_query(
+            "select concat(b, ',') as a, "
+            "FIRST_VALUE(b) as b"
+            " from retract_table")
+        result = [i for i in result_table.execute().collect()]
+        expected = Row('Hi,Hi,hello,hello2', 'Hi')
+        expected.set_row_kind(RowKind.UPDATE_AFTER)
+        self.assertEqual(result[len(result) - 1], expected)
 
     def test_using_decorator(self):
         my_count = udaf(CountAggregateFunction(),

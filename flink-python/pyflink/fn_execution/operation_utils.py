@@ -21,6 +21,7 @@ from typing import Any, Tuple, Dict, List
 
 from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
+from pyflink.table import functions
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
     AggregateFunction, PandasAggregateFunctionWrapper
 
@@ -184,7 +185,7 @@ def extract_user_defined_aggregate_function(
         current_index,
         user_defined_function_proto,
         distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]]):
-    user_defined_agg = pickle.loads(user_defined_function_proto.payload)
+    user_defined_agg = load_aggregate_function(user_defined_function_proto.payload)
     assert isinstance(user_defined_agg, AggregateFunction)
     args_str = []
     local_variable_dict = {}
@@ -216,6 +217,23 @@ def extract_user_defined_aggregate_function(
     else:
         distinct_index = -1
     return user_defined_agg, \
-        eval("lambda value : (%s,)" % ",".join(args_str), local_variable_dict), \
+        eval("lambda value : (%s,)" % ",".join(args_str), local_variable_dict) \
+        if args_str else lambda v: tuple(), \
         user_defined_function_proto.filter_arg, \
         distinct_index
+
+
+def is_built_in_function(payload):
+    # The payload may be a pickled bytes or the class name of the built-in functions.
+    # If it represents a built-in function, it will start with 0x00.
+    # If it is a pickled bytes, it will start with 0x80.
+    return payload[0] == 0
+
+
+def load_aggregate_function(payload):
+    if is_built_in_function(payload):
+        built_in_function_class_name = payload[1:].decode("utf-8")
+        cls = getattr(functions, built_in_function_class_name)
+        return cls()
+    else:
+        return pickle.loads(payload)

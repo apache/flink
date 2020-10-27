@@ -468,8 +468,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
                                                          DataTypes.FIELD('b', DataTypes.INT()),
                                                          DataTypes.FIELD('c', DataTypes.STRING())]))
         table_result = source.execute()
-        expected_result = [Row([1, None, 'a']), Row([3, 4, 'b']), Row([5, None, 'a']),
-                           Row([7, 8, 'b'])]
+        expected_result = [Row(1, None, 'a'), Row(3, 4, 'b'), Row(5, None, 'a'),
+                           Row(7, 8, 'b')]
         with table_result.collect() as results:
             collected_result = []
             for result in results:
@@ -617,14 +617,14 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         return [pathlib.Path(jar_path).as_uri() for jar_path in test_jars]
 
     def test_collect_for_all_data_types(self):
-        expected_result = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+        expected_result = [Row(1, None, 1, True, 32767, -2147483648, 1.23,
                            1.98932, bytearray(b'pyflink'), 'pyflink',
                            datetime.date(2014, 9, 13), datetime.time(12, 0),
                            datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
                            [Row(['[pyflink]']), Row(['[pyflink]']),
                             Row(['[pyflink]'])], {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
                            decimal.Decimal('1000000000000000000.05'),
-                           decimal.Decimal('1000000000000000000.05999999999999999899999999999')])]
+                           decimal.Decimal('1000000000000000000.05999999999999999899999999999'))]
         source = self.t_env.from_elements([(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
                                             bytearray(b'pyflink'), 'pyflink',
                                             datetime.date(2014, 9, 13),
@@ -689,8 +689,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
             collected_result = [str(result) + ',' + str(result.get_row_kind())
                                 for result in collected_result]
-            expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
-                               Row([3, 'b']), Row([10, 'b'])]
+            expected_result = [Row(1, 'a'), Row(1, 'a'), Row(6, 'a'), Row(3, 'b'),
+                               Row(3, 'b'), Row(10, 'b')]
             for i in range(len(expected_result)):
                 expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
             expected_result.sort()
@@ -718,8 +718,8 @@ class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamT
 
             collected_result = [str(result) + ',' + str(result.get_row_kind())
                                 for result in collected_result]
-            expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
-                               Row([3, 'b']), Row([10, 'b'])]
+            expected_result = [Row(1, 'a'), Row(1, 'a'), Row(6, 'a'), Row(3, 'b'),
+                               Row(3, 'b'), Row(10, 'b')]
             for i in range(len(expected_result)):
                 expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
             expected_result.sort()
@@ -727,14 +727,14 @@ class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamT
             self.assertEqual(expected_result, collected_result)
 
     def test_collect_for_all_data_types(self):
-        expected_result = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+        expected_result = [Row(1, None, 1, True, 32767, -2147483648, 1.23,
                            1.98932, bytearray(b'pyflink'), 'pyflink',
                            datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                            datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
                            [Row(['[pyflink]']), Row(['[pyflink]']), Row(['[pyflink]'])],
                            {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
                            decimal.Decimal('1000000000000000000.050000000000000000'),
-                           decimal.Decimal('1000000000000000000.059999999999999999')])]
+                           decimal.Decimal('1000000000000000000.059999999999999999'))]
         source = self.t_env.from_elements(
             [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932, bytearray(b'pyflink'), 'pyflink',
              datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
