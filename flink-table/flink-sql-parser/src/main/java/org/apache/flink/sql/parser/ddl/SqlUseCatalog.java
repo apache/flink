@@ -53,8 +53,8 @@ public class SqlUseCatalog extends SqlCall {
 		return Collections.singletonList(catalogName);
 	}
 
-	public String getCatalogName() {
-		return catalogName.getSimple();
+	public SqlIdentifier getCatalogName() {
+		return catalogName;
 	}
 
 	@Override
@@ -64,5 +64,9 @@ public class SqlUseCatalog extends SqlCall {
 			int rightPrec) {
 		writer.keyword("USE CATALOG");
 		catalogName.unparse(writer, leftPrec, rightPrec);
+	}
+
+	public String catalogName() {
+		return catalogName.getSimple();
 	}
 }
