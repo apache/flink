@@ -291,8 +291,9 @@ final class SpanningWrapper {
 
 		// try to find a unique file name for the spilling channel
 		int maxAttempts = 10;
+		int initialDirIndex = rnd.nextInt(tempDirs.length);
 		for (int attempt = 0; attempt < maxAttempts; attempt++) {
-			int dirIndex = rnd.nextInt(tempDirs.length);
+			int dirIndex = (initialDirIndex + attempt) % tempDirs.length;
 			String directory = tempDirs[dirIndex];
 			File file = new File(directory, randomString(rnd) + ".inputchannel");
 			try {
