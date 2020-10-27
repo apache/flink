@@ -315,5 +315,30 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertNull(mq.getRelModifiedMonotonicity(logicalAntiJoinOnUniqueKeys))
   }
 
+  @Test
+  def testGetRelMonotonicityOnDeduplicate(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array(NOT_MONOTONIC, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamDeduplicateFirstRow))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(NOT_MONOTONIC, CONSTANT, CONSTANT)),
+      mq.getRelModifiedMonotonicity(streamDeduplicateLastRow))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(
+        NOT_MONOTONIC, CONSTANT, NOT_MONOTONIC, NOT_MONOTONIC, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(rowtimeDeduplicate))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnChangelogNormalize(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array(
+        CONSTANT, CONSTANT, NOT_MONOTONIC, NOT_MONOTONIC,
+        NOT_MONOTONIC, NOT_MONOTONIC, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamChangelogNormalize))
+  }
+
 }
 

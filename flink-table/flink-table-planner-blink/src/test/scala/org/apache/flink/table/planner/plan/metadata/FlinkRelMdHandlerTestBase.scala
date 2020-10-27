@@ -691,6 +691,18 @@ class FlinkRelMdHandlerTestBase {
     (calcOfFirstRow, calcOfLastRow)
   }
 
+  protected lazy val streamChangelogNormalize = {
+    val key = Array(1, 0)
+    val hash1 = FlinkRelDistribution.hash(key, requireStrict = true)
+    val streamExchange = new StreamExecExchange(
+      cluster, studentStreamScan.getTraitSet.replace(hash1), studentStreamScan, hash1)
+    new StreamExecChangelogNormalize(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      key)
+  }
+
   // equivalent SQL is
   // select a, b, c from (
   //  select a, b, c, rowtime
@@ -703,7 +715,7 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       flinkLogicalTraits,
       temporalLogicalScan,
-      ImmutableBitSet.of(5),
+      ImmutableBitSet.of(1),
       RelCollations.of(4),
       RankType.ROW_NUMBER,
       new ConstantRankRange(1, 1),

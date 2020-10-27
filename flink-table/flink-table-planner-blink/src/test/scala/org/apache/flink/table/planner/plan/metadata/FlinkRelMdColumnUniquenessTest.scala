@@ -276,6 +276,15 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testAreColumnsUniqueCountOnStreamExecChangelogNormalize(): Unit = {
+    assertTrue(mq.areColumnsUnique(streamChangelogNormalize, ImmutableBitSet.of(0, 1)))
+    assertTrue(mq.areColumnsUnique(streamChangelogNormalize, ImmutableBitSet.of(1, 0)))
+    assertFalse(mq.areColumnsUnique(streamChangelogNormalize, ImmutableBitSet.of(1)))
+    assertFalse(mq.areColumnsUnique(streamChangelogNormalize, ImmutableBitSet.of(2)))
+    assertFalse(mq.areColumnsUnique(streamChangelogNormalize, ImmutableBitSet.of(1, 2)))
+  }
+
+  @Test
   def testAreColumnsUniqueOnAggregate(): Unit = {
     Array(logicalAgg, flinkLogicalAgg).foreach { agg =>
       assertTrue(mq.areColumnsUnique(agg, ImmutableBitSet.of(0)))

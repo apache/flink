@@ -307,7 +307,7 @@ Join(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], leftInputSpec=[NoUn
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[single])
    +- Calc(select=[IS NOT NULL(m) AS $f0])
-      +- GroupAggregate(select=[MIN(i) AS m])
+      +- GroupAggregate(select=[MIN_RETRACT(i) AS m])
          +- Exchange(distribution=[single])
             +- Calc(select=[true AS i])
                +- Join(joinType=[LeftSemiJoin], where=[$f0], select=[d], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
