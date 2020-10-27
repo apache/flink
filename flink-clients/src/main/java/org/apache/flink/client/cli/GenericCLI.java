@@ -94,12 +94,6 @@ public class GenericCLI implements CustomCommandLine {
 	public Configuration toConfiguration(final CommandLine commandLine) {
 		final Configuration resultConfiguration = new Configuration();
 
-		if (configuration.getOptional(DeploymentOptions.TARGET).isPresent()) {
-			resultConfiguration.set(
-					DeploymentOptions.TARGET,
-					configuration.get(DeploymentOptions.TARGET));
-		}
-
 		final String executorName = commandLine.getOptionValue(executorOption.getOpt());
 		if (executorName != null) {
 			resultConfiguration.setString(DeploymentOptions.TARGET, executorName);
