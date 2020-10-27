@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -81,13 +80,14 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 	public DataStreamSource(
 			StreamExecutionEnvironment environment,
 			Source<T, ?, ?> source,
-			WatermarkStrategy<T> timestampsAndWatermarks,
+			WatermarkStrategy<T> watermarkStrategy,
 			TypeInformation<T> outTypeInfo,
 			String sourceName) {
 		super(environment,
 				new SourceTransformation<>(
 						sourceName,
-						new SourceOperatorFactory<>(source, timestampsAndWatermarks),
+						source,
+						watermarkStrategy,
 						outTypeInfo,
 						environment.getParallelism()));
 		this.isParallel = true;

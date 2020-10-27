@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.TestLogger;
@@ -158,11 +157,11 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 	@Test
 	public void testDetectionThroughTransitivePredecessors() {
-		final SourceTransformation<Integer> bounded =
+		final SourceTransformation<Integer, ?, ?> bounded =
 				getSourceTransformation("Bounded Source", Boundedness.BOUNDED);
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
-		final SourceTransformation<Integer> unbounded = getSourceTransformation(
+		final SourceTransformation<Integer, ?, ?> unbounded = getSourceTransformation(
 				"Unbounded Source", Boundedness.CONTINUOUS_UNBOUNDED);
 		assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, unbounded.getBoundedness());
 
@@ -186,7 +185,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 	@Test
 	public void testBoundedDetection() {
-		final SourceTransformation<Integer> bounded =
+		final SourceTransformation<Integer, ?, ?> bounded =
 				getSourceTransformation("Bounded Source", Boundedness.BOUNDED);
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
@@ -202,7 +201,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 	@Test
 	public void testUnboundedDetection() {
-		final SourceTransformation<Integer> unbounded =
+		final SourceTransformation<Integer, ?, ?> unbounded =
 				getSourceTransformation("Unbounded Source", Boundedness.CONTINUOUS_UNBOUNDED);
 		assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, unbounded.getBoundedness());
 
@@ -218,11 +217,11 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 	@Test
 	public void testMixedDetection() {
-		final SourceTransformation<Integer> unbounded =
+		final SourceTransformation<Integer, ?, ?> unbounded =
 				getSourceTransformation("Unbounded Source", Boundedness.CONTINUOUS_UNBOUNDED);
 		assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, unbounded.getBoundedness());
 
-		final SourceTransformation<Integer> bounded =
+		final SourceTransformation<Integer, ?, ?> bounded =
 				getSourceTransformation("Bounded Source", Boundedness.BOUNDED);
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
@@ -238,7 +237,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 	@Test
 	public void testExplicitOverridesDetectedMode() {
-		final SourceTransformation<Integer> bounded =
+		final SourceTransformation<Integer, ?, ?> bounded =
 				getSourceTransformation("Bounded Source", Boundedness.BOUNDED);
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
@@ -277,12 +276,13 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		return streamGraphGenerator.generate();
 	}
 
-	private SourceTransformation<Integer> getSourceTransformation(
+	private SourceTransformation<Integer, ?, ?> getSourceTransformation(
 			final String name,
 			final Boundedness boundedness) {
 		return new SourceTransformation<>(
 				name,
-				new SourceOperatorFactory<>(new MockSource(boundedness, 100), WatermarkStrategy.noWatermarks()),
+				new MockSource(boundedness, 100),
+				WatermarkStrategy.noWatermarks(),
 				IntegerTypeInfo.of(Integer.class),
 				1);
 	}
