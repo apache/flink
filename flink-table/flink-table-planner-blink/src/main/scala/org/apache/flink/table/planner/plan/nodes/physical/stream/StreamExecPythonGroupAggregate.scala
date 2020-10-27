@@ -121,6 +121,8 @@ class StreamExecPythonGroupAggregate(
 
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
+    val countStarInserted = aggInfoList.countStarInserted
+
     var (pythonFunctionInfos, dataViewSpecs) =
       extractPythonAggregateFunctionInfos(aggInfoList, aggCalls)
 
@@ -138,7 +140,8 @@ class StreamExecPythonGroupAggregate(
       tableConfig.getMaxIdleStateRetentionTime,
       grouping,
       generateUpdateBefore,
-      inputCountIndex)
+      inputCountIndex,
+      countStarInserted)
 
     val selector = KeySelectorUtil.getRowDataSelector(
       grouping,
@@ -177,7 +180,8 @@ class StreamExecPythonGroupAggregate(
       maxIdleStateRetentionTime: Long,
       grouping: Array[Int],
       generateUpdateBefore: Boolean,
-      indexOfCountStar: Int): OneInputStreamOperator[RowData, RowData] = {
+      indexOfCountStar: Int,
+      countStarInserted: Boolean): OneInputStreamOperator[RowData, RowData] = {
 
     val clazz = loadClass(StreamExecPythonGroupAggregate.PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
@@ -189,6 +193,7 @@ class StreamExecPythonGroupAggregate(
       classOf[Array[Int]],
       classOf[Int],
       classOf[Boolean],
+      classOf[Boolean],
       classOf[Long],
       classOf[Long])
     ctor.newInstance(
@@ -199,6 +204,7 @@ class StreamExecPythonGroupAggregate(
       dataViewSpecs.asInstanceOf[AnyRef],
       grouping.asInstanceOf[AnyRef],
       indexOfCountStar.asInstanceOf[AnyRef],
+      countStarInserted.asInstanceOf[AnyRef],
       generateUpdateBefore.asInstanceOf[AnyRef],
       minIdleStateRetentionTime.asInstanceOf[AnyRef],
       maxIdleStateRetentionTime.asInstanceOf[AnyRef])

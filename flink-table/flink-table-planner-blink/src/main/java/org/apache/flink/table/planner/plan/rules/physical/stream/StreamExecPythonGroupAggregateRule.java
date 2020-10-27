@@ -67,13 +67,14 @@ public class StreamExecPythonGroupAggregateRule
 			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
 		boolean existPandasFunction =
 			aggCalls.stream().anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
-		boolean existJavaFunction =
-			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+		boolean existUserDefinedJavaFunction =
+			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null) &&
+				!PythonUtil.isBuiltInAggregate(x));
 		if (existPandasFunction || existGeneralPythonFunction) {
 			if (existPandasFunction) {
 				throw new TableException("Pandas UDAFs are not supported in streaming mode currently.");
 			}
-			if (existJavaFunction) {
+			if (existUserDefinedJavaFunction) {
 				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");
 			}
 			return true;
