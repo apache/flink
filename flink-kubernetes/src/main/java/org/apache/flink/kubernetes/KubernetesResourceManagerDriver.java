@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -75,7 +76,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	/** Current max pod index. When creating a new pod, it should increase one. */
 	private long currentMaxPodId = 0;
 
-	private KubernetesWatch podsWatch;
+	private Optional<KubernetesWatch> podsWatchOpt;
 
 	/**
 	 * Incompletion of this future indicates that there was a pod creation failure recently and the driver should not
@@ -102,9 +103,10 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	@Override
 	protected void initializeInternal() throws Exception {
-		podsWatch = kubeClient.watchPodsAndDoCallback(
+		podsWatchOpt = Optional.of(
+			kubeClient.watchPodsAndDoCallback(
 				KubernetesUtils.getTaskManagerLabels(clusterId),
-				new PodCallbackHandlerImpl());
+				new PodCallbackHandlerImpl()));
 		recoverWorkerNodesFromPreviousAttempts();
 	}
 
@@ -114,7 +116,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		Exception exception = null;
 
 		try {
-			podsWatch.close();
+			podsWatchOpt.ifPresent(KubernetesWatch::close);
 		} catch (Exception e) {
 			exception = e;
 		}
