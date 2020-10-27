@@ -22,14 +22,14 @@ limitations under the License.
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -40,14 +40,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
 +- Exchange(distribution=[hash[b, c]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -59,14 +59,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
 +- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, c])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -78,14 +78,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, 1:BIGINT AS EXPR$2])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

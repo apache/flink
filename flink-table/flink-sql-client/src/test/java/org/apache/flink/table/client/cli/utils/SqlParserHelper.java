@@ -54,9 +54,9 @@ public class SqlParserHelper {
 	 */
 	public void registerTables() {
 		registerTable("create table MyTable (a int, b bigint, c varchar(32)) " +
-				"with ('connector' = 'filesystem', 'path' = '/non')");
+				"with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
 		registerTable("create table MyOtherTable (a int, b bigint) " +
-				"with ('connector' = 'filesystem', 'path' = '/non')");
+				"with ('connector' = 'filesystem', 'path' = '/non', 'format' = 'csv')");
 		registerTable("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
 		registerTable("create view MyView as select * from MyTable");
 	}
