@@ -33,8 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOperatorFactory<CommT>
-		implements OneInputStreamOperatorFactory<CommT, CommT> {
+public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOperatorFactory<byte[]>
+		implements OneInputStreamOperatorFactory<byte[], byte[]> {
 
 	private final Sink<?, CommT, ?, ?> sink;
 
@@ -44,13 +44,17 @@ public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOp
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<CommT>> T createStreamOperator(
-			StreamOperatorParameters<CommT> parameters) {
+	public <T extends StreamOperator<byte[]>> T createStreamOperator(
+			StreamOperatorParameters<byte[]> parameters) {
 		final BatchCommitterOperator<CommT> committerOperator =
 				new BatchCommitterOperator<>(
-						sink.createCommitter().orElseThrow(
-								() -> new IllegalStateException(
-										"Could not create committer from the sink")));
+						sink.createCommitter()
+								.orElseThrow(() -> new IllegalStateException(
+										"Could not create committer from the sink")),
+						sink.getCommittableSerializer()
+								.orElseThrow(() -> new IllegalStateException(
+										"Could not get committable serializer from the sink")),
+						sink.getGlobalCommittableSerializer().isPresent());
 		committerOperator.setup(
 				parameters.getContainingTask(),
 				parameters.getStreamConfig(),

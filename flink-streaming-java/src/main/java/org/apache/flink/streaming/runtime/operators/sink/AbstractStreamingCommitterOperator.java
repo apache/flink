@@ -48,8 +48,8 @@ import java.util.TreeMap;
  * @param <InputT> The input type of the {@link Committer}.
  * @param <CommT> The committable type of the {@link Committer}.
  */
-abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
-		implements OneInputStreamOperator<InputT, CommT> {
+abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends AbstractStreamOperator<byte[]>
+		implements OneInputStreamOperator<byte[], byte[]> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -62,8 +62,17 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	/** Group the committable by the checkpoint id. */
 	private final NavigableMap<Long, List<CommT>> committablesPerCheckpoint;
 
-	/** The committable's serializer. */
+	/** The serializer for the input. */
+	private final SimpleVersionedSerializer<InputT> inputSerializer;
+
+	/** The serializer for the committable. */
+	private final SimpleVersionedSerializer<CommT> committableSerializer;
+
+	/** The serializer for the operator state. */
 	private final StreamingCommitterStateSerializer<CommT> streamingCommitterStateSerializer;
+
+	/** Whether sending committables to the downstream operator or not. */
+	private final boolean sendCommittables;
 
 	/** The operator's state. */
 	private ListState<StreamingCommitterState<CommT>> streamingCommitterState;
@@ -96,9 +105,15 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	 */
 	abstract List<CommT> commit(List<CommT> committables) throws Exception;
 
-	AbstractStreamingCommitterOperator(SimpleVersionedSerializer<CommT> committableSerializer) {
+	AbstractStreamingCommitterOperator(
+			SimpleVersionedSerializer<InputT> inputSerializer,
+			SimpleVersionedSerializer<CommT> committableSerializer,
+			boolean sendCommittables) {
+		this.inputSerializer = inputSerializer;
+		this.committableSerializer = committableSerializer;
 		this.streamingCommitterStateSerializer = new StreamingCommitterStateSerializer<>(
 				committableSerializer);
+		this.sendCommittables = sendCommittables;
 		this.committablesPerCheckpoint = new TreeMap<>();
 		this.currentInputs = new ArrayList<>();
 	}
@@ -115,8 +130,8 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	}
 
 	@Override
-	public void processElement(StreamRecord<InputT> element) throws Exception {
-		currentInputs.add(element.getValue());
+	public void processElement(StreamRecord<byte[]> element) throws Exception {
+		currentInputs.add(inputSerializer.deserialize(inputSerializer.getVersion(), element.getValue()));
 	}
 
 	@Override
@@ -155,9 +170,10 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 			throw new UnsupportedOperationException("Currently does not support the re-commit!");
 		}
 
-		// TODO fix :: send only for the committer, not for the global COMMITTER
-		for (CommT committable : readyCommittables) {
-			output.collect(new StreamRecord<>(committable));
+		if (sendCommittables) {
+			for (CommT committable : readyCommittables) {
+				output.collect(new StreamRecord<>(committableSerializer.serialize(committable)));
+			}
 		}
 	}
 }

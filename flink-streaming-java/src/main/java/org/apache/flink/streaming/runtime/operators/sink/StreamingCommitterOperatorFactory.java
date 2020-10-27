@@ -47,7 +47,8 @@ public class StreamingCommitterOperatorFactory<CommT> extends AbstractStreamingC
 								"Could not create committer from the sink")),
 				sink.getCommittableSerializer()
 						.orElseThrow(() -> new IllegalStateException(
-								"Could not get committable serializer from the sink")));
+								"Could not get committable serializer from the sink")),
+				sink.getGlobalCommittableSerializer().isPresent());
 	}
 
 	@Override

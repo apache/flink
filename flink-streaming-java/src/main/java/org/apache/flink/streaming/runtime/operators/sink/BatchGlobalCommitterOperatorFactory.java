@@ -34,8 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <CommT> The committable type of the {@link GlobalCommitter}
  * @param <GlobalCommT> The committable type of the {@link GlobalCommitter}
  */
-public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT> extends AbstractStreamOperatorFactory<GlobalCommT>
-		implements OneInputStreamOperatorFactory<CommT, GlobalCommT> {
+public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT> extends AbstractStreamOperatorFactory<byte[]>
+		implements OneInputStreamOperatorFactory<byte[], byte[]> {
 
 	private final Sink<?, CommT, ?, GlobalCommT> sink;
 
@@ -45,12 +45,15 @@ public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT> exten
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<GlobalCommT>> T createStreamOperator(StreamOperatorParameters<GlobalCommT> parameters) {
+	public <T extends StreamOperator<byte[]>> T createStreamOperator(StreamOperatorParameters<byte[]> parameters) {
 		final BatchGlobalCommitterOperator<CommT, GlobalCommT> batchGlobalCommitterOperator =
 				new BatchGlobalCommitterOperator<>(
 						sink.createGlobalCommitter().orElseThrow(
 								() -> new IllegalStateException(
-										"Could not create global committer from the sink")));
+										"Could not create global committer from the sink")),
+						sink.getCommittableSerializer()
+								.orElseThrow(() -> new IllegalStateException(
+										"Could not get committable serializer from the sink")));
 
 		batchGlobalCommitterOperator.setup(
 				parameters.getContainingTask(),

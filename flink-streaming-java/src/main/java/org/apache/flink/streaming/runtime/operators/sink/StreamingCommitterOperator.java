@@ -42,8 +42,9 @@ final class StreamingCommitterOperator<CommT> extends AbstractStreamingCommitter
 
 	StreamingCommitterOperator(
 			Committer<CommT> committer,
-			SimpleVersionedSerializer<CommT> committableSerializer) {
-		super(committableSerializer);
+			SimpleVersionedSerializer<CommT> committableSerializer,
+			boolean sendCommittables) {
+		super(committableSerializer, committableSerializer, sendCommittables);
 		this.committer = checkNotNull(committer);
 		this.recoveredCommittables = new ArrayList<>();
 	}

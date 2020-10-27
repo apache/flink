@@ -30,12 +30,12 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
  * @param <InputT> The input type of the {@link Writer}.
  * @param <CommT> The committable type of the {@link Writer}.
  */
-abstract class AbstractWriterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
-	implements OneInputStreamOperatorFactory<InputT, CommT> {
+abstract class AbstractWriterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<byte[]>
+	implements OneInputStreamOperatorFactory<InputT, byte[]> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
+	public <T extends StreamOperator<byte[]>> T createStreamOperator(StreamOperatorParameters<byte[]> parameters) {
 		final AbstractWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
 		writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) writerOperator;

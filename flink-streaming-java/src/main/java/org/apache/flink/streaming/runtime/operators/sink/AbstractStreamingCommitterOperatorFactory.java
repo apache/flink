@@ -30,12 +30,12 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
  * @param <InputT> The input type of the {@link Committer}.
  * @param <CommT> The committable type of the {@link Committer}.
  */
-abstract class AbstractStreamingCommitterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
-		implements OneInputStreamOperatorFactory<InputT, CommT> {
+abstract class AbstractStreamingCommitterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<byte[]>
+		implements OneInputStreamOperatorFactory<byte[], byte[]> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
+	public <T extends StreamOperator<byte[]>> T createStreamOperator(StreamOperatorParameters<byte[]> parameters) {
 		final AbstractStreamingCommitterOperator<InputT, CommT> streamingCommitterOperator = createStreamingCommitterOperator();
 		streamingCommitterOperator.setup(
 				parameters.getContainingTask(),

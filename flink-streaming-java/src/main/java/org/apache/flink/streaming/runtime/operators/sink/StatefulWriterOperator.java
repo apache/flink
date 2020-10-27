@@ -30,6 +30,8 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.util.CollectionUtil;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -61,6 +63,7 @@ final class StatefulWriterOperator<InputT, CommT, WriterStateT> extends Abstract
 	StatefulWriterOperator(
 		final Sink<InputT, CommT, WriterStateT, ?> sink,
 		final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
+		super(sink.getCommittableSerializer().orElse(null));
 		this.sink = sink;
 		this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
 	}

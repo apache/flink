@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -29,6 +30,9 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -41,13 +45,17 @@ import java.util.List;
  * @param <CommT> The committable type of the {@link Writer}.
  */
 @Internal
-abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
-	implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
+abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOperator<byte[]>
+	implements OneInputStreamOperator<InputT, byte[]>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
 
 	/** The runtime information of the input element. */
 	private final Context<InputT> context;
+
+	/** The serializer for the committable. */
+	@Nullable
+	private final SimpleVersionedSerializer<CommT> committableSerializer;
 
 	// ------------------------------- runtime fields ---------------------------------------
 
@@ -57,7 +65,8 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 	/** The sink writer that does most of the work. */
 	protected Writer<InputT, CommT, ?> writer;
 
-	AbstractWriterOperator() {
+	AbstractWriterOperator(@Nullable SimpleVersionedSerializer<CommT> committableSerializer) {
+		this.committableSerializer = committableSerializer;
 		this.context = new Context<>();
 	}
 
@@ -120,9 +129,11 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 	 */
 	abstract Writer<InputT, CommT, ?> createWriter() throws Exception;
 
-	private void sendCommittables(final List<CommT> committables) {
-		for (CommT committable : committables) {
-			output.collect(new StreamRecord<>(committable));
+	private void sendCommittables(final List<CommT> committables) throws IOException {
+		if (committableSerializer != null) {
+			for (CommT committable : committables) {
+				output.collect(new StreamRecord<>(committableSerializer.serialize(committable)));
+			}
 		}
 	}
 

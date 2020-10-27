@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,8 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <CommT> The committable type of the {@link GlobalCommitter}
  * @param <GlobalCommT> The committable type of the {@link GlobalCommitter}
  */
-final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator<GlobalCommT>
-		implements OneInputStreamOperator<CommT, GlobalCommT>, BoundedOneInput {
+final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator<byte[]>
+		implements OneInputStreamOperator<byte[], byte[]>, BoundedOneInput {
 
 	/** Aggregate committables to global committables and commit the global committables to the external system. */
 	private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
@@ -46,14 +48,22 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStr
 	/** Record all the committables until the end of the input. */
 	private final List<CommT> allCommittables;
 
-	BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
+	/** The serializer for the committable. */
+	private final SimpleVersionedSerializer<CommT> committableSerializer;
+
+	BatchGlobalCommitterOperator(
+			GlobalCommitter<CommT, GlobalCommT> globalCommitter,
+			SimpleVersionedSerializer<CommT> committableSerializer) {
 		this.globalCommitter = checkNotNull(globalCommitter);
+		this.committableSerializer = committableSerializer;
 		this.allCommittables = new ArrayList<>();
 	}
 
 	@Override
-	public void processElement(StreamRecord<CommT> element) {
-		allCommittables.add(element.getValue());
+	public void processElement(StreamRecord<byte[]> element) throws IOException {
+		allCommittables.add(committableSerializer.deserialize(
+				committableSerializer.getVersion(),
+				element.getValue()));
 	}
 
 	@Override

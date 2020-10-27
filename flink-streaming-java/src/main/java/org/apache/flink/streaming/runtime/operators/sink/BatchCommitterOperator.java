@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,8 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
-		implements OneInputStreamOperator<CommT, CommT>, BoundedOneInput {
+final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<byte[]>
+		implements OneInputStreamOperator<byte[], byte[]>, BoundedOneInput {
 
 	/** Responsible for committing the committable to the external system. */
 	private final Committer<CommT> committer;
@@ -44,14 +46,26 @@ final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
 	/** Record all the committables until the end of the input. */
 	private final List<CommT> allCommittables;
 
-	public BatchCommitterOperator(Committer<CommT> committer) {
+	/** The serializer for the committable. */
+	private final SimpleVersionedSerializer<CommT> committableSerializer;
+
+	/** Whether sending committables to the downstream operator or not. */
+	private final boolean sendCommittables;
+
+	public BatchCommitterOperator(
+			Committer<CommT> committer,
+			SimpleVersionedSerializer<CommT> committableSerializer, boolean sendCommittables) {
 		this.committer = checkNotNull(committer);
+		this.committableSerializer = committableSerializer;
+		this.sendCommittables = sendCommittables;
 		this.allCommittables = new ArrayList<>();
 	}
 
 	@Override
-	public void processElement(StreamRecord<CommT> element) {
-		allCommittables.add(element.getValue());
+	public void processElement(StreamRecord<byte[]> element) throws IOException {
+		allCommittables.add(committableSerializer.deserialize(
+				committableSerializer.getVersion(),
+				element.getValue()));
 	}
 
 	@Override
@@ -61,8 +75,10 @@ final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
 			if (!neededRetryCommittables.isEmpty()) {
 				throw new UnsupportedOperationException("Currently does not support the re-commit!");
 			}
-			for (CommT committable : allCommittables) {
-				output.collect(new StreamRecord<>(committable));
+			if (sendCommittables) {
+				for (CommT committable : allCommittables) {
+					output.collect(new StreamRecord<>(committableSerializer.serialize(committable)));
+				}
 			}
 		}
 	}

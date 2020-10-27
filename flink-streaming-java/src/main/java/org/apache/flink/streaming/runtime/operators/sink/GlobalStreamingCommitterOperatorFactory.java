@@ -46,7 +46,9 @@ public class GlobalStreamingCommitterOperatorFactory<CommT, GlobalCommT> extends
 								"Could not create global committer from the sink")),
 				sink.getGlobalCommittableSerializer()
 						.orElseThrow(() -> new IllegalStateException(
-								"Could not create global committable serializer from the sink")));
+								"Could not get global committable serializer from the sink")),
+				sink.getCommittableSerializer().orElseThrow(() -> new IllegalStateException(
+						"Could not get committable serializer from the sink")));
 	}
 
 	@Override

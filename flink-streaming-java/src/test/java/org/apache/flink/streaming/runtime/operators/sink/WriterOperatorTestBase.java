@@ -28,11 +28,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.Matchers.contains;
+import static org.apache.flink.streaming.util.SinkTestUtil.containStreamElements;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -46,11 +48,12 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	public void nonBufferingWriterEmitsWithoutFlush() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new NonBufferingWriter())
 						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 		testHarness.open();
 
@@ -62,22 +65,22 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		testHarness.snapshot(1L, 1L);
 
 		assertThat(
-				testHarness.getOutput(),
-				contains(
+				testHarness.getOutput(), containStreamElements(
 						new Watermark(initialTime),
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
+						createStreamRecord(Tuple3.of(1, initialTime + 1, initialTime)),
+						createStreamRecord(Tuple3.of(2, initialTime + 2, initialTime))));
 	}
 
 	@Test
 	public void nonBufferingWriterEmitsOnFlush() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new NonBufferingWriter())
 						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 		testHarness.open();
 
@@ -89,21 +92,22 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 
 		assertThat(
 				testHarness.getOutput(),
-				contains(
+				containStreamElements(
 						new Watermark(initialTime),
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
+						createStreamRecord(Tuple3.of(1, initialTime + 1, initialTime)),
+						createStreamRecord(Tuple3.of(2, initialTime + 2, initialTime))));
 	}
 
 	@Test
 	public void bufferingWriterDoesNotEmitWithoutFlush() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new BufferingWriter())
 						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 		testHarness.open();
 
@@ -116,7 +120,7 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 
 		assertThat(
 				testHarness.getOutput(),
-				contains(
+				containStreamElements(
 						new Watermark(initialTime)));
 	}
 
@@ -124,11 +128,12 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	public void bufferingWriterEmitsOnFlush() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new BufferingWriter())
 						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 		testHarness.open();
 
@@ -140,10 +145,35 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 
 		assertThat(
 				testHarness.getOutput(),
-				contains(
+				containStreamElements(
 						new Watermark(initialTime),
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
+						createStreamRecord(Tuple3.of(1, initialTime + 1, initialTime)),
+						createStreamRecord(Tuple3.of(2, initialTime + 2, initialTime))));
+	}
+
+	@Test
+	public void doNotSendCommittablesWhenThereIsNoCommitter() throws Exception {
+		final long initialTime = 0;
+
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
+				createTestHarness(TestSink
+						.newBuilder()
+						.addWriter(new NonBufferingWriter())
+						.setWriterStateSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.build());
+		testHarness.open();
+
+		testHarness.processWatermark(initialTime);
+		testHarness.processElement(1, initialTime + 1);
+		testHarness.processElement(2, initialTime + 2);
+
+		testHarness.prepareSnapshotPreBarrier(1L);
+		testHarness.snapshot(1L, 1L);
+
+		assertThat(testHarness.getOutput().size(), equalTo(1));
+		assertThat(
+				testHarness.getOutput(), containStreamElements(
+						new Watermark(initialTime)));
 	}
 
 	/**
@@ -186,7 +216,11 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		}
 	}
 
-	protected OneInputStreamOperatorTestHarness<Integer, String> createTestHarness(
+	static StreamRecord<byte[]> createStreamRecord(Tuple3<Integer, Long, Long> tuple3) throws IOException {
+		return new StreamRecord<>(TestSink.StringCommittableSerializer.INSTANCE.serialize(tuple3.toString()));
+	}
+
+	protected OneInputStreamOperatorTestHarness<Integer, byte[]> createTestHarness(
 			TestSink sink) throws Exception {
 
 		return new OneInputStreamOperatorTestHarness<>(

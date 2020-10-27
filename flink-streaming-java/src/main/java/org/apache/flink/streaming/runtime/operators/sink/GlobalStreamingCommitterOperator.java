@@ -49,8 +49,9 @@ public final class GlobalStreamingCommitterOperator<CommT, GlobalCommT> extends 
 
 	GlobalStreamingCommitterOperator(
 			GlobalCommitter<CommT, GlobalCommT> globalCommitter,
-			SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
-		super(committableSerializer);
+			SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer,
+			SimpleVersionedSerializer<CommT> committableSerializer) {
+		super(committableSerializer, globalCommittableSerializer, false);
 		this.globalCommitter = checkNotNull(globalCommitter);
 
 		this.recoveredGlobalCommittables = new ArrayList<>();

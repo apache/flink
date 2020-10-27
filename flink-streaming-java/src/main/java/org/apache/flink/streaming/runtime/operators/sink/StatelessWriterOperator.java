@@ -38,6 +38,7 @@ final class StatelessWriterOperator<InputT, CommT> extends AbstractWriterOperato
 	private final Sink<InputT, CommT, ?, ?> sink;
 
 	StatelessWriterOperator(final Sink<InputT, CommT, ?, ?> sink) {
+		super(sink.getCommittableSerializer().orElse(null));
 		this.sink = sink;
 	}
 

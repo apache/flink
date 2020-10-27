@@ -23,14 +23,13 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.SinkTestUtil;
 
 import org.junit.Test;
 
 import java.util.List;
 
-import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -48,11 +47,12 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 	public void stateIsRestored() throws Exception {
 		final long initialTime = 0;
 
-		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new SnapshottingBufferingWriter())
 						.setWriterStateSerializer(SimpleVersionedStringSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 
 		testHarness.open();
@@ -67,16 +67,17 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		// we only see the watermark, so the committables must be stored in state
 		assertThat(
 				testHarness.getOutput(),
-				contains(
+				SinkTestUtil.containStreamElements(
 						new Watermark(initialTime)));
 
 		testHarness.close();
 
-		final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
+		final OneInputStreamOperatorTestHarness<Integer, byte[]> restoredTestHarness =
 				createTestHarness(TestSink
 						.newBuilder()
 						.addWriter(new SnapshottingBufferingWriter())
 						.setWriterStateSerializer(SimpleVersionedStringSerializer.INSTANCE)
+						.addCommitter()
 						.build());
 
 		restoredTestHarness.initializeState(snapshot);
@@ -87,9 +88,9 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 
 		assertThat(
 				restoredTestHarness.getOutput(),
-				contains(
-						new StreamRecord<>(Tuple3.of(1, initialTime + 1, initialTime).toString()),
-						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
+				SinkTestUtil.containStreamElements(
+						createStreamRecord(Tuple3.of(1, initialTime + 1, initialTime)),
+						createStreamRecord(Tuple3.of(2, initialTime + 2, initialTime))));
 	}
 
 	/**
