@@ -29,13 +29,13 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Avro Schema Registry (``avro-confluent``) format allows you to read records that were serialized by the ``io.confluent.kafka.serializers.KafkaAvroSerializer`` and to write records that can in turn be read by the ``io.confluent.kafka.serializers.KafkaAvroDeserializer``. 
+The Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluent.kafka.serializers.KafkaAvroSerializer``序列化的记录并可以写入成 ``io.confluent.kafka.serializers.KafkaAvroDeserializer``反序列化的记录. 
 
-When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured Confluent Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema. 
+当以这种格式读取（反序列化）记录时，将根据记录中编码的 schema 版本 id 从配置的 Confluent Schema Registry 中获取 Avro writer schema ，而从 table schema 中推断出 reader schema。
 
-When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed with in the configured Confluent Schema Registry under the [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) given in `avro-confluent.schema-registry.subject`.
+当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并用于检索要与数据一起编码的 schema id。检索是在 Confluent Schema Registry 配置中的 `avro-confluent.schema-registry.subject` 中指定的[subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics)下执行的。
 
-The Avro Schema Registry format can only be used in conjunction with [Apache Kafka SQL connector]({% link dev/table/connectors/kafka.zh.md %}). 
+Avro Schema Registry格式只能与[Apache Kafka SQL连接器]({% link dev/table/connectors/kafka.zh.md %})结合使用。
 
 依赖
 ------------
