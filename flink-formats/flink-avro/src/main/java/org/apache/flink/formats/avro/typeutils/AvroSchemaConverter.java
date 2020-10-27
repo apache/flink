@@ -300,29 +300,44 @@ public class AvroSchemaConverter {
 		return convertToSchema(logicalType, "record");
 	}
 
+	/**
+	 * Converts Flink SQL {@link LogicalType} (can be nested) into an Avro schema.
+	 *
+	 * @param logicalType logical type
+	 * @param rowName     the record name
+	 * @return Avro's {@link Schema} matching this logical type.
+	 */
 	public static Schema convertToSchema(LogicalType logicalType, String rowName) {
 		int precision;
+		boolean nullable = logicalType.isNullable();
 		switch (logicalType.getTypeRoot()) {
 			case NULL:
 				return SchemaBuilder.builder().nullType();
 			case BOOLEAN:
-				return getNullableBuilder(logicalType).booleanType();
+				Schema bool = SchemaBuilder.builder().booleanType();
+				return nullable ? nullableSchema(bool) : bool;
 			case TINYINT:
 			case SMALLINT:
 			case INTEGER:
-				return getNullableBuilder(logicalType).intType();
+				Schema integer = SchemaBuilder.builder().intType();
+				return nullable ? nullableSchema(integer) : integer;
 			case BIGINT:
-				return getNullableBuilder(logicalType).longType();
+				Schema bigint = SchemaBuilder.builder().longType();
+				return nullable ? nullableSchema(bigint) : bigint;
 			case FLOAT:
-				return getNullableBuilder(logicalType).floatType();
+				Schema f = SchemaBuilder.builder().floatType();
+				return nullable ? nullableSchema(f) : f;
 			case DOUBLE:
-				return getNullableBuilder(logicalType).doubleType();
+				Schema d = SchemaBuilder.builder().doubleType();
+				return nullable ? nullableSchema(d) : d;
 			case CHAR:
 			case VARCHAR:
-				return getNullableBuilder(logicalType).stringType();
+				Schema str = SchemaBuilder.builder().stringType();
+				return nullable ? nullableSchema(str) : str;
 			case BINARY:
 			case VARBINARY:
-				return getNullableBuilder(logicalType).bytesType();
+				Schema binary = SchemaBuilder.builder().bytesType();
+				return nullable ? nullableSchema(binary) : binary;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				// use long to represents Timestamp
 				final TimestampType timestampType = (TimestampType) logicalType;
@@ -357,18 +372,18 @@ public class AvroSchemaConverter {
 				RowType rowType = (RowType) logicalType;
 				List<String> fieldNames = rowType.getFieldNames();
 				// we have to make sure the record name is different in a Schema
-				SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder
-					.builder()
-					.record(rowName)
-					.fields();
+				SchemaBuilder.FieldAssembler<Schema> builder = SchemaBuilder.builder()
+						.record(rowName)
+						.fields();
 				for (int i = 0; i < rowType.getFieldCount(); i++) {
-					String fieldName = rowName + "_" + fieldNames.get(i);
+					String fieldName = fieldNames.get(i);
 					builder = builder
 						.name(fieldName)
-						.type(convertToSchema(rowType.getTypeAt(i), fieldName))
+						.type(convertToSchema(rowType.getTypeAt(i), rowName + "_" + fieldName))
 						.noDefault();
 				}
-				return builder.endRecord();
+				Schema record = builder.endRecord();
+				return nullable ? nullableSchema(record) : record;
 			case MULTISET:
 			case MAP:
 				return SchemaBuilder
@@ -410,11 +425,10 @@ public class AvroSchemaConverter {
 		return valueType;
 	}
 
-	private static SchemaBuilder.BaseTypeBuilder<Schema> getNullableBuilder(LogicalType logicalType) {
-		SchemaBuilder.TypeBuilder<Schema> builder = SchemaBuilder.builder();
-		if (logicalType.isNullable()) {
-			return builder.nullable();
-		}
-		return builder;
+	/** Returns schema with nullable true. */
+	private static Schema nullableSchema(Schema schema) {
+		return schema.isNullable()
+				? schema
+				: Schema.createUnion(schema, SchemaBuilder.builder().nullType());
 	}
 }
