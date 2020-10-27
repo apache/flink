@@ -167,6 +167,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param keyType The {@link TypeInformation} of the key.
 	 */
+	@SuppressWarnings("rawtypes")
 	private TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
 		Stack<TypeInformation<?>> stack = new Stack<>();
 		stack.push(keyType);
@@ -733,7 +734,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
+		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<>(
 				clean(reducer), getType().createSerializer(getExecutionConfig())));
 	}
 
@@ -949,7 +950,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> minBy(int positionToMinBy, boolean first) {
-		return aggregate(new ComparableAggregator<T>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
+		return aggregate(new ComparableAggregator<>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
 				getExecutionConfig()));
 	}
 
@@ -1010,7 +1011,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(
+		StreamGroupedReduce<T> operator = new StreamGroupedReduce<>(
 				clean(aggregate), getType().createSerializer(getExecutionConfig()));
 		return transform("Keyed Aggregation", getType(), operator);
 	}
@@ -1023,7 +1024,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
-		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
 				UUID.randomUUID().toString(),
 				getType());
 
