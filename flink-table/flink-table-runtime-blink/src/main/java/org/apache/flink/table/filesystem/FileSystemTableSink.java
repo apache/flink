@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -48,9 +47,12 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.EncoderFactory;
+import org.apache.flink.table.factories.EncodingFormatFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -94,11 +96,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	@Override
-	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-		return (DataStreamSinkProvider) dataStream -> consume(dataStream, context.isBounded());
+	public SinkRuntimeProvider getSinkRuntimeProvider(Context sinkContext) {
+		return (DataStreamSinkProvider) dataStream -> consume(dataStream, sinkContext);
 	}
 
-	private DataStreamSink<?> consume(DataStream<RowData> dataStream, boolean isBounded) {
+	private DataStreamSink<?> consume(DataStream<RowData> dataStream, Context sinkContext) {
 		RowDataPartitionComputer computer = new RowDataPartitionComputer(
 				defaultPartName,
 				schema.getFieldNames(),
@@ -111,12 +113,12 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 				.build();
 		FileSystemFactory fsFactory = FileSystem::get;
 
-		if (isBounded) {
+		if (sinkContext.isBounded()) {
 			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
 			builder.setPartitionComputer(computer);
 			builder.setDynamicGrouped(dynamicGrouping);
 			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
-			builder.setFormatFactory(createOutputFormatFactory());
+			builder.setFormatFactory(createOutputFormatFactory(sinkContext));
 			builder.setMetaStoreFactory(metaStoreFactory);
 			builder.setFileSystemFactory(fsFactory);
 			builder.setOverwrite(overwrite);
@@ -126,7 +128,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 			return dataStream.writeUsingOutputFormat(builder.build())
 					.setParallelism(dataStream.getParallelism());
 		} else {
-			Object writer = createWriter();
+			Object writer = createWriter(sinkContext);
 			TableBucketAssigner assigner = new TableBucketAssigner(computer);
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
@@ -199,15 +201,42 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	@SuppressWarnings("unchecked")
-	private OutputFormatFactory<RowData> createOutputFormatFactory() {
-		Object writer = createWriter();
+	private OutputFormatFactory<RowData> createOutputFormatFactory(Context sinkContext) {
+		Object writer = createWriter(sinkContext);
 		return writer instanceof Encoder ?
 				path -> createEncoderOutputFormat((Encoder<RowData>) writer, path) :
 				path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
 	}
 
-	private Object createWriter() {
-		FileSystemFormatFactory formatFactory = createFormatFactory(tableOptions);
+	private <I> I createEncoder(EncodingFormatFactory<I> factory, Context sinkContext) {
+		ReadableConfig formatOptions = formatOptions(factory.factoryIdentifier());
+		return factory
+				.createEncodingFormat(context, formatOptions)
+				.createRuntimeEncoder(sinkContext, getFormatDataType());
+	}
+
+	private DataType getFormatDataType() {
+		TableSchema.Builder builder = TableSchema.builder();
+		schema.getTableColumns().forEach(column -> {
+			if (!partitionKeys.contains(column.getName())) {
+				builder.add(column);
+			}
+		});
+		return builder.build().toRowDataType();
+	}
+
+	private Object createWriter(Context sinkContext) {
+		Optional<? extends EncodingFormatFactory<?>> bulkOptional = createBulkWriterFactory();
+		if (bulkOptional.isPresent()) {
+			return createEncoder(bulkOptional.get(), sinkContext);
+		}
+
+		Optional<EncoderFactory> encoderOptional = createEncoderFactory();
+		if (encoderOptional.isPresent()) {
+			return createEncoder(encoderOptional.get(), sinkContext);
+		}
+
+		FileSystemFormatFactory formatFactory = createFormatFactory();
 
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
@@ -218,7 +247,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 			@Override
 			public ReadableConfig getFormatOptions() {
-				return new DelegatingConfiguration(tableOptions, formatFactory.factoryIdentifier() + ".");
+				return formatOptions(formatFactory.factoryIdentifier());
 			}
 
 			@Override

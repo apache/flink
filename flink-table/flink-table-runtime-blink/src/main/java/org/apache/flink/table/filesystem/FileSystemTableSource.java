@@ -21,8 +21,9 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
-import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,14 +32,18 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
+import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.factories.BulkFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -88,7 +93,16 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 	}
 
 	@Override
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
+		Optional<BulkFormatFactory> bulkFormatOptional = createBulkFormatFactory();
+
+		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
+			// When this table has no partition, just return a empty source.
+			return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
+		} else if (bulkFormatOptional.isPresent()) {
+			return SourceProvider.of(createBulkFormatSource(bulkFormatOptional.get(), scanContext));
+		}
+
 		return new DataStreamScanProvider() {
 			@Override
 			public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
@@ -108,13 +122,40 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		};
 	}
 
-	private InputFormat<RowData, ?> getInputFormat() {
-		// When this table has no partition, just return a empty source.
-		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
-			return new CollectionInputFormat<>(new ArrayList<>(), null);
-		}
+	private FileSource<RowData> createBulkFormatSource(
+			BulkFormatFactory bulkFormatFactory, ScanContext scanContext) {
+		ReadableConfig formatOptions = formatOptions(bulkFormatFactory.factoryIdentifier());
+		BulkDecodingFormat<RowData> bulkDecodingFormat = bulkFormatFactory.createDecodingFormat(context, formatOptions);
+		bulkDecodingFormat.applyLimit(pushedDownLimit());
+		bulkDecodingFormat.applyFilters(pushedDownFilters());
+		BulkFormat<RowData> bulkFormat = bulkDecodingFormat.createRuntimeDecoder(scanContext, getProducedDataType());
+		FileSource.FileSourceBuilder<RowData> builder = FileSource
+				.forBulkFileFormat(bulkFormat, paths());
+		return builder.build();
+	}
 
-		FileSystemFormatFactory formatFactory = createFormatFactory(tableOptions);
+	private Path[] paths() {
+		if (partitionKeys.isEmpty()) {
+			return new Path[] {path};
+		} else {
+			return getOrFetchPartitions().stream()
+					.map(FileSystemTableSource.this::toFullLinkedPartSpec)
+					.map(PartitionPathUtils::generatePartitionPath)
+					.map(n -> new Path(path, n))
+					.toArray(Path[]::new);
+		}
+	}
+
+	private long pushedDownLimit() {
+		return limit == null ? Long.MAX_VALUE : limit;
+	}
+
+	private List<ResolvedExpression> pushedDownFilters() {
+		return filters == null ? Collections.emptyList() : filters;
+	}
+
+	private InputFormat<RowData, ?> getInputFormat() {
+		FileSystemFormatFactory formatFactory = createFormatFactory();
 		return formatFactory.createReader(new FileSystemFormatFactory.ReaderContext() {
 
 			@Override
@@ -124,7 +165,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 			@Override
 			public ReadableConfig getFormatOptions() {
-				return new DelegatingConfiguration(tableOptions, formatFactory.factoryIdentifier() + ".");
+				return formatOptions(formatFactory.factoryIdentifier());
 			}
 
 			@Override
@@ -139,15 +180,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 			@Override
 			public Path[] getPaths() {
-				if (partitionKeys.isEmpty()) {
-					return new Path[] {path};
-				} else {
-					return getOrFetchPartitions().stream()
-							.map(FileSystemTableSource.this::toFullLinkedPartSpec)
-							.map(PartitionPathUtils::generatePartitionPath)
-							.map(n -> new Path(path, n))
-							.toArray(Path[]::new);
-				}
+				return paths();
 			}
 
 			@Override
@@ -157,12 +190,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 			@Override
 			public long getPushedDownLimit() {
-				return limit == null ? Long.MAX_VALUE : limit;
+				return pushedDownLimit();
 			}
 
 			@Override
 			public List<ResolvedExpression> getPushedDownFilters() {
-				return filters == null ? Collections.emptyList() : filters;
+				return pushedDownFilters();
 			}
 		});
 	}

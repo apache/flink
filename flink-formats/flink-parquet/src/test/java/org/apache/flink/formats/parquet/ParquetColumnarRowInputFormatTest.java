@@ -219,8 +219,7 @@ public class ParquetColumnarRowInputFormatTest {
 				new IntType()};
 		ParquetColumnarRowInputFormat format = new ParquetColumnarRowInputFormat(
 				new Configuration(),
-				new String[] {"f7", "f2", "f4"},
-				fieldTypes,
+				RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
 				500,
 				false,
 				true);
@@ -337,10 +336,9 @@ public class ParquetColumnarRowInputFormatTest {
 
 		ParquetColumnarRowInputFormat format = new ParquetColumnarRowInputFormat(
 				new Configuration(),
-				new String[] {
+				RowType.of(fieldTypes, new String[] {
 						"f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
-						"f8", "f9", "f10", "f11", "f12", "f13", "f14"},
-				fieldTypes,
+						"f8", "f9", "f10", "f11", "f12", "f13", "f14"}),
 				500,
 				false,
 				true);
@@ -465,14 +463,20 @@ public class ParquetColumnarRowInputFormatTest {
 				new DecimalType(20, 0),
 				new VarCharType(VarCharType.MAX_LENGTH)};
 
+		RowType rowType = RowType.of(
+				fieldTypes,
+				IntStream.range(0, 28).mapToObj(i -> "f" + i).toArray(String[]::new));
+
+		int[] projected = new int[]{7, 2, 4, 15, 19, 20, 21, 22, 23, 18, 16, 17, 24, 25, 26, 27};
+
+		RowType producedType = new RowType(Arrays.stream(projected)
+				.mapToObj(i -> rowType.getFields().get(i)).collect(Collectors.toList()));
+
 		ParquetColumnarRowInputFormat format = ParquetColumnarRowInputFormat.createPartitionedFormat(
 				new Configuration(),
-				RowType.of(
-						fieldTypes,
-						IntStream.range(0, 28).mapToObj(i -> "f" + i).toArray(String[]::new)),
+				producedType,
 				partitionKeys,
 				"my_default_value",
-				new int[]{7, 2, 4, 15, 19, 20, 21, 22, 23, 18, 16, 17, 24, 25, 26, 27},
 				PartitionValueConverter.DEFAULT,
 				500,
 				false,

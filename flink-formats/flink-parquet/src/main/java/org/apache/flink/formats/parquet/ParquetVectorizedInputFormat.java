@@ -34,6 +34,7 @@ import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -82,21 +83,14 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 
 	public ParquetVectorizedInputFormat(
 			SerializableConfiguration hadoopConfig,
-			String[] projectedFields,
-			LogicalType[] projectedTypes,
+			RowType projectedType,
 			ColumnBatchFactory batchFactory,
 			int batchSize,
 			boolean isUtcTimestamp,
 			boolean isCaseSensitive) {
-		Preconditions.checkArgument(
-				projectedFields.length == projectedTypes.length,
-				"The length(%s) of projectedFields should equal to the length(%s) projectedTypes",
-				projectedFields.length,
-				projectedTypes.length);
-
 		this.hadoopConfig = hadoopConfig;
-		this.projectedFields = projectedFields;
-		this.projectedTypes = projectedTypes;
+		this.projectedFields = projectedType.getFieldNames().toArray(new String[0]);
+		this.projectedTypes = projectedType.getChildren().toArray(new LogicalType[0]);
 		this.batchFactory = batchFactory;
 		this.batchSize = batchSize;
 		this.isUtcTimestamp = isUtcTimestamp;
