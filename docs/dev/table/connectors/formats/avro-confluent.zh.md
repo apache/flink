@@ -37,7 +37,7 @@ When writing (serializing) a record with this format the Avro schema is inferred
 
 The Avro Schema Registry format can only be used in conjunction with [Apache Kafka SQL connector]({% link dev/table/connectors/kafka.zh.md %}). 
 
-Dependencies
+依赖
 ------------
 
 In order to use the Avro Schema Registry format the following dependencies are required for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
