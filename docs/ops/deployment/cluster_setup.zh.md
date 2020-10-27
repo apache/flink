@@ -125,7 +125,7 @@ Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用
 
 ### 启动 Flink
 
-下面的脚本在本地节点启动了一个 JobManager 并通过 SSH 连接到 *workers* 文件中所有的 worker 节点，在每个节点上启动 TaskManager。现在你的 Flink 系统已经启动并运行着。在本地节点上运行的 JobManager 会在配置的 RPC 端口上接收作业。
+下面的脚本在本地节点启动了一个 JobManager 并通过 SSH 连接到 *workers* 文件中所有的 worker 节点，在每个节点上启动 TaskManager。现在你的 Flink 系统已经启动并运行着。可以通过配置的 RPC 端口向本地节点上的 JobManager 提交作业。
 
 假定你在 master 节点并且在 Flink 目录下：
 
