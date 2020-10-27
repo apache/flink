@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -396,10 +395,11 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
 	@Test
 	public void testFeedbackThrowsExceptionInBatch() {
-		final SourceTransformation<Integer> bounded =
+		final SourceTransformation<Integer, ?, ?> bounded =
 				new SourceTransformation<>(
 						"Bounded Source",
-						new SourceOperatorFactory<>(new MockSource(Boundedness.BOUNDED, 100), WatermarkStrategy.noWatermarks()),
+						new MockSource(Boundedness.BOUNDED, 100),
+						WatermarkStrategy.noWatermarks(),
 						IntegerTypeInfo.of(Integer.class),
 						1);
 
