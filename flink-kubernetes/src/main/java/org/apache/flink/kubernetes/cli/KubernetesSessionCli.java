@@ -28,11 +28,11 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
@@ -88,6 +88,7 @@ public class KubernetesSessionCli {
 
 	private int run(String[] args) throws FlinkException, CliArgsException {
 		final Configuration configuration = getEffectiveConfiguration(args);
+		KubernetesClusterClientFactory.ensureClusterIdIsSet(configuration);
 
 		final ClusterClientFactory<String> kubernetesClusterClientFactory =
 			clusterClientServiceLoader.getClusterClientFactory(configuration);
@@ -96,40 +97,42 @@ public class KubernetesSessionCli {
 			kubernetesClusterClientFactory.createClusterDescriptor(configuration);
 
 		try {
-			final ClusterClient<String> clusterClient;
-			String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
+			final String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
 			final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
-			final FlinkKubeClient kubeClient = KubeClientFactory.fromConfiguration(configuration);
 
-			// Retrieve or create a session cluster.
-			if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {
-				clusterClient = kubernetesClusterDescriptor.retrieve(clusterId).getClusterClient();
-			} else {
-				clusterClient = kubernetesClusterDescriptor
-						.deploySessionCluster(
-								kubernetesClusterClientFactory.getClusterSpecification(configuration))
-						.getClusterClient();
-				clusterId = clusterClient.getClusterId();
-			}
-
-			try {
-				if (!detached) {
-					Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
-					try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-						while (continueRepl.f0) {
-							continueRepl = repStep(in);
-						}
-					} catch (Exception e) {
-						LOG.warn("Exception while running the interactive command line interface.", e);
-					}
-					if (continueRepl.f1) {
-						kubernetesClusterDescriptor.killCluster(clusterId);
-					}
-				}
-				clusterClient.close();
-				kubeClient.close();
+			boolean connectToExistingCluster = false;
+			try (final FlinkKubeClient kubeClient = KubeClientFactory.fromConfiguration(configuration)) {
+				connectToExistingCluster = kubeClient.getRestService(clusterId).isPresent();
 			} catch (Exception e) {
 				LOG.info("Could not properly shutdown cluster client.", e);
+			}
+
+			// Retrieve or create a session cluster.
+			if (connectToExistingCluster) {
+				kubernetesClusterDescriptor.retrieve(clusterId);
+			} else {
+				kubernetesClusterDescriptor
+						.deploySessionCluster(
+								kubernetesClusterClientFactory.getClusterSpecification(configuration));
+			}
+
+			if (!detached) {
+				Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
+				try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+					while (continueRepl.f0) {
+						continueRepl = repStep(in);
+					}
+				} catch (Exception e) {
+					LOG.warn("Exception while running the interactive command line interface.", e);
+				}
+
+				if (continueRepl.f1) {
+					try {
+						kubernetesClusterDescriptor.killCluster(clusterId);
+					} catch (FlinkException e) {
+						LOG.info("An error occurred while shutting down the cluster {}.", clusterId, e);
+					}
+				}
 			}
 		} finally {
 			try {
