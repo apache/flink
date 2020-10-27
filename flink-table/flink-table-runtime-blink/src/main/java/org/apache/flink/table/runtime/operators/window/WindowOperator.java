@@ -305,7 +305,9 @@ public abstract class WindowOperator<K, W extends Window>
 		collector = null;
 		triggerContext = null;
 		functionsClosed = true;
-		windowAggregator.close();
+		if (windowAggregator != null) {
+			windowAggregator.close();
+		}
 	}
 
 	@Override
@@ -315,7 +317,9 @@ public abstract class WindowOperator<K, W extends Window>
 		triggerContext = null;
 		if (!functionsClosed) {
 			functionsClosed = true;
-			windowAggregator.close();
+			if (windowAggregator != null) {
+				windowAggregator.close();
+			}
 		}
 	}
 
