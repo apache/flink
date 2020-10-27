@@ -29,22 +29,22 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluent.kafka.serializers.KafkaAvroSerializer``序列化的记录并可以写入成 ``io.confluent.kafka.serializers.KafkaAvroDeserializer``反序列化的记录. 
+Avro Schema Registry (``avro-confluent``) 格式能让你读取被 ``io.confluent.kafka.serializers.KafkaAvroSerializer``序列化的记录并可以写入成 ``io.confluent.kafka.serializers.KafkaAvroDeserializer``反序列化的记录。
 
 当以这种格式读取（反序列化）记录时，将根据记录中编码的 schema 版本 id 从配置的 Confluent Schema Registry 中获取 Avro writer schema ，而从 table schema 中推断出 reader schema。
 
 当以这种格式写入（序列化）记录时，Avro schema 是从 table schema 中推断出来的，并用于检索要与数据一起编码的 schema id。检索是在 Confluent Schema Registry 配置中的 `avro-confluent.schema-registry.subject` 中指定的[subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics)下执行的。
 
-Avro Schema Registry格式只能与[Apache Kafka SQL连接器]({% link dev/table/connectors/kafka.zh.md %})结合使用。
+Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/table/connectors/kafka.zh.md %})结合使用。
 
 依赖
 ------------
 
-为了建立Avro Schema Registry格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
+为了建立 Avro Schema Registry 格式，下列的表格提供了为项目使用自动化工具（例如 Maven 或者 SBT ）以及 SQL 客户端使用 SQL JAR 包的依赖信息。
 
 | Maven依赖                     | SQL 客户端 JAR         |
 | :----------------------------------- | :----------------------|
-| `flink-avro-confluent-registry`      | {% if site.is_stable %} [下载](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/{{site.version}}/flink-sql-avro-confluent-registry-{{site.version}}.jar) {% else %} Only available for stable releases. {% endif %} |
+| `flink-avro-confluent-registry`      | {% if site.is_stable %} [下载](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/{{site.version}}/flink-sql-avro-confluent-registry-{{site.version}}.jar) {% else %} 仅适用于稳定版本。 {% endif %} |
 
 如何创建使用 Avro-Confluent 格式的表
 ----------------
@@ -98,14 +98,14 @@ Format 参数
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>用于获取/注册schemas的Confluent Schema Registry的URL </td>
+      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的URL </td>
     </tr>
     <tr>
       <td><h5>avro-confluent.schema-registry.subject</h5></td>
       <td>sink 必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的schema </td>
+      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema </td>
     </tr>
     </tbody>
 </table>
@@ -113,9 +113,9 @@ Format 参数
 数据类型映射
 ----------------
 
-目前Apache Flink都是从table schema去推断反序列化期间的Avro reader schema和序列化期间的Avro writer schema。显式地定义 Avro schema 暂不支持。
+目前 Apache Flink 都是从 table schema 去推断反序列化期间的 Avro reader schema 和序列化期间的 Avro writer schema。显式地定义 Avro schema 暂不支持。
 [Apache Avro Format]({% link dev/table/connectors/formats/avro.zh.md%}#data-type-mapping)中描述了flink数据和Avro数据的对应关系。 
 
-除了此处列出的类型之外，Flink还支持读取/写入可为空的类型。 Flink将可为空的类型映射到Avro `union(something, null)`, 其中 `something` 是从Flink类型转换的Avro类型。
+除了此处列出的类型之外，Flink 还支持读取/写入可为空的类型。 Flink 将可为空的类型映射到 Avro `union(something, null)`, 其中 `something` 是从 Flink 类型转换的 Avro 类型。
 
-您可以参考 [Avro Specification](https://avro.apache.org/docs/current/spec.html) 以获取有关Avro类型的更多信息。
+您可以参考 [Avro Specification](https://avro.apache.org/docs/current/spec.html) 以获取有关 Avro 类型的更多信息。
