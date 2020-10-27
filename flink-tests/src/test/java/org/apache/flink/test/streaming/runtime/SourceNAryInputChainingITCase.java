@@ -155,11 +155,11 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
+		final DataStream<Long> source1 = env.fromSequence("source-1", 1L, 10L);
 
-		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
+		final DataStream<Long> source2 = env.fromSequence("source-2", 11L, 20L);
 
-		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
+		final DataStream<Long> source3 = env.fromSequence("source-3", 21L, 30L);
 
 		return nAryInputStreamOperation(source1, source2, source3);
 	}
@@ -181,11 +181,11 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
+		final DataStream<Long> source1 = env.fromSequence("source-1", 1L, 10L);
 
-		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
+		final DataStream<Long> source2 = env.fromSequence("source-2", 11L, 20L);
 
-		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
+		final DataStream<Long> source3 = env.fromSequence("source-3", 21L, 30L);
 
 		final DataStream<Long> stream1 = source1.map(v -> v);
 		final DataStream<Long> stream3 = source3.map(v -> v);
@@ -212,13 +212,13 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
+		final DataStream<Long> source1 = env.fromSequence("source-1", 1L, 10L);
 
-		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
+		final DataStream<Long> source2 = env.fromSequence("source-2", 11L, 20L);
 
-		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
+		final DataStream<Long> source3 = env.fromSequence("source-3", 21L, 30L);
 
-		final DataStream<Long> source4 = env.fromSequence(31L, 40L).name("source-4");
+		final DataStream<Long> source4 = env.fromSequence("source-4", 31L, 40L);
 
 		return nAryInputStreamOperation(
 			source1.map((v) -> v),
@@ -249,17 +249,17 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
+		final DataStream<Long> source1 = env.fromSequence("source-1", 1L, 10L);
 
-		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
+		final DataStream<Long> source2 = env.fromSequence("source-2", 11L, 20L);
 
-		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
+		final DataStream<Long> source3 = env.fromSequence("source-3", 21L, 30L);
 
-		final DataStream<Long> source4 = env.fromSequence(31L, 40L).name("source-4");
+		final DataStream<Long> source4 = env.fromSequence("source-4", 31L, 40L);
 
-		final DataStream<Long> source5 = env.fromSequence(41L, 50L).name("source-5");
+		final DataStream<Long> source5 = env.fromSequence("source-5", 41L, 50L);
 
-		final DataStream<Long> source6 = env.fromSequence(51L, 60L).name("source-6");
+		final DataStream<Long> source6 = env.fromSequence("source-6", 51L, 60L);
 
 		return nAryInputStreamOperation(
 			source1.map((v) -> v),

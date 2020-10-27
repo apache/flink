@@ -442,7 +442,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
    * If you manually set the parallelism to `1` the emitted elements are in order.
    *
-   * @deprecated Use [[fromSequence(long, long)]] instead to create a new data stream
+   * @deprecated Use [[fromSequence(String, long, long)]] instead to create a new data stream
    *             that contains [[NumberSequenceSource]].
    */
   @deprecated
@@ -455,8 +455,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a new DataStream that contains a sequence of numbers (long).
    * This source is a parallel [[Source]].
    */
-  def fromSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.fromSequence(from, to))
+  def fromSequence(sourceName: String, from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.fromSequence(sourceName, from, to))
       .asInstanceOf[DataStream[Long]]
   }
 

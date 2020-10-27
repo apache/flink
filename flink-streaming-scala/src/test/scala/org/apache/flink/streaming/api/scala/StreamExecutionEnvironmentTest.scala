@@ -62,7 +62,7 @@ class StreamExecutionEnvironmentTest {
     val typeInfo = implicitly[TypeInformation[Long]]
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val stream = env.fromSequence(1, 100)
+    val stream = env.fromSequence("Sequence Source", 1, 100)
 
     assertEquals(typeInfo, stream.dataType)
   }

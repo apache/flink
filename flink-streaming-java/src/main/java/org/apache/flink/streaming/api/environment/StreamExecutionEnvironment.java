@@ -833,7 +833,7 @@ public class StreamExecutionEnvironment {
 	 * @param to
 	 * 		The number to stop at (inclusive)
 	 * @return A data stream, containing all number in the [from, to] interval
-	 * @deprecated Use {@link #fromSequence(long, long)} instead to create a new data stream
+	 * @deprecated Use {@link #fromSequence(String, long, long)} instead to create a new data stream
 	 * that contains {@link org.apache.flink.api.connector.source.lib.NumberSequenceSource}.
 	 */
 	@Deprecated
@@ -856,17 +856,19 @@ public class StreamExecutionEnvironment {
 	 * of long integer values), user considers executing the application in a streaming manner because of the end bound that is
 	 * pretty far away.
 	 *
+	 * @param sourceName
+	 * 	Name of the data source
 	 * @param from
 	 *    The number to start at (inclusive)
 	 * @param to
 	 *    The number to stop at (inclusive)
 	 * @return A data stream, containing parallel sequences covering the range [from, to] (both boundaries are inclusive)
 	 */
-	public DataStreamSource<Long> fromSequence(long from, long to) {
+	public DataStreamSource<Long> fromSequence(String sourceName, long from, long to) {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return fromSource(new NumberSequenceSource(from, to), WatermarkStrategy.noWatermarks(), "Sequence Source");
+		return fromSource(new NumberSequenceSource(from, to), WatermarkStrategy.noWatermarks(), sourceName);
 	}
 
 	/**
