@@ -196,7 +196,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"  'url'='" + DB_URL + "'," +
 				"  'table-name'='" + OUTPUT_TABLE1 + "'," +
 				"  'sink.buffer-flush.max-rows' = '2'," +
-				"  'sink.buffer-flush.interval' = '0'" +
+				"  'sink.buffer-flush.interval' = '0'," +
+				"  'sink.max-retries' = '0'" +
 				")");
 
 		tEnv.executeSql("INSERT INTO upsertSink \n" +

@@ -37,7 +37,7 @@ public class JdbcExecutionOptions implements Serializable {
 	private final int maxRetries;
 
 	private JdbcExecutionOptions(long batchIntervalMs, int batchSize, int maxRetries) {
-		Preconditions.checkArgument(maxRetries >= 1);
+		Preconditions.checkArgument(maxRetries >= 0);
 		this.batchIntervalMs = batchIntervalMs;
 		this.batchSize = batchSize;
 		this.maxRetries = maxRetries;
