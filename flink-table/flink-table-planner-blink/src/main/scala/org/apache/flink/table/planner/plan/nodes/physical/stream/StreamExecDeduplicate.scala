@@ -117,6 +117,7 @@ class StreamExecDeduplicate(
           rowTypeInfo,
           generateUpdateBefore,
           generateInsert,
+          true,
           rowSerializer,
           minRetentionTime)
       } else {
@@ -134,7 +135,8 @@ class StreamExecDeduplicate(
           minRetentionTime,
           rowTypeInfo,
           generateUpdateBefore,
-          generateInsert)
+          generateInsert,
+          true)
       } else {
         new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
@@ -163,12 +165,14 @@ object StreamExecDeduplicate {
 
   @Experimental
   val TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE: ConfigOption[JBoolean] =
-  key("table.exec.insert-and-updateafter-sensitive")
-    .defaultValue(JBoolean.valueOf(true))
-    .withDescription("Set whether the job (especially the sinks) is sensitive to " +
-      "INSERT messages and UPDATE_AFTER messages. " +
-      "If false, Flink may send UPDATE_AFTER instead of INSERT for the first row " +
-      "at some times (e.g. deduplication for last row). " +
-      "If true, Flink will guarantee to send INSERT for the first row. " +
-      "Default is true.")
+    key("table.exec.insert-and-updateafter-sensitive")
+      .booleanType()
+      .defaultValue(JBoolean.valueOf(true))
+      .withDescription("Set whether the job (especially the sinks) is sensitive to " +
+        "INSERT messages and UPDATE_AFTER messages. " +
+        "If false, Flink may send UPDATE_AFTER instead of INSERT for the first row " +
+        "at some times (e.g. deduplication for last row). " +
+        "If true, Flink will guarantee to send INSERT for the first row, " +
+        "but there will be additional overhead." +
+        "Default is true.")
 }
