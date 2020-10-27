@@ -137,13 +137,17 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 
 		harness0.processElement(new EndCompaction(1), 0);
 
-		// check all compacted file generated
+		// check compacted file generated
 		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f0")));
 		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f2")));
 
+		// f3 and f6 are in the charge of another task
+		Assert.assertFalse(fs.exists(new Path(folder, "compacted-f3")));
+		Assert.assertFalse(fs.exists(new Path(folder, "compacted-f6")));
+
 		harness1.processElement(new EndCompaction(1), 0);
 
-		// check all compacted file generated
+		// check compacted file generated
 		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f3")));
 		Assert.assertTrue(fs.exists(new Path(folder, "compacted-f6")));
 
