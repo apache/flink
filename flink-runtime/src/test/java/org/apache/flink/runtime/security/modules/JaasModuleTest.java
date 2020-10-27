@@ -47,14 +47,22 @@ public class JaasModuleTest {
 		folder.create();
 	}
 
+	@Test
+	public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
+		File file = folder.newFolder();
+		testJaasModuleFilePath(file.toPath().toString());
+	}
+
+	@Test
+	public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
+		File file = folder.newFolder();
+		testJaasModuleFilePath(file.toPath().toString() + "/tmp");
+	}
+
 	/**
 	 * Test that the jaas config file is created in the working directory.
 	 */
-	@Test
-	public void testJaasModuleFilePath() throws IOException {
-		File file = folder.newFolder();
-		String workingDir = file.toPath().toString();
-
+	private void testJaasModuleFilePath(String workingDir) {
 		Configuration configuration = new Configuration();
 		// set the string for CoreOptions.TMP_DIRS to mock the working directory.
 		configuration.setString(CoreOptions.TMP_DIRS, workingDir);
