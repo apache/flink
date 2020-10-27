@@ -47,48 +47,52 @@ class HiveParallelismInference {
 		this.infer = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM);
 		this.inferMaxParallelism = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
 		Preconditions.checkArgument(
-				inferMaxParallelism >= 1,
-				HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key() + " cannot be less than 1");
+			inferMaxParallelism >= 1,
+			HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key() + " cannot be less than 1");
 
 		this.parallelism = flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
 	}
 
-	HiveParallelismInference limit(long limit) {
-		// apply limit
+	/**
+	 * Apply limit to calculate the parallelism.
+	 * Here limit is the limit in query <code>SELECT * FROM xxx LIMIT [limit]</code>.
+	 */
+	int limit(long limit) {
 		if (limit > 0) {
 			parallelism = Math.min(parallelism, (int) limit / 1000);
 		}
 
 		// make sure that parallelism is at least 1
-		parallelism = Math.max(1, parallelism);
-		return this;
+		return Math.max(1, parallelism);
 	}
 
+	/**
+	 * Infer parallelism by number of files and number of splits.
+	 * If {@link HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM} is not set this method does nothing.
+	 */
 	HiveParallelismInference infer(
 			SupplierWithException<Integer, IOException> numFiles,
 			SupplierWithException<Integer, IOException> numSplits) {
-		if (infer) {
-			try {
-				// `createInputSplits` is costly,
-				// so we try to avoid calling it by first checking the number of files
-				// which is the lower bound of the number of splits
-				int lowerBound = logRunningTime("getNumFiles", numFiles);
-				if (lowerBound >= inferMaxParallelism) {
-					parallelism = inferMaxParallelism;
-					return this;
-				}
+		if (!infer) {
+			return this;
+		}
 
-				int splitNum = logRunningTime("createInputSplits", numSplits);
-				parallelism = Math.min(splitNum, inferMaxParallelism);
-			} catch (IOException e) {
-				throw new FlinkHiveException(e);
+		try {
+			// `createInputSplits` is costly,
+			// so we try to avoid calling it by first checking the number of files
+			// which is the lower bound of the number of splits
+			int lowerBound = logRunningTime("getNumFiles", numFiles);
+			if (lowerBound >= inferMaxParallelism) {
+				parallelism = inferMaxParallelism;
+				return this;
 			}
+
+			int splitNum = logRunningTime("createInputSplits", numSplits);
+			parallelism = Math.min(splitNum, inferMaxParallelism);
+		} catch (IOException e) {
+			throw new FlinkHiveException(e);
 		}
 		return this;
-	}
-
-	int parallelism() {
-		return parallelism;
 	}
 
 	private int logRunningTime(

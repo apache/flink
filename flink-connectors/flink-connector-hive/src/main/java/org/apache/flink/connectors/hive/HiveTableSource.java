@@ -62,7 +62,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
-import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -75,7 +74,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -202,8 +200,7 @@ public class HiveTableSource implements
 
 		int parallelism = new HiveParallelismInference(tablePath, flinkConf)
 				.infer(inputFormat::getNumFiles, () -> inputFormat.createInputSplits(0).length)
-				.limit(limit)
-				.parallelism();
+				.limit(limit);
 
 		source.setParallelism(parallelism);
 		return source.name(explainSource());
