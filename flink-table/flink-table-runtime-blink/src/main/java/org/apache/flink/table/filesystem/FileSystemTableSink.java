@@ -21,7 +21,6 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -42,15 +41,16 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
+import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.sinks.OverwritableTableSink;
-import org.apache.flink.table.sinks.PartitionableTableSink;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -65,58 +65,40 @@ import java.util.UUID;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
 
 /**
- * File system {@link TableSink}.
+ * File system {@link DynamicTableSink}.
  */
-public class FileSystemTableSink implements
-		AppendStreamTableSink<RowData>,
-		PartitionableTableSink,
-		OverwritableTableSink {
-
-	private final ObjectIdentifier tableIdentifier;
-	private final boolean isBounded;
-	private final TableSchema schema;
-	private final List<String> partitionKeys;
-	private final Path path;
-	private final String defaultPartName;
-	private final Map<String, String> properties;
+public class FileSystemTableSink extends AbstractFileSystemTable implements
+		DynamicTableSink,
+		SupportsPartitioning,
+		SupportsOverwrite {
 
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
 	private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
 
-	/**
-	 * Construct a file system table sink.
-	 *
-	 * @param isBounded whether the input of sink is bounded.
-	 * @param schema schema of the table.
-	 * @param path directory path of the file system table.
-	 * @param partitionKeys partition keys of the table.
-	 * @param defaultPartName The default partition name in case the dynamic partition column value
-	 *                        is null/empty string.
-	 * @param properties properties.
-	 */
-	public FileSystemTableSink(
-			ObjectIdentifier tableIdentifier,
-			boolean isBounded,
-			TableSchema schema,
-			Path path,
-			List<String> partitionKeys,
-			String defaultPartName,
-			Map<String, String> properties) {
-		this.tableIdentifier = tableIdentifier;
-		this.isBounded = isBounded;
-		this.schema = schema;
-		this.path = path;
-		this.defaultPartName = defaultPartName;
-		this.partitionKeys = partitionKeys;
-		this.properties = properties;
+	FileSystemTableSink(DynamicTableFactory.Context context) {
+		super(context);
+	}
+
+	private FileSystemTableSink(
+			DynamicTableFactory.Context context,
+			boolean overwrite,
+			boolean dynamicGrouping,
+			LinkedHashMap<String, String> staticPartitions) {
+		this(context);
+		this.overwrite = overwrite;
+		this.dynamicGrouping = dynamicGrouping;
+		this.staticPartitions = staticPartitions;
 	}
 
 	@Override
-	public final DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
+	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+		return (DataStreamSinkProvider) dataStream -> consume(dataStream, context.isBounded());
+	}
+
+	private DataStreamSink<?> consume(DataStream<RowData> dataStream, boolean isBounded) {
 		RowDataPartitionComputer computer = new RowDataPartitionComputer(
 				defaultPartName,
 				schema.getFieldNames(),
@@ -144,14 +126,12 @@ public class FileSystemTableSink implements
 			return dataStream.writeUsingOutputFormat(builder.build())
 					.setParallelism(dataStream.getParallelism());
 		} else {
-			Configuration conf = new Configuration();
-			properties.forEach(conf::setString);
 			Object writer = createWriter();
 			TableBucketAssigner assigner = new TableBucketAssigner(computer);
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
-					conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-					conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+					tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
+					tableOptions.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
 			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
 			if (writer instanceof Encoder) {
@@ -170,7 +150,7 @@ public class FileSystemTableSink implements
 						.withRollingPolicy(rollingPolicy);
 			}
 			return createStreamingSink(
-					conf,
+					tableOptions,
 					path,
 					partitionKeys,
 					tableIdentifier,
@@ -179,7 +159,7 @@ public class FileSystemTableSink implements
 					bucketsBuilder,
 					metaStoreFactory,
 					fsFactory,
-					conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
+					tableOptions.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis());
 		}
 	}
 
@@ -201,7 +181,8 @@ public class FileSystemTableSink implements
 		DataStream<PartitionCommitInfo> writer = StreamingSink.writer(
 				inputStream, rollingCheckInterval, bucketsBuilder);
 
-		return StreamingSink.sink(writer, path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
+		return StreamingSink.sink(
+				writer, path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
 	}
 
 	private Path toStagingPath() {
@@ -226,9 +207,7 @@ public class FileSystemTableSink implements
 	}
 
 	private Object createWriter() {
-		FileSystemFormatFactory formatFactory = createFormatFactory(properties);
-		Configuration conf = new Configuration();
-		properties.forEach(conf::setString);
+		FileSystemFormatFactory formatFactory = createFormatFactory(tableOptions);
 
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
@@ -239,7 +218,7 @@ public class FileSystemTableSink implements
 
 			@Override
 			public ReadableConfig getFormatOptions() {
-				return new DelegatingConfiguration(conf, formatFactory.factoryIdentifier() + ".");
+				return new DelegatingConfiguration(tableOptions, formatFactory.factoryIdentifier() + ".");
 			}
 
 			@Override
@@ -325,21 +304,6 @@ public class FileSystemTableSink implements
 		};
 	}
 
-	@Override
-	public FileSystemTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return this;
-	}
-
-	@Override
-	public void setOverwrite(boolean overwrite) {
-		this.overwrite = overwrite;
-	}
-
-	@Override
-	public void setStaticPartition(Map<String, String> partitions) {
-		this.staticPartitions = toPartialLinkedPartSpec(partitions);
-	}
-
 	private LinkedHashMap<String, String> toPartialLinkedPartSpec(Map<String, String> part) {
 		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 		for (String partitionKey : partitionKeys) {
@@ -351,19 +315,34 @@ public class FileSystemTableSink implements
 	}
 
 	@Override
-	public TableSchema getTableSchema() {
-		return schema;
-	}
-
-	@Override
-	public DataType getConsumedDataType() {
-		return schema.toRowDataType().bridgedTo(RowData.class);
-	}
-
-	@Override
-	public boolean configurePartitionGrouping(boolean supportsGrouping) {
+	public boolean requiresPartitionGrouping(boolean supportsGrouping) {
 		this.dynamicGrouping = supportsGrouping;
 		return dynamicGrouping;
+	}
+
+	@Override
+	public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+		return ChangelogMode.insertOnly();
+	}
+
+	@Override
+	public DynamicTableSink copy() {
+		return new FileSystemTableSink(context, overwrite, dynamicGrouping, staticPartitions);
+	}
+
+	@Override
+	public String asSummaryString() {
+		return "Filesystem";
+	}
+
+	@Override
+	public void applyOverwrite(boolean overwrite) {
+		this.overwrite = overwrite;
+	}
+
+	@Override
+	public void applyStaticPartition(Map<String, String> partition) {
+		this.staticPartitions = toPartialLinkedPartSpec(partition);
 	}
 
 	/**
