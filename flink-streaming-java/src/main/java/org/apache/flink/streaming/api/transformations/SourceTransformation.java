@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link PhysicalTransformation} for {@link Source}.
  */
@@ -87,7 +89,7 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT> ext
 
 	@Override
 	public void setChainingStrategy(ChainingStrategy chainingStrategy) {
-		this.chainingStrategy = chainingStrategy;
+		this.chainingStrategy = checkNotNull(chainingStrategy);
 	}
 
 	public ChainingStrategy getChainingStrategy() {

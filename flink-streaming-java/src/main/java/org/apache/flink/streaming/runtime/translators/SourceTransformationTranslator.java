@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
-import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
@@ -47,7 +46,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
 			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
 
-		return translateInternal(transformation, context);
+		return translateInternal(transformation, context, false /* emit progressive watermarks */);
 	}
 
 	@Override
@@ -55,12 +54,13 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
 			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
 
-		return translateInternal(transformation, context);
+		return translateInternal(transformation, context, true /* don't emit progressive watermarks */);
 	}
 
 	private Collection<Integer> translateInternal(
 			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
-			final Context context) {
+			final Context context,
+			boolean emitProgressiveWatermarks) {
 		checkNotNull(transformation);
 		checkNotNull(context);
 
@@ -71,7 +71,8 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
 
 		SourceOperatorFactory<OUT> operatorFactory = new SourceOperatorFactory<>(
 				transformation.getSource(),
-				transformation.getWatermarkStrategy());
+				transformation.getWatermarkStrategy(),
+				emitProgressiveWatermarks);
 
 		operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
 

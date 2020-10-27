@@ -71,7 +71,7 @@ public class SourceOperatorTest {
 	public void setup() {
 		this.mockSourceReader = new MockSourceReader();
 		this.mockGateway = new MockOperatorEventGateway();
-		this.operator = new TestingSourceOperator<>(mockSourceReader, mockGateway, SUBTASK_INDEX);
+		this.operator = new TestingSourceOperator<>(mockSourceReader, mockGateway, SUBTASK_INDEX, true /* emit progressive watermarks */);
 	}
 
 	@Test
