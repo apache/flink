@@ -308,6 +308,20 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			LOOKUP_CACHE_MAX_ROWS,
 			LOOKUP_CACHE_TTL
 		});
+
+		if (config.get(LOOKUP_MAX_RETRIES) < 0) {
+			throw new IllegalArgumentException(String.format(
+				"The value of '%s' option shouldn't be negative, but is %s.",
+				LOOKUP_MAX_RETRIES.key(),
+				config.get(LOOKUP_MAX_RETRIES)));
+		}
+
+		if (config.get(SINK_MAX_RETRIES) < 0) {
+			throw new IllegalArgumentException(String.format(
+				"The value of '%s' option shouldn't be negative, but is %s.",
+				SINK_MAX_RETRIES.key(),
+				config.get(SINK_MAX_RETRIES)));
+		}
 	}
 
 	private void checkAllOrNone(ReadableConfig config, ConfigOption<?>[] configOptions) {
