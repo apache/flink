@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static junit.framework.Assert.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
