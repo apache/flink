@@ -78,6 +78,8 @@ public class DeclarativeSlotManager implements SlotManager {
 	private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
 	private final HashMap<SlotID, CompletableFuture<Acknowledge>> pendingSlotAllocationFutures;
 
+	private boolean sendNotEnoughResourceNotifications = true;
+
 	/** ResourceManager's id. */
 	private ResourceManagerId resourceManagerId;
 
@@ -155,6 +157,16 @@ public class DeclarativeSlotManager implements SlotManager {
 		// the future may be null if we are just re-playing the state transitions due to a slot report
 		if (acknowledgeCompletableFuture != null) {
 			acknowledgeCompletableFuture.cancel(false);
+		}
+	}
+
+	@Override
+	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
+		// this sets up a grace period, e.g., when the cluster was started, to give task executors time to connect
+		sendNotEnoughResourceNotifications = failUnfulfillableRequest;
+
+		if (failUnfulfillableRequest) {
+			checkResourceRequirements();
 		}
 	}
 
@@ -524,7 +536,7 @@ public class DeclarativeSlotManager implements SlotManager {
 			for (int i = 0; i < missingResource.getValue(); i++) {
 				if (!tryFulfillWithPendingSlots(profile, pendingSlots)) {
 					boolean couldAllocateWorkerAndReserveSlot = tryAllocateWorkerAndReserveSlot(profile, pendingSlots);
-					if (!couldAllocateWorkerAndReserveSlot) {
+					if (!couldAllocateWorkerAndReserveSlot && sendNotEnoughResourceNotifications) {
 						LOG.warn("Could not fulfill resource requirements of job {}.", jobId);
 						resourceActions.notifyNotEnoughResourcesAvailable(jobId, resourceTracker.getAcquiredResources(jobId));
 						return;
@@ -614,12 +626,6 @@ public class DeclarativeSlotManager implements SlotManager {
 	@Override
 	public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
 		return taskExecutorManager.getTotalFreeResourcesOf(instanceID);
-	}
-
-	@Override
-	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
-		// we always send notifications if we cannot fulfill requests, and it is the responsibility of the JobManager
-		// to handle it (e.g., by reducing requirements and failing outright)
 	}
 
 	@Override
