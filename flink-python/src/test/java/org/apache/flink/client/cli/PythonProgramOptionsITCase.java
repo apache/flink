@@ -23,9 +23,6 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -37,84 +34,20 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 
-import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link PythonProgramOptions}.
+ * ITCases for {@link PythonProgramOptions}.
  */
 public class PythonProgramOptionsITCase {
 
-	private Options options;
-
-	@Before
-	public void setUp() {
-		options = new Options();
-		options.addOption(PY_OPTION);
-		options.addOption(PYFILES_OPTION);
-		options.addOption(PYMODULE_OPTION);
-		options.addOption(PYREQUIREMENTS_OPTION);
-		options.addOption(PYARCHIVE_OPTION);
-		options.addOption(PYEXEC_OPTION);
-	}
-
-	@Test
-	public void testCreateProgramOptionsWithPythonCommandLine() throws CliArgsException {
-		String[] parameters = {
-			"-py", "test.py",
-			"-pym", "test",
-			"-pyfs", "test1.py,test2.zip,test3.egg,test4_dir",
-			"-pyreq", "a.txt#b_dir",
-			"-pyarch", "c.zip#venv,d.zip",
-			"-pyexec", "bin/python",
-			"userarg1", "userarg2"
-		};
-
-		CommandLine line = CliFrontendParser.parse(options, parameters, false);
-		PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
-		Configuration config = new Configuration();
-		programOptions.applyToConfiguration(config);
-		assertEquals("test1.py,test2.zip,test3.egg,test4_dir", config.get(PythonOptions.PYTHON_FILES));
-		assertEquals("a.txt#b_dir", config.get(PYTHON_REQUIREMENTS));
-		assertEquals("c.zip#venv,d.zip", config.get(PythonOptions.PYTHON_ARCHIVES));
-		assertEquals("bin/python", config.get(PYTHON_EXECUTABLE));
-		assertArrayEquals(
-			new String[] {"--python", "test.py", "--pyModule", "test", "userarg1", "userarg2"},
-			programOptions.getProgramArgs());
-	}
-
-	@Test
-	public void testCreateProgramOptionsWithLongOptions() throws CliArgsException {
-		String[] args = {
-			"--python", "xxx.py",
-			"--pyModule", "xxx",
-			"--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
-			"--pyRequirements", "d.txt#e_dir",
-			"--pyExecutable", "/usr/bin/python",
-			"--pyArchives", "g.zip,h.zip#data,h.zip#data2",
-			"userarg1", "userarg2"
-		};
-		CommandLine line = CliFrontendParser.parse(options, args, false);
-		PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
-		Configuration config = new Configuration();
-		programOptions.applyToConfiguration(config);
-		assertEquals("/absolute/a.py,relative/b.py,relative/c.py", config.get(PythonOptions.PYTHON_FILES));
-		assertEquals("d.txt#e_dir", config.get(PYTHON_REQUIREMENTS));
-		assertEquals("g.zip,h.zip#data,h.zip#data2", config.get(PythonOptions.PYTHON_ARCHIVES));
-		assertEquals("/usr/bin/python", config.get(PYTHON_EXECUTABLE));
-		assertArrayEquals(
-			new String[] {"--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2"},
-			programOptions.getProgramArgs());
-	}
-
+	/**
+	 * It requires setting a job jar to build a PackagedProgram, and the dummy job jar used in this
+	 * test case is available only after the packaging phase completed, so we make it as an ITCase.
+	 * */
 	@Test
 	public void testConfigurePythonExecution() throws IllegalAccessException, NoSuchFieldException, CliArgsException, ProgramInvocationException, IOException {
 		final String[] args = {
@@ -154,5 +87,4 @@ public class PythonProgramOptionsITCase {
 			new String[] {"--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2"},
 			packagedProgram.getArguments());
 	}
-
 }
