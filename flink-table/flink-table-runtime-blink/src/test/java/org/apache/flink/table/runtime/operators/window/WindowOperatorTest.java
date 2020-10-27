@@ -29,6 +29,7 @@ import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
+import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
@@ -1123,6 +1124,26 @@ public class WindowOperatorTest {
 
 		// we close once in the rest...
 		assertEquals("Close was not called.", 2, closeCalled.get());
+	}
+
+	@Test
+	public void testWindowCloseWithoutOpen() throws Exception {
+		final int windowSize = 3;
+		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.countWindow(windowSize)
+			.aggregate(
+				new GeneratedNamespaceTableAggsHandleFunction<>("MockClass", "MockCode", new Object[]{}),
+				accTypes,
+				aggResultTypes,
+				windowTypes)
+			.build();
+
+		// close() before open() called
+		operator.close();
 	}
 
 	// --------------------------------------------------------------------------------
