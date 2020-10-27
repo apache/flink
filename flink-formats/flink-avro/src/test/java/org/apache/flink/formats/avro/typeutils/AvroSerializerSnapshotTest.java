@@ -137,6 +137,26 @@ public class AvroSerializerSnapshotTest {
 	}
 
 	@Test
+	public void aLargeSchemaAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
+		// construct the large schema up to a size of 65535 bytes.
+		int thresholdSize = 65535;
+		StringBuilder schemaField = new StringBuilder(thresholdSize);
+		for (int i = 0; i <= thresholdSize; i++) {
+			schemaField.append('a');
+		}
+		Schema largeSchema = SchemaBuilder.record("name")
+				.namespace("org.apache.flink")
+				.fields()
+				.requiredString(schemaField.toString())
+				.endRecord();
+
+		AvroSerializer<GenericRecord> serializer = new AvroSerializer<>(GenericRecord.class, largeSchema);
+		AvroSerializerSnapshot<GenericRecord> restored = roundTrip(serializer.snapshotConfiguration());
+
+		assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+	}
+
+	@Test
 	public void recordSerializedShouldBeDeserializeWithTheResortedSerializer() throws IOException {
 		// user is an avro generated test object.
 		final User user = TestDataGenerator.generateRandomUser(new Random());
