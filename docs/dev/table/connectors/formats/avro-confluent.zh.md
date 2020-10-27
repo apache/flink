@@ -40,7 +40,7 @@ The Avro Schema Registry format can only be used in conjunction with [Apache Kaf
 依赖
 ------------
 
-In order to use the Avro Schema Registry format the following dependencies are required for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+为了建立Avro Schema Registry格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
 
 | Maven依赖                     | SQL 客户端 JAR         |
 | :----------------------------------- | :----------------------|
