@@ -457,11 +457,17 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			this.streamTwo = checkNotNull(streamTwo);
 		}
 
+		/**
+		 * Sets the time characteristic to event time.
+		 */
 		public IntervalJoin<T1, T2, KEY> inEventTime() {
 			timeBehaviour = TimeBehaviour.EventTime;
 			return this;
 		}
 
+		/**
+		 * Sets the time characteristic to processing time.
+		 */
 		public IntervalJoin<T1, T2, KEY> inProcessingTime() {
 			timeBehaviour = TimeBehaviour.ProcessingTime;
 			return this;
