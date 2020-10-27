@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.processor;
+package org.apache.flink.table.planner.plan.processors;
 
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.TableException;
@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
-import org.apache.flink.table.planner.plan.processor.utils.InputPriorityConflictResolver;
+import org.apache.flink.table.planner.plan.processors.utils.InputPriorityConflictResolver;
 
 import java.util.List;
 

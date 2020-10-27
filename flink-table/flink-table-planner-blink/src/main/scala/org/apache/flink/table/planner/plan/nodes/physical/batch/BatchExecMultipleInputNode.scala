@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.operators.ChainingStrategy
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -27,11 +28,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, 
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.runtime.operators.multipleinput.{BatchMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import java.util
 
-import org.apache.flink.streaming.api.operators.ChainingStrategy
+import java.util
 
 import scala.collection.JavaConversions._
 

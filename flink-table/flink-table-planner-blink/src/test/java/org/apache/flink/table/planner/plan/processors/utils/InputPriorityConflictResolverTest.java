@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.processor.utils;
+package org.apache.flink.table.planner.plan.processors.utils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
@@ -73,8 +74,14 @@ public class InputPriorityConflictResolverTest {
 		Assert.assertEquals(nodes[1], nodes[7].getInputNodes().get(0));
 		Assert.assertEquals(nodes[2], nodes[7].getInputNodes().get(1));
 		Assert.assertTrue(nodes[7].getInputNodes().get(2) instanceof BatchExecExchange);
+		Assert.assertEquals(
+			ShuffleMode.BATCH,
+			((BatchExecExchange) nodes[7].getInputNodes().get(2)).getShuffleMode(new Configuration()));
 		Assert.assertEquals(nodes[3], nodes[7].getInputNodes().get(2).getInputNodes().get(0));
 		Assert.assertTrue(nodes[7].getInputNodes().get(3) instanceof BatchExecExchange);
+		Assert.assertEquals(
+				ShuffleMode.BATCH,
+				((BatchExecExchange) nodes[7].getInputNodes().get(3)).getShuffleMode(new Configuration()));
 		Assert.assertEquals(nodes[4], nodes[7].getInputNodes().get(3).getInputNodes().get(0));
 		Assert.assertEquals(nodes[5], nodes[7].getInputNodes().get(4));
 		Assert.assertEquals(nodes[6], nodes[7].getInputNodes().get(5));

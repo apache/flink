@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.processor;
+package org.apache.flink.table.planner.plan.processors;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -27,14 +27,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnc
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecMultipleInputNode;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInputNode;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
-import org.apache.flink.table.planner.plan.processor.utils.InputOrderCalculator;
-import org.apache.flink.table.planner.plan.processor.utils.InputPriorityConflictResolver;
+import org.apache.flink.table.planner.plan.processors.utils.InputOrderCalculator;
+import org.apache.flink.table.planner.plan.processors.utils.InputPriorityConflictResolver;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.util.Preconditions;
 
@@ -277,9 +276,8 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			// continuous singleton operations connected by forwarding shuffle will be dealt
 			// together with optimization 3
 			shouldRemove |= wrapper.inputs.stream().anyMatch(inputWrapper ->
-				inputWrapper.execNode instanceof BatchExecExchange &&
-					((BatchExecExchange) inputWrapper.execNode)
-						.distribution.getType() == RelDistribution.Type.SINGLETON);
+				inputWrapper.execNode instanceof Exchange &&
+					((Exchange) inputWrapper.execNode).distribution.getType() == RelDistribution.Type.SINGLETON);
 
 			if (shouldRemove) {
 				wrapper.removeFromGroup();

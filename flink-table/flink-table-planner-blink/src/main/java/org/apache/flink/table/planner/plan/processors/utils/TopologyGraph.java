@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.processor.utils;
+package org.apache.flink.table.planner.plan.processors.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -71,8 +71,8 @@ class TopologyGraph {
 	 * Returns if this edge is successfully added.
 	 */
 	boolean link(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-		TopologyNode fromNode = getTopologyNode(from);
-		TopologyNode toNode = getTopologyNode(to);
+		TopologyNode fromNode = getOrCreateTopologyNode(from);
+		TopologyNode toNode = getOrCreateTopologyNode(to);
 
 		if (canReach(toNode, fromNode)) {
 			// invalid edge, as `to` is the predecessor of `from`
@@ -89,8 +89,8 @@ class TopologyGraph {
 	 * Remove the edge from `from` node to `to` node. If there is no edge between them then do nothing.
 	 */
 	void unlink(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-		TopologyNode fromNode = getTopologyNode(from);
-		TopologyNode toNode = getTopologyNode(to);
+		TopologyNode fromNode = getOrCreateTopologyNode(from);
+		TopologyNode toNode = getOrCreateTopologyNode(to);
 
 		fromNode.outputs.remove(toNode);
 		toNode.inputs.remove(fromNode);
@@ -100,6 +100,9 @@ class TopologyGraph {
 	 * Calculate the maximum distance of the currently added nodes from the nodes without inputs.
 	 * The smallest distance is 0 (which are exactly the nodes without inputs) and the distances of
 	 * other nodes are the largest distances in their inputs plus 1.
+	 *
+	 * <p>Distance of a node is defined as the number of edges one needs to go through from the
+	 * nodes without inputs to this node.
 	 */
 	Map<ExecNode<?, ?>, Integer> calculateDistance() {
 		Map<ExecNode<?, ?>, Integer> result = new HashMap<>();
@@ -138,8 +141,8 @@ class TopologyGraph {
 
 	@VisibleForTesting
 	boolean canReach(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-		TopologyNode fromNode = getTopologyNode(from);
-		TopologyNode toNode = getTopologyNode(to);
+		TopologyNode fromNode = getOrCreateTopologyNode(from);
+		TopologyNode toNode = getOrCreateTopologyNode(to);
 		return canReach(fromNode, toNode);
 	}
 
@@ -167,7 +170,7 @@ class TopologyGraph {
 		return false;
 	}
 
-	private TopologyNode getTopologyNode(ExecNode<?, ?> execNode) {
+	private TopologyNode getOrCreateTopologyNode(ExecNode<?, ?> execNode) {
 		// NOTE: We treat different `BatchExecBoundedStreamScan`s with same `DataStream` object as the same
 		if (execNode instanceof BatchExecBoundedStreamScan) {
 			DataStream<?> currentStream = ((BatchExecBoundedStreamScan) execNode).boundedStreamTable().dataStream();

@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
-import org.apache.flink.table.planner.plan.processor.{DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.processors.{DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
