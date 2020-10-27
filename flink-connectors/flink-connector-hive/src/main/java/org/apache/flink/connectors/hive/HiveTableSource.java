@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableFileInputFormat;
@@ -36,7 +35,6 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOpera
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -76,7 +74,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -201,47 +198,11 @@ public class HiveTableSource implements
 			TypeInformation<RowData> typeInfo, HiveTableInputFormat inputFormat) {
 		DataStreamSource<RowData> source = execEnv.createInput(inputFormat, typeInfo);
 
-		int parallelism = flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
-		if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
-			int max = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
-			if (max < 1) {
-				throw new IllegalConfigurationException(
-						HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key() +
-								" cannot be less than 1");
-			}
+		int parallelism = new HiveParallelismInference(tablePath, flinkConf)
+			.limit(limit)
+			.inputFormat(inputFormat)
+			.infer();
 
-			try {
-				// `createInputSplits` is costly,
-				// so we try to avoid calling it by first checking the number of files
-				// which is the lower bound of the number of splits
-				long startTimeMillis = System.currentTimeMillis();
-				int lowerBound = inputFormat.getNumFiles();
-				LOG.info(
-					"Hive source({}}) getNumFiles use time: {} ms, number of files: {}",
-					tablePath,
-					System.currentTimeMillis() - startTimeMillis,
-					lowerBound);
-
-				if (lowerBound >= max) {
-					parallelism = max;
-				} else {
-					int splitNum;
-					startTimeMillis = System.currentTimeMillis();
-					splitNum = inputFormat.createInputSplits(0).length;
-					LOG.info(
-						"Hive source({}}) createInputSplits use time: {} ms, number of split: {}",
-						tablePath,
-							System.currentTimeMillis() - startTimeMillis,
-						splitNum);
-
-					parallelism = Math.min(splitNum, max);
-				}
-			} catch (IOException e) {
-				throw new FlinkHiveException(e);
-			}
-		}
-		parallelism = limit > 0 ? Math.min(parallelism, (int) limit / 1000) : parallelism;
-		parallelism = Math.max(1, parallelism);
 		source.setParallelism(parallelism);
 		return source.name(explainSource());
 	}
