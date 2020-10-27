@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for the {@link GenericCLI}.
@@ -59,7 +60,7 @@ public class GenericCLITest {
 	}
 
 	@Test
-	public void testExecutorInBaseConfigIsPickedUp() throws CliArgsException {
+	public void isActiveWhenTargetOnlyInConfig() throws CliArgsException {
 		final String expectedExecutorName = "test-executor";
 		final Configuration loadedConfig = new Configuration();
 		loadedConfig.set(DeploymentOptions.TARGET, expectedExecutorName);
@@ -69,8 +70,7 @@ public class GenericCLITest {
 				tmp.getRoot().getAbsolutePath());
 		final CommandLine emptyCommandLine = CliFrontendParser.parse(testOptions, new String[0], true);
 
-		final Configuration configuration = cliUnderTest.toConfiguration(emptyCommandLine);
-		assertEquals(expectedExecutorName, configuration.get(DeploymentOptions.TARGET));
+		assertTrue(cliUnderTest.isActive(emptyCommandLine));
 	}
 
 	@Test
