@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
  */
 public class TestingKubeClientFactory implements KubeClientFactory {
 
-	private TestingFlinkKubeClient.Builder flinkKubeClientBuilder;
+	private final TestingFlinkKubeClient.Builder flinkKubeClientBuilder;
 
 	public TestingKubeClientFactory(TestingFlinkKubeClient.Builder flinkKubeClientBuilder) {
 		this.flinkKubeClientBuilder = flinkKubeClientBuilder;

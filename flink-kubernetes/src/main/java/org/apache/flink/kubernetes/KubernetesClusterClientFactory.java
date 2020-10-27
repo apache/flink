@@ -26,7 +26,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.AbstractID;
 
@@ -42,8 +41,6 @@ public class KubernetesClusterClientFactory extends AbstractContainerizedCluster
 
 	private static final String CLUSTER_ID_PREFIX = "flink-cluster-";
 
-	private static final KubeClientFactory kubeClientFactory = DefaultKubeClientFactory.getInstance();
-
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
@@ -58,7 +55,8 @@ public class KubernetesClusterClientFactory extends AbstractContainerizedCluster
 			final String clusterId = generateClusterId();
 			configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
 		}
-		return new KubernetesClusterDescriptor(configuration, kubeClientFactory.fromConfiguration(configuration));
+		return new KubernetesClusterDescriptor(
+			configuration, DefaultKubeClientFactory.getInstance().fromConfiguration(configuration));
 	}
 
 	@Nullable

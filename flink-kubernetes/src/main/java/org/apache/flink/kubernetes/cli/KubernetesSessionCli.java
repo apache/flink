@@ -36,7 +36,6 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -64,8 +63,6 @@ public class KubernetesSessionCli {
 		"help - show these commands\n" +
 		"stop - stop the kubernetes cluster\n" +
 		"quit - quit attach mode";
-
-	private final KubeClientFactory kubeClientFactory = DefaultKubeClientFactory.getInstance();
 
 	private final Configuration baseConfiguration;
 
@@ -102,7 +99,7 @@ public class KubernetesSessionCli {
 			final ClusterClient<String> clusterClient;
 			String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
 			final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
-			final FlinkKubeClient kubeClient = kubeClientFactory.fromConfiguration(configuration);
+			final FlinkKubeClient kubeClient = DefaultKubeClientFactory.getInstance().fromConfiguration(configuration);
 
 			// Retrieve or create a session cluster.
 			if (clusterId != null && kubeClient.getRestService(clusterId).isPresent()) {

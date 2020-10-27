@@ -48,7 +48,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +68,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	private final KubeClientFactory kubeClientFactory;
 
-	private Optional<FlinkKubeClient> kubeClient;
+	private Optional<FlinkKubeClient> kubeClientOpt;
 
 	/** Request resource futures, keyed by pod names. */
 	private final Map<String, CompletableFuture<KubernetesWorkerNode>> requestResourceFutures;
@@ -106,9 +105,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	@Override
 	protected void initializeInternal() throws Exception {
-		kubeClient = Optional.of(kubeClientFactory.fromConfiguration(flinkConfig, getIoExecutor()));
+		kubeClientOpt = Optional.of(kubeClientFactory.fromConfiguration(flinkConfig, getIoExecutor()));
 		podsWatchOpt = Optional.of(
-			kubeClient.get().watchPodsAndDoCallback(
+			getKubeClient().watchPodsAndDoCallback(
 				KubernetesUtils.getTaskManagerLabels(clusterId),
 				new PodCallbackHandlerImpl()));
 		recoverWorkerNodesFromPreviousAttempts();
@@ -126,8 +125,8 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		}
 
 		try {
-			if  (kubeClient.isPresent()) {
-				kubeClient.get().close();
+			if (kubeClientOpt.isPresent()) {
+				kubeClientOpt.get().close();
 			}
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -143,7 +142,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		log.info("Deregistering Flink Kubernetes cluster, clusterId: {}, diagnostics: {}",
 				clusterId,
 				optionalDiagnostics == null ? "" : optionalDiagnostics);
-		kubeClient.ifPresent(client -> client.stopAndCleanupCluster(clusterId));
+		getKubeClient().stopAndCleanupCluster(clusterId);
 	}
 
 	@Override
@@ -166,9 +165,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		// In case of pod creation failures, we should wait for an interval before trying to create new pods.
 		// Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps the main thread busy.
 		final CompletableFuture<Void> createPodFuture =
-				podCreationCoolDown.thenCompose((ignore) -> kubeClient
-						.map(client -> client.createTaskManagerPod(taskManagerPod))
-						.orElse(CompletableFuture.completedFuture(null)));
+			podCreationCoolDown.thenCompose((ignore) -> getKubeClient().createTaskManagerPod(taskManagerPod));
 
 		FutureUtils.assertNoException(
 				createPodFuture.handleAsync((ignore, exception) -> {
@@ -203,9 +200,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	// ------------------------------------------------------------------------
 
 	private void recoverWorkerNodesFromPreviousAttempts() throws ResourceManagerException {
-		List<KubernetesPod> podList = kubeClient
-				.map(client -> client.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId)))
-				.orElse(Collections.emptyList());
+		List<KubernetesPod> podList = getKubeClient().getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId));
 		final List<KubernetesWorkerNode> recoveredWorkers = new ArrayList<>();
 
 		for (KubernetesPod pod : podList) {
@@ -290,12 +285,19 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	}
 
 	private void stopPod(String podName) {
-		kubeClient.ifPresent(client -> client.stopPod(podName)
-				.whenComplete((ignore, throwable) -> {
-					if (throwable != null) {
-						log.warn("Could not remove TaskManager pod {}, exception: {}", podName, throwable);
-					}
-				}));
+		getKubeClient().stopPod(podName)
+			.whenComplete((ignore, throwable) -> {
+				if (throwable != null) {
+					log.warn("Could not remove TaskManager pod {}, exception: {}", podName, throwable);
+				}
+			});
+	}
+
+	private FlinkKubeClient getKubeClient() {
+		Preconditions.checkState(
+			kubeClientOpt.isPresent(),
+			"Cannot get the kube client. Resource manager driver is not initialized.");
+		return kubeClientOpt.get();
 	}
 
 	// ------------------------------------------------------------------------
