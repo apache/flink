@@ -32,8 +32,10 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -86,10 +88,19 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
 
 			Assert.assertEquals(7, outputs.size());
 
-			assertUnit(outputs.get(0), 0, "p0", Arrays.asList("f0", "f1", "f4"));
-			assertUnit(outputs.get(1), 1, "p0", Collections.singletonList("f3"));
-			assertUnit(outputs.get(2), 2, "p1", Arrays.asList("f2", "f5"));
-			assertUnit(outputs.get(3), 3, "p1", Collections.singletonList("f6"));
+			List<CompactionUnit> cp1Units = new ArrayList<>();
+			for (int i = 0; i < 4; i++) {
+				CoordinatorOutput output = outputs.get(i);
+				Assert.assertTrue(output instanceof CompactionUnit);
+				cp1Units.add((CompactionUnit) output);
+			}
+			cp1Units.sort(Comparator.comparing(CompactionUnit::getPartition).
+					thenComparingInt(CompactionUnit::getUnitId));
+
+			assertUnit(cp1Units.get(0), 0, "p0", Arrays.asList("f0", "f1", "f4"));
+			assertUnit(cp1Units.get(1), 1, "p0", Collections.singletonList("f3"));
+			assertUnit(cp1Units.get(2), 2, "p1", Arrays.asList("f2", "f5"));
+			assertUnit(cp1Units.get(3), 3, "p1", Collections.singletonList("f6"));
 
 			assertEndCompaction(outputs.get(4), 1);
 
