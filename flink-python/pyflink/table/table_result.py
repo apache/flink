@@ -248,7 +248,7 @@ class CloseableIterator(object):
                 fields.append(None)
             else:
                 fields.append(java_to_python_converter(data, field_type))
-        result_row = Row(fields)
+        result_row = Row(*fields)
         result_row.set_row_kind(row_kind)
         return result_row
 

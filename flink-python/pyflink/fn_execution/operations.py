@@ -29,7 +29,6 @@ from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunct
     GroupAggFunction, extract_data_view_specs, DistinctViewDescriptor
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
-from pyflink.table.functions import Count1AggFunction
 
 
 class Operation(object):
@@ -274,6 +273,7 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
         # to track current accumulated messages count. If all the messages are retracted, we need
         # to send a DELETE message to downstream.
         self.index_of_count_star = spec.serialized_fn.index_of_count_star
+        self.count_star_inserted = spec.serialized_fn.count_star_inserted
         self.state_cache_size = spec.serialized_fn.state_cache_size
         self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
         self.data_view_specs = extract_data_view_specs(spec.serialized_fn.udfs)
@@ -292,18 +292,9 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
         # and the filter args of them
         distinct_info_dict = {}
         for i in range(len(serialized_fn.udfs)):
-            if i != self.index_of_count_star:
-                user_defined_agg, input_extractor, filter_arg, distinct_index = \
-                    extract_user_defined_aggregate_function(
-                        i, serialized_fn.udfs[i], distinct_info_dict)
-            else:
-                user_defined_agg = Count1AggFunction()
-                filter_arg = -1
-                distinct_index = -1
-
-                def dummy_input_extractor(value):
-                    return []
-                input_extractor = dummy_input_extractor
+            user_defined_agg, input_extractor, filter_arg, distinct_index = \
+                extract_user_defined_aggregate_function(
+                    i, serialized_fn.udfs[i], distinct_info_dict)
             user_defined_aggs.append(user_defined_agg)
             input_extractors.append(input_extractor)
             filter_args.append(filter_arg)
@@ -321,6 +312,7 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             user_defined_aggs,
             input_extractors,
             self.index_of_count_star,
+            self.count_star_inserted,
             self.data_view_specs,
             filter_args,
             distinct_indexes,
