@@ -49,7 +49,7 @@ The Avro Schema Registry format can only be used in conjunction with [Apache Kaf
 如何创建使用 Avro-Confluent 格式的表
 ----------------
 
-Here is an example to create a table using Kafka connector and Confluent Avro format.
+以下是一个使用 Kafka 连接器和 Confluent Avro 格式创建表的示例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
