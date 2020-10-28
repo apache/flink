@@ -1219,6 +1219,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public void notifyNotEnoughResourcesAvailable(JobID jobId, Collection<ResourceRequirement> acquiredResources) {
 			validateRunsInMainThread();
+
+			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+			if (jobManagerRegistration != null) {
+				jobManagerRegistration.getJobManagerGateway().notifyNotEnoughResourcesAvailable(acquiredResources);
+			}
 		}
 	}
 

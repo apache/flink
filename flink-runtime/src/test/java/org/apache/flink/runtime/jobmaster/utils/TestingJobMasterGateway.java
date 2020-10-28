@@ -49,6 +49,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -162,6 +163,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Nonnull
 	private final BiFunction<OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestFunction;
 
+	private final Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer;
+
 	public TestingJobMasterGateway(
 			@Nonnull String address,
 			@Nonnull String hostname,
@@ -191,7 +194,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction,
 			@Nonnull TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction,
 			@Nonnull TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventSender,
-			@Nonnull BiFunction<OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestFunction) {
+			@Nonnull BiFunction<OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestFunction,
+			@Nonnull Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelFunction = cancelFunction;
@@ -221,6 +225,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.updateAggregateFunction = updateAggregateFunction;
 		this.operatorEventSender = operatorEventSender;
 		this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
+		this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
 	}
 
 	@Override
@@ -316,6 +321,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
 		notifyAllocationFailureConsumer.accept(allocationID, cause);
+	}
+
+	@Override
+	public void notifyNotEnoughResourcesAvailable(Collection<ResourceRequirement> acquiredResources) {
+		notifyNotEnoughResourcesConsumer.accept(acquiredResources);
 	}
 
 	@Override
