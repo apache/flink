@@ -137,7 +137,7 @@ public class StreamingFileSink<IN>
 	}
 
 	/**
-	 * Creates the builder for a {@link StreamingFileSink} with bulk-factory format.
+	 * Creates the builder for a {@link StreamingFileSink} with bulk-encoding format.
 	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
 	 * @param writerFactory the {@link BulkWriter.Factory} to be used when writing elements in the buckets.
 	 * @param <IN> the type of incoming elements
