@@ -649,7 +649,7 @@ public class StreamGraph implements Pipeline {
 		getStreamNode(vertexId).setSortedInputs(shouldSort);
 	}
 
-	void setTransformationUID(Integer nodeId, String transformationId) {
+	public void setTransformationUID(Integer nodeId, String transformationId) {
 		StreamNode node = streamNodes.get(nodeId);
 		if (node != null) {
 			node.setTransformationUID(transformationId);
