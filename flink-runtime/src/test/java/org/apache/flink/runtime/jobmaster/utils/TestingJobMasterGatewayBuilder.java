@@ -49,6 +49,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -105,6 +106,7 @@ public class TestingJobMasterGatewayBuilder {
 	private TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction = (a, b, c) -> CompletableFuture.completedFuture(new Object());
 	private TriFunction<ExecutionAttemptID, OperatorID, SerializedValue<OperatorEvent>, CompletableFuture<Acknowledge>> operatorEventSender = (a, b, c) -> CompletableFuture.completedFuture(Acknowledge.get());
 	private BiFunction<OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestFunction = (a, b) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	private Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer = ignored -> {};
 
 	public TestingJobMasterGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -206,6 +208,11 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
+	public TestingJobMasterGatewayBuilder setNotifyNotEnoughResourcesConsumer(Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer) {
+		this.notifyNotEnoughResourcesConsumer = notifyNotEnoughResourcesConsumer;
+		return this;
+	}
+
 	public TestingJobMasterGatewayBuilder setAcknowledgeCheckpointConsumer(Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer) {
 		this.acknowledgeCheckpointConsumer = acknowledgeCheckpointConsumer;
 		return this;
@@ -281,6 +288,7 @@ public class TestingJobMasterGatewayBuilder {
 			notifyKvStateUnregisteredFunction,
 			updateAggregateFunction,
 			operatorEventSender,
-			deliverCoordinationRequestFunction);
+			deliverCoordinationRequestFunction,
+			notifyNotEnoughResourcesConsumer);
 	}
 }
