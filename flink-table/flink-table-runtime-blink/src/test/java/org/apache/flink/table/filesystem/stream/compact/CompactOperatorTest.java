@@ -130,11 +130,6 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 		harness0.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
 		harness0.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
 
-		harness1.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
-		harness1.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
-		harness1.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
-		harness1.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
-
 		harness0.processElement(new EndCompaction(1), 0);
 
 		// check compacted file generated
@@ -144,6 +139,11 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 		// f3 and f6 are in the charge of another task
 		Assert.assertFalse(fs.exists(new Path(folder, "compacted-f3")));
 		Assert.assertFalse(fs.exists(new Path(folder, "compacted-f6")));
+
+		harness1.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1, f4)), 0);
+		harness1.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f3)), 0);
+		harness1.processElement(new CompactionUnit(2, "p0", Arrays.asList(f2, f5)), 0);
+		harness1.processElement(new CompactionUnit(3, "p0", Collections.singletonList(f6)), 0);
 
 		harness1.processElement(new EndCompaction(1), 0);
 
