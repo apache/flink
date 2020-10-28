@@ -19,6 +19,7 @@ import datetime
 
 from typing import Any, Tuple, Dict, List
 
+from pyflink.common import Row
 from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
@@ -29,6 +30,7 @@ SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
 STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
+DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:datastream_stateful_function:v1"
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
 PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
     "flink:transform:batch_over_window_aggregate_function:arrow:v1"
@@ -237,3 +239,42 @@ def load_aggregate_function(payload):
         return cls()
     else:
         return pickle.loads(payload)
+
+
+def extract_user_defined_stateful_function(user_defined_function_proto, ctx, collector,
+                                           keyed_state_backend):
+    proc_func = pickle.loads(user_defined_function_proto.payload)
+    process_element_func = proc_func.process_element
+    on_timer_func = proc_func.on_timer
+
+    def wrapped_func(value):
+
+        # it is timer data
+        # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
+        current_watermark = value[2]
+        ctx.timer_service()._current_watermark = current_watermark
+        if value[0] is not None:
+            timer_key = value[3]
+            keyed_state_backend.set_current_key(timer_key)
+            on_timer_func(value[1], ctx, collector)
+        else:
+            # it is normal data
+            # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
+            # NORMAL_DATA[CURRENT_KEY, DATA]
+            current_key = Row(value[4][0])
+            keyed_state_backend.set_current_key(current_key)
+
+            real_data = value[4][1]
+            process_element_func(real_data, ctx, collector)
+
+        for a in collector.buf:
+            # 0: proc time timer data
+            # 1: event time timer data
+            # 2: normal data
+            # result_row: [TIMER_FLAG, TIMER TYPE, TIMER_KEY, RESULT_DATA]
+            if a[0] == 2:
+                yield Row(None, None, None, a[1])
+            else:
+                yield Row(a[0], a[1], a[2], None)
+        collector.clear()
+    return wrapped_func, [proc_func]

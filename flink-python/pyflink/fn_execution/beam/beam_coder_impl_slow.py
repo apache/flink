@@ -316,6 +316,14 @@ class DataStreamStatelessFlatMapCoderImpl(StreamCoderImpl):
         return 'DataStreamStatelessFlatMapCoderImpl[%s]' % repr(self._field_coder)
 
 
+class DataStreamStatefulMapCoderImpl(DataStreamStatelessFlatMapCoderImpl):
+    def __init__(self, field_coder):
+        super(DataStreamStatefulMapCoderImpl, self).__init__(field_coder)
+
+    def __str__(self) -> str:
+        return 'DataStreamStatefulMapCoderImpl[%s]' % repr(self._field_coder)
+
+
 class MapCoderImpl(StreamCoderImpl):
 
     def __init__(self, key_coder, value_coder):

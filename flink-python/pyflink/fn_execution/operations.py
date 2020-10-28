@@ -21,7 +21,9 @@ from itertools import chain
 from apache_beam.coders import PickleCoder
 from typing import Tuple
 
-from pyflink.datastream.functions import RuntimeContext
+from pyflink.fn_execution.stateful_operation_common import InternalCollector, InternalTimerService
+
+from pyflink.datastream.functions import RuntimeContext, InternalProcessFunctionContext
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
@@ -345,3 +347,17 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
     def close(self):
         if self.group_agg_function is not None:
             self.group_agg_function.close()
+
+
+class DataStreamStatefulFunctionOperation(StatefulFunctionOperation):
+
+    def __init__(self, spec, keyed_state_backend):
+        self._collector = InternalCollector()
+        self.function_context = InternalProcessFunctionContext(
+            InternalTimerService(self._collector, keyed_state_backend))
+        super(DataStreamStatefulFunctionOperation, self).__init__(spec, keyed_state_backend)
+
+    def generate_func(self, serialized_fn) -> tuple:
+        func, proc_func = operation_utils.extract_user_defined_stateful_function(
+            serialized_fn, self.function_context, self._collector, self.keyed_state_backend)
+        return func, proc_func

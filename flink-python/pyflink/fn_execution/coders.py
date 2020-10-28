@@ -42,6 +42,8 @@ FLINK_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1"
 FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:map_function:v1"
 FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:flatmap_function:v1"
 FLINK_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:v1"
+FLINK_STATEFUL_MAP_FUNCTION_DATA_STREAM_CODER_URN = \
+    "flink:coder:datastream:stateful_map_function:v1"
 
 
 class BaseCoder(ABC):
@@ -192,6 +194,38 @@ class DataStreamStatelessFlatMapCoder(BaseCoder):
 
     def __repr__(self):
         return 'DataStreamStatelessFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
+
+
+class DataStreamStatefulMapCoder(BaseCoder):
+    """
+        Coder for a DataStream Map Function input/output data.
+        """
+
+    def __init__(self, field_coders):
+        self._field_coders = field_coders
+
+    def get_impl(self):
+        return coder_impl.DataStreamStatefulMapCoderImpl(
+            DataStreamStatelessMapCoder(self._field_coders).get_impl())
+
+    @staticmethod
+    def from_type_info_proto(type_info_proto):
+        return DataStreamStatefulMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+
+    def __repr__(self):
+        return 'DataStreamStatefulMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__

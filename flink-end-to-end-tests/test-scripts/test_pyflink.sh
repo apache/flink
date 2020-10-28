@@ -272,6 +272,71 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     exit 1
 fi
 
+# End to end test for DataStream ProcessFunction with timer
+create_kafka_topic 1 1 timer-stream-source
+create_kafka_topic 1 1 timer-stream-sink
+
+PAYMENT_MSGS='{"createTime": "2020-10-26 10:30:13", "orderId": 1603679414, "payAmount": 83685.44904332698, "payPlatform": 0, "provinceId": 3}
+{"createTime": "2020-10-26 10:30:26", "orderId": 1603679427, "payAmount": 30092.50657757042, "payPlatform": 0, "provinceId": 1}
+{"createTime": "2020-10-26 10:30:27", "orderId": 1603679428, "payAmount": 62644.01719293056, "payPlatform": 0, "provinceId": 6}
+{"createTime": "2020-10-26 10:30:28", "orderId": 1603679429, "payAmount": 6449.806795118451, "payPlatform": 0, "provinceId": 2}
+{"createTime": "2020-10-26 10:31:31", "orderId": 1603679492, "payAmount": 41108.36128417494, "payPlatform": 0, "provinceId": 0}
+{"createTime": "2020-10-26 10:31:32", "orderId": 1603679493, "payAmount": 64882.44233197067, "payPlatform": 0, "provinceId": 4}
+{"createTime": "2020-10-26 10:32:01", "orderId": 1603679522, "payAmount": 81648.80712644062, "payPlatform": 0, "provinceId": 3}
+{"createTime": "2020-10-26 10:32:02", "orderId": 1603679523, "payAmount": 81861.73063103345, "payPlatform": 0, "provinceId": 4}'
+
+function send_msg_to_kafka {
+
+    while read line
+    do
+	 	send_messages_to_kafka "$line" "timer-stream-source"
+        sleep 3
+    done <<< "$1"
+}
+
+JOB_ID=$(${FLINK_DIR}/bin/flink run \
+    -p 2 \
+    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/datastream" \
+    -pyreq "${REQUIREMENTS_PATH}" \
+    -pyarch "${TEST_DATA_DIR}/venv.zip" \
+    -pyexec "venv.zip/.conda/bin/python" \
+    -pym "data_stream_timer_job" \
+    -j "${KAFKA_SQL_JAR}")
+
+echo "${JOB_ID}"
+JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
+
+send_msg_to_kafka "${PAYMENT_MSGS[*]}"
+
+echo "Reading kafka messages..."
+READ_MSG=$(read_messages_from_kafka 15 timer-stream-sink pyflink-e2e-test)
+
+# We use env.execute_async() to submit the job, cancel it after fetched results.
+cancel_job "${JOB_ID}"
+
+EXPECTED_MSG='Current orderId: 1603679414 payAmount: 83685.44904332698
+On timer Current timestamp: -9223372036854774308, watermark: 1603708211000
+Current orderId: 1603679427 payAmount: 30092.50657757042
+On timer Current timestamp: 1603708212500, watermark: 1603708224000
+Current orderId: 1603679428 payAmount: 62644.01719293056
+Current orderId: 1603679429 payAmount: 6449.806795118451
+On timer Current timestamp: 1603708225500, watermark: 1603708226000
+Current orderId: 1603679492 payAmount: 41108.36128417494
+On timer Current timestamp: 1603708226500, watermark: 1603708289000
+On timer Current timestamp: 1603708227500, watermark: 1603708289000
+Current orderId: 1603679493 payAmount: 64882.44233197067
+Current orderId: 1603679522 payAmount: 81648.80712644062
+On timer Current timestamp: 1603708290500, watermark: 1603708319000
+On timer Current timestamp: 1603708291500, watermark: 1603708319000
+Current orderId: 1603679523 payAmount: 81861.73063103345'
+
+if [[ "${EXPECTED_MSG[*]}" != "${READ_MSG[*]}" ]]; then
+    echo "Output from Flink program does not match expected output."
+    echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
+    echo -e "ACTUAL: --${READ_MSG[*]}--"
+    exit 1
+fi
+
 stop_cluster
 
 # These tests are known to fail on JDK11. See FLINK-13719

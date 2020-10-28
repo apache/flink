@@ -84,6 +84,11 @@ cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
     cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
         return self._single_field_coder.decode_from_stream(input_stream)
 
+cdef class DataStreamStatefulMapCoderImpl(DataStreamStatelessFlatMapCoderImpl):
+    def __init__(self, field_coder):
+        super(DataStreamStatefulMapCoderImpl, self).__init__(field_coder)
+
+
 cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
 
     def __init__(self, field_coder):

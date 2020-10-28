@@ -109,6 +109,9 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
 cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
 
+cdef class DataStreamStatefulMapCoderImpl(DataStreamStatelessFlatMapCoderImpl):
+    pass
+
 cdef enum CoderType:
     UNDEFINED = -1
     SIMPLE = 0
