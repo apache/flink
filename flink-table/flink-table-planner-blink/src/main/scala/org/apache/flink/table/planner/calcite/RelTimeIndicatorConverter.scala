@@ -237,8 +237,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val left = join.getLeft.accept(this)
     val right = join.getRight.accept(this)
 
+    // temporal table join
     if (TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
-      // temporal table function join
       val rewrittenTemporalJoin = join.copy(join.getTraitSet, List(left, right))
 
       // Materialize all of the time attributes from the right side of temporal join

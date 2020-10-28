@@ -89,7 +89,7 @@ LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=[$5], rowtime0=[$6])
-+- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __TEMPORAL_JOIN_CONDITION($2, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])
++- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __INITIAL_TEMPORAL_JOIN_CONDITION($2, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
    :  +- LogicalProject(id=[$0], mount=[$1], proctime=[PROCTIME()], rowtime=[$2])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [CollectionTableSource(id, mount, rowtime)]]])
@@ -145,7 +145,7 @@ LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=[$5], rowtime0=[$6])
-+- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[left])
++- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __INITIAL_TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[left])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
    :  +- LogicalProject(id=[$0], mount=[$1], proctime=[PROCTIME()], rowtime=[$2])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [CollectionTableSource(id, mount, rowtime)]]])
@@ -173,7 +173,7 @@ LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], mount=[$1], proctime=[$2], rowtime=[$3], id0=[$4], rate=[$5], rowtime0=[$6])
-+- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])
++- LogicalJoin(condition=[AND(=($0, $4), >($5, 10), __INITIAL_TEMPORAL_JOIN_CONDITION($3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
    :  +- LogicalProject(id=[$0], mount=[$1], proctime=[PROCTIME()], rowtime=[$2])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [CollectionTableSource(id, mount, rowtime)]]])

@@ -23,9 +23,8 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 /**
  * Base test class for LegacyTemporalJoinOperator.
  */
-public class LegacyTemporalTimeJoinOperatorTestBase {
-	protected String funcCode =
-		"public class TimeTemporalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction " +
+public class TemporalTimeJoinOperatorTestBase {
+	protected String funcCode = "public class TimeTemporalJoinCondition extends org.apache.flink.api.common.functions.AbstractRichFunction " +
 			"implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
 			+ "\n"
 			+ "    public TimeTemporalJoinCondition(Object[] reference) {\n"
@@ -37,7 +36,7 @@ public class LegacyTemporalTimeJoinOperatorTestBase {
 			+ "    }\n"
 			+ "}\n";
 	protected GeneratedJoinCondition joinCondition = new GeneratedJoinCondition(
-		"TimeTemporalJoinCondition",
-		funcCode,
-		new Object[0]);
+			"TimeTemporalJoinCondition",
+			funcCode,
+			new Object[0]);
 }

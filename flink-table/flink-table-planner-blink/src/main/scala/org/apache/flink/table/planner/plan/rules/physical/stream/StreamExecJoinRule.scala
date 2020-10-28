@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecJoin
-import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, LegacyTemporalJoinUtil, TemporalJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -61,8 +61,7 @@ class StreamExecJoinRule
 
     // this rule shouldn't match temporal table join
     if (right.isInstanceOf[FlinkLogicalSnapshot] ||
-      LegacyTemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)
-      || TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
+      TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
       return false
     }
 

@@ -287,11 +287,18 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
             s" but no row time attribute can be found.")
       }
       // Deal primary key in TemporalJoinRewriteUniqueKeyRule
-      TemporalJoinUtil.makeRowTimeTemporalJoinConditionCall(rexBuilder, snapshotTimeInputRef,
-        rightTimeInputRef.get, leftJoinKey, rightJoinKey)
+      TemporalJoinUtil.makeInitialRowTimeTemporalTableJoinCondCall(
+        rexBuilder,
+        snapshotTimeInputRef,
+        rightTimeInputRef.get,
+        leftJoinKey,
+        rightJoinKey)
     } else {
-      TemporalJoinUtil.makeProcTimeTemporalJoinConditionCall(
-        rexBuilder, snapshotTimeInputRef, leftJoinKey, rightJoinKey)
+      TemporalJoinUtil.makeInitialProcTimeTemporalTableJoinConCall(
+        rexBuilder,
+        snapshotTimeInputRef,
+        leftJoinKey,
+        rightJoinKey)
     }
 
     val builder = call.builder()

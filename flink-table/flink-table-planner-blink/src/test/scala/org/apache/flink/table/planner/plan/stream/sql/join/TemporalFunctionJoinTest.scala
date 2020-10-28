@@ -15,61 +15,95 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.batch.sql.join
+package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers.containsString
 import org.junit.Test
 
 import java.sql.Timestamp
 
-class LegacyTemporalJoinTest extends TableTestBase {
+class TemporalFunctionJoinTest extends TableTestBase {
 
-  val util: BatchTableTestUtil = batchTestUtil()
+  val util: StreamTableTestUtil = streamTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
-    "Orders", 'o_amount, 'o_currency, 'o_rowtime)
+  util.addDataStream[(Long, String)](
+    "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime)
+  private val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
+    "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  val rates = util.addFunction(
+  util.addFunction(
     "Rates",
     ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
 
+  util.addDataStream[(Long, String)](
+    "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
+
+  private val proctimeRatesHistory = util.addDataStream[(String, Int)](
+    "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
+
+  util.addFunction(
+    "ProctimeRates",
+    proctimeRatesHistory.createTemporalTableFunction($"proctime", $"currency"))
+
   @Test
   def testSimpleJoin(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("Cannot generate a valid execution plan for the given query")
-
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o, " +
-      "LATERAL TABLE (Rates(o_rowtime)) AS r " +
+      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
       "WHERE currency = o_currency"
 
-    util.verifyExplain(sqlQuery)
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSimpleProctimeJoin(): Unit = {
+    val sqlQuery = "SELECT " +
+      "o_amount * rate as rate " +
+      "FROM ProctimeOrders AS o, " +
+      "LATERAL TABLE (ProctimeRates(o.o_proctime)) AS r " +
+      "WHERE currency = o_currency"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testJoinOnQueryLeft(): Unit = {
+    val orders = util.tableEnv.sqlQuery("SELECT * FROM Orders WHERE o_amount > 1000")
+    util.tableEnv.createTemporaryView("Orders2", orders)
+
+    val sqlQuery = "SELECT " +
+      "o_amount * rate as rate " +
+      "FROM Orders2 AS o, " +
+      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
+      "WHERE currency = o_currency"
+
+    util.verifyPlan(sqlQuery)
   }
 
   /**
-    * Test temporal table joins with more complicated query.
+    * Test versioned joins with more complicated query.
     * Important thing here is that we have complex OR join condition
     * and there are some columns that are not being used (are being pruned).
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testComplexJoin(): Unit = {
-    val util = batchTestUtil()
+    val util = streamTestUtil()
     util.addDataStream[(String, Int)]("Table3", 't3_comment, 't3_secondary_key)
     util.addDataStream[(Timestamp, String, Long, String, Int)](
-      "Orders", 'o_rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
+      "Orders", 'o_rowtime.rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
 
-    val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
-      "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
-    val rates = ratesHistory.createTemporalTableFunction($"rowtime", $"currency")
-    util.addFunction("Rates", rates)
+    util.addDataStream[(Timestamp, String, String, Int, Int)](
+      "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
+    val rates = util.tableEnv
+      .sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110")
+      .createTemporalTableFunction($"rowtime", $"currency")
+    util.addTemporarySystemFunction("Rates", rates)
 
     val sqlQuery =
       "SELECT * FROM " +
@@ -82,7 +116,7 @@ class LegacyTemporalJoinTest extends TableTestBase {
         "Table3 " +
         "WHERE t3_secondary_key = secondary_key"
 
-    util.verifyExplain(sqlQuery)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -104,7 +138,7 @@ class LegacyTemporalJoinTest extends TableTestBase {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
 
-    val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))";
+    val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))"
 
     util.verifyExplain(sqlQuery)
   }
