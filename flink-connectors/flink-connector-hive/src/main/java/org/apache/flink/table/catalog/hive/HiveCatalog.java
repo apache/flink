@@ -102,6 +102,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -202,7 +205,10 @@ public class HiveCatalog extends AbstractCatalog {
 		} else {
 			hadoopConf = getHadoopConfiguration(hadoopConfDir);
 		}
-		HiveConf hiveConf = new HiveConf(hadoopConf == null ? new Configuration() : hadoopConf, HiveConf.class);
+		if (hadoopConf == null) {
+			hadoopConf = new Configuration();
+		}
+		HiveConf hiveConf = new HiveConf(hadoopConf, HiveConf.class);
 
 		LOG.info("Setting hive conf dir as {}", hiveConfDir);
 
@@ -210,9 +216,15 @@ public class HiveCatalog extends AbstractCatalog {
 			Path hiveSite = new Path(hiveConfDir, "hive-site.xml");
 			if (!hiveSite.toUri().isAbsolute()) {
 				// treat relative URI as local file to be compatible with previous behavior
-				hiveSite = new Path("file", null, hiveSite.toString());
+				hiveSite = new Path(new File(hiveSite.toString()).toURI());
 			}
-			hiveConf.addResource(hiveSite);
+			try (InputStream inputStream = hiveSite.getFileSystem(hadoopConf).open(hiveSite)) {
+				hiveConf.addResource(inputStream, hiveSite.toString());
+				// trigger a read from the conf so that the input stream is read
+				isEmbeddedMetastore(hiveConf);
+			} catch (IOException e) {
+				throw new CatalogException("Failed to load hive-site.xml from specified path:" + hiveSite, e);
+			}
 		}
 		return hiveConf;
 	}
