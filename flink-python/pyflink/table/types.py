@@ -85,10 +85,10 @@ class DataType(object):
         return cp
 
     @classmethod
-    def type_name(cls):
+    def type_name(cls) -> str:
         return cls.__name__[:-4].upper()
 
-    def bridged_to(self, conversion_cls):
+    def bridged_to(self, conversion_cls) -> 'DataType':
         """
         Adds a hint that data should be represented using the given class when entering or leaving
         the table ecosystem.
@@ -98,7 +98,7 @@ class DataType(object):
         self._conversion_cls = conversion_cls
         return self
 
-    def need_conversion(self):
+    def need_conversion(self) -> bool:
         """
         Does this type need to conversion between Python object and internal SQL object.
 
@@ -1438,7 +1438,7 @@ for _typecode in _array_unsigned_int_typecode_ctype_mappings.keys():
 # removed in version 4.0. See: https://docs.python.org/3/library/array.html
 if sys.version_info[0] < 4:
     # it can be 16 bits or 32 bits depending on the platform
-    _array_type_mappings['u'] = CharType(ctypes.sizeof(ctypes.c_wchar))
+    _array_type_mappings['u'] = CharType(ctypes.sizeof(ctypes.c_wchar))  # type: ignore
 
 
 def _infer_type(obj):
@@ -1569,7 +1569,7 @@ def _merge_type(a, b, name=None):
         return a
 
 
-def _infer_schema_from_data(elements, names=None):
+def _infer_schema_from_data(elements, names=None) -> RowType:
     """
     Infers schema from list of Row or tuple.
 

@@ -53,7 +53,7 @@ class CheckpointConfig(object):
     def __init__(self, j_checkpoint_config):
         self._j_checkpoint_config = j_checkpoint_config
 
-    def is_checkpointing_enabled(self):
+    def is_checkpointing_enabled(self) -> bool:
         """
         Checks whether checkpointing is enabled.
 
@@ -61,7 +61,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isCheckpointingEnabled()
 
-    def get_checkpointing_mode(self):
+    def get_checkpointing_mode(self) -> CheckpointingMode:
         """
         Gets the checkpointing mode (exactly-once vs. at-least-once).
 
@@ -72,7 +72,7 @@ class CheckpointConfig(object):
         return CheckpointingMode._from_j_checkpointing_mode(
             self._j_checkpoint_config.getCheckpointingMode())
 
-    def set_checkpointing_mode(self, checkpointing_mode):
+    def set_checkpointing_mode(self, checkpointing_mode: CheckpointingMode):
         """
         Sets the checkpointing mode (:data:`CheckpointingMode.EXACTLY_ONCE` vs.
         :data:`CheckpointingMode.AT_LEAST_ONCE`).
@@ -87,7 +87,7 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.setCheckpointingMode(
             CheckpointingMode._to_j_checkpointing_mode(checkpointing_mode))
 
-    def get_checkpoint_interval(self):
+    def get_checkpoint_interval(self) -> int:
         """
         Gets the interval in which checkpoints are periodically scheduled.
 
@@ -98,7 +98,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointInterval()
 
-    def set_checkpoint_interval(self, checkpoint_interval):
+    def set_checkpoint_interval(self, checkpoint_interval: int):
         """
         Sets the interval in which checkpoints are periodically scheduled.
 
@@ -109,7 +109,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setCheckpointInterval(checkpoint_interval)
 
-    def get_checkpoint_timeout(self):
+    def get_checkpoint_timeout(self) -> int:
         """
         Gets the maximum time that a checkpoint may take before being discarded.
 
@@ -117,7 +117,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointTimeout()
 
-    def set_checkpoint_timeout(self, checkpoint_timeout):
+    def set_checkpoint_timeout(self, checkpoint_timeout: int):
         """
         Sets the maximum time that a checkpoint may take before being discarded.
 
@@ -125,7 +125,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setCheckpointTimeout(checkpoint_timeout)
 
-    def get_min_pause_between_checkpoints(self):
+    def get_min_pause_between_checkpoints(self) -> int:
         """
         Gets the minimal pause between checkpointing attempts. This setting defines how soon the
         checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
@@ -136,7 +136,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMinPauseBetweenCheckpoints()
 
-    def set_min_pause_between_checkpoints(self, min_pause_between_checkpoints):
+    def set_min_pause_between_checkpoints(self, min_pause_between_checkpoints: int):
         """
         Sets the minimal pause between checkpointing attempts. This setting defines how soon the
         checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
@@ -152,7 +152,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setMinPauseBetweenCheckpoints(min_pause_between_checkpoints)
 
-    def get_max_concurrent_checkpoints(self):
+    def get_max_concurrent_checkpoints(self) -> int:
         """
         Gets the maximum number of checkpoint attempts that may be in progress at the same time.
         If this value is *n*, then no checkpoints will be triggered while *n* checkpoint attempts
@@ -163,7 +163,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMaxConcurrentCheckpoints()
 
-    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints):
+    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints: int):
         """
         Sets the maximum number of checkpoint attempts that may be in progress at the same time.
         If this value is *n*, then no checkpoints will be triggered while *n* checkpoint attempts
@@ -174,7 +174,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setMaxConcurrentCheckpoints(max_concurrent_checkpoints)
 
-    def is_fail_on_checkpointing_errors(self):
+    def is_fail_on_checkpointing_errors(self) -> bool:
         """
         This determines the behaviour of tasks if there is an error in their local checkpointing.
         If this returns true, tasks will fail as a reaction. If this returns false, task will only
@@ -184,7 +184,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isFailOnCheckpointingErrors()
 
-    def set_fail_on_checkpointing_errors(self, fail_on_checkpointing_errors):
+    def set_fail_on_checkpointing_errors(self, fail_on_checkpointing_errors: bool):
         """
         Sets the expected behaviour for tasks in case that they encounter an error in their
         checkpointing procedure. If this is set to true, the task will fail on checkpointing error.
@@ -231,7 +231,7 @@ class CheckpointConfig(object):
         self._j_checkpoint_config.enableExternalizedCheckpoints(
             ExternalizedCheckpointCleanup._to_j_externalized_checkpoint_cleanup(cleanup_mode))
 
-    def is_externalized_checkpoints_enabled(self):
+    def is_externalized_checkpoints_enabled(self) -> bool:
         """
         Returns whether checkpoints should be persisted externally.
 
@@ -239,7 +239,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
 
-    def is_prefer_checkpoint_for_recovery(self):
+    def is_prefer_checkpoint_for_recovery(self) -> bool:
         """
         Returns whether a job recovery should fallback to checkpoint when there is a more recent
         savepoint.
@@ -248,7 +248,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isPreferCheckpointForRecovery()
 
-    def set_prefer_checkpoint_for_recovery(self, prefer_checkpoint_for_recovery):
+    def set_prefer_checkpoint_for_recovery(self, prefer_checkpoint_for_recovery: bool):
         """
         Sets whether a job recovery should fallback to checkpoint when there is a more recent
         savepoint.
@@ -268,7 +268,7 @@ class CheckpointConfig(object):
         cleanup_mode = self._j_checkpoint_config.getExternalizedCheckpointCleanup()
         return ExternalizedCheckpointCleanup._from_j_externalized_checkpoint_cleanup(cleanup_mode)
 
-    def is_unaligned_checkpoints_enabled(self):
+    def is_unaligned_checkpoints_enabled(self) -> bool:
         """
         Returns whether unaligned checkpoints are enabled.
 
@@ -276,7 +276,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isUnalignedCheckpointsEnabled()
 
-    def enable_unaligned_checkpoints(self, enabled=True):
+    def enable_unaligned_checkpoints(self, enabled: bool = True):
         """
         Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
 

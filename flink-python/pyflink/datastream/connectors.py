@@ -20,7 +20,7 @@ from typing import Dict, List, Union
 
 from pyflink.common import typeinfo
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
-from pyflink.common.typeinfo import RowTypeInfo
+from pyflink.common.typeinfo import RowTypeInfo, WrapperTypeInfo
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class, to_jarray
@@ -39,7 +39,8 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
     def __init__(self, j_flink_kafka_consumer):
         super(FlinkKafkaConsumerBase, self).__init__(source_func=j_flink_kafka_consumer)
 
-    def set_commit_offsets_on_checkpoints(self, commit_on_checkpoints: bool):
+    def set_commit_offsets_on_checkpoints(self,
+                                          commit_on_checkpoints: bool) -> 'FlinkKafkaConsumerBase':
         """
         Specifies whether or not the consumer should commit offsets back to kafka on checkpoints.
         This setting will only have effect if checkpointing is enabled for the job. If checkpointing
@@ -50,7 +51,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             .setCommitOffsetsOnCheckpoints(commit_on_checkpoints)
         return self
 
-    def set_start_from_earliest(self):
+    def set_start_from_earliest(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading from the earliest offset for all partitions. This
         lets the consumer ignore any committed group offsets in Zookeeper/ Kafka brokers.
@@ -62,7 +63,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromEarliest()
         return self
 
-    def set_start_from_latest(self):
+    def set_start_from_latest(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consuer to start reading from the latest offset for all partitions. This lets
         the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
@@ -74,7 +75,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromLatest()
         return self
 
-    def set_start_from_timestamp(self, startup_offsets_timestamp: int):
+    def set_start_from_timestamp(self, startup_offsets_timestamp: int) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading partitions from a specified timestamp. The specified
         timestamp must be before the current timestamp. This lets the consumer ignore any committed
@@ -95,7 +96,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             startup_offsets_timestamp)
         return self
 
-    def set_start_from_group_offsets(self):
+    def set_start_from_group_offsets(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading from any committed group offsets found in Zookeeper/
         Kafka brokers. The 'group.id' property must be set in the configuration properties. If no
@@ -109,7 +110,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromGroupOffsets()
         return self
 
-    def disable_filter_restored_partitions_with_subscribed_topics(self):
+    def disable_filter_restored_partitions_with_subscribed_topics(self) -> 'FlinkKafkaConsumerBase':
         """
         By default, when restoring from a checkpoint / savepoint, the consumer always ignores
         restored partitions that are no longer associated with the current specified topics or topic
@@ -266,7 +267,7 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
 
     def __init__(self, topic: str, serialization_schema: SerializationSchema,
                  producer_config: Dict, kafka_producer_pool_size: int = 5,
-                 semantic: Semantic = Semantic.AT_LEAST_ONCE):
+                 semantic=Semantic.AT_LEAST_ONCE):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -346,8 +347,11 @@ class JdbcSink(SinkFunction):
         gateway = get_gateway()
         JJdbcTypeUtil = gateway.jvm.org.apache.flink.connector.jdbc.utils.JdbcTypeUtil
         for field_type in type_info.get_field_types():
-            sql_types.append(JJdbcTypeUtil
-                             .typeInformationToSqlType(field_type.get_java_type_info()))
+            if isinstance(field_type, WrapperTypeInfo):
+                sql_types.append(JJdbcTypeUtil
+                                 .typeInformationToSqlType(field_type.get_java_type_info()))
+            else:
+                raise ValueError('field_type must be WrapperTypeInfo')
         j_sql_type = to_jarray(gateway.jvm.int, sql_types)
         output_format_clz = gateway.jvm.Class\
             .forName('org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat', False,

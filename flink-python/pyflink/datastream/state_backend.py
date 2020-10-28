@@ -19,6 +19,7 @@
 from abc import ABCMeta
 
 from py4j.java_gateway import get_java_class
+from typing import List, Optional
 
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
@@ -222,7 +223,7 @@ class MemoryStateBackend(StateBackend):
         self._j_memory_state_backend = j_memory_state_backend
         super(MemoryStateBackend, self).__init__(j_memory_state_backend)
 
-    def get_max_state_size(self):
+    def get_max_state_size(self) -> int:
         """
         Gets the maximum size that an individual state can have, as configured in the
         constructor (by default :data:`DEFAULT_MAX_STATE_SIZE`).
@@ -231,7 +232,7 @@ class MemoryStateBackend(StateBackend):
         """
         return self._j_memory_state_backend.getMaxStateSize()
 
-    def is_using_asynchronous_snapshots(self):
+    def is_using_asynchronous_snapshots(self) -> bool:
         """
         Gets whether the key/value data structures are asynchronously snapshotted.
 
@@ -369,7 +370,7 @@ class FsStateBackend(StateBackend):
         self._j_fs_state_backend = j_fs_state_backend
         super(FsStateBackend, self).__init__(j_fs_state_backend)
 
-    def get_checkpoint_path(self):
+    def get_checkpoint_path(self) -> str:
         """
         Gets the base directory where all the checkpoints are stored.
         The job-specific checkpoint directory is created inside this directory.
@@ -378,7 +379,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.getCheckpointPath().toString()
 
-    def get_min_file_size_threshold(self):
+    def get_min_file_size_threshold(self) -> int:
         """
         Gets the threshold below which state is stored as part of the metadata, rather than in
         files. This threshold ensures that the backend does not create a large amount of very
@@ -391,7 +392,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.getMinFileSizeThreshold()
 
-    def is_using_asynchronous_snapshots(self):
+    def is_using_asynchronous_snapshots(self) -> bool:
         """
         Gets whether the key/value data structures are asynchronously snapshotted.
 
@@ -403,7 +404,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.isUsingAsynchronousSnapshots()
 
-    def get_write_buffer_size(self):
+    def get_write_buffer_size(self) -> int:
         """
         Gets the write buffer size for created checkpoint stream.
 
@@ -503,7 +504,7 @@ class RocksDBStateBackend(StateBackend):
         j_state_backend = self._j_rocks_db_state_backend.getCheckpointBackend()
         return _from_j_state_backend(j_state_backend)
 
-    def set_db_storage_paths(self, *paths):
+    def set_db_storage_paths(self, *paths: str):
         """
         Sets the directories in which the local RocksDB database puts its files (like SST and
         metadata files). These directories do not need to be persistent, they can be ephemeral,
@@ -531,7 +532,7 @@ class RocksDBStateBackend(StateBackend):
                 j_path_array[i] = paths[i]
             self._j_rocks_db_state_backend.setDbStoragePaths(j_path_array)
 
-    def get_db_storage_paths(self):
+    def get_db_storage_paths(self) -> List[str]:
         """
         Gets the configured local DB storage paths, or null, if none were configured.
 
@@ -547,7 +548,7 @@ class RocksDBStateBackend(StateBackend):
         """
         return list(self._j_rocks_db_state_backend.getDbStoragePaths())
 
-    def is_incremental_checkpoints_enabled(self):
+    def is_incremental_checkpoints_enabled(self) -> bool:
         """
         Gets whether incremental checkpoints are enabled for this state backend.
 
@@ -619,7 +620,7 @@ class RocksDBStateBackend(StateBackend):
         else:
             raise Exception("Unsupported java options: %s" % j_predefined_options)
 
-    def set_options(self, options_factory_class_name):
+    def set_options(self, options_factory_class_name: str):
         """
         Sets ``org.rocksdb.Options`` for the RocksDB instances.
         Because the options are not serializable and hold native code references,
@@ -641,7 +642,7 @@ class RocksDBStateBackend(StateBackend):
             raise ValueError("The input class does not implement RocksDBOptionsFactory.")
         self._j_rocks_db_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
-    def get_options(self):
+    def get_options(self) -> Optional[str]:
         """
         Gets the fully-qualified class name of the options factory in Java that lazily creates
         the RocksDB options.
@@ -654,7 +655,7 @@ class RocksDBStateBackend(StateBackend):
         else:
             return None
 
-    def get_number_of_transfering_threads(self):
+    def get_number_of_transfering_threads(self) -> int:
         """
         Gets the number of threads used to transfer files while snapshotting/restoring.
 
@@ -662,7 +663,7 @@ class RocksDBStateBackend(StateBackend):
         """
         return self._j_rocks_db_state_backend.getNumberOfTransferingThreads()
 
-    def set_number_of_transfering_threads(self, number_of_transfering_threads):
+    def set_number_of_transfering_threads(self, number_of_transfering_threads: int):
         """
         Sets the number of threads used to transfer files while snapshotting/restoring.
 

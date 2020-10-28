@@ -34,7 +34,7 @@ class RestartStrategyConfiguration(object, metaclass=ABCMeta):
     def __init__(self, j_restart_strategy_configuration):
         self._j_restart_strategy_configuration = j_restart_strategy_configuration
 
-    def get_description(self):
+    def get_description(self) -> str:
         """
         Returns a description which is shown in the web interface.
 

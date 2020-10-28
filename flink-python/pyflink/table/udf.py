@@ -77,7 +77,7 @@ class UserDefinedFunction(abc.ABC):
         """
         pass
 
-    def is_deterministic(self):
+    def is_deterministic(self) -> bool:
         """
         Returns information about the determinism of the function's results.
         It returns true if and only if a call to this function is guaranteed to
@@ -86,7 +86,6 @@ class UserDefinedFunction(abc.ABC):
         this method must return false.
 
         :return: the determinism of the function's results.
-        :rtype: bool
         """
         return True
 
@@ -186,23 +185,21 @@ class AggregateFunction(UserDefinedFunction):
         """
         pass
 
-    def get_result_type(self):
+    def get_result_type(self) -> DataType:
         """
         Returns the DataType of the AggregateFunction's result.
 
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's result.
 
-        :rtype: pyflink.table.types.DataType
         """
         pass
 
-    def get_accumulator_type(self):
+    def get_accumulator_type(self) -> DataType:
         """
         Returns the DataType of the AggregateFunction's accumulator.
 
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's accumulator.
 
-        :rtype: pyflink.table.types.DataType
         """
         pass
 

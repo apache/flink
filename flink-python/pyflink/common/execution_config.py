@@ -15,10 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Dict, List
 
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
-from pyflink.common.restart_strategy import RestartStrategies
+from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
 
@@ -69,7 +70,7 @@ class ExecutionConfig(object):
     def __init__(self, j_execution_config):
         self._j_execution_config = j_execution_config
 
-    def enable_closure_cleaner(self):
+    def enable_closure_cleaner(self) -> 'ExecutionConfig':
         """
         Enables the ClosureCleaner. This analyzes user code functions and sets fields to null
         that are not used. This will in most cases make closures or anonymous inner classes
@@ -81,7 +82,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.enableClosureCleaner()
         return self
 
-    def disable_closure_cleaner(self):
+    def disable_closure_cleaner(self) -> 'ExecutionConfig':
         """
         Disables the ClosureCleaner.
 
@@ -92,7 +93,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.disableClosureCleaner()
         return self
 
-    def is_closure_cleaner_enabled(self):
+    def is_closure_cleaner_enabled(self) -> 'ExecutionConfig':
         """
         Returns whether the ClosureCleaner is enabled.
 
@@ -102,7 +103,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isClosureCleanerEnabled()
 
-    def set_auto_watermark_interval(self, interval):
+    def set_auto_watermark_interval(self, interval: int) -> 'ExecutionConfig':
         """
         Sets the interval of the automatic watermark emission. Watermarks are used throughout
         the streaming system to keep track of the progress of time. They are used, for example,
@@ -114,7 +115,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setAutoWatermarkInterval(interval)
         return self
 
-    def get_auto_watermark_interval(self):
+    def get_auto_watermark_interval(self) -> int:
         """
         Returns the interval of the automatic watermark emission.
 
@@ -124,7 +125,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getAutoWatermarkInterval()
 
-    def set_latency_tracking_interval(self, interval):
+    def set_latency_tracking_interval(self, interval: int) -> 'ExecutionConfig':
         """
         Interval for sending latency tracking marks from the sources to the sinks.
 
@@ -137,7 +138,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setLatencyTrackingInterval(interval)
         return self
 
-    def get_latency_tracking_interval(self):
+    def get_latency_tracking_interval(self) -> int:
         """
         Returns the latency tracking interval.
 
@@ -145,7 +146,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getLatencyTrackingInterval()
 
-    def get_parallelism(self):
+    def get_parallelism(self) -> int:
         """
         Gets the parallelism with which operation are executed by default. Operations can
         individually override this value to use a specific parallelism.
@@ -160,7 +161,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getParallelism()
 
-    def set_parallelism(self, parallelism):
+    def set_parallelism(self, parallelism: int) -> 'ExecutionConfig':
         """
         Sets the parallelism for operations executed through this environment.
         Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
@@ -177,7 +178,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setParallelism(parallelism)
         return self
 
-    def get_max_parallelism(self):
+    def get_max_parallelism(self) -> int:
         """
         Gets the maximum degree of parallelism defined for the program.
 
@@ -188,7 +189,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getMaxParallelism()
 
-    def set_max_parallelism(self, max_parallelism):
+    def set_max_parallelism(self, max_parallelism: int):
         """
         Sets the maximum degree of parallelism defined for the program.
 
@@ -199,7 +200,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.setMaxParallelism(max_parallelism)
 
-    def get_task_cancellation_interval(self):
+    def get_task_cancellation_interval(self) -> int:
         """
         Gets the interval (in milliseconds) between consecutive attempts to cancel a running task.
 
@@ -207,7 +208,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getTaskCancellationInterval()
 
-    def set_task_cancellation_interval(self, interval):
+    def set_task_cancellation_interval(self, interval: int):
         """
         Sets the configuration parameter specifying the interval (in milliseconds)
         between consecutive attempts to cancel a running task.
@@ -218,7 +219,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setTaskCancellationInterval(interval)
         return self
 
-    def get_task_cancellation_timeout(self):
+    def get_task_cancellation_timeout(self) -> int:
         """
         Returns the timeout (in milliseconds) after which an ongoing task
         cancellation leads to a fatal TaskManager error.
@@ -230,7 +231,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getTaskCancellationTimeout()
 
-    def set_task_cancellation_timeout(self, timeout):
+    def set_task_cancellation_timeout(self, timeout: int):
         """
         Sets the timeout (in milliseconds) after which an ongoing task cancellation
         is considered failed, leading to a fatal TaskManager error.
@@ -246,7 +247,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setTaskCancellationTimeout(timeout)
         return self
 
-    def set_restart_strategy(self, restart_strategy_configuration):
+    def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
         """
         Sets the restart strategy to be used for recovery.
         ::
@@ -261,7 +262,7 @@ class ExecutionConfig(object):
         self._j_execution_config.setRestartStrategy(
             restart_strategy_configuration._j_restart_strategy_configuration)
 
-    def get_restart_strategy(self):
+    def get_restart_strategy(self) -> RestartStrategyConfiguration:
         """
         Returns the restart strategy which has been set for the current job.
 
@@ -358,7 +359,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.disableForceKryo()
 
-    def is_force_kryo_enabled(self):
+    def is_force_kryo_enabled(self) -> bool:
         """
         :return: Boolean value that represent whether the usage of Kryo serializer for all POJOs
                  is enabled.
@@ -395,7 +396,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.disableGenericTypes()
 
-    def has_generic_types_disabled(self):
+    def has_generic_types_disabled(self) -> bool:
         """
         Checks whether generic types are supported. Generic types are types that go through Kryo
         during serialization.
@@ -431,7 +432,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.disableAutoGeneratedUIDs()
 
-    def has_auto_generated_uids_enabled(self):
+    def has_auto_generated_uids_enabled(self) -> bool:
         """
         Checks whether auto generated UIDs are supported.
 
@@ -459,7 +460,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.disableForceAvro()
 
-    def is_force_avro_enabled(self):
+    def is_force_avro_enabled(self) -> bool:
         """
         Returns whether the Apache Avro is the default serializer for POJOs.
 
@@ -468,7 +469,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isForceAvroEnabled()
 
-    def enable_object_reuse(self):
+    def enable_object_reuse(self) -> 'ExecutionConfig':
         """
         Enables reusing objects that Flink internally uses for deserialization and passing
         data to user-code functions. Keep in mind that this can lead to bugs when the
@@ -479,7 +480,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.enableObjectReuse()
         return self
 
-    def disable_object_reuse(self):
+    def disable_object_reuse(self) -> 'ExecutionConfig':
         """
         Disables reusing objects that Flink internally uses for deserialization and passing
         data to user-code functions.
@@ -491,7 +492,7 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.disableObjectReuse()
         return self
 
-    def is_object_reuse_enabled(self):
+    def is_object_reuse_enabled(self) -> bool:
         """
         Returns whether object reuse has been enabled or disabled.
 
@@ -501,7 +502,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isObjectReuseEnabled()
 
-    def get_global_job_parameters(self):
+    def get_global_job_parameters(self) -> Dict:
         """
         Gets current configuration dict.
 
@@ -509,7 +510,7 @@ class ExecutionConfig(object):
         """
         return dict(self._j_execution_config.getGlobalJobParameters().toMap())
 
-    def set_global_job_parameters(self, global_job_parameters_dict):
+    def set_global_job_parameters(self, global_job_parameters_dict: Dict):
         """
         Register a custom, serializable user configuration dict.
 
@@ -531,7 +532,7 @@ class ExecutionConfig(object):
             j_global_job_parameters.setString(key, value)
         self._j_execution_config.setGlobalJobParameters(j_global_job_parameters)
 
-    def add_default_kryo_serializer(self, type_class_name, serializer_class_name):
+    def add_default_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """
         Adds a new Kryo default serializer to the Runtime.
 
@@ -549,7 +550,7 @@ class ExecutionConfig(object):
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_execution_config.addDefaultKryoSerializer(type_clz, j_serializer_clz)
 
-    def register_type_with_kryo_serializer(self, type_class_name, serializer_class_name):
+    def register_type_with_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """
         Registers the given Serializer via its class as a serializer for the given type at the
         KryoSerializer.
@@ -568,7 +569,7 @@ class ExecutionConfig(object):
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_execution_config.registerTypeWithKryoSerializer(type_clz, j_serializer_clz)
 
-    def register_pojo_type(self, type_class_name):
+    def register_pojo_type(self, type_class_name: str):
         """
         Registers the given type with the serialization stack. If the type is eventually
         serialized as a POJO, then the type is registered with the POJO serializer. If the
@@ -585,7 +586,7 @@ class ExecutionConfig(object):
         type_clz = load_java_class(type_class_name)
         self._j_execution_config.registerPojoType(type_clz)
 
-    def register_kryo_type(self, type_class_name):
+    def register_kryo_type(self, type_class_name: str):
         """
         Registers the given type with the serialization stack. If the type is eventually
         serialized as a POJO, then the type is registered with the POJO serializer. If the
@@ -602,7 +603,7 @@ class ExecutionConfig(object):
         type_clz = load_java_class(type_class_name)
         self._j_execution_config.registerKryoType(type_clz)
 
-    def get_registered_types_with_kryo_serializer_classes(self):
+    def get_registered_types_with_kryo_serializer_classes(self) -> Dict[str, str]:
         """
         Returns the registered types with their Kryo Serializer classes.
 
@@ -616,7 +617,7 @@ class ExecutionConfig(object):
             registered_serializers[key.getName()] = j_clz_map[key].getName()
         return registered_serializers
 
-    def get_default_kryo_serializer_classes(self):
+    def get_default_kryo_serializer_classes(self) -> Dict[str, str]:
         """
         Returns the registered default Kryo Serializer classes.
 
@@ -630,7 +631,7 @@ class ExecutionConfig(object):
             default_kryo_serializers[key.getName()] = j_clz_map[key].getName()
         return default_kryo_serializers
 
-    def get_registered_kryo_types(self):
+    def get_registered_kryo_types(self) -> List[str]:
         """
         Returns the registered Kryo types.
 
@@ -639,7 +640,7 @@ class ExecutionConfig(object):
         j_clz_set = self._j_execution_config.getRegisteredKryoTypes()
         return [value.getName() for value in j_clz_set]
 
-    def get_registered_pojo_types(self):
+    def get_registered_pojo_types(self) -> List[str]:
         """
         Returns the registered POJO types.
 
@@ -648,7 +649,7 @@ class ExecutionConfig(object):
         j_clz_set = self._j_execution_config.getRegisteredPojoTypes()
         return [value.getName() for value in j_clz_set]
 
-    def is_auto_type_registration_disabled(self):
+    def is_auto_type_registration_disabled(self) -> bool:
         """
         Returns whether Flink is automatically registering all types in the user programs with
         Kryo.
@@ -664,7 +665,7 @@ class ExecutionConfig(object):
         """
         self._j_execution_config.disableAutoTypeRegistration()
 
-    def is_use_snapshot_compression(self):
+    def is_use_snapshot_compression(self) -> bool:
         """
         Returns whether he compression (snappy) for keyed state in full checkpoints and savepoints
         is enabled.
@@ -673,7 +674,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isUseSnapshotCompression()
 
-    def set_use_snapshot_compression(self, use_snapshot_compression):
+    def set_use_snapshot_compression(self, use_snapshot_compression: bool):
         """
         Control whether the compression (snappy) for keyed state in full checkpoints and savepoints
         is enabled.

@@ -588,7 +588,7 @@ class Types(object):
                             str(element_type))
 
 
-def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
+def _from_java_type(j_type_info: JavaObject) -> WrapperTypeInfo:
     gateway = get_gateway()
     JBasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
