@@ -208,9 +208,12 @@ class CsvRowDeserializationSchema(DeserializationSchema):
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            self._j_builder = get_gateway().jvm\
-                .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
-                type_info.get_java_type_info())
+            if isinstance(type_info, WrapperTypeInfo):
+                self._j_builder = get_gateway().jvm\
+                    .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
+                    type_info.get_java_type_info())
+            else:
+                raise ValueError('type_info must be WrapperTypeInfo')
 
         def set_field_delimiter(self, delimiter: str):
             self._j_builder = self._j_builder.setFieldDelimiter(delimiter)
@@ -263,9 +266,12 @@ class CsvRowSerializationSchema(SerializationSchema):
         def __init__(self, type_info: TypeInformation):
             if type_info is None:
                 raise TypeError("Type information must not be None")
-            self._j_builder = get_gateway().jvm\
-                .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
-                type_info.get_java_type_info())
+            if isinstance(type_info, WrapperTypeInfo):
+                self._j_builder = get_gateway().jvm\
+                    .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
+                    type_info.get_java_type_info())
+            else:
+                raise ValueError('type_info must be WrapperTypeInfo')
 
         def set_field_delimiter(self, c: str):
             self._j_builder = self._j_builder.setFieldDelimiter(c)
