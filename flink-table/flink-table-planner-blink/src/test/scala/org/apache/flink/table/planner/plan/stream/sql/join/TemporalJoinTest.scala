@@ -375,6 +375,16 @@ class TemporalJoinTest extends TableTestBase {
         s" left table's time attribute field",
       classOf[ValidationException])
 
+    val sqlQuery2 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.amount = r.rate"
+    expectExceptionThrown(
+      sqlQuery2,
+      "Temporal table's primary key [currency0] must be included in the equivalence" +
+        " condition of temporal join, but current temporal join condition is [amount=rate].",
+      classOf[ValidationException])
+
     util.addTable(
       """
         |CREATE TABLE versionedTableWithoutPk (
@@ -387,14 +397,17 @@ class TemporalJoinTest extends TableTestBase {
         |)
       """.stripMargin)
 
-    val sqlQuery2 = "SELECT * " +
+    val sqlQuery3 = "SELECT * " +
       "FROM Orders AS o JOIN " +
-      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
-      "ON o.amount = r.rate"
+      "versionedTableWithoutPk FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
     expectExceptionThrown(
-      sqlQuery2,
-      s"Join key must be the same as temporal table's primary key " +
-        s"in Event-time temporal table join",
+      sqlQuery3,
+      "Temporal Table Join requires primary key in versioned table, " +
+        "but no primary key can be found. The physical plan is:\n" +
+        "FlinkLogicalJoin(condition=[AND(=($1, $4), " +
+        "__INITIAL_TEMPORAL_JOIN_CONDITION($2, $6, __TEMPORAL_JOIN_LEFT_KEY($1), " +
+        "__TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])",
       classOf[ValidationException])
 
     util.addTable(
@@ -408,12 +421,12 @@ class TemporalJoinTest extends TableTestBase {
         | 'connector' = 'values'
         |)
       """.stripMargin)
-    val sqlQuery3 = "SELECT * " +
+    val sqlQuery4 = "SELECT * " +
       "FROM Orders AS o JOIN " +
       "versionedTableWithoutTimeAttribute FOR SYSTEM_TIME AS OF o.rowtime AS r " +
       "ON o.currency = r.currency"
     expectExceptionThrown(
-      sqlQuery3,
+      sqlQuery4,
       s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
         s"versioned table, but no row time attribute can be found.",
       classOf[ValidationException])
@@ -430,12 +443,12 @@ class TemporalJoinTest extends TableTestBase {
         | 'connector' = 'values'
         |)
       """.stripMargin)
-    val sqlQuery4 = "SELECT * " +
+    val sqlQuery5 = "SELECT * " +
       "FROM Orders AS o JOIN " +
       "versionedTableWithoutRowtime FOR SYSTEM_TIME AS OF o.rowtime AS r " +
       "ON o.currency = r.currency"
     expectExceptionThrown(
-      sqlQuery4,
+      sqlQuery5,
       s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
         s"versioned table, but no row time attribute can be found.",
       classOf[ValidationException])

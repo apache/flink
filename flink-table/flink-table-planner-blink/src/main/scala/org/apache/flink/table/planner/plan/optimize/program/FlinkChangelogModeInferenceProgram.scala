@@ -259,14 +259,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         createNewNode(join, children, providedTrait, requiredTrait, requester)
 
-      case temporalJoin: StreamExecLegacyTemporalJoin =>
-        // currently, legacy temporal join only supports insert-only input streams,
-        // including right side
-        val children = visitChildren(temporalJoin, ModifyKindSetTrait.INSERT_ONLY)
-        // forward left input changes
-        val leftTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-        createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
-
       case temporalJoin: StreamExecTemporalJoin =>
         // currently, temporal join supports all kings of changes, including right side
         val children = visitChildren(temporalJoin, ModifyKindSetTrait.ALL_CHANGES)
@@ -517,22 +509,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           None
         } else {
           createNewNode(join, Some(children.flatten.toList), requiredTrait)
-        }
-
-      case temporalJoin: StreamExecLegacyTemporalJoin =>
-        // forward required mode to left input
-        val left = temporalJoin.getLeft.asInstanceOf[StreamPhysicalRel]
-        val right = temporalJoin.getRight.asInstanceOf[StreamPhysicalRel]
-        val newLeftOption = this.visit(left, requiredTrait)
-        // currently legacy temporal join only support insert-only source as the right side
-        // so it requires nothing about UpdateKind
-        val newRightOption = this.visit(right, UpdateKindTrait.NONE)
-        (newLeftOption, newRightOption) match {
-          case (Some(newLeft), Some(newRight)) =>
-            val leftTrait = newLeft.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-            createNewNode(temporalJoin, Some(List(newLeft, newRight)), leftTrait)
-          case _ =>
-            None
         }
 
       case temporalJoin: StreamExecTemporalJoin =>
