@@ -43,11 +43,9 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.toMonthInter
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.*;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
-//CHECKSTYLE.OFF: AvoidStarImport|ImportOrder
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.*;
-//CHECKSTYLE.ON: AvoidStarImport|ImportOrder
 
 /**
  * These are Java and Scala common operations that can be used to construct an {@link Expression} AST for
