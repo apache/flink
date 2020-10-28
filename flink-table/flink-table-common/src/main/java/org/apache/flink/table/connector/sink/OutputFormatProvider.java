@@ -28,7 +28,7 @@ import org.apache.flink.table.data.RowData;
  */
 @PublicEvolving
 public interface OutputFormatProvider
-	extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider{
+	extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
 	/**
 	 * Helper method for creating a static provider.
