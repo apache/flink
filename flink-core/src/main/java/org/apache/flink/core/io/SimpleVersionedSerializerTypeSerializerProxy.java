@@ -28,6 +28,8 @@ import org.apache.flink.util.function.SerializableSupplier;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link TypeSerializer} that delegates to an underlying {@link SimpleVersionedSerializer}.
  *
@@ -43,7 +45,7 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 
 	public SimpleVersionedSerializerTypeSerializerProxy(
 			SerializableSupplier<SimpleVersionedSerializer<T>> serializerSupplier) {
-		this.serializerSupplier = serializerSupplier;
+		this.serializerSupplier = checkNotNull(serializerSupplier, "serializerSupplier");
 	}
 
 	@Override
