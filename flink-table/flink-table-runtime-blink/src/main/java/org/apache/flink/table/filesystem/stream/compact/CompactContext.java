@@ -28,14 +28,6 @@ import org.apache.flink.core.fs.Path;
  */
 public interface CompactContext {
 
-	Configuration getConfig();
-
-	FileSystem getFileSystem();
-
-	String getPartition();
-
-	Path getPath();
-
 	static CompactContext create(
 			Configuration config,
 			FileSystem fileSystem,
@@ -43,6 +35,14 @@ public interface CompactContext {
 			Path path) {
 		return new CompactContextImpl(config, fileSystem, partition, path);
 	}
+
+	Configuration getConfig();
+
+	FileSystem getFileSystem();
+
+	String getPartition();
+
+	Path getPath();
 
 	/**
 	 * Implementation of {@link CompactContext}.
@@ -85,4 +85,4 @@ public interface CompactContext {
 			return path;
 		}
 	}
- }
+}
