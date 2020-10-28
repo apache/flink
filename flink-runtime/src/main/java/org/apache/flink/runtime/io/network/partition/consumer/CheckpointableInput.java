@@ -30,9 +30,9 @@ import java.util.List;
  */
 @Internal
 public interface CheckpointableInput {
-	void blockConsumption(int inputChannelIdx);
+	void blockConsumption(InputChannelInfo channelInfo);
 
-	void resumeConsumption(int channelIndex) throws IOException;
+	void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
 	List<InputChannelInfo> getChannelInfos();
 

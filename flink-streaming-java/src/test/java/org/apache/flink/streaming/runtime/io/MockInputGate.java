@@ -136,8 +136,8 @@ public class MockInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) {
-		lastUnblockedChannels.add(channelIndex);
+	public void resumeConsumption(InputChannelInfo channelInfo) {
+		lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
 	}
 
 	public ArrayList<Integer> getAndResetLastUnblockedChannels() {

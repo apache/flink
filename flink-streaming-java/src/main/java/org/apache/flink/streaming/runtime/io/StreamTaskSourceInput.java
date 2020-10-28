@@ -73,12 +73,12 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Check
 	}
 
 	@Override
-	public void blockConsumption(int channelIndex) {
+	public void blockConsumption(InputChannelInfo channelInfo) {
 		isBlockedAvailability.resetUnavailable();
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) {
+	public void resumeConsumption(InputChannelInfo channelInfo) {
 		isBlockedAvailability.getUnavailableToResetAvailable().complete(null);
 	}
 
@@ -114,12 +114,12 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Check
 	 */
 	@Override
 	public void checkpointStarted(CheckpointBarrier barrier) {
-		blockConsumption(-1);
+		blockConsumption(null);
 	}
 
 	@Override
 	public void checkpointStopped(long cancelledCheckpointId) {
-		resumeConsumption(-1);
+		resumeConsumption(null);
 	}
 
 	@Override

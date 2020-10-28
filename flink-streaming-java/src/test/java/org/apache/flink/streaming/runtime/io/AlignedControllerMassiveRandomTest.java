@@ -223,7 +223,7 @@ public class AlignedControllerMassiveRandomTest {
 		public void sendTaskEvent(TaskEvent event) {}
 
 		@Override
-		public void resumeConsumption(int channelIndex) {
+		public void resumeConsumption(InputChannelInfo channelInfo) {
 		}
 
 		@Override

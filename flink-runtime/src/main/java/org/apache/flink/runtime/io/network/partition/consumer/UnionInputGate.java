@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
@@ -267,11 +268,11 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) throws IOException {
+	public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		// BEWARE: consumption resumption only happens for streaming jobs in which all
 		// slots are allocated together so there should be no UnknownInputChannel. We
 		// will refactor the code to not rely on this assumption in the future.
-		getChannel(channelIndex).resumeConsumption();
+		inputGatesByGateIndex.get(channelInfo.getGateIdx()).resumeConsumption(channelInfo);
 	}
 
 	@Override
