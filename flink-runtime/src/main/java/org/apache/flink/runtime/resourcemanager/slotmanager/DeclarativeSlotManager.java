@@ -200,10 +200,12 @@ public class DeclarativeSlotManager implements SlotManager {
 		LOG.info("Suspending the slot manager.");
 
 		resourceTracker.clear();
-		taskExecutorManager.close();
+		if (taskExecutorManager != null) {
+			taskExecutorManager.close();
 
-		for (InstanceID registeredTaskManager : taskExecutorManager.getTaskExecutors()) {
-			unregisterTaskManager(registeredTaskManager, new SlotManagerException("The slot manager is being suspended."));
+			for (InstanceID registeredTaskManager : taskExecutorManager.getTaskExecutors()) {
+				unregisterTaskManager(registeredTaskManager, new SlotManagerException("The slot manager is being suspended."));
+			}
 		}
 
 		taskExecutorManager = null;
