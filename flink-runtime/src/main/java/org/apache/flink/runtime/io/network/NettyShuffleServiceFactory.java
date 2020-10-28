@@ -128,7 +128,8 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.getCompressionCodec(),
 			config.getMaxBuffersPerChannel(),
 			config.sortShuffleMinBuffers(),
-			config.sortShuffleMinParallelism());
+			config.sortShuffleMinParallelism(),
+			config.isSSLEnabled());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,

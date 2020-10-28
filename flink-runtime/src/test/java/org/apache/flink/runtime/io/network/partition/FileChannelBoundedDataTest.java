@@ -157,6 +157,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 			.setResultPartitionType(ResultPartitionType.BLOCKING)
 			.setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType.FILE)
 			.setFileChannelManager(fileChannelManager)
+			.setSSLEnabled(true)
 			.build();
 		return resultPartition.subpartitions[0];
 	}

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -189,6 +191,9 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private final MemorySegmentProvider memorySegmentProvider;
 
+	/** The segment to read data from file region of bounded blocking partition by local input channel. */
+	private final MemorySegment unpooledSegment;
+
 	public SingleInputGate(
 		String owningTaskName,
 		int gateIndex,
@@ -199,7 +204,8 @@ public class SingleInputGate extends IndexedInputGate {
 		PartitionProducerStateProvider partitionProducerStateProvider,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory,
 		@Nullable BufferDecompressor bufferDecompressor,
-		MemorySegmentProvider memorySegmentProvider) {
+		MemorySegmentProvider memorySegmentProvider,
+		int segmentSize) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -228,6 +234,8 @@ public class SingleInputGate extends IndexedInputGate {
 		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
 
 		this.closeFuture = new CompletableFuture<>();
+
+		this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
 	}
 
 	protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -508,6 +516,10 @@ public class SingleInputGate extends IndexedInputGate {
 	@VisibleForTesting
 	Timer getRetriggerLocalRequestTimer() {
 		return retriggerLocalRequestTimer;
+	}
+
+	MemorySegment getUnpooledSegment() {
+		return unpooledSegment;
 	}
 
 	@Override

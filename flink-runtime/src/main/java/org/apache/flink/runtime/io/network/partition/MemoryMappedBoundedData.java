@@ -177,6 +177,11 @@ final class MemoryMappedBoundedData implements BoundedData {
 		return size;
 	}
 
+	@Override
+	public Path getFilePath() {
+		return filePath;
+	}
+
 	private void rollOverToNextBuffer() throws IOException {
 		if (currentBuffer != null) {
 			// we need to remember the original buffers, not any slices.

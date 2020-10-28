@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * BoundedData is the data store in a single bounded blocking subpartition.
@@ -74,6 +75,11 @@ interface BoundedData extends Closeable {
 	 * Gets the number of bytes of all written data (including the metadata in the buffer headers).
 	 */
 	long getSize();
+
+	/**
+	 * The file path for the persisted {@link BoundedBlockingSubpartition}.
+	 */
+	Path getFilePath();
 
 	// ------------------------------------------------------------------------
 

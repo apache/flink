@@ -172,6 +172,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return blockingShuffleCompressionEnabled;
 	}
 
+	public boolean isSSLEnabled() {
+		return nettyConfig != null && nettyConfig.getSSLEnabled();
+	}
+
 	public String getCompressionCodec() {
 		return compressionCodec;
 	}

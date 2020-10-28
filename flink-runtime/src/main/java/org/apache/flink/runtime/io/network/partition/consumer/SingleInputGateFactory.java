@@ -134,7 +134,8 @@ public class SingleInputGateFactory {
 			partitionProducerStateProvider,
 			bufferPoolFactory,
 			bufferDecompressor,
-			networkBufferPool);
+			networkBufferPool,
+			networkBufferSize);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;

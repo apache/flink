@@ -125,6 +125,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		BoundedBlockingResultPartition parent = (BoundedBlockingResultPartition) new ResultPartitionBuilder()
 			.setResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
 			.setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType.FILE)
+			.setSSLEnabled(true)
 			.setFileChannelManager(new FileChannelManagerImpl(new String[] { TMP_FOLDER.newFolder().toString() }, "data"))
 			.setNetworkBufferSize(BUFFER_SIZE)
 			.build();

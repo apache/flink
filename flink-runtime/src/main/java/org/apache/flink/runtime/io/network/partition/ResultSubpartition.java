@@ -23,8 +23,6 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -166,13 +164,13 @@ public abstract class ResultSubpartition {
 
 		public static BufferAndBacklog fromBufferAndLookahead(
 				Buffer current,
-				@Nullable Buffer lookahead,
+				Buffer.DataType nextDataType,
 				int backlog,
 				int sequenceNumber) {
 			return new BufferAndBacklog(
 				current,
 				backlog,
-				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE,
+				nextDataType,
 				sequenceNumber);
 		}
 	}

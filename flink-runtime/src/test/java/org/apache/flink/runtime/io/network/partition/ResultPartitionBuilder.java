@@ -68,6 +68,8 @@ public class ResultPartitionBuilder {
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
+	private boolean sslEnabled = false;
+
 	private String compressionCodec = "LZ4";
 
 	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
@@ -166,6 +168,11 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
+	public ResultPartitionBuilder setSSLEnabled(boolean sslEnabled) {
+		this.sslEnabled = sslEnabled;
+		return this;
+	}
+
 	public ResultPartition build() {
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			partitionManager,
@@ -179,7 +186,8 @@ public class ResultPartitionBuilder {
 			compressionCodec,
 			maxBuffersPerChannel,
 			sortShuffleMinBuffers,
-			sortShuffleMinParallelism);
+			sortShuffleMinParallelism,
+			sslEnabled);
 
 		SupplierWithException<BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));

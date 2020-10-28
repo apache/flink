@@ -32,4 +32,18 @@ public interface BufferRecycler {
 	 * @param memorySegment The memory segment to be recycled.
 	 */
 	void recycle(MemorySegment memorySegment);
+
+	/**
+	 * The buffer recycler does nothing for recycled segment.
+	 */
+	final class DummyBufferRecycler implements BufferRecycler {
+
+		public static final BufferRecycler INSTANCE = new DummyBufferRecycler();
+
+		private DummyBufferRecycler() {}
+
+		@Override
+		public void recycle(MemorySegment memorySegment) {
+		}
+	}
 }

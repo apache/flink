@@ -106,8 +106,13 @@ public class SortMergeSubpartitionReader implements ResultSubpartitionView, Buff
 			--dataBufferBacklog;
 		}
 
+		final Buffer lookAhead = buffersRead.peek();
+
 		return BufferAndBacklog.fromBufferAndLookahead(
-			buffer, buffersRead.peek(), dataBufferBacklog, sequenceNumber++);
+				buffer,
+				lookAhead == null ? Buffer.DataType.NONE : lookAhead.getDataType(),
+				dataBufferBacklog,
+				sequenceNumber++);
 	}
 
 	void readBuffers() throws IOException {

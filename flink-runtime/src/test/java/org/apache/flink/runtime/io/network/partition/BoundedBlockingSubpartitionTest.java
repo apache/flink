@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.junit.AfterClass;
@@ -28,11 +29,17 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,11 +53,24 @@ import static org.junit.Assert.fail;
  * <p>Full read / write tests for the partition and the reader are in
  * {@link BoundedBlockingSubpartitionWriteReadTest}.
  */
+@RunWith(Parameterized.class)
 public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
 	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
 	private static FileChannelManager fileChannelManager;
+
+	private final BoundedBlockingSubpartitionType type;
+
+	private final boolean sslEnabled;
+
+	@Parameterized.Parameters(name = "type = {0}, sslEnabled = {1}")
+	public static Collection<Object[]> parameters() {
+		return Arrays.stream(BoundedBlockingSubpartitionType.values())
+			.map((type) -> new Object[][] { { type, true }, { type, false } })
+			.flatMap(Arrays::stream)
+			.collect(Collectors.toList());
+	}
 
 	@ClassRule
 	public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
@@ -63,6 +83,11 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 	@AfterClass
 	public static void shutdown() throws Exception {
 		fileChannelManager.close();
+	}
+
+	public BoundedBlockingSubpartitionTest(BoundedBlockingSubpartitionType type, boolean sslEnabled) {
+		this.type = type;
+		this.sslEnabled = sslEnabled;
 	}
 
 	// ------------------------------------------------------------------------
@@ -97,8 +122,7 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 	@Override
 	ResultSubpartition createSubpartition() throws Exception {
 		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
-		return BoundedBlockingSubpartition.createWithMemoryMappedFile(
-				0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"));
+		return type.create(0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"), BufferBuilderTestUtils.BUFFER_SIZE, sslEnabled);
 	}
 
 	@Override
@@ -108,7 +132,8 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 		return new BoundedBlockingSubpartition(
 				0,
 				resultPartition,
-				new FailingBoundedData());
+				new FailingBoundedData(),
+				!sslEnabled && type == BoundedBlockingSubpartitionType.FILE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -132,6 +157,11 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
 		@Override
 		public long getSize() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Path getFilePath() {
 			throw new UnsupportedOperationException();
 		}
 
@@ -162,6 +192,11 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
 		@Override
 		public long getSize() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Path getFilePath() {
 			throw new UnsupportedOperationException();
 		}
 
