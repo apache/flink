@@ -23,14 +23,13 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
+import org.apache.calcite.rex.RexProgram
 
 import java.util
 
@@ -57,27 +56,8 @@ abstract class BatchExecCalcBase(
     if (requiredDistribution.getType == RelDistribution.Type.BROADCAST_DISTRIBUTED) {
       return None
     }
-    val projects = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
-    def getProjectMapping: Mapping = {
-      val mapping = Mappings.create(MappingType.INVERSE_FUNCTION,
-        getInput.getRowType.getFieldCount, projects.size)
-      projects.zipWithIndex.foreach {
-        case (project, index) =>
-          project match {
-            case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-            case call: RexCall if call.getKind == SqlKind.AS =>
-              call.getOperands.head match {
-                case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-                case _ => // ignore
-              }
-            case _ => // ignore
-          }
-      }
-      mapping.inverse()
-    }
-
-    val mapping = getProjectMapping
+    val mapping = FlinkRexUtil.getProjectMapping(getInput.getRowType.getFieldCount, calcProgram)
     val appliedDistribution = requiredDistribution.apply(mapping)
     // If both distribution and collation can be satisfied, satisfy both. If only distribution
     // can be satisfied, only satisfy distribution. There is no possibility to only satisfy

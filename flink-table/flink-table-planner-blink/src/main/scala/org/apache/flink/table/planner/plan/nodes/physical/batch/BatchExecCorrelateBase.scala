@@ -23,15 +23,13 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelDistribution, RelFieldCollation, RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
+import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
 
 import java.util
 
@@ -89,35 +87,7 @@ abstract class BatchExecCorrelateBase(
       return None
     }
 
-    def getOutputInputMapping: Mapping = {
-      val inputFieldCnt = getInput.getRowType.getFieldCount
-      projectProgram match {
-        case Some(program) =>
-          val projects = program.getProjectList.map(program.expandLocalRef)
-          val mapping = Mappings.create(MappingType.INVERSE_FUNCTION, inputFieldCnt, projects.size)
-          projects.zipWithIndex.foreach {
-            case (project, index) =>
-              project match {
-                case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-                case call: RexCall if call.getKind == SqlKind.AS =>
-                  call.getOperands.head match {
-                    case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
-                    case _ => // ignore
-                  }
-                case _ => // ignore
-              }
-          }
-          mapping.inverse()
-        case _ =>
-          val mapping = Mappings.create(MappingType.FUNCTION, inputFieldCnt, inputFieldCnt)
-          (0 until inputFieldCnt).foreach {
-            index => mapping.set(index, index)
-          }
-          mapping
-      }
-    }
-
-    val mapping = getOutputInputMapping
+    val mapping = FlinkRexUtil.getProjectMapping(getInput.getRowType.getFieldCount, projectProgram)
     val appliedDistribution = requiredDistribution.apply(mapping)
     // If both distribution and collation can be satisfied, satisfy both. If only distribution
     // can be satisfied, only satisfy distribution. There is no possibility to only satisfy

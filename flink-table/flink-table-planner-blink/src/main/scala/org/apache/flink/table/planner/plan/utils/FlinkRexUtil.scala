@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.{JList, JSet}
+import org.apache.flink.table.planner.JList
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -30,6 +30,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 import org.apache.calcite.util.{ControlFlowException, Sarg, Util}
 
 import java.lang.Iterable
@@ -430,4 +431,34 @@ object FlinkRexUtil {
     }
   }
 
+  def getProjectMapping(inputFieldCnt: Int, program: RexProgram): Mapping = {
+    val projects = program.getProjectList.map(program.expandLocalRef)
+    val mapping = Mappings.create(MappingType.INVERSE_FUNCTION, inputFieldCnt, projects.size)
+    projects.zipWithIndex.foreach {
+      case (project, index) =>
+        project match {
+          case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
+          case call: RexCall if call.getKind == SqlKind.AS =>
+            call.getOperands.head match {
+              case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
+              case _ => // ignore
+            }
+          case _ => // ignore
+        }
+    }
+    mapping.inverse()
+  }
+
+  def getProjectMapping(inputFieldCnt: Int, program: Option[RexProgram]): Mapping = {
+    program match {
+      case Some(p) =>
+        getProjectMapping(inputFieldCnt, p)
+      case _ =>
+        val mapping = Mappings.create(MappingType.FUNCTION, inputFieldCnt, inputFieldCnt)
+        (0 until inputFieldCnt).foreach {
+          index => mapping.set(index, index)
+        }
+        mapping
+    }
+  }
 }
