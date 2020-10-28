@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -56,9 +57,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * File system table source.
@@ -85,6 +88,11 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 			@Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
+		if (Stream.of(bulkReaderFormat, deserializationFormat, formatFactory)
+				.allMatch(Objects::isNull)) {
+			throw new ValidationException("Please implement at least one of the following formats:" +
+					" BulkFormat, DeserializationSchema, FileSystemFormatFactory.");
+		}
 		this.bulkReaderFormat = bulkReaderFormat;
 		this.deserializationFormat = deserializationFormat;
 		this.formatFactory = formatFactory;
@@ -106,9 +114,10 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 							getInputFormat(),
 							InternalTypeInfo.of(getProducedDataType().getLogicalType())),
 					true);
-		// } else if (deserializationFormat != null) {
-		//	 TODO wrap deserializationFormat to bulk format
-		//	 return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
+		 } else if (deserializationFormat != null) {
+			throw new UnsupportedOperationException("The deserializationFormat is under developing.");
+			// TODO wrap deserializationFormat to bulk format
+			// return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
 		} else {
 			throw new TableException("Can not find format factory.");
 		}

@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -63,8 +64,10 @@ import java.io.OutputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
@@ -92,6 +95,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 			@Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
+		if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory)
+				.allMatch(Objects::isNull)) {
+			throw new ValidationException("Please implement at least one of the following formats:" +
+					" BulkWriter.Factory, SerializationSchema, FileSystemFormatFactory.");
+		}
 		this.bulkWriterFormat = bulkWriterFormat;
 		this.serializationFormat = serializationFormat;
 		this.formatFactory = formatFactory;
@@ -224,17 +232,18 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		if (bulkWriterFormat != null) {
 			return bulkWriterFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
 		} else if (formatFactory != null) {
-			return createWriterFromFormatFactory(sinkContext);
-		// } else if (serializationFormat != null) {
-		//	 TODO wrap serializationSchema to encoder
-		//	return wrapSerializationFormat(
-		//			serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
+			return createWriterFromFormatFactory();
+		 } else if (serializationFormat != null) {
+			throw new UnsupportedOperationException("The serializationFormat is under developing.");
+			// TODO wrap serializationSchema to encoder
+			// return wrapSerializationFormat(
+			//     serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
 		} else {
 			throw new TableException("Can not find format factory.");
 		}
 	}
 
-	private Object createWriterFromFormatFactory(Context sinkContext) {
+	private Object createWriterFromFormatFactory() {
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
 			@Override
