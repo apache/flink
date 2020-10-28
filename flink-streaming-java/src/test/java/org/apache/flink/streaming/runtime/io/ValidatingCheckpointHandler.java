@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -106,8 +107,9 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
 			CheckpointMetricsBuilder checkpointMetrics) {
-		assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
-			nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
+		if (nextExpectedCheckpointId != -1L) {
+			assertEquals(nextExpectedCheckpointId, checkpointMetaData.getCheckpointId());
+		}
 		assertTrue(checkpointMetaData.getTimestamp() > 0);
 
 		nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
