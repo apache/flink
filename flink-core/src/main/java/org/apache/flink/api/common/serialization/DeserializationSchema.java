@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -97,6 +98,7 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 	 * A contextual information provided for {@link #open(InitializationContext)} method. It can be used to:
 	 * <ul>
 	 *     <li>Register user metrics via {@link InitializationContext#getMetricGroup()}</li>
+	 *     <li>Access the user code class loader.</li>
 	 * </ul>
 	 */
 	@PublicEvolving
@@ -112,5 +114,13 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 		 * @see MetricGroup
 		 */
 		MetricGroup getMetricGroup();
+
+		/**
+		 * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
+		 * but are part of the jar file of a user job.
+		 *
+		 * @see UserCodeClassLoader
+		 */
+		UserCodeClassLoader getUserCodeClassLoader();
 	}
 }

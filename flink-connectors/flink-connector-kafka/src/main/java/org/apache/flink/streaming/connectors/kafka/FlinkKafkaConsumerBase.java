@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -692,7 +693,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			}
 		}
 
-		this.deserializer.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		this.deserializer.open(
+				RuntimeContextInitializationContextAdapters.deserializationAdapter(
+						getRuntimeContext(),
+						metricGroup -> metricGroup.addGroup("user")
+				)
+		);
 	}
 
 	@Override

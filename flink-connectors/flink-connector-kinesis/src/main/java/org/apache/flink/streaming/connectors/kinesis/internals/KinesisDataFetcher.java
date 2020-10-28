@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -526,10 +527,15 @@ public class KinesisDataFetcher<T> {
 				StreamShardHandle streamShardHandle = subscribedShardsState.get(seededStateIndex)
 					.getStreamShardHandle();
 				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
-				shardDeserializationSchema.open(() -> consumerMetricGroup
-					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
-					.addGroup("shardId", streamShardHandle.getShard().getShardId())
-					.addGroup("user"));
+				shardDeserializationSchema.open(
+						RuntimeContextInitializationContextAdapters.deserializationAdapter(
+								runtimeContext,
+								// ignore the provided metric group
+								metricGroup -> consumerMetricGroup
+										.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+										.addGroup("shardId", streamShardHandle.getShard().getShardId())
+										.addGroup("user")
+						));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						seededStateIndex,
@@ -627,10 +633,14 @@ public class KinesisDataFetcher<T> {
 
 				StreamShardHandle streamShardHandle = newShardState.getStreamShardHandle();
 				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
-				shardDeserializationSchema.open(() -> consumerMetricGroup
-					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
-					.addGroup("shardId", streamShardHandle.getShard().getShardId())
-					.addGroup("user"));
+				shardDeserializationSchema.open(RuntimeContextInitializationContextAdapters.deserializationAdapter(
+						runtimeContext,
+						// ignore the provided metric group
+						metricGroup -> consumerMetricGroup
+								.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+								.addGroup("shardId", streamShardHandle.getShard().getShardId())
+								.addGroup("user")
+				));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						newStateIndex,
