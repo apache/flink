@@ -125,7 +125,8 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			"LZ4",
 			Integer.MAX_VALUE,
 			10,
-			sortShuffleMinParallelism);
+			sortShuffleMinParallelism,
+			false);
 
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
 			PartitionDescriptorBuilder

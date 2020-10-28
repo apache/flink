@@ -45,6 +45,8 @@ public class SingleInputGateBuilder {
 
 	private final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
 
+	private final int bufferSize = 4096;
+
 	private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
 	private int consumedSubpartitionIndex = 0;
@@ -147,7 +149,8 @@ public class SingleInputGateBuilder {
 			partitionProducerStateProvider,
 			bufferPoolFactory,
 			bufferDecompressor,
-			segmentProvider);
+			segmentProvider,
+			bufferSize);
 		if (channelFactory != null) {
 			gate.setInputChannels(IntStream.range(0, numberOfChannels)
 				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setChannelIndex(index), gate))

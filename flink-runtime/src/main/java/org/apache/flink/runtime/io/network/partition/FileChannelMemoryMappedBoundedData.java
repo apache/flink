@@ -168,6 +168,11 @@ final class FileChannelMemoryMappedBoundedData implements BoundedData {
 		return pos;
 	}
 
+	@Override
+	public Path getFilePath() {
+		return filePath;
+	}
+
 	private void mapRegionAndStartNext() throws IOException {
 		final ByteBuffer region = fileChannel.map(MapMode.READ_ONLY, startOfCurrentRegion, pos - startOfCurrentRegion);
 		region.order(ByteOrder.nativeOrder());

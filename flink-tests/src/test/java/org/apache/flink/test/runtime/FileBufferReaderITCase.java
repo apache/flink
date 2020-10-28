@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.testutils.serialization.types.ByteArrayType;
 import org.apache.flink.util.TestLogger;
 
@@ -48,7 +49,11 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -65,6 +70,7 @@ import static org.junit.Assert.assertThat;
  * the first fetched buffer from {@link org.apache.flink.runtime.io.network.partition.FileChannelBoundedData} has not
  * been recycled while fetching the second buffer to trigger next read ahead, which breaks the above assumption.
  */
+@RunWith(Parameterized.class)
 public class FileBufferReaderITCase extends TestLogger {
 
 	private static final int parallelism = 8;
@@ -79,6 +85,14 @@ public class FileBufferReaderITCase extends TestLogger {
 
 	private static final byte[] dataSource = new byte[recordSize];
 
+	@Parameterized.Parameters(name = "SSL Enabled = {0}")
+	public static List<Boolean> paras() {
+		return Arrays.asList(true, false);
+	}
+
+	@Parameterized.Parameter
+	public boolean sslEnabled;
+
 	@BeforeClass
 	public static void setup() {
 		for (int i = 0; i < dataSource.length; i++) {
@@ -89,7 +103,12 @@ public class FileBufferReaderITCase extends TestLogger {
 	@Test
 	public void testSequentialReading() throws Exception {
 		// setup
-		final Configuration configuration = new Configuration();
+		final Configuration configuration;
+		if (sslEnabled) {
+			configuration = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores("JDK");
+		} else {
+			configuration = new Configuration();
+		}
 		configuration.setString(RestOptions.BIND_PORT, "0");
 		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
 		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
