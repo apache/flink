@@ -202,6 +202,11 @@ public class FileSourceHeavyThroughputTest {
 		}
 
 		@Override
+		public int getIndexOfSubtask() {
+			return 0;
+		}
+
+		@Override
 		public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
 	}
 
