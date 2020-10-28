@@ -60,6 +60,7 @@ under the License.
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
+		<module>flink-file-sink-common</module>
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
