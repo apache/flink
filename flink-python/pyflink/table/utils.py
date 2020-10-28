@@ -85,7 +85,7 @@ def to_expression_jarray(exprs):
     return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])
 
 
-def java_to_python_converter(data, field_type):
+def java_to_python_converter(data, field_type: DataType):
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
         data = zip(list(data[1:]), field_type.field_types())

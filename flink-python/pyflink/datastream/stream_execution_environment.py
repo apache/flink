@@ -25,13 +25,14 @@ from py4j.java_gateway import JavaObject
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
-from pyflink.common.restart_strategy import RestartStrategies
-from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type
+from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
+from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type, \
+    WrapperTypeInfo
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import SourceFunction
-from pyflink.datastream.state_backend import _from_j_state_backend
+from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
@@ -55,7 +56,7 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment = j_stream_execution_environment
         self.serializer = serializer
 
-    def get_config(self):
+    def get_config(self) -> ExecutionConfig:
         """
         Gets the config object.
 
@@ -63,7 +64,7 @@ class StreamExecutionEnvironment(object):
         """
         return ExecutionConfig(self._j_stream_execution_environment.getConfig())
 
-    def set_parallelism(self, parallelism):
+    def set_parallelism(self, parallelism: int) -> 'StreamExecutionEnvironment':
         """
         Sets the parallelism for operations executed through this environment.
         Setting a parallelism of x here will cause all operators (such as map,
@@ -81,7 +82,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setParallelism(parallelism)
         return self
 
-    def set_max_parallelism(self, max_parallelism):
+    def set_max_parallelism(self, max_parallelism: int) -> 'StreamExecutionEnvironment':
         """
         Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
         is 32767.
@@ -97,7 +98,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setMaxParallelism(max_parallelism)
         return self
 
-    def get_parallelism(self):
+    def get_parallelism(self) -> int:
         """
         Gets the parallelism with which operation are executed by default.
         Operations can individually override this value to use a specific
@@ -107,7 +108,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getParallelism()
 
-    def get_max_parallelism(self):
+    def get_max_parallelism(self) -> int:
         """
         Gets the maximum degree of parallelism defined for the program.
 
@@ -118,7 +119,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getMaxParallelism()
 
-    def set_buffer_timeout(self, timeout_millis):
+    def set_buffer_timeout(self, timeout_millis: int) -> 'StreamExecutionEnvironment':
         """
         Sets the maximum time frequency (milliseconds) for the flushing of the
         output buffers. By default the output buffers flush frequently to provide
@@ -136,7 +137,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setBufferTimeout(timeout_millis)
         return self
 
-    def get_buffer_timeout(self):
+    def get_buffer_timeout(self) -> int:
         """
         Gets the maximum time frequency (milliseconds) for the flushing of the
         output buffers. For clarification on the extremal values see
@@ -146,7 +147,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getBufferTimeout()
 
-    def disable_operator_chaining(self):
+    def disable_operator_chaining(self) -> 'StreamExecutionEnvironment':
         """
         Disables operator chaining for streaming operators. Operator chaining
         allows non-shuffle operations to be co-located in the same thread fully
@@ -158,7 +159,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.disableOperatorChaining()
         return self
 
-    def is_chaining_enabled(self):
+    def is_chaining_enabled(self) -> bool:
         """
         Returns whether operator chaining is enabled.
 
@@ -166,7 +167,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.isChainingEnabled()
 
-    def get_checkpoint_config(self):
+    def get_checkpoint_config(self) -> CheckpointConfig:
         """
         Gets the checkpoint config, which defines values like checkpoint interval, delay between
         checkpoints, etc.
@@ -176,7 +177,8 @@ class StreamExecutionEnvironment(object):
         j_checkpoint_config = self._j_stream_execution_environment.getCheckpointConfig()
         return CheckpointConfig(j_checkpoint_config)
 
-    def enable_checkpointing(self, interval, mode=None):
+    def enable_checkpointing(self, interval: int, mode: CheckpointingMode = None) \
+            -> 'StreamExecutionEnvironment':
         """
         Enables checkpointing for the streaming job. The distributed state of the streaming
         dataflow will be periodically snapshotted. In case of a failure, the streaming
@@ -211,7 +213,7 @@ class StreamExecutionEnvironment(object):
                 j_checkpointing_mode)
         return self
 
-    def get_checkpoint_interval(self):
+    def get_checkpoint_interval(self) -> int:
         """
         Returns the checkpointing interval or -1 if checkpointing is disabled.
 
@@ -221,7 +223,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getCheckpointInterval()
 
-    def get_checkpointing_mode(self):
+    def get_checkpointing_mode(self) -> CheckpointingMode:
         """
         Returns the checkpointing mode (exactly-once vs. at-least-once).
 
@@ -232,7 +234,7 @@ class StreamExecutionEnvironment(object):
         j_checkpointing_mode = self._j_stream_execution_environment.getCheckpointingMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
 
-    def get_state_backend(self):
+    def get_state_backend(self) -> StateBackend:
         """
         Gets the state backend that defines how to store and checkpoint state.
 
@@ -243,7 +245,7 @@ class StreamExecutionEnvironment(object):
         j_state_backend = self._j_stream_execution_environment.getStateBackend()
         return _from_j_state_backend(j_state_backend)
 
-    def set_state_backend(self, state_backend):
+    def set_state_backend(self, state_backend: StateBackend) -> 'StreamExecutionEnvironment':
         """
         Sets the state backend that describes how to store and checkpoint operator state. It
         defines both which data structures hold state during execution (for example hash tables,
@@ -278,7 +280,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
 
-    def set_restart_strategy(self, restart_strategy_configuration):
+    def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
         """
         Sets the restart strategy configuration. The configuration specifies which restart strategy
         will be used for the execution graph in case of a restart.
@@ -294,7 +296,7 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment.setRestartStrategy(
             restart_strategy_configuration._j_restart_strategy_configuration)
 
-    def get_restart_strategy(self):
+    def get_restart_strategy(self) -> RestartStrategyConfiguration:
         """
         Returns the specified restart strategy configuration.
 
@@ -303,7 +305,7 @@ class StreamExecutionEnvironment(object):
         return RestartStrategies._from_j_restart_strategy(
             self._j_stream_execution_environment.getRestartStrategy())
 
-    def add_default_kryo_serializer(self, type_class_name, serializer_class_name):
+    def add_default_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """
         Adds a new Kryo default serializer to the Runtime.
 
@@ -320,7 +322,7 @@ class StreamExecutionEnvironment(object):
         j_serializer_clz = load_java_class(serializer_class_name)
         self._j_stream_execution_environment.addDefaultKryoSerializer(type_clz, j_serializer_clz)
 
-    def register_type_with_kryo_serializer(self, type_class_name, serializer_class_name):
+    def register_type_with_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
         """
         Registers the given Serializer via its class as a serializer for the given type at the
         KryoSerializer.
@@ -340,7 +342,7 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment.registerTypeWithKryoSerializer(
             type_clz, j_serializer_clz)
 
-    def register_type(self, type_class_name):
+    def register_type(self, type_class_name: str):
         """
         Registers the given type with the serialization stack. If the type is eventually
         serialized as a POJO, then the type is registered with the POJO serializer. If the
@@ -357,7 +359,7 @@ class StreamExecutionEnvironment(object):
         type_clz = load_java_class(type_class_name)
         self._j_stream_execution_environment.registerType(type_clz)
 
-    def set_stream_time_characteristic(self, characteristic):
+    def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
         """
         Sets the time characteristic for all streams create from this environment, e.g., processing
         time, event time, or ingestion time.
@@ -380,7 +382,7 @@ class StreamExecutionEnvironment(object):
         j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
         self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
 
-    def get_stream_time_characteristic(self):
+    def get_stream_time_characteristic(self) -> 'TimeCharacteristic':
         """
         Gets the time characteristic.
 
@@ -588,7 +590,7 @@ class StreamExecutionEnvironment(object):
             classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_classpaths, classpaths])
         env_config.setString(classpaths_key, classpaths)
 
-    def get_default_local_parallelism(self):
+    def get_default_local_parallelism(self) -> int:
         """
         Gets the default parallelism that will be used for the local execution environment.
 
@@ -596,7 +598,7 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getDefaultLocalParallelism()
 
-    def set_default_local_parallelism(self, parallelism):
+    def set_default_local_parallelism(self, parallelism: int):
         """
         Sets the default parallelism that will be used for the local execution environment.
 
@@ -604,7 +606,7 @@ class StreamExecutionEnvironment(object):
         """
         self._j_stream_execution_environment.setDefaultLocalParallelism(parallelism)
 
-    def execute(self, job_name=None):
+    def execute(self, job_name: str = None) -> JobExecutionResult:
         """
         Triggers the program execution. The environment will execute all parts of
         the program that have resulted in a "sink" operation. Sink operations are
@@ -636,7 +638,7 @@ class StreamExecutionEnvironment(object):
         j_job_client = self._j_stream_execution_environment.executeAsync(j_stream_graph)
         return JobClient(j_job_client=j_job_client)
 
-    def get_execution_plan(self):
+    def get_execution_plan(self) -> str:
         """
         Creates the plan with which the system will execute the program, and returns it as
         a String using a JSON representation of the execution data flow graph.
@@ -653,7 +655,7 @@ class StreamExecutionEnvironment(object):
         return j_stream_graph.getStreamingPlanAsJSON()
 
     @staticmethod
-    def get_execution_environment():
+    def get_execution_environment() -> 'StreamExecutionEnvironment':
         """
         Creates an execution environment that represents the context in which the
         program is currently executed. If the program is invoked standalone, this
@@ -676,7 +678,10 @@ class StreamExecutionEnvironment(object):
         :param type_info: type of the returned stream. Optional.
         :return: the data stream constructed.
         """
-        j_type_info = type_info.get_java_type_info() if type_info is not None else None
+        if type_info and isinstance(type_info, WrapperTypeInfo):
+            j_type_info = type_info.get_java_type_info()
+        else:
+            j_type_info = None
         j_data_stream = self._j_stream_execution_environment.addSource(source_func
                                                                        .get_java_function(),
                                                                        source_name,
@@ -712,8 +717,11 @@ class StreamExecutionEnvironment(object):
         :return: the data stream representing the given collection.
         """
         if type_info is not None:
-            wrapper_type = _from_java_type(type_info.get_java_type_info())
-            collection = [wrapper_type.to_internal_type(element) for element in collection]
+            if isinstance(type_info, WrapperTypeInfo):
+                wrapper_type = _from_java_type(type_info.get_java_type_info())
+                collection = [wrapper_type.to_internal_type(element)
+                              if isinstance(wrapper_type, WrapperTypeInfo) else None
+                              for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],

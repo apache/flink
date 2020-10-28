@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 import array
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, List
 
 V = TypeVar('V')
 
@@ -268,7 +268,7 @@ class TypeConverters(object):
         return value
 
     @staticmethod
-    def to_list(value):
+    def to_list(value) -> List:
         """
         Convert a value to a list, if possible.
         """
@@ -280,7 +280,7 @@ class TypeConverters(object):
             raise TypeError("Could not convert %s to list" % value)
 
     @staticmethod
-    def to_list_float(value):
+    def to_list_float(value) -> List[float]:
         """
         Convert a value to list of floats, if possible.
         """
@@ -290,7 +290,7 @@ class TypeConverters(object):
         raise TypeError("Could not convert %s to list of floats" % value)
 
     @staticmethod
-    def to_list_int(value):
+    def to_list_int(value) -> List[int]:
         """
         Convert a value to list of ints, if possible.
         """
@@ -300,7 +300,7 @@ class TypeConverters(object):
         raise TypeError("Could not convert %s to list of ints" % value)
 
     @staticmethod
-    def to_list_string(value):
+    def to_list_string(value) -> List[str]:
         """
         Convert a value to list of strings, if possible.
         """
