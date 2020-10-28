@@ -151,6 +151,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			}
 
 			@Override
+			public int getIndexOfSubtask() {
+				return getRuntimeContext().getIndexOfThisSubtask();
+			}
+
+			@Override
 			public void sendSourceEventToCoordinator(SourceEvent event) {
 				operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
 			}
