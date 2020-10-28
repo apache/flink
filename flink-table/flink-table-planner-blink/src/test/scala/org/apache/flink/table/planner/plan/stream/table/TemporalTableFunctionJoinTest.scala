@@ -32,7 +32,7 @@ import org.junit.Test
 
 import java.sql.Timestamp
 
-class TemporalTableJoinTest extends TableTestBase {
+class TemporalTableFunctionJoinTest extends TableTestBase {
 
   val util: TableTestUtil = streamTestUtil()
 
