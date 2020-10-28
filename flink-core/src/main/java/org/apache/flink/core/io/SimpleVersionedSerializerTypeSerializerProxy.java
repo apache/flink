@@ -24,16 +24,19 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.function.Supplier;
 
 /**
  * A {@link TypeSerializer} that delegates to an underlying {@link SimpleVersionedSerializer}.
+ *
+ * <p>This should not be used as a general {@link TypeSerializer}. It's meant to be used by internal
+ * operators that need to work with both {@link SimpleVersionedSerializer} and {@link
+ * TypeSerializer}.
  */
 @Internal
-public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSerializer<T> implements Serializable {
+public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSerializer<T> {
 
 	private final SerializableSupplier<SimpleVersionedSerializer<T>> serializerSupplier;
 	private transient SimpleVersionedSerializer<T> cachedSerializer;
@@ -98,20 +101,13 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		SimpleVersionedSerializer<T> serializer = getSerializer();
-		target.writeInt(serializer.getVersion());
-		byte[] serializedRecord = serializer.serialize(record);
-		target.writeInt(serializedRecord.length);
-		target.write(serializedRecord);
+		SimpleVersionedSerialization.writeVersionAndSerialize(serializer, record, target);
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
 		SimpleVersionedSerializer<T> serializer = getSerializer();
-		int version = source.readInt();
-		int length = source.readInt();
-		byte[] serializedRecord = new byte[length];
-		source.readFully(serializedRecord);
-		return serializer.deserialize(version, serializedRecord);
+		return SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, source);
 	}
 
 	@Override
@@ -122,12 +118,8 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeInt(source.readInt()); // version
-		int length = source.readInt();
-		target.writeInt(length); // length
-		byte[] serializedRecord = new byte[length];
-		source.readFully(serializedRecord);
-		target.write(serializedRecord);
+		T record = deserialize(source);
+		serialize(record, target);
 	}
 
 	@Override
@@ -146,7 +138,7 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 	@Override
 	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		throw new UnsupportedOperationException(
-				"SimpleVersionedSerializerWrapper is not meant to be used as a general TypeSerializer for state");
+				"SimpleVersionedSerializerWrapper is not meant to be used as a general TypeSerializer for state.");
 	}
 
 	private SimpleVersionedSerializer<T> getSerializer() {
@@ -155,9 +147,5 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 		}
 		cachedSerializer = serializerSupplier.get();
 		return cachedSerializer;
-	}
-
-	@FunctionalInterface
-	interface SerializableSupplier<T> extends Supplier<T>, Serializable {
 	}
 }
