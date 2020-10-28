@@ -750,7 +750,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public Optional<List<Map<String, String>>> listPartitions() {
 			if (allPartitions.isEmpty()) {
-				throw new UnsupportedOperationException("Please use catalog to read partitions");
+				return Optional.empty();
 			}
 			return Optional.of(allPartitions);
 		}

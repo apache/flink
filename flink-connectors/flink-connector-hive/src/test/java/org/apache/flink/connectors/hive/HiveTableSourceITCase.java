@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -210,11 +211,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		String[] explain = src.explain().split("==.*==\n");
 		assertEquals(4, explain.length);
 		String optimizedLogicalPlan = explain[2];
-		String physicalExecutionPlan = explain[3];
 		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
-		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+				"table=[[hive, source_db, test_table_pt_1, partitions=[{pt=0}], project=[year, value]]]"));
 		// second check execute results
 		List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 		assertEquals(2, rows.size());
@@ -245,7 +243,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			String[] explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 3"));
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=2, p2=b}, {p1=3, p2=c}, {p1=4, p2=c:2}]"));
 			List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[2, 3, 4]", results.toString());
 
@@ -253,7 +252,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+			assertTrue(optimizedPlan, optimizedPlan.contains("table=[[test-catalog, db1, part, partitions=[], project=[x]]]"));
 			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[]", results.toString());
 
@@ -261,7 +260,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=3, p2=c}], project=[x]]]"));
 			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[1, 3]", results.toString());
 
@@ -269,7 +269,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=2, p2=b}], project=[x]]]"));
 			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[1, 2]", results.toString());
 
@@ -277,7 +278,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=4, p2=c:2}], project=[x]]]"));
 			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[4]", results.toString());
 
@@ -285,7 +287,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
+			assertTrue(optimizedPlan, optimizedPlan.contains("table=[[test-catalog, db1, part, partitions=[], project=[x]]]"));
 			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[]", results.toString());
 		} finally {
@@ -315,7 +317,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			String[] explain = query.explain().split("==.*==\n");
 			assertTrue(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=2018-08-10, p2=2018-08-08 08:08:10.0}]"));
 			List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[3]", results.toString());
 
@@ -344,11 +347,9 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
-			String physicalPlan = explain[3];
 			String expectedExplain =
-					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: null, ProjectedFields: [2, 1]";
+					"table=[[hive, default, src, project=[p1, y]]]";
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
 			List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
 			assertEquals(2, rows.size());
@@ -376,11 +377,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
-			String physicalPlan = explain[3];
-			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
-									"PartitionNums: null, LimitPushDown true, Limit 1";
-			assertTrue(logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan.contains(expectedExplain));
+			assertTrue(logicalPlan, logicalPlan.contains("table=[[hive, default, src, limit=[1]]]"));
 
 			List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
 			assertEquals(1, rows.size());
@@ -567,7 +564,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
-		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
+		HiveDynamicTableFactory tableFactorySpy = spy((HiveDynamicTableFactory) hiveCatalog.getFactory().get());
 
 		doAnswer(invocation -> {
 			TableSourceFactory.Context context = invocation.getArgument(0);
@@ -578,7 +575,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 					context.getTable(),
 					fallbackMR,
 					inferParallelism);
-		}).when(tableFactorySpy).createTableSource(any(TableSourceFactory.Context.class));
+		}).when(tableFactorySpy).createDynamicTableSource(any(DynamicTableFactory.Context.class));
 
 		HiveCatalog catalogSpy = spy(hiveCatalog);
 		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
