@@ -139,7 +139,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
     stream
       .connect(broadcastStream)
       .process(new TestBroadcastProcessFunction)
-      .addSink(new AccumulatorCountingSink)
+      .addSink(new AccumulatorCountingSink[(Long, Long)])
 
     executeAndSavepoint(
       env,
@@ -211,7 +211,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
     stream
       .connect(broadcastStream)
       .process(new VerifyingBroadcastProcessFunction(expectedFirstState, expectedSecondState))
-      .addSink(new AccumulatorCountingSink)
+      .addSink(new AccumulatorCountingSink[(Long, Long)])
 
     restoreAndExecute(
       env,

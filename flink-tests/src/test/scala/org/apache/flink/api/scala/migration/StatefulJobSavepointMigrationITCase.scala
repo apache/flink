@@ -115,7 +115,7 @@ class StatefulJobSavepointMigrationITCase(
         }
       )
       .flatMap(new StatefulFlatMapper)
-      .addSink(new AccumulatorCountingSink)
+      .addSink(new AccumulatorCountingSink[(Long, Long)])
 
     executeAndSavepoint(
       env,
@@ -156,7 +156,7 @@ class StatefulJobSavepointMigrationITCase(
         }
       )
       .flatMap(new StatefulFlatMapper)
-      .addSink(new AccumulatorCountingSink)
+      .addSink(new AccumulatorCountingSink[(Long, Long)])
 
     restoreAndExecute(
       env,
