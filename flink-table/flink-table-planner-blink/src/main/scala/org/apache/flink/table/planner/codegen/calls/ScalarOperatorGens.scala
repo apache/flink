@@ -959,7 +959,7 @@ object ScalarOperatorGens {
       generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
 
     // Byte array -> String UTF-8
-    case (VARBINARY, VARCHAR | CHAR) =>
+    case (BINARY | VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
