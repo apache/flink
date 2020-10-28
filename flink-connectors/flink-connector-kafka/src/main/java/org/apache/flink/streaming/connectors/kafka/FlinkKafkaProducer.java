@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -805,7 +806,10 @@ public class FlinkKafkaProducer<IN>
 		}
 
 		if (kafkaSchema != null) {
-			kafkaSchema.open(() -> ctx.getMetricGroup().addGroup("user"));
+			kafkaSchema.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
+					getRuntimeContext(),
+					metricGroup -> metricGroup.addGroup("user")
+			));
 		}
 
 		super.open(configuration);

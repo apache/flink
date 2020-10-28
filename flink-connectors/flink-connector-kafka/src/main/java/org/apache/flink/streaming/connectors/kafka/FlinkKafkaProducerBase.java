@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
@@ -215,7 +216,10 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	public void open(Configuration configuration) throws Exception {
 		if (schema instanceof KeyedSerializationSchemaWrapper) {
 			((KeyedSerializationSchemaWrapper<IN>) schema).getSerializationSchema()
-				.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+					.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
+							getRuntimeContext(),
+							metricGroup -> metricGroup.addGroup("user")
+					));
 		}
 		producer = getKafkaProducer(this.producerConfig);
 

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.common.io.ratelimiting.GuavaFlinkConnectorRateLimiter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -97,7 +98,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		//convert per-subtask-limit to global rate limit, as FlinkConnectorRateLimiter::setRate expects a global rate limit.
 		rateLimiter.setRate(messagePerSecondRateLimit * getRuntimeContext().getNumberOfParallelSubtasks());
 		rateLimiter.open(getRuntimeContext());
-		deserializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		deserializationSchema.open(RuntimeContextInitializationContextAdapters.deserializationAdapter(
+				getRuntimeContext(),
+				metricGroup -> metricGroup.addGroup("user")
+		));
 
 		createAndSetPubSubSubscriber();
 		this.isRunning = true;

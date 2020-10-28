@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -155,7 +156,10 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration config) throws Exception {
-		schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		schema.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
+				getRuntimeContext(),
+				metricGroup -> metricGroup.addGroup("user")
+		));
 
 		try {
 			connection = setupConnection();

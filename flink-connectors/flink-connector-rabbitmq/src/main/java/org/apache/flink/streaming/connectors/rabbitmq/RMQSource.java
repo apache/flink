@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -242,7 +243,10 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
-		this.deliveryDeserializer.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		this.deliveryDeserializer.open(RuntimeContextInitializationContextAdapters.deserializationAdapter(
+				getRuntimeContext(),
+				metricGroup -> metricGroup.addGroup("user")
+		));
 		running = true;
 	}
 
