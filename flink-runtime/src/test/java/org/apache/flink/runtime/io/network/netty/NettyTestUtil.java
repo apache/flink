@@ -175,9 +175,12 @@ public class NettyTestUtil {
 
 	static <T extends NettyMessage> T encodeAndDecode(T msg, EmbeddedChannel channel) {
 		channel.writeOutbound(msg);
-		ByteBuf encoded = channel.readOutbound();
-
-		assertTrue(channel.writeInbound(encoded));
+		ByteBuf encoded;
+		boolean msgNotEmpty = false;
+		while ((encoded = channel.readOutbound()) != null) {
+			msgNotEmpty = channel.writeInbound(encoded);
+		}
+		assertTrue(msgNotEmpty);
 
 		return channel.readInbound();
 	}
