@@ -16,31 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.reuse;
+package org.apache.flink.table.planner.plan.processors.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.calcite.rel.RelNode;
-
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -88,41 +76,58 @@ import java.util.TreeMap;
  *
  * <p>This class maintains a topological graph in which an edge pointing from vertex A to vertex B indicates
  * that the results from vertex A need to be read before those from vertex B. A loop in the graph indicates
- * a deadlock, and we resolve such deadlock by inserting a {@link BatchExecExchange} with batch shuffle mode.
+ * a deadlock, and different subclasses of this class resolve the conflict in different ways.
  *
  * <p>For a detailed explanation of the algorithm, see appendix of the
  * <a href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design doc</a>.
  */
 @Internal
-public class InputPriorityConflictResolver {
+public abstract class InputPriorityGraphGenerator {
 
 	private final List<ExecNode<?, ?>> roots;
+	private final Set<ExecNode<?, ?>> boundaries;
+	private final ExecEdge.DamBehavior safeDamBehavior;
 
-	private TopologyGraph graph;
+	protected TopologyGraph graph;
 
-	public InputPriorityConflictResolver(List<ExecNode<?, ?>> roots) {
+	/**
+	 * Create an {@link InputPriorityGraphGenerator} for the given {@link ExecNode} sub-graph.
+	 *
+	 * @param roots the first layer of nodes on the output side of the sub-graph
+	 * @param boundaries the first layer of nodes on the input side of the sub-graph
+	 * @param safeDamBehavior when checking for conflicts we'll ignore the edges with
+	 *                        {@link ExecEdge.DamBehavior} stricter or equal than this
+	 */
+	public InputPriorityGraphGenerator(
+			List<ExecNode<?, ?>> roots,
+			Set<ExecNode<?, ?>> boundaries,
+			ExecEdge.DamBehavior safeDamBehavior) {
 		Preconditions.checkArgument(
 			roots.stream().allMatch(root -> root instanceof BatchExecNode),
 			"InputPriorityConflictResolver can only be used for batch jobs.");
 		this.roots = roots;
+		this.boundaries = boundaries;
+		this.safeDamBehavior = safeDamBehavior;
 	}
 
-	public void detectAndResolve() {
+	protected void createTopologyGraph() {
 		// build an initial topology graph
-		graph = new TopologyGraph(roots);
+		graph = new TopologyGraph(roots, boundaries);
 
 		// check and resolve conflicts about input priorities
 		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
 			protected void visitNode(ExecNode<?, ?> node) {
-				visitInputs(node);
-				checkInputPriorities(node);
+				if (!boundaries.contains(node)) {
+					visitInputs(node);
+				}
+				updateTopologyGraph(node);
 			}
 		};
 		roots.forEach(n -> n.accept(inputPriorityVisitor));
 	}
 
-	private void checkInputPriorities(ExecNode<?, ?> node) {
+	private void updateTopologyGraph(ExecNode<?, ?> node) {
 		// group inputs by input priorities
 		TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
 		Preconditions.checkState(
@@ -158,15 +163,8 @@ public class InputPriorityConflictResolver {
 			if (graph.link(higherNode, ancestor)) {
 				linkedEdges.add(Tuple2.of(higherNode, ancestor));
 			} else {
-				// a conflict occurs, resolve it by adding a batch exchange
-				// and revert all linked edges
-				if (lowerNode instanceof BatchExecExchange) {
-					BatchExecExchange exchange = (BatchExecExchange) lowerNode;
-					exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
-				} else {
-					node.replaceInputNode(lowerInput, (ExecNode) createExchange(node, lowerInput));
-				}
-
+				// a conflict occurs, resolve it and revert all linked edges
+				resolveInputPriorityConflict(node, lowerInput);
 				for (Tuple2<ExecNode<?, ?>, ExecNode<?, ?>> linkedEdge : linkedEdges) {
 					graph.unlink(linkedEdge.f0, linkedEdge.f1);
 				}
@@ -184,16 +182,18 @@ public class InputPriorityConflictResolver {
 		AbstractExecNodeExactlyOnceVisitor ancestorVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
 			protected void visitNode(ExecNode<?, ?> node) {
-				List<ExecEdge> inputEdges = node.getInputEdges();
 				boolean hasAncestor = false;
 
-				for (int i = 0; i < inputEdges.size(); i++) {
-					// we only go through PIPELINED edges
-					if (inputEdges.get(i).getDamBehavior().stricterOrEqual(ExecEdge.DamBehavior.END_INPUT)) {
-						continue;
+				if (!boundaries.contains(node)) {
+					List<ExecEdge> inputEdges = node.getInputEdges();
+					for (int i = 0; i < inputEdges.size(); i++) {
+						// we only go through PIPELINED edges
+						if (inputEdges.get(i).getDamBehavior().stricterOrEqual(safeDamBehavior)) {
+							continue;
+						}
+						hasAncestor = true;
+						node.getInputNodes().get(i).accept(this);
 					}
-					hasAncestor = true;
-					node.getInputNodes().get(i).accept(this);
 				}
 
 				if (!hasAncestor) {
@@ -205,146 +205,5 @@ public class InputPriorityConflictResolver {
 		return ret;
 	}
 
-	private BatchExecExchange createExchange(ExecNode<?, ?> node, int idx) {
-		RelNode inputRel = (RelNode) node.getInputNodes().get(idx);
-
-		FlinkRelDistribution distribution;
-		ExecEdge.RequiredShuffle requiredShuffle = node.getInputEdges().get(idx).getRequiredShuffle();
-		if (requiredShuffle.getType() == ExecEdge.ShuffleType.HASH) {
-			distribution = FlinkRelDistribution.hash(requiredShuffle.getKeys(), true);
-		} else if (requiredShuffle.getType() == ExecEdge.ShuffleType.BROADCAST) {
-			// should not occur
-			throw new IllegalStateException(
-				"Trying to resolve input priority conflict on broadcast side. This is not expected.");
-		} else if (requiredShuffle.getType() == ExecEdge.ShuffleType.SINGLETON) {
-			distribution = FlinkRelDistribution.SINGLETON();
-		} else {
-			distribution = FlinkRelDistribution.ANY();
-		}
-
-		BatchExecExchange exchange = new BatchExecExchange(
-			inputRel.getCluster(),
-			inputRel.getTraitSet().replace(distribution),
-			inputRel,
-			distribution);
-		exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
-		return exchange;
-	}
-
-	/**
-	 * A data structure storing the topological information of an {@link ExecNode} graph.
-	 */
-	@VisibleForTesting
-	static class TopologyGraph {
-		private final Map<ExecNode<?, ?>, TopologyNode> nodes;
-
-		TopologyGraph(List<ExecNode<?, ?>> roots) {
-			this.nodes = new HashMap<>();
-
-			// we first link all edges in the original exec node graph
-			AbstractExecNodeExactlyOnceVisitor visitor = new AbstractExecNodeExactlyOnceVisitor() {
-				@Override
-				protected void visitNode(ExecNode<?, ?> node) {
-					for (ExecNode<?, ?> input : node.getInputNodes()) {
-						link(input, node);
-					}
-					visitInputs(node);
-				}
-			};
-			roots.forEach(n -> n.accept(visitor));
-		}
-
-		/**
-		 * Link an edge from `from` node to `to` node if no loop will occur after adding this edge.
-		 * Returns if this edge is successfully added.
-		 */
-		boolean link(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-			TopologyNode fromNode = getTopologyNode(from);
-			TopologyNode toNode = getTopologyNode(to);
-
-			if (canReach(toNode, fromNode)) {
-				// invalid edge, as `to` is the predecessor of `from`
-				return false;
-			} else {
-				// link `from` and `to`
-				fromNode.outputs.add(toNode);
-				toNode.inputs.add(fromNode);
-				return true;
-			}
-		}
-
-		/**
-		 * Remove the edge from `from` node to `to` node. If there is no edge between them then do nothing.
-		 */
-		void unlink(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-			TopologyNode fromNode = getTopologyNode(from);
-			TopologyNode toNode = getTopologyNode(to);
-
-			fromNode.outputs.remove(toNode);
-			toNode.inputs.remove(fromNode);
-		}
-
-		@VisibleForTesting
-		boolean canReach(ExecNode<?, ?> from, ExecNode<?, ?> to) {
-			TopologyNode fromNode = getTopologyNode(from);
-			TopologyNode toNode = getTopologyNode(to);
-			return canReach(fromNode, toNode);
-		}
-
-		private boolean canReach(TopologyNode from, TopologyNode to) {
-			Set<TopologyNode> visited = new HashSet<>();
-			visited.add(from);
-			Queue<TopologyNode> queue = new LinkedList<>();
-			queue.offer(from);
-
-			while (!queue.isEmpty()) {
-				TopologyNode node = queue.poll();
-				if (to.equals(node)) {
-					return true;
-				}
-
-				for (TopologyNode next : node.outputs) {
-					if (visited.contains(next)) {
-						continue;
-					}
-					visited.add(next);
-					queue.offer(next);
-				}
-			}
-
-			return false;
-		}
-
-		private TopologyNode getTopologyNode(ExecNode<?, ?> execNode) {
-			// NOTE: We treat different `BatchExecBoundedStreamScan`s with same `DataStream` object as the same
-			if (execNode instanceof BatchExecBoundedStreamScan) {
-				DataStream<?> currentStream =
-					((BatchExecBoundedStreamScan) execNode).boundedStreamTable().dataStream();
-				for (Map.Entry<ExecNode<?, ?>, TopologyNode> entry : nodes.entrySet()) {
-					ExecNode<?, ?> key = entry.getKey();
-					if (key instanceof BatchExecBoundedStreamScan) {
-						DataStream<?> existingStream =
-							((BatchExecBoundedStreamScan) key).boundedStreamTable().dataStream();
-						if (existingStream.equals(currentStream)) {
-							return entry.getValue();
-						}
-					}
-				}
-
-				TopologyNode result = new TopologyNode();
-				nodes.put(execNode, result);
-				return result;
-			} else {
-				return nodes.computeIfAbsent(execNode, k -> new TopologyNode());
-			}
-		}
-	}
-
-	/**
-	 * A node in the {@link TopologyGraph}.
-	 */
-	private static class TopologyNode {
-		private final Set<TopologyNode> inputs = new HashSet<>();
-		private final Set<TopologyNode> outputs = new HashSet<>();
-	}
+	protected abstract void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput);
 }
