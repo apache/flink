@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.operators.ChainingStrategy
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -98,6 +99,9 @@ class BatchExecMultipleInputNode(
     multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
     val memoryKB = generator.getManagedMemoryWeight
     ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024)
+
+    // set chaining strategy for source chaining
+    multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)
 
     multipleInputTransform
   }
