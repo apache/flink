@@ -18,13 +18,11 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
-//CHECKSTYLE.OFF: regexp|imports
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-//CHECKSTYLE.ON: regexp|imports
 
 import java.io.File;
 import java.io.IOException;
