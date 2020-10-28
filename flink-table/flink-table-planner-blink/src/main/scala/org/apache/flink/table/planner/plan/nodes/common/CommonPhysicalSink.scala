@@ -137,10 +137,10 @@ class CommonPhysicalSink (
           case (_, _, _) if (changelogMode.containsOnly(RowKind.INSERT)) => inputTransformation
           case (_, _, Nil) =>
             throw new TableException(
-            s"Table: $tableIdentifier configured sink parallelism is: $parallelism, "+
-            s"while the input parallelism is: $inputParallelism. "+
+            s"Table: $tableIdentifier configured sink parallelism is: $parallelism, " +
+            s"while the input parallelism is: $inputParallelism. " +
             s"Since the changelog mode " +
-            s"contains [${changelogMode.getContainedKinds.toList.mkString(",")}], "+
+            s"contains [${changelogMode.getContainedKinds.toList.mkString(",")}], " +
             s"which is not INSERT_ONLY mode, " +
             s"primary key is required but no primary key is found"
           )
