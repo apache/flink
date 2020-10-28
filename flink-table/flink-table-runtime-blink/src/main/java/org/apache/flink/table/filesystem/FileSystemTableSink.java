@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -41,16 +42,12 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.BulkDecodingFormat;
-import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
-import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
@@ -81,18 +78,22 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		SupportsPartitioning,
 		SupportsOverwrite {
 
-	@Nullable private final EncodingFormat<?> encodingFormat;
+	@Nullable private final EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat;
+	@Nullable private final EncodingFormat<SerializationSchema<RowData>> serializationFormat;
 	@Nullable private final FileSystemFormatFactory formatFactory;
+
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
 	private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
 
 	FileSystemTableSink(
 			DynamicTableFactory.Context context,
-			@Nullable EncodingFormat<?> encodingFormat,
+			@Nullable EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat,
+			@Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
-		this.encodingFormat = encodingFormat;
+		this.bulkWriterFormat = bulkWriterFormat;
+		this.serializationFormat = serializationFormat;
 		this.formatFactory = formatFactory;
 	}
 
@@ -220,12 +221,20 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	private Object createWriter(Context sinkContext) {
-		if (encodingFormat != null) {
-			return encodingFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
+		if (bulkWriterFormat != null) {
+			return bulkWriterFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
+		} else if (formatFactory != null) {
+			return createWriterFromFormatFactory(sinkContext);
+		// } else if (serializationFormat != null) {
+		//	 TODO wrap serializationSchema to encoder
+		//	return wrapSerializationFormat(
+		//			serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
+		} else {
+			throw new TableException("Can not find format factory.");
 		}
+	}
 
-		Preconditions.checkNotNull(formatFactory, "Can not find format factory.");
-
+	private Object createWriterFromFormatFactory(Context sinkContext) {
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
 			@Override
@@ -344,7 +353,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 	@Override
 	public DynamicTableSink copy() {
-		FileSystemTableSink sink = new FileSystemTableSink(context, encodingFormat, formatFactory);
+		FileSystemTableSink sink = new FileSystemTableSink(
+				context, bulkWriterFormat, serializationFormat, formatFactory);
 		sink.overwrite = overwrite;
 		sink.dynamicGrouping = dynamicGrouping;
 		sink.staticPartitions = staticPartitions;

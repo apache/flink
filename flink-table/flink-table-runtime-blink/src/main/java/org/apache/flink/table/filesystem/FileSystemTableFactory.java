@@ -27,11 +27,13 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DecodingFormatFactory;
+import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.EncodingFormatFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.factories.TableFactory;
 
 import java.util.HashSet;
@@ -63,8 +65,8 @@ public class FileSystemTableFactory implements
 		validate(helper);
 		return new FileSystemTableSource(
 				context,
-				// TODO discover DeserializationSchema too.
 				discoverOptionalDecodingFormat(helper, BulkReaderFormatFactory.class).orElse(null),
+				discoverOptionalDecodingFormat(helper, DeserializationFormatFactory.class).orElse(null),
 				discoverOptionalFormatFactory(helper).orElse(null));
 	}
 
@@ -74,8 +76,8 @@ public class FileSystemTableFactory implements
 		validate(helper);
 		return new FileSystemTableSink(
 				context,
-				// TODO discover SerializationSchema too.
 				discoverOptionalEncodingFormat(helper, BulkWriterFormatFactory.class).orElse(null),
+				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null),
 				discoverOptionalFormatFactory(helper).orElse(null));
 	}
 

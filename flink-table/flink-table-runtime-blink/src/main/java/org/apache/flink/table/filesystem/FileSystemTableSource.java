@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
@@ -46,7 +47,6 @@ import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -70,8 +70,10 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		SupportsPartitionPushDown,
 		SupportsFilterPushDown {
 
-	@Nullable private final DecodingFormat<?> decodingFormat;
+	@Nullable private final DecodingFormat<BulkFormat<RowData>> bulkReaderFormat;
+	@Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
 	@Nullable private final FileSystemFormatFactory formatFactory;
+
 	private int[][] projectedFields;
 	private List<Map<String, String>> remainingPartitions;
 	private List<ResolvedExpression> filters;
@@ -79,10 +81,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	public FileSystemTableSource(
 			DynamicTableFactory.Context context,
-			@Nullable DecodingFormat<?> decodingFormat,
+			@Nullable DecodingFormat<BulkFormat<RowData>> bulkReaderFormat,
+			@Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
-		this.decodingFormat = decodingFormat;
+		this.bulkReaderFormat = bulkReaderFormat;
+		this.deserializationFormat = deserializationFormat;
 		this.formatFactory = formatFactory;
 	}
 
@@ -91,40 +95,41 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
 			// When this table has no partition, just return a empty source.
 			return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
-		} else if (decodingFormat != null) {
-			if (decodingFormat instanceof BulkDecodingFormat) {
-				@SuppressWarnings("unchecked")
-				BulkDecodingFormat<RowData> bulkDecodingFormat = (BulkDecodingFormat<RowData>) decodingFormat;
-				return SourceProvider.of(createBulkFormatSource(bulkDecodingFormat, scanContext));
-			} else {
-				throw new UnsupportedOperationException(
-						"Not support format class: " + decodingFormat);
-			}
+		} else if (bulkReaderFormat != null) {
+			return sourceProvider(bulkReaderFormat, scanContext);
+		} else if (formatFactory != null) {
+			// The ContinuousFileMonitoringFunction can not accept multiple paths. Default
+			// StreamEnv.createInput will create continuous function.
+			// Avoid using ContinuousFileMonitoringFunction.
+			return SourceFunctionProvider.of(
+					new InputFormatSourceFunction<>(
+							getInputFormat(),
+							InternalTypeInfo.of(getProducedDataType().getLogicalType())),
+					true);
+		// } else if (deserializationFormat != null) {
+		//	 TODO wrap deserializationFormat to bulk format
+		//	 return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
+		} else {
+			throw new TableException("Can not find format factory.");
 		}
-
-		// The ContinuousFileMonitoringFunction can not accept multiple paths. Default
-		// StreamEnv.createInput will create continuous function.
-		// Avoid using ContinuousFileMonitoringFunction.
-		return SourceFunctionProvider.of(
-				new InputFormatSourceFunction<>(
-						getInputFormat(),
-						InternalTypeInfo.of(getProducedDataType().getLogicalType())),
-				true);
 	}
 
-	private FileSource<RowData> createBulkFormatSource(
-			BulkDecodingFormat<RowData> decodingFormat, ScanContext scanContext) {
-		if (limit != null) {
-			decodingFormat.applyLimit(limit);
-		}
-		if (filters != null && filters.size() > 0) {
-			decodingFormat.applyFilters(filters);
+	private SourceProvider sourceProvider(
+			DecodingFormat<BulkFormat<RowData>> decodingFormat, ScanContext scanContext) {
+		if (decodingFormat instanceof BulkDecodingFormat) {
+			BulkDecodingFormat<RowData> bulkFormat = (BulkDecodingFormat<RowData>) decodingFormat;
+			if (limit != null) {
+				bulkFormat.applyLimit(limit);
+			}
+			if (filters != null && filters.size() > 0) {
+				bulkFormat.applyFilters(filters);
+			}
 		}
 		BulkFormat<RowData> bulkFormat = decodingFormat.createRuntimeDecoder(
 				scanContext, getProducedDataType());
 		FileSource.FileSourceBuilder<RowData> builder = FileSource
 				.forBulkFileFormat(bulkFormat, paths());
-		return builder.build();
+		return SourceProvider.of(builder.build());
 	}
 
 	private Path[] paths() {
@@ -140,8 +145,6 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 	}
 
 	private InputFormat<RowData, ?> getInputFormat() {
-		Preconditions.checkNotNull(formatFactory, "Can not find format factory.");
-
 		return formatFactory.createReader(new FileSystemFormatFactory.ReaderContext() {
 
 			@Override
@@ -237,7 +240,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	@Override
 	public FileSystemTableSource copy() {
-		FileSystemTableSource source = new FileSystemTableSource(context, decodingFormat, formatFactory);
+		FileSystemTableSource source = new FileSystemTableSource(
+				context, bulkReaderFormat, deserializationFormat, formatFactory);
 		source.projectedFields = projectedFields;
 		source.remainingPartitions = remainingPartitions;
 		source.filters = filters;
