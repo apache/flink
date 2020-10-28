@@ -54,7 +54,7 @@ mvn clean install -DskipTests
 为了加速构建，可以执行如下命令，以跳过测试，QA 的插件和 JavaDocs 的生成：
 
 {% highlight bash %}
-mvn clean install -DskipTests -Dfast
+mvn clean install -DskipTests -Pfast
 {% endhighlight %}
 
 <a name="build-pyflink"/>
@@ -140,7 +140,7 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 
 如果使用 Scala 2.12 来进行构建，执行如下命令：
 {% highlight bash %}
-mvn clean install -DskipTests -Dscala-2.12
+mvn clean install -DskipTests -Pscala-2.12
 {% endhighlight %}
 
 {% top %}

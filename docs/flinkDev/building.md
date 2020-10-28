@@ -53,7 +53,7 @@ This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all exis
 To speed up the build you can skip tests, QA plugins, and JavaDocs:
 
 {% highlight bash %}
-mvn clean install -DskipTests -Dfast
+mvn clean install -DskipTests -Pfast
 {% endhighlight %}
 
 ## Build PyFlink
@@ -135,7 +135,7 @@ Since version 1.7 Flink builds with Scala version 2.11 (default) and 2.12.
 
 To build FLink against Scala 2.12, issue the following command:
 {% highlight bash %}
-mvn clean install -DskipTests -Dscala-2.12
+mvn clean install -DskipTests -Pscala-2.12
 {% endhighlight %}
 
 {% top %}
