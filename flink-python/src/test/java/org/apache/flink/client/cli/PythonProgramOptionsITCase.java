@@ -45,9 +45,10 @@ import static org.junit.Assert.assertEquals;
 public class PythonProgramOptionsITCase {
 
 	/**
-	 * It requires setting a job jar to build a PackagedProgram, and the dummy job jar used in this
-	 * test case is available only after the packaging phase completed, so we make it as an ITCase.
-	 * */
+	 * It requires setting a job jar to build a {@link PackagedProgram}, and the dummy job jar used
+	 * in this test case is available only after the packaging phase completed, so we make it as an
+	 * ITCase.
+	 **/
 	@Test
 	public void testConfigurePythonExecution() throws IllegalAccessException, NoSuchFieldException, CliArgsException, ProgramInvocationException, IOException {
 		final String[] args = {
