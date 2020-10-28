@@ -51,6 +51,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -67,6 +68,9 @@ import org.junit.runner.RunWith;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -395,6 +399,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		TableEnvironment tEnv = createTableEnv();
 		tEnv.executeSql("CREATE TABLE source_db.test_parallelism " +
 				"(`year` STRING, `value` INT) partitioned by (pt int)");
+
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
@@ -403,13 +408,41 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
+
 		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism");
+		testParallelismSettingTranslateAndAssert(2, table, tEnv);
+	}
+
+	@Test
+	public void testParallelismSettingWithFileNum() throws IOException {
+		// create test files
+		File dir = Files.createTempDirectory("testParallelismSettingWithFileNum").toFile();
+		dir.deleteOnExit();
+		for (int i = 0; i < 3; i++) {
+			File csv = new File(dir, "data" + i + ".csv");
+			csv.createNewFile();
+			FileUtils.writeFileUtf8(csv, "1|100\n2|200\n");
+		}
+
+		TableEnvironment tEnv = createTableEnv();
+		tEnv.executeSql("CREATE EXTERNAL TABLE source_db.test_parallelism_setting_with_file_num " +
+			"(a INT, b INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' LOCATION '" + dir.toString() + "'");
+
+		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism_setting_with_file_num");
+		testParallelismSettingTranslateAndAssert(3, table, tEnv);
+
+		tEnv.getConfig().getConfiguration().setInteger(
+			HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX, 2);
+		testParallelismSettingTranslateAndAssert(2, table, tEnv);
+	}
+
+	private void testParallelismSettingTranslateAndAssert(int expected, Table table, TableEnvironment tEnv) {
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
 		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
 		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
 		@SuppressWarnings("unchecked")
 		Transformation transformation = execNode.translateToPlan(planner);
-		Assert.assertEquals(2, transformation.getParallelism());
+		Assert.assertEquals(expected, transformation.getParallelism());
 	}
 
 	@Test
