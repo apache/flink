@@ -141,12 +141,12 @@ public class SourceOperatorTest {
 
 	@Test
 	public void testCloseWillSendMaxWatermark() throws Exception {
-		operator.initializeState(getStateContext());
+		MockSourceSplit mockSplit = new MockSourceSplit(1, 0, 0);
+		operator.initializeState(getStateContext(mockSplit));
 		PushingAsyncDataInput.DataOutput<Integer> dataOutput =
 			Mockito.mock(PushingAsyncDataInput.DataOutput.class);
 		operator.open();
 		operator.emitNext(dataOutput);
-		operator.close();
 		Mockito.verify(dataOutput, Mockito.times(1)).emitWatermark(Watermark.MAX_WATERMARK);
 	}
 
@@ -173,9 +173,13 @@ public class SourceOperatorTest {
 	// ---------------- helper methods -------------------------
 
 	private StateInitializationContext getStateContext() throws Exception {
+		return getStateContext(MOCK_SPLIT);
+	}
+
+	private StateInitializationContext getStateContext(MockSourceSplit mockSplit) throws Exception {
 		// Create a mock split.
 		byte[] serializedSplitWithVersion = SimpleVersionedSerialization
-			.writeVersionAndSerialize(new MockSourceSplitSerializer(), MOCK_SPLIT);
+			.writeVersionAndSerialize(new MockSourceSplitSerializer(), mockSplit);
 
 		// Crate the state context.
 		OperatorStateStore operatorStateStore = createOperatorStateStore();
