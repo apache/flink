@@ -21,14 +21,13 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
 /**
- * A BucketAssigner is used with a {@link StreamingFileSink} to determine the {@link Bucket} each incoming element
+ * A BucketAssigner is used with a file sink to determine the bucket each incoming element
  * should be put into.
  *
  * <p>The {@code StreamingFileSink} can be writing to many buckets at a time, and it is responsible for managing
@@ -39,7 +38,7 @@ import java.io.Serializable;
  * @param <BucketID> The type of the object returned by the {@link #getBucketId(Object, BucketAssigner.Context)}. This has to have
  *                  a correct {@link #hashCode()} and {@link #equals(Object)} method. In addition, the {@link Path}
  *                  to the created bucket will be the result of the {@link #toString()} of this method, appended to
- *                  the {@code basePath} specified in the {@link StreamingFileSink StreamingFileSink}.
+ *                  the {@code basePath} specified in the file sink.
  */
 @PublicEvolving
 public interface BucketAssigner<IN, BucketID> extends Serializable {
@@ -47,11 +46,11 @@ public interface BucketAssigner<IN, BucketID> extends Serializable {
 	/**
 	 * Returns the identifier of the bucket the provided element should be put into.
 	 * @param element The current element being processed.
-	 * @param context The {@link SinkFunction.Context context} used by the {@link StreamingFileSink sink}.
+	 * @param context The context used by the current bucket assigner.
 	 *
 	 * @return A string representing the identifier of the bucket the element should be put into.
 	 * The actual path to the bucket will result from the concatenation of the returned string
-	 * and the {@code base path} provided during the initialization of the {@link StreamingFileSink sink}.
+	 * and the {@code base path} provided during the initialization of the file sink.
 	 */
 	BucketID getBucketId(IN element, BucketAssigner.Context context);
 

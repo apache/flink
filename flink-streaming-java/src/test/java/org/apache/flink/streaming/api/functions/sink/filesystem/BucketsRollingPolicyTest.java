@@ -36,7 +36,7 @@ import java.io.IOException;
 /**
  * Tests for different {@link RollingPolicy rolling policies}.
  */
-public class RollingPolicyTest {
+public class BucketsRollingPolicyTest {
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();

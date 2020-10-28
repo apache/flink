@@ -19,25 +19,27 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
+
 /**
- * A factory that creates {@link RowWisePartWriter RowWisePartWriters}.
+ * A factory that creates {@link BulkPartWriter BulkPartWriters}.
  * @param <IN> The type of input elements.
  * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
  */
 @Internal
-class RowWiseBucketWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedBucketWriter<IN, BucketID> {
+public class BulkBucketWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedBucketWriter<IN, BucketID> {
 
-	private final Encoder<IN> encoder;
+	private final BulkWriter.Factory<IN> writerFactory;
 
-	RowWiseBucketWriter(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
+	public BulkBucketWriter(final RecoverableWriter recoverableWriter, BulkWriter.Factory<IN> writerFactory) throws IOException {
 		super(recoverableWriter);
-		this.encoder = encoder;
+		this.writerFactory = writerFactory;
 	}
 
 	@Override
@@ -45,12 +47,13 @@ class RowWiseBucketWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter.
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream stream,
 			final RecoverableWriter.ResumeRecoverable resumable,
-			final long creationTime) {
+			final long creationTime) throws IOException {
 
 		Preconditions.checkNotNull(stream);
 		Preconditions.checkNotNull(resumable);
 
-		return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
+		final BulkWriter<IN> writer = writerFactory.create(stream);
+		return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
 	}
 
 	@Override
@@ -58,11 +61,12 @@ class RowWiseBucketWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter.
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream stream,
 			final Path path,
-			final long creationTime) {
+			final long creationTime) throws IOException {
 
 		Preconditions.checkNotNull(stream);
 		Preconditions.checkNotNull(path);
 
-		return new RowWisePartWriter<>(bucketId, stream, encoder, creationTime);
+		final BulkWriter<IN> writer = writerFactory.create(stream);
+		return new BulkPartWriter<>(bucketId, stream, writer, creationTime);
 	}
 }

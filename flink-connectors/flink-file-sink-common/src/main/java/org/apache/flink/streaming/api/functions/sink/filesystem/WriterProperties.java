@@ -47,21 +47,21 @@ public class WriterProperties {
 	/**
 	 * @return Whether the {@link BucketWriter} support appending data to the restored the in-progress file or not.
 	 */
-	boolean supportsResume() {
+	public boolean supportsResume() {
 		return supportsResume;
 	}
 
 	/**
 	 * @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}.
 	 */
-	SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getPendingFileRecoverableSerializer() {
+	public SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> getPendingFileRecoverableSerializer() {
 		return pendingFileRecoverableSerializer;
 	}
 
 	/**
 	 * @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}.
 	 */
-	SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
+	public SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
 		return inProgressFileRecoverableSerializer;
 	}
 }
