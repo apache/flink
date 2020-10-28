@@ -54,7 +54,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 			CheckpointBarrier barrier) {
 		checkState(!blockedChannels.put(channelInfo, true), "Stream corrupt: Repeated barrier for same checkpoint on input " + channelInfo);
 		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
-		input.blockConsumption(channelInfo.getInputChannelIdx());
+		input.blockConsumption(channelInfo);
 	}
 
 	@Override
@@ -97,6 +97,6 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 
 	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
-		input.resumeConsumption(channelInfo.getInputChannelIdx());
+		input.resumeConsumption(channelInfo);
 	}
 }
