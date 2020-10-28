@@ -1254,6 +1254,42 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
+  def testJoinWithGroupedAggregation2(): Unit = {
+    val ds1 = failingDataSource(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = failingDataSource(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.join(ds2)
+      .where('a === 'd)
+      .groupBy('a)
+      .select('b.sum, 'g.count)
+
+    val sink = new TestingRetractSink
+    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("6,3", "4,2", "1,1")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testJoinWithGroupedAggregation3(): Unit = {
+    val ds1 = failingDataSource(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = failingDataSource(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.join(ds2)
+      .where('a === 'd)
+      .groupBy('d)
+      .select('b.sum, 'g.count)
+
+    val sink = new TestingRetractSink
+    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("6,3", "4,2", "1,1")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testJoinPushThroughJoin(): Unit = {
     val ds1 = failingDataSource(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = failingDataSource(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)

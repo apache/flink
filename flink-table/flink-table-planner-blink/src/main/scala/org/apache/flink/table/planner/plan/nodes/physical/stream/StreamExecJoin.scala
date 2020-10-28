@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
@@ -33,12 +34,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.util.ImmutableIntList
 
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Stream physical RelNode for regular [[Join]].
@@ -98,6 +101,54 @@ class StreamExecJoin(
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream
     planner.getCostFactory.makeCost(elementRate, elementRate, 0)
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    if (requiredDistribution.getType != RelDistribution.Type.HASH_DISTRIBUTED) {
+      return None
+    }
+    // Full outer join cannot provide Hash distribute because it will generate null for left/right
+    // side if there is no match row.
+    if (joinType == JoinRelType.FULL) {
+      return None
+    }
+
+    val leftKeys = joinInfo.leftKeys
+    val rightKeys = joinInfo.rightKeys
+    if (leftKeys.isEmpty || rightKeys.isEmpty) {
+      return None
+    }
+
+    val leftFieldCnt = getLeft.getRowType.getFieldCount
+    val requiredShuffleKeys = requiredDistribution.getKeys
+    val requiredLeftShuffleKeyBuffer = mutable.ArrayBuffer[Int]()
+    val requiredRightShuffleKeyBuffer = mutable.ArrayBuffer[Int]()
+    requiredShuffleKeys.foreach { key =>
+      if (key < leftFieldCnt &&
+        (joinType == JoinRelType.LEFT || joinType == JoinRelType.INNER)) {
+        requiredLeftShuffleKeyBuffer += key
+      } else if (key >= leftFieldCnt &&
+        (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
+        requiredRightShuffleKeyBuffer += (key - leftFieldCnt)
+      } else {
+        // cannot satisfy required hash distribution if requirement shuffle keys are not come from
+        // left side when Join is LOJ or are not come from right side when Join is ROJ.
+        return None
+      }
+    }
+
+    val requiredLeftShuffleKeys = ImmutableIntList.of(requiredLeftShuffleKeyBuffer: _*)
+    val requiredRightShuffleKeys = ImmutableIntList.of(requiredRightShuffleKeyBuffer: _*)
+    // the required hash distribution can be pushed down
+    // only if the required keys are all from one side and totally equal to the side's keys
+    if (leftKeys.equals(requiredLeftShuffleKeys) && requiredRightShuffleKeys.isEmpty ||
+      rightKeys.equals(requiredRightShuffleKeys) && requiredLeftShuffleKeys.isEmpty) {
+      val providedTraits = getTraitSet.replace(requiredDistribution)
+      Some(copy(providedTraits, Seq(getLeft, getRight)))
+    } else {
+      None
+    }
   }
 
   //~ ExecNode methods -----------------------------------------------------------

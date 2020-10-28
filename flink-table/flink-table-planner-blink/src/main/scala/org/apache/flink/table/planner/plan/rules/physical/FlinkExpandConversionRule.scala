@@ -21,7 +21,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecSort, BatchPhysicalRel}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExchange
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecExchange, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 
 import org.apache.calcite.plan.RelOptRule._
@@ -90,6 +90,14 @@ class FlinkExpandConversionRule(flinkConvention: Convention)
             val finalRel = satisfyCollation(flinkConvention, newRel, requiredCollation)
             checkSatisfyRequiredTrait(finalRel, requiredTraits)
             call.transformTo(finalRel)
+          case _ => // do nothing
+        }
+      case streamRel: StreamPhysicalRel =>
+        val otherChoice = streamRel.satisfyTraits(requiredTraits)
+        otherChoice match {
+          case Some(newRel) =>
+            checkSatisfyRequiredTrait(newRel, requiredTraits)
+            call.transformTo(newRel)
           case _ => // do nothing
         }
       case _ => // ignore

@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
@@ -69,11 +68,8 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.registerTable("B", tableB)
   }
 
-
-
   // Tests for inner join.
   override def after(): Unit = {}
-
 
   /** test non-window inner join **/
   @Test
