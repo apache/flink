@@ -148,11 +148,14 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 	}
 
-	static final class OutputStreamBasedInProgressFileRecoverable implements InProgressFileRecoverable {
+	/**
+	 * A kind of {@link InProgressFileRecoverable} implementation.
+	 */
+	public static final class OutputStreamBasedInProgressFileRecoverable implements InProgressFileRecoverable {
 
 		private final RecoverableWriter.ResumeRecoverable resumeRecoverable;
 
-		OutputStreamBasedInProgressFileRecoverable(final RecoverableWriter.ResumeRecoverable resumeRecoverable) {
+		public OutputStreamBasedInProgressFileRecoverable(final RecoverableWriter.ResumeRecoverable resumeRecoverable) {
 			this.resumeRecoverable = resumeRecoverable;
 		}
 
