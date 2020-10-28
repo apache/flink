@@ -29,6 +29,11 @@ under the License.
 		<!-- These use star import for all the generated Tuple classes -->
 		<suppress files="CsvReader.java" checks="AvoidStarImport"/>
 
+		<suppress files="JoinOperator.java" checks="FileLength"/>
+		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
+		<suppress files="WindowOperatorContractTest.java" checks="FileLength"/>
+		<suppress files="NFAITCase.java" checks="FileLength"/>
+
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]parquet[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
