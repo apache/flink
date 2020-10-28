@@ -26,6 +26,7 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -225,6 +226,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		Buffer buffer = next.buffer();
+
+		if (buffer instanceof FileRegionBuffer) {
+			buffer = ((FileRegionBuffer) buffer).readInto(inputGate.getUnpooledSegment());
+		}
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();

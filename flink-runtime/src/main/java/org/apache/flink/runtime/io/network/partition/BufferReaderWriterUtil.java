@@ -22,8 +22,10 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +42,7 @@ import java.nio.channels.FileChannel;
  * <p>The encoding is the same across FileChannel and ByteBuffer, so this class can
  * write to a file and read from the byte buffer that results from mapping this file to memory.
  */
-final class BufferReaderWriterUtil {
+public final class BufferReaderWriterUtil {
 
 	static final int HEADER_LENGTH = 8;
 
@@ -141,6 +143,22 @@ final class BufferReaderWriterUtil {
 	}
 
 	@Nullable
+	static Buffer readFromByteChannel(FileChannel channel, ByteBuffer headerBuffer) throws IOException {
+		headerBuffer.clear();
+		if (!tryReadByteBuffer(channel, headerBuffer)) {
+			return null;
+		}
+		headerBuffer.flip();
+
+		boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
+		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
+		int size = headerBuffer.getInt();
+
+		return new FileRegionBuffer(channel, size, dataType, isCompressed);
+	}
+
+	@Nullable
 	static Buffer readFromByteChannel(
 			FileChannel channel,
 			ByteBuffer headerBuffer,
@@ -187,6 +205,17 @@ final class BufferReaderWriterUtil {
 		return new ByteBuffer[] { allocatedHeaderBuffer(), null };
 	}
 
+	public static ByteBuffer tryReadByteBuffer(FileChannel channel, int size) {
+		ByteBuffer bb = ByteBuffer.allocate(size);
+		try {
+			tryReadByteBuffer(channel, bb);
+			bb.flip();
+		} catch (IOException ex) {
+			ExceptionUtils.rethrow(ex);
+		}
+		return bb;
+	}
+
 	private static boolean tryReadByteBuffer(FileChannel channel, ByteBuffer b) throws IOException {
 		if (channel.read(b) == -1) {
 			return false;
@@ -201,7 +230,7 @@ final class BufferReaderWriterUtil {
 		}
 	}
 
-	private static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
+	public static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
 		// the post-checked loop here gets away with one less check in the normal case
 		do {
 			if (channel.read(b) == -1) {
