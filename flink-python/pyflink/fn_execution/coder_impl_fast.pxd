@@ -98,7 +98,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
 
-cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
+cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef readonly FieldCoder _single_field_coder
     cdef object _decode_data_stream_field_simple(self, TypeName field_type)
     cdef object _decode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder)
@@ -106,8 +106,9 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
     cdef void _encode_data_stream_field_complex(self, TypeName field_type, FieldCoder field_coder,
                                                 item)
 
-cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
+cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
     cdef readonly object _single_field_coder
+
 
 cdef enum CoderType:
     UNDEFINED = -1

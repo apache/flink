@@ -78,6 +78,8 @@ from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, 
                                               PredefinedOptions)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
+from pyflink.datastream.time_domain import TimeDomain
+from pyflink.datastream.functions import ProcessFunction, Collector, TimerService
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -101,5 +103,9 @@ __all__ = [
     'CustomStateBackend',
     'PredefinedOptions',
     'ExternalizedCheckpointCleanup',
-    'TimeCharacteristic'
+    'TimeCharacteristic',
+    'TimeDomain',
+    'ProcessFunction',
+    'Collector',
+    'TimerService'
 ]

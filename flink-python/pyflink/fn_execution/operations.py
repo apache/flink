@@ -15,13 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import time
 from functools import reduce
 from itertools import chain
 
 from apache_beam.coders import PickleCoder
-from typing import Tuple
+from typing import Tuple, Any
 
-from pyflink.datastream.functions import RuntimeContext
+from pyflink.datastream.functions import RuntimeContext, InternalProcessFunctionContext, \
+    TimerService, Collector, InternalProcessFunctionOnTimerContext
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
@@ -345,3 +347,70 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
     def close(self):
         if self.group_agg_function is not None:
             self.group_agg_function.close()
+
+
+class ProcessFunctionOperation(StatefulFunctionOperation):
+
+    def __init__(self, spec, keyed_state_backend):
+        self._collector = ProcessFunctionOperation.InternalCollector()
+        internal_timer_service = ProcessFunctionOperation\
+            .InternalTimerService(self._collector, keyed_state_backend)
+        self.function_context = InternalProcessFunctionContext(internal_timer_service)
+        self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
+        super(ProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
+
+    def generate_func(self, serialized_fn) -> tuple:
+        func, proc_func = operation_utils.extract_user_defined_process_function(
+            serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
+            self.keyed_state_backend)
+        return func, [proc_func]
+
+    class InternalCollector(Collector):
+        """
+        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
+        There will be a header flag for each data type. 0 means it is a proc time timer registering
+        request, while 1 means it is an event time timer and 2 means it is a normal data. When
+        registering a timer, it must take along with the corresponding key for it.
+        """
+
+        def __init__(self):
+            self.buf = []
+
+        def collect_proc_timer(self, a: Any, key: Any):
+            self.buf.append((0, a, key, None))
+
+        def collect_event_timer(self, a: Any, key: Any):
+            self.buf.append((1, a, key, None))
+
+        def collect_data(self, a: Any):
+            self.buf.append((2, a))
+
+        def collect(self, a: Any):
+            self.collect_data(a)
+
+        def clear(self):
+            self.buf.clear()
+
+    class InternalTimerService(TimerService):
+        """
+        Internal implementation of TimerService.
+        """
+
+        def __init__(self, collector, keyed_state_backend):
+            self._collector = collector
+            self._keyed_state_backend = keyed_state_backend
+            self._current_watermark = None
+
+        def current_processing_time(self) -> int:
+            return int(time.time() * 1000)
+
+        def register_processing_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_proc_timer(t, current_key)
+
+        def register_event_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_event_timer(t, current_key)
+
+        def current_watermark(self) -> int:
+            return self._current_watermark

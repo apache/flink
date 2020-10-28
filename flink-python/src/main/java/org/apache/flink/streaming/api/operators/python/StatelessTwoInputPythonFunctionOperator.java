@@ -32,7 +32,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -56,8 +56,8 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
 	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:map:v1";
+	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:flat_map:v1";
 
 
 	private final DataStreamPythonFunctionInfo pythonFunctionInfo;
@@ -151,7 +151,7 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 			throw new RuntimeException("Function Type for ConnectedStream should be Map or FlatMap");
 		}
 
-		return new BeamDataStreamStatelessPythonFunctionRunner(
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
@@ -161,6 +161,8 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 			coderUrn,
 			jobOptions,
 			getFlinkMetricContainer(),
+			null,
+			null,
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,

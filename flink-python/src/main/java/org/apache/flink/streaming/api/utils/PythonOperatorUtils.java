@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.utils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
@@ -132,4 +133,21 @@ public enum PythonOperatorUtils {
 			dataStreamPythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		return builder.build();
 	}
+
+	public static FlinkFnApi.UserDefinedDataStreamFunction
+	getUserDefinedDataStreamStatefulFunctionProto(
+		DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+		RuntimeContext runtimeContext,
+		Map<String, String> internalParameters,
+		TypeInformation keyTypeInfo) {
+		FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction =
+			getUserDefinedDataStreamFunctionProto(dataStreamPythonFunctionInfo, runtimeContext,
+				internalParameters);
+		FlinkFnApi.TypeInfo.FieldType builtKeyFieldType = PythonTypeUtils.TypeInfoToProtoConverter
+			.getFieldType(keyTypeInfo);
+		return userDefinedDataStreamFunction.toBuilder()
+			.setKeyTypeInfo(PythonTypeUtils.TypeInfoToProtoConverter
+				.toTypeInfoProto(builtKeyFieldType)).build();
+	}
+
 }

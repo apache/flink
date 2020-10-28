@@ -217,14 +217,30 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_data_stream_kafka_source
+# End to end test for DataStream ProcessFunction with timer
+create_kafka_topic 1 1 timer-stream-source
+create_kafka_topic 1 1 timer-stream-sink
 
-create_kafka_topic 1 1 test-python-data-stream-sink
+PAYMENT_MSGS='{"createTime": "2020-10-26 10:30:13", "orderId": 1603679414, "payAmount": 83685.44904332698, "payPlatform": 0, "provinceId": 3}
+{"createTime": "2020-10-26 10:30:26", "orderId": 1603679427, "payAmount": 30092.50657757042, "payPlatform": 0, "provinceId": 1}
+{"createTime": "2020-10-26 10:30:27", "orderId": 1603679428, "payAmount": 62644.01719293056, "payPlatform": 0, "provinceId": 6}
+{"createTime": "2020-10-26 10:30:28", "orderId": 1603679429, "payAmount": 6449.806795118451, "payPlatform": 0, "provinceId": 2}
+{"createTime": "2020-10-26 10:31:31", "orderId": 1603679492, "payAmount": 41108.36128417494, "payPlatform": 0, "provinceId": 0}
+{"createTime": "2020-10-26 10:31:32", "orderId": 1603679493, "payAmount": 64882.44233197067, "payPlatform": 0, "provinceId": 4}
+{"createTime": "2020-10-26 10:32:01", "orderId": 1603679522, "payAmount": 81648.80712644062, "payPlatform": 0, "provinceId": 3}
+{"createTime": "2020-10-26 10:32:02", "orderId": 1603679523, "payAmount": 81861.73063103345, "payPlatform": 0, "provinceId": 4}'
 
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC}
+function send_msg_to_kafka {
+    while read line
+    do
+	    send_messages_to_kafka "$line" "timer-stream-source"
+        sleep 1
+    done <<< "$1"
+}
+
+send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run \
-    -p 2 \
     -pyfs "${FLINK_PYTHON_TEST_DIR}/python/datastream" \
     -pyreq "${REQUIREMENTS_PATH}" \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
@@ -235,32 +251,30 @@ JOB_ID=$(${FLINK_DIR}/bin/flink run \
 echo "${JOB_ID}"
 JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 
+wait_job_running ${JOB_ID}
+
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 20 test-python-data-stream-sink pyflink-e2e-test)
+READ_MSG=$(read_messages_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"
 
-EXPECTED_MSG='{"f0":"a","f1":0,"f2":1}
-{"f0":"a","f1":1,"f2":1}
-{"f0":"ab","f1":0,"f2":2}
-{"f0":"ab","f1":1,"f2":2}
-{"f0":"ab","f1":2,"f2":2}
-{"f0":"abc","f1":0,"f2":3}
-{"f0":"abc","f1":1,"f2":3}
-{"f0":"abc","f1":2,"f2":3}
-{"f0":"abc","f1":3,"f2":3}
-{"f0":"abcde","f1":0,"f2":5}
-{"f0":"abcde","f1":1,"f2":5}
-{"f0":"abcde","f1":2,"f2":5}
-{"f0":"abcde","f1":3,"f2":5}
-{"f0":"abcde","f1":4,"f2":5}
-{"f0":"abcde","f1":5,"f2":5}
-{"f0":"abcd","f1":0,"f2":4}
-{"f0":"abcd","f1":1,"f2":4}
-{"f0":"abcd","f1":2,"f2":4}
-{"f0":"abcd","f1":3,"f2":4}
-{"f0":"abcd","f1":4,"f2":4}'
+EXPECTED_MSG='Current orderId: 1603679414 payAmount: 83685.44904332698
+Current orderId: 1603679427 payAmount: 30092.50657757042
+Current orderId: 1603679428 payAmount: 62644.01719293056
+Current orderId: 1603679429 payAmount: 6449.806795118451
+Current orderId: 1603679492 payAmount: 41108.36128417494
+Current orderId: 1603679493 payAmount: 64882.44233197067
+Current orderId: 1603679522 payAmount: 81648.80712644062
+Current orderId: 1603679523 payAmount: 81861.73063103345
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308'
 
 EXPECTED_MSG=$(sort_msg "${EXPECTED_MSG[*]}")
 SORTED_READ_MSG=$(sort_msg "${READ_MSG[*]}")

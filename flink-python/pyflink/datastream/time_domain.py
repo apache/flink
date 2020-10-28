@@ -15,11 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
 
-from pyflink.datastream.functions import KeySelector
 
+class TimeDomain(Enum):
+    """
+    TimeDomain specifies whether a firing timer is based on event time or processing time.
 
-class MyKeySelector(KeySelector):
+    EVENT_TIME: Time is based on timestamp of events.
+    PROCESSING_TIME: Time is based on the current processing-time of a machine where processing
+    happens.
+    """
 
-    def get_key(self, value):
-        return value[1]
+    EVENT_TIME = 0
+    PROCESSING_TIME = 1

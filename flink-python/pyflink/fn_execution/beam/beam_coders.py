@@ -279,7 +279,7 @@ class OverWindowArrowCoder(FastCoder):
         return 'OverWindowArrowCoder[%s]' % self._arrow_coder
 
 
-class BeamDataStreamStatelessMapCoder(FastCoder):
+class BeamDataStreamMapCoder(FastCoder):
 
     def __init__(self, field_coder):
         self._field_coder = field_coder
@@ -295,17 +295,17 @@ class BeamDataStreamStatelessMapCoder(FastCoder):
 
     @Coder.register_urn(FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN, flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
-        return BeamDataStreamStatelessMapCoder(
-            coders.DataStreamStatelessMapCoder.from_type_info_proto(type_info_proto))
+        return BeamDataStreamMapCoder(
+            coders.DataStreamMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
         return typehints.Any
 
     def __repr__(self):
-        return 'BeamDataStreamStatelessMapCoder[%s]' % repr(self._field_coder)
+        return 'BeamDataStreamMapCoder[%s]' % repr(self._field_coder)
 
 
-class BeamDataStreamStatelessFlatMapCoder(FastCoder):
+class BeamDataStreamFlatMapCoder(FastCoder):
 
     def __init__(self, field_coder):
         self._field_coder = field_coder
@@ -322,14 +322,14 @@ class BeamDataStreamStatelessFlatMapCoder(FastCoder):
     @Coder.register_urn(FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN,
                         flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
-        return BeamDataStreamStatelessFlatMapCoder(
-            coders.DataStreamStatelessFlatMapCoder.from_type_info_proto(type_info_proto))
+        return BeamDataStreamFlatMapCoder(
+            coders.DataStreamFlatMapCoder.from_type_info_proto(type_info_proto))
 
     def to_type_hint(self):
         return typehints.Generator
 
     def __repr__(self):
-        return 'BeamDataStreamStatelessFlatMapCoder[%s]' % repr(self._field_coder)
+        return 'BeamDataStreamFlatMapCoder[%s]' % repr(self._field_coder)
 
 
 class DataViewFilterCoder(FastCoder):
