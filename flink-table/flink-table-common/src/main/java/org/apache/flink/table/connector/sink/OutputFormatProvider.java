@@ -23,36 +23,18 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
-import java.util.Optional;
-
 /**
  * Provider of an {@link OutputFormat} instance as a runtime implementation for {@link DynamicTableSink}.
  */
 @PublicEvolving
-public interface OutputFormatProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider{
+public interface OutputFormatProvider
+	extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider{
 
 	/**
 	 * Helper method for creating a static provider.
 	 */
 	static OutputFormatProvider of(OutputFormat<RowData> outputFormat) {
-		return of(outputFormat, Optional.empty());
-	}
-
-	/**
-	 * Helper method for creating a static provider, sink parallelism will be configured if non-empty parallelism is passed in.
-	 */
-	static OutputFormatProvider of(OutputFormat<RowData> outputFormat, Optional<Integer> parallelism) {
-		return new OutputFormatProvider() {
-			@Override
-			public OutputFormat<RowData> createOutputFormat() {
-				return outputFormat;
-			}
-
-			@Override
-			public Optional<Integer> getParallelism() {
-				return parallelism;
-			}
-		};
+		return () -> outputFormat;
 	}
 
 	/**
