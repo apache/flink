@@ -21,11 +21,15 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.mapred.JobConf;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,12 +38,17 @@ import java.util.Set;
 import static org.apache.flink.table.catalog.config.CatalogConfig.IS_GENERIC;
 
 /**
- * A dynamic table factory implementation for Hive catalog. Now it only support generic tables.
- * Hive tables should be resolved by {@link HiveTableFactory}.
+ * A dynamic table factory implementation for Hive catalog.
  */
 public class HiveDynamicTableFactory implements
 		DynamicTableSourceFactory,
 		DynamicTableSinkFactory {
+
+	private final HiveConf hiveConf;
+
+	public HiveDynamicTableFactory(HiveConf hiveConf) {
+		this.hiveConf = hiveConf;
+	}
 
 	@Override
 	public String factoryIdentifier() {
@@ -69,23 +78,46 @@ public class HiveDynamicTableFactory implements
 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
-		return FactoryUtil.createTableSink(
-				null, // we already in the factory of catalog
-				context.getObjectIdentifier(),
-				removeIsGenericFlag(context),
-				context.getConfiguration(),
-				context.getClassLoader(),
-				false);
+		boolean isGeneric = Boolean.parseBoolean(context.getCatalogTable().getOptions().get(CatalogConfig.IS_GENERIC));
+
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
+			return new HiveTableSink(
+					context.getConfiguration().get(
+							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+					new JobConf(hiveConf),
+					context.getObjectIdentifier(),
+					context.getCatalogTable());
+		} else {
+			return FactoryUtil.createTableSink(
+					null, // we already in the factory of catalog
+					context.getObjectIdentifier(),
+					removeIsGenericFlag(context),
+					context.getConfiguration(),
+					context.getClassLoader(),
+					context.isTemporary());
+		}
 	}
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
-		return FactoryUtil.createTableSource(
-				null, // we already in the factory of catalog
-				context.getObjectIdentifier(),
-				removeIsGenericFlag(context),
-				context.getConfiguration(),
-				context.getClassLoader(),
-				false);
+		boolean isGeneric = Boolean.parseBoolean(context.getCatalogTable().getOptions().get(CatalogConfig.IS_GENERIC));
+
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
+			return new HiveTableSource(
+					new JobConf(hiveConf),
+					context.getConfiguration(),
+					context.getObjectIdentifier().toObjectPath(),
+					context.getCatalogTable());
+		} else {
+			return FactoryUtil.createTableSource(
+					null, // we already in the factory of catalog
+					context.getObjectIdentifier(),
+					removeIsGenericFlag(context),
+					context.getConfiguration(),
+					context.getClassLoader(),
+					context.isTemporary());
+		}
 	}
 }

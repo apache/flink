@@ -251,12 +251,12 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public Optional<Factory> getFactory() {
-		return Optional.of(new HiveDynamicTableFactory());
+		return Optional.of(new HiveDynamicTableFactory(hiveConf));
 	}
 
 	@Override
 	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new HiveTableFactory(hiveConf));
+		return Optional.of(new HiveTableFactory());
 	}
 
 	@Override
