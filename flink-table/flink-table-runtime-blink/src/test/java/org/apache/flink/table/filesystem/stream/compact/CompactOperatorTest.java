@@ -157,8 +157,7 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 
 	private void runCompact(ThrowingConsumer<
 			OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo>, Exception> consumer) throws Exception {
-		try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness =
-				     create(1, 0)) {
+		try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness = create(1, 0)) {
 			consumer.accept(harness);
 		}
 	}

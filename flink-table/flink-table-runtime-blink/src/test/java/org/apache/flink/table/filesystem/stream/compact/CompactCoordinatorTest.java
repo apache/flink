@@ -24,8 +24,8 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CompactionUnit;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorInput;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorOutput;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCompaction;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCheckpoint;
+import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCompaction;
 import org.apache.flink.table.filesystem.stream.compact.CompactMessages.InputFile;
 import org.apache.flink.util.function.ThrowingConsumer;
 
