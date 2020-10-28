@@ -23,21 +23,11 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.format.BulkDecodingFormat;
-import org.apache.flink.table.connector.format.EncodingFormat;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.BulkFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.EncodingFormatFactory;
-import org.apache.flink.table.factories.Factory;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_DEFAULT_NAME;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PATH;
@@ -68,69 +58,5 @@ abstract class AbstractFileSystemTable {
 
 	ReadableConfig formatOptions(String identifier) {
 		return new DelegatingConfiguration(tableOptions, identifier + ".");
-	}
-
-	FileSystemFormatFactory createFormatFactory() {
-		return FactoryUtil.discoverFactory(
-				Thread.currentThread().getContextClassLoader(),
-				FileSystemFormatFactory.class,
-				tableOptions.get(FactoryUtil.FORMAT));
-	}
-
-	@SuppressWarnings("rawtypes")
-	<F extends EncodingFormatFactory<?>> Optional<EncodingFormat> discoverOptionalEncodingFormat(
-			Class<F> formatFactoryClass) {
-		return discoverOptionalFormatFactory(formatFactoryClass)
-				.map(formatFactory -> {
-					String format = formatFactory.factoryIdentifier();
-					try {
-						return formatFactory.createEncodingFormat(context, formatOptions(format));
-					} catch (Throwable t) {
-						throw new ValidationException(
-								String.format(
-										"Error creating sink format '%s' in option space '%s'.",
-										formatFactory.factoryIdentifier(),
-										format),
-								t);
-					}
-				});
-	}
-
-	Optional<BulkDecodingFormat<RowData>> discoverBulkDecodingFormat() {
-		return discoverOptionalFormatFactory(BulkFormatFactory.class)
-				.map(formatFactory -> {
-					String format = formatFactory.factoryIdentifier();
-					try {
-						return formatFactory.createDecodingFormat(context, formatOptions(format));
-					} catch (Throwable t) {
-						throw new ValidationException(
-								String.format(
-										"Error creating scan format '%s' in option space '%s'.",
-										formatFactory.factoryIdentifier(),
-										format),
-								t);
-					}
-				});
-	}
-
-	/**
-	 * Unlike {@link FactoryUtil#discoverFactory}, it will not throw an exception if it cannot
-	 * find the factory.
-	 */
-	private <T extends Factory> Optional<T> discoverOptionalFormatFactory(Class<T> clazz) {
-		String format = tableOptions.get(FactoryUtil.FORMAT);
-		if (format == null) {
-			throw new ValidationException(String.format(
-					"Table options do not contain an option key '%s' for discovering a format.",
-					FactoryUtil.FORMAT.key()));
-		}
-		try {
-			return Optional.of(FactoryUtil.discoverFactory(
-					Thread.currentThread().getContextClassLoader(),
-					clazz,
-					format));
-		} catch (ValidationException e) {
-			return Optional.empty();
-		}
 	}
 }

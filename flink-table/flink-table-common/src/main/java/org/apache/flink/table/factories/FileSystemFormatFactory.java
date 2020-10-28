@@ -25,6 +25,7 @@ import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
@@ -38,7 +39,11 @@ import java.util.stream.Collectors;
 
 /**
  * File system format factory for creating configured instances of reader and writer.
+ *
+ * @deprecated This interface has been replaced by {@link BulkReaderFormatFactory} and
+ *             {@link BulkWriterFormatFactory}.
  */
+@Deprecated
 @Internal
 public interface FileSystemFormatFactory extends Factory {
 

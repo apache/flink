@@ -19,15 +19,23 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Base interface for configuring a {@link Encoder} for file system connector.
+ * Base interface for configuring a {@link BulkFormat} for file system connector.
  *
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
  */
 @Internal
-public interface EncoderFactory extends EncodingFormatFactory<Encoder<RowData>> {
-	// interface is used for discovery but is already fully specified by the generics
+public interface BulkReaderFormatFactory extends DecodingFormatFactory<BulkFormat<RowData>> {
+
+	/**
+	 * Creates a {@link BulkDecodingFormat} from the given context and format options.
+	 */
+	@Override
+	BulkDecodingFormat<RowData> createDecodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }

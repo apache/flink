@@ -41,21 +41,25 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.BulkWriterFactory;
+import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.EncoderFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -77,23 +81,19 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		SupportsPartitioning,
 		SupportsOverwrite {
 
+	@Nullable private final EncodingFormat<?> encodingFormat;
+	@Nullable private final FileSystemFormatFactory formatFactory;
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
 	private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
 
-	FileSystemTableSink(DynamicTableFactory.Context context) {
-		super(context);
-	}
-
-	private FileSystemTableSink(
+	FileSystemTableSink(
 			DynamicTableFactory.Context context,
-			boolean overwrite,
-			boolean dynamicGrouping,
-			LinkedHashMap<String, String> staticPartitions) {
-		this(context);
-		this.overwrite = overwrite;
-		this.dynamicGrouping = dynamicGrouping;
-		this.staticPartitions = staticPartitions;
+			@Nullable EncodingFormat<?> encodingFormat,
+			@Nullable FileSystemFormatFactory formatFactory) {
+		super(context);
+		this.encodingFormat = encodingFormat;
+		this.formatFactory = formatFactory;
 	}
 
 	@Override
@@ -220,14 +220,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	private Object createWriter(Context sinkContext) {
-		@SuppressWarnings("rawtypes")
-		Optional<EncodingFormat> encodingFormat = discoverOptionalEncodingFormat(BulkWriterFactory.class)
-				.map(Optional::of).orElseGet(() -> discoverOptionalEncodingFormat(EncoderFactory.class));
-		if (encodingFormat.isPresent()) {
-			return encodingFormat.get().createRuntimeEncoder(sinkContext, getFormatDataType());
+		if (encodingFormat != null) {
+			return encodingFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
 		}
 
-		FileSystemFormatFactory formatFactory = createFormatFactory();
+		Preconditions.checkNotNull(formatFactory, "Can not find format factory.");
 
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
@@ -347,7 +344,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 	@Override
 	public DynamicTableSink copy() {
-		return new FileSystemTableSink(context, overwrite, dynamicGrouping, staticPartitions);
+		FileSystemTableSink sink = new FileSystemTableSink(context, encodingFormat, formatFactory);
+		sink.overwrite = overwrite;
+		sink.dynamicGrouping = dynamicGrouping;
+		sink.staticPartitions = staticPartitions;
+		return sink;
 	}
 
 	@Override

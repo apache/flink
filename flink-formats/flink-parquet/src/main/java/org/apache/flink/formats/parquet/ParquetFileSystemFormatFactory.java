@@ -30,8 +30,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.vector.VectorizedColumnBatch;
-import org.apache.flink.table.factories.BulkFormatFactory;
-import org.apache.flink.table.factories.BulkWriterFactory;
+import org.apache.flink.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.filesystem.PartitionValueConverter;
@@ -49,7 +49,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * Parquet format factory for file system.
  */
-public class ParquetFileSystemFormatFactory implements BulkFormatFactory, BulkWriterFactory {
+public class ParquetFileSystemFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
 	public static final String IDENTIFIER = "parquet";
 
