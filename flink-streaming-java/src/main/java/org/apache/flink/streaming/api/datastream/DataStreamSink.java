@@ -21,9 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
+import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -33,11 +36,25 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 @Public
 public class DataStreamSink<T> {
 
-	private final LegacySinkTransformation<T> transformation;
+	private final PhysicalTransformation<T> transformation;
 
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
-		this.transformation = new LegacySinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
+		this.transformation = (PhysicalTransformation<T>) new LegacySinkTransformation<>(
+				inputStream.getTransformation(),
+				"Unnamed",
+				operator,
+				inputStream.getExecutionEnvironment().getParallelism());
+	}
+
+	@SuppressWarnings("unchecked")
+	protected DataStreamSink(DataStream<T> inputStream, Sink<T, ?, ?, ?> sink) {
+		transformation = (PhysicalTransformation<T>) new SinkTransformation<>(
+				inputStream.getTransformation(),
+				sink,
+				"Unnamed",
+				inputStream.getExecutionEnvironment().getParallelism());
+		inputStream.getExecutionEnvironment().addOperator(transformation);
 	}
 
 	/**
@@ -45,7 +62,11 @@ public class DataStreamSink<T> {
 	 */
 	@Internal
 	public LegacySinkTransformation<T> getTransformation() {
-		return transformation;
+		if (transformation instanceof LegacySinkTransformation) {
+			return (LegacySinkTransformation<T>) transformation;
+		} else {
+			throw new IllegalStateException("There is no the LegacySinkTransformation.");
+		}
 	}
 
 	/**

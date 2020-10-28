@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -56,6 +57,7 @@ import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTr
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.PartitionTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SideOutputTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
@@ -153,6 +155,7 @@ public class StreamGraphGenerator {
 		tmp.put(MultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(KeyedMultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
+		tmp.put(SinkTransformation.class, new SinkTransformationTranslator<>());
 		tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
 		tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
 		tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
