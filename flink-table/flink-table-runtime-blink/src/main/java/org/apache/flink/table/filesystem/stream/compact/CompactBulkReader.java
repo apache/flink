@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.filesystem.stream.compact;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 
@@ -76,10 +73,10 @@ public class CompactBulkReader<T> implements CompactReader<T> {
 		}
 
 		@Override
-		public CompactReader<T> create(Configuration config, FileSystem fileSystem,
-				Path path) throws IOException {
-			long len = fileSystem.getFileStatus(path).getLen();
-			return new CompactBulkReader<>(format.createReader(config, path, 0, len));
+		public CompactReader<T> create(CompactContext context) throws IOException {
+			long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
+			return new CompactBulkReader<>(format.createReader(
+					context.getConfig(), context.getPath(), 0, len));
 		}
 	}
 }

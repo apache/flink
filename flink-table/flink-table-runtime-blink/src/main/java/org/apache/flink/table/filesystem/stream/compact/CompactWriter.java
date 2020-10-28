@@ -19,10 +19,6 @@
 
 package org.apache.flink.table.filesystem.stream.compact;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -42,10 +38,6 @@ public interface CompactWriter<T> {
 	 * Factory to create {@link CompactWriter}.
 	 */
 	interface Factory<T> extends Serializable {
-
-		CompactWriter<T> create(
-				Configuration config,
-				FileSystem fileSystem,
-				Path path) throws IOException;
+		CompactWriter<T> create(CompactContext context) throws IOException;
 	}
 }

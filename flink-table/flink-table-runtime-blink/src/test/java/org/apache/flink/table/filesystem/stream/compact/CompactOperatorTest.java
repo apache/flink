@@ -168,9 +168,10 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 		CompactOperator<Byte> operator = new CompactOperator<>(
 				() -> folder.getFileSystem(),
 				CompactBulkReader.factory(TestByteFormat.bulkFormat()),
-				(config, fileSystem, path) -> {
+				context -> {
+					Path path = context.getPath();
 					Path tempPath = new Path(path.getParent(), "." + path.getName());
-					FSDataOutputStream out = fileSystem.create(tempPath, FileSystem.WriteMode.OVERWRITE);
+					FSDataOutputStream out = context.getFileSystem().create(tempPath, FileSystem.WriteMode.OVERWRITE);
 					return new CompactWriter<Byte>() {
 						@Override
 						public void write(Byte record) throws IOException {
@@ -180,7 +181,7 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 						@Override
 						public void commit() throws IOException {
 							out.close();
-							fileSystem.rename(tempPath, path);
+							context.getFileSystem().rename(tempPath, path);
 						}
 					};
 				}

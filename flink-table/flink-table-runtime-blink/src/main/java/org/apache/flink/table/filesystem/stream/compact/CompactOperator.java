@@ -128,7 +128,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 				String partition = unit.getPartition();
 				List<Path> paths = unit.getPaths();
 
-				doCompact(paths);
+				doCompact(partition, paths);
 				this.partitions.add(partition);
 
 				// Only after the current checkpoint is successfully executed can delete
@@ -189,7 +189,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 	 *      - Single file, do atomic renaming, there are optimizations for FileSystem.
 	 *      - Multiple file, do reading and writing.
 	 */
-	private void doCompact(List<Path> paths) throws IOException {
+	private void doCompact(String partition, List<Path> paths) throws IOException {
 		if (paths.size() == 0) {
 			return;
 		}
@@ -207,7 +207,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 			// optimizer for single file, we just want an atomic rename
 			doAtomicRename(paths.get(0), target);
 		} else {
-			doMultiFilesCompact(paths, target);
+			doMultiFilesCompact(partition, paths, target);
 		}
 
 		double costSeconds = ((double) (System.currentTimeMillis() - startMillis)) / 1000;
@@ -235,12 +235,14 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 		}
 	}
 
-	private void doMultiFilesCompact(List<Path> files, Path dst) throws IOException {
+	private void doMultiFilesCompact(String partition, List<Path> files, Path dst) throws IOException {
 		Configuration config = getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
-		CompactWriter<T> writer = writerFactory.create(config, fileSystem, dst);
+		CompactWriter<T> writer = writerFactory.create(
+				CompactContext.create(config, fileSystem, partition, dst));
 
 		for (Path path : files) {
-			try (CompactReader<T> reader = readerFactory.create(config, fileSystem, path)) {
+			try (CompactReader<T> reader = readerFactory.create(
+					CompactContext.create(config, fileSystem, partition, path))) {
 				T record;
 				while ((record = reader.read()) != null) {
 					writer.write(record);

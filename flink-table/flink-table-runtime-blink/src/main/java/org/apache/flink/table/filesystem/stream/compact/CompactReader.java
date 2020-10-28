@@ -19,10 +19,6 @@
 
 package org.apache.flink.table.filesystem.stream.compact;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,10 +37,6 @@ public interface CompactReader<T> extends Closeable {
 	 * Factory to create {@link CompactReader}.
 	 */
 	interface Factory<T> extends Serializable {
-
-		CompactReader<T> create(
-				Configuration config,
-				FileSystem fileSystem,
-				Path path) throws IOException;
+		CompactReader<T> create(CompactContext context) throws IOException;
 	}
 }

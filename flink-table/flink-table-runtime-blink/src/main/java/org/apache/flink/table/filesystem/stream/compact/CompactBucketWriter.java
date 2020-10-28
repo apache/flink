@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.filesystem.stream.compact;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
 import org.apache.flink.util.function.SupplierWithException;
@@ -72,16 +69,16 @@ public class CompactBucketWriter<T> implements CompactWriter<T> {
 		}
 
 		@Override
-		public CompactWriter<T> create(
-				Configuration config, FileSystem fileSystem, Path path) throws IOException {
+		public CompactWriter<T> create(CompactContext context) throws IOException {
 			// The writer is not Serializable
 			if (bucketWriter == null) {
 				bucketWriter = factory.get();
 			}
 
-			// BucketID and creationTime are useless
+			// creationTime are useless
 			return new CompactBucketWriter<>(
-					bucketWriter, bucketWriter.openNewInProgressFile("", path, 0));
+					bucketWriter, bucketWriter.openNewInProgressFile(
+							context.getPartition(), context.getPath(), 0));
 		}
 	}
 }
