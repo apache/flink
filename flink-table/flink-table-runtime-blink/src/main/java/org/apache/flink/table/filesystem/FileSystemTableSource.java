@@ -114,7 +114,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 							getInputFormat(),
 							InternalTypeInfo.of(getProducedDataType().getLogicalType())),
 					true);
-		 } else if (deserializationFormat != null) {
+		} else if (deserializationFormat != null) {
 			throw new UnsupportedOperationException("The deserializationFormat is under developing.");
 			// TODO wrap deserializationFormat to bulk format
 			// return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);

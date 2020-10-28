@@ -233,7 +233,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 			return bulkWriterFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
 		} else if (formatFactory != null) {
 			return createWriterFromFormatFactory();
-		 } else if (serializationFormat != null) {
+		} else if (serializationFormat != null) {
 			throw new UnsupportedOperationException("The serializationFormat is under developing.");
 			// TODO wrap serializationSchema to encoder
 			// return wrapSerializationFormat(
