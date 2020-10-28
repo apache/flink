@@ -62,13 +62,25 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 	}
 
 	@Override
-	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput) {
-		ExecNode<?, ?> conflictNode = node.getInputNodes().get(conflictInput);
-		if (conflictNode instanceof BatchExecExchange) {
-			BatchExecExchange exchange = (BatchExecExchange) conflictNode;
-			exchange.setRequiredShuffleMode(shuffleMode);
+	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput) {
+		ExecNode<?, ?> higherNode = node.getInputNodes().get(higherInput);
+		ExecNode<?, ?> lowerNode = node.getInputNodes().get(lowerInput);
+		if (lowerNode instanceof BatchExecExchange) {
+			BatchExecExchange exchange = (BatchExecExchange) lowerNode;
+			if (higherNode == lowerNode) {
+				// special case: if exchange is exactly the reuse node,
+				// we should split it into two nodes
+				BatchExecExchange newExchange = exchange.copy(
+					exchange.getTraitSet(),
+					exchange.getInput(),
+					exchange.getDistribution());
+				newExchange.setRequiredShuffleMode(shuffleMode);
+				node.replaceInputNode(lowerInput, (ExecNode) newExchange);
+			} else {
+				exchange.setRequiredShuffleMode(shuffleMode);
+			}
 		} else {
-			node.replaceInputNode(conflictInput, (ExecNode) createExchange(node, conflictInput));
+			node.replaceInputNode(lowerInput, (ExecNode) createExchange(node, lowerInput));
 		}
 	}
 

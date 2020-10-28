@@ -283,6 +283,62 @@ NestedLoopJoin(joinType=[FullOuterJoin], where=[<>(cnt, cnt0)], select=[cnt, cnt
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuse_BuildAndProbeNoCommonSuccessors_HashJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH
+  T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
+  T2 AS (SELECT d, COUNT(*) AS cnt2 FROM y GROUP BY d)
+SELECT * FROM
+  (SELECT cnt1, cnt2 FROM T1 LEFT JOIN T2 ON a = d)
+  UNION ALL
+  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(cnt1=[$1], cnt2=[$3])
+:  +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+:     :- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
+:     :  +- LogicalProject(a=[$0])
+:     :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:     +- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
+:        +- LogicalProject(d=[$0])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(cnt1=[$3], cnt2=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+      :- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
+      :  +- LogicalProject(d=[$0])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[cnt1, cnt2])
+:- Calc(select=[CAST(cnt1) AS cnt1, cnt2])
+:  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, d)], select=[a, cnt1, d, cnt2], build=[right])
+:     :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1], reuse_id=[2])
+:     :  +- Exchange(distribution=[hash[a]])
+:     :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+:     :        +- Calc(select=[a])
+:     :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2], reuse_id=[1])
+:        +- Exchange(distribution=[hash[d]])
+:           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
+:              +- Calc(select=[d])
+:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Calc(select=[cnt1, CAST(cnt2) AS cnt2])
+   +- HashJoin(joinType=[LeftOuterJoin], where=[=(d, a)], select=[d, cnt2, a, cnt1], build=[right])
+      :- Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])
+      :  +- Reused(reference_id=[1])
+      +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSubplanReuse_SetExchangeAsBatch_SortMergeJoin">
     <Resource name="sql">
       <![CDATA[
@@ -338,59 +394,32 @@ HashJoin(joinType=[InnerJoin], where=[=(c, c1)], select=[a, b, c, a0, b0, c0, a1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuse_BuildAndProbeNoCommonSuccessors_HashJoin">
+  <TestCase name="testSubplanReuse_DeadlockCausedByReusingExchange">
     <Resource name="sql">
       <![CDATA[
-WITH
-  T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
-  T2 AS (SELECT d, COUNT(*) AS cnt2 FROM y GROUP BY d)
-SELECT * FROM
-  (SELECT cnt1, cnt2 FROM T1 LEFT JOIN T2 ON a = d)
-  UNION ALL
-  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
+WITH T1 AS (SELECT a FROM x)
+SELECT * FROM T1
+  INNER JOIN T1 AS T2 ON T1.a = T2.a
 ]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(cnt1=[$1], cnt2=[$3])
-:  +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
-:     :- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
-:     :  +- LogicalProject(a=[$0])
-:     :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-:     +- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
-:        +- LogicalProject(d=[$0])
-:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
-+- LogicalProject(cnt1=[$3], cnt2=[$1])
-   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
-      :- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
-      :  +- LogicalProject(d=[$0])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
-      +- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
-         +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+LogicalProject(a=[$0], a0=[$1])
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Union(all=[true], union=[cnt1, cnt2])
-:- Calc(select=[CAST(cnt1) AS cnt1, cnt2])
-:  +- HashJoin(joinType=[LeftOuterJoin], where=[=(a, d)], select=[a, cnt1, d, cnt2], build=[right])
-:     :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1], reuse_id=[2])
-:     :  +- Exchange(distribution=[hash[a]])
-:     :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-:     :        +- Calc(select=[a])
-:     :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:     +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2], reuse_id=[1])
-:        +- Exchange(distribution=[hash[d]])
-:           +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
-:              +- Calc(select=[d])
-:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Calc(select=[cnt1, CAST(cnt2) AS cnt2])
-   +- HashJoin(joinType=[LeftOuterJoin], where=[=(d, a)], select=[d, cnt2, a, cnt1], build=[right])
-      :- Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])
-      :  +- Reused(reference_id=[1])
-      +- Reused(reference_id=[2])
+HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, a0], build=[right])
+:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+:  +- Calc(select=[a], reuse_id=[1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
