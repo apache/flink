@@ -74,8 +74,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	protected long memorySize = 1024 * 1024;
 	protected int bufferSize = 1024;
 	protected Configuration jobConfig = new Configuration();
-	protected Configuration taskConfig = new Configuration();
-	protected StreamConfig streamConfig = new StreamConfig(taskConfig);
+	protected StreamConfig streamConfig = new StreamConfig(new Configuration());
 	protected LocalRecoveryConfig localRecoveryConfig = TestLocalRecoveryConfig.disabled();
 	@Nullable
 	protected StreamTestSingleInputGate[] inputGates;
@@ -138,7 +137,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
 		StreamMockEnvironment streamMockEnvironment = new StreamMockEnvironment(
 			jobConfig,
-			taskConfig,
+			streamConfig.getConfiguration(),
 			executionConfig,
 			memorySize,
 			new MockInputSplitProvider(),
