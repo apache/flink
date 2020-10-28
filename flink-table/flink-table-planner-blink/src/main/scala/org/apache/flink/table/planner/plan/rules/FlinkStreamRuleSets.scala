@@ -211,6 +211,12 @@ object FlinkStreamRuleSets {
     CoreRules.PROJECT_SET_OP_TRANSPOSE
   )
 
+  val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
+    RuleSets.ofList(JoinConditionEqualityTransferRule.INSTANCE).asScala ++
+      PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
+      FILTER_RULES.asScala
+    ).asJava)
+
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
