@@ -155,7 +155,7 @@ LogicalProject(currency=[$1], amount=[$0], rate=[$4], EXPR$3=[*($0, $4)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I])
-+- TemporalJoin(joinType=[LeftOuterJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, proctime, currency0, rate], changelogMode=[I])
++- TemporalJoin(joinType=[LeftOuterJoin], where=[AND(=(currency, currency0), __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, proctime, currency0, rate], changelogMode=[I])
    :- Exchange(distribution=[hash[currency]], changelogMode=[I])
    :  +- Calc(select=[amount, currency, PROCTIME() AS proctime], changelogMode=[I])
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
