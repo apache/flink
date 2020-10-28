@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -53,8 +53,8 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 
 	protected static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	protected static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	protected static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	protected static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:map:v1";
+	protected static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:flat_map:v1";
 
 
 	protected final DataStreamPythonFunctionInfo pythonFunctionInfo;
@@ -119,7 +119,7 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 			coderUrn = DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN;
 		}
 
-		return new BeamDataStreamStatelessPythonFunctionRunner(
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			inputTypeInfo,
@@ -129,6 +129,8 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 			coderUrn,
 			jobOptions,
 			getFlinkMetricContainer(),
+			null,
+			null,
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,

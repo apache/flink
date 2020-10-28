@@ -29,7 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
@@ -115,7 +115,7 @@ public class PythonReduceOperator<OUT>
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		return new BeamDataStreamStatelessPythonFunctionRunner(
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
@@ -125,6 +125,8 @@ public class PythonReduceOperator<OUT>
 			DATA_STREAM_MAP_FUNCTION_CODER_URN,  // reuse map function coder
 			jobOptions,
 			getFlinkMetricContainer(),
+			null,
+			null,
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,

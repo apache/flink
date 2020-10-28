@@ -81,6 +81,7 @@ message UserDefinedDataStreamFunction {
     REDUCE = 2;
     CO_MAP = 3;
     CO_FLAT_MAP = 4;
+    PROCESS = 5;
   }
 
   message JobParameter {
@@ -102,6 +103,7 @@ message UserDefinedDataStreamFunction {
   RuntimeContext runtime_context = 2;
   bytes payload = 3;
   bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
 }
 
 message UserDefinedAggregateFunction {
