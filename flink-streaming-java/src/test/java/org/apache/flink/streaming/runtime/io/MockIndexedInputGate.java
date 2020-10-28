@@ -65,7 +65,7 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) {
+	public void resumeConsumption(InputChannelInfo channelInfo) {
 	}
 
 	@Override

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -54,8 +55,8 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) throws IOException {
-		inputGate.resumeConsumption(channelIndex);
+	public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
+		inputGate.resumeConsumption(channelInfo);
 	}
 
 	@Override
