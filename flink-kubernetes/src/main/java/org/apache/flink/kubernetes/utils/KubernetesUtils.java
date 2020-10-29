@@ -24,7 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -42,10 +44,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -115,6 +120,7 @@ public class KubernetesUtils {
 	 * Get the common labels for Flink native clusters. All the Kubernetes resources will be set with these labels.
 	 *
 	 * @param clusterId cluster id
+	 *
 	 * @return Return common labels map
 	 */
 	public static Map<String, String> getCommonLabels(String clusterId) {
@@ -123,6 +129,53 @@ public class KubernetesUtils {
 		commonLabels.put(Constants.LABEL_APP_KEY, clusterId);
 
 		return commonLabels;
+	}
+
+	/**
+	 * Get ConfigMap labels for the current Flink cluster. They could be used to filter and clean-up the resources.
+	 *
+	 * @param clusterId cluster id
+	 * @param type the config map use case. It could only be {@link Constants#LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY}
+	 * now.
+	 *
+	 * @return Return ConfigMap labels.
+	 */
+	public static Map<String, String> getConfigMapLabels(String clusterId, String type) {
+		final Map<String, String> labels = new HashMap<>(getCommonLabels(clusterId));
+		labels.put(Constants.LABEL_CONFIGMAP_TYPE_KEY, type);
+		return Collections.unmodifiableMap(labels);
+	}
+
+	/**
+	 * Check the ConfigMap list should only contain the expected one.
+	 *
+	 * @param configMaps ConfigMap list to check
+	 * @param expectedConfigMapName expected ConfigMap Name
+	 *
+	 * @return Return the expected ConfigMap
+	 */
+	public static KubernetesConfigMap checkConfigMaps(
+		List<KubernetesConfigMap> configMaps,
+		String expectedConfigMapName) {
+		assert(configMaps.size() == 1);
+		assert(configMaps.get(0).getName().equals(expectedConfigMapName));
+		return configMaps.get(0);
+	}
+
+	/**
+	 * Get the {@link LeaderInformation} from ConfigMap.
+	 * @param configMap ConfigMap contains the leader information
+	 * @return Parsed leader information. It could be {@link LeaderInformation#empty()} if there is no corresponding
+	 * data in the ConfigMap.
+	 */
+	public static LeaderInformation getLeaderInformationFromConfigMap(KubernetesConfigMap configMap) {
+		final String leaderAddress = configMap.getData().get(LEADER_ADDRESS_KEY);
+		final String sessionIDStr = configMap.getData().get(LEADER_SESSION_ID_KEY);
+		final UUID sessionID = sessionIDStr == null ? null : UUID.fromString(sessionIDStr);
+		if (leaderAddress == null && sessionIDStr == null) {
+			return LeaderInformation.empty();
+		}
+		return LeaderInformation.known(sessionID, leaderAddress);
 	}
 
 	/**
