@@ -186,6 +186,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
 		env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
+		env.getCheckpointConfig().setAlignmentTimeout(0);
 		env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
 		if (checkpointingInterval > 0) {
 			env.enableCheckpointing(checkpointingInterval);
