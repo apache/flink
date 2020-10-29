@@ -150,7 +150,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			partitionTracker,
 			executionVertexVersioner,
 			executionDeploymentTracker,
-			false,
 			initializationTimestamp);
 
 		this.log = log;

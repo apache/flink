@@ -49,12 +49,9 @@ import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
-import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
-import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -64,7 +61,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
@@ -77,7 +73,6 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -85,7 +80,6 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,13 +93,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -231,8 +223,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** Blob writer used to offload RPC messages. */
 	private final BlobWriter blobWriter;
-
-	private boolean legacyScheduling = true;
 
 	/** The total number of vertices currently in the execution graph. */
 	private int numVerticesTotal;
@@ -797,7 +787,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		checkNotNull(internalTaskFailuresListener);
 		checkState(this.internalTaskFailuresListener == null, "internalTaskFailuresListener can be only set once");
 		this.internalTaskFailuresListener = internalTaskFailuresListener;
-		this.legacyScheduling = false;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -862,51 +851,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 
-	public boolean isLegacyScheduling() {
-		return legacyScheduling;
-	}
-
 	public void transitionToRunning() {
 		if (!transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
-		}
-	}
-
-	public void scheduleForExecution() throws JobException {
-
-		assertRunningInJobMasterMainThread();
-
-		if (isLegacyScheduling()) {
-			LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
-		}
-
-		final long currentGlobalModVersion = globalModVersion;
-
-		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-
-			final CompletableFuture<Void> newSchedulingFuture = SchedulingUtils.schedule(
-				scheduleMode,
-				getAllExecutionVertices(),
-				this);
-
-			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
-				schedulingFuture = newSchedulingFuture;
-				newSchedulingFuture.whenComplete(
-					(Void ignored, Throwable throwable) -> {
-						if (throwable != null) {
-							final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
-
-							if (!(strippedThrowable instanceof CancellationException)) {
-								// only fail if the scheduling future was not canceled
-								failGlobal(strippedThrowable);
-							}
-						}
-					});
-			} else {
-				newSchedulingFuture.cancel(false);
-			}
-		}
-		else {
 			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
 		}
 	}
@@ -1051,119 +997,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param t The exception that caused the failure.
 	 */
 	public void failGlobal(Throwable t) {
-		if (!isLegacyScheduling()) {
-			internalTaskFailuresListener.notifyGlobalFailure(t);
-			return;
-		}
-
-		assertRunningInJobMasterMainThread();
-
-		while (true) {
-			JobStatus current = state;
-			// stay in these states
-			if (current == JobStatus.FAILING ||
-				current == JobStatus.SUSPENDED ||
-				current.isGloballyTerminalState()) {
-				return;
-			} else if (transitionState(current, JobStatus.FAILING, t)) {
-				initFailureCause(t);
-
-				// make sure no concurrent local or global actions interfere with the failover
-				final long globalVersionForRestart = incrementGlobalModVersion();
-
-				final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
-
-				// cancel ongoing scheduling action
-				if (ongoingSchedulingFuture != null) {
-					ongoingSchedulingFuture.cancel(false);
-				}
-
-				// we build a future that is complete once all vertices have reached a terminal state
-				final ConjunctFuture<Void> allTerminal = cancelVerticesAsync();
-				FutureUtils.assertNoException(allTerminal.handle(
-					(Void ignored, Throwable throwable) -> {
-						if (throwable != null) {
-							transitionState(
-								JobStatus.FAILING,
-								JobStatus.FAILED,
-								new FlinkException("Could not cancel all execution job vertices properly.", throwable));
-						} else {
-							allVerticesInTerminalState(globalVersionForRestart);
-						}
-						return null;
-					}));
-
-				return;
-			}
-
-			// else: concurrent change to execution state, retry
-		}
-	}
-
-	public void restart(long expectedGlobalVersion) {
-
-		assertRunningInJobMasterMainThread();
-
-		try {
-			// check the global version to see whether this recovery attempt is still valid
-			if (globalModVersion != expectedGlobalVersion) {
-				LOG.info("Concurrent full restart subsumed this restart.");
-				return;
-			}
-
-			final JobStatus current = state;
-
-			if (current == JobStatus.CANCELED) {
-				LOG.info("Canceled job during restart. Aborting restart.");
-				return;
-			} else if (current == JobStatus.FAILED) {
-				LOG.info("Failed job during restart. Aborting restart.");
-				return;
-			} else if (current == JobStatus.SUSPENDED) {
-				LOG.info("Suspended job during restart. Aborting restart.");
-				return;
-			} else if (current != JobStatus.RESTARTING) {
-				throw new IllegalStateException("Can only restart job from state restarting.");
-			}
-
-			this.currentExecutions.clear();
-
-			final Collection<CoLocationGroup> colGroups = new HashSet<>();
-			final long resetTimestamp = System.currentTimeMillis();
-
-			for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
-
-				CoLocationGroup cgroup = jv.getCoLocationGroup();
-				if (cgroup != null && !colGroups.contains(cgroup)){
-					cgroup.resetConstraints();
-					colGroups.add(cgroup);
-				}
-
-				jv.resetForNewExecution(resetTimestamp, expectedGlobalVersion);
-			}
-
-			for (int i = 0; i < stateTimestamps.length; i++) {
-				if (i != JobStatus.RESTARTING.ordinal()) {
-					// Only clear the non restarting state in order to preserve when the job was
-					// restarted. This is needed for the restarting time gauge
-					stateTimestamps[i] = 0;
-				}
-			}
-
-			transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
-
-			// if we have checkpointed state, reload it into the executions
-			if (checkpointCoordinator != null) {
-				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
-			}
-
-			scheduleForExecution();
-		}
-		// TODO remove the catch block if we align the schematics to not fail global within the restarter.
-		catch (Throwable t) {
-			LOG.warn("Failed to restart the job.", t);
-			failGlobal(t);
-		}
+		checkState(internalTaskFailuresListener != null);
+		internalTaskFailuresListener.notifyGlobalFailure(t);
 	}
 
 	/**
@@ -1343,10 +1178,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 			}
 			else if (current == JobStatus.FAILING) {
-				if (tryRestartOrFail(expectedGlobalVersionForRestart)) {
-					break;
-				}
-				// concurrent job status change, let's check again
+				break;
 			}
 			else if (current.isGloballyTerminalState()) {
 				LOG.warn("Job has entered globally terminal state without waiting for all " +
@@ -1359,68 +1191,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 		}
 		// done transitioning the state
-	}
-
-	/**
-	 * Try to restart the job. If we cannot restart the job (e.g. no more restarts allowed), then
-	 * try to fail the job. This operation is only permitted if the current state is FAILING or
-	 * RESTARTING.
-	 *
-	 * @return true if the operation could be executed; false if a concurrent job status change occurred
-	 */
-	@Deprecated
-	private boolean tryRestartOrFail(long globalModVersionForRestart) {
-		if (!isLegacyScheduling()) {
-			return true;
-		}
-
-		JobStatus currentState = state;
-
-		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
-			final Throwable failureCause = this.failureCause;
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
-			} else {
-				LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
-			}
-
-			final boolean isFailureCauseAllowingRestart = !(failureCause instanceof SuppressRestartsException);
-			final boolean isRestartStrategyAllowingRestart = restartStrategy.canRestart();
-			boolean isRestartable = isFailureCauseAllowingRestart && isRestartStrategyAllowingRestart;
-
-			if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
-				LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
-
-				RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
-				FutureUtils.assertNoException(
-					restartStrategy
-						.restart(restarter, getJobMasterMainThreadExecutor())
-						.exceptionally((throwable) -> {
-								failGlobal(throwable);
-								return null;
-							}));
-				return true;
-			}
-			else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-				final String cause1 = isFailureCauseAllowingRestart ? null :
-					"a type of SuppressRestartsException was thrown";
-				final String cause2 = isRestartStrategyAllowingRestart ? null :
-					"the restart strategy prevented it";
-
-				LOG.info("Could not restart the job {} ({}) because {}.", getJobName(), getJobID(),
-					StringUtils.concatenateWithAnd(cause1, cause2), failureCause);
-				onTerminalState(JobStatus.FAILED);
-
-				return true;
-			} else {
-				// we must have changed the state concurrently, thus we cannot complete this operation
-				return false;
-			}
-		} else {
-			// this operation is only allowed in the state FAILING or RESTARTING
-			return false;
-		}
 	}
 
 	public void failJob(Throwable cause) {
@@ -1467,12 +1237,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	// --------------------------------------------------------------------------------------------
 	//  Callbacks and Callback Utilities
 	// --------------------------------------------------------------------------------------------
-
-	@Deprecated
-	@VisibleForTesting
-	public boolean updateState(TaskExecutionState state) {
-		return updateState(new TaskExecutionStateTransition(state));
-	}
 
 	/**
 	 * Updates the state of one of the ExecutionVertex's Execution attempts.
@@ -1532,7 +1296,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					accumulators,
 					state.getIOMetrics(),
 					state.getReleasePartitions(),
-					!isLegacyScheduling());
+					true);
 				return true;
 
 			default:
@@ -1698,39 +1462,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	void notifyExecutionChange(
-			final Execution execution,
-			final ExecutionState newExecutionState,
-			final Throwable error) {
-
+	void notifyExecutionChange(final Execution execution, final ExecutionState newExecutionState) {
 		executionStateUpdateListener.onStateUpdate(execution.getAttemptId(), newExecutionState);
-
-		if (!isLegacyScheduling()) {
-			return;
-		}
-
-		// see what this means for us. currently, the first FAILED state means -> FAILED
-		if (newExecutionState == ExecutionState.FAILED) {
-			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
-
-			// by filtering out late failure calls, we can save some work in
-			// avoiding redundant local failover
-			if (execution.getGlobalModVersion() == globalModVersion) {
-				try {
-					// fail all checkpoints which the failed task has not yet acknowledged
-					if (checkpointCoordinator != null) {
-						checkpointCoordinator.failUnacknowledgedPendingCheckpointsFor(execution.getAttemptId(), ex);
-					}
-
-					failoverStrategy.onTaskFailure(execution, ex);
-				}
-				catch (Throwable t) {
-					// bug in the failover strategy - fall back to global failover
-					LOG.warn("Error in failover strategy - falling back to global restart", t);
-					failGlobal(ex);
-				}
-			}
-		}
 	}
 
 	void assertRunningInJobMasterMainThread() {
@@ -1744,9 +1477,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			final Throwable t,
 			final boolean cancelTask,
 			final boolean releasePartitions) {
-		if (internalTaskFailuresListener != null) {
-			internalTaskFailuresListener.notifyTaskFailure(attemptId, t, cancelTask, releasePartitions);
-		}
+		checkState(internalTaskFailuresListener != null);
+		internalTaskFailuresListener.notifyTaskFailure(attemptId, t, cancelTask, releasePartitions);
 	}
 
 	ShuffleMaster<?> getShuffleMaster() {
