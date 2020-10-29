@@ -18,59 +18,75 @@
 
 package org.apache.flink.table.runtime.operators.join.temporal;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
-import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
- * Harness tests for {@link LegacyTemporalRowTimeJoinOperator}.
+ * Harness tests for {@link TemporalRowTimeJoinOperatorTest}.
  */
 public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
-	private InternalTypeInfo<RowData> rowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
-
-	private InternalTypeInfo<RowData> outputRowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
-	private int keyIdx = 1;
-	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
-			new int[]{keyIdx},
-			rowType.toRowFieldTypes());
-	private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
-
 	/**
 	 * Test rowtime temporal join.
 	 */
 	@Test
 	public void testRowTimeTemporalJoin() throws Exception {
-		LegacyTemporalRowTimeJoinOperator joinOperator = new LegacyTemporalRowTimeJoinOperator(
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(new Watermark(1));
+		expectedOutput.add(new Watermark(2));
+		expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
+		expectedOutput.add(new Watermark(5));
+		expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
+		expectedOutput.add(new Watermark(8));
+		expectedOutput.add(new Watermark(9));
+		expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
+		expectedOutput.add(new Watermark(13));
+
+		testRowTimeTemporalJoin(false, expectedOutput);
+	}
+
+	/**
+	 * Test rowtime left temporal join.
+	 */
+	@Test
+	public void testRowTimeLeftTemporalJoin() throws Exception {
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(new Watermark(1));
+		expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
+		expectedOutput.add(new Watermark(2));
+		expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
+		expectedOutput.add(insertRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
+		expectedOutput.add(new Watermark(5));
+		expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
+		expectedOutput.add(new Watermark(8));
+		expectedOutput.add(insertRecord(9L, "k2", "5a11", null, null, null));
+		expectedOutput.add(new Watermark(9));
+		expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
+		expectedOutput.add(new Watermark(13));
+
+		testRowTimeTemporalJoin(true, expectedOutput);
+	}
+
+	private void testRowTimeTemporalJoin(boolean isLeftOuterJoin, List<Object> expectedOutput) throws Exception {
+		TemporalRowTimeJoinOperator joinOperator = new TemporalRowTimeJoinOperator(
 				rowType,
 				rowType,
 				joinCondition,
 				0,
 				0,
 				0,
-				0);
+				0,
+				isLeftOuterJoin);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinOperator);
 
@@ -85,30 +101,27 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 		testHarness.processWatermark1(new Watermark(2));
 		testHarness.processWatermark2(new Watermark(2));
 
-		testHarness.processElement1(insertRecord(1L, "k1", "2a1"));
-		testHarness.processElement1(insertRecord(3L, "k1", "2a3"));
+		testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
+		testHarness.processElement1(insertRecord(3L, "k1", "1a3"));
 		testHarness.processElement2(insertRecord(4L, "k2", "2a4"));
 
 		testHarness.processWatermark1(new Watermark(5));
 		testHarness.processWatermark2(new Watermark(5));
 
-		testHarness.processElement1(insertRecord(6L, "k2", "5a6"));
-		testHarness.processElement2(insertRecord(8L, "k2", "5a8"));
-		testHarness.processElement1(insertRecord(11L, "k2", "5a11"));
-		testHarness.processElement1(insertRecord(7L, "k2", "5a7"));
+		testHarness.processElement1(insertRecord(6L, "k2", "2a3"));
+		testHarness.processElement2(updateBeforeRecord(7L, "k2", "2a4"));
+		testHarness.processElement2(updateAfterRecord(7L, "k2", "2a5"));
+
+		testHarness.processWatermark1(new Watermark(8));
+		testHarness.processWatermark2(new Watermark(9));
+
+		testHarness.processElement1(insertRecord(9L, "k2", "5a11"));
+		testHarness.processElement1(insertRecord(11L, "k2", "5a12"));
+		testHarness.processElement2(deleteRecord(9L, "k2", "2a5"));
+		testHarness.processElement2(insertRecord(10L, "k2", "2a6"));
 
 		testHarness.processWatermark1(new Watermark(13));
 		testHarness.processWatermark2(new Watermark(13));
-
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(new Watermark(1));
-		expectedOutput.add(new Watermark(2));
-		expectedOutput.add(insertRecord(3L, "k1", "2a3", 2L, "k1", "1a2"));
-		expectedOutput.add(new Watermark(5));
-		expectedOutput.add(insertRecord(6L, "k2", "5a6", 4L, "k2", "2a4"));
-		expectedOutput.add(insertRecord(11L, "k2", "5a11", 8L, "k2", "5a8"));
-		expectedOutput.add(insertRecord(7L, "k2", "5a7", 4L, "k2", "2a4"));
-		expectedOutput.add(new Watermark(13));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
@@ -121,14 +134,15 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 	public void testRowTimeTemporalJoinWithStateRetention() throws Exception {
 		final int minRetentionTime = 4;
 		final int maxRetentionTime = minRetentionTime * 3 / 2;
-		LegacyTemporalRowTimeJoinOperator joinOperator = new LegacyTemporalRowTimeJoinOperator(
+		TemporalRowTimeJoinOperator joinOperator = new TemporalRowTimeJoinOperator(
 				rowType,
 				rowType,
 				joinCondition,
 				0,
 				0,
 				minRetentionTime,
-				maxRetentionTime);
+				maxRetentionTime,
+				true);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinOperator);
 		testHarness.open();
@@ -140,6 +154,8 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
 		testHarness.processWatermark1(new Watermark(7));
 		testHarness.processWatermark2(new Watermark(7));
+		testHarness.processElement2(updateBeforeRecord(3L, "k1", "0a3"));
+		testHarness.processElement2(updateAfterRecord(3L, "k1", "0a5"));
 
 		testHarness.setProcessingTime(9);
 		testHarness.processElement1(insertRecord(9L, "k1", "7a9"));
@@ -150,21 +166,23 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 		testHarness.setProcessingTime(9 + maxRetentionTime);
 		testHarness.processElement1(insertRecord(15L, "k1", "13a15"));
 
-		testHarness.processWatermark1(new Watermark(16));
+		testHarness.processWatermark1(new Watermark(15));
 		testHarness.processWatermark2(new Watermark(16));
+
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord(6L, "k1", "0a6", 3L, "k1", "0a3"));
 		expectedOutput.add(new Watermark(7));
-		expectedOutput.add(insertRecord(9L, "k1", "7a9", 3L, "k1", "0a3"));
+		expectedOutput.add(insertRecord(9L, "k1", "7a9", 3L, "k1", "0a5"));
 		expectedOutput.add(new Watermark(13));
-		expectedOutput.add(new Watermark(16));
+		expectedOutput.add(insertRecord(15L, "k1", "13a15", null, null, null));
+		expectedOutput.add(new Watermark(15));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
 	}
 
 	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
-			LegacyTemporalRowTimeJoinOperator temporalJoinOperator) throws Exception {
+			TemporalRowTimeJoinOperator temporalJoinOperator) throws Exception {
 
 		return new KeyedTwoInputStreamOperatorTestHarness<>(
 				temporalJoinOperator,

@@ -482,7 +482,7 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testTemporalJoinOnUpsertSource(): Unit = {
+  def testProcTimeTemporalJoinOnUpsertSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE orders (
@@ -510,6 +510,43 @@ class TableScanTest extends TableTestBase {
       """
         |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
         |FROM orders AS o LEFT JOIN rates_history FOR SYSTEM_TIME AS OF o.proctime AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency STRING,
+        |  rowtime TIMESTAMP(3),
+        |  WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE rates_history (
+        |  currency STRING PRIMARY KEY NOT ENFORCED,
+        |  rate BIGINT,
+        |  rowtime TIMESTAMP(3),
+        |  WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o LEFT JOIN rates_history FOR SYSTEM_TIME AS OF o.rowtime AS r
         |ON o.currency = r.currency
         |""".stripMargin
     util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
