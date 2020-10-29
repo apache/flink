@@ -80,6 +80,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -211,7 +212,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 		final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
 		env.enableCheckpointing(100);
-		env.getCheckpointConfig().setAlignmentTimeout(0);
+		env.getCheckpointConfig().setAlignmentTimeout(1);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(EXPECTED_FAILURES, Time.milliseconds(100)));
 		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
@@ -462,6 +463,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		private ListState<State> stateList;
 		private State state;
 		private final long minCheckpoints;
+		private Random random = new Random();
 
 		private VerifyingSink(long minCheckpoints) {
 			this.minCheckpoints = minCheckpoints;
@@ -470,6 +472,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
+			random = new Random();
 			getRuntimeContext().addAccumulator(NUM_OUTPUTS, numOutputCounter);
 			getRuntimeContext().addAccumulator(NUM_OUT_OF_ORDER, outOfOrderCounter);
 			getRuntimeContext().addAccumulator(NUM_DUPLICATES, duplicatesCounter);
@@ -531,8 +534,10 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			state.numOutput++;
 
 			if (state.completedCheckpoints < minCheckpoints) {
-				// induce heavy backpressure until enough checkpoints have been written
-				Thread.sleep(0, 100_000);
+				// induce backpressure until enough checkpoints have been written
+				if (random.nextInt(1000) == 42) {
+					Thread.sleep(1);
+				}
 			}
 			// after all checkpoints have been completed, the remaining data should be flushed out fairly quickly
 		}

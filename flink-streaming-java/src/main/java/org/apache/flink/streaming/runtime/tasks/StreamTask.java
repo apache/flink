@@ -499,32 +499,29 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// we need to make sure that any triggers scheduled in open() cannot be
 		// executed before all operators are opened
 		actionExecutor.runThrowing(() -> {
-			// both the following operations are protected by the lock
-			// so that we avoid race conditions in the case that initializeState()
-			// registers a timer, that fires before the open() is called.
-			readRecoveredChannelState(); // WARN: should be done before operatorChain.initializeStateAndOpenOperators (see FLINK-19907)
+
+			SequentialChannelStateReader reader = getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
+			reader.readOutputData(getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
 			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+
+			channelIOExecutor.execute(() -> {
+				try {
+					reader.readInputData(getEnvironment().getAllInputGates());
+				} catch (Exception e) {
+					asyncExceptionHandler.handleAsyncException("Unable to read channel state", e);
+				}
+			});
+
+			for (InputGate inputGate : getEnvironment().getAllInputGates()) {
+				inputGate
+					.getStateConsumedFuture()
+					.thenRun(() -> mainMailboxExecutor.execute(inputGate::requestPartitions, "Input gate request partitions"));
+			}
+
 		});
 
 		isRunning = true;
-	}
-
-	private void readRecoveredChannelState() throws IOException, InterruptedException {
-		SequentialChannelStateReader reader = getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
-		reader.readOutputData(getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
-		channelIOExecutor.execute(() -> {
-			try {
-				reader.readInputData(getEnvironment().getAllInputGates());
-			} catch (Exception e) {
-				asyncExceptionHandler.handleAsyncException("Unable to read channel state", e);
-			}
-		});
-		for (InputGate inputGate : getEnvironment().getAllInputGates()) {
-			inputGate
-				.getStateConsumedFuture()
-				.thenRun(() -> mainMailboxExecutor.execute(inputGate::requestPartitions, "Input gate request partitions"));
-		}
 	}
 
 	@Override
