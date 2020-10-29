@@ -102,20 +102,30 @@ public final class ExtractionUtils {
 		int currentClass = 0;
 		for (int currentParam = 0; currentParam < paramCount; currentParam++) {
 			final Class<?> param = executable.getParameterTypes()[currentParam];
-			// entire parameter matches
-			if (classes[currentClass] == null || ExtractionUtils.isAssignable(classes[currentClass], param, true)) {
-				currentClass++;
-			}
-			// last parameter is a vararg that consumes remaining classes
-			else if (currentParam == paramCount - 1 && executable.isVarArgs()) {
+			// last parameter is a vararg that needs to consume remaining classes
+			if (currentParam == paramCount - 1 && executable.isVarArgs()) {
 				final Class<?> paramComponent = executable.getParameterTypes()[currentParam].getComponentType();
-				while (currentClass < classCount && ExtractionUtils.isAssignable(classes[currentClass], paramComponent, true)) {
+				// we have more than 1 classes left so the vararg needs to consume them all
+				if (classCount - currentClass > 1) {
+					while (currentClass < classCount && ExtractionUtils.isAssignable(classes[currentClass], paramComponent, true)) {
+						currentClass++;
+					}
+				} else if (parameterMatches(classes[currentClass], param)
+						|| parameterMatches(classes[currentClass], paramComponent)) {
 					currentClass++;
 				}
+			}
+			// entire parameter matches
+			else if (parameterMatches(classes[currentClass], param)) {
+				currentClass++;
 			}
 		}
 		// check if all classes have been consumed
 		return currentClass == classCount;
+	}
+
+	private static boolean parameterMatches(Class<?> clz, Class<?> param) {
+		return clz == null || ExtractionUtils.isAssignable(clz, param, true);
 	}
 
 	/**
