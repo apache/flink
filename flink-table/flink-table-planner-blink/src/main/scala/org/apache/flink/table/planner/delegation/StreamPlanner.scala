@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
@@ -26,12 +27,15 @@ import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOper
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
+import org.apache.flink.table.planner.plan.processors.MultipleInputNodeCreationProcessor
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
@@ -56,6 +60,22 @@ class StreamPlanner(
   }
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
+
+  override private[flink] def translateToExecNodePlan(
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+    val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
+    val context = new DAGProcessContext(this)
+
+    val processors = new util.ArrayList[DAGProcessor]()
+    // multiple input creation
+    if (getTableConfig.getConfiguration.getBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+      processors.add(new MultipleInputNodeCreationProcessor(true))
+    }
+
+    processors.foldLeft(execNodePlan)(
+      (sinkNodes, processor) => processor.process(sinkNodes, context))
+  }
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -28,6 +29,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -161,11 +164,16 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 		return outputType;
 	}
 
+	public void addInput(TableOperatorWrapper<?> input, int inputId) {
+		addInput(input, inputId, null);
+	}
+
 	public void addInput(
 			TableOperatorWrapper<?> input,
-			int inputId) {
+			int inputId,
+			@Nullable KeySelector<RowData, ?> keySelector) {
 		Preconditions.checkArgument(inputId > 0 && inputId <= getAllInputTypes().size());
-		Edge edge = new Edge(input, this, inputId);
+		Edge edge = new Edge(input, this, inputId, keySelector);
 		this.inputEdges.add(edge);
 		input.outputEdges.add(edge);
 	}
@@ -280,13 +288,21 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 		 */
 		private final int inputId;
 
+		/**
+		 * The key selector the the target's input.
+		 */
+		@Nullable
+		private final KeySelector<RowData, ?> keySelector;
+
 		public Edge(
 				TableOperatorWrapper<?> source,
 				TableOperatorWrapper<?> target,
-				int inputId) {
+				int inputId,
+				@Nullable KeySelector<RowData, ?> keySelector) {
 			this.source = checkNotNull(source);
 			this.target = checkNotNull(target);
 			this.inputId = inputId;
+			this.keySelector = keySelector;
 		}
 
 		public TableOperatorWrapper<?> getSource() {
@@ -301,6 +317,11 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 			return inputId;
 		}
 
+		@Nullable
+		public KeySelector<RowData, ?> getKeySelector() {
+			return keySelector;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -312,12 +333,13 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 			Edge edge = (Edge) o;
 			return inputId == edge.inputId &&
 					source.equals(edge.source) &&
-					target.equals(edge.target);
+					target.equals(edge.target) &&
+					Objects.equals(keySelector, edge.keySelector);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(source, target, inputId);
+			return Objects.hash(source, target, inputId, keySelector);
 		}
 
 		@Override
@@ -326,6 +348,7 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 					"source=" + source +
 					", target=" + target +
 					", inputId=" + inputId +
+					", keySelector=" + keySelector +
 					'}';
 		}
 	}

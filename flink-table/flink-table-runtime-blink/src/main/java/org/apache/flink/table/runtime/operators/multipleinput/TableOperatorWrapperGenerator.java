@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 
-import org.apache.commons.lang3.tuple.Pair;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,8 +40,10 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -61,9 +67,12 @@ public class TableOperatorWrapperGenerator {
 	private final int[] readOrders;
 
 	/**
-	 * The list of {@link Transformation} together with their {@link InputSpec}.
+	 * The list of {@link InputInfo}, including input {@link Transformation} together with their {@link InputSpec} and {@link KeySelector}.
 	 */
-	private final List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs;
+	private final List<InputInfo> inputInfoList;
+
+	@Nullable
+	private TypeInformation<?> stateKeyType;
 
 	/**
 	 * The head (leaf) operator wrappers of the operator-graph in {@link MultipleInputStreamOperatorBase}.
@@ -106,7 +115,7 @@ public class TableOperatorWrapperGenerator {
 		this.inputTransforms = inputTransforms;
 		this.tailTransform = tailTransform;
 		this.readOrders = readOrders;
-		this.inputTransformAndInputSpecPairs = new ArrayList<>();
+		this.inputInfoList = new ArrayList<>();
 		this.headWrappers = new ArrayList<>();
 		this.visitedTransforms = new IdentityHashMap<>();
 
@@ -116,12 +125,17 @@ public class TableOperatorWrapperGenerator {
 
 	public void generate() {
 		tailWrapper = visit(tailTransform);
-		checkState(inputTransforms.size() == inputTransformAndInputSpecPairs.size());
+		checkState(inputTransforms.size() == inputInfoList.size());
 		calculateManagedMemoryFraction();
 	}
 
-	public List<Pair<Transformation<?>, InputSpec>> getInputTransformAndInputSpecPairs() {
-		return inputTransformAndInputSpecPairs;
+	public List<InputInfo> getInputInfoList() {
+		return inputInfoList;
+	}
+
+	@Nullable
+	public TypeInformation<?> getStateKeyType() {
+		return stateKeyType;
 	}
 
 	public List<TableOperatorWrapper<?>> getHeadWrappers() {
@@ -217,11 +231,11 @@ public class TableOperatorWrapperGenerator {
 
 		int inputIdx = inputTransforms.indexOf(input);
 		if (inputIdx >= 0) {
-			processInput(input, inputIdx, wrapper, 1);
+			processInput(input, inputIdx, wrapper, 1, transform.getStateKeySelector(), transform.getStateKeyType());
 			headWrappers.add(wrapper);
 		} else {
 			TableOperatorWrapper<?> inputWrapper = visit(input);
-			wrapper.addInput(inputWrapper, 1);
+			wrapper.addInput(inputWrapper, 1, transform.getStateKeySelector());
 		}
 		return wrapper;
 	}
@@ -240,26 +254,26 @@ public class TableOperatorWrapperGenerator {
 				transform.getOutputType());
 
 		if (inputIdx1 >= 0 && inputIdx2 >= 0) {
-			processInput(input1, inputIdx1, wrapper, 1);
-			processInput(input2, inputIdx2, wrapper, 2);
+			processInput(input1, inputIdx1, wrapper, 1, transform.getStateKeySelector1(), transform.getStateKeyType());
+			processInput(input2, inputIdx2, wrapper, 2, transform.getStateKeySelector2(), transform.getStateKeyType());
 			headWrappers.add(wrapper);
 		} else if (inputIdx1 >= 0) {
 			TableOperatorWrapper<?> inputWrapper = visit(input2);
-			wrapper.addInput(inputWrapper, 2);
+			wrapper.addInput(inputWrapper, 2, transform.getStateKeySelector2());
 
-			processInput(input1, inputIdx1, wrapper, 1);
+			processInput(input1, inputIdx1, wrapper, 1, transform.getStateKeySelector1(), transform.getStateKeyType());
 			headWrappers.add(wrapper);
 		} else if (inputIdx2 >= 0) {
 			TableOperatorWrapper<?> inputWrapper = visit(input1);
-			wrapper.addInput(inputWrapper, 1);
+			wrapper.addInput(inputWrapper, 1, transform.getStateKeySelector1());
 
-			processInput(input2, inputIdx2, wrapper, 2);
+			processInput(input2, inputIdx2, wrapper, 2, transform.getStateKeySelector2(), transform.getStateKeyType());
 			headWrappers.add(wrapper);
 		} else {
 			TableOperatorWrapper<?> inputWrapper1 = visit(input1);
-			wrapper.addInput(inputWrapper1, 1);
+			wrapper.addInput(inputWrapper1, 1, transform.getStateKeySelector1());
 			TableOperatorWrapper<?> inputWrapper2 = visit(input2);
-			wrapper.addInput(inputWrapper2, 2);
+			wrapper.addInput(inputWrapper2, 2, transform.getStateKeySelector2());
 		}
 
 		return wrapper;
@@ -278,7 +292,7 @@ public class TableOperatorWrapperGenerator {
 			int inputIdx = inputTransforms.indexOf(input);
 			if (inputIdx >= 0) {
 				numberOfHeadInput++;
-				processInput(input, inputIdx, wrapper, 1); // always 1 here
+				processInput(input, inputIdx, wrapper, 1, null, null); // always 1 here
 			} else {
 				TableOperatorWrapper<?> inputWrapper = visit(input);
 				wrapper.addInput(inputWrapper, 1); // always 1 here
@@ -295,10 +309,23 @@ public class TableOperatorWrapperGenerator {
 			Transformation<?> input,
 			int inputIdx,
 			TableOperatorWrapper<?> outputWrapper,
-			int outputOpInputId) {
-		int inputId = inputTransformAndInputSpecPairs.size() + 1;
+			int outputOpInputId,
+			@Nullable KeySelector<?, ?> keySelector,
+			@Nullable TypeInformation<?> stateKeyType) {
+		checkAndSetStateKeyType(stateKeyType);
+		int inputId = inputInfoList.size() + 1;
 		InputSpec inputSpec = new InputSpec(inputId, readOrders[inputIdx], outputWrapper, outputOpInputId);
-		inputTransformAndInputSpecPairs.add(Pair.of(input, inputSpec));
+		inputInfoList.add(new InputInfo(input, inputSpec, keySelector));
+	}
+
+	private void checkAndSetStateKeyType(TypeInformation<?> target) {
+		if (stateKeyType != null) {
+			if (!stateKeyType.equals(target)) {
+				throw new TableException("This should not happen.");
+			}
+		} else {
+			stateKeyType = target;
+		}
 	}
 
 	/**
@@ -317,5 +344,61 @@ public class TableOperatorWrapperGenerator {
 
 	private String genSubOperatorName(Transformation<?> transformation) {
 		return "SubOp" + (identifierOfSubOp++) + "_" + transformation.getName();
+	}
+
+	/**
+	 * Describe some the input info for (Keyed)MultipleInputTransformation.
+	 */
+	public static class InputInfo {
+		private final Transformation<?> inputTransform;
+		private final InputSpec inputSpec;
+		@Nullable
+		private final KeySelector<?, ?> keySelector;
+
+		@VisibleForTesting
+		InputInfo(Transformation<?> inputTransform,
+				InputSpec inputSpec) {
+			this(inputTransform, inputSpec, null);
+		}
+
+		InputInfo(Transformation<?> inputTransform,
+				InputSpec inputSpec,
+				@Nullable KeySelector<?, ?> keySelector) {
+			this.inputTransform = checkNotNull(inputTransform);
+			this.inputSpec = checkNotNull(inputSpec);
+			this.keySelector = keySelector;
+		}
+
+		public Transformation<?> getInputTransform() {
+			return inputTransform;
+		}
+
+		public InputSpec getInputSpec() {
+			return inputSpec;
+		}
+
+		@Nullable
+		public KeySelector<?, ?> getKeySelector() {
+			return keySelector;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			InputInfo inputInfo = (InputInfo) o;
+			return inputTransform.equals(inputInfo.inputTransform) &&
+					inputSpec.equals(inputInfo.inputSpec) &&
+					Objects.equals(keySelector, inputInfo.keySelector);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(inputTransform, inputSpec, keySelector);
+		}
 	}
 }

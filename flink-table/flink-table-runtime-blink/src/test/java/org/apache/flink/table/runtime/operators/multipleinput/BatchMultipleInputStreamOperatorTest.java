@@ -32,13 +32,13 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator.InputInfo;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import org.apache.flink.table.runtime.operators.multipleinput.input.OneInput;
 import org.apache.flink.table.runtime.operators.multipleinput.input.SecondInputOfTwoInput;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -319,13 +319,12 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
 				new int[] { 1, 2, 0 });
 		generator.generate();
 
-		List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs =
-				generator.getInputTransformAndInputSpecPairs();
+		List<InputInfo> inputInfoList = generator.getInputInfoList();
 
 		List<StreamElement> outputData = new ArrayList<>();
 		return new TestingBatchMultipleInputStreamOperator(
 				createStreamOperatorParameters(new TestingOutput(outputData)),
-				inputTransformAndInputSpecPairs.stream().map(Pair::getValue).collect(Collectors.toList()),
+				inputInfoList.stream().map(InputInfo::getInputSpec).collect(Collectors.toList()),
 				generator.getHeadWrappers(),
 				generator.getTailWrapper(),
 				outputData);

@@ -19,7 +19,9 @@
 package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -28,12 +30,13 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator.InputInfo;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -65,16 +68,26 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		Transformation<RowData> source1 = createSource(env, "source1");
 		Transformation<RowData> source2 = createSource(env, "source2");
+
+		TypeInformation<?> stateKeyType = InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType()));
 		OneInputTransformation<RowData, RowData> agg1 = createOneInputTransform(
 				source1,
 				"agg1",
 				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
 		agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+		KeySelector<RowData, RowData> agg1KeySelector = new TestingKeySelector();
+		agg1.setStateKeySelector(agg1KeySelector);
+		agg1.setStateKeyType(stateKeyType);
+
 		OneInputTransformation<RowData, RowData> agg2 = createOneInputTransform(
 				source2,
 				"agg2",
 				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
 		agg2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 2);
+		KeySelector<RowData, RowData> agg2KeySelector = new TestingKeySelector();
+		agg2.setStateKeySelector(agg2KeySelector);
+		agg2.setStateKeyType(stateKeyType);
+
 		TwoInputTransformation<RowData, RowData, RowData> join = createTwoInputTransform(
 				agg1,
 				agg2,
@@ -83,6 +96,8 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 						DataTypes.STRING().getLogicalType(),
 						DataTypes.STRING().getLogicalType())));
 		join.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 3);
+		join.setStateKeySelectors(new TestingKeySelector(), new TestingKeySelector());
+		join.setStateKeyType(stateKeyType);
 
 		TableOperatorWrapperGenerator generator = new TableOperatorWrapperGenerator(
 				Arrays.asList(source1, source2),
@@ -96,15 +111,16 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 		outputWrapper.addInput(headWrapper1, 1);
 		outputWrapper.addInput(headWrapper2, 2);
 		assertEquals(Arrays.asList(
-				Pair.of(source1, new InputSpec(1, 1, headWrapper1, 1)),
-				Pair.of(source2, new InputSpec(2, 0, headWrapper2, 1))),
-				generator.getInputTransformAndInputSpecPairs());
+				new InputInfo(source1, new InputSpec(1, 1, headWrapper1, 1), agg1KeySelector),
+				new InputInfo(source2, new InputSpec(2, 0, headWrapper2, 1), agg2KeySelector)),
+				generator.getInputInfoList());
 		assertEquals(outputWrapper, generator.getTailWrapper());
 		assertEquals(6, generator.getManagedMemoryWeight());
 		assertEquals(10, generator.getParallelism());
 		assertEquals(-1, generator.getMaxParallelism());
 		assertEquals(ResourceSpec.UNKNOWN, generator.getMinResources());
 		assertEquals(ResourceSpec.UNKNOWN, generator.getPreferredResources());
+		assertEquals(stateKeyType, generator.getStateKeyType());
 	}
 
 	/**
@@ -204,12 +220,12 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 		outputWrapper.addInput(joinWrapper3, 2);
 
 		assertEquals(Arrays.asList(
-				Pair.of(source1, new InputSpec(1, 2, aggWrapper1, 1)),
-				Pair.of(source2, new InputSpec(2, 3, aggWrapper2, 1)),
-				Pair.of(source3, new InputSpec(3, 4, joinWrapper2, 2)),
-				Pair.of(source4, new InputSpec(4, 0, joinWrapper3, 1)),
-				Pair.of(source5, new InputSpec(5, 1, joinWrapper3, 2))),
-				generator.getInputTransformAndInputSpecPairs());
+				new InputInfo(source1, new InputSpec(1, 2, aggWrapper1, 1)),
+				new InputInfo(source2, new InputSpec(2, 3, aggWrapper2, 1)),
+				new InputInfo(source3, new InputSpec(3, 4, joinWrapper2, 2)),
+				new InputInfo(source4, new InputSpec(4, 0, joinWrapper3, 1)),
+				new InputInfo(source5, new InputSpec(5, 1, joinWrapper3, 2))),
+				generator.getInputInfoList());
 
 		assertEquals(outputWrapper, generator.getTailWrapper());
 		assertEquals(21, generator.getManagedMemoryWeight());
@@ -280,12 +296,12 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 		outputWrapper.addInput(joinWrapper1, 1);
 
 		assertEquals(Arrays.asList(
-				Pair.of(source5, new InputSpec(1, 2, outputWrapper, 1)),
-				Pair.of(source4, new InputSpec(2, 0, aggWrapper1, 1)),
-				Pair.of(source1, new InputSpec(3, 1, unionWrapper1, 1)),
-				Pair.of(source2, new InputSpec(4, 1, unionWrapper1, 1)),
-				Pair.of(source3, new InputSpec(5, 1, unionWrapper2, 1))),
-				generator.getInputTransformAndInputSpecPairs());
+				new InputInfo(source5, new InputSpec(1, 2, outputWrapper, 1)),
+				new InputInfo(source4, new InputSpec(2, 0, aggWrapper1, 1)),
+				new InputInfo(source1, new InputSpec(3, 1, unionWrapper1, 1)),
+				new InputInfo(source2, new InputSpec(4, 1, unionWrapper1, 1)),
+				new InputInfo(source3, new InputSpec(5, 1, unionWrapper2, 1))),
+				generator.getInputInfoList());
 
 		assertEquals(outputWrapper, generator.getTailWrapper());
 		assertEquals(3, generator.getManagedMemoryWeight());
@@ -355,16 +371,16 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 		outputWrapper.addInput(unionWrapper, 2);
 
 		assertEquals(Arrays.asList(
-				Pair.of(source1, new InputSpec(1, 1, calcWrapper1, 1)),
-				Pair.of(source2, new InputSpec(2, 1, calcWrapper2, 1)),
-				Pair.of(source3, new InputSpec(3, 0, outputWrapper, 2))),
-				generator.getInputTransformAndInputSpecPairs());
+				new InputInfo(source1, new InputSpec(1, 1, calcWrapper1, 1)),
+				new InputInfo(source2, new InputSpec(2, 1, calcWrapper2, 1)),
+				new InputInfo(source3, new InputSpec(3, 0, outputWrapper, 2))),
+				generator.getInputInfoList());
 		assertEquals(Arrays.asList(
-				new TableOperatorWrapper.Edge(calcWrapper1, unionWrapper, 1),
-				new TableOperatorWrapper.Edge(calcWrapper2, unionWrapper, 2)),
+				new TableOperatorWrapper.Edge(calcWrapper1, unionWrapper, 1, null),
+				new TableOperatorWrapper.Edge(calcWrapper2, unionWrapper, 2, null)),
 				unionWrapper.getInputEdges());
 		assertEquals(Collections.singletonList(
-				new TableOperatorWrapper.Edge(unionWrapper, outputWrapper, 2)),
+				new TableOperatorWrapper.Edge(unionWrapper, outputWrapper, 2, null)),
 				outputWrapper.getInputEdges());
 
 		assertEquals(outputWrapper, generator.getTailWrapper());
@@ -395,6 +411,45 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 				Arrays.asList(source1, source2),
 				join,
 				new int[] { 0, 0 });
+		generator.generate();
+	}
+
+	@Test(expected = TableException.class)
+	public void testDifferentStateKeyTypes() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		Transformation<RowData> source1 = createSource(env, "source1");
+		Transformation<RowData> source2 = createSource(env, "source2");
+
+		OneInputTransformation<RowData, RowData> agg1 = createOneInputTransform(
+				source1,
+				"agg1",
+				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
+		KeySelector<RowData, RowData> agg1KeySelector = new TestingKeySelector();
+		agg1.setStateKeySelector(agg1KeySelector);
+		agg1.setStateKeyType(InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
+
+		OneInputTransformation<RowData, RowData> agg2 = createOneInputTransform(
+				source2,
+				"agg2",
+				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
+		KeySelector<RowData, RowData> agg2KeySelector = new TestingKeySelector();
+		agg2.setStateKeySelector(agg2KeySelector);
+		agg2.setStateKeyType(InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType(), DataTypes.STRING().getLogicalType())));
+
+		TwoInputTransformation<RowData, RowData, RowData> join = createTwoInputTransform(
+				agg1,
+				agg2,
+				"join",
+				InternalTypeInfo.of(RowType.of(
+						DataTypes.STRING().getLogicalType(),
+						DataTypes.STRING().getLogicalType())));
+		join.setStateKeySelectors(new TestingKeySelector(), new TestingKeySelector());
+		join.setStateKeyType(InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
+
+		TableOperatorWrapperGenerator generator = new TableOperatorWrapperGenerator(
+				Arrays.asList(source1, source2),
+				join,
+				new int[] { 1, 0 });
 		generator.generate();
 	}
 

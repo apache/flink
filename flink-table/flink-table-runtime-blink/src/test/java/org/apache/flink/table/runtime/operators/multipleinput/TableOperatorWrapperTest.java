@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper.Edge;
@@ -48,31 +49,33 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
 		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper2 =
 				createOneInputOperatorWrapper(inOperator2, "test2");
 
+		KeySelector<RowData, RowData> keySelector1 = new TestingKeySelector();
+		KeySelector<RowData, RowData> keySelector2 = new TestingKeySelector();
 		TableOperatorWrapper<TestingTwoInputStreamOperator> wrapper3 =
 				createTwoInputOperatorWrapper(outOperator, "test3");
-		wrapper3.addInput(wrapper1, 1);
-		wrapper3.addInput(wrapper2, 2);
+		wrapper3.addInput(wrapper1, 1, keySelector1);
+		wrapper3.addInput(wrapper2, 2, keySelector2);
 
 		assertTrue(wrapper1.getInputEdges().isEmpty());
 		assertTrue(wrapper1.getInputWrappers().isEmpty());
 		assertEquals(Collections.singletonList(wrapper3), wrapper1.getOutputWrappers());
 		assertEquals(
-				Collections.singletonList(new Edge(wrapper1, wrapper3, 1)),
+				Collections.singletonList(new Edge(wrapper1, wrapper3, 1, keySelector1)),
 				wrapper1.getOutputEdges());
 
 		assertTrue(wrapper2.getInputEdges().isEmpty());
 		assertTrue(wrapper2.getInputWrappers().isEmpty());
 		assertEquals(Collections.singletonList(wrapper3), wrapper2.getOutputWrappers());
 		assertEquals(Collections.singletonList(
-				new Edge(wrapper2, wrapper3, 2)),
+				new Edge(wrapper2, wrapper3, 2, keySelector2)),
 				wrapper2.getOutputEdges());
 
 		assertTrue(wrapper3.getOutputEdges().isEmpty());
 		assertTrue(wrapper3.getOutputWrappers().isEmpty());
 		assertEquals(Arrays.asList(wrapper1, wrapper2), wrapper3.getInputWrappers());
 		assertEquals(Arrays.asList(
-				new Edge(wrapper1, wrapper3, 1),
-				new Edge(wrapper2, wrapper3, 2)),
+				new Edge(wrapper1, wrapper3, 1, keySelector1),
+				new Edge(wrapper2, wrapper3, 2, keySelector2)),
 				wrapper3.getInputEdges());
 	}
 

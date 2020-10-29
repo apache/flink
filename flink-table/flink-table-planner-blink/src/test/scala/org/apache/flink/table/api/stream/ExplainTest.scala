@@ -20,17 +20,23 @@ package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecJoin, StreamExecMultipleInput}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.{ExecutorUtils, PlanUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
+import org.apache.calcite.rel.RelNode
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 import java.sql.Timestamp
 import java.time.Duration
+import java.util.Collections
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
@@ -165,6 +171,51 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     stmtSet.addInsert("appendSink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)
+  }
+
+  @Test
+  def testExplainMultipleInput(): Unit = {
+    val sql =
+      """
+        |select * from
+        |   (select a, sum(b) from MyTable1 group by a) v1,
+        |   (select d, sum(e) from MyTable2 group by d) v2
+        |   where a = d
+        |""".stripMargin
+
+    // TODO use `util.verifyExplain` to verify the result once FLINK-19822 is finished
+    val relNode = TableTestUtil.toRelNode(util.tableEnv.sqlQuery(sql))
+    val streamRelNode = util.getPlanner.optimize(relNode).asInstanceOf[StreamExecJoin]
+    val firstExchange = streamRelNode.getInput(0)
+    val firstBorder = firstExchange.getInput(0)
+    // remove exchange
+    streamRelNode.replaceInput(0, firstBorder)
+    val firstInput = firstBorder.getInput(0)
+
+    val secondExchange = streamRelNode.getInput(1)
+    val secondBorder = secondExchange.getInput(0)
+    // remove exchange
+    streamRelNode.replaceInput(1, secondBorder)
+    val secondInput = secondBorder.getInput(0)
+
+    val multipleInputRel = new StreamExecMultipleInput(
+      streamRelNode.getCluster,
+      streamRelNode.getTraitSet,
+      Array(firstInput.asInstanceOf[RelNode], secondInput.asInstanceOf[RelNode]),
+      streamRelNode)
+
+    val ast = FlinkRelOptUtil.toString(multipleInputRel)
+
+    val transform = multipleInputRel.translateToPlan(
+      util.getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[StreamPlanner])
+    val streamGraph = ExecutorUtils.generateStreamGraph(
+      util.getStreamEnv, Collections.singletonList(transform))
+    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
+
+    val actual = ast + "\n" + executionPlan
+
+    val expected = TableTestUtil.readFromResource("/explain/testExplainMultipleInput.out")
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
 }

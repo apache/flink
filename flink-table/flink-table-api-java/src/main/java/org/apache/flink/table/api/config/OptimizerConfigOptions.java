@@ -100,7 +100,7 @@ public class OptimizerConfigOptions {
 			.defaultValue(false)
 			.withDescription("Enables join reorder in optimizer. Default is disabled.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
 	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
 		key("table.optimizer.multiple-input-enabled")
 			.defaultValue(true)

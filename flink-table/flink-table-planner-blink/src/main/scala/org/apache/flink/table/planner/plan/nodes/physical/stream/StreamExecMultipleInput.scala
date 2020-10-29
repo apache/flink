@@ -19,10 +19,15 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
+import org.apache.flink.table.runtime.operators.multipleinput.{StreamMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -64,7 +69,40 @@ class StreamExecMultipleInput(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = ???
+      planner: StreamPlanner): Transformation[RowData] = {
+    val inputTransforms = getInputNodes.map(n => n.translateToPlan(planner))
+    val tailTransform = outputRel.asInstanceOf[StreamExecNode[_]].translateToPlan(planner)
 
+    val outputType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+
+    val generator = new TableOperatorWrapperGenerator(inputTransforms, tailTransform)
+    generator.generate()
+
+    val inputInfoList = generator.getInputInfoList
+    val multipleInputTransform = new KeyedMultipleInputTransformation[RowData](
+      getRelDetailedDescription,
+      new StreamMultipleInputStreamOperatorFactory(
+        inputInfoList.map(_.getInputSpec),
+        generator.getHeadWrappers,
+        generator.getTailWrapper),
+      outputType,
+      generator.getParallelism,
+      Preconditions.checkNotNull(generator.getStateKeyType)
+    )
+
+    // add inputs as the order of input specs
+    inputInfoList.foreach { info =>
+      multipleInputTransform.addInput(info.getInputTransform, info.getKeySelector)
+    }
+
+    if (generator.getMaxParallelism > 0) {
+      multipleInputTransform.setMaxParallelism(generator.getMaxParallelism)
+    }
+
+    // set resources
+    multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
+
+    multipleInputTransform
+  }
 }
 
