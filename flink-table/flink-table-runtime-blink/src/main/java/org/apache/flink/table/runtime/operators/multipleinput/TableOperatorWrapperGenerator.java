@@ -175,7 +175,7 @@ public class TableOperatorWrapperGenerator {
 		} else {
 			checkState(
 					currentMaxParallelism < 0 || maxParallelism == currentMaxParallelism,
-					"Max parallelism of a transformation in MultipleInputNode is different from others. This is a bug.");
+					"Max parallelism of a transformation in MultipleInput node is different from others. This is a bug.");
 		}
 
 		if (minResources == null) {

@@ -2434,7 +2434,7 @@ class FlinkRelMdHandlerTestBase {
       isBroadcast = false,
       tryDistinctBuildRow = false
     )
-   new BatchExecMultipleInputNode(
+   new BatchExecMultipleInput(
       cluster,
       batchPhysicalTraits,
       Array(leftInput.getInput, rightInput.getInput),

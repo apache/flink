@@ -24,7 +24,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInputNode}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInput}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{ExecutorUtils, PlanUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
@@ -146,7 +146,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     val secondBorder = batchRelNode.getInputNodes.get(1)
     val secondInput = secondBorder.getInputNodes.get(0)
     val secondEdge = secondBorder.getInputEdges.get(0)
-    val multipleInputRel = new BatchExecMultipleInputNode(
+    val multipleInputRel = new BatchExecMultipleInput(
       batchRelNode.getCluster,
       batchRelNode.getTraitSet,
       Array(firstInput.asInstanceOf[RelNode], secondInput.asInstanceOf[RelNode]),
