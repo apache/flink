@@ -159,10 +159,10 @@ def _create_stateful_user_defined_function_operation(factory, transform_proto, c
         1000)
 
     return beam_operation_cls(
-            transform_proto.unique_name,
-            spec,
-            factory.counter_factory,
-            factory.state_sampler,
-            consumers,
-            internal_operation_cls,
-            keyed_state_backend)
+        transform_proto.unique_name,
+        spec,
+        factory.counter_factory,
+        factory.state_sampler,
+        consumers,
+        internal_operation_cls,
+        keyed_state_backend)

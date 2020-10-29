@@ -306,6 +306,11 @@ JOB_ID=$(${FLINK_DIR}/bin/flink run \
 echo "${JOB_ID}"
 JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 
+wait_job_running ${JOB_ID}
+
+# wait 10s to ensure all tasks are up.
+sleep 10
+
 send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 echo "Reading kafka messages..."
