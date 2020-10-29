@@ -164,7 +164,7 @@ public class RocksDBResourceContainerTest {
 		}
 		Field cacheField = null;
 		try {
-			cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache_");
+			cacheField = BlockBasedTableConfig.class.getDeclaredField("blockCache");
 		} catch (NoSuchFieldException e) {
 			fail("blockCache_ is not defined");
 		}
