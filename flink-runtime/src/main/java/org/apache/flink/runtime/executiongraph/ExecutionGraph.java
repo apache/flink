@@ -51,7 +51,6 @@ import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -183,9 +182,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** The timeout for slot allocations. */
 	private final Time allocationTimeout;
 
-	/** Strategy to use for restarts. */
-	private final RestartStrategy restartStrategy;
-
 	/** The slot provider strategy to use for allocating slots for tasks as they are needed. */
 	private final SlotProviderStrategy slotProviderStrategy;
 
@@ -291,7 +287,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
 			Time rpcTimeout,
-			RestartStrategy restartStrategy,
 			int maxPriorAttemptsHistoryLength,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
@@ -338,7 +333,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.partitionReleaseStrategyFactory = checkNotNull(partitionReleaseStrategyFactory);
 
-		this.restartStrategy = restartStrategy;
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
 
 		this.globalModVersion = 1L;
@@ -493,10 +487,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public KvStateLocationRegistry getKvStateLocationRegistry() {
 		return kvStateLocationRegistry;
-	}
-
-	public RestartStrategy getRestartStrategy() {
-		return restartStrategy;
 	}
 
 	@Override
