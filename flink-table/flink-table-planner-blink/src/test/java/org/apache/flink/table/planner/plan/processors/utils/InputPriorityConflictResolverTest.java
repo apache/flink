@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
-
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 
 import org.junit.Assert;
@@ -32,7 +31,6 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Tests for {@link InputPriorityConflictResolver}.
