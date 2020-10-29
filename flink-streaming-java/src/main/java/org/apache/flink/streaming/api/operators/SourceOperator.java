@@ -164,7 +164,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		// in the future when we support both batch and streaming modes for the source operator,
 		// and when this one is migrated to the "eager initialization" operator (StreamOperatorV2),
 		// then we should evaluate this during operator construction.
-		eventTimeLogic = TimestampsAndWatermarks.createStreamingEventTimeLogic(
+		eventTimeLogic = TimestampsAndWatermarks.createProgressiveEventTimeLogic(
 				watermarkStrategy,
 				metricGroup,
 				getProcessingTimeService(),
