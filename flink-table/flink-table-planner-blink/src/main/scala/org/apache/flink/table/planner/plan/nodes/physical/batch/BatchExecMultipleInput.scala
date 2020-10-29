@@ -44,7 +44,7 @@ import scala.collection.JavaConversions._
  * @param outputRel the root rel of the sub-graph of the multiple input rel.
  * @param inputEdges the [[ExecEdge]]s related to each input.
  */
-class BatchExecMultipleInputNode(
+class BatchExecMultipleInput(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],

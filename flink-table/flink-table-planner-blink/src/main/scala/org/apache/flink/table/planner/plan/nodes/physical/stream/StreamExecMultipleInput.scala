@@ -38,7 +38,7 @@ import scala.collection.JavaConversions._
  *                  which are not a part of the multiple input rel.
  * @param outputRel the root rel of the sub-graph of the multiple input rel.
  */
-class StreamExecMultipleInputNode(
+class StreamExecMultipleInput(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
