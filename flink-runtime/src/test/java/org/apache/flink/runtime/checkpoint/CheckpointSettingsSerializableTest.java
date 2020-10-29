@@ -30,7 +30,6 @@ import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -117,7 +116,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			classLoader,
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
-			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			timeout,

@@ -42,7 +42,6 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.P
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -91,7 +90,6 @@ public class ExecutionGraphBuilder {
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time rpcTimeout,
-			RestartStrategy restartStrategy,
 			MetricGroup metrics,
 			BlobWriter blobWriter,
 			Time allocationTimeout,
@@ -110,7 +108,6 @@ public class ExecutionGraphBuilder {
 			classLoader,
 			recoveryFactory,
 			rpcTimeout,
-			restartStrategy,
 			metrics,
 			blobWriter,
 			allocationTimeout,
@@ -132,7 +129,6 @@ public class ExecutionGraphBuilder {
 		ClassLoader classLoader,
 		CheckpointRecoveryFactory recoveryFactory,
 		Time rpcTimeout,
-		RestartStrategy restartStrategy,
 		MetricGroup metrics,
 		BlobWriter blobWriter,
 		Time allocationTimeout,
@@ -171,7 +167,6 @@ public class ExecutionGraphBuilder {
 					futureExecutor,
 					ioExecutor,
 					rpcTimeout,
-					restartStrategy,
 					maxPriorAttemptsHistoryLength,
 					slotProvider,
 					classLoader,

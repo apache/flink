@@ -22,7 +22,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.executiongraph.TestRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -66,8 +65,6 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
 	private final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-	private final TestRestartStrategy triggeredRestartStrategy = TestRestartStrategy.manuallyTriggered();
-
 	private ExecutionGraph executionGraph;
 
 	private DefaultExecutionTopology adapter;
@@ -81,10 +78,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
 		jobVertices[0].setInputDependencyConstraint(ALL);
 		jobVertices[1].setInputDependencyConstraint(ANY);
-		executionGraph = createSimpleTestGraph(
-			taskManagerGateway,
-			triggeredRestartStrategy,
-			jobVertices);
+		executionGraph = createSimpleTestGraph(taskManagerGateway, jobVertices);
 		adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
 	}
 

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -157,10 +156,10 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 
 		FixedDelayRestartBackoffTimeStrategy fixedDelayStrategy = (FixedDelayRestartBackoffTimeStrategy) strategy;
 		assertEquals(
-			NoOrFixedIfCheckpointingEnabledRestartStrategyFactory.DEFAULT_RESTART_DELAY,
+			RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_DELAY,
 			fixedDelayStrategy.getBackoffTime());
 		assertEquals(
-			NoOrFixedIfCheckpointingEnabledRestartStrategyFactory.DEFAULT_RESTART_ATTEMPTS,
+			RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_ATTEMPTS,
 			fixedDelayStrategy.getMaxNumberRestartAttempts());
 	}
 
