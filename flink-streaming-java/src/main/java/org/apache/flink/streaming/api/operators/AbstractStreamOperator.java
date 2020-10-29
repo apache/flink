@@ -260,7 +260,15 @@ public abstract class AbstractStreamOperator<OUT>
 				isUsingCustomRawKeyedState());
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
-		timeServiceManager = context.internalTimerServiceManager();
+		initializeState(stateHandler, context.internalTimerServiceManager());
+	}
+
+	@Internal
+	public final void initializeState(
+			StreamOperatorStateHandler stateHandler,
+			InternalTimeServiceManager<?> timeServiceManager) throws Exception {
+		this.stateHandler = stateHandler;
+		this.timeServiceManager = timeServiceManager;
 		stateHandler.initializeOperatorState(this);
 		runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
 	}
