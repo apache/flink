@@ -18,7 +18,9 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
@@ -105,6 +107,17 @@ public interface FlinkKubeClient extends AutoCloseable {
 	KubernetesWatch watchPodsAndDoCallback(
 		Map<String, String> labels,
 		WatchCallbackHandler<KubernetesPod> podCallbackHandler);
+
+	/**
+	 * Create a leader elector service based on Kubernetes api.
+	 * @param leaderElectionConfiguration election configuration
+	 * @param leaderCallbackHandler Callback when the current instance is leader or not.
+	 *
+	 * @return Return the created leader elector. It should be started manually via {@code KubernetesLeaderElector#run}.
+	 */
+	KubernetesLeaderElector createLeaderElector(
+		KubernetesLeaderElectionConfiguration leaderElectionConfiguration,
+		KubernetesLeaderElector.LeaderCallbackHandler leaderCallbackHandler);
 
 	/**
 	 * Create the ConfigMap with specified content. If the ConfigMap already exists, a
