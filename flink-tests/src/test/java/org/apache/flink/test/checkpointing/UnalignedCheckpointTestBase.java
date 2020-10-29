@@ -475,6 +475,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
 			env.enableCheckpointing(100);
+			env.getCheckpointConfig().setAlignmentTimeout(1);
 			env.setParallelism(parallelism);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(generateCheckpoint ? expectedFailures / 2 : expectedFailures, Time.milliseconds(100)));
 			env.getCheckpointConfig().enableUnalignedCheckpoints(true);
