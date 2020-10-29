@@ -74,7 +74,7 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
 
 		assertFalse(aggOp1.isOpened());
 		assertFalse(aggOp2.isOpened());
-		assertFalse(aggOp1.isOpened());
+		assertFalse(joinOp1.isOpened());
 		assertFalse(joinOp2.isOpened());
 
 		op.open();

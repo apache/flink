@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.multipleinput.output;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -26,6 +27,8 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
+
+import javax.annotation.Nullable;
 
 /**
  * An {@link Output} that can be used to emit copying elements and other messages
@@ -35,13 +38,17 @@ public class CopyingSecondInputOfTwoInputStreamOperatorOutput extends OutputBase
 
 	private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
 	private final TypeSerializer<RowData> serializer;
+	@Nullable
+	private final KeySelector<RowData, ?> keySelector;
 
 	public CopyingSecondInputOfTwoInputStreamOperatorOutput(
 			TwoInputStreamOperator<RowData, RowData, RowData> operator,
-			TypeSerializer<RowData> serializer) {
+			TypeSerializer<RowData> serializer,
+			@Nullable KeySelector<RowData, ?> keySelector) {
 		super(operator);
 		this.operator = operator;
 		this.serializer = serializer;
+		this.keySelector = keySelector;
 	}
 
 	@Override
@@ -80,6 +87,10 @@ public class CopyingSecondInputOfTwoInputStreamOperatorOutput extends OutputBase
 			StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
 			StreamRecord<RowData> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 
+			if (keySelector != null) {
+				Object key = keySelector.getKey(copy.getValue());
+				operator.setCurrentKey(key);
+			}
 			operator.processElement2(copy);
 		} catch (Exception e) {
 			throw new ExceptionInMultipleInputOperatorException(e);

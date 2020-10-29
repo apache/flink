@@ -30,6 +30,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
+import org.apache.flink.table.runtime.operators.multipleinput.TestingKeySelector;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -65,7 +66,7 @@ public class OutputTest extends MultipleInputTestBase {
 	@Test
 	public void testOneInput() throws Exception {
 		TestingOneInputStreamOperator op = createOneInputStreamOperator();
-		OneInputStreamOperatorOutput output = new OneInputStreamOperatorOutput(op);
+		OneInputStreamOperatorOutput output = new OneInputStreamOperatorOutput(op, null);
 
 		output.collect(element);
 		assertEquals(element, op.getCurrentElement());
@@ -78,9 +79,20 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testOneInputWithKeySelector() throws Exception {
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
+		OneInputStreamOperatorOutput output = new OneInputStreamOperatorOutput(op, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertEquals(element, op.getCurrentElement());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testCopyingOneInput() throws Exception {
 		TestingOneInputStreamOperator op = createOneInputStreamOperator();
-		CopyingOneInputStreamOperatorOutput output = new CopyingOneInputStreamOperatorOutput(op, serializer);
+		CopyingOneInputStreamOperatorOutput output = new CopyingOneInputStreamOperatorOutput(op, serializer, null);
 
 		output.collect(element);
 		assertNotSame(element, op.getCurrentElement());
@@ -94,9 +106,22 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testCopyingOneInputWithKeySelector() throws Exception {
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
+		CopyingOneInputStreamOperatorOutput output = new CopyingOneInputStreamOperatorOutput(
+				op, serializer, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertNotSame(element, op.getCurrentElement());
+		assertEquals(element, op.getCurrentElement());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testFirstInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		FirstInputOfTwoInputStreamOperatorOutput output = new FirstInputOfTwoInputStreamOperatorOutput(op);
+		FirstInputOfTwoInputStreamOperatorOutput output = new FirstInputOfTwoInputStreamOperatorOutput(op, null);
 
 		output.collect(element);
 		assertEquals(element, op.getCurrentElement1());
@@ -112,10 +137,22 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testFirstInputOfTwoInputWithKeySelector() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		FirstInputOfTwoInputStreamOperatorOutput output = new FirstInputOfTwoInputStreamOperatorOutput(
+				op, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertEquals(element, op.getCurrentElement1());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testCopyingFirstInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		CopyingFirstInputOfTwoInputStreamOperatorOutput output = new CopyingFirstInputOfTwoInputStreamOperatorOutput(op,
-				serializer);
+		CopyingFirstInputOfTwoInputStreamOperatorOutput output = new CopyingFirstInputOfTwoInputStreamOperatorOutput(
+				op, serializer, null);
 
 		output.collect(element);
 		assertNotSame(element, op.getCurrentElement1());
@@ -132,9 +169,22 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testCopyingFirstInputOfTwoInputWithKeySelector() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		CopyingFirstInputOfTwoInputStreamOperatorOutput output = new CopyingFirstInputOfTwoInputStreamOperatorOutput(
+				op, serializer, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertNotSame(element, op.getCurrentElement1());
+		assertEquals(element, op.getCurrentElement1());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testSecondInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		SecondInputOfTwoInputStreamOperatorOutput output = new SecondInputOfTwoInputStreamOperatorOutput(op);
+		SecondInputOfTwoInputStreamOperatorOutput output = new SecondInputOfTwoInputStreamOperatorOutput(op, null);
 
 		output.collect(element);
 		assertEquals(element, op.getCurrentElement2());
@@ -150,10 +200,22 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testSecondInputOfTwoInputWithKeySelector() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		SecondInputOfTwoInputStreamOperatorOutput output = new SecondInputOfTwoInputStreamOperatorOutput(
+				op, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertEquals(element, op.getCurrentElement2());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testCopyingSecondInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
 		CopyingSecondInputOfTwoInputStreamOperatorOutput output =
-				new CopyingSecondInputOfTwoInputStreamOperatorOutput(op, serializer);
+				new CopyingSecondInputOfTwoInputStreamOperatorOutput(op, serializer, null);
 
 		output.collect(element);
 		assertNotSame(element, op.getCurrentElement2());
@@ -170,12 +232,25 @@ public class OutputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testCopyingSecondInputOfTwoInputWithKeySelector() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		CopyingSecondInputOfTwoInputStreamOperatorOutput output = new CopyingSecondInputOfTwoInputStreamOperatorOutput(
+				op, serializer, new TestingKeySelector());
+
+		assertNull(op.getCurrentStateKey());
+		output.collect(element);
+		assertNotSame(element, op.getCurrentElement2());
+		assertEquals(element, op.getCurrentElement2());
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testBroadcasting() throws Exception {
 		TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
 		TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
 		BroadcastingOutput output = new BroadcastingOutput(new Output[] {
-				new OneInputStreamOperatorOutput(op1),
-				new OneInputStreamOperatorOutput(op2) });
+				new OneInputStreamOperatorOutput(op1, null),
+				new OneInputStreamOperatorOutput(op2, null) });
 
 		output.collect(element);
 		assertEquals(element, op1.getCurrentElement());
@@ -200,8 +275,8 @@ public class OutputTest extends MultipleInputTestBase {
 		TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
 		TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
 		CopyingBroadcastingOutput output = new CopyingBroadcastingOutput(new Output[] {
-				new OneInputStreamOperatorOutput(op1),
-				new OneInputStreamOperatorOutput(op2) });
+				new OneInputStreamOperatorOutput(op1, null),
+				new OneInputStreamOperatorOutput(op2, null) });
 
 		output.collect(element);
 		assertNotSame(element, op1.getCurrentElement());

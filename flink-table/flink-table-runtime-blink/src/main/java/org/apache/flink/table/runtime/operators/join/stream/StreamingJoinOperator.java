@@ -80,14 +80,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 		if (leftIsOuter) {
 			this.leftRecordStateView = OuterJoinRecordStateViews.create(
 				getRuntimeContext(),
-				"left-records",
+				getStateNameContext().getUniqueStateName("left-records"),
 				leftInputSideSpec,
 				leftType,
 				stateRetentionTime);
 		} else {
 			this.leftRecordStateView = JoinRecordStateViews.create(
 				getRuntimeContext(),
-				"left-records",
+				getStateNameContext().getUniqueStateName("left-records"),
 				leftInputSideSpec,
 				leftType,
 				stateRetentionTime);
@@ -96,14 +96,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 		if (rightIsOuter) {
 			this.rightRecordStateView = OuterJoinRecordStateViews.create(
 				getRuntimeContext(),
-				"right-records",
+				getStateNameContext().getUniqueStateName("right-records"),
 				rightInputSideSpec,
 				rightType,
 				stateRetentionTime);
 		} else {
 			this.rightRecordStateView = JoinRecordStateViews.create(
 				getRuntimeContext(),
-				"right-records",
+				getStateNameContext().getUniqueStateName("right-records"),
 				rightInputSideSpec,
 				rightType,
 				stateRetentionTime);

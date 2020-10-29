@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.output;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -26,17 +27,23 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 
+import javax.annotation.Nullable;
+
 /**
  * An {@link Output} that can be used to emit elements and other messages for {@link OneInputStreamOperator}.
  */
 public class OneInputStreamOperatorOutput extends OutputBase {
 
 	private final OneInputStreamOperator<RowData, RowData> operator;
+	@Nullable
+	private final KeySelector<RowData, ?> keySelector;
 
 	public OneInputStreamOperatorOutput(
-			OneInputStreamOperator<RowData, RowData> operator) {
+			OneInputStreamOperator<RowData, RowData> operator,
+			@Nullable KeySelector<RowData, ?> keySelector) {
 		super(operator);
 		this.operator = operator;
+		this.keySelector = keySelector;
 	}
 
 	@Override
@@ -74,6 +81,10 @@ public class OneInputStreamOperatorOutput extends OutputBase {
 			@SuppressWarnings("unchecked")
 			StreamRecord<RowData> castRecord = (StreamRecord<RowData>) record;
 
+			if (keySelector != null) {
+				Object key = keySelector.getKey(castRecord.getValue());
+				operator.setCurrentKey(key);
+			}
 			operator.processElement(castRecord);
 		} catch (Exception e) {
 			throw new ExceptionInMultipleInputOperatorException(e);

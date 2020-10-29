@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.table.runtime.operators.StateNameAwareKeyedProcessFunction;
 
 import java.io.IOException;
 
@@ -34,7 +34,7 @@ import java.io.IOException;
  * @param <OUT> Type of the output elements.
  */
 public abstract class KeyedProcessFunctionWithCleanupState<K, IN, OUT>
-	extends KeyedProcessFunction<K, IN, OUT> implements CleanupState {
+	extends StateNameAwareKeyedProcessFunction<K, IN, OUT> implements CleanupState {
 
 	private static final long serialVersionUID = 2084560869233898457L;
 

@@ -19,7 +19,12 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.operators.AbstractInput;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -27,11 +32,15 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
+import org.apache.flink.table.runtime.operators.multipleinput.TestingKeySelector;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -44,18 +53,20 @@ public class InputTest extends MultipleInputTestBase {
 	private StreamRecord<RowData> element;
 	private Watermark watermark;
 	private LatencyMarker latencyMarker;
+	private TestingMultipleInputOperator owner;
 
 	@Before
-	public void setup() {
+	public void setup() throws Exception {
 		element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
 		watermark = new Watermark(1223456789);
 		latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
+		owner = new TestingMultipleInputOperator(createStreamOperatorParameters());
 	}
 
 	@Test
 	public void testOneInput() throws Exception {
 		TestingOneInputStreamOperator op = createOneInputStreamOperator();
-		OneInput input = new OneInput(op);
+		OneInput input = new OneInput(owner, 1, op);
 
 		input.processElement(element);
 		assertEquals(element, op.getCurrentElement());
@@ -68,9 +79,21 @@ public class InputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testOneInputWithKeySelector() throws Exception {
+		owner.getOperatorConfig().setStatePartitioner(0, new TestingKeySelector());
+
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
+		OneInput input = new OneInput(owner, 1, op);
+
+		assertNull(op.getCurrentStateKey());
+		input.setKeyContextElement(element);
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testFirstInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		FirstInputOfTwoInput input = new FirstInputOfTwoInput(op);
+		FirstInputOfTwoInput input = new FirstInputOfTwoInput(owner, 1, op);
 
 		input.processElement(element);
 		assertEquals(element, op.getCurrentElement1());
@@ -86,9 +109,21 @@ public class InputTest extends MultipleInputTestBase {
 	}
 
 	@Test
+	public void testFirstInputOfTwoInputWithKeySelector() throws Exception {
+		owner.getOperatorConfig().setStatePartitioner(0, new TestingKeySelector());
+
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		FirstInputOfTwoInput input = new FirstInputOfTwoInput(owner, 1, op);
+
+		assertNull(op.getCurrentStateKey());
+		input.setKeyContextElement(element);
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	@Test
 	public void testSecondInputOfTwoInput() throws Exception {
 		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		SecondInputOfTwoInput input = new SecondInputOfTwoInput(op);
+		SecondInputOfTwoInput input = new SecondInputOfTwoInput(owner, 2, op);
 
 		input.processElement(element);
 		assertEquals(element, op.getCurrentElement2());
@@ -101,5 +136,56 @@ public class InputTest extends MultipleInputTestBase {
 		input.processLatencyMarker(latencyMarker);
 		assertEquals(latencyMarker, op.getCurrentLatencyMarker2());
 		assertNull(op.getCurrentLatencyMarker1());
+	}
+
+	@Test
+	public void testSecondInputOfTwoInputWithKeySelector() throws Exception {
+		owner.getOperatorConfig().setStatePartitioner(1, new TestingKeySelector());
+
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		SecondInputOfTwoInput input = new SecondInputOfTwoInput(owner, 2, op);
+
+		assertNull(op.getCurrentStateKey());
+		input.setKeyContextElement(element);
+		assertEquals(element.getValue(), op.getCurrentStateKey());
+	}
+
+	private static class TestingMultipleInputOperator extends AbstractStreamOperatorV2<RowData>
+			implements MultipleInputStreamOperator<RowData>, BoundedMultiInput {
+
+		private static final long serialVersionUID = 1L;
+
+		public TestingMultipleInputOperator(StreamOperatorParameters<RowData> parameters) {
+			super(parameters, 3);
+		}
+
+		@Override
+		public List<Input> getInputs() {
+			return Arrays.asList(
+					new TestInput(this, 1),
+					new TestInput(this, 2),
+					new TestInput(this, 3)
+			);
+		}
+
+		@Override
+		public void endInput(int inputId) {
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+		}
+
+		static class TestInput extends AbstractInput<RowData, RowData> {
+			public TestInput(AbstractStreamOperatorV2<RowData> owner, int inputId) {
+				super(owner, inputId);
+			}
+
+			@Override
+			public void processElement(StreamRecord<RowData> element) throws Exception {
+				output.collect(element);
+			}
+		}
 	}
 }

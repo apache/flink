@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput;
 
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.StateNameAwareStreamOperator;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -33,19 +34,24 @@ import java.util.List;
 /**
  * A {@link TwoInputStreamOperator} for testing.
  */
-public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowData>
+public class TestingTwoInputStreamOperator extends StateNameAwareStreamOperator<RowData>
 		implements TwoInputStreamOperator<RowData, RowData, RowData>, BoundedMultiInput {
 
 	private final boolean emitDataInEndInput;
 	private final List<StreamRecord<RowData>> receivedElements = new ArrayList<>();
 
 	private boolean isOpened = false;
+	private Object currentStateKey = null;
 	private StreamRecord<RowData> currentElement1 = null;
 	private StreamRecord<RowData> currentElement2 = null;
 	private Watermark currentWatermark1 = null;
 	private Watermark currentWatermark2 = null;
 	private LatencyMarker currentLatencyMarker1 = null;
 	private LatencyMarker currentLatencyMarker2 = null;
+	private long checkpointIdOfPrepareSnapshotPreBarrier = -1;
+	private boolean isSnapshotStateExecuted = false;
+	private long checkpointIdOfNotifyCheckpointComplete = -1;
+	private long checkpointIdOfNotifyCheckpointAborted = -1;
 	private final List<Integer> endInputs = new ArrayList<>();
 	private boolean isDisposed = false;
 	private boolean isClosed = false;
@@ -61,6 +67,11 @@ public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowDat
 	@Override
 	public void open() throws Exception {
 		isOpened = true;
+	}
+
+	@Override
+	public void setCurrentKey(Object key) {
+		this.currentStateKey = key;
 	}
 
 	@Override
@@ -120,6 +131,26 @@ public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowDat
 	}
 
 	@Override
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		checkpointIdOfPrepareSnapshotPreBarrier = checkpointId;
+	}
+
+	@Override
+	public void snapshotState(StateSnapshotContext context) throws Exception {
+		isSnapshotStateExecuted = true;
+	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		checkpointIdOfNotifyCheckpointComplete = checkpointId;
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) throws Exception {
+		checkpointIdOfNotifyCheckpointAborted = checkpointId;
+	}
+
+	@Override
 	public void dispose() throws Exception {
 		this.isDisposed = true;
 	}
@@ -131,6 +162,10 @@ public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowDat
 
 	public boolean isOpened() {
 		return isOpened;
+	}
+
+	public Object getCurrentStateKey() {
+		return currentStateKey;
 	}
 
 	public StreamRecord<RowData> getCurrentElement1() {
@@ -159,6 +194,22 @@ public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowDat
 
 	public List<Integer> getEndInputs() {
 		return endInputs;
+	}
+
+	public long getCheckpointIdOfPrepareSnapshotPreBarrier() {
+		return checkpointIdOfPrepareSnapshotPreBarrier;
+	}
+
+	public boolean isSnapshotStateExecuted() {
+		return isSnapshotStateExecuted;
+	}
+
+	public long getCheckpointIdOfNotifyCheckpointComplete() {
+		return checkpointIdOfNotifyCheckpointComplete;
+	}
+
+	public long getCheckpointIdOfNotifyCheckpointAborted() {
+		return checkpointIdOfNotifyCheckpointAborted;
 	}
 
 	public boolean isDisposed() {

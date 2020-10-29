@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -32,7 +33,11 @@ public class SecondInputOfTwoInput extends InputBase {
 
 	private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
 
-	public SecondInputOfTwoInput(TwoInputStreamOperator<RowData, RowData, RowData> operator) {
+	public SecondInputOfTwoInput(
+			AbstractStreamOperatorV2<RowData> owner,
+			int inputId,
+			TwoInputStreamOperator<RowData, RowData, RowData> operator) {
+		super(owner, inputId, operator);
 		this.operator = operator;
 	}
 

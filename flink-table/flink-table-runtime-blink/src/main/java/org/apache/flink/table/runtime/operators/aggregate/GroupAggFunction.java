@@ -128,7 +128,8 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
 		equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
 		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
-		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>(
+				getStateNameContext().getUniqueStateName("accState"), accTypeInfo);
 		if (ttlConfig.isEnabled()){
 			accDesc.enableTimeToLive(ttlConfig);
 		}

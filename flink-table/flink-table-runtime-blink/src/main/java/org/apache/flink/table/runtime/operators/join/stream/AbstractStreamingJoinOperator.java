@@ -21,13 +21,13 @@ package org.apache.flink.table.runtime.operators.join.stream;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.operators.StateNameAwareStreamOperator;
 import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Abstract implementation for streaming unbounded Join operator which defines some member fields
  * can be shared between different implementations.
  */
-public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperator<RowData>
+public abstract class AbstractStreamingJoinOperator extends StateNameAwareStreamOperator<RowData>
 	implements TwoInputStreamOperator<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -376944622236540545L;

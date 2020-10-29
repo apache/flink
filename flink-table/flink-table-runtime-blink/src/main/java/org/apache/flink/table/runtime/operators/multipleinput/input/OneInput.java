@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -32,7 +33,11 @@ public class OneInput extends InputBase {
 
 	private final OneInputStreamOperator<RowData, RowData> operator;
 
-	public OneInput(OneInputStreamOperator<RowData, RowData> operator) {
+	public OneInput(
+			AbstractStreamOperatorV2<RowData> owner,
+			int inputId,
+			OneInputStreamOperator<RowData, RowData> operator) {
+		super(owner, inputId, operator);
 		this.operator = operator;
 	}
 

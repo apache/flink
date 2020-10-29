@@ -46,13 +46,18 @@ public class StreamMultipleInputStreamOperatorFactory extends AbstractStreamOper
 		this.tailWrapper = tailWrapper;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends StreamOperator<RowData>> T createStreamOperator(StreamOperatorParameters<RowData> parameters) {
-		throw new UnsupportedOperationException("Unsupported now.");
+		return (T) new StreamMultipleInputStreamOperator(
+				parameters,
+				inputSpecs,
+				headWrappers,
+				tailWrapper);
 	}
 
 	@Override
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		throw new UnsupportedOperationException("Unsupported now.");
+		return StreamMultipleInputStreamOperator.class;
 	}
 }
