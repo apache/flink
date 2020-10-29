@@ -27,9 +27,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnc
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecMultipleInputNode;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInputNode;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
 import org.apache.flink.table.planner.plan.processors.utils.InputOrderCalculator;
@@ -375,7 +375,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		}
 	}
 
-	private StreamExecMultipleInputNode createStreamMultipleInputNode(
+	private StreamExecMultipleInput createStreamMultipleInputNode(
 			MultipleInputGroup group,
 			List<Tuple2<ExecNode<?, ?>, ExecEdge>> inputs) {
 		RelNode outputRel = (RelNode) group.root.execNode;
@@ -384,14 +384,14 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			inputRels[i] = (RelNode) inputs.get(i).f0;
 		}
 
-		return new StreamExecMultipleInputNode(
+		return new StreamExecMultipleInput(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
 			outputRel);
 	}
 
-	private BatchExecMultipleInputNode createBatchMultipleInputNode(
+	private BatchExecMultipleInput createBatchMultipleInputNode(
 			MultipleInputGroup group,
 			List<Tuple2<ExecNode<?, ?>, ExecEdge>> inputs) {
 		// first calculate the input orders using InputPriorityConflictResolver
@@ -420,7 +420,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				.build();
 		}
 
-		return new BatchExecMultipleInputNode(
+		return new BatchExecMultipleInput(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
