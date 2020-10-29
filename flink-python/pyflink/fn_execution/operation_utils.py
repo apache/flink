@@ -243,20 +243,23 @@ def load_aggregate_function(payload):
 
 def extract_user_defined_stateful_function(user_defined_function_proto, ctx, collector,
                                            keyed_state_backend):
+def extract_user_defined_stateful_function(user_defined_function_proto, ctx, on_timer_ctx,
+                                           collector, keyed_state_backend):
     proc_func = pickle.loads(user_defined_function_proto.payload)
     process_element_func = proc_func.process_element
     on_timer_func = proc_func.on_timer
 
     def wrapped_func(value):
 
-        # it is timer data
         # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
         current_watermark = value[2]
         ctx.timer_service()._current_watermark = current_watermark
+        on_timer_ctx.timer_service()._current_watermark = current_watermark
+        # it is timer data
         if value[0] is not None:
             timer_key = value[3]
             keyed_state_backend.set_current_key(timer_key)
-            on_timer_func(value[1], ctx, collector)
+            on_timer_func(value[1], on_timer_ctx, collector)
         else:
             # it is normal data
             # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]

@@ -23,15 +23,17 @@ from pyflink.datastream.connectors import FlinkKafkaProducer
 from pyflink.datastream.functions import ProcessFunction, Collector
 from pyflink.table import StreamTableEnvironment
 
+from datastream.functions import MyKeySelector
+
 
 def test_ds_timer():
     env = StreamExecutionEnvironment.get_execution_environment()
+    # Set the parallelism to be one to make sure that all data including fired timer and normal data
+    # are processed by the same worker and the collected result would be in order which is good for
+    # assertion.
     env.set_parallelism(1)
     env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-
     t_env = StreamTableEnvironment.create(stream_execution_environment=env)
-    t_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed",
-                                                       True)
 
     create_kafka_source_ddl = """
                 CREATE TABLE payment_msg(
@@ -65,7 +67,7 @@ def test_ds_timer():
     producer_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
     kafka_producer = FlinkKafkaProducer("timer-stream-sink", SimpleStringSchema(),
                                         producer_props)
-    ds.key_by(lambda x: x[1], key_type_info=Types.LONG()) \
+    ds.key_by(MyKeySelector(), key_type_info=Types.LONG()) \
         .process(MyProcessFunction(), output_type=Types.STRING()) \
         .add_sink(kafka_producer)
     env.execute_async("test data stream timer")

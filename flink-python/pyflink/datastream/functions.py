@@ -552,9 +552,7 @@ class ProcessFunction(Function):
     can again produce zero or more elements as output and register further timers.
 
     Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream. Process Function is always a RichFunction.
-    Therefore, access to the RuntimeContext is always available and setup and teardown methods can
-    be implemented. See Function.open() and Function.close().
+    the ProcessFunction is applied on a KeyedStream.
     """
 
     @abc.abstractmethod
@@ -594,17 +592,7 @@ class ProcessFunction(Function):
         """
 
         @abc.abstractmethod
-        def timestamp(self):
-            """
-            Timestamp of the element currently being processed or timestamp of a firing timer.
-
-            This might be null, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessingTime.
-            """
-            pass
-
-        @abc.abstractmethod
-        def timer_service(self):
+        def timer_service(self) -> 'TimerService':
             """
             A Timer service for querying time and registering timers.
             """
@@ -615,7 +603,7 @@ class ProcessFunction(Function):
         Information available in an invocation of on_timer(long, OnTimerContext, Collector)
         """
         @abc.abstractmethod
-        def time_domain(self):
+        def timer_service(self):
             pass
 
 
@@ -687,8 +675,17 @@ class InternalProcessFunctionContext(ProcessFunction.Context):
     def __init__(self, timer_service: 'TimerService'):
         self._timer_service = timer_service
 
-    def timestamp(self):
-        pass
+    def timer_service(self):
+        return self._timer_service
+
+
+class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
+    """
+    Internal implementation of ProcessFunction.OnTimerContext.
+    """
+
+    def __init__(self, timer_service: 'TimerService'):
+        self._timer_service = timer_service
 
     def timer_service(self):
         return self._timer_service

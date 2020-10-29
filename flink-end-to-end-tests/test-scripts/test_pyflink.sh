@@ -217,61 +217,6 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_data_stream_kafka_source
-
-create_kafka_topic 1 1 test-python-data-stream-sink
-
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC}
-
-JOB_ID=$(${FLINK_DIR}/bin/flink run \
-    -p 2 \
-    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/datastream" \
-    -pyreq "${REQUIREMENTS_PATH}" \
-    -pyarch "${TEST_DATA_DIR}/venv.zip" \
-    -pyexec "venv.zip/.conda/bin/python" \
-    -pym "data_stream_job" \
-    -j "${KAFKA_SQL_JAR}")
-
-echo "${JOB_ID}"
-JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
-
-echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 20 test-python-data-stream-sink pyflink-e2e-test)
-
-# We use env.execute_async() to submit the job, cancel it after fetched results.
-cancel_job "${JOB_ID}"
-
-EXPECTED_MSG='{"f0":"a","f1":0,"f2":1}
-{"f0":"a","f1":1,"f2":1}
-{"f0":"ab","f1":0,"f2":2}
-{"f0":"ab","f1":1,"f2":2}
-{"f0":"ab","f1":2,"f2":2}
-{"f0":"abc","f1":0,"f2":3}
-{"f0":"abc","f1":1,"f2":3}
-{"f0":"abc","f1":2,"f2":3}
-{"f0":"abc","f1":3,"f2":3}
-{"f0":"abcde","f1":0,"f2":5}
-{"f0":"abcde","f1":1,"f2":5}
-{"f0":"abcde","f1":2,"f2":5}
-{"f0":"abcde","f1":3,"f2":5}
-{"f0":"abcde","f1":4,"f2":5}
-{"f0":"abcde","f1":5,"f2":5}
-{"f0":"abcd","f1":0,"f2":4}
-{"f0":"abcd","f1":1,"f2":4}
-{"f0":"abcd","f1":2,"f2":4}
-{"f0":"abcd","f1":3,"f2":4}
-{"f0":"abcd","f1":4,"f2":4}'
-
-EXPECTED_MSG=$(sort_msg "${EXPECTED_MSG[*]}")
-SORTED_READ_MSG=$(sort_msg "${READ_MSG[*]}")
-
-if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
-    echo "Output from Flink program does not match expected output."
-    echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
-    echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
-    exit 1
-fi
-
 # End to end test for DataStream ProcessFunction with timer
 create_kafka_topic 1 1 timer-stream-source
 create_kafka_topic 1 1 timer-stream-sink

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -39,7 +40,7 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatefulPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -47,55 +48,112 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.types.Row;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * {@link StatefulPythonFunctionOperator} is responsible for launching beam runner which will start
+ * {@link PythonProcessFunctionOperator} is responsible for launching beam runner which will start
  * a python harness to execute user defined python function. It is also able to handle the timer and
  * state request from the python stateful user defined function.
  * */
-public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonFunctionOperator<Row, OUT>
+@Internal
+public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFunctionOperator<Row, OUT>
 	implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(StatefulPythonFunctionOperator.class);
+	private static final long serialVersionUID = 1L;
 
-	protected static final String DATA_STREAM_STATEFUL_PYTHON_FUNCTION_URN =
+	private static final String DATA_STREAM_STATEFUL_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateful_function:v1";
 
-	protected static final String DATA_STREAM_STATEFUL_MAP_FUNCTION_CODER_URN =
-		"flink:coder:datastream:stateful_map_function:v1";
+	private static final String DATA_STREAM_STATEFUL_PROCESS_FUNCTION_CODER_URN =
+		"flink:coder:datastream:stateful_process_function:v1";
 
-	protected final DataStreamPythonFunctionInfo pythonFunctionInfo;
+	/**
+	 * The python {@link org.apache.flink.streaming.api.functions.ProcessFunction} to be executed.
+	 */
+	private final DataStreamPythonFunctionInfo pythonFunctionInfo;
+
+	/**
+	 * The TypeInformation of python worker input data.
+	 */
 	private final TypeInformation runnerInputTypeInfo;
-	private final TypeInformation runnerOutputTypeInfo;
-	private final TypeInformation<OUT> outputTypeInfo;
-	private final TypeInformation<Row> keyTypeInfo;
-	private TypeSerializer runnerInputSerializer;
-	private TypeSerializer runnerOutputSerializer;
-	private TypeSerializer keyTypeSerializer;
 
+	/**
+	 * The TypeInformation of python worker output data.
+	 */
+	private final TypeInformation runnerOutputTypeInfo;
+
+	/**
+	 * The TypeInformation of output data or this operator.
+	 */
+	private final TypeInformation<OUT> outputTypeInfo;
+
+	/**
+	 * The TypeInformation of current key.
+	 */
+	private final TypeInformation<Row> keyTypeInfo;
+
+	/**
+	 * Serializer to serialize input data for python worker.
+	 */
+	private transient TypeSerializer runnerInputSerializer;
+
+	/**
+	 * Serializer to deserialize output data from python worker.
+	 */
+	private transient TypeSerializer runnerOutputSerializer;
+
+	/**
+	 * Serializer for current key.
+	 */
+	private transient TypeSerializer keyTypeSerializer;
+
+	/**
+	 * TimerService for current operator to register or fire timer.
+	 */
 	private transient TimerService timerservice;
 
+	/**
+	 * The options used to configure the Python worker process.
+	 */
 	protected final Map<String, String> jobOptions;
 
+	/**
+	 * Reusable InputStream used to holding the execution results to be deserialized.
+	 */
 	protected transient ByteArrayInputStreamWithPos bais;
 
+	/**
+	 * InputStream Wrapper.
+	 */
 	protected transient DataInputViewStreamWrapper baisWrapper;
 
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
 	protected transient ByteArrayOutputStreamWithPos baos;
 
+	/**
+	 * OutputStream Wrapper.
+	 */
 	protected transient DataOutputViewStreamWrapper baosWrapper;
 
-	protected transient StreamRecordCollector streamRecordCollector;
+	/**
+	 * The collector for collecting output data to be emitted.
+	 */
+	private transient StreamRecordCollector streamRecordCollector;
 
-	protected Row reusableInput;
-	protected Row reusableTimerData;
+	/**
+	 * Reusable row for normal data runner inputs.
+	 */
+	private transient Row reusableInput;
 
-	public StatefulPythonFunctionOperator(
+	/**
+	 * Reusable row for timer data runner inputs.
+	 */
+	private transient Row reusableTimerData;
+
+	public PythonProcessFunctionOperator(
 		Configuration config,
 		RowTypeInfo inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
@@ -105,7 +163,6 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 		this.pythonFunctionInfo = pythonFunctionInfo;
 		this.outputTypeInfo = outputTypeInfo;
 		this.keyTypeInfo = new RowTypeInfo(inputTypeInfo.getTypeAt(0));
-		this.keyTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(keyTypeInfo);
 		// inputType: normal data/ timer data, timerType: proc/event time, currentWatermark, keyData, real data
 		this.runnerInputTypeInfo = Types.ROW(Types.INT, Types.LONG, Types.LONG, this.keyTypeInfo, inputTypeInfo);
 		this.runnerOutputTypeInfo = Types.ROW(Types.INT, Types.LONG, this.keyTypeInfo, outputTypeInfo);
@@ -119,6 +176,7 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
+		keyTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(keyTypeInfo);
 		runnerInputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 		runnerOutputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
@@ -141,18 +199,16 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 	@Override
 	public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
 		processTimer(false, timer);
-		checkInvokeFinishBundleByCount();
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
 		processTimer(true, timer);
-		checkInvokeFinishBundleByCount();
 	}
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		return new BeamDataStreamStatefulPythonFunctionRunner(
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
@@ -160,7 +216,7 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 			DATA_STREAM_STATEFUL_PYTHON_FUNCTION_URN,
 			PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
 				pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP, keyTypeInfo),
-			DATA_STREAM_STATEFUL_MAP_FUNCTION_CODER_URN,
+			DATA_STREAM_STATEFUL_PROCESS_FUNCTION_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
 			getKeyedStateBackend(),
@@ -188,12 +244,10 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 		} else {
 			streamRecordCollector.collect(runnerOutput.getField(3));
 		}
-
 	}
 
 	@Override
 	public void processElement(StreamRecord<Row> element) throws Exception {
-		LOGGER.info("Current watermark: " + timerservice.currentWatermark());
 		reusableInput.setField(2, timerservice.currentWatermark());
 		reusableInput.setField(4, element.getValue());
 		runnerInputSerializer.serialize(reusableInput, baosWrapper);
@@ -204,6 +258,15 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 		emitResults();
 	}
 
+	/**
+	 * It is responsible to send timer data to python worker when a registered timer is fired. The
+	 * input data is a Row containing 4 fields: TimerFlag 0 for proc time, 1 for event time;
+	 * Timestamp of the fired timer; Current watermark and the key of the timer.
+	 *
+	 * @param procTime Whether is it a proc time timer, otherwise event time timer.
+	 * @param timer The fired timer.
+	 * @throws Exception The runnerInputSerializer might throw exception.
+	 */
 	private void processTimer(boolean procTime, InternalTimer<Row, VoidNamespace> timer) throws Exception {
 		long time = timer.getTimestamp();
 		Row timerKey = Row.of(timer.getKey());
@@ -219,8 +282,17 @@ public class StatefulPythonFunctionOperator<OUT> extends AbstractOneInputPythonF
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
 		elementCount++;
+		checkInvokeFinishBundleByCount();
+		emitResults();
 	}
 
+	/**
+	 * Handler the timer registration request from python user defined function. Before registering
+	 * the timer, we must set the current key to be the key when the timer is register in python
+	 * side.
+	 *
+	 * @param row The timer registration request data.
+	 */
 	private void registerTimer(Row row) {
 		synchronized (getKeyedStateBackend()) {
 			int type = (int) row.getField(0);

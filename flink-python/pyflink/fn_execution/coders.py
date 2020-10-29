@@ -42,8 +42,8 @@ FLINK_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1"
 FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:map_function:v1"
 FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:flatmap_function:v1"
 FLINK_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:v1"
-FLINK_STATEFUL_MAP_FUNCTION_DATA_STREAM_CODER_URN = \
-    "flink:coder:datastream:stateful_map_function:v1"
+FLINK_STATEFUL_PROCESS_FUNCTION_DATA_STREAM_CODER_URN = \
+    "flink:coder:datastream:stateful_process_function:v1"
 
 
 class BaseCoder(ABC):

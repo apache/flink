@@ -148,7 +148,6 @@ public enum PythonOperatorUtils {
 		return userDefinedDataStreamFunction.toBuilder()
 			.setKeyTypeInfo(PythonTypeUtils.TypeInfoToProtoConverter
 				.toTypeInfoProto(builtKeyFieldType)).build();
-
 	}
 
 }
