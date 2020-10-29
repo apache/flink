@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.util.concurrent.Executor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -45,7 +43,7 @@ import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
- * Tests for the interaction between the {@link FailoverStrategy} and the {@link CheckpointCoordinator}.
+ * Tests for actions of {@link CheckpointCoordinator} on task failures.
  */
 public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 	private ManuallyTriggeredScheduledExecutor manualThreadExecutor;

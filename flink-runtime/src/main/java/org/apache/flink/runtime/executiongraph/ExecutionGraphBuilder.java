@@ -18,15 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.Nullable;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -46,8 +37,6 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
@@ -67,7 +56,19 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
@@ -99,9 +100,6 @@ public class ExecutionGraphBuilder {
 			JobMasterPartitionTracker partitionTracker,
 			long initializationTimestamp) throws JobExecutionException, JobException {
 
-		final FailoverStrategy.Factory failoverStrategy =
-			FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
-
 		return buildGraph(
 			prior,
 			jobGraph,
@@ -119,7 +117,6 @@ public class ExecutionGraphBuilder {
 			log,
 			shuffleMaster,
 			partitionTracker,
-			failoverStrategy,
 			NoOpExecutionDeploymentListener.get(),
 			(execution, newState) -> {},
 			initializationTimestamp);
@@ -142,7 +139,6 @@ public class ExecutionGraphBuilder {
 		Logger log,
 		ShuffleMaster<?> shuffleMaster,
 		JobMasterPartitionTracker partitionTracker,
-		FailoverStrategy.Factory failoverStrategyFactory,
 		ExecutionDeploymentListener executionDeploymentListener,
 		ExecutionStateUpdateListener executionStateUpdateListener,
 		long initializationTimestamp) throws JobExecutionException, JobException {
@@ -177,7 +173,6 @@ public class ExecutionGraphBuilder {
 					rpcTimeout,
 					restartStrategy,
 					maxPriorAttemptsHistoryLength,
-					failoverStrategyFactory,
 					slotProvider,
 					classLoader,
 					blobWriter,
@@ -361,8 +356,6 @@ public class ExecutionGraphBuilder {
 		metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
 		metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
 		metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
-
-		executionGraph.getFailoverStrategy().registerMetrics(metrics);
 
 		return executionGraph;
 	}

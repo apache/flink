@@ -49,7 +49,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -129,28 +128,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  *         about deployment of tasks and updates in the task status always use the ExecutionAttemptID to
  *         address the message receiver.</li>
  * </ul>
- *
- * <h2>Global and local failover</h2>
- *
- * <p>The Execution Graph has two failover modes: <i>global failover</i> and <i>local failover</i>.
- *
- * <p>A <b>global failover</b> aborts the task executions for all vertices and restarts whole
- * data flow graph from the last completed checkpoint. Global failover is considered the
- * "fallback strategy" that is used when a local failover is unsuccessful, or when a issue is
- * found in the state of the ExecutionGraph that could mark it as inconsistent (caused by a bug).
- *
- * <p>A <b>local failover</b> is triggered when an individual vertex execution (a task) fails.
- * The local failover is coordinated by the {@link FailoverStrategy}. A local failover typically
- * attempts to restart as little as possible, but as much as necessary.
- *
- * <p>Between local- and global failover, the global failover always takes precedence, because it
- * is the core mechanism that the ExecutionGraph relies on to bring back consistency. The
- * guard that, the ExecutionGraph maintains a <i>global modification version</i>, which is incremented
- * with every global failover (and other global actions, like job cancellation, or terminal
- * failure). Local failover is always scoped by the modification version that the execution graph
- * had when the failover was triggered. If a new global modification version is reached during
- * local failover (meaning there is a concurrent global failover), the failover strategy has to
- * yield before the global failover.
  */
 public class ExecutionGraph implements AccessExecutionGraph {
 
@@ -193,9 +170,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Listeners that receive messages when the entire job switches it status
 	 * (such as from RUNNING to FINISHED). */
 	private final List<JobStatusListener> jobStatusListeners;
-
-	/** The implementation that decides how to recover the failures of tasks. */
-	private final FailoverStrategy failoverStrategy;
 
 	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
 	 * the execution graph transitioned into a certain state. The index into this array is the
@@ -319,7 +293,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			Time rpcTimeout,
 			RestartStrategy restartStrategy,
 			int maxPriorAttemptsHistoryLength,
-			FailoverStrategy.Factory failoverStrategyFactory,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
 			BlobWriter blobWriter,
@@ -369,10 +342,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
 
 		this.globalModVersion = 1L;
-
-		// the failover strategy must be instantiated last, so that the execution graph
-		// is ready by the time the failover strategy sees it
-		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
 
 		this.maxPriorAttemptsHistoryLength = maxPriorAttemptsHistoryLength;
 
@@ -846,8 +815,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the topology assigning should happen before notifying new vertices to failoverStrategy
 		executionTopology = DefaultExecutionTopology.fromExecutionGraph(this);
 
-		failoverStrategy.notifyNewVertices(newExecJobVertices);
-
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 
@@ -986,8 +953,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
-	 * Fails the execution graph globally. This failure will not be recovered by a specific
-	 * failover strategy, but results in a full restart of all tasks.
+	 * Fails the execution graph globally.
 	 *
 	 * <p>This global failure is meant to be triggered in cases where the consistency of the
 	 * execution graph' state cannot be guaranteed any more (for example when catching unexpected
@@ -1042,13 +1008,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// an unchecked exception here
 			throw new RuntimeException(e);
 		}
-	}
-
-	/**
-	 * Gets the failover strategy used by the execution graph to recover from failures of tasks.
-	 */
-	public FailoverStrategy getFailoverStrategy() {
-		return this.failoverStrategy;
 	}
 
 	/**

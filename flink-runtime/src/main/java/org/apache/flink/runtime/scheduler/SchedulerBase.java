@@ -55,8 +55,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -275,8 +273,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 			}
 		};
 
-		final FailoverStrategy.Factory failoverStrategy = new NoOpFailoverStrategy.Factory();
-
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -294,7 +290,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 			log,
 			shuffleMaster,
 			partitionTracker,
-			failoverStrategy,
 			executionDeploymentListener,
 			executionStateUpdateListener,
 			initializationTimestamp);
