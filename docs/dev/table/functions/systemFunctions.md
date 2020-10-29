@@ -3820,7 +3820,8 @@ NOW()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
+        <p>Returns the current SQL timestamp in the UTC time zone.</p>
+        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
