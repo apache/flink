@@ -57,7 +57,7 @@ under the License.
 		<dependency>
 			<groupId>io.github.myasuka</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>6.11.6-ververica-1.0</version>
+			<version>6.11.6-ververica-2.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
