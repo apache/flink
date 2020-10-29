@@ -16,5 +16,3 @@
 org.apache.flink.table.factories.DataGenTableSourceFactory
 org.apache.flink.table.factories.BlackHoleTableSinkFactory
 org.apache.flink.table.factories.PrintTableSinkFactory
-org.apache.flink.table.formats.SingleValueFormatFactory
-
