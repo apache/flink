@@ -41,7 +41,7 @@ public class SourceTransformation<OUT, SplitT extends SourceSplit, EnumChkT> ext
 	private final Source<OUT, SplitT, EnumChkT> source;
 	private final WatermarkStrategy<OUT> watermarkStrategy;
 
-	private ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
+	private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 
 	/**
 	 * Creates a new {@code Transformation} with the given name, output type and parallelism.
