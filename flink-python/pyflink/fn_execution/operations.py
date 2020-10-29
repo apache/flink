@@ -22,8 +22,6 @@ from itertools import chain
 from apache_beam.coders import PickleCoder
 from typing import Tuple, Any
 
-from pyflink.fn_execution.stateful_operation_common import InternalCollector, InternalTimerService
-
 from pyflink.datastream.functions import RuntimeContext, InternalProcessFunctionContext, \
     TimerService, Collector, InternalProcessFunctionOnTimerContext
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
@@ -354,8 +352,9 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
 class DataStreamStatefulFunctionOperation(StatefulFunctionOperation):
 
     def __init__(self, spec, keyed_state_backend):
-        self._collector = InternalCollector()
-        internal_timer_service = InternalTimerService(self._collector)
+        self._collector = DataStreamStatefulFunctionOperation.InternalCollector()
+        internal_timer_service = DataStreamStatefulFunctionOperation\
+            .InternalTimerService(self._collector)
         self.function_context = InternalProcessFunctionContext(internal_timer_service)
         self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
         super(DataStreamStatefulFunctionOperation, self).__init__(spec, keyed_state_backend)
