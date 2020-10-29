@@ -20,9 +20,9 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -108,7 +108,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
 		validateTopology(
 				writerNode,
-				StringSerializer.class,
+				SimpleVersionedSerializerTypeSerializerProxy.class,
 				committerNode,
 				"Committer",
 				committerClass,
@@ -132,7 +132,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
 		validateTopology(
 				committerNode,
-				StringSerializer.class,
+				SimpleVersionedSerializerTypeSerializerProxy.class,
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,
@@ -144,6 +144,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 	public void generateWriterGlobalCommitterTopology() {
 		final StreamGraph streamGraph = buildGraph(TestSink
 				.newBuilder()
+				.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
 				.setDefaultGlobalCommitter()
 				.build(), runtimeExecutionMode);
 
@@ -154,7 +155,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
 		validateTopology(
 				writerNode,
-				StringSerializer.class,
+				SimpleVersionedSerializerTypeSerializerProxy.class,
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,

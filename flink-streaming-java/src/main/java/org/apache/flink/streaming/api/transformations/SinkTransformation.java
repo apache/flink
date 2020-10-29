@@ -60,7 +60,7 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> extend
 
 	@Override
 	public void setChainingStrategy(ChainingStrategy strategy) {
-		chainingStrategy = strategy;
+		chainingStrategy = checkNotNull(strategy);
 	}
 
 	@Override
