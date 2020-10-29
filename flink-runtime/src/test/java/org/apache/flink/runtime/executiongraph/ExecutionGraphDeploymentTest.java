@@ -38,7 +38,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -699,7 +698,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			getClass().getClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
 			timeout,
-			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			blobWriter,
 			timeout,
