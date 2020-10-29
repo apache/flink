@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.Service;
@@ -51,6 +52,25 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
 			.get()
 			.withPath(path)
 			.andReturn(200, expectedService)
+			.always();
+	}
+
+	protected void mockCreateConfigMapAlreadyExisting(ConfigMap configMap) {
+		final String path = String.format("/api/v1/namespaces/%s/configmaps", NAMESPACE);
+		server.expect()
+			.post()
+			.withPath(path)
+			.andReturn(500, configMap)
+			.always();
+	}
+
+	protected void mockReplaceConfigMapFailed(ConfigMap configMap) {
+		final String name = configMap.getMetadata().getName();
+		final String path = String.format("/api/v1/namespaces/%s/configmaps/%s", NAMESPACE, name);
+		server.expect()
+			.put()
+			.withPath(path)
+			.andReturn(500, configMap)
 			.always();
 	}
 
