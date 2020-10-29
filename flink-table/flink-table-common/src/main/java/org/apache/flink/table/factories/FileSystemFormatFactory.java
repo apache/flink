@@ -38,7 +38,11 @@ import java.util.stream.Collectors;
 
 /**
  * File system format factory for creating configured instances of reader and writer.
+ *
+ * @deprecated This interface has been replaced by {@link BulkReaderFormatFactory} and
+ *             {@link BulkWriterFormatFactory}.
  */
+@Deprecated
 @Internal
 public interface FileSystemFormatFactory extends Factory {
 
