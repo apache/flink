@@ -452,7 +452,7 @@ public class FlinkDDLDataTypeTest {
 			// SqlDataTypeSpec does not take care of the nullable attribute unparse,
 			// So we unparse nullable attribute specifically, this unparsing logic should
 			// keep sync with SqlTableColumn.
-			if (!dataTypeSpec.getNullable()) {
+			if (dataTypeSpec.getNullable() != null && !dataTypeSpec.getNullable()) {
 				sqlWriter.keyword("NOT NULL");
 			}
 			assertEquals(expectedUnparsed, sqlWriter.toSqlString().getSql());

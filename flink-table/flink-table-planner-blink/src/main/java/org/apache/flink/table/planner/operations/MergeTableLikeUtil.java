@@ -43,6 +43,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -432,8 +433,9 @@ class MergeTableLikeUtil {
 						}
 					}
 
-					final RelDataType relType = metadataColumn.getType()
-						.deriveType(sqlValidator, metadataColumn.getType().getNullable());
+					SqlDataTypeSpec type = metadataColumn.getType();
+					boolean nullable = type.getNullable() == null ? true : type.getNullable();
+					RelDataType relType = type.deriveType(sqlValidator, nullable);
 					column = TableColumn.metadata(
 						name,
 						fromLogicalToDataType(toLogicalType(relType)),
@@ -457,8 +459,9 @@ class MergeTableLikeUtil {
 							"A column named '%s' already exists in the base table.",
 							name));
 					}
-					RelDataType relType = regularColumn.getType()
-						.deriveType(sqlValidator, regularColumn.getType().getNullable());
+					SqlDataTypeSpec type = regularColumn.getType();
+					boolean nullable = type.getNullable() == null ? true : type.getNullable();
+					RelDataType relType = type.deriveType(sqlValidator, nullable);
 					// add field name and field type to physical field list
 					physicalFieldNamesToTypes.put(name, relType);
 				}

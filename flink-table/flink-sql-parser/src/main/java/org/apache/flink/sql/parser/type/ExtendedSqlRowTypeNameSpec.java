@@ -111,7 +111,7 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 				writer.sep(",", false);
 				p.left.unparse(writer, 0, 0);
 				p.right.unparse(writer, leftPrec, rightPrec);
-				if (!p.right.getNullable()) {
+				if (p.right.getNullable() != null && !p.right.getNullable()) {
 					writer.keyword("NOT NULL");
 				}
 				if (comments.get(i) != null) {

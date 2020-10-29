@@ -97,6 +97,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlExplainFormat;
@@ -621,10 +622,12 @@ public class SqlToOperationConverter {
 			.map(SqlRegularColumn.class::cast)
 			.collect(Collectors.toList());
 		for (SqlRegularColumn regularColumn : physicalColumns) {
+			SqlDataTypeSpec type = regularColumn.getType();
+			boolean nullable = type.getNullable() == null ? true : type.getNullable();
 			final RelDataType relType = regularColumn.getType()
 				.deriveType(
 					flinkPlanner.getOrCreateSqlValidator(),
-					regularColumn.getType().getNullable());
+						nullable);
 			builder.field(regularColumn.getName().getSimple(),
 				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
 		}
