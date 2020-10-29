@@ -33,7 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link TypeSerializer} that delegates to an underlying {@link SimpleVersionedSerializer}.
  *
- * <p>This should not be used as a general {@link TypeSerializer}. It's meant to be used by internal
+ * <p>This should not be used as a general {@link TypeSerializer}. It's meant to be used by
+ * internal
  * operators that need to work with both {@link SimpleVersionedSerializer} and {@link
  * TypeSerializer}.
  */
@@ -55,16 +56,10 @@ public class SimpleVersionedSerializerTypeSerializerProxy<T> extends TypeSeriali
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		final byte[] serializedSerializer;
-		try {
-			serializedSerializer = InstantiationUtil.serializeObject(serializerSupplier);
-		} catch (IOException e) {
-			throw new RuntimeException("Could not serialize SimpleVersionedSerializer.", e);
-		}
 		try {
 			return new SimpleVersionedSerializerTypeSerializerProxy<>(
-					InstantiationUtil.deserializeObject(
-							serializedSerializer,
+					InstantiationUtil.clone(
+							serializerSupplier,
 							serializerSupplier.getClass().getClassLoader()));
 		} catch (ClassNotFoundException | IOException e) {
 			throw new RuntimeException("Could not duplicate SimpleVersionedSerializer.", e);
