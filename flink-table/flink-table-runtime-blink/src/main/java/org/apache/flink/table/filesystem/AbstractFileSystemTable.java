@@ -19,13 +19,12 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.List;
@@ -53,15 +52,11 @@ abstract class AbstractFileSystemTable {
 		context.getCatalogTable().getOptions().forEach(tableOptions::setString);
 		this.schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 		this.partitionKeys = context.getCatalogTable().getPartitionKeys();
-		this.path = new Path(context.getCatalogTable().getOptions().getOrDefault(PATH.key(), PATH.defaultValue()));
-		this.defaultPartName = context.getCatalogTable().getOptions().getOrDefault(
-				PARTITION_DEFAULT_NAME.key(), PARTITION_DEFAULT_NAME.defaultValue());
+		this.path = new Path(tableOptions.get(PATH));
+		this.defaultPartName = tableOptions.get(PARTITION_DEFAULT_NAME);
 	}
 
-	static FileSystemFormatFactory createFormatFactory(ReadableConfig tableOptions) {
-		return FactoryUtil.discoverFactory(
-				Thread.currentThread().getContextClassLoader(),
-				FileSystemFormatFactory.class,
-				tableOptions.get(FactoryUtil.FORMAT));
+	ReadableConfig formatOptions(String identifier) {
+		return new DelegatingConfiguration(tableOptions, identifier + ".");
 	}
 }
