@@ -56,7 +56,6 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -173,8 +172,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final Time slotRequestTimeout;
 
-	private final boolean legacyScheduling;
-
 	protected final ExecutionVertexVersioner executionVertexVersioner;
 
 	private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
@@ -202,7 +199,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final JobMasterPartitionTracker partitionTracker,
 		final ExecutionVertexVersioner executionVertexVersioner,
 		final ExecutionDeploymentTracker executionDeploymentTracker,
-		final boolean legacyScheduling,
 		long initializationTimestamp) throws Exception {
 
 		this.log = checkNotNull(log);
@@ -225,15 +221,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			restartStrategyFactory,
 			jobGraph.isCheckpointingEnabled());
 
-		if (legacyScheduling) {
-			log.info("Using restart strategy {} for {} ({}).", this.restartStrategy, jobGraph.getName(), jobGraph.getJobID());
-		}
-
 		this.blobWriter = checkNotNull(blobWriter);
 		this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
-		this.legacyScheduling = legacyScheduling;
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker), checkNotNull(executionDeploymentTracker), initializationTimestamp);
 
@@ -284,9 +275,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			}
 		};
 
-		final FailoverStrategy.Factory failoverStrategy = legacyScheduling ?
-			FailoverStrategyLoader.loadFailoverStrategy(jobMasterConfiguration, log) :
-			new NoOpFailoverStrategy.Factory();
+		final FailoverStrategy.Factory failoverStrategy = new NoOpFailoverStrategy.Factory();
 
 		return ExecutionGraphBuilder.buildGraph(
 			null,
