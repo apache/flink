@@ -50,7 +50,7 @@ import static org.junit.Assert.assertThat;
 
 /**
  * Tests that validate correct handling of watermark generation in the {@link ReaderOutput} as created
- * by the {@link StreamingTimestampsAndWatermarks}.
+ * by the {@link ProgressiveTimestampsAndWatermarks}.
  */
 public class SourceOperatorEventTimeTest {
 

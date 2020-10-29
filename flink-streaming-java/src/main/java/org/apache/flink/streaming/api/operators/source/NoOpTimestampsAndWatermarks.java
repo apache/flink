@@ -30,21 +30,21 @@ import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorExcept
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An implementation of {@link TimestampsAndWatermarks} to be used during batch execution of a
- * program. Batch execution has no watermarks, so all watermark related operations in this
- * implementation are no-ops.
+ * An implementation of {@link TimestampsAndWatermarks} where all watermarking/event-time operations
+ * are no-ops. This should be used in execution contexts where no watermarks are needed, for example
+ * in BATCH execution mode.
  *
  * @param <T> The type of the emitted records.
  */
 @Internal
-public class BatchTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T> {
+public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T> {
 
 	private final TimestampAssigner<T> timestamps;
 
 	/**
-	 * Creates a new BatchTimestampsAndWatermarks with the given TimestampAssigner.
+	 * Creates a new {@link NoOpTimestampsAndWatermarks} with the given TimestampAssigner.
 	 */
-	public BatchTimestampsAndWatermarks(TimestampAssigner<T> timestamps) {
+	public NoOpTimestampsAndWatermarks(TimestampAssigner<T> timestamps) {
 		this.timestamps = checkNotNull(timestamps);
 	}
 
@@ -56,12 +56,12 @@ public class BatchTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<
 
 	@Override
 	public void startPeriodicWatermarkEmits() {
-		// no periodic watermarks in batch processing
+		// no periodic watermarks
 	}
 
 	@Override
 	public void stopPeriodicWatermarkEmits() {
-		// no periodic watermarks in batch processing
+		// no periodic watermarks
 	}
 
 	// ------------------------------------------------------------------------
