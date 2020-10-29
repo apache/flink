@@ -894,8 +894,7 @@ class TableSinkITCase extends StreamingTestBase {
         val exception = ExceptionUtils
           .findThrowableWithMessage(
             e,
-            "which is not INSERT_ONLY mode," +
-              " primary key is required but no primary key is found")
+            "primary key is required but no primary key is found")
         assertTrue(exception.isPresent)
     }
 

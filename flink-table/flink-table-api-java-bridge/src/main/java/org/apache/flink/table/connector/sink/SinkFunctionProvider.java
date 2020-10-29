@@ -27,8 +27,7 @@ import org.apache.flink.table.data.RowData;
  * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link DynamicTableSink}.
  */
 @PublicEvolving
-public interface SinkFunctionProvider
-	extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
+public interface SinkFunctionProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
 	/**
 	 * Helper method for creating a static provider.
