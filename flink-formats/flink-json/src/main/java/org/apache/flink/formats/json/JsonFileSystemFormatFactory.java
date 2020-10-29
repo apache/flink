@@ -135,6 +135,9 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 	 * from json format files.
 	 */
 	public static class JsonInputFormat extends DelimitedInputFormat<RowData> {
+
+		private static final long serialVersionUID = 1L;
+
 		/**
 		 * Code of \r, used to remove \r from a line when the line ends with \r\n.
 		 */
