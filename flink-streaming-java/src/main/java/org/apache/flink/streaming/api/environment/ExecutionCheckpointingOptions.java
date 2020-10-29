@@ -147,7 +147,7 @@ public class ExecutionCheckpointingOptions {
 	public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
 		ConfigOptions.key("execution.checkpointing.alignment-timeout")
 			.durationType()
-			.defaultValue(Duration.ofSeconds(30))
+			.defaultValue(Duration.ofMillis(3))
 			.withDescription(Description.builder()
 				.text("Only relevant if %s is enabled.", TextElement.code(ENABLE_UNALIGNED.key()))
 				.linebreak()
