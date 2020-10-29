@@ -116,9 +116,9 @@ class CommonPhysicalSink (
         val inputParallelism = inputTransformation.getParallelism
         val parallelism =  {
           val parallelismOptional = runtimeProvider.asInstanceOf[ParallelismProvider].getParallelism
-          if(parallelismOptional.isPresent) {
+          if (parallelismOptional.isPresent) {
             val parallelismPassedIn = parallelismOptional.get().intValue()
-            if(parallelismPassedIn <= 0) {
+            if (parallelismPassedIn <= 0) {
               throw new TableException(s"Table: $tableIdentifier configured sink parallelism: " +
                 s"$parallelismPassedIn should not be less than zero or equal to zero")
             }
@@ -129,32 +129,29 @@ class CommonPhysicalSink (
         }
 
         val primaryKeys = TableSchemaUtils.getPrimaryKeyIndices(catalogTable.getSchema)
-        val theFinalInputTransformation = if (inputParallelism == parallelism) {
-          // if the inputParallelism is equals to the parallelism, do nothing.
+        val theFinalInputTransformation = if (inputParallelism == parallelism || changelogMode
+          .containsOnly(RowKind.INSERT)) {
+          // if the inputParallelism is equals to the parallelism or insert-only mode, do nothing.
           inputTransformation
-        } else {
-          (changelogMode, primaryKeys.toList) match {
-            case (_, _) if (changelogMode.containsOnly(RowKind.INSERT)) => inputTransformation
-            case (_, Nil) =>
-              throw new TableException(s"Table: $tableIdentifier configured sink parallelism is: " +
-                s"$parallelism, while the input parallelism is: $inputParallelism. Since " +
-                s"configured parallelism is different from input parallelism and the changelog " +
-                s"mode contains [${changelogMode.getContainedKinds.toList.mkString(",")}], which " +
-                s"is not INSERT_ONLY mode, primary key is required but no primary key is found"
-              )
-            case (_, pks) =>
-              //key by before sink
-              //according to [[StreamExecExchange]]
-              val selector = KeySelectorUtil.getRowDataSelector(pks.toArray, inputTypeInfo)
-              val partitioner = new KeyGroupStreamPartitioner(selector,
-                DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
-              val transformation = new PartitionTransformation(
-                inputTransformation,
-                partitioner.asInstanceOf[StreamPartitioner[RowData]])
-              transformation.setParallelism(parallelism)
-              transformation
+        } else if (primaryKeys.isEmpty) {
+            throw new TableException(s"Table: $tableIdentifier configured sink parallelism is: " +
+              s"$parallelism, while the input parallelism is: $inputParallelism. Since " +
+              s"configured parallelism is different from input parallelism and the changelog " +
+              s"mode contains [${changelogMode.getContainedKinds.toList.mkString(",")}], which " +
+              s"is not INSERT_ONLY mode, primary key is required but no primary key is found")
+
+          } else {
+            //key by before sink
+            //according to [[StreamExecExchange]]
+            val selector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputTypeInfo)
+            val partitioner = new KeyGroupStreamPartitioner(selector,
+              DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
+            val transformation = new PartitionTransformation(
+              inputTransformation,
+              partitioner.asInstanceOf[StreamPartitioner[RowData]])
+            transformation.setParallelism(parallelism)
+            transformation
           }
-        }
 
         new LegacySinkTransformation(
           theFinalInputTransformation,
