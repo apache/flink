@@ -531,7 +531,13 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 		throw new IllegalStateException("This method should never be called. Use Input class instead");
 	}
 
+	@Internal
 	protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
 		return Optional.ofNullable(timeServiceManager);
+	}
+
+	@Internal
+	protected Optional<StreamOperatorStateHandler> getStateHandler() {
+		return Optional.ofNullable(stateHandler);
 	}
 }
