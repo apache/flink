@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
+import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -184,5 +185,23 @@ public class HiveModuleTest {
 		// GenericUDF
 		results = Lists.newArrayList(tableEnv.sqlQuery("select length('')").execute().collect());
 		assertEquals("[0]", results.toString());
+	}
+
+	@Test
+	// tests to verify we have set arguments for hive udf before trying to get result type
+	public void testHiveUDFSetArguments() throws Exception {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+		tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+		String path = getClass().getResource("/csv/test.csv").toURI().toString();
+		tableEnv.executeSql(String.format(
+				"create table src(x int,y int) with ('connector'='filesystem','format'='csv','path'='%s')", path));
+
+		Lists.newArrayList(tableEnv.executeSql("select x from src where y is not null limit 10").collect());
+		Lists.newArrayList(tableEnv.executeSql("select count(distinct if(y is null, 0, y)) from src where x=-1 limit 1").collect());
+		Lists.newArrayList(tableEnv.executeSql("select x, rank() over (partition by x order by y) from src").collect());
 	}
 }

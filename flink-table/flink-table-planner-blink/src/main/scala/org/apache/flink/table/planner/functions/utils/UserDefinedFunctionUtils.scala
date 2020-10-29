@@ -467,7 +467,11 @@ object UserDefinedFunctionUtils {
       displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory): SqlFunction = {
-    new ScalarSqlFunction(identifier, displayName, function, typeFactory)
+    if (HiveFunctionUtils.isHiveFunc(function)) {
+      new HiveScalarSqlFunction(identifier, function, typeFactory)
+    } else {
+      new ScalarSqlFunction(identifier, displayName, function, typeFactory)
+    }
   }
 
   /**
@@ -625,6 +629,9 @@ object UserDefinedFunctionUtils {
   def getResultTypeOfScalarFunction(
       function: ScalarFunction,
       argTypes: Array[LogicalType]): DataType = {
+    if (HiveFunctionUtils.isHiveFunc(function)) {
+      HiveFunctionUtils.invokeSetArgs(function, Array.ofDim(argTypes.length), argTypes)
+    }
     val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
     if (userDefinedTypeInfo != null) {
       fromLegacyInfoToDataType(userDefinedTypeInfo)
