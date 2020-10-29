@@ -140,7 +140,9 @@ public class TypeInferenceExtractorTest {
 				.expectOutputMapping(
 					InputTypeStrategies.varyingSequence(
 						new String[]{"myInt", "myAny"},
-						new ArgumentTypeStrategy[]{InputTypeStrategies.explicit(DataTypes.INT()), InputTypeStrategies.ANY}),
+						new ArgumentTypeStrategy[]{
+							InputTypeStrategies.explicit(
+								DataTypes.ARRAY(DataTypes.INT())), InputTypeStrategies.ANY}),
 					TypeStrategies.explicit(DataTypes.BOOLEAN())),
 
 			// global input hints and local output hints
@@ -625,7 +627,7 @@ public class TypeInferenceExtractorTest {
 
 	private static class ComplexFunctionHint extends ScalarFunction {
 		@FunctionHint(
-			input = {@DataTypeHint("INT"), @DataTypeHint(inputGroup = InputGroup.ANY)},
+			input = {@DataTypeHint("ARRAY<INT>"), @DataTypeHint(inputGroup = InputGroup.ANY)},
 			argumentNames = {"myInt", "myAny"},
 			output = @DataTypeHint("BOOLEAN"),
 			isVarArgs = true
