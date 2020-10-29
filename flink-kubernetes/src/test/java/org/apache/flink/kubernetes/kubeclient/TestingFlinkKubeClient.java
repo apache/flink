@@ -18,7 +18,9 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
@@ -52,6 +54,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 	private final Function<Map<String, String>, CompletableFuture<Void>> deleteConfigMapByLabelFunction;
 	private final Function<String, CompletableFuture<Void>> deleteConfigMapFunction;
 	private final Consumer<Void> closeConsumer;
+	private final BiFunction<KubernetesLeaderElectionConfiguration, KubernetesLeaderElector.LeaderCallbackHandler, KubernetesLeaderElector> createLeaderElectorFunction;
 
 	private TestingFlinkKubeClient(
 			Function<KubernetesPod, CompletableFuture<Void>> createTaskManagerPodFunction,
@@ -65,7 +68,8 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 			BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, KubernetesWatch> watchConfigMapsFunction,
 			Function<Map<String, String>, CompletableFuture<Void>> deleteConfigMapByLabelFunction,
 			Function<String, CompletableFuture<Void>> deleteConfigMapFunction,
-			Consumer<Void> closeConsumer) {
+			Consumer<Void> closeConsumer,
+			BiFunction<KubernetesLeaderElectionConfiguration, KubernetesLeaderElector.LeaderCallbackHandler, KubernetesLeaderElector> createLeaderElectorFunction) {
 
 		this.createTaskManagerPodFunction = createTaskManagerPodFunction;
 		this.stopPodFunction = stopPodFunction;
@@ -81,6 +85,8 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 		this.deleteConfigMapFunction = deleteConfigMapFunction;
 
 		this.closeConsumer = closeConsumer;
+
+		this.createLeaderElectorFunction = createLeaderElectorFunction;
 	}
 
 	@Override
@@ -126,6 +132,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 	@Override
 	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
 		return watchPodsAndDoCallbackFunction.apply(labels, podCallbackHandler);
+	}
+
+	@Override
+	public KubernetesLeaderElector createLeaderElector(KubernetesLeaderElectionConfiguration leaderConfig, KubernetesLeaderElector.LeaderCallbackHandler callbackHandler) {
+		return createLeaderElectorFunction.apply(leaderConfig, callbackHandler);
 	}
 
 	@Override
@@ -198,6 +209,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
 		private Consumer<Void> closeConsumer = (ignore) -> {};
 
+		private BiFunction<KubernetesLeaderElectionConfiguration, KubernetesLeaderElector.LeaderCallbackHandler, KubernetesLeaderElector> createLeaderElectorFunction =
+			TestingKubernetesLeaderElector::new;
+
 		private Builder() {}
 
 		public Builder setCreateTaskManagerPodFunction(Function<KubernetesPod, CompletableFuture<Void>> createTaskManagerPodFunction) {
@@ -266,6 +280,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 			return this;
 		}
 
+		public Builder setCreateLeaderElectorFunction(BiFunction<KubernetesLeaderElectionConfiguration, KubernetesLeaderElector.LeaderCallbackHandler, KubernetesLeaderElector> createLeaderElectorFunction) {
+			this.createLeaderElectorFunction = createLeaderElectorFunction;
+			return this;
+		}
+
 		public TestingFlinkKubeClient build() {
 			return new TestingFlinkKubeClient(
 					createTaskManagerPodFunction,
@@ -279,7 +298,8 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 					watchConfigMapsFunction,
 					deleteConfigMapByLabelFunction,
 					deleteConfigMapFunction,
-					closeConsumer);
+					closeConsumer,
+					createLeaderElectorFunction);
 		}
 	}
 
@@ -332,6 +352,24 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 		@Override
 		public Map<String, String> getLabels() {
 			return this.labels;
+		}
+	}
+
+	/**
+	 * Testing implementation of {@link KubernetesLeaderElector}.
+	 */
+	public static class TestingKubernetesLeaderElector extends KubernetesLeaderElector {
+		private static final String NAMESPACE = "test";
+
+		public TestingKubernetesLeaderElector(
+				KubernetesLeaderElectionConfiguration leaderConfig,
+				LeaderCallbackHandler leaderCallbackHandler) {
+			super(null, NAMESPACE, leaderConfig, leaderCallbackHandler);
+		}
+
+		@Override
+		public void run() {
+			// noop
 		}
 	}
 }

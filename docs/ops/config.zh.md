@@ -342,6 +342,10 @@ With the introduction of `state.backend.rocksdb.memory.managed` and `state.backe
 
 {% include generated/expert_high_availability_zk_section.html %}
 
+### Advanced High-availability Kubernetes Options
+
+{% include generated/expert_high_availability_k8s_section.html %}
+
 ### Advanced SSL Security Options
 
 {% include generated/expert_security_ssl_section.html %}
