@@ -398,7 +398,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
-		ChangelogMode changelogMode = Optional.ofNullable(helper.getOptions().get(SINK_CHANGELOG_MODE_ENFORCED)).map(m -> parseChangelogMode(m)).orElse(null);
+		final ChangelogMode changelogMode = Optional.ofNullable(helper.getOptions()
+			.get(SINK_CHANGELOG_MODE_ENFORCED)).map(m -> parseChangelogMode(m)).orElse(null);
 
 		final DataType consumedType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
@@ -943,8 +944,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private DataType consumedDataType;
 		private int[] primaryKeyIndices;
 		private final String tableName;
-		private final boolean
-			isInsertOnly;
+		private final boolean isInsertOnly;
 		private final String runtimeSink;
 		private final int expectedNum;
 		private final Map<String, DataType> writableMetadata;
