@@ -27,6 +27,7 @@ import org.rocksdb.RocksIteratorInterface;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
+import java.nio.ByteBuffer;
 
 /**
  * This is a wrapper around {@link RocksIterator} to check the iterator status for all the methods mentioned
@@ -74,6 +75,18 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 	}
 
 	@Override
+	public void seek(ByteBuffer target) {
+		iterator.seek(target);
+		status();
+	}
+
+	@Override
+	public void seekForPrev(ByteBuffer target) {
+		iterator.seekForPrev(target);
+		status();
+	}
+
+	@Override
 	public void next() {
 		iterator.next();
 		status();
@@ -92,6 +105,12 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 		} catch (RocksDBException ex) {
 			throw new FlinkRuntimeException("Internal exception found in RocksDB", ex);
 		}
+	}
+
+	@Override
+	public void refresh() throws RocksDBException {
+		iterator.refresh();
+		status();
 	}
 
 	public byte[] key() {
