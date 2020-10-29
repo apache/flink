@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
@@ -67,6 +68,27 @@ abstract class JoinReorderTestBase extends TableTestBase {
       .tableStats(new TableStats(500000L, Map(
         "a5" -> new ColumnStats(200000L, 0L, 4.0, 4, null, null),
         "b5" -> new ColumnStats(200L, 0L, 8.0, 8, null, null)
+      ))).build())
+
+    util.addTableSource("T6", types, Array("a6", "b6", "c6"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a6" -> new ColumnStats(200000L, 50000L, 4.0, 4, null, null),
+        "b6" -> new ColumnStats(100000L, 0L, 8.0, 8, null, null),
+        "c6" -> new ColumnStats(50000L, 20000L, 8.0, 8, null, null)
+      ))).build())
+
+    util.addTableSource("T7", types, Array("a7", "b7", "c7"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a7" -> new ColumnStats(200000L, 50000L, 4.0, 4, null, null),
+        "b7" -> new ColumnStats(100000L, 0L, 8.0, 8, null, null),
+        "c7" -> new ColumnStats(50000L, 20000L, 8.0, 8, null, null)
+      ))).build())
+
+    util.addTableSource("T8", types, Array("a8", "b8", "c8"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a8" -> new ColumnStats(200000L, 50000L, 4.0, 4, null, null),
+        "b8" -> new ColumnStats(100000L, 0L, 8.0, 8, null, null),
+        "c8" -> new ColumnStats(50000L, 20000L, 8.0, 8, null, null)
       ))).build())
 
     util.getTableEnv.getConfig.getConfiguration.setBoolean(
@@ -230,6 +252,19 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testDeriveNullFilterAfterJoinReorder(): Unit = {
+    util.getTableEnv.getConfig.getConfiguration.setLong(
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 10000L)
+    val sql =
+      s"""
+         |SELECT * FROM T6
+         |   INNER JOIN T7 ON b6 = b7
+         |   INNER JOIN T8 ON a6 = a8
+         |""".stripMargin
     util.verifyPlan(sql)
   }
 }

@@ -245,6 +245,39 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDeriveNullFilterAfterJoinReorder">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM T6
+   INNER JOIN T7 ON b6 = b7
+   INNER JOIN T8 ON a6 = a8
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a6=[$0], b6=[$1], c6=[$2], a7=[$3], b7=[$4], c7=[$5], a8=[$6], b8=[$7], c8=[$8])
++- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6, c6)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T7, source: [TestTableSource(a7, b7, c7)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T8, source: [TestTableSource(a8, b8, c8)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a6, b6, c6, a7, b7, c7, a8, b8, c8])
++- Join(joinType=[InnerJoin], where=[=(b6, b7)], select=[a6, b6, c6, a8, b8, c8, a7, b7, c7], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b6]])
+   :  +- Join(joinType=[InnerJoin], where=[=(a6, a8)], select=[a6, b6, c6, a8, b8, c8], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :     :- Exchange(distribution=[hash[a6]])
+   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T6, source: [TestTableSource(a6, b6, c6)]]], fields=[a6, b6, c6])
+   :     +- Exchange(distribution=[hash[a8]])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, T8, source: [TestTableSource(a8, b8, c8)]]], fields=[a8, b8, c8])
+   +- Exchange(distribution=[hash[b7]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T7, source: [TestTableSource(a7, b7, c7)]]], fields=[a7, b7, c7])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInnerAndFullOuterJoin">
     <Resource name="sql">
       <![CDATA[
