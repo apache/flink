@@ -92,6 +92,29 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 	}
 
 	@Test
+	public void testProcessRetractMessageWithGenerateUpdateBeforeWithoutRowNumber() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 1), false,
+				false);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("book", 1L, 12));
+		testHarness.processElement(insertRecord("book", 2L, 12));
+		testHarness.processElement(insertRecord("book", 4L, 13));
+		testHarness.processElement(updateBeforeRecord("book", 1L, 12));
+		testHarness.processElement(updateBeforeRecord("book", 2L, 12));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+
+		expectedOutput.add(insertRecord("book", 1L, 12));
+		expectedOutput.add(deleteRecord("book", 1L, 12));
+		expectedOutput.add(insertRecord("book", 2L, 12));
+		expectedOutput.add(deleteRecord("book", 2L, 12));
+		expectedOutput.add(insertRecord("book", 4L, 13));
+		assertorWithRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
 	public void testProcessRetractMessageWithGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(
 			RankType.ROW_NUMBER,

@@ -380,13 +380,14 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 						curRank += 1;
 						RowData prevRow = inputIter.next();
 						if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
-							collectDelete(out, prevRow, curRank);
+							collectDelete(out, prevRow);
 							curRank -= 1;
 							findsSortKey = true;
 							inputIter.remove();
 						} else if (findsSortKey) {
 							if (curRank == rankEnd) {
-								collectInsert(out, prevRow, curRank);
+								collectInsert(out, prevRow);
+								curRank += 1;
 								break;
 							}
 						}
