@@ -47,10 +47,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * we want to have only a single implementation of these two methods, across all classes.
  * That way, the JIT compiler can de-virtualize (and inline) them better.
  *
- * <p>Currently, we have one implementation of these methods in the batch case (see class
- * {@link BatchTimestampsAndWatermarks}) and one for the streaming case (this class). When the JVM
- * is dedicated to a single job (or type of job) only one of these classes will be loaded. In mixed
- * job setups, we still have a bimorphic method (rather than a poly/-/mega-morphic method).
+ * <p>Currently, we have one implementation of these methods for the case where we don't need
+ * watermarks (see class {@link NoOpTimestampsAndWatermarks}) and one for the case where we do (this
+ * class). When the JVM is dedicated to a single job (or type of job) only one of these classes will
+ * be loaded. In mixed job setups, we still have a bimorphic method (rather than a
+ * poly/-/mega-morphic method).
  *
  * @param <T> The type of emitted records.
  */

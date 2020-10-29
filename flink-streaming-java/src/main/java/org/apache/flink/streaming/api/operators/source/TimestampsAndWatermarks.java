@@ -67,7 +67,7 @@ public interface TimestampsAndWatermarks<T> {
 	//  factories
 	// ------------------------------------------------------------------------
 
-	static <E> TimestampsAndWatermarks<E> createStreamingEventTimeLogic(
+	static <E> TimestampsAndWatermarks<E> createProgressiveEventTimeLogic(
 			WatermarkStrategy<E> watermarkStrategy,
 			MetricGroup metrics,
 			ProcessingTimeService timeService,
@@ -76,17 +76,17 @@ public interface TimestampsAndWatermarks<T> {
 		final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
 		final TimestampAssigner<E> timestampAssigner = watermarkStrategy.createTimestampAssigner(context);
 
-		return new StreamingTimestampsAndWatermarks<>(
+		return new ProgressiveTimestampsAndWatermarks<>(
 			timestampAssigner, watermarkStrategy, context, timeService, Duration.ofMillis(periodicWatermarkIntervalMillis));
 	}
 
-	static <E> TimestampsAndWatermarks<E> createBatchEventTimeLogic(
+	static <E> TimestampsAndWatermarks<E> createNoOpEventTimeLogic(
 			WatermarkStrategy<E> watermarkStrategy,
 			MetricGroup metrics) {
 
 		final TimestampsAndWatermarksContext context = new TimestampsAndWatermarksContext(metrics);
 		final TimestampAssigner<E> timestampAssigner = watermarkStrategy.createTimestampAssigner(context);
 
-		return new BatchTimestampsAndWatermarks<>(timestampAssigner);
+		return new NoOpTimestampsAndWatermarks<>(timestampAssigner);
 	}
 }

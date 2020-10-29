@@ -39,12 +39,14 @@ import java.util.concurrent.ScheduledFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of timestamp extraction and watermark generation logic for streaming sources.
+ * An implementation of {@link TimestampsAndWatermarks} that does periodic watermark emission and
+ * keeps track of watermarks on a per-split basis. This should be used in execution contexts where
+ * watermarks are important for efficiency/correctness, for example in STREAMING execution mode.
  *
  * @param <T> The type of the emitted records.
  */
 @Internal
-public class StreamingTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T> {
+public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T> {
 
 	private final TimestampAssigner<T> timestampAssigner;
 
@@ -65,7 +67,7 @@ public class StreamingTimestampsAndWatermarks<T> implements TimestampsAndWaterma
 	@Nullable
 	private ScheduledFuture<?> periodicEmitHandle;
 
-	public StreamingTimestampsAndWatermarks(
+	public ProgressiveTimestampsAndWatermarks(
 			TimestampAssigner<T> timestampAssigner,
 			WatermarkGeneratorSupplier<T> watermarksFactory,
 			WatermarkGeneratorSupplier.Context watermarksContext,
