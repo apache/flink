@@ -176,5 +176,11 @@
             <td>List&lt;Map&gt;</td>
             <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
+        <tr>
+            <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <span markdown="span">`FlinkKubeClient#checkAndUpdateConfigMap`</span>.</td>
+        </tr>
     </tbody>
 </table>
