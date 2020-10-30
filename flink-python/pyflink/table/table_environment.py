@@ -55,7 +55,7 @@ __all__ = [
 ]
 
 
-class TableEnvironment(object):
+class TableEnvironment(object, metaclass=ABCMeta):
     """
     A table environment is the base class, entry point, and central context for creating Table
     and SQL API programs.
@@ -86,8 +86,6 @@ class TableEnvironment(object):
         environments in the corresponding bridging modules.
 
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
