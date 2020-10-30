@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
