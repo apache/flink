@@ -164,7 +164,7 @@ public abstract class InputPriorityGraphGenerator {
 				linkedEdges.add(Tuple2.of(higherNode, ancestor));
 			} else {
 				// a conflict occurs, resolve it and revert all linked edges
-				resolveInputPriorityConflict(node, lowerInput);
+				resolveInputPriorityConflict(node, higherInput, lowerInput);
 				for (Tuple2<ExecNode<?, ?>, ExecNode<?, ?>> linkedEdge : linkedEdges) {
 					graph.unlink(linkedEdge.f0, linkedEdge.f1);
 				}
@@ -205,5 +205,5 @@ public abstract class InputPriorityGraphGenerator {
 		return ret;
 	}
 
-	protected abstract void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput);
+	protected abstract void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput);
 }

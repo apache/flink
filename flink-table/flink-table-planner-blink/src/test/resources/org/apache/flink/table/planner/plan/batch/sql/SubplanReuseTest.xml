@@ -1024,13 +1024,14 @@ LogicalProject(a=[$0], c=[$1], c0=[$3])
       <![CDATA[
 Calc(select=[a, c, c0])
 +- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, a0, c0], build=[right])
-   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH], reuse_id=[1])
-   :  +- Union(all=[true], union=[a, c])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Union(all=[true], union=[a, c], reuse_id=[1])
    :     :- Calc(select=[a, c], where=[>(b, 10)])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :     +- Calc(select=[d, f], where=[<(e, 100)])
    :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-   +- Reused(reference_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
