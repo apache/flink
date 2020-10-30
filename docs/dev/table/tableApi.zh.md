@@ -478,7 +478,7 @@ val result = orders.where($"b" === "red")
   	<tr>
   		<td>
         <strong>FromPath</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
   		<td>
         <p>类似于 SQL 请求中的 FROM 子句，将一个环境中已注册的表转换成 Table 对象。</p>
