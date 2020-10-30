@@ -64,7 +64,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 
 		int writerId = addWriter(
 				transformation,
-				parallelism, context);
+				parallelism,
+				context);
 		int committerId = addCommitter(
 				writerId,
 				transformation,
@@ -88,7 +89,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 
 		int writerId = addWriter(
 				transformation,
-				parallelism, context);
+				parallelism,
+				context);
 		int committerId = addCommitter(
 				writerId,
 				transformation,
@@ -136,7 +138,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		}
 
 		return addOperatorToStreamGraph(
-				writer, input.getId(),
+				writer,
+				input.getId(),
 				inputTypeInfo,
 				extractCommittableTypeInformation(sinkTransformation.getSink()),
 				"Sink Writer:",
@@ -279,7 +282,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 					sink.getClass(),
 					1);
 			return new CommittableTypeInformation<>(
-					typeToClass(committableType), () -> sink.getCommittableSerializer().get());
+					typeToClass(committableType),
+					() -> sink.getCommittableSerializer().get());
 		} else {
 			return null;
 		}

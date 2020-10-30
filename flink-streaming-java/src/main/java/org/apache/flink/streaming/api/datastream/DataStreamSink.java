@@ -40,7 +40,11 @@ public class DataStreamSink<T> {
 
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
-		this.transformation = (PhysicalTransformation<T>) new LegacySinkTransformation<>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
+		this.transformation = (PhysicalTransformation<T>) new LegacySinkTransformation<>(
+				inputStream.getTransformation(),
+				"Unnamed",
+				operator,
+				inputStream.getExecutionEnvironment().getParallelism());
 	}
 
 	@SuppressWarnings("unchecked")
