@@ -102,7 +102,6 @@ under the License.
 			 to avoid process kills due to container limits on TravisCI -->
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
-		<log4j.configuration>log4j2-test.properties</log4j.configuration>
 		<flink.shaded.version>12.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
@@ -1545,7 +1544,6 @@ under the License.
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
-						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
 						<project.basedir>${project.basedir}</project.basedir>
