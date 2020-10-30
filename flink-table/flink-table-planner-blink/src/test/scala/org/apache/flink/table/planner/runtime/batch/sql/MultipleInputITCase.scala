@@ -32,7 +32,6 @@ import org.junit.{Before, Test}
 import scala.collection.JavaConversions._
 import scala.util.Random
 
-@RunWith(classOf[Parameterized])
 /**
  * IT cases for multiple input.
  *
@@ -40,6 +39,7 @@ import scala.util.Random
  * The following IT cases are picked from
  * [[org.apache.flink.table.planner.plan.batch.sql.MultipleInputCreationTest]].
  */
+@RunWith(classOf[Parameterized])
 class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
 
   @Before

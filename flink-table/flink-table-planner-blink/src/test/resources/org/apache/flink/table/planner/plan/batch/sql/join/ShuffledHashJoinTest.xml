@@ -118,7 +118,6 @@ Calc(select=[CASE(IS NOT NULL(a), a, a0) AS $f0, b, c, b0, c0])
   <TestCase name="testInnerJoinWithEquiAndLocalPred">
     <Resource name="sql">
       <![CDATA[SELECT c, g FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
