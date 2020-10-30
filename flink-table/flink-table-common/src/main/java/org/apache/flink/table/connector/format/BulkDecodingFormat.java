@@ -33,11 +33,6 @@ import java.util.List;
 public interface BulkDecodingFormat<T> extends DecodingFormat<BulkFormat<T, FileSourceSplit>> {
 
 	/**
-	 * Provides the expected maximum number of produced records for limiting on a best-effort basis.
-	 */
-	default void applyLimit(long limit) {}
-
-	/**
 	 * Provides a list of filters in conjunctive form  for filtering on a best-effort basis.
 	 */
 	default void applyFilters(List<ResolvedExpression> filters) {}
