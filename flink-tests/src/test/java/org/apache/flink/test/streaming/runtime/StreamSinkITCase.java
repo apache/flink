@@ -27,11 +27,12 @@ import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -51,69 +52,170 @@ public class StreamSinkITCase extends AbstractTestBase {
 			895, 127, 148, 161, 148, 662, 822, 491, 275, 122,
 			850, 630, 682, 765, 434, 970, 714, 795, 288, 422);
 
-	static final Queue<String> STREAMING_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+	static final List<String> EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE = SOURCE_DATA
+			.stream()
+			// source send data two times
+			.flatMap(x -> Collections
+					.nCopies(2, Tuple3.of(x, null, Long.MIN_VALUE).toString())
+					.stream())
+			.collect(
+					Collectors.toList());
 
-	static final Queue<String> STREAMING_GLOBAL_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+	static final List<String> EXPECTED_COMMITTED_DATA_IN_BATCH_MODE = SOURCE_DATA
+			.stream()
+			.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
+			.collect(
+					Collectors.toList());
 
-	static final Queue<String> BATCH_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+	static final List<String> EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE = Collections.nCopies(
+			2,
+			SOURCE_DATA
+					.stream()
+					.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
+					.sorted()
+					.collect(joining("+")));
 
-	static final Queue<String> BATCH_GLOBAL_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+	static final List<String> EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE = Arrays.asList(
+			SOURCE_DATA
+					.stream()
+					.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
+					.sorted()
+					.collect(joining("+")),
+			"end of input");
+
+	static final Queue<String> COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+
+	static final Queue<String> GLOBAL_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
+
+	@Before
+	public void init() {
+		COMMIT_QUEUE.clear();
+		GLOBAL_COMMIT_QUEUE.clear();
+	}
 
 	@Test
-	public void streamingExecutionMode() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing(100);
-		FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+	public void writerAndCommitterAndGlobalCommitterExecuteInStreamingMode() throws Exception {
+		final StreamExecutionEnvironment env = buildStreamEnv();
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
 
 		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
 				.addSink(TestSink
 						.newBuilder()
-						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> STREAMING_COMMIT_QUEUE)
-						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> STREAMING_GLOBAL_COMMIT_QUEUE)
+						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
 						.build());
 
 		env.execute();
 
-		final List<String> expectedCommittedData = SOURCE_DATA
-				.stream()
-				.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
-				.collect(
-						Collectors.toList());
-
-		// source send data two times
-		expectedCommittedData.addAll(expectedCommittedData);
+		assertThat(
+				COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
 
 		assertThat(
-				STREAMING_COMMIT_QUEUE,
-				containsInAnyOrder(expectedCommittedData.toArray()));
+				GLOBAL_COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
 	}
 
 	@Test
-	public void batchExecutionMode() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		final Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, this.getClass().getClassLoader());
+	public void writerAndCommitterAndGlobalCommitterExecuteInBatchMode() throws Exception {
+		final StreamExecutionEnvironment env = buildBatchEnv();
 
 		env.fromCollection(SOURCE_DATA)
 				.addSink(TestSink
 						.newBuilder()
-						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> BATCH_COMMIT_QUEUE)
-						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> BATCH_GLOBAL_COMMIT_QUEUE)
+						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
 						.build());
 
 		env.execute();
 
-		final List<String> expectedCommittedData = new ArrayList<>();
-		expectedCommittedData.add(
-				SOURCE_DATA
-						.stream()
-						.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
-						.sorted()
-						.collect(joining("+")));
-		expectedCommittedData.add("end of input");
+		assertThat(
+				COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
 
 		assertThat(
-				BATCH_GLOBAL_COMMIT_QUEUE,
-				containsInAnyOrder(expectedCommittedData.toArray())); }
+				GLOBAL_COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
+	}
+
+	@Test
+	public void writerAndCommitterExecuteInStreamingMode() throws Exception {
+		final StreamExecutionEnvironment env = buildStreamEnv();
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+
+		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+				.addSink(TestSink
+						.newBuilder()
+						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+						.build());
+		env.execute();
+		assertThat(
+				COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
+	}
+
+	@Test
+	public void writerAndCommitterExecuteInBatchMode() throws Exception {
+		final StreamExecutionEnvironment env = buildBatchEnv();
+
+		env.fromCollection(SOURCE_DATA)
+				.addSink(TestSink
+						.newBuilder()
+						.setDefaultCommitter((Supplier<Queue<String>> & Serializable) () -> COMMIT_QUEUE)
+						.build());
+		env.execute();
+		assertThat(
+				COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
+	}
+
+	@Test
+	public void writerAndGlobalCommitterExecuteInStreamingMode() throws Exception {
+		final StreamExecutionEnvironment env = buildStreamEnv();
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+
+		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+				.addSink(TestSink
+						.newBuilder()
+						.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
+						.build());
+
+		env.execute();
+		assertThat(
+				GLOBAL_COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
+	}
+
+	@Test
+	public void writerAndGlobalCommitterExecuteInBatchMode() throws Exception {
+		final StreamExecutionEnvironment env = buildBatchEnv();
+
+		env.fromCollection(SOURCE_DATA)
+				.addSink(TestSink
+						.newBuilder()
+						.setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+						.setGlobalCommitter((Supplier<Queue<String>> & Serializable) () -> GLOBAL_COMMIT_QUEUE)
+						.build());
+		env.execute();
+
+		assertThat(
+				GLOBAL_COMMIT_QUEUE,
+				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
+
+	}
+
+	private StreamExecutionEnvironment buildStreamEnv() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		return env;
+	}
+
+	private StreamExecutionEnvironment buildBatchEnv() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final Configuration config = new Configuration();
+		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+		env.configure(config, this.getClass().getClassLoader());
+		return env;
+	}
 }

@@ -210,6 +210,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				context);
 	}
 
+	//TODO maybe move to a util class
 	private int getParallelism(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			Context context) {

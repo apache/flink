@@ -344,8 +344,6 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		@Override
 		public String combine(List<String> committables) {
-			//we sort here because we want to have a deterministic result during the unit test
-			Collections.sort(committables);
 			return COMBINER.apply(committables);
 		}
 
