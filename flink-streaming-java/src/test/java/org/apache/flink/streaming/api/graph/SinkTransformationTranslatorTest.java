@@ -52,7 +52,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 @RunWith(Parameterized.class)
 public class SinkTransformationTranslatorTest extends TestLogger {
 
-	@Parameterized.Parameters
+	@Parameterized.Parameters(name = "Execution Mode: {0}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
 				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class},
