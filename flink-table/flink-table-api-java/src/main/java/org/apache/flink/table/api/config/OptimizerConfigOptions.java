@@ -100,11 +100,10 @@ public class OptimizerConfigOptions {
 			.defaultValue(false)
 			.withDescription("Enables join reorder in optimizer. Default is disabled.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
 		key("table.optimizer.multiple-input-enabled")
-			.defaultValue(false)
-			.withDescription("Enables creating multiple input operators to reduce shuffling. " +
-				"Default is disabled as currently its physical operators are not implemented. " +
-				"This option is currently only used for plan test cases.");
+			.defaultValue(true)
+			.withDescription("When it is true, the optimizer will merge the operators with pipelined shuffling " +
+					"into a multiple input operator to reduce shuffling and improve performance. Default value is true.");
 }
