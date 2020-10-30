@@ -47,17 +47,4 @@ public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
 	public int getFilterArg() {
 		return filterArg;
 	}
-
-	public static final PythonAggregateFunctionInfo DUMMY_PLACEHOLDER = new PythonAggregateFunctionInfo(
-		new PythonFunction() {
-			@Override
-			public byte[] getSerializedPythonFunction() {
-				return new byte[0];
-			}
-
-			@Override
-			public PythonEnv getPythonEnv() {
-				return new PythonEnv(PythonEnv.ExecType.PROCESS);
-			}
-		}, new Object[0], -1, false);
 }
