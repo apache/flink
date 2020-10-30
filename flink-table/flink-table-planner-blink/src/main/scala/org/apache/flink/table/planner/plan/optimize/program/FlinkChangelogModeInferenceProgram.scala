@@ -526,12 +526,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
         val newLeftOption = this.visit(left, leftRequiredTrait)
 
-        // currently temporal join support changelog stream as the right side
-        // so it requires beforeAfterOrNone UpdateKind
         val rightInputModifyKindSet = getModifyKindSet(right)
-        val beforeAndAfter = beforeAfterOrNone(rightInputModifyKindSet)
-
-        val newRightOption = this.visit(right, beforeAndAfter)
+        // currently temporal join support changelog stream as the right side
+        // so it supports both ONLY_AFTER and BEFORE_AFTER, but prefer ONLY_AFTER
+        val newRightOption = this.visit(right, onlyAfterOrNone(rightInputModifyKindSet)) match {
+          case Some(newRight) => Some(newRight)
+          case None =>
+            val beforeAfter = beforeAfterOrNone(rightInputModifyKindSet)
+            this.visit(right, beforeAfter)
+        }
 
         (newLeftOption, newRightOption) match {
           case (Some(newLeft), Some(newRight)) =>
