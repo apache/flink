@@ -22,6 +22,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.util.Preconditions;
 
+import io.netty.handler.timeout.ReadTimeoutException;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
@@ -92,10 +93,9 @@ public class FanOutShardSubscriber {
 	 */
 	private static final int DEQUEUE_WAIT_SECONDS = 35;
 
-	/** The time to wait when enqueuing events to allow error events to "push in front" of data . */
-	private static final int ENQUEUE_WAIT_SECONDS = 5;
-
 	private final BlockingQueue<FanOutSubscriptionEvent> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
+
+	private final AtomicReference<FanOutSubscriptionEvent> subscriptionErrorEvent = new AtomicReference<>();
 
 	private final KinesisProxyV2Interface kinesis;
 
@@ -213,7 +213,15 @@ public class FanOutShardSubscriber {
 		LOG.warn("Error occurred on EFO subscription: {} - ({}).  {} ({})",
 			throwable.getClass().getName(), throwable.getMessage(), shardId, consumerArn, cause);
 
-		throw new FanOutSubscriberException(cause);
+		if (cause instanceof ReadTimeoutException) {
+			// ReadTimeoutException occurs naturally under backpressure scenarios when full batches take longer to
+			// process than standard read timeout (default 30s). Recoverable exceptions are intended to be retried
+			// indefinitely to avoid system degradation under backpressure. The EFO connection (subscription) to Kinesis
+			// is closed, and reacquired once the queue of records has been processed.
+			throw new RecoverableFanOutSubscriberException(cause);
+		} else {
+			throw new RetryableFanOutSubscriberException(cause);
+		}
 	}
 
 	/**
@@ -235,8 +243,13 @@ public class FanOutShardSubscriber {
 		String continuationSequenceNumber;
 
 		do {
-			// Read timeout will occur after 30 seconds, add a sanity timeout here to prevent lockup
-			FanOutSubscriptionEvent subscriptionEvent = queue.poll(DEQUEUE_WAIT_SECONDS, SECONDS);
+			FanOutSubscriptionEvent subscriptionEvent;
+			if (queue.isEmpty() && subscriptionErrorEvent.get() != null) {
+				subscriptionEvent = subscriptionErrorEvent.get();
+			} else {
+				// Read timeout will occur after 30 seconds, add a sanity timeout here to prevent lockup
+				subscriptionEvent = queue.poll(DEQUEUE_WAIT_SECONDS, SECONDS);
+			}
 
 			if (subscriptionEvent == null) {
 				LOG.debug("Timed out polling events from network, reacquiring subscription - {} ({})", shardId, consumerArn);
@@ -248,6 +261,10 @@ public class FanOutShardSubscriber {
 					eventConsumer.accept(event);
 				}
 			} else if (subscriptionEvent.isSubscriptionComplete()) {
+				if (subscriptionErrorEvent.get() != null) {
+					handleError(subscriptionErrorEvent.get().getThrowable());
+				}
+
 				// The subscription is complete, but the shard might not be, so we return incomplete
 				return false;
 			} else {
@@ -271,8 +288,6 @@ public class FanOutShardSubscriber {
 		private volatile boolean cancelled = false;
 
 		private final CountDownLatch waitForSubscriptionLatch;
-
-		private final Object lockObject = new Object();
 
 		private FanOutShardSubscription(final CountDownLatch waitForSubscriptionLatch) {
 			this.waitForSubscriptionLatch = waitForSubscriptionLatch;
@@ -299,11 +314,8 @@ public class FanOutShardSubscriber {
 			subscribeToShardEventStream.accept(new SubscribeToShardResponseHandler.Visitor() {
 				@Override
 				public void visit(SubscribeToShardEvent event) {
-					synchronized (lockObject) {
-						if (enqueueEventWithRetry(new SubscriptionNextEvent(event))) {
-							requestRecord();
-						}
-					}
+					enqueueEvent(new SubscriptionNextEvent(event));
+					requestRecord();
 				}
 			});
 		}
@@ -311,16 +323,15 @@ public class FanOutShardSubscriber {
 		@Override
 		public void onError(Throwable throwable) {
 			LOG.debug("Error occurred on EFO subscription: {} - ({}).  {} ({})",
-				throwable.getClass().getName(), throwable.getMessage(), shardId, consumerArn);
+				throwable.getClass().getName(), throwable.getMessage(), shardId, consumerArn, throwable);
 
-			// Cancel the subscription to signal the onNext to stop queuing and requesting data
+			// Cancel the subscription to signal the onNext to stop requesting data
 			cancelSubscription();
 
-			synchronized (lockObject) {
-				// Empty the queue and add a poison pill to terminate this subscriber
-				// The synchronized block ensures that new data is not written in the meantime
-				queue.clear();
-				enqueueEvent(new SubscriptionErrorEvent(throwable));
+			if (subscriptionErrorEvent.get() == null) {
+				subscriptionErrorEvent.set(new SubscriptionErrorEvent(throwable));
+			} else {
+				LOG.warn("Previous error passed to consumer for processing. Ignoring subsequent exception.", throwable);
 			}
 		}
 
@@ -338,58 +349,55 @@ public class FanOutShardSubscriber {
 		}
 
 		/**
-		 * Continuously attempt to enqueue an event until successful or the subscription is cancelled (due to error).
-		 * When backpressure applied by the consumer exceeds 30s for a single batch, a ReadTimeoutException will be
-		 * thrown by the network stack. This will result in the subscription be cancelled and this event being discarded.
-		 * The subscription would subsequently be reacquired and the discarded data would be fetched again.
+		 * Adds the event to the queue blocking until complete.
 		 *
 		 * @param event the event to enqueue
-		 * @return true if the event was successfully enqueued.
 		 */
-		private boolean enqueueEventWithRetry(final FanOutSubscriptionEvent event) {
-			boolean result = false;
-			do {
-				if (cancelled) {
-					break;
-				}
-
-				synchronized (lockObject) {
-					result = enqueueEvent(event);
-				}
-			} while (!result);
-
-			return result;
-		}
-
-		/**
-		 * Offers the event to the queue.
-		 *
-		 * @param event the event to enqueue
-		 * @return true if the event was successfully enqueued.
-		 */
-		private boolean enqueueEvent(final FanOutSubscriptionEvent event) {
+		private void enqueueEvent(final FanOutSubscriptionEvent event) {
 			try {
-				if (!queue.offer(event, ENQUEUE_WAIT_SECONDS, SECONDS)) {
-					LOG.debug("Timed out enqueuing event {} - {} ({})", event.getClass().getSimpleName(), shardId, consumerArn);
-					return false;
-				}
+				queue.put(event);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				throw new RuntimeException(e);
 			}
-
-			return true;
 		}
 	}
 
 	/**
 	 * An exception wrapper to indicate an error has been thrown from the networking stack.
 	 */
-	static class FanOutSubscriberException extends Exception {
+	abstract static class FanOutSubscriberException extends Exception {
 
-		private static final long serialVersionUID = 2275015497000437736L;
+		private static final long serialVersionUID = -3899472233945299730L;
 
 		public FanOutSubscriberException(Throwable cause) {
+			super(cause);
+		}
+	}
+
+	/**
+	 * An exception wrapper to indicate a retryable error has been thrown from the networking stack.
+	 * Retryable errors are subject to the Subscribe to Shard retry policy.
+	 * If the configured number of retries are exceeded the application will terminate.
+	 */
+	static class RetryableFanOutSubscriberException extends FanOutSubscriberException {
+
+		private static final long serialVersionUID = -2967281117554404883L;
+
+		public RetryableFanOutSubscriberException(Throwable cause) {
+			super(cause);
+		}
+	}
+
+	/**
+	 * An exception wrapper to indicate a recoverable error has been thrown from the networking stack.
+	 * Recoverable errors are not counted in the retry policy.
+	 */
+	static class RecoverableFanOutSubscriberException extends FanOutSubscriberException {
+
+		private static final long serialVersionUID = -3223347557038294482L;
+
+		public RecoverableFanOutSubscriberException(Throwable cause) {
 			super(cause);
 		}
 	}

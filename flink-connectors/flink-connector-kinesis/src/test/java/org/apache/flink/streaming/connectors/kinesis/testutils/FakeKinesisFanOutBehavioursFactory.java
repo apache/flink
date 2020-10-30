@@ -86,8 +86,8 @@ public class FakeKinesisFanOutBehavioursFactory {
 		return new ExceptionalKinesisV2(ResourceNotFoundException.builder().build());
 	}
 
-	public static SubscriptionErrorKinesisV2 errorDuringSubscription(final Throwable throwable) {
-		return new SubscriptionErrorKinesisV2(throwable);
+	public static SubscriptionErrorKinesisV2 errorDuringSubscription(final Throwable...throwables) {
+		return new SubscriptionErrorKinesisV2(throwables);
 	}
 
 	public static SubscriptionErrorKinesisV2 alternatingSuccessErrorDuringSubscription() {
@@ -179,19 +179,21 @@ public class FakeKinesisFanOutBehavioursFactory {
 
 		public static final int NUMBER_OF_EVENTS_PER_SUBSCRIPTION = 5;
 
-		private final Throwable throwable;
+		private final Throwable[] throwables;
 
 		AtomicInteger sequenceNumber = new AtomicInteger();
 
-		private SubscriptionErrorKinesisV2(final Throwable throwable) {
+		private SubscriptionErrorKinesisV2(final Throwable...throwables) {
 			super(NUMBER_OF_SUBSCRIPTIONS);
-			this.throwable = throwable;
+			this.throwables = throwables;
 		}
 
 		@Override
 		void sendEvents(Subscriber<? super SubscribeToShardEventStream> subscriber) {
 			sendEventBatch(subscriber);
-			subscriber.onError(throwable);
+			for (Throwable throwable : throwables) {
+				subscriber.onError(throwable);
+			}
 		}
 
 		void sendEventBatch(Subscriber<? super SubscribeToShardEventStream> subscriber) {

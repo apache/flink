@@ -43,7 +43,11 @@ under the License.
 		<suppress
 			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
 			checks="IllegalImport"/>
-		<!-- Classes copied from Hadoop -->
+		<!-- Kinesis EFO consumer required to handle Netty ReadTimeoutException -->
+		<suppress 
+			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
+			checks="IllegalImport"/>
+	 	<!-- Classes copied from Hadoop -->
 		<suppress
 			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
 			checks=".*"/>

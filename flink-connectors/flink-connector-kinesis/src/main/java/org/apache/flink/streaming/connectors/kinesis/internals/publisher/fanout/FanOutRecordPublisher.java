@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutShardSubscriber.FanOutSubscriberException;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutShardSubscriber.RecoverableFanOutSubscriberException;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -139,6 +140,11 @@ public class FanOutRecordPublisher implements RecordPublisher {
 			complete = fanOutShardSubscriber.subscribeToShardAndConsumeRecords(
 				toSdkV2StartingPosition(nextStartingPosition), eventConsumer);
 			attempt = 0;
+		} catch (RecoverableFanOutSubscriberException ex) {
+			// Recoverable errors should be reattempted without contributing to the retry policy
+			// A recoverable error would not result in the Flink job being cancelled
+			backoff(ex);
+			return INCOMPLETE;
 		} catch (FanOutSubscriberException ex) {
 			// We have received an error from the network layer
 			// This can be due to limits being exceeded, network timeouts, etc
@@ -151,8 +157,10 @@ public class FanOutRecordPublisher implements RecordPublisher {
 			}
 
 			if (attempt == configuration.getSubscribeToShardMaxRetries()) {
-				throw new RuntimeException("Maximum reties exceeded for SubscribeToShard. " +
-					"Failed " + configuration.getSubscribeToShardMaxRetries() + " times.");
+				final String errorMessage = "Maximum reties exceeded for SubscribeToShard. " +
+					"Failed " + configuration.getSubscribeToShardMaxRetries() + " times.";
+				LOG.error(errorMessage, ex.getCause());
+				throw new RuntimeException(errorMessage, ex.getCause());
 			}
 
 			attempt++;
