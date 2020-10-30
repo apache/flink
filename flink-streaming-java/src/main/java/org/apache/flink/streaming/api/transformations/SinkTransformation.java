@@ -35,7 +35,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This Transformation represents a {@link org.apache.flink.api.connector.sink.Sink}.
+ * A {@link Transformation} for {@link Sink}.
  *
  * @param <InputT> The input type of the {@link org.apache.flink.api.connector.sink.Writer}
  * @param <CommT> The committable type of the {@link org.apache.flink.api.connector.sink.Writer}
