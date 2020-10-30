@@ -46,10 +46,10 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
 	private InternalTypeInfo<RowData> rowType = InternalTypeInfo.ofFields(
 			new BigIntType(),
 			new VarCharType(VarCharType.MAX_LENGTH));
-	private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
 			new int[]{keyIdx},
 			rowType.toRowFieldTypes());
+	private TypeInformation<RowData> keyType = keySelector.getProducedType();
 	private InternalTypeInfo<RowData> outputRowType = InternalTypeInfo.ofFields(
 			new BigIntType(),
 			new VarCharType(VarCharType.MAX_LENGTH),

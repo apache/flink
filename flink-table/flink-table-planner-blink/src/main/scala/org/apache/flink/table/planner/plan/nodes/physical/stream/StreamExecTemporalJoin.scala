@@ -33,16 +33,14 @@ import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{TEMPORAL_JOIN
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector
-import org.apache.flink.table.runtime.operators.join.temporal.{LegacyTemporalRowTimeJoinOperator, TemporalProcessTimeJoinOperator}
+import org.apache.flink.table.runtime.operators.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.util.Preconditions.checkState
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -250,18 +248,15 @@ class StreamExecTemporalJoinToCoProcessTranslator private(
     val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime
     if (rightRowTimeAttributeInputReference.isDefined) {
-      if (isTemporalFunctionJoin) {
-        new LegacyTemporalRowTimeJoinOperator(
-          InternalTypeInfo.of(leftInputType),
-          InternalTypeInfo.of(rightInputType),
-          generatedJoinCondition,
-          leftTimeAttributeInputReference,
-          rightRowTimeAttributeInputReference.get,
-          minRetentionTime,
-          maxRetentionTime)
-      } else {
-        throw new TableException("Event-time temporal join operator is not implemented yet.")
-      }
+      new TemporalRowTimeJoinOperator(
+        InternalTypeInfo.of(leftInputType),
+        InternalTypeInfo.of(rightInputType),
+        generatedJoinCondition,
+        leftTimeAttributeInputReference,
+        rightRowTimeAttributeInputReference.get,
+        minRetentionTime,
+        maxRetentionTime,
+        isLeftOuterJoin)
     } else {
       if (isTemporalFunctionJoin) {
         new TemporalProcessTimeJoinOperator(
