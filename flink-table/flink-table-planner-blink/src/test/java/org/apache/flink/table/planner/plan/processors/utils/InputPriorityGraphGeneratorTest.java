@@ -99,7 +99,7 @@ public class InputPriorityGraphGeneratorTest {
 		}
 
 		@Override
-		protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int conflictInput) {
+		protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput) {
 			// do nothing
 		}
 	}
