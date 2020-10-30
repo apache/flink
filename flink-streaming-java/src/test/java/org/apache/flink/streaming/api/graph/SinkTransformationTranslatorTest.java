@@ -44,6 +44,7 @@ import java.util.Collection;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -55,8 +56,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 	@Parameterized.Parameters(name = "Execution Mode: {0}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class},
-				{RuntimeExecutionMode.BATCH, BatchCommitterOperatorFactory.class, BatchGlobalCommitterOperatorFactory.class}});
+				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class, PARALLELISM},
+				{RuntimeExecutionMode.BATCH, BatchCommitterOperatorFactory.class, BatchGlobalCommitterOperatorFactory.class, 1}});
 	}
 
 	@Parameterized.Parameter()
@@ -67,6 +68,9 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
 	@Parameterized.Parameter(2)
 	public Class<?> globalCommitterClass;
+
+	@Parameterized.Parameter(3)
+	public int committerParallelism;
 
 	static final String NAME = "FileSink";
 	static final String SLOT_SHARE_GROUP = "FileGroup";
@@ -89,7 +93,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				writerNode,
 				"Writer",
 				StatelessWriterOperatorFactory.class,
-				ChainingStrategy.NEVER,
 				PARALLELISM,
 				-1);
 	}
@@ -113,8 +116,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				committerNode,
 				"Committer",
 				committerClass,
-				ChainingStrategy.ALWAYS,
-				PARALLELISM,
+				committerParallelism,
 				-1);
 	}
 
@@ -138,7 +140,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,
-				ChainingStrategy.ALWAYS,
 				1,
 				1);
 	}
@@ -162,7 +163,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,
-				ChainingStrategy.ALWAYS,
 				1,
 				1);
 	}
@@ -180,13 +180,39 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		env.getStreamGraph();
 	}
 
+	@Test
+	public void disableOperatorChain() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		final DataStreamSource<Integer> src = env.fromElements(1, 2);
+		final DataStreamSink<Integer> dataStreamSink = src.addSink(TestSink
+				.newBuilder()
+				.setDefaultCommitter()
+				.setDefaultGlobalCommitter()
+				.build());
+		dataStreamSink.disableChaining();
+
+		final StreamGraph streamGraph = env.getStreamGraph();
+		final StreamNode writer = findNodeNameContains(streamGraph, "Writer");
+		final StreamNode committer = findNodeNameContains(streamGraph, "Committer");
+		final StreamNode globalCommitter = findNodeNameContains(streamGraph, "Global Committer");
+
+		assertThat(writer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.NEVER));
+		assertThat(
+				committer.getOperatorFactory().getChainingStrategy(),
+				is(ChainingStrategy.ALWAYS));
+		assertThat(
+				globalCommitter.getOperatorFactory().getChainingStrategy(),
+				is(ChainingStrategy.ALWAYS));
+
+	}
+
 	private void validateTopology(
 			StreamNode src,
 			Class<?> srcOutTypeInfo,
 			StreamNode dest,
 			String midName,
 			Class<?> expectedOperatorFactory,
-			ChainingStrategy expectedChainingStrategy,
 			int expectedParallelism,
 			int expectedMaxParallelism) {
 
@@ -212,7 +238,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
 		assertThat(
 				dest.getOperatorFactory().getChainingStrategy(),
-				equalTo(expectedChainingStrategy));
+				is(ChainingStrategy.ALWAYS));
 		assertThat(dest.getSlotSharingGroup(), equalTo(SLOT_SHARE_GROUP));
 
 		//verify dest node output
@@ -237,7 +263,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		dataStreamSink.name(NAME);
 		dataStreamSink.uid(UID);
 		dataStreamSink.setParallelism(SinkTransformationTranslatorTest.PARALLELISM);
-		dataStreamSink.disableChaining();
 		dataStreamSink.slotSharingGroup(SLOT_SHARE_GROUP);
 	}
 
