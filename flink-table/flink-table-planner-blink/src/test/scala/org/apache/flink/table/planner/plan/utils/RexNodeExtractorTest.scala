@@ -793,19 +793,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     }
   }
 
-  private def assertPlannerExpressionArrayEquals(
-      expected: Array[Expression],
-      actual: Array[Expression]): Unit = {
-    // TODO we assume only planner expression as a temporary solution to keep the old interfaces
-    val sortedExpected = expected.map(expressionBridge.bridge).sortBy(e => e.toString)
-    val sortedActual = actual.map(expressionBridge.bridge).sortBy(e => e.toString)
-
-    assertEquals(sortedExpected.length, sortedActual.length)
-    sortedExpected.zip(sortedActual).foreach {
-      case (l, r) => assertEquals(l.toString, r.toString)
-    }
-  }
-
   private def extractConjunctiveConditions(
       expr: RexNode,
       maxCnfNodeCount: Int,
