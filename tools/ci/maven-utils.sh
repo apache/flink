@@ -26,7 +26,7 @@ function run_mvn {
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
 		echo "Invoking mvn with '$INVOCATION'"
 	fi
-	${INVOCATION}
+	eval $INVOCATION
 }
 export -f run_mvn
 
