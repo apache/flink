@@ -82,6 +82,7 @@ class PandasConversionTestBase(object):
         data_dict["f15"] = [row.as_dict() for row in data_dict["f15"]]
         import pandas as pd
         return pd.DataFrame(data=data_dict,
+                            index=[2., 3.],
                             columns=['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9',
                                      'f10', 'f11', 'f12', 'f13', 'f14', 'f15'])
 
@@ -135,6 +136,7 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
+        result_pdf.index = self.pdf.index
         self.assertEqual(2, len(result_pdf))
         assert_frame_equal(self.pdf, result_pdf)
 
