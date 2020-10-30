@@ -132,6 +132,12 @@ class PandasConversionITTests(PandasConversionTestBase):
                             "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
                             "1970-01-01 00:00:00.123,[1, 2]"])
 
+    def test_from_pandas_with_float_index(self):
+        import pandas as pd
+        table = self.t_env.from_pandas(pd.DataFrame({'a': [1, 2, 3]}, index=[2., 3., 4.]))
+        result_pdf = table.to_pandas()
+        assert_frame_equal(result_pdf, pd.DataFrame(data={'a': [1, 2, 3]}))
+
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
