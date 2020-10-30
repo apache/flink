@@ -43,7 +43,7 @@ __all__ = [
 ]
 
 
-class Descriptor(object):
+class Descriptor(object, metaclass=ABCMeta):
     """
     Base class of the descriptors that adds a set of string-based, normalized properties for
     describing DDL information.
@@ -56,8 +56,6 @@ class Descriptor(object):
     A descriptor is similar to a builder in a builder pattern, thus, mutable for building
     properties.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_descriptor):
         self._j_descriptor = j_descriptor
@@ -298,12 +296,10 @@ class Schema(Descriptor):
         return self
 
 
-class FormatDescriptor(Descriptor):
+class FormatDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Describes the format of data.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_format_descriptor):
         self._j_format_descriptor = j_format_descriptor
@@ -821,12 +817,10 @@ class CustomFormatDescriptor(FormatDescriptor):
         return self
 
 
-class ConnectorDescriptor(Descriptor):
+class ConnectorDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Describes a connector to an other system.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_connector_descriptor):
         self._j_connector_descriptor = j_connector_descriptor
@@ -1734,12 +1728,10 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         return self
 
 
-class ConnectTableDescriptor(Descriptor):
+class ConnectTableDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Common class for table's created with :class:`pyflink.table.TableEnvironment.connect`.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_connect_table_descriptor):
         self._j_connect_table_descriptor = j_connect_table_descriptor
