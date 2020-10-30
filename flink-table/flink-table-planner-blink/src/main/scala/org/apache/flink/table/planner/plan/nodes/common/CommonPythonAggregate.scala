@@ -176,10 +176,36 @@ trait CommonPythonAggregate extends CommonPythonBase {
   private def getBuiltInPythonAggregateFunction(
       javaBuiltInAggregateFunction: UserDefinedFunction): BuiltInPythonAggregateFunction = {
     javaBuiltInAggregateFunction match {
+      case _: AvgAggFunction =>
+        BuiltInPythonAggregateFunction.AVG
       case _: Count1AggFunction =>
         BuiltInPythonAggregateFunction.COUNT1
+      case _: CountAggFunction =>
+        BuiltInPythonAggregateFunction.COUNT
+      case _: FirstValueAggFunction[_] =>
+        BuiltInPythonAggregateFunction.FIRST_VALUE
       case _: FirstValueWithRetractAggFunction[_] =>
         BuiltInPythonAggregateFunction.FIRST_VALUE_RETRACT
+      case _: LastValueAggFunction[_] =>
+        BuiltInPythonAggregateFunction.LAST_VALUE
+      case _: LastValueWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.LAST_VALUE_RETRACT
+      case _: ListAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG
+      case _: ListAggWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG_RETRACT
+      case _: ListAggWsWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG_WS_RETRACT
+      case _: MaxAggFunction =>
+        BuiltInPythonAggregateFunction.MAX
+      case _: MaxWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.MAX_RETRACT
+      case _: MinAggFunction =>
+        BuiltInPythonAggregateFunction.MIN
+      case _: MinWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.MIN_RETRACT
+      case _: SumAggFunction =>
+        BuiltInPythonAggregateFunction.SUM
       case _: IntSum0AggFunction | _: ByteSum0AggFunction | _: ShortSum0AggFunction |
            _: LongSum0AggFunction =>
         BuiltInPythonAggregateFunction.INT_SUM0
@@ -187,6 +213,8 @@ trait CommonPythonAggregate extends CommonPythonBase {
         BuiltInPythonAggregateFunction.FLOAT_SUM0
       case _: DecimalSum0AggFunction =>
         BuiltInPythonAggregateFunction.DECIMAL_SUM0
+      case _: SumWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.SUM_RETRACT
       case _ =>
         throw new TableException("Aggregate function " + javaBuiltInAggregateFunction +
           " is still not supported to be mixed with Python UDAF.")
