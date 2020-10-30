@@ -39,6 +39,9 @@ import org.apache.flink.streaming.runtime.operators.sink.StatelessWriterOperator
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.util.graph.StreamGraphUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
@@ -53,6 +56,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCommT> implements
 		TransformationTranslator<Object, SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>> {
+
+	protected static final Logger LOG = LoggerFactory.getLogger(SinkTransformationTranslator.class);
 
 	@Override
 	public Collection<Integer> translateForBatch(
@@ -288,6 +293,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 					Sink.class,
 					sink.getClass(),
 					1);
+			LOG.debug("Extract committable [{}] from sink [{}].", committableType.toString(), sink.getClass().getCanonicalName());
 			return new CommittableTypeInformation<>(
 					typeToClass(committableType),
 					() -> sink.getCommittableSerializer().get());
