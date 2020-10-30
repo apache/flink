@@ -18,58 +18,25 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.io.SimpleVersionedSerialization;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
-
-import org.junit.Test;
 
 import java.io.IOException;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Test for {@link CommittableTypeInformation}.
  */
-public class CommittableTypeInformationTest {
+public class CommittableTypeInformationTest
+		extends TypeInformationTestBase<CommittableTypeInformation<CommittableTypeInformationTest.Dummy>> {
 
-	@Test
-	public void equals() {
-		final CommittableTypeInformation<String> stringCommittableTypeInfo =
-				new CommittableTypeInformation<>(
-						String.class,
-						() -> SimpleVersionedStringSerializer.INSTANCE);
-		final CommittableTypeInformation<Dummy> dummyCommittableTypeInfo =
-				new CommittableTypeInformation<>(Dummy.class, SimpleVersionedDummySerializer::new);
-		assertThat(stringCommittableTypeInfo, equalTo(stringCommittableTypeInfo));
-		assertThat(stringCommittableTypeInfo, not(equalTo(dummyCommittableTypeInfo)));
+	@SuppressWarnings("unchecked")
+	@Override
+	protected CommittableTypeInformation<Dummy>[] getTestData() {
+		return new CommittableTypeInformation[]{
+				new CommittableTypeInformation<>(Dummy.class, SimpleVersionedDummySerializer::new)};
 	}
 
-	@Test
-	public void createSerializer() throws IOException {
-		final CommittableTypeInformation<String> stringCommittableTypeInfo =
-				new CommittableTypeInformation<>(
-						String.class,
-						() -> SimpleVersionedStringSerializer.INSTANCE);
-		final TypeSerializer<String> stringTypeSerializer = stringCommittableTypeInfo.createSerializer(
-				new ExecutionConfig());
-		final String expectedString = "whom + band";
-		final byte[] serialized = SimpleVersionedSerialization.writeVersionAndSerialize(
-				SimpleVersionedStringSerializer.INSTANCE,
-				expectedString);
-		assertThat(
-				stringTypeSerializer.deserialize(new DataInputDeserializer(serialized)),
-				equalTo(expectedString));
-	}
-
-	static class Dummy {
-
-	}
+	static class Dummy {}
 
 	static class SimpleVersionedDummySerializer implements SimpleVersionedSerializer<Dummy> {
 
@@ -86,6 +53,16 @@ public class CommittableTypeInformationTest {
 		@Override
 		public Dummy deserialize(int version, byte[] serialized) throws IOException {
 			return new Dummy();
+		}
+
+		@Override
+		public int hashCode() {
+			return 1;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof SimpleVersionedDummySerializer;
 		}
 	}
 }

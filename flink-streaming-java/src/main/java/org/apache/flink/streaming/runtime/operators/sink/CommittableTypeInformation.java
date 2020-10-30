@@ -101,7 +101,7 @@ public final class CommittableTypeInformation<CommT> extends TypeInformation<Com
 			}
 			CommittableTypeInformation<?> that = (CommittableTypeInformation<?>) o;
 			return typeClazz.equals(that.typeClazz) &&
-					serializerSerializableSupplier.equals(that.serializerSerializableSupplier);
+					serializerSerializableSupplier.get().equals(that.serializerSerializableSupplier.get());
 		} else {
 			return false;
 		}
@@ -109,7 +109,7 @@ public final class CommittableTypeInformation<CommT> extends TypeInformation<Com
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(typeClazz, serializerSerializableSupplier);
+		return Objects.hash(typeClazz, serializerSerializableSupplier.get());
 	}
 
 	@Override
