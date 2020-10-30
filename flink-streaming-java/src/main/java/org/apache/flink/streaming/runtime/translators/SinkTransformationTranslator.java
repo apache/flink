@@ -37,7 +37,7 @@ import org.apache.flink.streaming.runtime.operators.sink.StatefulWriterOperatorF
 import org.apache.flink.streaming.runtime.operators.sink.StatelessWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.util.graph.StreamGraphUtils;
-import org.apache.flink.streaming.util.typeutils.CommittableTypeInformation;
+import org.apache.flink.streaming.runtime.operators.sink.CommittableTypeInformation;
 
 import java.lang.reflect.Type;
 import java.util.Collection;
@@ -70,11 +70,13 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				writerId,
 				transformation,
 				new BatchCommitterOperatorFactory<>(transformation.getSink()),
-				parallelism, context);
+				1,
+				context);
 		addGlobalCommitter(
 				committerId >= 0 ? committerId : writerId,
 				transformation,
-				new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()), context);
+				new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()),
+				context);
 		return Collections.emptyList();
 	}
 
@@ -99,7 +101,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		addGlobalCommitter(
 				committerId >= 0 ? committerId : writerId,
 				transformation,
-				new GlobalStreamingCommitterOperatorFactory<>(transformation.getSink()), context);
+				new GlobalStreamingCommitterOperatorFactory<>(transformation.getSink()),
+				context);
 
 		return Collections.emptyList();
 	}

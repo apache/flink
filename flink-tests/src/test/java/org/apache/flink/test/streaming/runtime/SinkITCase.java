@@ -46,7 +46,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
-public class StreamSinkITCase extends AbstractTestBase {
+public class SinkITCase extends AbstractTestBase {
 
 	static final List<Integer> SOURCE_DATA = Arrays.asList(
 			895, 127, 148, 161, 148, 662, 822, 491, 275, 122,
@@ -207,6 +207,8 @@ public class StreamSinkITCase extends AbstractTestBase {
 
 	private StreamExecutionEnvironment buildStreamEnv() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final Configuration config = new Configuration();
+		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
 		env.enableCheckpointing(100);
 		return env;
 	}
