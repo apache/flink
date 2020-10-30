@@ -121,8 +121,6 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   def testExplainMultipleInput(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, true)
     val sql =
       """
         |select * from

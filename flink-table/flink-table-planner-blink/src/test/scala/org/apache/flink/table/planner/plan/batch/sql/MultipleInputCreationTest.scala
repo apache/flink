@@ -46,8 +46,6 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
     util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
     util.tableConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, shuffleMode)
-    util.tableConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, true)
   }
 
   @Test
