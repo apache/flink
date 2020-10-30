@@ -1524,7 +1524,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
             result_type,
             pytz.timezone(self.get_config().get_local_timezone()))
         step = -(-len(pdf) // splits_num)
-        pdf_slices = [pdf[start:start + step] for start in range(0, len(pdf), step)]
+        pdf_slices = [pdf.iloc[start:start + step] for start in range(0, len(pdf), step)]
         data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
