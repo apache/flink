@@ -81,7 +81,7 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> extend
 
 	@Override
 	public void setUidHash(String uidHash) {
-		throw new UnsupportedOperationException("Do not support set UidHash for SinkTransformation.");
+		throw new UnsupportedOperationException("Setting a UidHash is not supported for SinkTransformation.");
 	}
 
 	@Override
