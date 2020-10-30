@@ -939,9 +939,32 @@ public class FunctionITCase extends StreamingTestBase {
 		CollectionUtil.iteratorToList(tEnv().executeSql("SELECT MyYear(ts) FROM SourceTable").collect());
 	}
 
+	@Test
+	public void testIsNullType() {
+		List<Row> sourceData = Arrays.asList(
+				Row.of(1),
+				Row.of((Object) null));
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql(
+				"CREATE TABLE SourceTable(i INT) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE FUNCTION BoolToInt AS '" + BoolToInt.class.getName() + "'");
+		CollectionUtil.iteratorToList(tEnv().executeSql("SELECT BoolToInt(i is null), BoolToInt(i is not null) FROM SourceTable").collect());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Test functions
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * A function to convert boolean to int.
+	 */
+	public static class BoolToInt extends ScalarFunction {
+		public int eval(boolean b) {
+			return b ? 1 : 0;
+		}
+	}
 
 	/**
 	 * A YEAR function that takes a NOT NULL parameter.
