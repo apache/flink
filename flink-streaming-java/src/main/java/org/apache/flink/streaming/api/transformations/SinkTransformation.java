@@ -101,7 +101,7 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> extend
 	@Override
 	public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
 		throw new UnsupportedOperationException(
-				"Do not support declare slot scope's managed memory for SinkTransformation.");
+				"Declaring managed memory use cases is not supported for SinkTransformation.");
 	}
 
 	public ChainingStrategy getChainingStrategy() {
