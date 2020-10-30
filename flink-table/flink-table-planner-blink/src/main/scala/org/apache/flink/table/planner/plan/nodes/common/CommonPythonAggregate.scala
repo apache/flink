@@ -188,8 +188,8 @@ trait CommonPythonAggregate extends CommonPythonBase {
       case _: DecimalSum0AggFunction =>
         BuiltInPythonAggregateFunction.DECIMAL_SUM0
       case _ =>
-        throw new TableException("Aggregate function %s is still not supported to be mixed with " +
-          "Python UDAF: " + javaBuiltInAggregateFunction)
+        throw new TableException("Aggregate function " + javaBuiltInAggregateFunction +
+          " is still not supported to be mixed with Python UDAF.")
     }
   }
 }
