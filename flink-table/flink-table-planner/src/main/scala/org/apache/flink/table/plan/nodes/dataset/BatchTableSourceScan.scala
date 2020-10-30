@@ -116,7 +116,8 @@ class BatchTableSourceScan(
       case _ => throw new TableException("Only BatchTableSource and InputFormatTableSource are " +
         "supported in BatchTableEnvironment.")
     }
-    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType)
+    // Fix the nullability of row type info.
+    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType).notNull()
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataSet are identical

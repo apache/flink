@@ -42,7 +42,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TestingCheckpointStorageCoordinatorView;
+import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -438,7 +438,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final byte[] savepointMetadata = serializeAsCheckpointMetadata(testOperatorId, coordinatorState);
 		final String savepointPointer = "testingSavepointPointer";
 
-		final TestingCheckpointStorageCoordinatorView storage = new TestingCheckpointStorageCoordinatorView();
+		final TestingCheckpointStorageAccessCoordinatorView storage = new TestingCheckpointStorageAccessCoordinatorView();
 		storage.registerSavepoint(savepointPointer, savepointMetadata);
 
 		final Consumer<JobGraph> savepointConfigurer = (jobGraph) -> {

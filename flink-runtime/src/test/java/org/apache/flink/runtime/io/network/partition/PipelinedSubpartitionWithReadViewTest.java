@@ -338,7 +338,8 @@ public class PipelinedSubpartitionWithReadViewTest {
 			CheckpointType.CHECKPOINT,
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
-			true);
+			true,
+			0);
 		channelStateWriter.start(0, options);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer);
@@ -365,7 +366,8 @@ public class PipelinedSubpartitionWithReadViewTest {
 			CheckpointType.CHECKPOINT,
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
-			true);
+			true,
+			0);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer);
 		assertEquals(1, availablityListener.getNumNotifications());
@@ -477,7 +479,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 	// ------------------------------------------------------------------------
 
 	private void blockSubpartitionByCheckpoint(int numNotifications) throws IOException, InterruptedException {
-		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER));
+		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
 
 		assertEquals(numNotifications, availablityListener.getNumNotifications());
 		assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);

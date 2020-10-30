@@ -31,13 +31,11 @@ import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.filesystem.ColumnarRowIterator;
 import org.apache.flink.table.filesystem.PartitionValueConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -55,20 +53,18 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 	private final RowType producedType;
 
 	/**
-	 * Constructor to create parquet format without other fields.
+	 * Constructor to create parquet format without extra fields.
 	 */
 	public ParquetColumnarRowInputFormat(
 			Configuration hadoopConfig,
-			String[] projectedFields,
-			LogicalType[] projectedTypes,
+			RowType projectedType,
 			int batchSize,
 			boolean isUtcTimestamp,
 			boolean isCaseSensitive) {
 		this(
 				hadoopConfig,
-				projectedFields,
-				projectedTypes,
-				RowType.of(projectedTypes, projectedFields),
+				projectedType,
+				projectedType,
 				ColumnBatchFactory.DEFAULT,
 				batchSize,
 				isUtcTimestamp,
@@ -76,12 +72,15 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 	}
 
 	/**
-	 * Constructor to create parquet format with other fields created by {@link ColumnBatchFactory}.
+	 * Constructor to create parquet format with extra fields created by {@link ColumnBatchFactory}.
+	 *
+	 * @param projectedType the projected row type for parquet format, excludes extra fields.
+	 * @param producedType the produced row type for this input format, includes extra fields.
+	 * @param batchFactory factory for creating column batch, can cram in extra fields.
 	 */
 	public ParquetColumnarRowInputFormat(
 			Configuration hadoopConfig,
-			String[] projectedFields,
-			LogicalType[] projectedTypes,
+			RowType projectedType,
 			RowType producedType,
 			ColumnBatchFactory batchFactory,
 			int batchSize,
@@ -89,8 +88,7 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 			boolean isCaseSensitive) {
 		super(
 				new SerializableConfiguration(hadoopConfig),
-				projectedFields,
-				projectedTypes,
+				projectedType,
 				batchFactory,
 				batchSize,
 				isUtcTimestamp,
@@ -136,25 +134,24 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 	 */
 	public static ParquetColumnarRowInputFormat createPartitionedFormat(
 			Configuration hadoopConfig,
-			RowType tableType,
+			RowType producedRowType,
 			List<String> partitionKeys,
 			String defaultPartValue,
-			int[] selectedFields,
 			PartitionValueConverter valueConverter,
 			int batchSize,
 			boolean isUtcTimestamp,
 			boolean isCaseSensitive) {
-		List<String> selParquetNames = Arrays.stream(selectedFields)
-				.mapToObj(i -> tableType.getFieldNames().get(i))
-				.filter(n -> !partitionKeys.contains(n))
-				.collect(Collectors.toList());
+		RowType projectedRowType = new RowType(producedRowType.getFields().stream()
+				.filter(field -> !partitionKeys.contains(field.getName()))
+				.collect(Collectors.toList()));
+		List<String> projectedNames = projectedRowType.getFieldNames();
 
 		ColumnBatchFactory factory = (Path filePath, ColumnVector[] parquetVectors) -> {
 			LinkedHashMap<String, String> partitionSpec = PartitionPathUtils.extractPartitionSpecFromPath(filePath);
 			// create and initialize the row batch
-			ColumnVector[] vectors = new ColumnVector[selectedFields.length];
+			ColumnVector[] vectors = new ColumnVector[producedRowType.getFieldCount()];
 			for (int i = 0; i < vectors.length; i++) {
-				RowType.RowField field = tableType.getFields().get(selectedFields[i]);
+				RowType.RowField field = producedRowType.getFields().get(i);
 
 				if (partitionKeys.contains(field.getName())) {
 					if (!partitionSpec.containsKey(field.getName())) {
@@ -167,7 +164,7 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 					Object value = valueConverter.convert(valueStr, field.getType());
 					vectors[i] = createVectorFromConstant(field.getType(), value, batchSize);
 				} else {
-					vectors[i] = parquetVectors[selParquetNames.indexOf(field.getName())];
+					vectors[i] = parquetVectors[projectedNames.indexOf(field.getName())];
 				}
 			}
 			return new VectorizedColumnBatch(vectors);
@@ -175,12 +172,8 @@ public class ParquetColumnarRowInputFormat extends ParquetVectorizedInputFormat<
 
 		return new ParquetColumnarRowInputFormat(
 				hadoopConfig,
-				selParquetNames.toArray(new String[0]),
-				selParquetNames.stream()
-						.map(name -> tableType.getTypeAt(tableType.getFieldIndex(name)))
-						.toArray(LogicalType[]::new),
-				new RowType(Arrays.stream(selectedFields).mapToObj(i ->
-						tableType.getFields().get(i)).collect(Collectors.toList())),
+				projectedRowType,
+				producedRowType,
 				factory,
 				batchSize,
 				isUtcTimestamp,

@@ -211,6 +211,15 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 		}
 
 		@Override
+		public <TS extends State> TS triggerState(StateDescriptor<TS, ?> descriptor) {
+			try {
+				return getKeyedStateBackend().getPartitionedState(window, namespaceSerializer, descriptor);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve trigger state", e);
+			}
+		}
+
+		@Override
 		public KeyedStateStore windowState() {
 			perWindowKeyedStateStore.window = window;
 			return perWindowKeyedStateStore;

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
@@ -90,6 +91,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			44L,
 			10,
 			10,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap(),
 			null,
 			false);
@@ -107,6 +109,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			4244L,
 			9,
 			9,
+			CheckpointType.SAVEPOINT,
 			checkpointStatisticsPerTask,
 			"externalPath",
 			false);
@@ -124,6 +127,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			22L,
 			11,
 			9,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap(),
 			100L,
 			"Test failure");
@@ -147,6 +151,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			16L,
 			10,
 			10,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap()
 		);
 

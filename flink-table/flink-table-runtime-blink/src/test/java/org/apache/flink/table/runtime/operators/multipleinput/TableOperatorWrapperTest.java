@@ -18,24 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput;
 
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.util.MockOutput;
-import org.apache.flink.streaming.util.MockStreamConfig;
-import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper.Edge;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -47,7 +35,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link TableOperatorWrapper}.
  */
-public class TableOperatorWrapperTest {
+public class TableOperatorWrapperTest extends MultipleInputTestBase {
 
 	@Test
 	public void testBasicInfo() {
@@ -170,38 +158,6 @@ public class TableOperatorWrapperTest {
 		wrapper.close();
 		assertTrue(wrapper.isClosed());
 		assertTrue(operator.isClosed());
-	}
-
-	private StreamOperatorParameters<RowData> createStreamOperatorParameters() throws Exception {
-		Environment env = new MockEnvironmentBuilder().build();
-		StreamTask task = new MockStreamTaskBuilder(env).build();
-		return new StreamOperatorParameters<>(
-				task,
-				new MockStreamConfig(new Configuration(), 1),
-				new MockOutput<>(new ArrayList<>()),
-				TestProcessingTimeService::new,
-				null
-		);
-	}
-
-	private TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(
-			TestingOneInputStreamOperator operator, String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(operator),
-				name,
-				Collections.singletonList(new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING)
-		);
-	}
-
-	private TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(
-			TestingTwoInputStreamOperator operator, String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(operator),
-				name,
-				Arrays.asList(new RowTypeInfo(Types.STRING), new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING, Types.STRING)
-		);
 	}
 
 }

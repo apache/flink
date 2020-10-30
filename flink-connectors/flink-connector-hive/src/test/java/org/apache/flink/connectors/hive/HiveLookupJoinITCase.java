@@ -26,7 +26,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
@@ -78,8 +78,15 @@ public class HiveLookupJoinITCase {
 		// verify we properly configured the cache TTL
 		ObjectIdentifier tableIdentifier = ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
 		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
-		HiveTableSource hiveTableSource = (HiveTableSource) ((HiveTableFactory) hiveCatalog.getTableFactory().get()).createTableSource(
-				new TableSourceFactoryContextImpl(tableIdentifier, catalogTable, tableEnv.getConfig().getConfiguration(), false));
+
+		HiveTableSource hiveTableSource = (HiveTableSource) FactoryUtil.createTableSource(
+				hiveCatalog,
+				tableIdentifier,
+				catalogTable,
+				tableEnv.getConfig().getConfiguration(),
+				Thread.currentThread().getContextClassLoader(),
+				false);
+
 		FileSystemLookupFunction lookupFunction = (FileSystemLookupFunction) hiveTableSource.getLookupFunction(new String[]{"x"});
 		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 

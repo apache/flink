@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,7 +46,9 @@ public class CliFrontendTestUtils {
 	private static final PrintStream previousSysout = System.out;
 
 	public static String getTestJarPath() throws FileNotFoundException, MalformedURLException {
-		File f = new File("target/maven-test-jar.jar");
+		String projectBaseDir = System.getProperty("project.basedir");
+		Path testJarPath = Paths.get(projectBaseDir, "target", "maven-test-jar.jar");
+		File f = testJarPath.toFile();
 		if (!f.exists()) {
 			throw new FileNotFoundException("Test jar not present. Invoke tests using maven "
 					+ "or build the jar using 'mvn process-test-classes' in flink-clients");

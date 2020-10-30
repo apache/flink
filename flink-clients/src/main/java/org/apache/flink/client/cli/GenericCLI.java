@@ -29,10 +29,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -45,8 +42,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class GenericCLI implements CustomCommandLine {
-
-	private static final Logger LOG = LoggerFactory.getLogger(GenericCLI.class);
 
 	private static final String ID = "Generic CLI";
 
@@ -62,31 +57,18 @@ public class GenericCLI implements CustomCommandLine {
 					"currently available targets are: " + getExecutorFactoryNames() +
 					", \"yarn-application\" and \"kubernetes-application\".");
 
-	/**
-	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
-	 */
-	private final Option dynamicProperties = Option.builder("D")
-			.argName("property=value")
-			.numberOfArgs(2)
-			.valueSeparator('=')
-			.desc("Generic configuration options for execution/deployment and for the configured " +
-					"executor. The available options can be found at " +
-					"https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
-			.build();
-
-	private final Configuration baseConfiguration;
+	private final Configuration configuration;
 
 	private final String configurationDir;
 
 	public GenericCLI(final Configuration configuration, final String configDir) {
-		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
+		this.configuration = new UnmodifiableConfiguration(checkNotNull(configuration));
 		this.configurationDir =  checkNotNull(configDir);
 	}
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
-		return baseConfiguration.getOptional(DeploymentOptions.TARGET).isPresent()
+		return configuration.getOptional(DeploymentOptions.TARGET).isPresent()
 				|| commandLine.hasOption(executorOption.getOpt())
 				|| commandLine.hasOption(targetOption.getOpt());
 	}
@@ -105,44 +87,27 @@ public class GenericCLI implements CustomCommandLine {
 	public void addGeneralOptions(Options baseOptions) {
 		baseOptions.addOption(executorOption);
 		baseOptions.addOption(targetOption);
-		baseOptions.addOption(dynamicProperties);
+		baseOptions.addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES);
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(final CommandLine commandLine) {
-		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+	public Configuration toConfiguration(final CommandLine commandLine) {
+		final Configuration resultConfiguration = new Configuration();
 
 		final String executorName = commandLine.getOptionValue(executorOption.getOpt());
 		if (executorName != null) {
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, executorName);
+			resultConfiguration.setString(DeploymentOptions.TARGET, executorName);
 		}
 
 		final String targetName = commandLine.getOptionValue(targetOption.getOpt());
 		if (targetName != null) {
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, targetName);
+			resultConfiguration.setString(DeploymentOptions.TARGET, targetName);
 		}
 
-		encodeDynamicProperties(commandLine, effectiveConfiguration);
-		effectiveConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
+		DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultConfiguration);
+		resultConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Effective Configuration: {}", effectiveConfiguration);
-		}
-
-		return effectiveConfiguration;
-	}
-
-	private void encodeDynamicProperties(final CommandLine commandLine, final Configuration effectiveConfiguration) {
-		final Properties properties = commandLine.getOptionProperties(dynamicProperties.getOpt());
-		properties.stringPropertyNames()
-				.forEach(key -> {
-					final String value = properties.getProperty(key);
-					if (value != null) {
-						effectiveConfiguration.setString(key, value);
-					} else {
-						effectiveConfiguration.setString(key, "true");
-					}
-				});
+		return resultConfiguration;
 	}
 
 	private static String getExecutorFactoryNames() {

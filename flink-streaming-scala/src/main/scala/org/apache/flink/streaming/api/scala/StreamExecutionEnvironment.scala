@@ -25,6 +25,7 @@ import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFor
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.{Source, SourceSplit}
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
@@ -440,9 +441,34 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
    * If you manually set the parallelism to `1` the emitted elements are in order.
+   *
+   * @deprecated Use [[fromSequence(long, long)]] instead to create a new data stream
+   *             that contains [[NumberSequenceSource]].
    */
+  @deprecated
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.generateSequence(from, to))
+      .asInstanceOf[DataStream[Long]]
+  }
+
+  /**
+   * Creates a new data stream that contains a sequence of numbers (longs) and is useful for
+   * testing and for cases that just need a stream of N events of any kind.
+   *
+   * The generated source splits the sequence into as many parallel sub-sequences as there are
+   * parallel source readers. Each sub-sequence will be produced in order. If the parallelism is
+   * limited to one, the source will produce one sequence in order.
+   *
+   * This source is always bounded. For very long sequences (for example over the entire domain
+   * of long integer values), you may consider executing the application in a streaming manner
+   * because of the end bound that is pretty far away.
+   *
+   * Use [[fromSource(Source,WatermarkStrategy, String)]] together with
+   * [[NumberSequenceSource]] if you required more control over the created sources. For
+   * example, if you want to set a [[WatermarkStrategy]].
+   */
+  def fromSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.fromSequence(from, to))
       .asInstanceOf[DataStream[Long]]
   }
 

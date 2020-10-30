@@ -612,6 +612,7 @@ public class StreamingJobGraphGenerator {
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
 		config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
+		config.setAlignmentTimeout(checkpointCfg.getAlignmentTimeout());
 
 		for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
 			config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
@@ -1149,6 +1150,7 @@ public class StreamingJobGraphGenerator {
 				.setPreferCheckpointForRecovery(cfg.isPreferCheckpointForRecovery())
 				.setTolerableCheckpointFailureNumber(cfg.getTolerableCheckpointFailureNumber())
 				.setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
+				.setAlignmentTimeout(cfg.getAlignmentTimeout())
 				.build(),
 			serializedStateBackend,
 			serializedHooks);

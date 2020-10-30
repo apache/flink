@@ -20,6 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -55,16 +56,17 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
 	private final Collector<OUT> collector;
 
-	private final StreamRecord<IN> reuse;
+	private final Timestamper<IN> timestamper;
 
 	BoundedStreamTask(
 		Environment environment,
 		Iterable<IN> input,
+		Timestamper<IN> timestamper,
 		Collector<OUT> collector) throws Exception {
 		super(environment, new NeverFireProcessingTimeService());
 		this.input = input.iterator();
 		this.collector = collector;
-		this.reuse = new StreamRecord<>(null);
+		this.timestamper = timestamper;
 	}
 
 	@Override
@@ -89,9 +91,15 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	@Override
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		if (input.hasNext()) {
-			reuse.replace(input.next());
-			mainOperator.setKeyContextElement1(reuse);
-			mainOperator.processElement(reuse);
+			StreamRecord<IN> streamRecord = new StreamRecord<>(input.next());
+
+			if (timestamper != null) {
+				long timestamp = timestamper.timestamp(streamRecord.getValue());
+				streamRecord.setTimestamp(timestamp);
+			}
+
+			mainOperator.setKeyContextElement1(streamRecord);
+			mainOperator.processElement(streamRecord);
 		} else {
 			mainOperator.endInput();
 			controller.allActionsCompleted();

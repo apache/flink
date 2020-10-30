@@ -275,21 +275,33 @@ public class CliFrontend {
 
 	private <T> Configuration getEffectiveConfiguration(
 			final CustomCommandLine activeCustomCommandLine,
+			final CommandLine commandLine) throws FlinkException {
+
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+
+		final Configuration commandLineConfiguration =
+				checkNotNull(activeCustomCommandLine).toConfiguration(commandLine);
+
+		effectiveConfiguration.addAll(commandLineConfiguration);
+
+		return effectiveConfiguration;
+	}
+
+	private <T> Configuration getEffectiveConfiguration(
+			final CustomCommandLine activeCustomCommandLine,
 			final CommandLine commandLine,
 			final ProgramOptions programOptions,
 			final List<T> jobJars) throws FlinkException {
+
+		final Configuration effectiveConfiguration = getEffectiveConfiguration(activeCustomCommandLine, commandLine);
 
 		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(
 				checkNotNull(programOptions),
 				checkNotNull(jobJars));
 
-		final Configuration executorConfig = checkNotNull(activeCustomCommandLine)
-				.applyCommandLineOptionsToConfiguration(commandLine);
-
-		final Configuration effectiveConfiguration = new Configuration(executorConfig);
-
 		executionParameters.applyToConfiguration(effectiveConfiguration);
-		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
+		LOG.debug("Effective configuration after Flink conf, custom commandline, and program options: {}", effectiveConfiguration);
 		return effectiveConfiguration;
 	}
 
@@ -892,15 +904,17 @@ public class CliFrontend {
 	 * @throws FlinkException if something goes wrong
 	 */
 	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
-		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+		final Configuration effectiveConfiguration = getEffectiveConfiguration(activeCommandLine, commandLine);
+		LOG.debug("Effective configuration after Flink conf, and custom commandline: {}", effectiveConfiguration);
 
-		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
+		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(effectiveConfiguration);
+
+		final ClusterID clusterId = clusterClientFactory.getClusterId(effectiveConfiguration);
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which you would like to connect.");
 		}
 
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig)) {
+		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(effectiveConfiguration)) {
 			try (final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient()) {
 				clusterAction.runAction(clusterClient);
 			}
@@ -935,7 +949,7 @@ public class CliFrontend {
 	 * @param args command line arguments of the client.
 	 * @return The return code of the program
 	 */
-	public int parseParameters(String[] args) {
+	public int parseAndRun(String[] args) {
 
 		// check for action
 		if (args.length < 1) {
@@ -1030,7 +1044,7 @@ public class CliFrontend {
 
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
-					.runSecured(() -> cli.parseParameters(args));
+					.runSecured(() -> cli.parseAndRun(args));
 			System.exit(retCode);
 		}
 		catch (Throwable t) {
@@ -1111,7 +1125,7 @@ public class CliFrontend {
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
-		customCommandLines.add(new DefaultCLI(configuration));
+		customCommandLines.add(new DefaultCLI());
 
 		return customCommandLines;
 	}

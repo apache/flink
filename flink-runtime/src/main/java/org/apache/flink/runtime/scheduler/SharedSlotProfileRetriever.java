@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Computes a {@link SlotProfile} to allocate a slot for executions, sharing the slot.
@@ -35,9 +34,9 @@ interface SharedSlotProfileRetriever {
 	 *
 	 * @param executionSlotSharingGroup executions sharing the slot.
 	 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
-	 * @return a future of the {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
+	 * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
 	 */
-	CompletableFuture<SlotProfile> getSlotProfileFuture(
+	SlotProfile getSlotProfile(
 		ExecutionSlotSharingGroup executionSlotSharingGroup,
 		ResourceProfile physicalSlotResourceProfile);
 

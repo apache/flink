@@ -341,8 +341,7 @@ public class ExecutionContext<ClusterID> {
 				availableCommandLines,
 				activeCommandLine);
 
-		Configuration executionConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(
-				commandLine);
+		Configuration executionConfig = activeCommandLine.toConfiguration(commandLine);
 
 		try {
 			final ProgramOptions programOptions = ProgramOptions.create(commandLine);

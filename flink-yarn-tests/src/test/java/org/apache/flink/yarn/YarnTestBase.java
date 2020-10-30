@@ -687,6 +687,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
+			map.put("MAX_LOG_FILE_NUMBER", "10");
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
@@ -954,7 +955,7 @@ public abstract class YarnTestBase extends TestLogger {
 							CliFrontend cli = new CliFrontend(
 								configuration,
 								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
-							returnValue = cli.parseParameters(args);
+							returnValue = cli.parseAndRun(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
 								+ Arrays.toString(args), e);

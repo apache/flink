@@ -38,7 +38,11 @@ import java.util.stream.Collectors;
 
 /**
  * File system format factory for creating configured instances of reader and writer.
+ *
+ * @deprecated This interface has been replaced by {@link BulkReaderFormatFactory} and
+ *             {@link BulkWriterFormatFactory}.
  */
+@Deprecated
 @Internal
 public interface FileSystemFormatFactory extends Factory {
 
@@ -130,6 +134,7 @@ public interface FileSystemFormatFactory extends Factory {
 		 */
 		default RowType getFormatRowType() {
 			return RowType.of(
+				false,
 				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
@@ -194,6 +199,7 @@ public interface FileSystemFormatFactory extends Factory {
 		 */
 		default RowType getFormatRowType() {
 			return RowType.of(
+				false,
 				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),

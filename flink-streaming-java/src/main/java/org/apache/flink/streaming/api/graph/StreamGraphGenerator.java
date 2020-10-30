@@ -434,6 +434,12 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformFeedback(FeedbackTransformation<T> iterate) {
 
+		if (shouldExecuteInBatchMode) {
+			throw new UnsupportedOperationException("Iterations are not supported in BATCH" +
+					" execution mode. If you want to execute such a pipeline, please set the " +
+					"'" + ExecutionOptions.RUNTIME_MODE.key() + "'=" + RuntimeExecutionMode.STREAMING.name());
+		}
+
 		if (iterate.getFeedbackEdges().size() <= 0) {
 			throw new IllegalStateException("Iteration " + iterate + " does not have any feedback edges.");
 		}
@@ -516,6 +522,12 @@ public class StreamGraphGenerator {
 	 * are used to feed back the elements.
 	 */
 	private <F> Collection<Integer> transformCoFeedback(CoFeedbackTransformation<F> coIterate) {
+
+		if (shouldExecuteInBatchMode) {
+			throw new UnsupportedOperationException("Iterations are not supported in BATCH" +
+					" execution mode. If you want to execute such a pipeline, please set the " +
+					"'" + ExecutionOptions.RUNTIME_MODE.key() + "'=" + RuntimeExecutionMode.STREAMING.name());
+		}
 
 		// For Co-Iteration we don't need to transform the input and wire the input to the
 		// head operator by returning the input IDs, the input is directly wired to the left

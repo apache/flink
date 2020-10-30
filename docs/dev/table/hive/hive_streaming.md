@@ -100,7 +100,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ## Streaming Reading
 
-To improve the real-time performance of hive reading, Flink support real-time Hive table stream read:
+To improve the real-time performance of hive reading, Flink supports real-time Hive table stream read:
 
 - Partition table, monitor the generation of partition, and read the new partition incrementally.
 - Non-partition table, monitor the generation of new files in the folder, and read new files incrementally.

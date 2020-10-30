@@ -18,44 +18,38 @@
 
 package org.apache.flink.formats.parquet;
 
-import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
-import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
-import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
-import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.PartitionValueConverter;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
-import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePartValueFromType;
 
 /**
- * Parquet {@link FileSystemFormatFactory} for file system.
+ * Parquet format factory for file system.
  */
-public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
+public class ParquetFileSystemFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
 	public static final String IDENTIFIER = "parquet";
 
@@ -67,21 +61,51 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 					" use UTC timezone");
 
 	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
+	public BulkDecodingFormat<RowData> createDecodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		return new BulkDecodingFormat<RowData>() {
+			@Override
+			public BulkFormat<RowData> createRuntimeDecoder(
+					DynamicTableSource.Context sourceContext,
+					DataType producedDataType) {
+				return ParquetColumnarRowInputFormat.createPartitionedFormat(
+						getParquetConfiguration(formatOptions),
+						(RowType) producedDataType.getLogicalType(),
+						context.getCatalogTable().getPartitionKeys(),
+						context.getCatalogTable().getOptions().getOrDefault(
+								FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
+								FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue()),
+						PartitionValueConverter.DEFAULT,
+						VectorizedColumnBatch.DEFAULT_SIZE,
+						formatOptions.get(UTC_TIMEZONE),
+						true);
+			}
+
+			@Override
+			public ChangelogMode getChangelogMode() {
+				return ChangelogMode.insertOnly();
+			}
+		};
 	}
 
 	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		return new HashSet<>();
-	}
+	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+			@Override
+			public BulkWriter.Factory<RowData> createRuntimeEncoder(
+					DynamicTableSink.Context sinkContext, DataType consumedDataType) {
+				return ParquetRowDataBuilder.createWriterFactory(
+						(RowType) consumedDataType.getLogicalType(),
+						getParquetConfiguration(formatOptions),
+						formatOptions.get(UTC_TIMEZONE));
+			}
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(UTC_TIMEZONE);
-		// support "parquet.*"
-		return options;
+			@Override
+			public ChangelogMode getChangelogMode() {
+				return ChangelogMode.insertOnly();
+			}
+		};
 	}
 
 	private static Configuration getParquetConfiguration(ReadableConfig options) {
@@ -93,124 +117,17 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		return new ParquetInputFormat(
-				context.getPaths(),
-				context.getSchema().getFieldNames(),
-				context.getSchema().getFieldDataTypes(),
-				context.getProjectFields(),
-				context.getDefaultPartName(),
-				context.getPushedDownLimit(),
-				getParquetConfiguration(context.getFormatOptions()),
-				context.getFormatOptions().get(UTC_TIMEZONE));
+	public String factoryIdentifier() {
+		return "parquet";
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		return Optional.of(ParquetRowDataBuilder.createWriterFactory(
-				RowType.of(Arrays.stream(context.getFormatFieldTypes())
-								.map(DataType::getLogicalType)
-								.toArray(LogicalType[]::new),
-						context.getFormatFieldNames()),
-				getParquetConfiguration(context.getFormatOptions()),
-				context.getFormatOptions().get(UTC_TIMEZONE)));
+	public Set<ConfigOption<?>> requiredOptions() {
+		return new HashSet<>();
 	}
 
 	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.empty();
-	}
-
-	/**
-	 * An implementation of {@link ParquetInputFormat} to read {@link RowData} records
-	 * from Parquet files.
-	 */
-	public static class ParquetInputFormat extends FileInputFormat<RowData> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final String[] fullFieldNames;
-		private final DataType[] fullFieldTypes;
-		private final int[] selectedFields;
-		private final String partDefaultName;
-		private final boolean utcTimestamp;
-		private final SerializableConfiguration conf;
-		private final long limit;
-
-		private transient ParquetColumnarRowSplitReader reader;
-		private transient long currentReadCount;
-
-		public ParquetInputFormat(
-				Path[] paths,
-				String[] fullFieldNames,
-				DataType[] fullFieldTypes,
-				int[] selectedFields,
-				String partDefaultName,
-				long limit,
-				Configuration conf,
-				boolean utcTimestamp) {
-			super.setFilePaths(paths);
-			this.limit = limit;
-			this.partDefaultName = partDefaultName;
-			this.fullFieldNames = fullFieldNames;
-			this.fullFieldTypes = fullFieldTypes;
-			this.selectedFields = selectedFields;
-			this.conf = new SerializableConfiguration(conf);
-			this.utcTimestamp = utcTimestamp;
-		}
-
-		@Override
-		public void open(FileInputSplit fileSplit) throws IOException {
-			// generate partition specs.
-			List<String> fieldNameList = Arrays.asList(fullFieldNames);
-			LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(
-					fileSplit.getPath());
-			LinkedHashMap<String, Object> partObjects = new LinkedHashMap<>();
-			partSpec.forEach((k, v) -> partObjects.put(k, restorePartValueFromType(
-					partDefaultName.equals(v) ? null : v,
-					fullFieldTypes[fieldNameList.indexOf(k)])));
-
-			this.reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
-					utcTimestamp,
-					true,
-					conf.conf(),
-					fullFieldNames,
-					fullFieldTypes,
-					partObjects,
-					selectedFields,
-					DEFAULT_SIZE,
-					new Path(fileSplit.getPath().toString()),
-					fileSplit.getStart(),
-					fileSplit.getLength());
-			this.currentReadCount = 0L;
-		}
-
-		@Override
-		public boolean supportsMultiPaths() {
-			return true;
-		}
-
-		@Override
-		public boolean reachedEnd() throws IOException {
-			if (currentReadCount >= limit) {
-				return true;
-			} else {
-				return reader.reachedEnd();
-			}
-		}
-
-		@Override
-		public RowData nextRecord(RowData reuse) {
-			currentReadCount++;
-			return reader.nextRecord();
-		}
-
-		@Override
-		public void close() throws IOException {
-			if (reader != null) {
-				this.reader.close();
-			}
-			this.reader = null;
-		}
+	public Set<ConfigOption<?>> optionalOptions() {
+		return new HashSet<>();
 	}
 }

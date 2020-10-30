@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
@@ -56,10 +57,12 @@ public enum PythonOperatorUtils {
 	}
 
 	public static FlinkFnApi.UserDefinedAggregateFunction getUserDefinedAggregateFunctionProto(
-		PythonFunctionInfo pythonFunctionInfo,
+		PythonAggregateFunctionInfo pythonFunctionInfo,
 		DataViewUtils.DataViewSpec[] dataViewSpecs) {
 		FlinkFnApi.UserDefinedAggregateFunction.Builder builder = FlinkFnApi.UserDefinedAggregateFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
+		builder.setDistinct(pythonFunctionInfo.isDistinct());
+		builder.setFilterArg(pythonFunctionInfo.getFilterArg());
 		for (Object input : pythonFunctionInfo.getInputs()) {
 			FlinkFnApi.Input.Builder inputProto =
 				FlinkFnApi.Input.newBuilder();

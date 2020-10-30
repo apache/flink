@@ -1489,6 +1489,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "alignment_buffered" : {
             "type" : "integer"
           },
+          "checkpoint_type" : {
+            "type" : "string",
+            "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
+          },
           "end_to_end_duration" : {
             "type" : "integer"
           },
@@ -1543,6 +1547,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "properties" : {
             "alignment_buffered" : {
               "type" : "integer"
+            },
+            "checkpoint_type" : {
+              "type" : "string",
+              "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
             },
             "discarded" : {
               "type" : "boolean"
@@ -1632,6 +1640,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "properties" : {
             "alignment_buffered" : {
               "type" : "integer"
+            },
+            "checkpoint_type" : {
+              "type" : "string",
+              "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
             },
             "end_to_end_duration" : {
               "type" : "integer"
@@ -1881,6 +1893,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "alignment_buffered" : {
       "type" : "integer"
+    },
+    "checkpoint_type" : {
+      "type" : "string",
+      "enum" : [ "CHECKPOINT", "SAVEPOINT", "SYNC_SAVEPOINT" ]
     },
     "end_to_end_duration" : {
       "type" : "integer"

@@ -255,9 +255,10 @@ LogicalMinus(all=[false])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
 +- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, a0), AND(IS NULL(a), IS NULL(a0))), OR(=(b, b0), AND(IS NULL(b), IS NULL(b0))), OR(=(c, c0), AND(IS NULL(c), IS NULL(c0))))], select=[a, b, c], build=[left])
-   :- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH], reuse_id=[1])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Reused(reference_id=[1])
+   :- Exchange(distribution=[hash[a, b, c]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+   +- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

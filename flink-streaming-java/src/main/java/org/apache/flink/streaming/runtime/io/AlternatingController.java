@@ -35,7 +35,6 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	private final AlignedController alignedController;
 	private final UnalignedController unalignedController;
 	private  CheckpointBarrierBehaviourController activeController;
-	private long lastSeenBarrierId;
 
 	public AlternatingController(
 			AlignedController alignedController,
@@ -84,7 +83,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	}
 
 	private boolean isAligned(CheckpointBarrier barrier) {
-		return !barrier.isCheckpoint();
+		return barrier.getCheckpointOptions().needsAlignment();
 	}
 
 	private CheckpointBarrierBehaviourController chooseController(CheckpointBarrier barrier) {

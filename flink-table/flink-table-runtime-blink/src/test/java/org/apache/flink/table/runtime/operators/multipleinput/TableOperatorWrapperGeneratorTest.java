@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -29,9 +28,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -49,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link TableOperatorWrapperGenerator}.
  */
-public class TableOperatorWrapperGeneratorTest {
+public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 
 	/**
 	 * Test for simple sub-graph in a multiple input node.
@@ -399,39 +396,6 @@ public class TableOperatorWrapperGeneratorTest {
 				join,
 				new int[] { 0, 0 });
 		generator.generate();
-	}
-
-	private Transformation<RowData> createSource(StreamExecutionEnvironment env, String... data) {
-		return env.fromCollection(
-				Arrays.stream(data).map(StringData::fromString).map(GenericRowData::of).collect(Collectors.toList()),
-				InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())))
-				.getTransformation();
-	}
-
-	private OneInputTransformation<RowData, RowData> createOneInputTransform(
-			Transformation<RowData> input,
-			String name,
-			TypeInformation<RowData> outputType) {
-		return new OneInputTransformation<>(
-				input,
-				name,
-				new TestingOneInputStreamOperator(),
-				outputType,
-				10);
-	}
-
-	private TwoInputTransformation<RowData, RowData, RowData> createTwoInputTransform(
-			Transformation<RowData> input1,
-			Transformation<RowData> input2,
-			String name,
-			TypeInformation<RowData> outputType) {
-		return new TwoInputTransformation<>(
-				input1,
-				input2,
-				name,
-				new TestingTwoInputStreamOperator(),
-				outputType,
-				10);
 	}
 
 	@SafeVarargs

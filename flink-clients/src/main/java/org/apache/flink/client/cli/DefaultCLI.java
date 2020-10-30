@@ -37,16 +37,12 @@ import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConf
  */
 public class DefaultCLI extends AbstractCustomCommandLine {
 
+	public static final String ID = "default";
+
 	private static final Option addressOption = new Option("m", "jobmanager", true,
 		"Address of the JobManager to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration. " +
 			"Attention: This option is respected only if the high-availability configuration is NONE.");
-
-	public static final String ID = "default";
-
-	public DefaultCLI(Configuration configuration) {
-		super(configuration);
-	}
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
@@ -55,15 +51,18 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
 
-		final Configuration resultingConfiguration = super.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration resultingConfiguration = super.toConfiguration(commandLine);
 		if (commandLine.hasOption(addressOption.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
 			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
 			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
 		}
 		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+
+		DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
+
 		return resultingConfiguration;
 	}
 
@@ -76,5 +75,6 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 	public void addGeneralOptions(Options baseOptions) {
 		super.addGeneralOptions(baseOptions);
 		baseOptions.addOption(addressOption);
+		baseOptions.addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES);
 	}
 }

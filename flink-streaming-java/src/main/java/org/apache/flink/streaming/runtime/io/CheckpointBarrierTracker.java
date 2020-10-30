@@ -144,6 +144,14 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	public void processBarrierAnnouncement(
+			CheckpointBarrier announcedBarrier,
+			int sequenceNumber,
+			InputChannelInfo channelInfo) throws IOException {
+		// Ignore
+	}
+
+	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long checkpointId = cancelBarrier.getCheckpointId();
 

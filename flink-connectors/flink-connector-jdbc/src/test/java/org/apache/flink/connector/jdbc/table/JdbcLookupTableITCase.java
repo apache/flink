@@ -143,7 +143,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 
 		tEnv.createTemporaryView("T", t);
 
-		String cacheConfig = ", 'lookup.cache.max-rows'='4', 'lookup.cache.ttl'='10000', 'lookup.max-retries'='5'";
+		String cacheConfig = ", 'lookup.cache.max-rows'='4', 'lookup.cache.ttl'='10000'";
 		tEnv.executeSql(
 			String.format("create table lookup (" +
 				"  id1 INT," +
@@ -153,7 +153,8 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 				") with(" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table-name'='" + LOOKUP_TABLE + "'" +
+				"  'table-name'='" + LOOKUP_TABLE + "'," +
+				"  'lookup.max-retries' = '0'" +
 				"  %s)", useCache ? cacheConfig : ""));
 
 		// do not use the first N fields as lookup keys for better coverage

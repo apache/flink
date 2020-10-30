@@ -20,13 +20,12 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.table.data.RowData;
 
 /**
  * A special operator which collects all inputs' records and forwards them
- * in {@link MultipleInputStreamOperator}.
+ * in {@link MultipleInputStreamOperatorBase}.
  */
 public class UnionStreamOperator extends StreamMap<RowData, RowData> implements BoundedMultiInput {
 	private static final long serialVersionUID = 1L;

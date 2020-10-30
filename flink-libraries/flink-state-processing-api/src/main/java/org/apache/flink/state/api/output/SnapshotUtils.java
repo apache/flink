@@ -25,7 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -50,9 +50,10 @@ public final class SnapshotUtils {
 
 		CheckpointOptions options = new CheckpointOptions(
 			CheckpointType.SAVEPOINT,
-			AbstractFsCheckpointStorage.encodePathAsReference(savepointPath),
+			AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
 			isExactlyOnceMode,
-			isUnalignedCheckpoint);
+			isUnalignedCheckpoint,
+			CheckpointOptions.NO_ALIGNMENT_TIME_OUT);
 
 		operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
 

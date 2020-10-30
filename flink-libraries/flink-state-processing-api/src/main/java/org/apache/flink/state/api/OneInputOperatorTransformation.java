@@ -29,9 +29,14 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
+import org.apache.flink.state.api.functions.Timestamper;
+import org.apache.flink.state.api.output.TimestampAssignerWrapper;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.operators.StateBootstrapOperator;
+import org.apache.flink.streaming.api.functions.TimestampAssigner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+
+import javax.annotation.Nullable;
 
 import java.util.OptionalInt;
 
@@ -51,6 +56,9 @@ public class OneInputOperatorTransformation<T> {
 	/** Local max parallelism for the bootstrapped operator. */
 	private OptionalInt operatorMaxParallelism = OptionalInt.empty();
 
+	@Nullable
+	private Timestamper<T> timestamper;
+
 	OneInputOperatorTransformation(DataSet<T> dataSet) {
 		this.dataSet = dataSet;
 	}
@@ -67,6 +75,24 @@ public class OneInputOperatorTransformation<T> {
 	@PublicEvolving
 	public OneInputOperatorTransformation<T> setMaxParallelism(int maxParallelism) {
 		this.operatorMaxParallelism = OptionalInt.of(maxParallelism);
+		return this;
+	}
+
+	/**
+	 * Assigns an event time timestamp to each record. This value will be used when performing
+	 * event time computations such as assigning windows.
+	 */
+	public OneInputOperatorTransformation<T> assignTimestamps(Timestamper<T> timestamper) {
+		this.timestamper = timestamper;
+		return this;
+	}
+
+	/**
+	 * Assigns an event time timestamp to each record. This value will be used when performing
+	 * event time computations such as assigning windows.
+	 */
+	public OneInputOperatorTransformation<T> assignTimestamps(TimestampAssigner<T> assigner) {
+		this.timestamper = new TimestampAssignerWrapper<>(assigner);
 		return this;
 	}
 
@@ -110,7 +136,7 @@ public class OneInputOperatorTransformation<T> {
 	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
 	 */
 	public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
-		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory);
+		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, timestamper, factory);
 	}
 
 	/**
@@ -122,7 +148,7 @@ public class OneInputOperatorTransformation<T> {
 	 */
 	public <K> KeyedOperatorTransformation<K, T> keyBy(KeySelector<T, K> keySelector) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, dataSet.getType());
-		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, timestamper, keySelector, keyType);
 	}
 
 	/**
@@ -134,7 +160,7 @@ public class OneInputOperatorTransformation<T> {
 	 * @return The {@code BootstrapTransformation} with partitioned state.
 	 */
 	public <K> KeyedOperatorTransformation<K, T> keyBy(KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
-		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, timestamper, keySelector, keyType);
 	}
 
 	/**
@@ -172,7 +198,6 @@ public class OneInputOperatorTransformation<T> {
 			dataSet.getExecutionEnvironment().getConfig());
 
 		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, dataSet.getType());
-		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, timestamper, keySelector, keyType);
 	}
 }
-

@@ -48,10 +48,10 @@ public class FileSystemTableFactoryTest {
 		DescriptorProperties descriptor = new DescriptorProperties();
 		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
 		descriptor.putString("path", "/tmp");
-		descriptor.putString("format", "csv");
+		descriptor.putString("format", "testcsv");
 
 		// test ignore format options
-		descriptor.putString("csv.my_option", "my_value");
+		descriptor.putString("testcsv.my_option", "my_value");
 
 		DynamicTableSource source = createSource(descriptor);
 		Assert.assertTrue(source instanceof FileSystemTableSource);

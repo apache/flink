@@ -350,8 +350,8 @@ Along with reading registered state values, each key has access to a `Context` w
 The state processor api supports reading state from a [window operator]({{ site.baseurl }}/dev/stream/operators/windows.html).
 When reading a window state, users specify the operator id, window assigner, and aggregation type.
 
-Additionally, a `WindowReaderFunction` can be specified to enrich each read with additional information similiar to 
-a `WindowFunction` or `ProcessWindowFunction`.
+Additionally, a `WindowReaderFunction` can be specified to enrich each read with additional information similar
+to a `WindowFunction` or `ProcessWindowFunction`.
 
 Suppose a DataStream application that counts the number of clicks per user per minute.
 
@@ -509,7 +509,8 @@ savepoint
 </div>
 </div>
 
-{% panel **Note:** Reading state written by a Trigger is not currently supported. %}
+Additionally, trigger state - from `CountTrigger`s or custom triggers - can be read using the method
+`Context#triggerState` inside the `WindowReaderFunction`.
 
 ## Writing New Savepoints
 
@@ -741,6 +742,56 @@ The timers will not fire inside the bootstrap function and only become active on
 If a processing time timer is set but the state is not restored until after that time has passed, the timer will fire immediately upon start.
 
 <span class="label label-danger">Attention</span> If your bootstrap function creates timers, the state can only be restored using one of the [process]({{ site.baseurl }}/dev/stream/operators/process_function.html) type functions.
+
+### Window State
+
+The state processor api supports writing state for the [window operator]({{ site.baseurl }}/dev/stream/operators/windows.html).
+When writing window state, users specify the operator id, window assigner, evictor, optional trigger, and aggregation type.
+It is important the configurations on the bootstrap transformation match the configurations on the DataStream window.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class Account {
+    public int id;
+
+    public double amount;	
+
+    public long timestamp;
+}
+ 
+ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<Account> accountDataSet = bEnv.fromCollection(accounts);
+
+BootstrapTransformation<Account> transformation = OperatorTransformation
+    .bootstrapWith(accountDataSet)
+    // When using event time windows, it is important
+    // to assign timestamps to each record.
+    .assignTimestamps(account -> account.timestamp)
+    .keyBy(acc -> acc.id)
+    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .reduce((left, right) -> left + right);
+{% endhighlight %}
+</div>
+<div data-lang="java" markdown="1">
+{% highlight scala %}
+case class Account(id: Int, amount: Double, timestamp: Long)
+ 
+val bEnv = ExecutionEnvironment.getExecutionEnvironment();
+val accountDataSet = bEnv.fromCollection(accounts);
+
+val transformation = OperatorTransformation
+    .bootstrapWith(accountDataSet)
+    // When using event time windows, its important
+    // to assign timestamps to each record.
+    .assignTimestamps(account => account.timestamp)
+    .keyBy(acc => acc.id)
+    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .reduce((left, right) => left + right)
+{% endhighlight %}
+</div>
+</div>
 
 ## Modifying Savepoints
 

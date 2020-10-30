@@ -78,6 +78,9 @@ public class Buckets<IN, BucketID> {
 	@Nullable
 	private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
 
+	@Nullable
+	private FileLifeCycleListener<BucketID> fileLifeCycleListener;
+
 	// --------------------------- State Related Fields -----------------------------
 
 	private final BucketStateSerializer<BucketID> bucketStateSerializer;
@@ -121,6 +124,10 @@ public class Buckets<IN, BucketID> {
 
 	public void setBucketLifeCycleListener(BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener) {
 		this.bucketLifeCycleListener = Preconditions.checkNotNull(bucketLifeCycleListener);
+	}
+
+	public void setFileLifeCycleListener(FileLifeCycleListener<BucketID> fileLifeCycleListener) {
+		this.fileLifeCycleListener = Preconditions.checkNotNull(fileLifeCycleListener);
 	}
 
 	/**
@@ -179,6 +186,7 @@ public class Buckets<IN, BucketID> {
 						bucketWriter,
 						rollingPolicy,
 						recoveredState,
+						fileLifeCycleListener,
 						outputFileConfig
 				);
 
@@ -300,6 +308,7 @@ public class Buckets<IN, BucketID> {
 					maxPartCounter,
 					bucketWriter,
 					rollingPolicy,
+					fileLifeCycleListener,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
 			notifyBucketCreate(bucket);
