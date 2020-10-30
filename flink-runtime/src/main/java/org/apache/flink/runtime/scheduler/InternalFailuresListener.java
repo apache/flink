@@ -32,7 +32,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
  */
 public interface InternalFailuresListener {
 
-	void notifyTaskFailure(ExecutionAttemptID attemptId, Throwable t);
+	void notifyTaskFailure(ExecutionAttemptID attemptId, Throwable t, boolean cancelTask, boolean releasePartitions);
 
 	void notifyGlobalFailure(Throwable t);
 }

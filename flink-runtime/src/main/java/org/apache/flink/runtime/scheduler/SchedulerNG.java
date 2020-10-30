@@ -30,6 +30,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -84,7 +85,11 @@ public interface SchedulerNG {
 
 	void handleGlobalFailure(Throwable cause);
 
-	boolean updateTaskExecutionState(TaskExecutionState taskExecutionState);
+	default boolean updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+		return updateTaskExecutionState(new TaskExecutionStateTransition(taskExecutionState));
+	}
+
+	boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState);
 
 	SerializedInputSplit requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException;
 

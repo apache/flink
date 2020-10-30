@@ -1083,17 +1083,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		processFail(t, false);
 	}
 
-	/**
-	 * @deprecated Only used in tests.
-	 */
-	@Deprecated
-	@VisibleForTesting
-	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
-		markFailed(t, userAccumulators, metrics, false);
-	}
-
-	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean fromSchedulerNg) {
-		processFail(t, false, userAccumulators, metrics, false, fromSchedulerNg);
+	void markFailed(
+			Throwable t,
+			boolean cancelTask,
+			Map<String, Accumulator<?, ?>> userAccumulators,
+			IOMetrics metrics,
+			boolean releasePartitions,
+			boolean fromSchedulerNg) {
+		processFail(t, cancelTask, userAccumulators, metrics, releasePartitions, fromSchedulerNg);
 	}
 
 	@VisibleForTesting
@@ -1305,15 +1302,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 
 		if (!fromSchedulerNg && !isLegacyScheduling()) {
-			vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
-
-			// HACK: We informed the new generation scheduler about an internally detected task
-			// failure. The scheduler will call processFail() again with releasePartitions
-			// always set to false, isCallback to true and fromSchedulerNg set to true.
-			// Because the original value of releasePartitions and isCallback will be lost,
-			// we may need to invoke partition release and remote canceling here.
-			maybeReleasePartitionsAndSendCancelRpcCall(current, cancelTask, releasePartitions);
-
+			vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(
+				attemptId,
+				t,
+				cancelTask,
+				releasePartitions);
 			return;
 		}
 
@@ -1327,9 +1320,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		releaseAssignedResource(t);
 		vertex.getExecutionGraph().deregisterExecution(this);
 
-		if (isLegacyScheduling()) {
-			maybeReleasePartitionsAndSendCancelRpcCall(current, cancelTask, releasePartitions);
-		}
+		maybeReleasePartitionsAndSendCancelRpcCall(current, cancelTask, releasePartitions);
 	}
 
 	private void maybeReleasePartitionsAndSendCancelRpcCall(
