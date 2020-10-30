@@ -354,7 +354,7 @@ class DataStreamStatefulFunctionOperation(StatefulFunctionOperation):
     def __init__(self, spec, keyed_state_backend):
         self._collector = DataStreamStatefulFunctionOperation.InternalCollector()
         internal_timer_service = DataStreamStatefulFunctionOperation\
-            .InternalTimerService(self._collector)
+            .InternalTimerService(self._collector, keyed_state_backend)
         self.function_context = InternalProcessFunctionContext(internal_timer_service)
         self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
         super(DataStreamStatefulFunctionOperation, self).__init__(spec, keyed_state_backend)
