@@ -55,7 +55,7 @@ class PythonAggregateTest extends TableTestBase {
     util.verifyPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMixedUsePythonAggAndJavaAgg(): Unit = {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
