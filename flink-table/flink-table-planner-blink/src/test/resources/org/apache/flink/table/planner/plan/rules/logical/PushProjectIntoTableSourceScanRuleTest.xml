@@ -28,8 +28,8 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalProject(a=[$0], c=[$1], EXPR$2=[+($2, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c, b]]])
 ]]>
     </Resource>
   </TestCase>
@@ -88,6 +88,24 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$3], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMapType">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d['e']
+FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[ITEM($3, _UTF-16LE'e')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, d]]])
 ]]>
     </Resource>
   </TestCase>

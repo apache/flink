@@ -74,7 +74,7 @@ public class TableSchemaUtils {
 	 * <p>When extracting the fields from the origin schema, the fields may get name conflicts in the
 	 * new schema. Considering that the path to the fields is unique in schema, use the path as the
 	 * new name to resolve the name conflicts in the new schema. If name conflicts still exists, it
-	 * will add postfix in the fashion "$%d" to resolve.
+	 * will add postfix in the fashion "_$%d" to resolve.
 	 *
 	 * @see org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 	 */

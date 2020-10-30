@@ -82,7 +82,7 @@ public final class DataTypeUtils {
 	 * delimiter `_` as the new name of the field. For example, the new name of the field `b` in
 	 * the row `a` is `a_b` rather than `b`. But it may still gets name conflicts in some situation,
 	 * such as the field `a_b` in the top level schema. In such situation, it will use the postfix
-	 * in the format '$%d' to resolve the name conflicts.
+	 * in the format '_$%d' to resolve the name conflicts.
 	 */
 	public static DataType projectRow(DataType dataType, int[][] indexPaths) {
 		final List<RowField> updatedFields = new ArrayList<>();
@@ -105,7 +105,7 @@ public final class DataTypeUtils {
 			}
 			String path = builder.toString();
 			while (nameDomain.contains(path)) {
-				path = builder.append("$").append(duplicateCount++).toString();
+				path = builder.append("_$").append(duplicateCount++).toString();
 			}
 			updatedFields.add(new RowField(path, fieldLogicalType));
 			updatedChildren.add(fieldType);

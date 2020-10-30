@@ -91,7 +91,6 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
 		final boolean supportsNestedProjection =
 				((SupportsProjectionPushDown) oldTableSourceTable.tableSource()).supportsNestedProjection();
-		final boolean supportsReadingMetaData = oldTableSourceTable.tableSource() instanceof SupportsReadingMetadata;
 
 		final List<String> fieldNames = scan.getRowType().getFieldNames();
 		final int fieldCount = fieldNames.size();
@@ -126,7 +125,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		final Map<Integer, Map<List<String>, Integer>> fieldCoordinatesToOrder = new HashMap<>();
 
 		if (supportsNestedProjection) {
-			getCoordinatesAndMappingOfPhysicalColumnWithNestedProjection(
+			getExpandedFieldAndOrderMapping(
 					project, oldSchema, usedFields, physicalFieldCount, usedFieldsCoordinates, fieldCoordinatesToOrder);
 		} else {
 			for (int usedField : usedFields) {
@@ -151,6 +150,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		DataType producedDataType = TypeConversions.fromLogicalToDataType(DynamicSourceUtils.createProducedType(oldSchema, oldSource));
 		// add metadata information into coordinates && mapping
 
+		final boolean supportsReadingMetaData = oldTableSourceTable.tableSource() instanceof SupportsReadingMetadata;
 		DataType newProducedDataType = supportsReadingMetaData ?
 				applyUpdateMetadataAndGetNewDataType(
 						newSource, producedDataType,  metadataKeys, usedFields, physicalFieldCount, usedFieldsCoordinates, fieldCoordinatesToOrder) :
@@ -195,6 +195,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			int physicalFieldCount,
 			List<List<Integer>> usedFieldsCoordinates,
 			Map<Integer, Map<List<String>, Integer>> fieldCoordinatesToOrder) {
+		//TODO: support nested projection for metadata
 		final List<String> usedMetadataKeysUnordered = IntStream.of(usedFields)
 				// select only metadata columns
 				.filter(i -> i >= physicalFieldCount)
@@ -207,27 +208,35 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 				.filter(usedMetadataKeysUnordered::contains)
 				.collect(Collectors.toList());
 
-		final List<List<Integer>> projectedMetadataFields = usedMetadataKeys
-				.stream()
-				.map(metadataKeys::indexOf)
-				.map(i -> {
-					fieldCoordinatesToOrder.put(physicalFieldCount + i, Collections.singletonMap(Collections.singletonList("*"), fieldCoordinatesToOrder.size()));
-					return Collections.singletonList(physicalFieldCount + i); })
-				.collect(Collectors.toList());
+		final List<List<Integer>> projectedMetadataFields = new ArrayList<>(usedMetadataKeys.size());
+		for (String key: usedMetadataKeys) {
+			int index = metadataKeys.indexOf(key);
+			fieldCoordinatesToOrder.put(
+					physicalFieldCount + index,
+					Collections.singletonMap(Collections.singletonList("*"), fieldCoordinatesToOrder.size()));
+			projectedMetadataFields.add(Collections.singletonList(physicalFieldCount + index));
+		}
 		usedFieldsCoordinates.addAll(projectedMetadataFields);
 
-		int[][] allFields = usedFieldsCoordinates
+		int[][] projectedFields = usedFieldsCoordinates
 				.stream()
 				.map(coordinates -> coordinates.stream().mapToInt(i -> i).toArray())
 				.toArray(int[][]::new);
 
-		DataType newProducedDataType = DataTypeUtils.projectRow(producedDataType, allFields);
+		DataType newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
 
 		((SupportsReadingMetadata) newSource).applyReadableMetadata(usedMetadataKeys, newProducedDataType);
 		return newProducedDataType;
 	}
 
-	private void getCoordinatesAndMappingOfPhysicalColumnWithNestedProjection(
+	/**
+	 * 	Get coordinates and mapping of the physicalColumn if scan supports nested projection push down.
+	 * 	It will get the expanded the name of the reference and place the refs with the same top level
+	 * 	in the same array. The order of the fields in the new schema is determined by the current.
+	 *
+	 * 	<p>NOTICE: Currently, to resolve the name conflicts we use list to restore the every level name.
+	 */
+	private void getExpandedFieldAndOrderMapping(
 			LogicalProject project,
 			TableSchema oldSchema,
 			int[] usedFields,

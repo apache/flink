@@ -51,7 +51,8 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"CREATE TABLE MyTable (\n" +
 						"  a int,\n" +
 						"  b bigint,\n" +
-						"  c string\n" +
+						"  c string\n," +
+						"  d map<string,string>\n" +
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
 						" 'bounded' = 'true'\n" +
@@ -97,6 +98,14 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
 						")";
 		util().tableEnv().executeSql(ddl4);
+	}
+
+	@Test
+	public void testProjectWithMapType() {
+		String sqlQuery =
+				"SELECT a, d['e']\n" +
+						"FROM MyTable";
+		util().verifyPlan(sqlQuery);
 	}
 
 	@Override
