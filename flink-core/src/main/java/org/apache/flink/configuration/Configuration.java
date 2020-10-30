@@ -85,6 +85,17 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Creates a new configuration that is initialized with the options of the given map.
+	 */
+	public static Configuration fromMap(Map<String, String> map) {
+		final Configuration configuration = new Configuration();
+		map.forEach(configuration::setString);
+		return configuration;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
 	 * Returns the class associated with the given key as a string.
 	 *
 	 * @param <T> The type of the class to return.
