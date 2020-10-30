@@ -56,8 +56,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 	@Parameterized.Parameters(name = "Execution Mode: {0}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class, PARALLELISM},
-				{RuntimeExecutionMode.BATCH, BatchCommitterOperatorFactory.class, BatchGlobalCommitterOperatorFactory.class, 1}});
+				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class},
+				{RuntimeExecutionMode.BATCH, BatchCommitterOperatorFactory.class, BatchGlobalCommitterOperatorFactory.class}});
 	}
 
 	@Parameterized.Parameter()
@@ -68,9 +68,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
 	@Parameterized.Parameter(2)
 	public Class<?> globalCommitterClass;
-
-	@Parameterized.Parameter(3)
-	public int committerParallelism;
 
 	static final String NAME = "FileSink";
 	static final String SLOT_SHARE_GROUP = "FileGroup";
@@ -116,8 +113,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				committerNode,
 				"Committer",
 				committerClass,
-				committerParallelism,
-				-1);
+				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? PARALLELISM : 1,
+				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? -1 : 1);
 	}
 
 	@Test

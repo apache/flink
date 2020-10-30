@@ -20,7 +20,6 @@ package org.apache.flink.streaming.util.graph;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 
 /**
@@ -49,38 +48,9 @@ public final class StreamGraphUtils {
 		}
 	}
 
-
-	/**
-	 * Configure a stream node's resource related properties according to the given transformation.
-	 *
-	 * @param streamGraph The StreamGraph the node belongs to
-	 * @param nodeId The node's id
-	 * @param transformation A given transformation
-	 */
-	public static <T> void configureResourceProperties(
-			StreamGraph streamGraph,
-			int nodeId,
-			Transformation<T> transformation) {
-		if (transformation.getMinResources() != null
-				&& transformation.getPreferredResources() != null) {
-			streamGraph.setResources(
-					nodeId,
-					transformation.getMinResources(),
-					transformation.getPreferredResources());
-		}
-
-		final StreamNode streamNode = streamGraph.getStreamNode(nodeId);
-		if (streamNode != null
-				&& streamNode.getManagedMemoryOperatorScopeUseCaseWeights().isEmpty()
-				&& streamNode.getManagedMemorySlotScopeUseCases().isEmpty()) {
-			streamNode.setManagedMemoryUseCaseWeights(
-					transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
-					transformation.getManagedMemorySlotScopeUseCases());
-		}
-	}
-
 	/**
 	 * Configure a stream node's buffer timeout according to the given transformation.
+	 *
 	 * @param streamGraph The StreamGraph the node belongs to
 	 * @param nodeId The node's id
 	 * @param transformation A given transformation
