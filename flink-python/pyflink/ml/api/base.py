@@ -74,14 +74,12 @@ class PipelineStage(WithParams):
         self.get_params().load_json(json)
 
 
-class Transformer(PipelineStage):
+class Transformer(PipelineStage, metaclass=ABCMeta):
     """
     A transformer is a PipelineStage that transforms an input Table to a result Table.
 
     .. versionadded:: 1.11.0
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def transform(self, table_env: TableEnvironment, table: Table) -> Table:
@@ -123,7 +121,7 @@ class JavaTransformer(Transformer):
         return Table(self._j_obj.transform(table_env._j_tenv, table._j_table), table_env)
 
 
-class Model(Transformer):
+class Model(Transformer, metaclass=ABCMeta):
     """
     Abstract class for models that are fitted by estimators.
 
@@ -133,8 +131,6 @@ class Model(Transformer):
 
     .. versionadded:: 1.11.0
     """
-
-    __metaclass__ = ABCMeta
 
 
 class JavaModel(JavaTransformer, Model):
@@ -146,7 +142,7 @@ class JavaModel(JavaTransformer, Model):
     """
 
 
-class Estimator(PipelineStage):
+class Estimator(PipelineStage, metaclass=ABCMeta):
     """
     Estimators are PipelineStages responsible for training and generating machine learning models.
 
@@ -155,8 +151,6 @@ class Estimator(PipelineStage):
 
     .. versionadded:: 1.11.0
     """
-
-    __metaclass__ = ABCMeta
 
     def fit(self, table_env: TableEnvironment, table: Table) -> Model:
         """

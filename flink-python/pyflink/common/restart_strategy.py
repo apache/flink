@@ -26,12 +26,10 @@ from pyflink.util.utils import to_j_flink_time, from_j_flink_time
 __all__ = ['RestartStrategies', 'RestartStrategyConfiguration']
 
 
-class RestartStrategyConfiguration(object):
+class RestartStrategyConfiguration(object, metaclass=ABCMeta):
     """
     Abstract configuration for restart strategies.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_restart_strategy_configuration):
         self._j_restart_strategy_configuration = j_restart_strategy_configuration

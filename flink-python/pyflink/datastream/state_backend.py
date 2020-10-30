@@ -55,7 +55,7 @@ def _from_j_state_backend(j_state_backend):
         return CustomStateBackend(j_state_backend)  # users' customized state backend
 
 
-class StateBackend(object):
+class StateBackend(object, metaclass=ABCMeta):
     """
     A **State Backend** defines how the state of a streaming application is stored and
     checkpointed. Different State Backends store their state in different fashions, and use
@@ -109,8 +109,6 @@ class StateBackend(object):
     State backend implementations have to be thread-safe. Multiple threads may be creating
     streams and keyed-/operator state backends concurrently.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_state_backend):
         self._j_state_backend = j_state_backend
