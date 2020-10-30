@@ -95,7 +95,7 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> extend
 			ManagedMemoryUseCase managedMemoryUseCase,
 			int weight) {
 		throw new UnsupportedOperationException(
-				"Do not support declare operator scope's managed memory for SinkTransformation.");
+				"Declaring managed memory use cases is not supported for SinkTransformation.");
 	}
 
 	@Override
