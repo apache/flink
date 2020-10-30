@@ -32,12 +32,12 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.CommittableTypeInformation;
 import org.apache.flink.streaming.runtime.operators.sink.GlobalStreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StatefulWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StatelessWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.util.graph.StreamGraphUtils;
-import org.apache.flink.streaming.runtime.operators.sink.CommittableTypeInformation;
 
 import java.lang.reflect.Type;
 import java.util.Collection;
