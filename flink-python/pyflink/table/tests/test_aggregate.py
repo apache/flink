@@ -17,6 +17,7 @@
 ################################################################################
 import collections
 import datetime
+from decimal import Decimal
 
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
@@ -281,10 +282,62 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.t_env.create_temporary_view("retract_table", table_with_retract_message)
         result_table = self.t_env.sql_query(
             "select concat(b, ',') as a, "
-            "FIRST_VALUE(b) as b"
+            "FIRST_VALUE(b) as b, "
+            "LAST_VALUE(b) as c, "
+            "COUNT(c) as d, "
+            "COUNT(1) as e, "
+            "LISTAGG(b) as f,"
+            "LISTAGG(b, '|') as g,"
+            "MAX(c) as h,"
+            "MAX(cast(c as float) + 1) as i,"
+            "MIN(c) as j,"
+            "MIN(cast(c as decimal) + 1) as k,"
+            "SUM(c) as l,"
+            "SUM(cast(c as float) + 1) as m,"
+            "AVG(c) as n,"
+            "AVG(cast(c as double) + 1) as o,"
+            "STDDEV_POP(cast(c as float)),"
+            "STDDEV_SAMP(cast(c as float)),"
+            "VAR_POP(cast(c as float)),"
+            "VAR_SAMP(cast(c as float))"
             " from retract_table")
         result = [i for i in result_table.execute().collect()]
-        expected = Row('Hi,Hi,hello,hello2', 'Hi')
+        expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
+                       'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0, 6, 7.0,
+                       3.1622777, 3.6514838, 10.0, 13.333333)
+        expected.set_row_kind(RowKind.UPDATE_AFTER)
+        self.assertEqual(result[len(result) - 1], expected)
+
+    def test_mixed_with_built_in_functions_without_retract(self):
+        self.env.set_parallelism(1)
+        self.t_env.create_temporary_system_function(
+            "concat",
+            ConcatAggregateFunction())
+        t = self.t_env.from_elements(
+            [('Hi', 2),
+             ('Hi', 4),
+             (None, None),
+             ('hello2', 8),
+             ('hello', 10)], ['b', 'c'])
+        self.t_env.create_temporary_view("source", t)
+        result_table = self.t_env.sql_query(
+            "select concat(b, ',') as a, "
+            "FIRST_VALUE(b) as b, "
+            "LAST_VALUE(b) as c, "
+            "COUNT(c) as d, "
+            "COUNT(1) as e, "
+            "LISTAGG(b) as f,"
+            "LISTAGG(b, '|') as g,"
+            "MAX(c) as h,"
+            "MAX(cast(c as float) + 1) as i,"
+            "MIN(c) as j,"
+            "MIN(cast(c as decimal) + 1) as k,"
+            "SUM(c) as l,"
+            "SUM(cast(c as float) + 1) as m "
+            "from source")
+        result = [i for i in result_table.execute().collect()]
+        expected = Row('Hi,Hi,hello,hello2', 'Hi', 'hello', 4, 5, 'Hi,Hi,hello2,hello',
+                       'Hi|Hi|hello2|hello', 10, 11.0, 2, Decimal(3.0), 24, 28.0)
         expected.set_row_kind(RowKind.UPDATE_AFTER)
         self.assertEqual(result[len(result) - 1], expected)
 
