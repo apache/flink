@@ -255,8 +255,9 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                                       (3, 'Hi', 'hi2'),
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c).select("my_count(a) as a, my_sum(a) as b, c") \
-            .select("my_count(a) as a, my_sum(b) as b")
-        assert_frame_equal(result.to_pandas(), pd.DataFrame([[3, 12]], columns=['a', 'b']))
+            .select("my_count(a) as a, my_sum(b) as b, sum0(b) as c, sum0(b.cast(double)) as d")
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
 
     def test_mixed_with_built_in_functions_with_retract(self):
         self.env.set_parallelism(1)
@@ -284,30 +285,6 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             " from retract_table")
         result = [i for i in result_table.execute().collect()]
         expected = Row('Hi,Hi,hello,hello2', 'Hi')
-        expected.set_row_kind(RowKind.UPDATE_AFTER)
-        self.assertEqual(result[len(result) - 1], expected)
-
-    def test_mixed_with_built_in_sum0_with_retract(self):
-        self.t_env.create_temporary_system_function(
-            "concat",
-            ConcatAggregateFunction())
-        t = self.t_env.from_elements(
-            [(1, 'Hi_', 1),
-             (1, 'Hi', 2),
-             (2, 'Hi_', 3),
-             (2, 'Hi', 4),
-             (3, None, None),
-             (3, None, None),
-             (4, 'hello2_', 7),
-             (4, 'hello2', 8),
-             (5, 'hello_', 9),
-             (5, 'hello', 10)], ['a', 'b', 'c'])
-        self.t_env.create_temporary_view("source", t)
-        t = self.t_env.sql_query(
-            "select a, LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
-        result_table = t.select("concat(b, ',') as a, sum0(c) as b, sum0(c.cast(float)) as c")
-        result = [i for i in result_table.execute().collect()]
-        expected = Row('Hi,Hi,hello,hello2', 24, 24.0)
         expected.set_row_kind(RowKind.UPDATE_AFTER)
         self.assertEqual(result[len(result) - 1], expected)
 

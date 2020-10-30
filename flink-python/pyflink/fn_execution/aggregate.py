@@ -62,27 +62,28 @@ def extract_data_view_specs(udfs):
         udf_data_view_specs_proto = udf.specs
         if not udf_data_view_specs_proto:
             if is_built_in_function(udf.payload):
-                bulit_in_function = load_aggregate_function(udf.payload)
-                accumulator = bulit_in_function.create_accumulator()
+                built_in_function = load_aggregate_function(udf.payload)
+                accumulator = built_in_function.create_accumulator()
                 extracted_udf_data_view_specs.append(
                     extract_data_view_specs_from_accumulator(current_index, accumulator))
             else:
                 extracted_udf_data_view_specs.append([])
-            continue
-        extracted_specs = []
-        for spec_proto in udf_data_view_specs_proto:
-            state_id = spec_proto.name
-            field_index = spec_proto.field_index
-            if spec_proto.HasField("list_view"):
-                element_coder = from_proto(spec_proto.list_view.element_type)
-                extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
-            elif spec_proto.HasField("map_view"):
-                key_coder = from_proto(spec_proto.map_view.key_type)
-                value_coder = from_proto(spec_proto.map_view.value_type)
-                extracted_specs.append(MapViewSpec(state_id, field_index, key_coder, value_coder))
-            else:
-                raise Exception("Unsupported data view spec type: " + spec_proto.type)
-        extracted_udf_data_view_specs.append(extracted_specs)
+        else:
+            extracted_specs = []
+            for spec_proto in udf_data_view_specs_proto:
+                state_id = spec_proto.name
+                field_index = spec_proto.field_index
+                if spec_proto.HasField("list_view"):
+                    element_coder = from_proto(spec_proto.list_view.element_type)
+                    extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
+                elif spec_proto.HasField("map_view"):
+                    key_coder = from_proto(spec_proto.map_view.key_type)
+                    value_coder = from_proto(spec_proto.map_view.value_type)
+                    extracted_specs.append(
+                        MapViewSpec(state_id, field_index, key_coder, value_coder))
+                else:
+                    raise Exception("Unsupported data view spec type: " + spec_proto.type)
+            extracted_udf_data_view_specs.append(extracted_specs)
     if all([len(i) == 0 for i in extracted_udf_data_view_specs]):
         return []
     return extracted_udf_data_view_specs
