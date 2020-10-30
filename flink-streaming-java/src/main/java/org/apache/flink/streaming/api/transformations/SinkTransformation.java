@@ -19,15 +19,18 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,6 +82,26 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> extend
 	@Override
 	public void setUidHash(String uidHash) {
 		throw new UnsupportedOperationException("Do not support set UidHash for SinkTransformation.");
+	}
+
+	@Override
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		throw new UnsupportedOperationException(
+				"Do not support set resources for SinkTransformation.");
+	}
+
+	@Override
+	public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
+			ManagedMemoryUseCase managedMemoryUseCase,
+			int weight) {
+		throw new UnsupportedOperationException(
+				"Do not support declare operator scope's managed memory for SinkTransformation.");
+	}
+
+	@Override
+	public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
+		throw new UnsupportedOperationException(
+				"Do not support declare slot scope's managed memory for SinkTransformation.");
 	}
 
 	public ChainingStrategy getChainingStrategy() {

@@ -89,6 +89,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				writerNode,
 				"Writer",
 				StatelessWriterOperatorFactory.class,
+				ChainingStrategy.NEVER,
 				PARALLELISM,
 				-1);
 	}
@@ -112,6 +113,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				committerNode,
 				"Committer",
 				committerClass,
+				ChainingStrategy.ALWAYS,
 				PARALLELISM,
 				-1);
 	}
@@ -136,6 +138,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,
+				ChainingStrategy.ALWAYS,
 				1,
 				1);
 	}
@@ -159,6 +162,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				globalCommitterNode,
 				"Global Committer",
 				globalCommitterClass,
+				ChainingStrategy.ALWAYS,
 				1,
 				1);
 	}
@@ -182,6 +186,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 			StreamNode dest,
 			String midName,
 			Class<?> expectedOperatorFactory,
+			ChainingStrategy expectedChainingStrategy,
 			int expectedParallelism,
 			int expectedMaxParallelism) {
 
@@ -207,7 +212,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
 		assertThat(
 				dest.getOperatorFactory().getChainingStrategy(),
-				equalTo(ChainingStrategy.NEVER));
+				equalTo(expectedChainingStrategy));
 		assertThat(dest.getSlotSharingGroup(), equalTo(SLOT_SHARE_GROUP));
 
 		//verify dest node output

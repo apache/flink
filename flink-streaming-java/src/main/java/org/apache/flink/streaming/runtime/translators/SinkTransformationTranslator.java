@@ -129,7 +129,13 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				hasState ? new StatefulWriterOperatorFactory<>(sinkTransformation.getSink()) : new StatelessWriterOperatorFactory<>(
 						sinkTransformation.getSink());
 
-		final int writerId = addOperatorToStreamGraph(
+		final ChainingStrategy chainingStrategy = sinkTransformation.getChainingStrategy();
+
+		if (chainingStrategy != null) {
+			writer.setChainingStrategy(chainingStrategy);
+		}
+
+		return addOperatorToStreamGraph(
 				writer, input.getId(),
 				inputTypeInfo,
 				extractCommittableTypeInformation(sinkTransformation.getSink()),
@@ -138,12 +144,6 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				sinkTransformation.getMaxParallelism(),
 				sinkTransformation,
 				context);
-
-		StreamGraphUtils.configureResourceProperties(
-				context.getStreamGraph(),
-				writerId,
-				sinkTransformation);
-		return writerId;
 	}
 
 	/**
@@ -210,7 +210,6 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				context);
 	}
 
-	//TODO maybe move to a util class
 	private int getParallelism(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			Context context) {
@@ -245,11 +244,6 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		final StreamGraph streamGraph = context.getStreamGraph();
 		final String slotSharingGroup = context.getSlotSharingGroup();
 		final int transformationId = Transformation.getNewNodeId();
-
-		final ChainingStrategy chainingStrategy = sinkTransformation.getChainingStrategy();
-		if (chainingStrategy != null) {
-			operatorFactory.setChainingStrategy(chainingStrategy);
-		}
 
 		streamGraph.addOperator(
 				transformationId,

@@ -88,6 +88,12 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
 		final StreamGraph streamGraph = context.getStreamGraph();
 		final int transformationId = transformation.getId();
 
+		StreamGraphUtils.configureBufferTimeout(
+				streamGraph,
+				transformationId,
+				transformation,
+				context.getDefaultBufferTimeout());
+
 		if (transformation.getUid() != null) {
 			streamGraph.setTransformationUID(transformationId, transformation.getUid());
 		}
@@ -96,13 +102,20 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
 					transformationId,
 					transformation.getUserProvidedNodeHash());
 		}
-		StreamGraphUtils.configureBufferTimeout(
-				streamGraph,
-				transformationId,
-				transformation,
-				context.getDefaultBufferTimeout());
+
 		StreamGraphUtils.validateTransformationUid(streamGraph, transformation);
 
-		StreamGraphUtils.configureResourceProperties(streamGraph, transformationId, transformation);
+		if (transformation.getMinResources() != null && transformation.getPreferredResources() != null) {
+			streamGraph.setResources(transformationId, transformation.getMinResources(), transformation.getPreferredResources());
+		}
+
+		final StreamNode streamNode = streamGraph.getStreamNode(transformationId);
+		if (streamNode != null
+				&& streamNode.getManagedMemoryOperatorScopeUseCaseWeights().isEmpty()
+				&& streamNode.getManagedMemorySlotScopeUseCases().isEmpty()) {
+			streamNode.setManagedMemoryUseCaseWeights(
+					transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
+					transformation.getManagedMemorySlotScopeUseCases());
+		}
 	}
 }
