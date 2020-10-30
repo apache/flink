@@ -20,7 +20,6 @@ package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
@@ -47,7 +46,6 @@ import java.io.Serializable;
  * <p>A {@link ScanTableSource} can implement the following abilities that might mutate an instance
  * during planning:
  * <ul>
- *     <li>{@link SupportsComputedColumnPushDown}
  *     <li>{@link SupportsWatermarkPushDown}
  *     <li>{@link SupportsFilterPushDown}
  *     <li>{@link SupportsProjectionPushDown}
