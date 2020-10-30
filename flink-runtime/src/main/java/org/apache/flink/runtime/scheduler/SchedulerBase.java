@@ -54,6 +54,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
@@ -98,7 +99,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -457,6 +457,17 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return executionGraph.getCheckpointCoordinator();
 	}
 
+	/**
+	 * ExecutionGraph is exposed to make it easier to rework tests to be based on the new scheduler.
+	 * ExecutionGraph is expected to be used only for state check. Yet at the moment, before all the
+	 * actions are factored out from ExecutionGraph and its sub-components, some actions may still
+	 * be performed directly on it.
+	 */
+	@VisibleForTesting
+	public ExecutionGraph getExecutionGraph() {
+		return executionGraph;
+	}
+
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
@@ -511,7 +522,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
+	public final boolean updateTaskExecutionState(final TaskExecutionStateTransition taskExecutionState) {
 		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
 
 		boolean updateSuccess = executionGraph.updateState(taskExecutionState);
@@ -530,7 +541,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private boolean isNotifiable(
 			final ExecutionVertexID executionVertexId,
-			final TaskExecutionState taskExecutionState) {
+			final TaskExecutionStateTransition taskExecutionState) {
 
 		final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
 
@@ -553,7 +564,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return false;
 	}
 
-	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
+	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionStateTransition taskExecutionState) {
 	}
 
 	@Override

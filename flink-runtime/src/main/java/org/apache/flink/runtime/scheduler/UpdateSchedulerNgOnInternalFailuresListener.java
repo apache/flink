@@ -22,12 +22,13 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionState)} on task failure.
+ * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionStateTransition)} on task failure.
  * Calls {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
  */
 class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
@@ -45,12 +46,18 @@ class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresLis
 	}
 
 	@Override
-	public void notifyTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
-		schedulerNg.updateTaskExecutionState(new TaskExecutionState(
+	public void notifyTaskFailure(
+			final ExecutionAttemptID attemptId,
+			final Throwable t,
+			final boolean cancelTask,
+			final boolean releasePartitions) {
+
+		final TaskExecutionState state = new TaskExecutionState(
 			jobId,
 			attemptId,
 			ExecutionState.FAILED,
-			t));
+			t);
+		schedulerNg.updateTaskExecutionState(new TaskExecutionStateTransition(state, cancelTask, releasePartitions));
 	}
 
 	@Override

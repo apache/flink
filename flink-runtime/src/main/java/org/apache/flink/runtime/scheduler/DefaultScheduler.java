@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
@@ -54,7 +55,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -200,12 +200,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	@Override
-	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
+	protected void updateTaskExecutionStateInternal(
+			final ExecutionVertexID executionVertexId,
+			final TaskExecutionStateTransition taskExecutionState) {
+
 		schedulingStrategy.onExecutionStateChange(executionVertexId, taskExecutionState.getExecutionState());
 		maybeHandleTaskFailure(taskExecutionState, executionVertexId);
 	}
 
-	private void maybeHandleTaskFailure(final TaskExecutionState taskExecutionState, final ExecutionVertexID executionVertexId) {
+	private void maybeHandleTaskFailure(
+			final TaskExecutionStateTransition taskExecutionState,
+			final ExecutionVertexID executionVertexId) {
+
 		if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
 			final Throwable error = taskExecutionState.getError(userCodeLoader);
 			handleTaskFailure(executionVertexId, error);
