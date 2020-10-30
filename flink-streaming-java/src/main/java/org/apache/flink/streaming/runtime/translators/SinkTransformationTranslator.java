@@ -71,6 +71,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				transformation,
 				new BatchCommitterOperatorFactory<>(transformation.getSink()),
 				1,
+				1,
 				context);
 		addGlobalCommitter(
 				committerId >= 0 ? committerId : writerId,
@@ -97,7 +98,9 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				writerId,
 				transformation,
 				new StreamingCommitterOperatorFactory<>(transformation.getSink()),
-				parallelism, context);
+				parallelism,
+				transformation.getMaxParallelism(),
+				context);
 		addGlobalCommitter(
 				committerId >= 0 ? committerId : writerId,
 				transformation,
@@ -167,6 +170,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
 			int parallelism,
+			int maxParallelism,
 			Context context) {
 
 		if (!sinkTransformation.getSink().createCommitter().isPresent()) {
@@ -183,7 +187,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				committableTypeInfo,
 				"Sink Committer:",
 				parallelism,
-				sinkTransformation.getMaxParallelism(),
+				maxParallelism,
 				sinkTransformation,
 				context);
 	}

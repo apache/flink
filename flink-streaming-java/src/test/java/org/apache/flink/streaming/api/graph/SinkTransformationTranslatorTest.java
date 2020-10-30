@@ -115,7 +115,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				committerClass,
 				ChainingStrategy.ALWAYS,
 				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? PARALLELISM : 1,
-				-1);
+				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? -1 : 1);
 	}
 
 	@Test
