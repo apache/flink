@@ -89,7 +89,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				writerNode,
 				"Writer",
 				StatelessWriterOperatorFactory.class,
-				ChainingStrategy.NEVER,
+				ChainingStrategy.ALWAYS,
 				PARALLELISM,
 				-1);
 	}
@@ -114,7 +114,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				"Committer",
 				committerClass,
 				ChainingStrategy.ALWAYS,
-				PARALLELISM,
+				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? PARALLELISM : 1,
 				-1);
 	}
 
@@ -237,7 +237,6 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		dataStreamSink.name(NAME);
 		dataStreamSink.uid(UID);
 		dataStreamSink.setParallelism(SinkTransformationTranslatorTest.PARALLELISM);
-		dataStreamSink.disableChaining();
 		dataStreamSink.slotSharingGroup(SLOT_SHARE_GROUP);
 	}
 
