@@ -551,13 +551,6 @@ under the License.
 				<version>${junit.version}</version>
 			</dependency>
 
-			<!-- For dependency convergence -->
-			<dependency>
-				<groupId>org.tukaani</groupId>
-				<artifactId>xz</artifactId>
-				<version>1.5</version>
-			</dependency>
-
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
 			<dependency>
 				<groupId>commons-cli</groupId>

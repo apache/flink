@@ -244,10 +244,6 @@ under the License.
 									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.mortbay</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.tukaani</pattern>
-									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.tukaani</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>org.znerd</pattern>
 									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.znerd</shadedPattern>
 								</relocation>

@@ -50,11 +50,6 @@ Written by Brian Goetz and Tim Peierls with assistance from members of JCP JSR-1
 and released to the public domain, as explained by the Creative Commons public domain license.
 https://creativecommons.org/licenses/publicdomain/
 
-This project bundles "org.tukaani:xz:1.5".
-This Java implementation of XZ has been put into the public domain, thus you can do
-whatever you want with it. All the files in the package have been written by Lasse Collin,
-but some files are heavily based on public domain code written by Igor Pavlov.
-
 This project bundles org.apache.hadoop:*:2.8.1 from which it inherits the following notices:
 
 The Apache Hadoop project contains subcomponents with separate copyright
