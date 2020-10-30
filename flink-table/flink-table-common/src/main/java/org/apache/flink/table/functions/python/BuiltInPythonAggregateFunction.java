@@ -30,11 +30,25 @@ public enum BuiltInPythonAggregateFunction implements PythonFunction {
 	/*
 	The list of the Python built-in aggregate functions.
 	 */
+	AVG("AvgAggFunction"),
 	COUNT1("Count1AggFunction"),
+	COUNT("CountAggFunction"),
+	FIRST_VALUE("FirstValueAggFunction"),
 	FIRST_VALUE_RETRACT("FirstValueWithRetractAggFunction"),
+	LAST_VALUE("LastValueAggFunction"),
+	LAST_VALUE_RETRACT("LastValueWithRetractAggFunction"),
+	LIST_AGG("ListAggFunction"),
+	LIST_AGG_RETRACT("ListAggWithRetractAggFunction"),
+	LIST_AGG_WS_RETRACT("ListAggWsWithRetractAggFunction"),
+	MAX("MaxAggFunction"),
+	MAX_RETRACT("MaxWithRetractAggFunction"),
+	MIN("MinAggFunction"),
+	MIN_RETRACT("MinWithRetractAggFunction"),
 	INT_SUM0("IntSum0AggFunction"),
 	FLOAT_SUM0("FloatSum0AggFunction"),
-	DECIMAL_SUM0("DecimalSum0AggFunction");
+	DECIMAL_SUM0("DecimalSum0AggFunction"),
+	SUM("SumAggFunction"),
+	SUM_RETRACT("SumWithRetractAggFunction");
 
 	private final byte[] payload;
 
