@@ -222,9 +222,12 @@ object FlinkBatchRuleSets {
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
     RuleSets.ofList(JoinConditionEqualityTransferRule.INSTANCE).asScala ++
       PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
-      FILTER_RULES.asScala ++
-      RuleSets.ofList(JoinDeriveNullFilterRule.INSTANCE).asScala
+      FILTER_RULES.asScala
     ).asJava)
+
+  val JOIN_NULL_FILTER_RULES: RuleSet = RuleSets.ofList(
+    JoinDeriveNullFilterRule.INSTANCE
+  )
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
