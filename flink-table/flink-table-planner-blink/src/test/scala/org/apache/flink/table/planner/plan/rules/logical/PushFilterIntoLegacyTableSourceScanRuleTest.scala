@@ -124,12 +124,12 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 2 OR amount < 10")
+    util.verifyPlan("SELECT * FROM MyTable WHERE amount > 20 OR amount < 10")
   }
 
   @Test
   def testCannotPushDown3WithVirtualColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10")
+    util.verifyPlan("SELECT * FROM VirtualTable WHERE amount > 20 OR amount < 10")
   }
 
   @Test

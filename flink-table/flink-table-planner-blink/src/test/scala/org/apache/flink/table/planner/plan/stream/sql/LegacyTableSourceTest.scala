@@ -369,7 +369,7 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testFilterCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 20 OR amount < 10")
   }
 
   @Test
