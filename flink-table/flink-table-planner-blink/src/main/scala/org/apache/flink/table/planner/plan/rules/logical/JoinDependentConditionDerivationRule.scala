@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
@@ -112,9 +112,11 @@ class JoinDependentConditionDerivationRule
     }
 
     if (additionalConditions.nonEmpty) {
+      val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
       val newCondExp = FlinkRexUtil.simplify(
         builder.getRexBuilder,
-        builder.and(conjunctions ++ additionalConditions))
+        builder.and(conjunctions ++ additionalConditions),
+        conf.getConfiguration.getBoolean(FlinkRexUtil.TABLE_OPTIMIZER_SIMPLIFY_SEARCH))
 
       if (!newCondExp.toString.equals(join.getCondition.toString)) {
         val newJoin = join.copy(

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
@@ -91,8 +91,12 @@ class JoinConditionEqualityTransferRule extends RelOptRule(
       rexCalls.foreach(call => newEquiJoinFilters += call)
     }
 
+    val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
     val newJoinFilter = builder.and(remainFilters :+
-      FlinkRexUtil.simplify(rexBuilder, builder.and(newEquiJoinFilters)))
+      FlinkRexUtil.simplify(
+        rexBuilder,
+        builder.and(newEquiJoinFilters),
+        conf.getConfiguration.getBoolean(FlinkRexUtil.TABLE_OPTIMIZER_SIMPLIFY_SEARCH)))
     val newJoin = join.copy(
       join.getTraitSet,
       newJoinFilter,

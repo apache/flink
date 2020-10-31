@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
@@ -86,8 +86,12 @@ class JoinConditionTypeCoerceRule extends RelOptRule(
         newJoinFilters += r
     }
 
+    val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
     val newCondExp = builder.and(
-      FlinkRexUtil.simplify(rexBuilder, builder.and(newJoinFilters)))
+      FlinkRexUtil.simplify(
+        rexBuilder,
+        builder.and(newJoinFilters),
+        conf.getConfiguration.getBoolean(FlinkRexUtil.TABLE_OPTIMIZER_SIMPLIFY_SEARCH)))
 
     val newJoin = join.copy(
       join.getTraitSet,

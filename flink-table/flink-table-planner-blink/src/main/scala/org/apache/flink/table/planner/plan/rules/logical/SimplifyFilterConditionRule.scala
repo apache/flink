@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -60,7 +60,11 @@ class SimplifyFilterConditionRule(
     }
 
     val rexBuilder = filter.getCluster.getRexBuilder
-    val simplifiedCondition = FlinkRexUtil.simplify(rexBuilder, condition)
+    val conf = FlinkRelOptUtil.getTableConfigFromContext(filter)
+    val simplifiedCondition = FlinkRexUtil.simplify(
+      rexBuilder,
+      condition,
+      conf.getConfiguration.getBoolean(FlinkRexUtil.TABLE_OPTIMIZER_SIMPLIFY_SEARCH))
     val newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition)
 
     if (!changed.head && !RexUtil.eq(condition, newCondition)) {

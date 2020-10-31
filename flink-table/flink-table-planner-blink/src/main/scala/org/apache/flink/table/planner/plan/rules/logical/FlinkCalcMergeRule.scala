@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptUtil.InputFinder
@@ -25,7 +26,6 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.{Calc, RelFactories}
 import org.apache.calcite.rex.{RexNode, RexOver, RexProgramBuilder, RexUtil}
 import org.apache.calcite.tools.RelBuilderFactory
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
 
@@ -120,7 +120,11 @@ class FlinkCalcMergeRule(relBuilderFactory: RelBuilderFactory) extends RelOptRul
 
     val newMergedProgram = if (mergedProgram.getCondition != null) {
       val condition = mergedProgram.expandLocalRef(mergedProgram.getCondition)
-      val simplifiedCondition = FlinkRexUtil.simplify(rexBuilder, condition)
+      val conf = FlinkRelOptUtil.getTableConfigFromContext(topCalc)
+      val simplifiedCondition = FlinkRexUtil.simplify(
+        rexBuilder,
+        condition,
+        conf.getConfiguration.getBoolean(FlinkRexUtil.TABLE_OPTIMIZER_SIMPLIFY_SEARCH))
       if (simplifiedCondition.toString == condition.toString) {
         mergedProgram
       } else {

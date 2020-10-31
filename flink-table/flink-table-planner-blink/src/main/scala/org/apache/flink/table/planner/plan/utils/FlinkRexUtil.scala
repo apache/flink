@@ -197,7 +197,7 @@ object FlinkRexUtil {
     * 5. a = a, a >= a, a <= a -> true
     * 6. a <> a, a > a, a < a -> false
     */
-  def simplify(rexBuilder: RexBuilder, expr: RexNode): RexNode = {
+  def simplify(rexBuilder: RexBuilder, expr: RexNode, simplifySearch: Boolean = true): RexNode = {
     if (expr.isAlwaysTrue || expr.isAlwaysFalse) {
       return expr
     }
@@ -210,8 +210,22 @@ object FlinkRexUtil {
       new BinaryComparisonExprReducer(rexBuilder))
 
     val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, RexUtil.EXECUTOR)
-    rexSimplify.simplify(binaryComparisonExprReduced)
+    val simplifiedRex = rexSimplify.simplify(binaryComparisonExprReduced)
+    if (simplifySearch) {
+      val searchSimplified = FlinkRexSimplifySearchUtil.simplify(rexBuilder, simplifiedRex)
+      searchSimplified
+    } else {
+      simplifiedRex
+    }
   }
+
+  @Experimental
+  val TABLE_OPTIMIZER_SIMPLIFY_SEARCH: ConfigOption[java.lang.Boolean] =
+    key("table.optimizer.simplify-search")
+      .defaultValue(java.lang.Boolean.valueOf(true))
+      .withDescription("Whether to simplify SEARCH rex nodes. " +
+        "This config option is here to temporary solve CALCITE-4364. " +
+        "When CALCITE-4364 is solved this config option should be removed.")
 
   val BINARY_COMPARISON: util.Set[SqlKind] = util.EnumSet.of(
     SqlKind.EQUALS, SqlKind.NOT_EQUALS,
