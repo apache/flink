@@ -82,6 +82,7 @@ class PandasConversionTestBase(object):
         data_dict["f15"] = [row.as_dict() for row in data_dict["f15"]]
         import pandas as pd
         return pd.DataFrame(data=data_dict,
+                            index=[2., 3.],
                             columns=['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9',
                                      'f10', 'f11', 'f12', 'f13', 'f14', 'f15'])
 
@@ -132,15 +133,10 @@ class PandasConversionITTests(PandasConversionTestBase):
                             "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
                             "1970-01-01 00:00:00.123,[1, 2]"])
 
-    def test_from_pandas_with_float_index(self):
-        import pandas as pd
-        table = self.t_env.from_pandas(pd.DataFrame({'a': [1, 2, 3]}, index=[2., 3., 4.]))
-        result_pdf = table.to_pandas()
-        assert_frame_equal(result_pdf, pd.DataFrame(data={'a': [1, 2, 3]}))
-
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
+        result_pdf.index = self.pdf.index
         self.assertEqual(2, len(result_pdf))
         assert_frame_equal(self.pdf, result_pdf)
 
