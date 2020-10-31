@@ -502,9 +502,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// both the following operations are protected by the lock
 			// so that we avoid race conditions in the case that initializeState()
 			// registers a timer, that fires before the open() is called.
-			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+			readRecoveredChannelState(); // WARN: should be done before operatorChain.initializeStateAndOpenOperators (see FLINK-19907)
 
-			readRecoveredChannelState();
+			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
 		});
 
 		isRunning = true;
