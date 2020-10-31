@@ -46,7 +46,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
@@ -103,14 +102,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	@Override
 	public void start() throws Exception {
 		LOG.info("Starting split enumerator for source {}.", operatorName);
-		enumerator.start();
+		// The start sequence is the first task in the coordinator executor.
+		// We rely on the single-threaded coordinator executor to guarantee
+		// the other methods are invoked after the enumerator has started.
+		coordinatorExecutor.execute(() -> enumerator.start());
 		started = true;
 	}
 
 	@Override
 	public void close() throws Exception {
 		LOG.info("Closing SourceCoordinator for source {}.", operatorName);
-		boolean successfullyClosed = false;
 		try {
 			if (started) {
 				context.close();
@@ -118,12 +119,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			}
 		} finally {
 			coordinatorExecutor.shutdownNow();
-			// We do not expect this to actually block for long. At this point, there should be very few task running
-			// in the executor, if any.
-			successfullyClosed = coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS);
-		}
-		if (!successfullyClosed) {
-			throw new TimeoutException("The source coordinator failed to close before timeout.");
+			// We do not expect this to actually block for long. At this point, there should
+			// be very few task running in the executor, if any.
+			coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
 		}
 		LOG.info("Source coordinator for source {} closed.", operatorName);
 	}

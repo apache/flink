@@ -74,11 +74,13 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 						"only be reset to a checkpoint before it starts.", OPERATOR_NAME));
 	}
 
-	@Test
+	@Test(timeout = 10000L)
 	public void testStart() throws Exception {
 		assertFalse(enumerator.started());
 		sourceCoordinator.start();
-		assertTrue(enumerator.started());
+		while (!enumerator.started()) {
+			Thread.sleep(1);
+		}
 	}
 
 	@Test
