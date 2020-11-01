@@ -55,7 +55,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(*) AS EXPR$1, MAX_RETRACT(t
    +- Calc(select=[b, ts], changelogMode=[I,UB,UA,D])
       +- ChangelogNormalize(key=[a], changelogMode=[I,UB,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, src, project=[ts, a, b]]], fields=[ts, a, b], changelogMode=[UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, src, project=[b, ts, a]]], fields=[b, ts, a], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(*) AS EXPR$1, MAX_RETRACT(t
 +- Exchange(distribution=[hash[a]], changelogMode=[I,UB,UA,D])
    +- ChangelogNormalize(key=[a], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[a]], changelogMode=[UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[ts, a]]], fields=[ts, a], changelogMode=[UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, ts]]], fields=[a, ts], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -437,7 +437,7 @@ LogicalProject(id1=[$1], a=[$2], b=[$4])
 Calc(select=[id1, a, b], changelogMode=[I,UA,D])
 +- ChangelogNormalize(key=[id2, id1], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[id2, id1]], changelogMode=[UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[b, id1, a, id2]]], fields=[b, id1, a, id2], changelogMode=[UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id1, a, b, id2]]], fields=[id1, a, b, id2], changelogMode=[UA])
 ]]>
     </Resource>
   </TestCase>

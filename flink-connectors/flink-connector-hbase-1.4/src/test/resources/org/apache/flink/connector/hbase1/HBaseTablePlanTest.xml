@@ -29,7 +29,7 @@ LogicalProject(family3=[$2], col2=[$1.col2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[family3, family2.col2 AS col2])
-+- TableSourceScan(table=[[default_catalog, default_database, hTable, project=[family2, family3]]], fields=[family2, family3])
++- TableSourceScan(table=[[default_catalog, default_database, hTable, project=[family3, family2]]], fields=[family3, family2])
 ]]>
     </Resource>
   </TestCase>

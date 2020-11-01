@@ -36,7 +36,9 @@ import scala.collection.JavaConverters._
  * @param index     The index of the field in the origin schema. It
  *                  only works for the RowType.
  * @param fieldType The type of the field. It is useful when
- *                  rewriting the projections.
+ *                  rewriting the projections. It uses the LinkedHashMap
+ *                  to keep the insert order. In some cases, it can
+ *                  reduce the cost of the reorder of the fields in query.
  * @param useAll    Mark the field is the leaf node in the tree.
  * @param fields    Store the children of the field. It's safe to use
  *                  name as the index because name is unique in every
@@ -77,7 +79,7 @@ object RexNodeNestedField {
       0,
       rowType,
       false,
-      new util.HashMap[String, RexNodeNestedField](),
+      new util.LinkedHashMap[String, RexNodeNestedField](),
       0)
     val visitor = new NestedFieldExtractor(root, rowType)
     for(expr <- exprs) {
@@ -255,7 +257,7 @@ class NestedFieldExtractor(val root: RexNodeNestedField, val rowType: RelDataTyp
               index,
               fieldType.getFieldList.get(index).getType,
               false,
-              new util.HashMap[String, RexNodeNestedField](),
+              new util.LinkedHashMap[String, RexNodeNestedField](),
               -1
             )
           )
