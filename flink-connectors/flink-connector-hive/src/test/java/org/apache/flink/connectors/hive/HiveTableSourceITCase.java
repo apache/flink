@@ -352,7 +352,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
 			String expectedExplain =
-					"table=[[hive, default, src, project=[p1, y]]]";
+					"table=[[hive, default, src, project=[y, p1]]]";
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
 
 			List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
