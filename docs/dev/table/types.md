@@ -1240,7 +1240,7 @@ DataTypes.INTERVAL(DataTypes.SECOND(p2))
 
 The type can be declared using the above combinations where `p1` is the number of digits of days
 (*day precision*) and `p2` is the number of digits of fractional seconds (*fractional precision*).
-`p1` must have a value between `1` and `6` (both inclusive). `p2` must have a value between `0`
+`p1` must have a value between `1` and `3` (both inclusive). `p2` must have a value between `0`
 and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
 specified, it is equal to `6` by default.
 
