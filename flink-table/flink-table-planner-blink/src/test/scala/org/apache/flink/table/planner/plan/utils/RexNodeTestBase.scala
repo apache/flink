@@ -55,9 +55,9 @@ abstract class RexNodeTestBase {
     program.expandLocalRef(program.getCondition)
   }
 
-  protected def buildExprs(): JList[RexNode] = {
+  protected def buildExprs(): (JList[RexNode], RelDataType) = {
     val exprs = program.getProjectList.map(expr => program.expandLocalRef(expr))
-    (exprs :+ buildConditionExpr()).asJava
+    ((exprs :+ buildConditionExpr()).asJava, program.getInputRowType)
   }
 
   // select amount, amount * price as total where amount * price < 100 and id > 6
@@ -89,7 +89,7 @@ abstract class RexNodeTestBase {
     fieldTypes.toList.map(typeFactory.createSqlType).asJava
   }
 
-  protected def buildExprsWithDeepNesting(): JList[RexNode] = {
+  protected def buildExprsWithDeepNesting(): (JList[RexNode], RelDataType) = {
 
     // person input
     val passportRow = inputOf(typeFactory)
@@ -130,6 +130,14 @@ abstract class RexNodeTestBase {
     val fieldRowType = inputOf(typeFactory)
       .nestedField("with", withRowType)
       .build
+
+    val rowType = typeFactory.createStructType(
+      Seq(
+      personRow, paymentRow, fieldRowType),
+      Seq(
+        "persons", "payments", "field"
+      )
+    )
 
     // inputRowType
     //
@@ -173,12 +181,12 @@ abstract class RexNodeTestBase {
     //   field.with.deeper.entry
     //   persons
     // )
-    List(multiplyAmount, person$pass$stat, field$with$deep$entry,
-      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0).asJava
-
+    (List(multiplyAmount, person$pass$stat, field$with$deep$entry,
+      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0).asJava,
+      rowType)
   }
 
-  protected def buildExprsWithNesting(): JList[RexNode] = {
+  protected def buildExprsWithNesting(): (JList[RexNode], RelDataType) = {
     val personRow = inputOf(typeFactory)
       .field("name", INTEGER)
       .field("age", VARCHAR)
@@ -189,6 +197,10 @@ abstract class RexNodeTestBase {
       .field("amount", INTEGER)
       .build
 
+    val rowType = typeFactory.createStructType(
+      Seq(personRow, paymentRow),
+      Seq("person", "payment"))
+
     val types = List(personRow, paymentRow).asJava
 
     val t0 = rexBuilder.makeInputRef(types.get(0), 0)
@@ -197,7 +209,7 @@ abstract class RexNodeTestBase {
 
     val payment$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
 
-    List(payment$amount, t0, t2).asJava
+    (List(payment$amount, t0, t2).asJava, rowType)
   }
 
 }

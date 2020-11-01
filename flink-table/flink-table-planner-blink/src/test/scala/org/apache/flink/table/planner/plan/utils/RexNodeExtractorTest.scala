@@ -41,6 +41,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
+
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
 
@@ -48,6 +49,8 @@ import java.math.BigDecimal
 import java.time.ZoneId
 import java.util
 import java.util.{TimeZone, List => JList}
+
+import org.hamcrest.{BaseMatcher, Description}
 
 import scala.collection.JavaConverters._
 
@@ -65,15 +68,45 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
+  private class UnorderedArrayMatcher(expected: util.HashSet[JList[Int]])
+      extends BaseMatcher[Array[Array[Int]]] {
+    override def matches(item: Any): Boolean = {
+      for (path <- item.asInstanceOf[Array[Array[Int]]]) {
+        if (!expected.contains(path.toSeq.asJava)) {
+          return false
+        }
+      }
+      true
+    }
+
+    override def describeTo(description: Description): Unit = {
+      description.appendValueList("", ",", "", expected)
+    }
+  }
+
   @Test
   def testExtractRefInputFields(): Unit = {
-    val usedFields = RexNodeExtractor.extractRefInputFields(buildExprs())
+    val (exprs, _) = buildExprs()
+    val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     assertArrayEquals(usedFields, Array(2, 3, 1))
   }
 
   @Test
+  def testExtractRefInputFieldsUsingNestedField(): Unit = {
+    val (exprs, rowType) = buildExprs()
+    val nestedFields = RexNodeNestedField.build(exprs, rowType)
+    val actual = RexNodeNestedField.labelAndConvert(nestedFields)
+    val expected = new util.HashSet[JList[Int]]
+    expected.add(util.Arrays.asList(2))
+    expected.add(util.Arrays.asList(3))
+    expected.add(util.Arrays.asList(1))
+
+    assertThat(actual, new UnorderedArrayMatcher(expected))
+  }
+
+  @Test
   def testExtractRefNestedInputFields(): Unit = {
-    val rexProgram = buildExprsWithNesting()
+    val (rexProgram, _) = buildExprsWithNesting()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
@@ -83,8 +116,21 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   }
 
   @Test
+  def testExtractRefNestedInputFieldsUsingNestedField(): Unit = {
+    val (rexProgram, rowType) = buildExprsWithNesting()
+
+    val nestedFields = RexNodeNestedField.build(rexProgram, rowType)
+    val actual = RexNodeNestedField.labelAndConvert(nestedFields)
+    val expected = new util.HashSet[JList[Int]]
+    expected.add(Array(1, 1).toSeq.asJava)
+    expected.add(Array(0).toSeq.asJava)
+    assertThat(actual, new UnorderedArrayMatcher(expected))
+  }
+
+
+  @Test
   def testExtractRefNestedInputFieldsWithNoNesting(): Unit = {
-    val exprs = buildExprs()
+    val (exprs, _) = buildExprs()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(exprs, usedFields)
@@ -95,8 +141,21 @@ class RexNodeExtractorTest extends RexNodeTestBase {
   }
 
   @Test
+  def testExtractRefNestedInputFieldsWithNoNestingUsingNestedField(): Unit = {
+    val (exprs, rowType) = buildExprs()
+
+    val nestedFields = RexNodeNestedField.build(exprs, rowType)
+    val actual = RexNodeNestedField.labelAndConvert(nestedFields)
+    val expected = new util.HashSet[JList[Int]]
+    expected.add(Array(2).toSeq.asJava)
+    expected.add(Array(3).toSeq.asJava)
+    expected.add(Array(1).toSeq.asJava)
+    assertThat(actual, new UnorderedArrayMatcher(expected))
+  }
+
+  @Test
   def testExtractDeepRefNestedInputFields(): Unit = {
-    val rexProgram = buildExprsWithDeepNesting()
+    val (rexProgram, _) = buildExprsWithDeepNesting()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
@@ -109,6 +168,20 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     assertThat(usedFields, is(Array(1, 0, 2)))
     assertThat(usedNestedFields, is(expected))
+  }
+
+  @Test
+  def testExtractDeepRefNestedInputFieldsUsingNestedField(): Unit = {
+    val (rexProgram, rowType) = buildExprsWithDeepNesting()
+
+    val nestedFields = RexNodeNestedField.build(rexProgram, rowType)
+    val actual = RexNodeNestedField.labelAndConvert(nestedFields)
+    val expected = new util.HashSet[JList[Int]]
+    expected.add(Array(0).toSeq.asJava)
+    expected.add(Array(1, 1).toSeq.asJava)
+    expected.add(Array(2, 0, 0, 0).toSeq.asJava)
+    expected.add(Array(2, 0, 1, 0).toSeq.asJava)
+    assertThat(actual, new UnorderedArrayMatcher(expected))
   }
 
   @Test

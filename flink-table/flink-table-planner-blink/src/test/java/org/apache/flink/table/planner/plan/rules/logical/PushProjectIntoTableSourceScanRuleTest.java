@@ -51,8 +51,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 				"CREATE TABLE MyTable (\n" +
 						"  a int,\n" +
 						"  b bigint,\n" +
-						"  c string\n," +
-						"  d map<string,string>\n" +
+						"  c string\n" +
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
 						" 'bounded' = 'true'\n" +
@@ -77,7 +76,8 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
 						"  nested row<name string, `value` int>,\n" +
 						"  `deepNestedWith.` row<`.value` int, nested row<name string, `.value` int>>,\n" +
-						"  name string\n" +
+						"  name string,\n" +
+						"  testMap Map<string, string>\n" +
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
 						" 'nested-projection-supported' = 'true'," +
@@ -98,13 +98,29 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
 						")";
 		util().tableEnv().executeSql(ddl4);
+
+		String ddl5 =
+				"CREATE TABLE UpsertTable(" +
+						"  id int,\n" +
+						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
+						"  metadata_1 int metadata,\n" +
+						"  metadata_2 string metadata,\n" +
+						"  PRIMARY KEY(id, deepNested) NOT ENFORCED" +
+						") WITH (" +
+						"  'connector' = 'values'," +
+						"  'nested-projection-supported' = 'true'," +
+						"  'bounded' = 'false',\n" +
+						"  'changelod-mode' = 'I,UB,D'," +
+						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
+						")";
+		util().tableEnv().executeSql(ddl5);
 	}
 
 	@Test
 	public void testProjectWithMapType() {
 		String sqlQuery =
-				"SELECT a, d['e']\n" +
-						"FROM MyTable";
+				"SELECT id, testMap['e']\n" +
+						"FROM NestedTable";
 		util().verifyPlan(sqlQuery);
 	}
 
@@ -131,6 +147,16 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 
 	@Test
 	public void testNestProjectWithMetadata() {
+		String sqlQuery = "SELECT id," +
+				"    deepNested.nested1 AS nested1,\n" +
+				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
+				"FROM MetadataTable";
+
+		util().verifyPlan(sqlQuery);
+	}
+
+	@Test
+	public void testNestProjectWithUpsertSource() {
 		String sqlQuery = "SELECT id," +
 				"    deepNested.nested1 AS nested1,\n" +
 				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
