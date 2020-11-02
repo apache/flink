@@ -37,6 +37,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -66,7 +67,7 @@ public class DataStreamBatchExecutionITCase {
 
 		final StreamExecutionEnvironment env = getExecutionEnvironment();
 
-		DataStreamSource<String> source = env.fromElements("ciao", "ciao");
+		DataStreamSource<String> source = env.fromElements("foo", "bar");
 
 		SingleOutputStreamOperator<String> mapped = source
 				.map(new SuffixAttemptId("a"))
@@ -79,7 +80,7 @@ public class DataStreamBatchExecutionITCase {
 
 		// only the operators after the key-by "barrier" are restarted and will have the "attempt 1"
 		// suffix
-		assertThat(result, contains("ciao-a0-b0-c1-d1", "ciao-a0-b0-c1-d1"));
+		assertThat(result, containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
 	}
 
 	@Ignore
