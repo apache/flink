@@ -614,6 +614,7 @@ public class StreamingJobGraphGenerator {
 		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
 		config.setStateBackend(streamGraph.getStateBackend());
+		config.setGraphContainingLoops(streamGraph.isIterative());
 		config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
