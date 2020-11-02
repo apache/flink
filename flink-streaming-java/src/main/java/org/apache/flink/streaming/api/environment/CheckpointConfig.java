@@ -76,6 +76,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
+	/** Flag to force checkpointing in iterative jobs. */
+	private boolean forceUnalignedCheckpoints;
+
 	/** Flag to enable unaligned checkpoints. */
 	private boolean unalignedCheckpointsEnabled;
 
@@ -121,6 +124,7 @@ public class CheckpointConfig implements java.io.Serializable {
 		this.alignmentTimeout = checkpointConfig.alignmentTimeout;
 		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
 		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
+		this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
 		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
 	}
 
@@ -293,6 +297,26 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public void setForceCheckpointing(boolean forceCheckpointing) {
 		this.forceCheckpointing = forceCheckpointing;
+	}
+
+	/**
+	 * Checks whether Unaligned Checkpoints are forced, despite iteration feedback.
+	 *
+	 * @return True, if Unaligned Checkpoints are forced, false otherwise.
+	 */
+	@PublicEvolving
+	public boolean isForceUnalignedCheckpoints() {
+		return forceUnalignedCheckpoints;
+	}
+
+	/**
+	 * Checks whether Unaligned Checkpoints are forced, despite currently non-checkpointable iteration feedback.
+	 *
+	 * @param forceUnalignedCheckpoints The flag to force checkpointing.
+	 */
+	@PublicEvolving
+	public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {
+		this.forceUnalignedCheckpoints = forceUnalignedCheckpoints;
 	}
 
 	/**
@@ -571,5 +595,7 @@ public class CheckpointConfig implements java.io.Serializable {
 			.ifPresent(this::enableUnalignedCheckpoints);
 		configuration.getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
 			.ifPresent(timeout -> setAlignmentTimeout(timeout.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
+			.ifPresent(this::setForceUnalignedCheckpoints);
 	}
 }
