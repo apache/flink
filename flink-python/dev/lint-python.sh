@@ -334,7 +334,7 @@ function install_sphinx() {
 
 
 # Install mypy.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
+# In some situations, you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_mypy() {
     source ${CONDA_HOME}/bin/activate
     if [[ -f "$MYPY_PATH" ]]; then
