@@ -476,6 +476,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   }
 
   @Test
+  @Ignore("the test using update before time as changelog time which is unstable")
   def testEventTimeTemporalJoinChangelogUsingBeforeTime(): Unit = {
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
@@ -499,6 +500,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   }
 
   @Test
+  @Ignore("the test using update before time as changelog time which is unstable")
   def testEventTimeLeftTemporalJoinUpsertSource(): Unit = {
     // Note: The WatermarkAssigner of upsertSource is followed after ChangelogNormalize,
     // when the parallelism > 1 and test data doesn't cover all parallelisms, it returns
