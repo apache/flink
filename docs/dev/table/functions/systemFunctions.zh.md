@@ -3489,7 +3489,6 @@ CURRENT_DATE
       </td>
       <td>
         <p>Returns the current SQL date in the UTC time zone.</p>
-        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
@@ -3501,7 +3500,6 @@ CURRENT_TIME
       </td>
       <td>
         <p>Returns the current SQL time in the UTC time zone.</p>
-        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
@@ -3513,7 +3511,6 @@ CURRENT_TIMESTAMP
       </td>
       <td>
         <p>Returns the current SQL timestamp in the UTC time zone.</p>
-        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
@@ -3525,7 +3522,6 @@ LOCALTIME
       </td>
       <td>
         <p>Returns the current SQL time in local time zone.</p>
-        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
@@ -3537,7 +3533,6 @@ LOCALTIMESTAMP
       </td>
       <td>
         <p>Returns the current SQL timestamp in local time zone.</p>
-        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
       </td>
     </tr>
 
