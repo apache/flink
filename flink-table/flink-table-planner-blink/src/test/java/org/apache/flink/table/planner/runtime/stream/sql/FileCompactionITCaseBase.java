@@ -27,9 +27,8 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.FileUtils;
 
-import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,10 +38,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.COMPACTED_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -56,20 +55,24 @@ public abstract class FileCompactionITCaseBase extends StreamingTestBase {
 
 	private String resultPath;
 
-	private List<Row> rows;
+	private List<Row> expectedRows;
 
 	@Before
 	public void init() throws IOException {
 		resultPath = tempFolder().newFolder().toURI().toString();
-		clear();
 
 		env().setParallelism(3);
 		env().enableCheckpointing(100);
 
-		rows = new ArrayList<>();
+		List<Row> rows = new ArrayList<>();
 		for (int i = 0; i < 100; i++) {
 			rows.add(Row.of(i, String.valueOf(i % 10), String.valueOf(i)));
 		}
+
+		this.expectedRows = new ArrayList<>();
+		this.expectedRows.addAll(rows);
+		this.expectedRows.addAll(rows);
+		this.expectedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
 
 		DataStream<Row> stream = new DataStream<>(env().getJavaEnv().addSource(
 				new ParallelFiniteTestSource<>(rows),
@@ -80,11 +83,6 @@ public abstract class FileCompactionITCaseBase extends StreamingTestBase {
 		tEnv().createTemporaryView("my_table",  stream);
 	}
 
-	@After
-	public void clear() throws IOException {
-		FileUtils.deleteDirectory(new File(URI.create(resultPath)));
-	}
-
 	protected abstract String format();
 
 	@Test
@@ -92,16 +90,9 @@ public abstract class FileCompactionITCaseBase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE sink_table (a int, b string, c string) with (" + options() + ")");
 		tEnv().executeSql("insert into sink_table select * from my_table").await();
 
-		List<Row> results = toListAndClose(tEnv().executeSql("select * from sink_table").collect());
-		results.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
-		assertEquals(rows, results);
+		assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
-		File[] files = new File(URI.create(resultPath)).listFiles(
-				(dir, name) -> name.startsWith("compacted-part-"));
-		assertEquals(Arrays.toString(files), 1, files.length);
-
-		String fileName = files[0].getName();
-		assertTrue(fileName, fileName.startsWith("compacted-part-"));
+		assertFiles(new File(URI.create(resultPath)).listFiles(), false);
 	}
 
 	@Test
@@ -109,19 +100,14 @@ public abstract class FileCompactionITCaseBase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE sink_table (a int, b string, c string) partitioned by (b) with (" + options() + ")");
 		tEnv().executeSql("insert into sink_table select * from my_table").await();
 
-		List<Row> results = toListAndClose(tEnv().executeSql("select * from sink_table").collect());
-		results.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
-		assertEquals(rows, results);
+		assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
 		File path = new File(URI.create(resultPath));
 		assertEquals(10, path.listFiles().length);
 
 		for (int i = 0; i < 10; i++) {
 			File partition = new File(path, "b=" + i);
-			File[] files = partition.listFiles();
-			assertEquals(Arrays.toString(files), 2, files.length);
-			assertEquals(1, partition.list((dir, name) -> name.equals("_SUCCESS")).length);
-			assertEquals(1, partition.list((dir, name) -> name.startsWith("compacted-part-")).length);
+			assertFiles(partition.listFiles(), true);
 		}
 	}
 
@@ -139,9 +125,24 @@ public abstract class FileCompactionITCaseBase extends StreamingTestBase {
 		return String.format("'%s'='%s'", key, value);
 	}
 
-	private List<Row> toListAndClose(CloseableIterator<Row> iterator) throws Exception {
-		List<Row> rows = CollectionUtil.iteratorToList(iterator);
+	private void assertIterator(CloseableIterator<Row> iterator) throws Exception {
+		List<Row> result = CollectionUtil.iteratorToList(iterator);
 		iterator.close();
-		return rows;
+		result.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
+		assertEquals(expectedRows, result);
+	}
+
+	private void assertFiles(File[] files, boolean containSuccess) {
+		File successFile = null;
+		for (File file : files) {
+			if (containSuccess && file.getName().equals("_SUCCESS")) {
+				successFile = file;
+			} else {
+				assertTrue(file.getName(), file.getName().startsWith(COMPACTED_PREFIX));
+			}
+		}
+		if (containSuccess) {
+			Assert.assertNotNull("Should contains success file", successFile);
+		}
 	}
 }

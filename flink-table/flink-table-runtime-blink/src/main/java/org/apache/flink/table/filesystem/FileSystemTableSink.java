@@ -62,7 +62,7 @@ import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
 import org.apache.flink.table.filesystem.stream.compact.CompactBulkReader;
 import org.apache.flink.table.filesystem.stream.compact.CompactReader;
-import org.apache.flink.table.filesystem.stream.compact.FileInputFormatReader;
+import org.apache.flink.table.filesystem.stream.compact.FileInputFormatCompactReader;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
@@ -127,108 +127,118 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	}
 
 	private DataStreamSink<?> consume(DataStream<RowData> dataStream, Context sinkContext) {
-		RowDataPartitionComputer computer = new RowDataPartitionComputer(
-				defaultPartName,
-				schema.getFieldNames(),
-				schema.getFieldDataTypes(),
-				partitionKeys.toArray(new String[0]));
-
-		EmptyMetaStoreFactory metaStoreFactory = new EmptyMetaStoreFactory(path);
-		OutputFileConfig outputFileConfig = OutputFileConfig.builder()
-				.withPartPrefix("part-" + UUID.randomUUID().toString())
-				.build();
-		FileSystemFactory fsFactory = FileSystem::get;
-
 		if (sinkContext.isBounded()) {
-			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
-			builder.setPartitionComputer(computer);
-			builder.setDynamicGrouped(dynamicGrouping);
-			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
-			builder.setFormatFactory(createOutputFormatFactory(sinkContext));
-			builder.setMetaStoreFactory(metaStoreFactory);
-			builder.setFileSystemFactory(fsFactory);
-			builder.setOverwrite(overwrite);
-			builder.setStaticPartitions(staticPartitions);
-			builder.setTempPath(toStagingPath());
-			builder.setOutputFileConfig(outputFileConfig);
-			return dataStream.writeUsingOutputFormat(builder.build())
-					.setParallelism(dataStream.getParallelism());
+			return createBatchSink(dataStream, sinkContext);
 		} else {
 			if (overwrite) {
 				throw new IllegalStateException("Streaming mode not support overwrite.");
 			}
 
-			boolean autoCompaction = tableOptions.getBoolean(FileSystemOptions.AUTO_COMPACTION);
-			Object writer = createWriter(sinkContext);
-			boolean isEncoder = writer instanceof Encoder;
-			TableBucketAssigner assigner = new TableBucketAssigner(computer);
-			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
-					!isEncoder || autoCompaction,
-					tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-					tableOptions.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
-
-			if (autoCompaction) {
-				outputFileConfig = OutputFileConfig.builder()
-						.withPartPrefix(convertToUncompacted(outputFileConfig.getPartPrefix()))
-						.withPartSuffix(outputFileConfig.getPartSuffix())
-						.build();
-			}
-
-			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
-			if (isEncoder) {
-				//noinspection unchecked
-				bucketsBuilder = StreamingFileSink.forRowFormat(
-						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
-						.withBucketAssigner(assigner)
-						.withOutputFileConfig(outputFileConfig)
-						.withRollingPolicy(rollingPolicy);
-			} else {
-				//noinspection unchecked
-				bucketsBuilder = StreamingFileSink.forBulkFormat(
-						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
-						.withBucketAssigner(assigner)
-						.withOutputFileConfig(outputFileConfig)
-						.withRollingPolicy(rollingPolicy);
-			}
-
-			long bucketCheckInterval = tableOptions.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis();
-
-			DataStream<PartitionCommitInfo> writerStream;
-			if (autoCompaction) {
-				long compactionSize = tableOptions
-						.getOptional(FileSystemOptions.COMPACTION_FILE_SIZE)
-						.orElse(tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE))
-						.getBytes();
-
-				CompactReader.Factory<RowData> reader = createCompactReader(sinkContext).orElseThrow(
-						() -> new TableException("Please implement available reader for compaction:" +
-								" BulkFormat, FileInputFormat."));
-
-				writerStream = StreamingSink.compactionWriter(
-						dataStream,
-						bucketCheckInterval,
-						bucketsBuilder,
-						fsFactory,
-						path,
-						reader,
-						compactionSize);
-			} else {
-				writerStream = StreamingSink.writer(
-						dataStream, bucketCheckInterval, bucketsBuilder);
-			}
-
-			return StreamingSink.sink(
-					writerStream,
-					path,
-					tableIdentifier,
-					partitionKeys,
-					metaStoreFactory,
-					fsFactory,
-					tableOptions);
+			return createStreamingSink(dataStream, sinkContext);
 		}
 	}
 
-	private Optional<CompactReader.Factory<RowData>> createCompactReader(Context context) {
+	private RowDataPartitionComputer partitionComputer() {
+		return new RowDataPartitionComputer(
+				defaultPartName,
+				schema.getFieldNames(),
+				schema.getFieldDataTypes(),
+				partitionKeys.toArray(new String[0]));
+	}
+
+	private DataStreamSink<RowData> createBatchSink(
+			DataStream<RowData> inputStream, Context sinkContext) {
+		FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
+		builder.setPartitionComputer(partitionComputer());
+		builder.setDynamicGrouped(dynamicGrouping);
+		builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
+		builder.setFormatFactory(createOutputFormatFactory(sinkContext));
+		builder.setMetaStoreFactory(new EmptyMetaStoreFactory(path));
+		builder.setOverwrite(overwrite);
+		builder.setStaticPartitions(staticPartitions);
+		builder.setTempPath(toStagingPath());
+		builder.setOutputFileConfig(OutputFileConfig.builder()
+				.withPartPrefix("part-" + UUID.randomUUID().toString())
+				.build());
+		return inputStream.writeUsingOutputFormat(builder.build())
+				.setParallelism(inputStream.getParallelism());
+	}
+
+	private DataStreamSink<?> createStreamingSink(
+			DataStream<RowData> dataStream, Context sinkContext) {
+		FileSystemFactory fsFactory = FileSystem::get;
+		RowDataPartitionComputer computer = partitionComputer();
+
+		boolean autoCompaction = tableOptions.getBoolean(FileSystemOptions.AUTO_COMPACTION);
+		Object writer = createWriter(sinkContext);
+		boolean isEncoder = writer instanceof Encoder;
+		TableBucketAssigner assigner = new TableBucketAssigner(computer);
+		TableRollingPolicy rollingPolicy = new TableRollingPolicy(
+				!isEncoder || autoCompaction,
+				tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
+				tableOptions.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+
+		String randomPrefix = "part-" + UUID.randomUUID().toString();
+		OutputFileConfig.OutputFileConfigBuilder fileNamingBuilder = OutputFileConfig.builder();
+		fileNamingBuilder = autoCompaction ?
+				fileNamingBuilder.withPartPrefix(convertToUncompacted(randomPrefix)) :
+				fileNamingBuilder.withPartPrefix(randomPrefix);
+		OutputFileConfig fileNamingConfig = fileNamingBuilder.build();
+
+		BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
+		if (isEncoder) {
+			//noinspection unchecked
+			bucketsBuilder = StreamingFileSink.forRowFormat(
+					path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
+					.withBucketAssigner(assigner)
+					.withOutputFileConfig(fileNamingConfig)
+					.withRollingPolicy(rollingPolicy);
+		} else {
+			//noinspection unchecked
+			bucketsBuilder = StreamingFileSink.forBulkFormat(
+					path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
+					.withBucketAssigner(assigner)
+					.withOutputFileConfig(fileNamingConfig)
+					.withRollingPolicy(rollingPolicy);
+		}
+
+		long bucketCheckInterval = tableOptions.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis();
+
+		DataStream<PartitionCommitInfo> writerStream;
+		if (autoCompaction) {
+			long compactionSize = tableOptions
+					.getOptional(FileSystemOptions.COMPACTION_FILE_SIZE)
+					.orElse(tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE))
+					.getBytes();
+
+			CompactReader.Factory<RowData> reader = createCompactReaderFactory(sinkContext).orElseThrow(
+					() -> new TableException("Please implement available reader for compaction:" +
+							" BulkFormat, FileInputFormat."));
+
+			writerStream = StreamingSink.compactionWriter(
+					dataStream,
+					bucketCheckInterval,
+					bucketsBuilder,
+					fsFactory,
+					path,
+					reader,
+					compactionSize);
+		} else {
+			writerStream = StreamingSink.writer(
+					dataStream, bucketCheckInterval, bucketsBuilder);
+		}
+
+		return StreamingSink.sink(
+				writerStream,
+				path,
+				tableIdentifier,
+				partitionKeys,
+				new EmptyMetaStoreFactory(path),
+				fsFactory,
+				tableOptions);
+	}
+
+	private Optional<CompactReader.Factory<RowData>> createCompactReaderFactory(Context context) {
 		DataType producedDataType = schema.toRowDataType();
 		if (bulkReaderFormat != null) {
 			BulkFormat<RowData> format = bulkReaderFormat.createRuntimeDecoder(
@@ -238,7 +248,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 			InputFormat<RowData, ?> format = formatFactory.createReader(createReaderContext());
 			if (format instanceof FileInputFormat) {
 				//noinspection unchecked
-				return Optional.of(FileInputFormatReader.factory((FileInputFormat<RowData>) format));
+				return Optional.of(FileInputFormatCompactReader.factory((FileInputFormat<RowData>) format));
 			}
 		}
 		return Optional.empty();

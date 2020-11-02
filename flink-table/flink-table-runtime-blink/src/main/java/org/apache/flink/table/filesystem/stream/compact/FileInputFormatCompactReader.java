@@ -26,11 +26,11 @@ import java.io.IOException;
 /**
  * The {@link CompactReader} to delegate {@link FileInputFormat}.
  */
-public class FileInputFormatReader<T> implements CompactReader<T> {
+public class FileInputFormatCompactReader<T> implements CompactReader<T> {
 
 	private final FileInputFormat<T> format;
 
-	private FileInputFormatReader(FileInputFormat<T> format) {
+	private FileInputFormatCompactReader(FileInputFormat<T> format) {
 		this.format = format;
 	}
 
@@ -52,7 +52,7 @@ public class FileInputFormatReader<T> implements CompactReader<T> {
 	}
 
 	/**
-	 * Factory to create {@link FileInputFormatReader}.
+	 * Factory to create {@link FileInputFormatCompactReader}.
 	 */
 	private static class Factory<T> implements CompactReader.Factory<T> {
 
@@ -66,7 +66,7 @@ public class FileInputFormatReader<T> implements CompactReader<T> {
 		public CompactReader<T> create(CompactContext context) throws IOException {
 			long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
 			format.open(new FileInputSplit(0, context.getPath(), 0, len, null));
-			return new FileInputFormatReader<>(format);
+			return new FileInputFormatCompactReader<>(format);
 		}
 	}
 }

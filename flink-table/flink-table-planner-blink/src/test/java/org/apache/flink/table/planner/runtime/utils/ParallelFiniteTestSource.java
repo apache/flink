@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.util.FiniteTestSource;
 
 import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Parallel {@link FiniteTestSource} version.
@@ -35,7 +34,7 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 	private final Iterable<T> elements;
 
 	private transient volatile boolean running;
-	private transient AtomicInteger numCheckpointsComplete;
+	private transient int numCheckpointsComplete;
 
 	public ParallelFiniteTestSource(Iterable<T> elements) {
 		this.elements = elements;
@@ -45,7 +44,7 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		running = true;
-		numCheckpointsComplete = new AtomicInteger(0);
+		numCheckpointsComplete = 0;
 	}
 
 	public boolean isTaskMessage(int id) {
@@ -55,33 +54,49 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
-		Object lock = ctx.getCheckpointLock();
+		// first round of sending the elements and waiting for the checkpoints
+		emitElementsAndWaitForCheckpoints(ctx, 2);
+
+		// second round of the same
+		emitElementsAndWaitForCheckpoints(ctx, 2);
+	}
+
+	private void emitElementsAndWaitForCheckpoints(
+			SourceContext<T> ctx, int checkpointsToWaitFor) throws InterruptedException {
+		final Object lock = ctx.getCheckpointLock();
+
+		final int checkpointToAwait;
 		synchronized (lock) {
-			Iterator<T> iterator = elements.iterator();
-			int i = 0;
-			while (iterator.hasNext()) {
-				T next = iterator.next();
-				if (isTaskMessage(i)) {
-					ctx.collect(next);
-				}
-				i++;
-			}
+			checkpointToAwait = numCheckpointsComplete + checkpointsToWaitFor;
+			emitRecords(ctx);
 		}
 
 		synchronized (lock) {
-			while (running && numCheckpointsComplete.get() < 2) {
+			while (running && numCheckpointsComplete < checkpointToAwait) {
 				lock.wait(1);
 			}
 		}
 	}
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		numCheckpointsComplete.incrementAndGet();
+	private void emitRecords(SourceContext<T> ctx) {
+		Iterator<T> iterator = elements.iterator();
+		int i = 0;
+		while (iterator.hasNext()) {
+			T next = iterator.next();
+			if (isTaskMessage(i)) {
+				ctx.collect(next);
+			}
+			i++;
+		}
 	}
 
 	@Override
 	public void cancel() {
 		running = false;
+	}
+
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		numCheckpointsComplete++;
 	}
 }
