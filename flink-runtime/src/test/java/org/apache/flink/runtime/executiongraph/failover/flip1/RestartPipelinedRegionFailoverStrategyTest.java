@@ -182,7 +182,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		IntermediateResultPartitionID rp2ID = v2.getProducedResults().iterator().next().getId();
 
 		// -------------------------------------------------
-		// Combination1: (rp1 == available, rp == available)
+		// Combination1: (rp1 == available, rp2 == available)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 
@@ -191,7 +191,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		verifyThatFailedExecution(strategy, v3).restarts(v3);
 
 		// -------------------------------------------------
-		// Combination2: (rp1 == unavailable, rp == available)
+		// Combination2: (rp1 == unavailable, rp2 == available)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 		availabilityChecker.markResultPartitionFailed(rp1ID);
@@ -201,7 +201,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		verifyThatFailedExecution(strategy, v3).restarts(v1, v3);
 
 		// -------------------------------------------------
-		// Combination3: (rp1 == available, rp == unavailable)
+		// Combination3: (rp1 == available, rp2 == unavailable)
 		// -------------------------------------------------
 		availabilityChecker.failedPartitions.clear();
 		availabilityChecker.markResultPartitionFailed(rp2ID);
@@ -269,7 +269,7 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 	 *            |
 	 *       (blocking)
 	 * </pre>
-	 * Component 1: 1,2; component 2: 3,4; component 3: 5,6
+	 * Component 1: 1; component 2: 2
 	 */
 	@Test
 	public void testRegionFailoverDoesNotRestartCreatedExecutions() {
@@ -285,6 +285,36 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 		verifyThatFailedExecution(strategy, v2).restarts();
 		TestingSchedulingResultPartition v1out = v2.getConsumedResults().iterator().next();
 		verifyThatFailedExecution(strategy, v2).partitionConnectionCause(v1out).restarts();
+	}
+
+	/**
+	 * Tests approximate local recovery downstream failover .
+	 * <pre>
+	 *     (v1) -----> (v2) -----> (v4)
+	 *      |                       ^
+	 *      |--------> (v3) --------|
+	 * </pre>
+	 */
+	@Test
+	public void testRegionFailoverForPipelinedApproximate() {
+		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.RUNNING);
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
+
+		topology.connect(v1, v2, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v1, v3, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v2, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
+		topology.connect(v3, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
+
+		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
+
+		verifyThatFailedExecution(strategy, v1).restarts(v1, v2, v3, v4);
+		verifyThatFailedExecution(strategy, v2).restarts(v2, v4);
+		verifyThatFailedExecution(strategy, v3).restarts(v3, v4);
+		verifyThatFailedExecution(strategy, v4).restarts(v4);
 	}
 
 	private static VerificationContext verifyThatFailedExecution(

@@ -60,6 +60,11 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 		testReleaseOnConsumptionHandling(ResultPartitionType.BLOCKING);
 	}
 
+	@Test
+	public void testPipelinedApproximatePartitionIsTracked() {
+		testReleaseOnConsumptionHandling(ResultPartitionType.PIPELINED_APPROXIMATE);
+	}
+
 	private static void testReleaseOnConsumptionHandling(ResultPartitionType resultPartitionType) {
 		final JobMasterPartitionTracker partitionTracker = new JobMasterPartitionTrackerImpl(
 			new JobID(),
@@ -76,7 +81,7 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 				resultPartitionType,
 				false));
 
-		assertThat(partitionTracker.isTrackingPartitionsFor(resourceId), is(resultPartitionType.isBlocking()));
+		assertThat(partitionTracker.isTrackingPartitionsFor(resourceId), is(resultPartitionType.isReconnectable()));
 	}
 
 	@Test

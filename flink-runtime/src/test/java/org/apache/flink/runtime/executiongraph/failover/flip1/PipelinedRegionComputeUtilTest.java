@@ -546,6 +546,31 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
 		assertSameRegion(r1, r2, r3, r4);
 	}
 
+	@Test
+	public void testPipelinedApproximateDifferentRegions() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+
+		topology
+			.connect(v1, v2, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v1, v3, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v2, v4, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v3, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
+
+		Map<ExecutionVertexID, Set<SchedulingExecutionVertex>> pipelinedRegionByVertex = computePipelinedRegionByVertex(topology);
+
+		Set<SchedulingExecutionVertex> r1 = pipelinedRegionByVertex.get(v1.getId());
+		Set<SchedulingExecutionVertex> r2 = pipelinedRegionByVertex.get(v2.getId());
+		Set<SchedulingExecutionVertex> r3 = pipelinedRegionByVertex.get(v3.getId());
+		Set<SchedulingExecutionVertex> r4 = pipelinedRegionByVertex.get(v4.getId());
+
+		assertDistinctRegions(r1, r2, r3, r4);
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
