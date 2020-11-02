@@ -332,7 +332,7 @@ LogicalProject(c=[$0], e=[$1], avg_b=[$2], sum_b=[$3], psum=[$4], nsum=[$5], avg
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b2])
-+- MultipleInputNode(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[AND(=(c, c0), =(e, e0), =(rn, $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, sum_b1, c0, e0, $f5], build=[left])\n:- Calc(select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0])\n:  +- HashJoin(joinType=[InnerJoin], where=[AND(=(c, c0), =(e, e0), =(rn, $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, c0, e0, $f5], build=[left])\n:     :- [#2] Exchange(distribution=[hash[c, e, rn]])\n:     +- [#3] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n+- [#1] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n])
++- MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[AND(=(c, c0), =(e, e0), =(rn, $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, sum_b1, c0, e0, $f5], build=[left])\n:- Calc(select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0])\n:  +- HashJoin(joinType=[InnerJoin], where=[AND(=(c, c0), =(e, e0), =(rn, $f5))], select=[sum_b, avg_b, rn, c, e, sum_b0, avg_b0, c0, e0, $f5], build=[left])\n:     :- [#2] Exchange(distribution=[hash[c, e, rn]])\n:     +- [#3] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n+- [#1] Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])\n])
    :- Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])
    :  +- Calc(select=[sum_b, c, e, -(w0$o0, 1) AS $f5])
    :     +- OverAggregate(partitionBy=[c, e], orderBy=[c ASC, e ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0])
@@ -424,7 +424,7 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInputNode(readOrder=[0,1], members=[\nUnion(all=[true], union=[a, c, e])\n:- Calc(select=[a, LOWER(c) AS c, e])\n:  +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], build=[left])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[a, LOWER(c) AS c, e])\n   +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], build=[left])\n      :- [#1] Exchange(distribution=[hash[a]])\n      +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[0,1], members=[\nUnion(all=[true], union=[a, c, e])\n:- Calc(select=[a, LOWER(c) AS c, e])\n:  +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], build=[left])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[a, LOWER(c) AS c, e])\n   +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, e], build=[left])\n      :- [#1] Exchange(distribution=[hash[a]])\n      +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, c], where=[LIKE(c, _UTF-16LE'test%')])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -548,7 +548,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInputNode(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00], build=[right])\n:- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])\n:  +- [#2] Exchange(distribution=[hash[c]])\n+- [#1] Exchange(distribution=[hash[f0]])\n])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00], build=[right])\n:- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])\n:  +- [#2] Exchange(distribution=[hash[c]])\n+- [#1] Exchange(distribution=[hash[f0]])\n])
 :- Exchange(distribution=[hash[f0]])
 :  +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -652,7 +652,7 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInputNode(readOrder=[0,1,0,1], members=[\nUnion(all=[true], union=[a, b, c, d, e, f])\n:- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n   :- [#1] Exchange(distribution=[hash[a]])\n   +- [#4] Exchange(distribution=[hash[d]])\n])
+MultipleInput(readOrder=[0,1,0,1], members=[\nUnion(all=[true], union=[a, b, c, d, e, f])\n:- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], build=[left])\n   :- [#1] Exchange(distribution=[hash[a]])\n   +- [#4] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]], reuse_id=[1])
 :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'test%')])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1146,7 +1146,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInputNode(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftSorted=[true], rightSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])\n   :- [#1] Exchange(distribution=[hash[a]])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftSorted=[true], rightSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])\n   :- [#1] Exchange(distribution=[hash[a]])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'He%')])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1176,7 +1176,7 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInputNode(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- Sort(orderBy=[random ASC])\n:     +- [#2] Exchange(distribution=[hash[random]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- Sort(orderBy=[random ASC])\n:     +- [#2] Exchange(distribution=[hash[random]])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast], reuse_id=[2])
 :  +- Calc(select=[random], reuse_id=[1])
 :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])
