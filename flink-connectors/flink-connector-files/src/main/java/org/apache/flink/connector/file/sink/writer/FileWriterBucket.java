@@ -59,13 +59,13 @@ class FileWriterBucket<IN, BucketID> {
 
 	private final Path bucketPath;
 
-	private final String uniqueId;
-
 	private final BucketWriter<IN, BucketID> bucketWriter;
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
 	private final OutputFileConfig outputFileConfig;
+
+	private final String uniqueId;
 
 	private final List<InProgressFileWriter.PendingFileRecoverable> pendingFiles = new ArrayList<>();
 
@@ -83,17 +83,16 @@ class FileWriterBucket<IN, BucketID> {
 	private FileWriterBucket(
 			BucketID bucketId,
 			Path bucketPath,
-			String uniqueId,
 			BucketWriter<IN, BucketID> bucketWriter,
 			RollingPolicy<IN, BucketID> rollingPolicy,
 			OutputFileConfig outputFileConfig) {
 		this.bucketId = checkNotNull(bucketId);
 		this.bucketPath = checkNotNull(bucketPath);
-		this.uniqueId = checkNotNull(uniqueId);
 		this.bucketWriter = checkNotNull(bucketWriter);
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 		this.outputFileConfig = checkNotNull(outputFileConfig);
 
+		this.uniqueId = RandomStringUtils.randomAlphanumeric(32);
 		this.partCounter = 0;
 	}
 
@@ -101,7 +100,6 @@ class FileWriterBucket<IN, BucketID> {
 	 * Constructor to restore a bucket from checkpointed state.
 	 */
 	private FileWriterBucket(
-			String uniqueId,
 			BucketWriter<IN, BucketID> partFileFactory,
 			RollingPolicy<IN, BucketID> rollingPolicy,
 			FileWriterBucketState<BucketID> bucketState,
@@ -110,7 +108,6 @@ class FileWriterBucket<IN, BucketID> {
 		this(
 				bucketState.getBucketId(),
 				bucketState.getBucketPath(),
-				uniqueId,
 				partFileFactory,
 				rollingPolicy,
 				outputFileConfig);
@@ -168,11 +165,10 @@ class FileWriterBucket<IN, BucketID> {
 		if (inProgressPart == null || rollingPolicy.shouldRollOnEvent(inProgressPart, element)) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(
-						"closing in-progress part file for bucket id={} due to element {}.",
+						"Opening new part file for bucket id={} due to element {}.",
 						bucketId,
 						element);
 			}
-
 			inProgressPart = rollPartFile(now);
 		}
 
@@ -270,6 +266,7 @@ class FileWriterBucket<IN, BucketID> {
 		return inProgressPart;
 	}
 
+	@VisibleForTesting
 	public List<InProgressFileWriter.PendingFileRecoverable> getPendingFiles() {
 		return pendingFiles;
 	}
@@ -297,7 +294,6 @@ class FileWriterBucket<IN, BucketID> {
 		return new FileWriterBucket<>(
 				bucketId,
 				bucketPath,
-				RandomStringUtils.randomAlphanumeric(32),
 				bucketWriter,
 				rollingPolicy,
 				outputFileConfig);
@@ -320,7 +316,6 @@ class FileWriterBucket<IN, BucketID> {
 			final FileWriterBucketState<BucketID> bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException {
 		return new FileWriterBucket<>(
-				RandomStringUtils.randomAlphanumeric(32),
 				bucketWriter,
 				rollingPolicy,
 				bucketState,

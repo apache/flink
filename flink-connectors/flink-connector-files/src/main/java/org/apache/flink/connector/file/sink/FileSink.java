@@ -47,7 +47,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -55,6 +54,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A unified sink for both streaming and blocking mode, based on the new Sink API.
@@ -108,6 +108,11 @@ public class FileSink<IN, BucketID>
 	public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(
 			final Path basePath, final Encoder<IN> encoder) {
 		return new DefaultRowFormatBuilder<>(basePath, encoder, new DateTimeBucketAssigner<>());
+	}
+
+	public static <IN> DefaultBulkFormatBuilder<IN> forBulkFormat(
+			final Path basePath, final BulkWriter.Factory<IN> bulkWriterFactory) {
+		return new DefaultBulkFormatBuilder<>(basePath, bulkWriterFactory, new DateTimeBucketAssigner<>());
 	}
 
 	/**
@@ -205,7 +210,7 @@ public class FileSink<IN, BucketID>
 		public RowFormatBuilder<IN, BucketID, ? extends RowFormatBuilder<IN, BucketID, ?>> withNewBucketAssignerAndPolicy(
 				BucketAssigner<IN, BucketID> assigner,
 				RollingPolicy<IN, BucketID> policy) {
-			Preconditions.checkState(
+			checkState(
 					bucketFactory.getClass() == DefaultFileWriterBucketFactory.class,
 					"newBuilderWithBucketAssignerAndPolicy() cannot be called "
 							+ "after specifying a customized bucket factory");
@@ -220,7 +225,7 @@ public class FileSink<IN, BucketID>
 
 		@VisibleForTesting
 		T withBucketFactory(final FileWriterBucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = Preconditions.checkNotNull(factory);
+			this.bucketFactory = checkNotNull(factory);
 			return self();
 		}
 
@@ -325,27 +330,27 @@ public class FileSink<IN, BucketID>
 				CheckpointRollingPolicy<IN, BucketID> policy,
 				FileWriterBucketFactory<IN, BucketID> bucketFactory,
 				OutputFileConfig outputFileConfig) {
-			this.basePath = Preconditions.checkNotNull(basePath);
+			this.basePath = checkNotNull(basePath);
 			this.writerFactory = writerFactory;
-			this.bucketAssigner = Preconditions.checkNotNull(assigner);
-			this.rollingPolicy = Preconditions.checkNotNull(policy);
-			this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
-			this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
+			this.bucketAssigner = checkNotNull(assigner);
+			this.rollingPolicy = checkNotNull(policy);
+			this.bucketFactory = checkNotNull(bucketFactory);
+			this.outputFileConfig = checkNotNull(outputFileConfig);
 		}
 
 		public T withBucketAssigner(BucketAssigner<IN, BucketID> assigner) {
-			this.bucketAssigner = Preconditions.checkNotNull(assigner);
+			this.bucketAssigner = checkNotNull(assigner);
 			return self();
 		}
 
 		public T withRollingPolicy(CheckpointRollingPolicy<IN, BucketID> rollingPolicy) {
-			this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
+			this.rollingPolicy = checkNotNull(rollingPolicy);
 			return self();
 		}
 
 		@VisibleForTesting
 		T withBucketFactory(final FileWriterBucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = Preconditions.checkNotNull(factory);
+			this.bucketFactory = checkNotNull(factory);
 			return self();
 		}
 
@@ -356,14 +361,14 @@ public class FileSink<IN, BucketID>
 
 		public BulkFormatBuilder<IN, BucketID, ? extends BulkFormatBuilder<IN, BucketID, ?>> withNewBucketAssigner(
 				BucketAssigner<IN, BucketID> assigner) {
-			Preconditions.checkState(
+			checkState(
 					bucketFactory.getClass() == DefaultFileWriterBucketFactory.class,
 					"newBuilderWithBucketAssigner() cannot be called "
 							+ "after specifying a customized bucket factory");
 			return new BulkFormatBuilder<>(
 					basePath,
 					writerFactory,
-					Preconditions.checkNotNull(assigner),
+					checkNotNull(assigner),
 					rollingPolicy,
 					bucketFactory,
 					outputFileConfig);

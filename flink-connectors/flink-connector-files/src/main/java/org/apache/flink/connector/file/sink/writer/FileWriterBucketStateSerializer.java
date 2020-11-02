@@ -26,11 +26,11 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
 import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.InProgressFileRecoverable;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code SimpleVersionedSerializer} used to serialize the {@link FileWriterBucketState BucketState}.
@@ -48,9 +48,9 @@ public class FileWriterBucketStateSerializer<BucketID>
 	public FileWriterBucketStateSerializer(
 			SimpleVersionedSerializer<InProgressFileRecoverable> inProgressFileRecoverableSerializer,
 			SimpleVersionedSerializer<BucketID> bucketIdSerializer) {
-		this.inProgressFileRecoverableSerializer = Preconditions.checkNotNull(
+		this.inProgressFileRecoverableSerializer = checkNotNull(
 				inProgressFileRecoverableSerializer);
-		this.bucketIdSerializer = Preconditions.checkNotNull(bucketIdSerializer);
+		this.bucketIdSerializer = checkNotNull(bucketIdSerializer);
 	}
 
 	@Override

@@ -23,11 +23,9 @@ import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -36,8 +34,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Committer implementation for {@link FileSink}.
  */
 public class FileCommitter implements Committer<FileSinkCommittable> {
-	private static final Logger LOG = LoggerFactory.getLogger(FileCommitter.class);
-
 	private final BucketWriter<?, ?> bucketWriter;
 
 	public FileCommitter(BucketWriter<?, ?> bucketWriter) {
@@ -45,30 +41,19 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
 	}
 
 	@Override
-	public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables)  {
-		List<FileSinkCommittable> needRetry = new ArrayList<>();
+	public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables) throws IOException  {
 		for (FileSinkCommittable committable : committables) {
 			if (committable.hasPendingFile()) {
 				// We should always use commitAfterRecovery which contains additional checks.
-				try {
-					bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
-				} catch (IOException e) {
-					LOG.error("Failed to commit {}", committable.getPendingFile());
-					needRetry.add(committable);
-				}
+				bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
 			}
 
 			if (committable.hasInProgressFileToCleanup()) {
-				try {
-					bucketWriter.cleanupInProgressFileRecoverable(committable.getInProgressFileToCleanup());
-				} catch (IOException e) {
-					LOG.error("Failed to cleanup {}", committable.getInProgressFileToCleanup());
-					needRetry.add(committable);
-				}
+				bucketWriter.cleanupInProgressFileRecoverable(committable.getInProgressFileToCleanup());
 			}
 		}
 
-		return needRetry;
+		return Collections.emptyList();
 	}
 
 	@Override

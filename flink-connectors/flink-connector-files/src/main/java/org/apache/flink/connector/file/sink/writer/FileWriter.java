@@ -122,10 +122,12 @@ public class FileWriter<IN, BucketID>
 	 *
 	 * @param bucketStates the state holding recovered state about active buckets.
 	 *
-	 * @throws Exception if anything goes wrong during retrieving the state or restoring/committing of any
+	 * @throws IOException if anything goes wrong during retrieving the state or restoring/committing of any
 	 * 		in-progress/pending part files
 	 */
 	public void initializeState(List<FileWriterBucketState<BucketID>> bucketStates) throws IOException {
+		checkNotNull(bucketStates, "The retrieved state was null.");
+
 		for (FileWriterBucketState<BucketID> state : bucketStates) {
 			BucketID bucketId = state.getBucketId();
 
@@ -216,6 +218,7 @@ public class FileWriter<IN, BucketID>
 		return bucket;
 	}
 
+	@Override
 	public void close() {
 		if (activeBuckets != null) {
 			activeBuckets.values().forEach(FileWriterBucket::disposePartFile);

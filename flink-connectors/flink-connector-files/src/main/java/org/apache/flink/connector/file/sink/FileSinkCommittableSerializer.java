@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWr
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Versioned serializer for {@link FileSinkCommittable}.
  */
@@ -45,8 +47,8 @@ public class FileSinkCommittableSerializer
 	public FileSinkCommittableSerializer(
 			SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> pendingFileSerializer,
 			SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> inProgressFileSerializer) {
-		this.pendingFileSerializer = pendingFileSerializer;
-		this.inProgressFileSerializer = inProgressFileSerializer;
+		this.pendingFileSerializer = checkNotNull(pendingFileSerializer);
+		this.inProgressFileSerializer = checkNotNull(inProgressFileSerializer);
 	}
 
 	@Override
