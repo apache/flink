@@ -769,3 +769,9 @@ class StreamExecutionEnvironment(object):
         Returns whether Unaligned Checkpoints are enabled.
         """
         return self._j_stream_execution_environment.isUnalignedCheckpointsEnabled()
+
+    def is_force_unaligned_checkpoints(self):
+        """
+        Returns whether Unaligned Checkpoints are force-enabled.
+        """
+        return self._j_stream_execution_environment.isForceUnalignedCheckpoints()
