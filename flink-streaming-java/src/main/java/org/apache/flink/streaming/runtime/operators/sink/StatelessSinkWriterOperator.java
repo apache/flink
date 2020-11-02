@@ -18,15 +18,31 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
+
+import java.util.Collections;
+
 /**
- * Tests for {@link StatelessWriterOperator}.
+ * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
+ * SinkWriter Writers} that don't have state.
  *
- * <p>This has no tests of its own because {@link StatelessWriterOperator} has no functionality
- * beyond what {@link AbstractWriterOperator} provides.
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
  */
-public class StatelessWriterOperatorTest extends WriterOperatorTestBase {
+@Internal
+final class StatelessSinkWriterOperator<InputT, CommT> extends AbstractSinkWriterOperator<InputT, CommT> {
+
+	/** Used to create the stateless {@link SinkWriter}. */
+	private final Sink<InputT, CommT, ?, ?> sink;
+
+	StatelessSinkWriterOperator(final Sink<InputT, CommT, ?, ?> sink) {
+		this.sink = sink;
+	}
+
 	@Override
-	protected AbstractWriterOperatorFactory<Integer, String> createWriterOperator(TestSink sink) {
-		return new StatelessWriterOperatorFactory<>(sink);
+	SinkWriter<InputT, CommT, ?> createWriter() {
+		return sink.createWriter(createInitContext(), Collections.emptyList());
 	}
 }

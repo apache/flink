@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -37,9 +38,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link Transformation} for {@link Sink}.
  *
- * @param <InputT> The input type of the {@link org.apache.flink.api.connector.sink.Writer}
- * @param <CommT> The committable type of the {@link org.apache.flink.api.connector.sink.Writer}
- * @param <WriterStateT> The state type of the {@link org.apache.flink.api.connector.sink.Writer}
+ * @param <InputT> The input type of the {@link SinkWriter}
+ * @param <CommT> The committable type of the {@link SinkWriter}
+ * @param <WriterStateT> The state type of the {@link SinkWriter}
  * @param <GlobalCommT> The global committable type of the {@link org.apache.flink.api.connector.sink.GlobalCommitter}
  */
 @Internal

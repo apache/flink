@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -32,16 +32,16 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.util.List;
 
 /**
- * Abstract base class for operators that work with a {@link Writer}.
+ * Abstract base class for operators that work with a {@link SinkWriter}.
  *
- * <p>Sub-classes are responsible for creating the specific {@link Writer} by implementing {@link
+ * <p>Sub-classes are responsible for creating the specific {@link SinkWriter} by implementing {@link
  * #createWriter()}.
  *
- * @param <InputT> The input type of the {@link Writer}.
- * @param <CommT> The committable type of the {@link Writer}.
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
-abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
+abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
 	implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
@@ -55,9 +55,9 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 	private Long currentWatermark;
 
 	/** The sink writer that does most of the work. */
-	protected Writer<InputT, CommT, ?> writer;
+	protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-	AbstractWriterOperator() {
+	AbstractSinkWriterOperator() {
 		this.context = new Context<>();
 	}
 
@@ -67,19 +67,19 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 
 		this.currentWatermark = Long.MIN_VALUE;
 
-		writer = createWriter();
+		sinkWriter = createWriter();
 	}
 
 	@Override
 	public void processElement(StreamRecord<InputT> element) throws Exception {
 		context.element = element;
-		writer.write(element.getValue(), context);
+		sinkWriter.write(element.getValue(), context);
 	}
 
 	@Override
 	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
 		super.prepareSnapshotPreBarrier(checkpointId);
-		sendCommittables(writer.prepareCommit(false));
+		sendCommittables(sinkWriter.prepareCommit(false));
 	}
 
 	@Override
@@ -90,13 +90,13 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 
 	@Override
 	public void endInput() throws Exception {
-		sendCommittables(writer.prepareCommit(true));
+		sendCommittables(sinkWriter.prepareCommit(true));
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
-		writer.close();
+		sinkWriter.close();
 	}
 
 	protected Sink.InitContext createInitContext() {
@@ -114,11 +114,11 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 	}
 
 	/**
-	 * Creates and returns a {@link Writer}.
+	 * Creates and returns a {@link SinkWriter}.
 	 *
-	 * @throws Exception If creating {@link Writer} fail
+	 * @throws Exception If creating {@link SinkWriter} fail
 	 */
-	abstract Writer<InputT, CommT, ?> createWriter() throws Exception;
+	abstract SinkWriter<InputT, CommT, ?> createWriter() throws Exception;
 
 	private void sendCommittables(final List<CommT> committables) {
 		for (CommT committable : committables) {
@@ -126,7 +126,7 @@ abstract class AbstractWriterOperator<InputT, CommT> extends AbstractStreamOpera
 		}
 	}
 
-	private class Context<IN> implements Writer.Context {
+	private class Context<IN> implements SinkWriter.Context {
 
 		private StreamRecord<IN> element;
 

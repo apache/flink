@@ -30,7 +30,7 @@ import java.util.Optional;
 /**
  * This interface lets the sink developer build a simple sink topology, which could guarantee the exactly once
  * semantics in both batch and stream execution mode if there is a {@link Committer} or {@link GlobalCommitter}.
- * 1. The {@link Writer} is responsible for producing the committable.
+ * 1. The {@link SinkWriter} is responsible for producing the committable.
  * 2. The {@link Committer} is responsible for committing a single committable.
  * 3. The {@link GlobalCommitter} is responsible for committing an aggregated committable, which we call the global
  *    committable. The {@link GlobalCommitter} is always executed with a parallelism of 1.
@@ -38,19 +38,19 @@ import java.util.Optional;
  *
  * @param <InputT>        The type of the sink's input
  * @param <CommT>         The type of information needed to commit data staged by the sink
- * @param <WriterStateT>  The type of the writer's state
+ * @param <WriterStateT>  The type of the sink writer's state
  * @param <GlobalCommT>   The type of the aggregated committable
  */
 @Experimental
 public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializable {
 
 	/**
-	 * Create a {@link Writer}.
+	 * Create a {@link SinkWriter}.
 	 * @param context the runtime context.
 	 * @param states the writer's state.
 	 * @return A sink writer.
 	 */
-	Writer<InputT, CommT, WriterStateT> createWriter(InitContext context, List<WriterStateT> states);
+	SinkWriter<InputT, CommT, WriterStateT> createWriter(InitContext context, List<WriterStateT> states);
 
 	/**
 	 * Creates a {@link Committer}.
@@ -78,7 +78,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer();
 
 	/**
-	 * The interface exposes some runtime info for creating a {@link Writer}.
+	 * The interface exposes some runtime info for creating a {@link SinkWriter}.
 	 */
 	interface InitContext {
 

@@ -18,28 +18,28 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
 /**
- * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link AbstractWriterOperator}.
+ * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link AbstractSinkWriterOperator}.
  *
- * @param <InputT> The input type of the {@link Writer}.
- * @param <CommT> The committable type of the {@link Writer}.
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
  */
-abstract class AbstractWriterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
+abstract class AbstractSinkWriterOperatorFactory<InputT, CommT> extends AbstractStreamOperatorFactory<CommT>
 	implements OneInputStreamOperatorFactory<InputT, CommT> {
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
-		final AbstractWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
+		final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
 		writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) writerOperator;
 	}
 
-	abstract AbstractWriterOperator<InputT, CommT> createWriterOperator();
+	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator();
 }

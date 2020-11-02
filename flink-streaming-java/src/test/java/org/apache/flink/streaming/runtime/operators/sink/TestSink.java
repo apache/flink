@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
@@ -48,7 +48,7 @@ import static org.junit.Assert.assertNotNull;
  */
 public class TestSink implements Sink<Integer, String, String, String> {
 
-	private final DefaultWriter writer;
+	private final DefaultSinkWriter writer;
 
 	@Nullable
 	private final SimpleVersionedSerializer<String> writerStateSerializer;
@@ -66,7 +66,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	private final SimpleVersionedSerializer<String> globalCommittableSerializer;
 
 	private TestSink(
-			DefaultWriter writer,
+			DefaultSinkWriter writer,
 			@Nullable SimpleVersionedSerializer<String> writerStateSerializer,
 			@Nullable Committer<String> committer,
 			@Nullable SimpleVersionedSerializer<String> committableSerializer,
@@ -81,7 +81,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	}
 
 	@Override
-	public Writer<Integer, String, String> createWriter(InitContext context, List<String> states) {
+	public SinkWriter<Integer, String, String> createWriter(InitContext context, List<String> states) {
 		writer.restoredFrom(states);
 		return writer;
 	}
@@ -120,7 +120,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	 */
 	public static class Builder {
 
-		private DefaultWriter writer = new DefaultWriter();
+		private DefaultSinkWriter writer = new DefaultSinkWriter();
 
 		private SimpleVersionedSerializer<String> writerStateSerializer;
 
@@ -132,7 +132,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
 		private SimpleVersionedSerializer<String> globalCommittableSerializer;
 
-		public Builder setWriter(DefaultWriter writer) {
+		public Builder setWriter(DefaultSinkWriter writer) {
 			this.writer = checkNotNull(writer);
 			return this;
 		}
@@ -200,13 +200,13 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	// -------------------------------------- Sink Writer ------------------------------------------
 
 	/**
-	 * Base class for out testing {@link Writer Writers}.
+	 * Base class for out testing {@link SinkWriter Writers}.
 	 */
-	static class DefaultWriter implements Writer<Integer, String, String>, Serializable {
+	static class DefaultSinkWriter implements SinkWriter<Integer, String, String>, Serializable {
 
 		protected List<String> elements;
 
-		DefaultWriter() {
+		DefaultSinkWriter() {
 			this.elements = new ArrayList<>();
 		}
 

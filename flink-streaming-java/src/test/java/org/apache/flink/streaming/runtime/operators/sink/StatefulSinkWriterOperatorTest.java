@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -33,13 +33,13 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link StatefulWriterOperator}.
+ * Tests for {@link StatefulSinkWriterOperator}.
  */
-public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
+public class StatefulSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
 
 	@Override
-	protected AbstractWriterOperatorFactory createWriterOperator(TestSink sink) {
-		return new StatefulWriterOperatorFactory<>(sink);
+	protected AbstractSinkWriterOperatorFactory createWriterOperator(TestSink sink) {
+		return new StatefulSinkWriterOperatorFactory<>(sink);
 	}
 
 	@Test
@@ -49,7 +49,7 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new SnapshottingBufferingWriter())
+						.setWriter(new SnapshottingBufferingSinkWriter())
 						.withWriterState()
 						.build());
 
@@ -73,7 +73,7 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 		final OneInputStreamOperatorTestHarness<Integer, String> restoredTestHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new SnapshottingBufferingWriter())
+						.setWriter(new SnapshottingBufferingSinkWriter())
 						.withWriterState()
 						.build());
 
@@ -91,9 +91,9 @@ public class StatefulWriterOperatorTest extends WriterOperatorTestBase {
 	}
 
 	/**
-	 * A {@link Writer} buffers elements and snapshots them when asked.
+	 * A {@link SinkWriter} buffers elements and snapshots them when asked.
 	 */
-	static class SnapshottingBufferingWriter extends BufferingWriter {
+	static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
 
 		@Override
 		public List<String> snapshotState() {

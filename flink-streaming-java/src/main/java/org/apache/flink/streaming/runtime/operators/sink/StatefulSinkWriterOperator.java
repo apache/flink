@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -34,20 +34,20 @@ import java.util.List;
 
 /**
  * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
- * Writer Writers} that have state.
+ * SinkWriter Writers} that have state.
  *
- * @param <InputT> The input type of the {@link Writer}.
- * @param <CommT> The committable type of the {@link Writer}.
- * @param <WriterStateT> The type of the {@link Writer Writer's} state.
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
+ * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
 @Internal
-final class StatefulWriterOperator<InputT, CommT, WriterStateT> extends AbstractWriterOperator<InputT, CommT> {
+final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT> extends AbstractSinkWriterOperator<InputT, CommT> {
 
 	/** The operator's state descriptor. */
 	private static final ListStateDescriptor<byte[]> WRITER_RAW_STATES_DESC =
-		new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
+			new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
 
-	/** Used to create the stateful {@link Writer}. */
+	/** Used to create the stateful {@link SinkWriter}. */
 	private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
 	/** The writer operator's state serializer. */
@@ -58,9 +58,9 @@ final class StatefulWriterOperator<InputT, CommT, WriterStateT> extends Abstract
 	/** The operator's state. */
 	private ListState<WriterStateT> writerState;
 
-	StatefulWriterOperator(
-		final Sink<InputT, CommT, WriterStateT, ?> sink,
-		final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
+	StatefulSinkWriterOperator(
+			final Sink<InputT, CommT, WriterStateT, ?> sink,
+			final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
 		this.sink = sink;
 		this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
 	}
@@ -76,11 +76,11 @@ final class StatefulWriterOperator<InputT, CommT, WriterStateT> extends Abstract
 	@SuppressWarnings("unchecked")
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
-		writerState.update((List<WriterStateT>) writer.snapshotState());
+		writerState.update((List<WriterStateT>) sinkWriter.snapshotState());
 	}
 
 	@Override
-	Writer<InputT, CommT, WriterStateT> createWriter() throws Exception {
+	SinkWriter<InputT, CommT, WriterStateT> createWriter() throws Exception {
 		final List<WriterStateT> committables = CollectionUtil.iterableToList(writerState.get());
 		return sink.createWriter(createInitContext(), committables);
 	}
