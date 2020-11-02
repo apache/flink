@@ -33,7 +33,7 @@ import java.util.List;
  * @param <GlobalCommT>   The type of the aggregated committable
  */
 @Experimental
-public interface GlobalCommitter<CommT, GlobalCommT> extends Committer<GlobalCommT> {
+public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
 
 	/**
 	 * Find out which global committables need to be retried when recovering from the failure.
