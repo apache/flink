@@ -29,9 +29,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.GlobalStreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StatelessSinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.StreamingGlobalCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
 
@@ -56,7 +56,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 	@Parameterized.Parameters(name = "Execution Mode: {0}, Expected Committer Operator: {1}, Expected Global Committer Operator: {2}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, GlobalStreamingCommitterOperatorFactory.class},
+				{RuntimeExecutionMode.STREAMING, StreamingCommitterOperatorFactory.class, StreamingGlobalCommitterOperatorFactory.class},
 				{RuntimeExecutionMode.BATCH, BatchCommitterOperatorFactory.class, BatchGlobalCommitterOperatorFactory.class}});
 	}
 
