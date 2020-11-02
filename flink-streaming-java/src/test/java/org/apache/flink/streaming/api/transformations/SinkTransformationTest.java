@@ -58,7 +58,6 @@ public class SinkTransformationTest {
 		sinkTransformation.declareManagedMemoryUseCaseAtSlotScope(STATE_BACKEND);
 	}
 
-
 	private static SinkTransformation<Integer, String, String, String> createSinkTransformation() {
 		return new SinkTransformation<>(
 				new TestTransformation<>(
