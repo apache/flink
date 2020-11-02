@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.GlobalStreamingCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StatelessWriterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.StatelessSinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
@@ -89,7 +89,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				IntSerializer.class,
 				writerNode,
 				"Writer",
-				StatelessWriterOperatorFactory.class,
+				StatelessSinkWriterOperatorFactory.class,
 				PARALLELISM,
 				-1);
 	}

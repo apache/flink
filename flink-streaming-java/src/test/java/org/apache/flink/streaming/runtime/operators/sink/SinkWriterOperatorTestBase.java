@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -36,11 +36,11 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
 /**
- * Base class for Tests for subclasses of {@link AbstractWriterOperator}.
+ * Base class for Tests for subclasses of {@link AbstractSinkWriterOperator}.
  */
-public abstract class WriterOperatorTestBase extends TestLogger {
+public abstract class SinkWriterOperatorTestBase extends TestLogger {
 
-	protected abstract AbstractWriterOperatorFactory<Integer, String> createWriterOperator(TestSink sink);
+	protected abstract AbstractSinkWriterOperatorFactory<Integer, String> createWriterOperator(TestSink sink);
 
 	@Test
 	public void nonBufferingWriterEmitsWithoutFlush() throws Exception {
@@ -49,7 +49,7 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingWriter())
+						.setWriter(new NonBufferingSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -76,7 +76,7 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingWriter())
+						.setWriter(new NonBufferingSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -102,7 +102,7 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new BufferingWriter())
+						.setWriter(new BufferingSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -127,7 +127,7 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new BufferingWriter())
+						.setWriter(new BufferingSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -147,10 +147,10 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	}
 
 	/**
-	 * A {@link Writer} that returns all committables from {@link #prepareCommit(boolean)} without
+	 * A {@link SinkWriter} that returns all committables from {@link #prepareCommit(boolean)} without
 	 * waiting for {@code flush} to be {@code true}.
 	 */
-	static class NonBufferingWriter extends TestSink.DefaultWriter {
+	static class NonBufferingSinkWriter extends TestSink.DefaultSinkWriter {
 		@Override
 		public List<String> prepareCommit(boolean flush) {
 			List<String> result = elements;
@@ -160,10 +160,10 @@ public abstract class WriterOperatorTestBase extends TestLogger {
 	}
 
 	/**
-	 * A {@link Writer} that only returns committables from {@link #prepareCommit(boolean)} when
+	 * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
 	 * {@code flush} is {@code true}.
 	 */
-	static class BufferingWriter extends TestSink.DefaultWriter {
+	static class BufferingSinkWriter extends TestSink.DefaultSinkWriter {
 		@Override
 		public List<String> prepareCommit(boolean flush) {
 			if (!flush) {

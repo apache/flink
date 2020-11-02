@@ -34,8 +34,8 @@ import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorF
 import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.CommittableTypeInformation;
 import org.apache.flink.streaming.runtime.operators.sink.GlobalStreamingCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StatefulWriterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StatelessWriterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.StatefulSinkWriterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.StatelessSinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
 import org.apache.flink.streaming.util.graph.StreamGraphUtils;
 
@@ -139,7 +139,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		final TypeInformation<InputT> inputTypeInfo = input.getOutputType();
 
 		final StreamOperatorFactory<CommT> writer =
-				hasState ? new StatefulWriterOperatorFactory<>(sinkTransformation.getSink()) : new StatelessWriterOperatorFactory<>(
+				hasState ? new StatefulSinkWriterOperatorFactory<>(sinkTransformation.getSink()) : new StatelessSinkWriterOperatorFactory<>(
 						sinkTransformation.getSink());
 
 		final ChainingStrategy chainingStrategy = sinkTransformation.getChainingStrategy();

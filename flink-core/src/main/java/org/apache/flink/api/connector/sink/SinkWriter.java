@@ -24,16 +24,16 @@ import org.apache.flink.annotation.Experimental;
 import java.util.List;
 
 /**
- * The {@code Writer} is responsible for writing data and handling any potential tmp area used to write yet un-staged
+ * The {@code SinkWriter} is responsible for writing data and handling any potential tmp area used to write yet un-staged
  * data, e.g. in-progress files. The data (or metadata pointing to where the actual data is staged) ready to commit is
  * returned to the system by the {@link #prepareCommit(boolean)}.
  *
- * @param <InputT>         The type of the writer's input
+ * @param <InputT>         The type of the sink writer's input
  * @param <CommT>          The type of information needed to commit data staged by the sink
  * @param <WriterStateT>   The type of the writer's state
  */
 @Experimental
-public interface Writer<InputT, CommT, WriterStateT> extends AutoCloseable {
+public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 
 	/**
 	 * Add an element to the writer.
