@@ -771,3 +771,9 @@ class StreamExecutionEnvironment(object):
             j_stream_graph.setJobName(job_name)
 
         return j_stream_graph
+
+    def is_unaligned_checkpoints_enabled(self):
+        """
+        Returns whether Unaligned Checkpoints are enabled.
+        """
+        return self._j_stream_execution_environment.isUnalignedCheckpointsEnabled()
