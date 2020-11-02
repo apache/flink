@@ -27,7 +27,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREA
 import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
@@ -64,9 +63,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     TableConfig.getDefault,
     catalogManager,
     moduleManager)
-
-  private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   private class UnorderedArrayMatcher(expected: util.HashSet[JList[Int]])
       extends BaseMatcher[Array[Array[Int]]] {

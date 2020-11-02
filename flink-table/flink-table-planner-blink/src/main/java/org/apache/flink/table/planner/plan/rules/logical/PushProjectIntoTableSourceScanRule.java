@@ -122,7 +122,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 				oldProjectsWithPK, flinkTypeFactory.buildRelNodeRowType(originType));
 		if (!supportsNestedProjection) {
 			// mark the fields in the top level as useall
-			for (RexNodeNestedField child: root.fields().values()) {
+			for (RexNodeNestedField child: root.children().values()) {
 				child.useAll_$eq(true);
 			}
 		}
@@ -140,7 +140,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			for (int i = 0; i < metadataKeys.size(); i++) {
 				final RexInputRef key = new RexInputRef(i + physicalCount,
 						flinkTypeFactory.createFieldTypeFromLogicalType(originType.getChildren().get(i + physicalCount)));
-				Option<RexNodeNestedField> usedMetadata = root.deleteField(key.getName());
+				Option<RexNodeNestedField> usedMetadata = root.deleteChild(key.getName());
 				if (usedMetadata.isDefined()) {
 					usedMetaDataFields.add(usedMetadata.get());
 				}
@@ -149,18 +149,17 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			int[][] projectedPhysicalFields = RexNodeNestedField.labelAndConvert(root);
 			((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
 			// push the metadata back for later rewrite and extract the location in the origin row
-			int order = root.order();
+			int order = physicalCount;
 			List<String> usedMetadataNames = new LinkedList<>();
 			for (RexNodeNestedField metadata: usedMetaDataFields) {
 				metadata.order_$eq(order++);
-				root.addField(metadata);
-				usedMetadataNames.add(metadataKeys.get(metadata.index() - physicalCount));
+				root.addChild(metadata);
+				usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
 			}
-			root.order_$eq(order);
 			// apply metadata push down
 			projectedFields = Stream.concat(
 					Stream.of(projectedPhysicalFields),
-					usedMetaDataFields.stream().map(field -> new int[]{field.index()})
+					usedMetaDataFields.stream().map(field -> new int[]{field.indexInOriginSchema()})
 			).toArray(int[][]::new);
 			newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
 			((SupportsReadingMetadata) newSource).applyReadableMetadata(
