@@ -245,14 +245,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
 		final DecodingFormatMock keyDecodingFormat = new DecodingFormatMock("#", false);
 		keyDecodingFormat.producedDataType = DataTypes.ROW(
-				DataTypes.FIELD(NAME, DataTypes.STRING())
-		);
+				DataTypes.FIELD(NAME, DataTypes.STRING()))
+			.notNull();
 
 		final DecodingFormatMock valueDecodingFormat = new DecodingFormatMock("|", false);
 		valueDecodingFormat.producedDataType = DataTypes.ROW(
 				DataTypes.FIELD(COUNT, DataTypes.DECIMAL(38, 18)),
-				DataTypes.FIELD(TIME, DataTypes.TIMESTAMP(3))
-		);
+				DataTypes.FIELD(TIME, DataTypes.TIMESTAMP(3)))
+			.notNull();
 
 		final KafkaDynamicSource expectedKafkaSource = createExpectedScanSource(
 				SCHEMA_DATA_TYPE,
@@ -311,14 +311,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
 		final EncodingFormatMock keyEncodingFormat = new EncodingFormatMock("#");
 		keyEncodingFormat.consumedDataType = DataTypes.ROW(
-				DataTypes.FIELD(NAME, DataTypes.STRING())
-		);
+				DataTypes.FIELD(NAME, DataTypes.STRING()))
+			.notNull();
 
 		final EncodingFormatMock valueEncodingFormat = new EncodingFormatMock("|");
 		valueEncodingFormat.consumedDataType = DataTypes.ROW(
 				DataTypes.FIELD(COUNT, DataTypes.DECIMAL(38, 18)),
-				DataTypes.FIELD(TIME, DataTypes.TIMESTAMP(3))
-		);
+				DataTypes.FIELD(TIME, DataTypes.TIMESTAMP(3)))
+			.notNull();
 
 		final DynamicTableSink expectedSink = createExpectedSink(
 				SCHEMA_DATA_TYPE,
@@ -606,7 +606,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		tableOptions.put(
 				String.format("value.%s.%s", TestFormatFactory.IDENTIFIER, TestFormatFactory.DELIMITER.key()),
 				"|");
-		tableOptions.put("value.fields-include", FactoryUtil.ValueFieldsStrategy.EXCEPT_KEY.toString());
+		tableOptions.put("value.fields-include", KafkaOptions.ValueFieldsStrategy.EXCEPT_KEY.toString());
 		return tableOptions;
 	}
 }

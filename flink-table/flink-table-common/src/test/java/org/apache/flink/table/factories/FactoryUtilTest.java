@@ -19,8 +19,6 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -32,7 +30,6 @@ import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSink
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
-import org.apache.flink.table.types.DataType;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,12 +42,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Tests for {@link FactoryUtil}.
@@ -209,78 +201,6 @@ public class FactoryUtilTest {
 			new EncodingFormatMock(","),
 			new EncodingFormatMock(";"));
 		assertEquals(expectedSink, actualSink);
-	}
-
-	@Test
-	public void testFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.add(TableColumn.metadata("timestamp", DataTypes.TIMESTAMP(3)))
-				.add(TableColumn.computed("timestamp_converted", DataTypes.STRING(), "CAST(`timestamp` AS STRING)"))
-				.add(TableColumn.physical("name", DataTypes.STRING()))
-				.add(TableColumn.physical("age", DataTypes.INT()))
-				.add(TableColumn.physical("address", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createAllOptions();
-		options.put("key.fields", "address; name");
-		options.put("value.fields-include", "EXCEPT_KEY");
-
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
-
-		assertArrayEquals(new int[]{3, 1}, FactoryUtil.createKeyFormatProjection(config, dataType));
-		assertArrayEquals(new int[]{0, 2}, FactoryUtil.createValueFormatProjection(config, dataType));
-	}
-
-	@Test
-	public void testMissingKeyFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.build();
-		final Map<String, String> options = createAllOptions();
-
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
-
-		try {
-			FactoryUtil.createKeyFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-								"A key format 'key.format' requires the declaration of one or more "
-										+ "of key fields using 'key.fields'.")));
-		}
-	}
-
-	@Test
-	public void testInvalidKeyFormatProjection() {
-		final TableSchema schema = TableSchema.builder()
-				.add(TableColumn.physical("id", DataTypes.INT()))
-				.add(TableColumn.physical("name", DataTypes.STRING()))
-				.build();
-		final Map<String, String> options = createAllOptions();
-		options.put("key.fields", "non_existing");
-
-		final Configuration config = Configuration.fromMap(options);
-		final DataType dataType = schema.toPhysicalRowDataType();
-
-		try {
-			FactoryUtil.createKeyFormatProjection(config, dataType);
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-					e,
-					hasMessage(
-							equalTo(
-									"Could not find the field 'non_existing' in the table schema for "
-											+ "usage in the key format. A key field must be a regular, "
-											+ "physical column. The following columns can be selected "
-											+ "in the 'key.fields' option:\n"
-											+ "[id, name]")));
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

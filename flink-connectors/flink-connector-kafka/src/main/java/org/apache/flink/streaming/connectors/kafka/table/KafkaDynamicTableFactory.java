@@ -53,6 +53,9 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPERTIES_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_BOOTSTRAP_SERVERS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_GROUP_ID;
@@ -65,6 +68,10 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SIN
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.StartupOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC_PATTERN;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createKeyFormatProjection;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getFlinkKafkaPartitioner;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getSinkSemantic;
@@ -96,11 +103,11 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	public Set<ConfigOption<?>> optionalOptions() {
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(FactoryUtil.FORMAT);
-		options.add(FactoryUtil.KEY_FORMAT);
-		options.add(FactoryUtil.KEY_FIELDS);
-		options.add(FactoryUtil.KEY_FIELDS_PREFIX);
-		options.add(FactoryUtil.VALUE_FORMAT);
-		options.add(FactoryUtil.VALUE_FIELDS_INCLUDE);
+		options.add(KEY_FORMAT);
+		options.add(KEY_FIELDS);
+		options.add(KEY_FIELDS_PREFIX);
+		options.add(VALUE_FORMAT);
+		options.add(VALUE_FIELDS_INCLUDE);
 		options.add(TOPIC);
 		options.add(TOPIC_PATTERN);
 		options.add(PROPS_GROUP_ID);
@@ -123,7 +130,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				getKeyDecodingFormat(helper);
 
 		final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
-				getValueDecodingFormat(helper, keyDecodingFormat.isPresent());
+				getValueDecodingFormat(helper);
 
 		helper.validateExcept(PROPERTIES_PREFIX);
 
@@ -142,11 +149,11 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		final DataType physicalDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
-		final int[] keyProjection = FactoryUtil.createKeyFormatProjection(tableOptions, physicalDataType);
+		final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
 
-		final int[] valueProjection = FactoryUtil.createValueFormatProjection(tableOptions, physicalDataType);
+		final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
-		final String keyPrefix = tableOptions.getOptional(FactoryUtil.KEY_FIELDS_PREFIX).orElse(null);
+		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
 		return createKafkaTableSource(
 			physicalDataType,
@@ -173,7 +180,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				getKeyEncodingFormat(helper);
 
 		final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
-				getValueEncodingFormat(helper, keyEncodingFormat.isPresent());
+				getValueEncodingFormat(helper);
 
 		helper.validateExcept(PROPERTIES_PREFIX);
 
@@ -181,11 +188,11 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		final DataType physicalDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
-		final int[] keyProjection = FactoryUtil.createKeyFormatProjection(tableOptions, physicalDataType);
+		final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
 
-		final int[] valueProjection = FactoryUtil.createValueFormatProjection(tableOptions, physicalDataType);
+		final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
-		final String keyPrefix = tableOptions.getOptional(FactoryUtil.KEY_FIELDS_PREFIX).orElse(null);
+		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
 		return createKafkaTableSink(
 				physicalDataType,
@@ -207,14 +214,14 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyDecodingFormat =
 				helper.discoverOptionalDecodingFormat(
 						DeserializationFormatFactory.class,
-						FactoryUtil.KEY_FORMAT);
+						KEY_FORMAT);
 		keyDecodingFormat.ifPresent(format -> {
 			if (!format.getChangelogMode().containsOnly(RowKind.INSERT)) {
 				throw new ValidationException(
 						String.format(
 								"A key format should only deal with INSERT-only records. "
 										+ "But %s has a changelog mode of %s.",
-								helper.getOptions().get(FactoryUtil.KEY_FORMAT),
+								helper.getOptions().get(KEY_FORMAT),
 								format.getChangelogMode()));
 			}
 		});
@@ -226,46 +233,28 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		final Optional<EncodingFormat<SerializationSchema<RowData>>> keyEncodingFormat =
 				helper.discoverOptionalEncodingFormat(
 						SerializationFormatFactory.class,
-						FactoryUtil.KEY_FORMAT);
+						KEY_FORMAT);
 		keyEncodingFormat.ifPresent(format -> {
 			if (!format.getChangelogMode().containsOnly(RowKind.INSERT)) {
 				throw new ValidationException(
 						String.format(
 								"A key format should only deal with INSERT-only records. "
 										+ "But %s has a changelog mode of %s.",
-								helper.getOptions().get(FactoryUtil.KEY_FORMAT),
+								helper.getOptions().get(KEY_FORMAT),
 								format.getChangelogMode()));
 			}
 		});
 		return keyEncodingFormat;
 	}
 
-	private static DecodingFormat<DeserializationSchema<RowData>> getValueDecodingFormat(
-			TableFactoryHelper helper,
-			boolean hasKeyFormat) {
-		final ConfigOption<String> valueFormatOption;
-		if (hasKeyFormat) {
-			valueFormatOption = FactoryUtil.VALUE_FORMAT;
-		} else {
-			valueFormatOption = FactoryUtil.FORMAT;
-		}
-		return helper.discoverDecodingFormat(
-				DeserializationFormatFactory.class,
-				valueFormatOption);
+	private static DecodingFormat<DeserializationSchema<RowData>> getValueDecodingFormat(TableFactoryHelper helper) {
+		return helper.discoverOptionalDecodingFormat(DeserializationFormatFactory.class, FactoryUtil.FORMAT)
+			.orElseGet(() -> helper.discoverDecodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT));
 	}
 
-	private static EncodingFormat<SerializationSchema<RowData>> getValueEncodingFormat(
-			TableFactoryHelper helper,
-			boolean hasKeyFormat) {
-		final ConfigOption<String> valueFormatOption;
-		if (hasKeyFormat) {
-			valueFormatOption = FactoryUtil.VALUE_FORMAT;
-		} else {
-			valueFormatOption = FactoryUtil.FORMAT;
-		}
-		return helper.discoverEncodingFormat(
-				SerializationFormatFactory.class,
-				valueFormatOption);
+	private static EncodingFormat<SerializationSchema<RowData>> getValueEncodingFormat(TableFactoryHelper helper) {
+		return helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, FactoryUtil.FORMAT)
+			.orElseGet(() -> helper.discoverEncodingFormat(SerializationFormatFactory.class, VALUE_FORMAT));
 	}
 
 	// --------------------------------------------------------------------------------------------

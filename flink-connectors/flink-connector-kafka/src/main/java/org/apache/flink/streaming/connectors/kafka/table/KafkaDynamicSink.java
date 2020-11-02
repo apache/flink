@@ -140,7 +140,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 				createSerialization(context, keyEncodingFormat, keyProjection, keyPrefix);
 
 		final SerializationSchema<RowData> valueSerialization =
-				createSerialization(context, valueEncodingFormat, valueProjection, keyPrefix);
+				createSerialization(context, valueEncodingFormat, valueProjection, null);
 
 		final FlinkKafkaProducer<RowData> kafkaProducer =
 				createKafkaProducer(keySerialization, valueSerialization);

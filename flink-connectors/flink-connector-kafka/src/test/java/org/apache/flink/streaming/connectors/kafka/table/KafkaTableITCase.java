@@ -429,9 +429,9 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
 		String initialValues = "INSERT INTO kafka\n"
 				+ "VALUES\n"
-				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 1, 'payload 1'),\n"
-				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 2, 'payload 2'),\n"
-				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 3, 'payload 3')";
+				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3')";
 		tEnv.executeSql(initialValues).await();
 
 		// ---------- Consume stream from Kafka -------------------
@@ -439,9 +439,9 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
 
 		final List<Row> expected = Arrays.asList(
-				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, 1, "payload 1"),
-				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, 2, "payload 2"),
-				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, 3, "payload 3")
+				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, 41, "payload 1"),
+				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, 42, "payload 2"),
+				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, 43, "payload 3")
 		);
 
 		assertThat(result, deepEqualTo(expected, true));
@@ -471,10 +471,10 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		// fields for keys and values are overlapping
 		final String createTable = String.format(
 				"CREATE TABLE kafka (\n"
-						+ "  `k_user_id` BIGINT,\n"
+						+ "  `user_id` BIGINT,\n"
 						+ "  `name` STRING,\n"
 						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
-						+ "  `k_event_id` BIGINT,\n"
+						+ "  `event_id` BIGINT,\n"
 						+ "  `payload` STRING\n"
 						+ ") WITH (\n"
 						+ "  'connector' = 'kafka',\n"
@@ -483,8 +483,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						+ "  'properties.group.id' = '%s',\n"
 						+ "  'scan.startup.mode' = 'earliest-offset',\n"
 						+ "  'key.format' = '%s',\n"
-						+ "  'key.fields' = 'k_event_id; k_user_id',\n"
-						+ "  'key.fields-prefix' = 'k_',\n"
+						+ "  'key.fields' = 'event_id; user_id',\n"
 						+ "  'value.format' = '%s',\n"
 						+ "  'value.fields-include' = 'ALL'\n"
 						+ ")",

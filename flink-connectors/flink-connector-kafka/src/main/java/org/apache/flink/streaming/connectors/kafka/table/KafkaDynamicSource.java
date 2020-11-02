@@ -165,7 +165,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				createDeserialization(context, keyDecodingFormat, keyProjection, keyPrefix);
 
 		final DeserializationSchema<RowData> valueDeserialization =
-				createDeserialization(context, valueDecodingFormat, valueProjection, keyPrefix);
+				createDeserialization(context, valueDecodingFormat, valueProjection, null);
 
 		final TypeInformation<RowData> producedTypeInfo =
 				context.createTypeInformation(producedDataType);
