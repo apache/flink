@@ -37,30 +37,23 @@ class AvgAggFunction(AggregateFunction):
 
     def create_accumulator(self):
         # [count, sum]
-        return [0, None]
+        return [0, 0]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
             accumulator[0] += 1
-            if accumulator[1] is None:
-                accumulator[1] = args[0]
-            else:
-                accumulator[1] += args[0]
+            accumulator[1] += args[0]
 
     def retract(self, accumulator, *args):
         if args[0] is not None:
-            if accumulator[1] is not None:
-                accumulator[0] -= 1
-                accumulator[1] -= args[0]
+            accumulator[0] -= 1
+            accumulator[1] -= args[0]
 
     def merge(self, accumulator, accumulators):
         for acc in accumulators:
             if acc[1] is not None:
                 accumulator[0] += acc[0]
-                if accumulator[1] is None:
-                    accumulator[1] = acc[1]
-                else:
-                    accumulator[1] += acc[1]
+                accumulator[1] += acc[1]
 
 
 class Count1AggFunction(AggregateFunction):
@@ -109,18 +102,12 @@ class FirstValueAggFunction(AggregateFunction):
         return accumulator[0]
 
     def create_accumulator(self):
-        # [first_value, first_order]
-        return [None, MAX_LONG_VALUE]
+        # [first_value]
+        return [None]
 
     def accumulate(self, accumulator, *args):
-        if args[0] is not None:
-            if len(args) > 1:
-                if accumulator[1] > args[1]:
-                    accumulator[0] = args[0]
-                    accumulator[1] = args[1]
-            else:
-                if accumulator[0] is None:
-                    accumulator[0] = args[0]
+        if accumulator[0] is None and args[0] is not None:
+            accumulator[0] = args[0]
 
     def retract(self, accumulator, *args):
         raise NotImplementedError("This function does not support retraction.")
@@ -145,17 +132,14 @@ class FirstValueWithRetractAggFunction(AggregateFunction):
             value_to_order_map = accumulator[2]
             order_to_value_map = accumulator[3]
 
-            # get the order of current value if not given
-            if len(args) == 1:
-                order = int(time.time() * 1000)
-                if value in value_to_order_map:
-                    order_list = value_to_order_map[value]
-                else:
-                    order_list = []
-                order_list.append(order)
-                value_to_order_map[value] = order_list
+            # calculate the order of current value
+            order = int(round(time.time() * 1000))
+            if value in value_to_order_map:
+                order_list = value_to_order_map[value]
             else:
-                order = args[1]
+                order_list = []
+            order_list.append(order)
+            value_to_order_map[value] = order_list
 
             if prev_order is None or prev_order > order:
                 accumulator[0] = value
@@ -175,21 +159,18 @@ class FirstValueWithRetractAggFunction(AggregateFunction):
             value_to_order_map = accumulator[2]
             order_to_value_map = accumulator[3]
 
-            # get the order of current value if not given
-            if len(args) == 1:
-                if value in value_to_order_map and len(value_to_order_map[value]) > 0:
-                    order_list = value_to_order_map[value]
-                else:
-                    # this data has not been accumulated
-                    return
-                # get and remove current order in value_to_order_map
-                order = order_list.pop(0)
-                if len(order_list) == 0:
-                    del value_to_order_map[value]
-                else:
-                    value_to_order_map[value] = order_list
+            # calculate the order of current value
+            if value in value_to_order_map and value_to_order_map[value]:
+                order_list = value_to_order_map[value]
             else:
-                order = args[1]
+                # this data has not been accumulated
+                return
+            # get and remove current order in value_to_order_map
+            order = order_list.pop(0)
+            if order_list:
+                value_to_order_map[value] = order_list
+            else:
+                del value_to_order_map[value]
 
             # remove current value in order_to_value_map
             if order in order_to_value_map:
@@ -199,10 +180,10 @@ class FirstValueWithRetractAggFunction(AggregateFunction):
                 return
             if value in value_list:
                 value_list.remove(value)
-                if len(value_list) == 0:
-                    del order_to_value_map[order]
-                else:
+                if value_list:
                     order_to_value_map[order] = value_list
+                else:
+                    del order_to_value_map[order]
 
             if value == prev_value:
                 start_key = prev_order
@@ -228,17 +209,12 @@ class LastValueAggFunction(AggregateFunction):
         return accumulator[0]
 
     def create_accumulator(self):
-        # [last_value, last_order]
-        return [None, -MAX_LONG_VALUE - 1]
+        # [last_value]
+        return [None]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
-            if len(args) > 1:
-                if args[1] > accumulator[0]:
-                    accumulator[0] = args[0]
-                    accumulator[1] = args[1]
-            else:
-                accumulator[0] = args[0]
+            accumulator[0] = args[0]
 
     def retract(self, accumulator, *args):
         raise NotImplementedError("This function does not support retraction.")
@@ -263,17 +239,14 @@ class LastValueWithRetractAggFunction(AggregateFunction):
             value_to_order_map = accumulator[2]
             order_to_value_map = accumulator[3]
 
-            # get the order of current value if not given
-            if len(args) == 1:
-                order = int(time.time() * 1000)
-                if value in value_to_order_map:
-                    order_list = value_to_order_map[value]
-                else:
-                    order_list = []
-                order_list.append(order)
-                value_to_order_map[value] = order_list
+            # calculate the order of current value
+            order = int(time.time() * 1000)
+            if value in value_to_order_map:
+                order_list = value_to_order_map[value]
             else:
-                order = args[1]
+                order_list = []
+            order_list.append(order)
+            value_to_order_map[value] = order_list
 
             if prev_order is None or prev_order <= order:
                 accumulator[0] = value
@@ -294,21 +267,18 @@ class LastValueWithRetractAggFunction(AggregateFunction):
             value_to_order_map = accumulator[2]
             order_to_value_map = accumulator[3]
 
-            # get the order of current value if not given
-            if len(args) == 1:
-                if value in value_to_order_map and len(value_to_order_map[value]) > 0:
-                    order_list = value_to_order_map[value]
-                else:
-                    # this data has not been accumulated
-                    return
-                # get and remove current order in value_to_order_map
-                order = order_list.pop(0)
-                if len(order_list) == 0:
-                    del value_to_order_map[value]
-                else:
-                    value_to_order_map[value] = order_list
+            # calculate the order of current value
+            if value in value_to_order_map and value_to_order_map[value]:
+                order_list = value_to_order_map[value]
             else:
-                order = args[1]
+                # this data has not been accumulated
+                return
+            # get and remove current order in value_to_order_map
+            order = order_list.pop(0)
+            if order_list:
+                value_to_order_map[value] = order_list
+            else:
+                del value_to_order_map[value]
 
             if order in order_to_value_map:
                 value_list = order_to_value_map[order]
@@ -317,10 +287,10 @@ class LastValueWithRetractAggFunction(AggregateFunction):
 
             if value in value_list:
                 value_list.remove(value)
-                if len(value_list) == 0:
-                    del order_to_value_map[order]
-                else:
+                if value_list:
                     order_to_value_map[order] = value_list
+                else:
+                    del order_to_value_map[order]
 
             if value == prev_value:
                 start_key = prev_order
@@ -344,23 +314,20 @@ class LastValueWithRetractAggFunction(AggregateFunction):
 class ListAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
-        if accumulator[1] is None:
-            return None
-        else:
+        if accumulator[1]:
             return accumulator[0].join(accumulator[1])
+        else:
+            return None
 
     def create_accumulator(self):
         # delimiter, values
-        return [',', None]
+        return [',', []]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
             if len(args) > 1:
                 accumulator[0] = args[1]
-            if accumulator[1] is None:
-                accumulator[1] = [args[0]]
-            else:
-                accumulator[1].append(args[0])
+            accumulator[1].append(args[0])
 
     def retract(self, accumulator, *args):
         raise NotImplementedError("This function does not support retraction.")
@@ -370,7 +337,7 @@ class ListAggWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
         values = [i for i in accumulator[0]]
-        if len(values) > 0:
+        if values:
             return ','.join(values)
         else:
             return None
@@ -386,49 +353,43 @@ class ListAggWithRetractAggFunction(AggregateFunction):
     def retract(self, accumulator, *args):
         if args[0] is not None:
             values = [i for i in accumulator[0]]
-            if args[0] in values:
+            try:
                 values.remove(args[0])
                 accumulator[0].clear()
                 accumulator[0].add_all(values)
-            else:
+            except ValueError:
                 accumulator[1].add(args[0])
 
     def merge(self, accumulator, accumulators):
         for acc in accumulators:
-            buffer = []
-            for e in acc[0]:
-                buffer.append(e)
-            retract_buffer = []
-            for e in acc[1]:
-                retract_buffer.append(e)
+            buffer = [e for e in acc[0]]
+            retract_buffer = [e for e in acc[1]]
 
-            if len(buffer) == 0 and len(retract_buffer) == 0:
-                continue
+            if buffer or retract_buffer:
+                for e in accumulator[0]:
+                    buffer.append(e)
+                for e in accumulator[1]:
+                    retract_buffer.append(e)
 
-            for e in accumulator[0]:
-                buffer.append(e)
-            for e in accumulator[1]:
-                retract_buffer.append(e)
+                # merge list & retract list
+                new_retract_buffer = []
+                for e in retract_buffer:
+                    if e in buffer:
+                        buffer.remove(e)
+                    else:
+                        new_retract_buffer.append(e)
 
-            # merge list & retract list
-            new_retract_buffer = []
-            for e in retract_buffer:
-                if e in buffer:
-                    buffer.remove(e)
-                else:
-                    new_retract_buffer.append(e)
-
-            accumulator[0].clear()
-            accumulator[0].add_all(buffer)
-            accumulator[1].clear()
-            accumulator[1].add_all(retract_buffer)
+                accumulator[0].clear()
+                accumulator[0].add_all(buffer)
+                accumulator[1].clear()
+                accumulator[1].add_all(new_retract_buffer)
 
 
 class ListAggWsWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
         values = [i for i in accumulator[0]]
-        if len(values) > 0:
+        if values:
             return accumulator[2].join(values)
         else:
             return None
@@ -455,34 +416,28 @@ class ListAggWsWithRetractAggFunction(AggregateFunction):
 
     def merge(self, accumulator, accumulators):
         for acc in accumulators:
-            buffer = []
-            for e in acc[0]:
-                buffer.append(e)
-            retract_buffer = []
-            for e in acc[1]:
-                retract_buffer.append(e)
+            buffer = [e for e in acc[0]]
+            retract_buffer = [e for e in acc[1]]
 
-            if len(buffer) == 0 and len(retract_buffer) == 0:
-                continue
+            if buffer or retract_buffer:
+                accumulator[2] = acc[2]
+                for e in accumulator[0]:
+                    buffer.append(e)
+                for e in accumulator[1]:
+                    retract_buffer.append(e)
 
-            accumulator[2] = acc[2]
-            for e in accumulator[0]:
-                buffer.append(e)
-            for e in accumulator[1]:
-                retract_buffer.append(e)
+                # merge list & retract list
+                new_retract_buffer = []
+                for e in retract_buffer:
+                    if e in buffer:
+                        buffer.remove(e)
+                    else:
+                        new_retract_buffer.append(e)
 
-            # merge list & retract list
-            new_retract_buffer = []
-            for e in retract_buffer:
-                if e in buffer:
-                    buffer.remove(e)
-                else:
-                    new_retract_buffer.append(e)
-
-            accumulator[0].clear()
-            accumulator[0].add_all(buffer)
-            accumulator[1].clear()
-            accumulator[1].add_all(retract_buffer)
+                accumulator[0].clear()
+                accumulator[0].add_all(buffer)
+                accumulator[1].clear()
+                accumulator[1].add_all(retract_buffer)
 
 
 class MaxAggFunction(AggregateFunction):
