@@ -25,11 +25,15 @@ import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.functions.utils.HiveFunctionUtils;
 import org.apache.flink.table.planner.typeutils.TypeCoercion;
 import org.apache.flink.table.planner.validate.ValidationFailure;
 import org.apache.flink.table.planner.validate.ValidationResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +77,23 @@ public final class PlannerTypeInferenceUtilImpl implements PlannerTypeInferenceU
 			final List<DataType> expectedArgumentTypes = resolvedArgs.stream()
 				.map(ResolvedExpression::getOutputDataType)
 				.collect(Collectors.toList());
+
+			if (plannerCall instanceof PlannerScalarFunctionCall) {
+				ScalarFunction scalarFunction = ((PlannerScalarFunctionCall) plannerCall).scalarFunction();
+				// need to set arg types for Hive functions
+				if (HiveFunctionUtils.isHiveFunc(scalarFunction)) {
+					LogicalType[] logicalTypes = expectedArgumentTypes.stream()
+							.map(DataType::getLogicalType).toArray(LogicalType[]::new);
+					Object[] constArgs = new Object[logicalTypes.length];
+					for (int i = 0; i < constArgs.length; i++) {
+						if (resolvedArgs.get(i) instanceof ValueLiteralExpression) {
+							ValueLiteralExpression literalExpression = (ValueLiteralExpression) resolvedArgs.get(i);
+							constArgs[i] = literalExpression.getValueAs(Object.class).orElse(null);
+						}
+					}
+					HiveFunctionUtils.invokeSetArgs(scalarFunction, constArgs, logicalTypes);
+				}
+			}
 
 			return new TypeInferenceUtil.Result(
 				expectedArgumentTypes,
