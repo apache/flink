@@ -43,6 +43,5 @@ public final class ClientAndIterator<E> implements AutoCloseable {
 	@Override
 	public void close() throws Exception {
 		iterator.close();
-		client.cancel();
 	}
 }
