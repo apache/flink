@@ -874,7 +874,10 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
     </tr>
     <tr>
       <td>Heap.Max</td>
-      <td>The maximum amount of heap memory that can be used for memory management (in bytes).</td>
+      <td>The maximum amount of heap memory that can be used for memory management (in bytes). <br/>
+      This value might not be necessarily equal to the maximum value specified through -Xmx or 
+      the equivalent Flink configuration parameter. Some GC algorithms allocate heap memory that won't 
+      be available to the user code and, therefore, not being exposed through the heap metrics.</td>
       <td>Gauge</td>
     </tr>
     <tr>

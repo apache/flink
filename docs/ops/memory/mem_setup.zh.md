@@ -96,13 +96,16 @@ Flink 进程启动时，会根据配置的和自动推导出的各内存部分�
 
 | &nbsp;&nbsp;**JVM 参数**&nbsp;&nbsp; | &nbsp;&nbsp;**TaskManager 取值**&nbsp;&nbsp; | &nbsp;&nbsp;**JobManager 取值**&nbsp;&nbsp; |
 | :---------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
-| *-Xmx* 和 *-Xms*                         | 框架堆内存 + 任务堆内存                       | JVM 堆内存                                   |
-| *-XX:MaxDirectMemorySize*<br/>（TaskManager 始终设置，JobManager 见注释）                 | 框架堆外内存 + 任务堆外内存(\*) + 网络内存     | 堆外内存 (\*) (\*\*)                               |
+| *-Xmx* 和 *-Xms*                         | 框架堆内存 + 任务堆内存                       | JVM 堆内存 (\*)                                  |
+| *-XX:MaxDirectMemorySize*<br/>（TaskManager 始终设置，JobManager 见注释）                 | 框架堆外内存 + 任务堆外内存(\*\*) + 网络内存     | 堆外内存 (\*\*) (\*\*\*)                               |
 | *-XX:MaxMetaspaceSize*                    | JVM Metaspace                                      | JVM Metaspace                                     |
 {:.table-bordered}
-(\*) 请注意，堆外内存也包括了用户代码使用的本地内存（非直接内存）。
+(\*) Keep in mind that you might not be able to use the full amount of heap memory depending on the GC algorithm used. Some GC algorithms allocate a certain amount of heap memory for themselves. 
+This will lead to a different maximum being returned by the [Heap metrics](../../monitoring/metrics.html#memory).
 <br/>
-(\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
+(\*\*) 请注意，堆外内存也包括了用户代码使用的本地内存（非直接内存）。
+<br/>
+(\*\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`](../config.html#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
 <br/><br/>
 
 相关内存部分的配置方法，请同时参考 [TaskManager](mem_setup_tm.html#detailed-memory-model) 和 [JobManager](mem_setup_jobmanager.html#detailed-configuration) 的详细内存模型。
