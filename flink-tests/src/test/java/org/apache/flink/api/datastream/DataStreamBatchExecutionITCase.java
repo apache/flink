@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -39,16 +40,16 @@ import org.junit.Test;
 
 import java.util.List;
 
+import static org.apache.flink.util.CollectionUtil.iteratorToList;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
 /**
- * Integration test for {@link RuntimeExecutionMode#BATCH} execution on
- * the DataStream API.
+ * Integration test for {@link RuntimeExecutionMode#BATCH} execution on the DataStream API.
  *
- * <p>We use a {@link MiniClusterWithClientResource} with a single TaskManager with 1 slot to verify
- * that programs in BATCH execution mode can be executed in stages.
+ * <p>We use a {@link MiniClusterWithClientResource} with a single TaskManager with 1 slot to
+ * verify that programs in BATCH execution mode can be executed in stages.
  */
 public class DataStreamBatchExecutionITCase {
 	private static final int DEFAULT_PARALLELISM = 1;
@@ -79,11 +80,14 @@ public class DataStreamBatchExecutionITCase {
 				.map(new SuffixAttemptId("c"))
 				.map(new OnceFailingMapper("d"));
 
-		List<String> result = mapped.executeAndCollect(2);
+		try (CloseableIterator<String> result = mapped.executeAndCollect()) {
 
-		// only the operators after the key-by "barrier" are restarted and will have the "attempt 1"
-		// suffix
-		assertThat(result, containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+			// only the operators after the key-by "barrier" are restarted and will have the
+			// "attempt 1" suffix
+			assertThat(
+					iteratorToList(result),
+					containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+		}
 	}
 
 	@Ignore
