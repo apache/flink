@@ -95,6 +95,7 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 
+	private static final String SAVEPOINT_DIR = "savepointdir";
 	private static final String CHECKPOINT_STORAGE = "checkpointstorage";
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String TIMER_SERVICE_PROVIDER = "timerservice";
@@ -555,6 +556,24 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, CHECKPOINT_STORAGE, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate checkpoint storage.", e);
+		}
+	}
+
+	public void setSavepointDir(String directory) {
+		if (directory != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(directory, config, SAVEPOINT_DIR);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize savepoint directory.", e);
+			}
+		}
+	}
+
+	public String getSavepointDir(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, SAVEPOINT_DIR, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate savepoint directory.", e);
 		}
 	}
 

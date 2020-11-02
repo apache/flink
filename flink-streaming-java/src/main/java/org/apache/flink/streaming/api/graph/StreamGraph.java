@@ -116,6 +116,7 @@ public class StreamGraph implements Pipeline {
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private StateBackend stateBackend;
 	private CheckpointStorage checkpointStorage;
+	private String savepointDir;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 	private InternalTimeServiceManager.Provider timerServiceProvider;
 
@@ -184,6 +185,14 @@ public class StreamGraph implements Pipeline {
 
 	public CheckpointStorage getCheckpointStorage() {
 		return this.checkpointStorage;
+	}
+
+	public void setSavepointDirectory(String savepointDir) {
+		this.savepointDir = savepointDir;
+	}
+
+	public String getSavepointDirectory() {
+		return this.savepointDir;
 	}
 
 	public InternalTimeServiceManager.Provider getTimerServiceProvider() {

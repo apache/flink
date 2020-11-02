@@ -1048,9 +1048,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
 		final CheckpointStorage fromApplication = configuration.getCheckpointStorage(getUserCodeClassLoader());
+		final String savepointDir = configuration.getSavepointDir(getUserCodeClassLoader());
 
 		return CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
 				fromApplication,
+				savepointDir,
 				backend,
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getUserCodeClassLoader(),

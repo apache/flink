@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -127,6 +128,10 @@ public class StreamGraphGenerator {
 
 	private StateBackend stateBackend;
 
+	private CheckpointStorage storage;
+
+	private String savepointDir;
+
 	private boolean chaining = true;
 
 	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
@@ -209,6 +214,16 @@ public class StreamGraphGenerator {
 		return this;
 	}
 
+	public StreamGraphGenerator setCheckpointStorage(CheckpointStorage storage) {
+		this.storage = storage;
+		return this;
+	}
+
+	public StreamGraphGenerator setSavepointDir(String savepointDir) {
+		this.savepointDir = savepointDir;
+		return this;
+	}
+
 	public StreamGraphGenerator setChaining(boolean chaining) {
 		this.chaining = chaining;
 		return this;
@@ -280,6 +295,8 @@ public class StreamGraphGenerator {
 			setBatchStateBackendAndTimerService(graph);
 		} else {
 			graph.setStateBackend(stateBackend);
+			graph.setCheckpointStorage(storage);
+			graph.setSavepointDirectory(savepointDir);
 			graph.setAllVerticesInSameSlotSharingGroupByDefault(true);
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.EAGER);
@@ -300,6 +317,8 @@ public class StreamGraphGenerator {
 			graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
 		} else {
 			graph.setStateBackend(stateBackend);
+			graph.setCheckpointStorage(storage);
+			graph.setSavepointDirectory(savepointDir);
 		}
 	}
 

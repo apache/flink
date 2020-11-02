@@ -161,6 +161,9 @@ public class StreamExecutionEnvironment {
 	/** The state backend used for storing k/v state and state snapshots. */
 	private StateBackend defaultStateBackend;
 
+	/** The default savepoint directory used by the job. */
+	private String defaultSavepointDirectory;
+
 	/** The time characteristic used by the data streams. */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
@@ -572,6 +575,31 @@ public class StreamExecutionEnvironment {
 	@PublicEvolving
 	public StateBackend getStateBackend() {
 		return defaultStateBackend;
+	}
+
+	/**
+	 * Sets the default savepoint directory, where savepoints will be written to
+	 * if no is explicitly provided when triggered.
+	 *
+	 * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+	 *
+	 * @see #getDefaultSavepointDirectory() ()
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
+		this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+		return this;
+	}
+
+	/**
+	 * Gets the default savepoint directory for this Job.
+	 *
+	 * @see #setDefaultSavepointDirectory(String)
+	 */
+	@Nullable
+	@PublicEvolving
+	public String getDefaultSavepointDirectory() {
+		return defaultSavepointDirectory;
 	}
 
 	/**

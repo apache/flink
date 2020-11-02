@@ -115,6 +115,7 @@ public class CheckpointStorageLoader {
 
 	public static CheckpointStorage fromApplicationOrConfigOrDefault(
 			@Nullable CheckpointStorage fromApplication,
+			@Nullable String baseSavepointDir,
 			StateBackend configuredStateBackend,
 			Configuration config,
 			ClassLoader classLoader,
@@ -132,6 +133,11 @@ public class CheckpointStorageLoader {
 			}
 
 			return (CheckpointStorage) configuredStateBackend;
+		}
+
+		if (baseSavepointDir != null) {
+			config = new Configuration(config);
+			config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, baseSavepointDir);
 		}
 
 		CheckpointStorage storage;

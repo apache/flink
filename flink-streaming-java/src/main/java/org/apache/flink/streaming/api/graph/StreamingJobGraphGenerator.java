@@ -610,6 +610,7 @@ public class StreamingJobGraphGenerator {
 
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointStorage(streamGraph.getCheckpointStorage());
+		config.setSavepointDir(streamGraph.getSavepointDirectory());
 		config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));

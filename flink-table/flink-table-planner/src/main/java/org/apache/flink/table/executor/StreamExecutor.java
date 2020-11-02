@@ -55,6 +55,8 @@ public class StreamExecutor implements Executor {
 				executionEnvironment.getConfig(),
 				executionEnvironment.getCheckpointConfig())
 			.setStateBackend(executionEnvironment.getStateBackend())
+			.setCheckpointStorage(executionEnvironment.getCheckpointConfig().getCheckpointStorage())
+			.setSavepointDir(executionEnvironment.getDefaultSavepointDirectory())
 			.setChaining(executionEnvironment.isChainingEnabled())
 			.setUserArtifacts(executionEnvironment.getCachedFiles())
 			.setTimeCharacteristic(executionEnvironment.getStreamTimeCharacteristic())

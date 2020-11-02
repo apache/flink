@@ -54,8 +54,8 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.util.ExceptionUtils;
@@ -71,6 +71,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2480,7 +2481,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 			.setTimer(manuallyTriggeredScheduledExecutor)
 			.setCoordinatorsToCheckpoint(Collections.singleton(coordinatorCheckpointContext))
-			.setCheckpointStorage(new MemoryStateBackend() {
+			.setCheckpointStorage(new JobManagerCheckpointStorage() {
 				private static final long serialVersionUID = 8134582566514272546L;
 
 				// Throw exception when finalizing the checkpoint.

@@ -331,7 +331,7 @@ public class ExecutionGraphBuilder {
 			final CheckpointStorage rootStorage;
 			try {
 				rootStorage = CheckpointStorageLoader.fromApplicationOrConfigOrDefault(
-						applicationConfiguredStorage, rootBackend, jobManagerConfig, classLoader, log);
+						applicationConfiguredStorage, null, rootBackend, jobManagerConfig, classLoader, log);
 			} catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
 				throw new JobExecutionException(jobId, "Could not instantiate configured checkpoint storage", e);
 			}

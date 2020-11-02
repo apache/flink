@@ -266,6 +266,22 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
 
   /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDir: String): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDir)
+    this
+  }
+
+  /**
+   * Gets the default savepoint directory for this Job.
+   */
+  @PublicEvolving
+  def getDefaultSavepointDirectory: String = javaEnv.getDefaultSavepointDirectory
+
+  /**
     * Sets the restart strategy configuration. The configuration specifies which restart strategy
     * will be used for the execution graph in case of a restart.
     *
