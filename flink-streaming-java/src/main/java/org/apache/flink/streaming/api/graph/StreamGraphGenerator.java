@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -56,6 +57,7 @@ import org.apache.flink.streaming.runtime.translators.LegacySourceTransformation
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.PartitionTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.ReduceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SideOutputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
@@ -161,6 +163,7 @@ public class StreamGraphGenerator {
 		tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
 		tmp.put(PartitionTransformation.class, new PartitionTransformationTranslator<>());
 		tmp.put(SideOutputTransformation.class, new SideOutputTransformationTranslator<>());
+		tmp.put(ReduceTransformation.class, new ReduceTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
