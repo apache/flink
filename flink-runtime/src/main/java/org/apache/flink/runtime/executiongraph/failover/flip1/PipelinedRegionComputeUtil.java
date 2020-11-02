@@ -70,7 +70,10 @@ public final class PipelinedRegionComputeUtil {
 			vertexToRegion.put(vertex, currentRegion);
 
 			for (R consumedResult : vertex.getConsumedResults()) {
-				if (consumedResult.getResultType().isPipelined()) {
+				// Similar to the BLOCKING ResultPartitionType, each vertex connected through PIPELINED_APPROXIMATE
+				// is also considered as a single region. This attribute is called "reconnectable".
+				// reconnectable will be removed after FLINK-19895, see also {@link ResultPartitionType#isReconnectable}
+				if (!consumedResult.getResultType().isReconnectable()) {
 					final V producerVertex = consumedResult.getProducer();
 					final Set<V> producerRegion = vertexToRegion.get(producerVertex);
 
