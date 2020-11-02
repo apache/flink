@@ -20,6 +20,7 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -81,6 +82,7 @@ public class ShuffleCompressionITCase {
 	public void testDataCompressionForBoundedBlockingShuffle() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 
 		JobGraph jobGraph = createJobGraph(
 			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
@@ -92,6 +94,7 @@ public class ShuffleCompressionITCase {
 		Configuration configuration = new Configuration();
 		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
 		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 
 		JobGraph jobGraph = createJobGraph(
 			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
