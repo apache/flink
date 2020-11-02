@@ -25,22 +25,22 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link GlobalStreamingCommitterOperator}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link StreamingGlobalCommitterOperator}.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}.
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
-public class GlobalStreamingCommitterOperatorFactory<CommT, GlobalCommT> extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
+public class StreamingGlobalCommitterOperatorFactory<CommT, GlobalCommT> extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
 
 	private final Sink<?, CommT, ?, GlobalCommT> sink;
 
-	public GlobalStreamingCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
+	public StreamingGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
 		this.sink = checkNotNull(sink);
 	}
 
 	@Override
 	AbstractStreamingCommitterOperator<CommT, GlobalCommT> createStreamingCommitterOperator() {
-		return new GlobalStreamingCommitterOperator<>(
+		return new StreamingGlobalCommitterOperator<>(
 				sink.createGlobalCommitter()
 						.orElseThrow(() -> new IllegalStateException(
 								"Could not create global committer from the sink")),
@@ -52,6 +52,6 @@ public class GlobalStreamingCommitterOperatorFactory<CommT, GlobalCommT> extends
 	@Override
 	@SuppressWarnings("rawtypes")
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return GlobalStreamingCommitterOperator.class;
+		return StreamingGlobalCommitterOperator.class;
 	}
 }
