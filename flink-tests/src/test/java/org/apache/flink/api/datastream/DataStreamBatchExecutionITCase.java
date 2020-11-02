@@ -40,7 +40,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
 /**
- * Integration test for {@link org.apache.flink.api.common.RuntimeExecutionMode#BATCH} execution on
+ * Integration test for {@link RuntimeExecutionMode#BATCH} execution on
  * the DataStream API.
  *
  * <p>We use a {@link MiniClusterWithClientResource} with a single TaskManager with 1 slot to verify
