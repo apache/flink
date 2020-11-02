@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeNestedField;
+import org.apache.flink.table.planner.plan.utils.RexNodeNestedFields;
 import org.apache.flink.table.planner.sources.DynamicSourceUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -51,14 +52,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import scala.Option;
-
 /**
  * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan}
  * which wraps a {@link SupportsProjectionPushDown} dynamic table source.
- *
- * <p>NOTES: This rule does not support nested fields push down now,
- * instead it will push the top-level column down just like non-nested fields.
  */
 public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 	public static final PushProjectIntoTableSourceScanRule INSTANCE = new PushProjectIntoTableSourceScanRule();
@@ -118,12 +114,12 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		// build used schema tree
 		RowType originType =
 				DynamicSourceUtils.createProducedType(oldSchema, oldSource);
-		RexNodeNestedField root = RexNodeNestedField.build(
+		RexNodeNestedFields root = RexNodeNestedFields.build(
 				oldProjectsWithPK, flinkTypeFactory.buildRelNodeRowType(originType));
 		if (!supportsNestedProjection) {
 			// mark the fields in the top level as useall
-			for (RexNodeNestedField child: root.children().values()) {
-				child.useAll_$eq(true);
+			for (RexNodeNestedField column: root.columns().values()) {
+				column.isLeaf_$eq(true);
 			}
 		}
 		final DynamicTableSource newSource = oldSource.copy();
@@ -140,20 +136,20 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			for (int i = 0; i < metadataKeys.size(); i++) {
 				final RexInputRef key = new RexInputRef(i + physicalCount,
 						flinkTypeFactory.createFieldTypeFromLogicalType(originType.getChildren().get(i + physicalCount)));
-				Option<RexNodeNestedField> usedMetadata = root.deleteChild(key.getName());
-				if (usedMetadata.isDefined()) {
-					usedMetaDataFields.add(usedMetadata.get());
+				RexNodeNestedField usedMetadata = root.columns().remove(key.getName());
+				if (usedMetadata != null) {
+					usedMetaDataFields.add(usedMetadata);
 				}
 			}
 			// label the tree and get path
-			int[][] projectedPhysicalFields = RexNodeNestedField.labelAndConvert(root);
+			int[][] projectedPhysicalFields = RexNodeNestedFields.labelAndConvert(root);
 			((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
 			// push the metadata back for later rewrite and extract the location in the origin row
-			int order = physicalCount;
+			int order = projectedPhysicalFields.length;
 			List<String> usedMetadataNames = new LinkedList<>();
 			for (RexNodeNestedField metadata: usedMetaDataFields) {
-				metadata.order_$eq(order++);
-				root.addChild(metadata);
+				metadata.indexInNewSchema_$eq(order++);
+				root.columns().put(metadata.name(), metadata);
 				usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
 			}
 			// apply metadata push down
@@ -165,7 +161,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			((SupportsReadingMetadata) newSource).applyReadableMetadata(
 					usedMetadataNames, newProducedDataType);
 		} else {
-			projectedFields = RexNodeNestedField.labelAndConvert(root);
+			projectedFields = RexNodeNestedFields.labelAndConvert(root);
 			((SupportsProjectionPushDown) newSource).applyProjection(projectedFields);
 			newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
 		}
@@ -181,7 +177,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		// rewrite input field in projections
 		// the origin projections are enough. Because the upsert source only uses pk info in the deduplication node.
 		List<RexNode> newProjects =
-				RexNodeNestedField.rewrite(project.getProjects(), root, call.builder().getRexBuilder());
+				RexNodeNestedFields.rewrite(project.getProjects(), root, call.builder().getRexBuilder());
 		// rewrite new source
 		LogicalProject newProject = project.copy(
 				project.getTraitSet(),

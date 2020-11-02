@@ -118,6 +118,17 @@ public final class DataTypeUtils {
 	}
 
 	/**
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes
+	 * fields of the given indices.
+	 */
+	public static DataType projectRow(DataType dataType, int[] indices) {
+		final int[][] indexPaths = IntStream.of(indices)
+				.mapToObj(i -> new int[]{i})
+				.toArray(int[][]::new);
+		return projectRow(dataType, indexPaths);
+	}
+
+	/**
 	 * Removes a string prefix from the fields of the given row data type.
 	 */
 	public static DataType stripRowPrefix(DataType dataType, String prefix) {

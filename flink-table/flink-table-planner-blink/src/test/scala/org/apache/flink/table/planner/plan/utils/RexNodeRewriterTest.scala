@@ -80,51 +80,6 @@ class RexNodeRewriterTest extends RexNodeTestBase {
       "AND($t5, $t7)")))
   }
 
-  @Test
-  def testRewriteRexProgramWithNestedField(): Unit = {
-    val rexProgram = buildSimpleRexProgram()
-    val exprs = rexProgram.getExprList
-    assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "$0",
-      "$1",
-      "$2",
-      "$3",
-      "$4",
-      "*($t2, $t3)",
-      "100",
-      "<($t5, $t6)",
-      "6",
-      ">($t1, $t8)",
-      "AND($t7, $t9)")))
-
-    val nestedField = RexNodeNestedField.build(exprs, rexProgram.getInputRowType)
-    val paths = RexNodeNestedField.labelAndConvert(nestedField)
-    val orderedPaths = Array(
-      Array(0),
-      Array(1),
-      Array(2),
-      Array(3),
-      Array(4)
-    )
-    // actual data has the same order as expected
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
-    val builder = new FlinkRexBuilder(typeFactory)
-    val projectExprs = rexProgram.getProjectList.map(expr => rexProgram.expandLocalRef(expr))
-    val newProjectExprs =
-      RexNodeNestedField.rewrite(
-        projectExprs, nestedField, builder)
-    val conditionExprs = rexProgram.expandLocalRef(rexProgram.getCondition)
-    val newConditionExprs =
-      RexNodeNestedField.rewrite(Seq(conditionExprs), nestedField, builder)
-    assertTrue(newProjectExprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "$2",
-      "*($2, $3)")))
-    assertTrue(newConditionExprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "AND(<(*($2, $3), 100), >($1, 6))"
-    )))
-  }
 
   @Test
   def testRewriteRexProgramWithNestedProject(): Unit ={
@@ -150,33 +105,6 @@ class RexNodeRewriterTest extends RexNodeTestBase {
       exprs, fieldMap, rowTypes, builder)
 
     assertTrue(actual.asScala.map(_.toString) == wrapRefArray(Array(
-      "$0",
-      "$1",
-      "100")))
-  }
-
-  @Test
-  def testRewriteRExProgramWithNestedProjectUsingNestedField(): Unit = {
-    val (exprs, rowType) = buildExprsWithNesting()
-    assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "$1.amount",
-      "$0",
-      "100"
-    )))
-
-    val nestedField = RexNodeNestedField.build(exprs, rowType)
-    val paths = RexNodeNestedField.labelAndConvert(nestedField)
-    val orderedPaths = Array(
-      Array(1, 1),
-      Array(0)
-    )
-    // actual data has the same order as expected
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
-    val newExprs = RexNodeNestedField.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
-
-    assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "$0",
       "$1",
       "100")))
@@ -243,39 +171,6 @@ class RexNodeRewriterTest extends RexNodeTestBase {
     val actual = RexNodeRewriter.rewriteNestedProjectionWithNewFieldInput(
       exprs, fieldMap, rowTypes, builder)
     assertTrue(actual.asScala.map(_.toString) == wrapRefArray(Array(
-      "*($0, 10)",
-      "$1.passport.status",
-      "$2",
-      "$3.inside.entry",
-      "$3",
-      "$1")))
-  }
-
-  @Test
-  def testRewriteRexProgramWithDeepNestedProjectUsingNestedFields(): Unit = {
-    val (exprs, rowType) = buildExprsWithDeepNesting()
-    assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
-      "*($1.amount, 10)",
-      "$0.passport.status",
-      "$2.with.deep.entry",
-      "$2.with.deeper.entry.inside.entry",
-      "$2.with.deeper.entry",
-      "$0"
-    )))
-    val nestedField = RexNodeNestedField.build(exprs, rowType)
-    val paths = RexNodeNestedField.labelAndConvert(nestedField)
-    val orderedPaths = Array(
-      Array(1, 1),
-      Array(0),
-      Array(2, 0, 0, 0),
-      Array(2, 0, 1, 0)
-    )
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
-    val newExprs = RexNodeNestedField.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
-
-    assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "*($0, 10)",
       "$1.passport.status",
       "$2",
