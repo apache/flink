@@ -19,31 +19,32 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.Writer;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
- * StatelessWriterOperator}.
+ * StatefulSinkWriterOperator}.
  *
- * @param <InputT> The input type of the {@link Writer}.
- * @param <CommT> The committable type of the {@link Writer}.
+ * @param <InputT> The input type of the {@link SinkWriter}.
+ * @param <CommT> The committable type of the {@link SinkWriter}.
+ * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
-public final class StatelessWriterOperatorFactory<InputT, CommT> extends AbstractWriterOperatorFactory<InputT, CommT> {
+public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT> extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
 
-	private final Sink<InputT, CommT, ?, ?> sink;
+	private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
-	public StatelessWriterOperatorFactory(Sink<InputT, CommT, ?, ?> sink) {
+	public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
 		this.sink = sink;
 	}
 
 	@Override
-	AbstractWriterOperator<InputT, CommT> createWriterOperator() {
-		return new StatelessWriterOperator<>(sink);
+	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator() {
+		return new StatefulSinkWriterOperator<>(sink, sink.getWriterStateSerializer().get());
 	}
 
 	@Override
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return StatelessWriterOperator.class;
+		return StatefulSinkWriterOperator.class;
 	}
 }
