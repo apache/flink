@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Callable, Union, Optional
+from typing import Callable, Union, Optional, List
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, WrapperTypeInfo
@@ -306,7 +306,6 @@ class DataStream(object):
                 PickledKeySelector(is_key_pickled_byte_array),
                 key_type_info.get_java_type_info()), output_type_info,
             self)
-        # key_stream._original_data_type_info = output_type_info
         return key_stream
 
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
@@ -340,7 +339,7 @@ class DataStream(object):
         filtered_stream.name("Filter")
         return filtered_stream
 
-    def union(self, *streams) -> 'DataStream':
+    def union(self, *streams: 'DataStream') -> 'DataStream':
         """
         Creates a new DataStream by merging DataStream outputs of the same type with each other. The
         DataStreams merged using this operator will be transformed simultaneously.
@@ -379,7 +378,7 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.shuffle())
 
-    def project(self, *field_indexes) -> 'DataStream':
+    def project(self, *field_indexes: List[int]) -> 'DataStream':
         """
         Initiates a Project transformation on a Tuple DataStream.
 

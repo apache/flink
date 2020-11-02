@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['JobStatus']
 
 
-class JobStatus(object):
+class JobStatus(Enum):
     """
     Possible states of a job once it has been accepted by the job manager.
 
@@ -83,7 +85,7 @@ class JobStatus(object):
         super().__init__()
         self._j_job_status = j_job_status
 
-    def is_globally_terminal_state(self):
+    def is_globally_terminal_state(self) -> bool:
         """
         Checks whether this state is <i>globally terminal</i>. A globally terminal job
         is complete and cannot fail any more and will not be restarted or recovered by another
@@ -98,7 +100,7 @@ class JobStatus(object):
         """
         return self._j_job_status.isGloballyTerminalState()
 
-    def is_terminal_state(self):
+    def is_terminal_state(self) -> bool:
         """
         Checks whether this state is locally terminal. Locally terminal refers to the
         state of a job's execution graph within an executing JobManager. If the execution graph
@@ -114,7 +116,7 @@ class JobStatus(object):
         return self._j_job_status.isTerminalState()
 
     @staticmethod
-    def _from_j_job_status(j_job_status):
+    def _from_j_job_status(j_job_status) -> 'JobStatus':
         gateway = get_gateway()
         JJobStatus = gateway.jvm.org.apache.flink.api.common.JobStatus
         if j_job_status == JJobStatus.CREATED:
@@ -141,7 +143,7 @@ class JobStatus(object):
             raise Exception("Unsupported java job status: %s" % j_job_status)
 
     @staticmethod
-    def _to_j_job_status(job_status):
+    def _to_j_job_status(job_status: 'JobStatus'):
         gateway = get_gateway()
         JJobStatus = gateway.jvm.org.apache.flink.api.common.JobStatus
         if job_status == JobStatus.CREATED:

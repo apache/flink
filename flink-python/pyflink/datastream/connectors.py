@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import abc
+from enum import Enum
 from typing import Dict, List, Union
 
 from pyflink.common import typeinfo
@@ -213,7 +214,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
         self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
 
 
-class Semantic(object):
+class Semantic(Enum):
     """
     Semantics that can be chosen.
     :data: `EXACTLY_ONCE`:
@@ -245,7 +246,7 @@ class Semantic(object):
     NONE = 2
 
     @staticmethod
-    def _to_j_semantic(semantic, j_semantic):
+    def _to_j_semantic(semantic: 'Semantic', j_semantic):
         if semantic == Semantic.EXACTLY_ONCE:
             return j_semantic.EXACTLY_ONCE
         elif semantic == Semantic.AT_LEAST_ONCE:

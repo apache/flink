@@ -273,7 +273,7 @@ class ExecutionConfig(object):
         return RestartStrategies._from_j_restart_strategy(
             self._j_execution_config.getRestartStrategy())
 
-    def set_execution_mode(self, execution_mode):
+    def set_execution_mode(self, execution_mode: ExecutionMode):
         """
         Sets the execution mode to execute the program. The execution mode defines whether
         data exchanges are performed in a batch or on a pipelined manner.
@@ -294,7 +294,7 @@ class ExecutionConfig(object):
         self._j_execution_config.setExecutionMode(
             ExecutionMode._to_j_execution_mode(execution_mode))
 
-    def get_execution_mode(self):
+    def get_execution_mode(self) -> 'ExecutionMode':
         """
         Gets the execution mode used to execute the program. The execution mode defines whether
         data exchanges are performed in a batch or on a pipelined manner.
@@ -308,7 +308,8 @@ class ExecutionConfig(object):
         j_execution_mode = self._j_execution_config.getExecutionMode()
         return ExecutionMode._from_j_execution_mode(j_execution_mode)
 
-    def set_default_input_dependency_constraint(self, input_dependency_constraint):
+    def set_default_input_dependency_constraint(
+            self, input_dependency_constraint: InputDependencyConstraint):
         """
         Sets the default input dependency constraint for vertex scheduling. It indicates when a
         task should be scheduled considering its inputs status.
@@ -328,7 +329,7 @@ class ExecutionConfig(object):
             InputDependencyConstraint._to_j_input_dependency_constraint(
                 input_dependency_constraint))
 
-    def get_default_input_dependency_constraint(self):
+    def get_default_input_dependency_constraint(self) -> 'InputDependencyConstraint':
         """
         Gets the default input dependency constraint for vertex scheduling. It indicates when a
         task should be scheduled considering its inputs status.
@@ -502,7 +503,7 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.isObjectReuseEnabled()
 
-    def get_global_job_parameters(self) -> Dict:
+    def get_global_job_parameters(self) -> Dict[str, str]:
         """
         Gets current configuration dict.
 

@@ -15,6 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+from typing import Optional
+
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
@@ -201,7 +204,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setFailOnCheckpointingErrors(fail_on_checkpointing_errors)
 
-    def enable_externalized_checkpoints(self, cleanup_mode):
+    def enable_externalized_checkpoints(self, cleanup_mode: 'ExternalizedCheckpointCleanup'):
         """
         Enables checkpoints to be persisted externally.
 
@@ -258,7 +261,7 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setPreferCheckpointForRecovery(prefer_checkpoint_for_recovery)
 
-    def get_externalized_checkpoint_cleanup(self):
+    def get_externalized_checkpoint_cleanup(self) -> 'ExternalizedCheckpointCleanup':
         """
         Returns the cleanup behaviour for externalized checkpoints.
 
@@ -308,7 +311,7 @@ class CheckpointConfig(object):
         self.enable_unaligned_checkpoints(False)
 
 
-class ExternalizedCheckpointCleanup(object):
+class ExternalizedCheckpointCleanup(Enum):
     """
     Cleanup behaviour for externalized checkpoints when the job is cancelled.
 
@@ -341,7 +344,8 @@ class ExternalizedCheckpointCleanup(object):
     RETAIN_ON_CANCELLATION = 1
 
     @staticmethod
-    def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode):
+    def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode) \
+            -> Optional['ExternalizedCheckpointCleanup']:
         gateway = get_gateway()
         JExternalizedCheckpointCleanup = \
             gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
@@ -357,7 +361,7 @@ class ExternalizedCheckpointCleanup(object):
                             % j_cleanup_mode)
 
     @staticmethod
-    def _to_j_externalized_checkpoint_cleanup(cleanup_mode):
+    def _to_j_externalized_checkpoint_cleanup(cleanup_mode: 'ExternalizedCheckpointCleanup'):
         gateway = get_gateway()
         JExternalizedCheckpointCleanup = \
             gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \

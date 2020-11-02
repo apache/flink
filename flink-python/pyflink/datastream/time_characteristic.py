@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TimeCharacteristic']
 
 
-class TimeCharacteristic(object):
+class TimeCharacteristic(Enum):
     """
     The time characteristic defines how the system determines time for time-dependent
     order and operations that depend on time (such as time windows).
@@ -84,7 +86,7 @@ class TimeCharacteristic(object):
     EventTime = 2
 
     @staticmethod
-    def _from_j_time_characteristic(j_time_characteristic):
+    def _from_j_time_characteristic(j_time_characteristic) -> 'TimeCharacteristic':
         gateway = get_gateway()
         JTimeCharacteristic = gateway.jvm.org.apache.flink.streaming.api.TimeCharacteristic
         if j_time_characteristic == JTimeCharacteristic.EventTime:

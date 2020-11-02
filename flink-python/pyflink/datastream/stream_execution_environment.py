@@ -25,7 +25,7 @@ from py4j.java_gateway import JavaObject
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
-from pyflink.common.restart_strategy import RestartStrategies
+from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type, \
     WrapperTypeInfo
 from pyflink.datastream.checkpoint_config import CheckpointConfig
@@ -177,7 +177,8 @@ class StreamExecutionEnvironment(object):
         j_checkpoint_config = self._j_stream_execution_environment.getCheckpointConfig()
         return CheckpointConfig(j_checkpoint_config)
 
-    def enable_checkpointing(self, interval, mode=None) -> 'StreamExecutionEnvironment':
+    def enable_checkpointing(self, interval: int, mode: CheckpointingMode = None) \
+            -> 'StreamExecutionEnvironment':
         """
         Enables checkpointing for the streaming job. The distributed state of the streaming
         dataflow will be periodically snapshotted. In case of a failure, the streaming
@@ -244,7 +245,7 @@ class StreamExecutionEnvironment(object):
         j_state_backend = self._j_stream_execution_environment.getStateBackend()
         return _from_j_state_backend(j_state_backend)
 
-    def set_state_backend(self, state_backend: StateBackend):
+    def set_state_backend(self, state_backend: StateBackend) -> 'StreamExecutionEnvironment':
         """
         Sets the state backend that describes how to store and checkpoint operator state. It
         defines both which data structures hold state during execution (for example hash tables,
@@ -279,7 +280,7 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
 
-    def set_restart_strategy(self, restart_strategy_configuration):
+    def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
         """
         Sets the restart strategy configuration. The configuration specifies which restart strategy
         will be used for the execution graph in case of a restart.
@@ -295,7 +296,7 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment.setRestartStrategy(
             restart_strategy_configuration._j_restart_strategy_configuration)
 
-    def get_restart_strategy(self):
+    def get_restart_strategy(self) -> RestartStrategyConfiguration:
         """
         Returns the specified restart strategy configuration.
 
@@ -358,7 +359,7 @@ class StreamExecutionEnvironment(object):
         type_clz = load_java_class(type_class_name)
         self._j_stream_execution_environment.registerType(type_clz)
 
-    def set_stream_time_characteristic(self, characteristic):
+    def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
         """
         Sets the time characteristic for all streams create from this environment, e.g., processing
         time, event time, or ingestion time.
@@ -381,7 +382,7 @@ class StreamExecutionEnvironment(object):
         j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
         self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
 
-    def get_stream_time_characteristic(self):
+    def get_stream_time_characteristic(self) -> 'TimeCharacteristic':
         """
         Gets the time characteristic.
 
@@ -718,7 +719,9 @@ class StreamExecutionEnvironment(object):
         if type_info is not None:
             if isinstance(type_info, WrapperTypeInfo):
                 wrapper_type = _from_java_type(type_info.get_java_type_info())
-                collection = [wrapper_type.to_internal_type(element) for element in collection]
+                collection = [wrapper_type.to_internal_type(element)
+                              if isinstance(wrapper_type, WrapperTypeInfo) else None
+                              for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],

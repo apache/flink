@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CheckpointingMode']
 
 
-class CheckpointingMode(object):
+class CheckpointingMode(Enum):
     """
     The checkpointing mode defines what consistency guarantees the system gives in the presence of
     failures.
@@ -77,7 +79,7 @@ class CheckpointingMode(object):
     AT_LEAST_ONCE = 1
 
     @staticmethod
-    def _from_j_checkpointing_mode(j_checkpointing_mode):
+    def _from_j_checkpointing_mode(j_checkpointing_mode) -> 'CheckpointingMode':
         gateway = get_gateway()
         JCheckpointingMode = \
             gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode
@@ -89,7 +91,7 @@ class CheckpointingMode(object):
             raise Exception("Unsupported java checkpointing mode: %s" % j_checkpointing_mode)
 
     @staticmethod
-    def _to_j_checkpointing_mode(checkpointing_mode):
+    def _to_j_checkpointing_mode(checkpointing_mode: 'CheckpointingMode'):
         gateway = get_gateway()
         JCheckpointingMode = \
             gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode

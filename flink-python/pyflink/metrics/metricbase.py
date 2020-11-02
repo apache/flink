@@ -103,7 +103,8 @@ class GenericMetricGroup(MetricGroup):
         self._flink_gauge = {}
         self._beam_gauge = {}
 
-    def _add_group(self, name: str, metric_group_type) -> 'GenericMetricGroup':
+    def _add_group(self, name: str, metric_group_type: MetricGroupType) \
+            -> 'GenericMetricGroup':
         for group in self._sub_groups:
             if name == group._name and metric_group_type == group._metric_group_type:
                 # we don't create same metric group repeatedly

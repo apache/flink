@@ -17,6 +17,7 @@
 ################################################################################
 
 from abc import ABCMeta
+from enum import Enum
 
 from py4j.java_gateway import get_java_class
 from typing import List, Optional
@@ -591,7 +592,7 @@ class RocksDBStateBackend(StateBackend):
                             " PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM and "
                             "PredefinedOptions.FLASH_SSD_OPTIMIZED")
 
-    def get_predefined_options(self):
+    def get_predefined_options(self) -> 'PredefinedOptions':
         """
         Gets the current predefined options for RocksDB.
         The default options (if nothing was set via :func:`setPredefinedOptions`)
@@ -676,7 +677,7 @@ class RocksDBStateBackend(StateBackend):
         return self._j_rocks_db_state_backend.toString()
 
 
-class PredefinedOptions(object):
+class PredefinedOptions(Enum):
     """
     The :class:`PredefinedOptions` are configuration settings for the :class:`RocksDBStateBackend`.
     The various pre-defined choices are configurations that have been empirically

@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+from pyflink.table import ExplainDetail
 from pyflink.table.table_result import TableResult
 from pyflink.util.utils import to_j_explain_detail_arr
 
@@ -69,13 +69,12 @@ class StatementSet(object):
         self._j_statement_set.addInsert(target_path, table._j_table, overwrite)
         return self
 
-    def explain(self, *extra_details) -> str:
+    def explain(self, *extra_details: ExplainDetail) -> str:
         """
         returns the AST and the execution plan of all statements and Tables.
 
         :param extra_details: The extra explain details which the explain result should include,
                               e.g. estimated cost, changelog mode for streaming
-        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: All statements and Tables for which the AST and execution plan will be returned.
 
         .. versionadded:: 1.11.0

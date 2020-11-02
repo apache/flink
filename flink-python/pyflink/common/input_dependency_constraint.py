@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['InputDependencyConstraint']
 
 
-class InputDependencyConstraint(object):
+class InputDependencyConstraint(Enum):
     """
     This constraint indicates when a task should be scheduled considering its inputs status.
 
@@ -37,7 +39,8 @@ class InputDependencyConstraint(object):
     ALL = 1
 
     @staticmethod
-    def _from_j_input_dependency_constraint(j_input_dependency_constraint):
+    def _from_j_input_dependency_constraint(j_input_dependency_constraint) \
+            -> 'InputDependencyConstraint':
         gateway = get_gateway()
         JInputDependencyConstraint = gateway.jvm.org.apache.flink.api.common \
             .InputDependencyConstraint
@@ -50,7 +53,7 @@ class InputDependencyConstraint(object):
                             % j_input_dependency_constraint)
 
     @staticmethod
-    def _to_j_input_dependency_constraint(input_dependency_constraint):
+    def _to_j_input_dependency_constraint(input_dependency_constraint: 'InputDependencyConstraint'):
         gateway = get_gateway()
         JInputDependencyConstraint = gateway.jvm.org.apache.flink.api.common \
             .InputDependencyConstraint

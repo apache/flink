@@ -19,7 +19,7 @@ import abc
 import collections
 import functools
 import inspect
-from typing import Union, List, Type, Callable
+from typing import Union, List, Type, Callable, TypeVar, Generic
 
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
@@ -122,7 +122,11 @@ class TableFunction(UserDefinedFunction):
         pass
 
 
-class AggregateFunction(UserDefinedFunction):
+T = TypeVar('T')
+ACC = TypeVar('ACC')
+
+
+class AggregateFunction(UserDefinedFunction, Generic[T, ACC]):
     """
     Base interface for user-defined aggregate function. A user-defined aggregate function maps
     scalar values of multiple rows to a new scalar value.
@@ -131,7 +135,7 @@ class AggregateFunction(UserDefinedFunction):
     """
 
     @abc.abstractmethod
-    def get_value(self, accumulator):
+    def get_value(self, accumulator: ACC) -> T:
         """
         Called every time when an aggregation result should be materialized. The returned value
         could be either an early and incomplete result (periodically emitted as data arrives) or
@@ -143,7 +147,7 @@ class AggregateFunction(UserDefinedFunction):
         pass
 
     @abc.abstractmethod
-    def create_accumulator(self):
+    def create_accumulator(self) -> ACC:
         """
         Creates and initializes the accumulator for this AggregateFunction.
 
@@ -152,7 +156,7 @@ class AggregateFunction(UserDefinedFunction):
         pass
 
     @abc.abstractmethod
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator: ACC, *args):
         """
         Processes the input values and updates the provided accumulator instance.
 
@@ -161,7 +165,7 @@ class AggregateFunction(UserDefinedFunction):
         """
         pass
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator: ACC, *args):
         """
         Retracts the input values from the accumulator instance.The current design assumes the
         inputs are the values that have been previously accumulated.
@@ -171,7 +175,7 @@ class AggregateFunction(UserDefinedFunction):
         """
         pass
 
-    def merge(self, accumulator, accumulators):
+    def merge(self, accumulator: ACC, accumulators):
         """
         Merges a group of accumulator instances into one accumulator instance. This method must be
         implemented for unbounded session window grouping aggregates and bounded grouping

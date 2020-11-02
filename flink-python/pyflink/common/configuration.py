@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Set, Dict, Optional
+from typing import Set, Dict
 
 from py4j.java_gateway import JavaObject
 
@@ -48,7 +48,7 @@ class Configuration:
             else:
                 self._j_configuration = JConfiguration()
 
-    def get_string(self, key: str, default_value: Optional[str]) -> str:
+    def get_string(self, key: str, default_value: str) -> str:
         """
         Returns the value associated with the given key as a string.
 
@@ -104,7 +104,7 @@ class Configuration:
         """
         return self._j_configuration.getBoolean(key, default_value)
 
-    def set_boolean(self, key: str, value: int):
+    def set_boolean(self, key: str, value: bool):
         """
         Adds the given key/value pair to the configuration object.
 
@@ -158,7 +158,6 @@ class Configuration:
         Returns the keys of all key/value pairs stored inside this configuration object.
 
         :return: The keys of all key/value pairs stored inside this configuration object.
-        :rtype: set
         """
         return set(self._j_configuration.keySet())
 

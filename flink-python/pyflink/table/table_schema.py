@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_type, _from_java_type, DataType, RowType
@@ -56,7 +56,7 @@ class TableSchema(object):
         """
         return [_from_java_type(item) for item in self._j_table_schema.getFieldDataTypes()]
 
-    def get_field_data_type(self, field) -> Optional[DataType]:
+    def get_field_data_type(self, field: Union[int, str]) -> Optional[DataType]:
         """
         Returns the specified data type for the given field index or field name.
 
@@ -87,7 +87,7 @@ class TableSchema(object):
         """
         return list(self._j_table_schema.getFieldNames())
 
-    def get_field_name(self, field_index) -> Optional[str]:
+    def get_field_name(self, field_index: int) -> Optional[str]:
         """
         Returns the specified name for the given field index.
 

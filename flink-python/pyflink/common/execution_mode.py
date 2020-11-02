@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['ExecutionMode']
 
 
-class ExecutionMode(object):
+class ExecutionMode(Enum):
     """
     The execution mode specifies how a batch program is executed in terms
     of data exchange: pipelining or batched.
@@ -71,7 +73,7 @@ class ExecutionMode(object):
     BATCH_FORCED = 3
 
     @staticmethod
-    def _from_j_execution_mode(j_execution_mode):
+    def _from_j_execution_mode(j_execution_mode) -> 'ExecutionMode':
         gateway = get_gateway()
         JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
         if j_execution_mode == JExecutionMode.PIPELINED:
@@ -86,7 +88,7 @@ class ExecutionMode(object):
             raise Exception("Unsupported java execution mode: %s" % j_execution_mode)
 
     @staticmethod
-    def _to_j_execution_mode(execution_mode):
+    def _to_j_execution_mode(execution_mode: 'ExecutionMode'):
         gateway = get_gateway()
         JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
         if execution_mode == ExecutionMode.PIPELINED:

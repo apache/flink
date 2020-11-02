@@ -23,6 +23,7 @@ from py4j.java_gateway import get_method
 from typing import Dict, Union
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _to_java_type, DataType
 
 __all__ = [
@@ -106,7 +107,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.timestampsFromSource()
         return self
 
-    def timestamps_from_extractor(self, extractor) -> 'Rowtime':
+    def timestamps_from_extractor(self, extractor: str) -> 'Rowtime':
         """
         Sets a custom timestamp extractor to be used for the rowtime attribute.
 
@@ -157,7 +158,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksFromSource()
         return self
 
-    def watermarks_from_strategy(self, strategy) -> 'Rowtime':
+    def watermarks_from_strategy(self, strategy: str) -> 'Rowtime':
         """
         Sets a custom watermark strategy to be used for the rowtime attribute.
 
@@ -204,7 +205,7 @@ class Schema(Descriptor):
         if rowtime is not None:
             self.rowtime(rowtime)
 
-    def schema(self, table_schema) -> 'Schema':
+    def schema(self, table_schema: 'TableSchema') -> 'Schema':
         """
         Sets the schema with field names and the types. Required.
 
@@ -382,7 +383,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.lineDelimiter(delimiter)
         return self
 
-    def schema(self, table_schema) -> 'OldCsv':
+    def schema(self, table_schema: 'TableSchema') -> 'OldCsv':
         """
         Sets the schema with field names and the types. Required.
 
@@ -395,7 +396,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.schema(table_schema._j_table_schema)
         return self
 
-    def field(self, field_name, field_type: Union[DataType, str]) -> 'OldCsv':
+    def field(self, field_name: str, field_type: Union[DataType, str]) -> 'OldCsv':
         """
         Adds a format field with the field name and the data type or type string. Required.
         This method can be called multiple times. The call order of this method defines
@@ -440,7 +441,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.ignoreParseErrors()
         return self
 
-    def ignore_first_line(self):
+    def ignore_first_line(self) -> 'OldCsv':
         """
         Ignore the first line. Not skip the first line by default.
 
@@ -1325,7 +1326,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.keyDelimiter(key_delimiter)
         return self
 
-    def key_null_literal(self, key_null_literal) -> 'Elasticsearch':
+    def key_null_literal(self, key_null_literal: str) -> 'Elasticsearch':
         """
         Sets a custom representation for null fields in keys. Optional.
 
@@ -1369,7 +1370,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.failureHandlerRetryRejected()
         return self
 
-    def failure_handler_custom(self, failure_handler_class_name) -> 'Elasticsearch':
+    def failure_handler_custom(self, failure_handler_class_name: str) -> 'Elasticsearch':
         """
         Configures a failure handling strategy in case a request to Elasticsearch fails.
 
@@ -1399,7 +1400,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.disableFlushOnCheckpoint()
         return self
 
-    def bulk_flush_max_actions(self, max_actions_num) -> 'Elasticsearch':
+    def bulk_flush_max_actions(self, max_actions_num: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1575,7 +1576,7 @@ class HBase(ConnectorDescriptor):
         if write_buffer_flush_interval is not None:
             self.write_buffer_flush_interval(write_buffer_flush_interval)
 
-    def version(self, version) -> 'HBase':
+    def version(self, version: str) -> 'HBase':
         """
         Set the Apache HBase version to be used, Required.
 
@@ -1627,7 +1628,7 @@ class HBase(ConnectorDescriptor):
         self._j_hbase = self._j_hbase.zookeeperNodeParent(zookeeper_node_parent)
         return self
 
-    def write_buffer_flush_max_size(self, max_size) -> 'HBase':
+    def write_buffer_flush_max_size(self, max_size: Union[int, str]) -> 'HBase':
         """
         Set threshold when to flush buffered request based on the memory byte size of rows currently
         added.
@@ -1655,7 +1656,7 @@ class HBase(ConnectorDescriptor):
         self._j_hbase = self._j_hbase.writeBufferFlushMaxRows(write_buffer_flush_max_rows)
         return self
 
-    def write_buffer_flush_interval(self, interval) -> 'HBase':
+    def write_buffer_flush_interval(self, interval: Union[str, int]) -> 'HBase':
         """
         Set an interval when to flushing buffered requesting if the interval passes, in
         milliseconds.
