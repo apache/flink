@@ -150,13 +150,13 @@ public class RocksDBStateBackendConfigTest {
 		Assert.assertEquals("state.backend.rocksdb.timer-service.factory", RocksDBOptions.TIMER_SERVICE_FACTORY.key());
 
 		// Fix the option value string and ensure all are covered
-		Assert.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
-		Assert.assertEquals("ROCKSDB", RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-		Assert.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+		Assert.assertEquals(2, EmbeddedRocksDBStateBackend.PriorityQueueStateType.values().length);
+		Assert.assertEquals("ROCKSDB", EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+		Assert.assertEquals("HEAP", EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
 
 		// Fix the default
 		Assert.assertEquals(
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+			EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
 			RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
@@ -166,7 +166,7 @@ public class RocksDBStateBackendConfigTest {
 		keyedBackend.dispose();
 
 		Configuration conf = new Configuration();
-		conf.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.HEAP);
+		conf.set(RocksDBOptions.TIMER_SERVICE_FACTORY, EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
 
 		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
@@ -192,7 +192,7 @@ public class RocksDBStateBackendConfigTest {
 		final Configuration configFromConfFile = new Configuration();
 		configFromConfFile.setString(
 			RocksDBOptions.TIMER_SERVICE_FACTORY.key(),
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+			EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
 		// configure final backend from job and cluster config
 		final RocksDBStateBackend configuredRocksDBStateBackend = backend.configure(

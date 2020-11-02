@@ -32,33 +32,21 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 
 /**
- * A <b>State Backend</b> defines how the state of a streaming application is stored and
- * checkpointed. Different State Backends store their state in different fashions, and use
+ * A <b>State Backend</b> defines how the state of a streaming application is stored locally within
+ * the cluster. Different State Backends store their state in different fashions, and use
  * different data structures to hold the state of a running application.
  *
- * <p>For example, the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend memory state backend}
- * keeps working state in the memory of the TaskManager and stores checkpoints in the memory of the
- * JobManager. The backend is lightweight and without additional dependencies, but not highly available
- * and supports only small state.
+ * <p>For example, the {@link org.apache.flink.runtime.state.hashmap.HashMapStateBackend hashmap state backend}
+ * keeps working state in the memory of the TaskManager. The backend is lightweight and without
+ * additional dependencies.
  *
- * <p>The {@link org.apache.flink.runtime.state.filesystem.FsStateBackend file system state backend}
- * keeps working state in the memory of the TaskManager and stores state checkpoints in a filesystem
- * (typically a replicated highly-available filesystem, like <a href="https://hadoop.apache.org/">HDFS</a>,
- * <a href="https://ceph.com/">Ceph</a>, <a href="https://aws.amazon.com/documentation/s3/">S3</a>,
- * <a href="https://cloud.google.com/storage/">GCS</a>, etc).
- * 
- * <p>The {@code RocksDBStateBackend} stores working state in <a href="http://rocksdb.org/">RocksDB</a>,
- * and checkpoints the state by default to a filesystem (similar to the {@code FsStateBackend}).
- * 
+ * <p>The {@code EmbeddedRocksDBStateBackend} stores working state in an embedded
+ * <a href="http://rocksdb.org/">RocksDB</a> and is able to scale working state to many terabytes
+ * in size, only limited by available disk space across all task managers.
+ *
  * <h2>Raw Bytes Storage and Backends</h2>
- * 
- * The {@code StateBackend} creates services for <i>raw bytes storage</i> and for <i>keyed state</i>
- * and <i>operator state</i>.
- * 
- * <p>The <i>raw bytes storage</i> (through the {@link CheckpointStreamFactory}) is the fundamental
- * service that simply stores bytes in a fault tolerant fashion. This service is used by the JobManager
- * to store checkpoint and recovery metadata and is typically also used by the keyed- and operator state
- * backends to store checkpointed state.
+ *
+ *<p>The {@code StateBackend} creates services for for <i>keyed state</i> and <i>operator state</i>.
  *
  * <p>The {@link CheckpointableKeyedStateBackend} and {@link OperatorStateBackend} created by this state
  * backend define how to hold the working state for keys and operators. They also define how to checkpoint
@@ -66,12 +54,12 @@ import java.util.Collection;
  * However, it is also possible that for example a keyed state backend simply implements the bridge to
  * a key/value store, and that it does not need to store anything in the raw byte storage upon a
  * checkpoint.
- * 
+ *
  * <h2>Serializability</h2>
- * 
- * State Backends need to be {@link java.io.Serializable serializable}, because they distributed
- * across parallel processes (for distributed execution) together with the streaming application code. 
- * 
+ *
+ * <p>State Backends need to be {@link java.io.Serializable serializable}, because they distributed
+ * across parallel processes (for distributed execution) together with the streaming application code.
+ *
  * <p>Because of that, {@code StateBackend} implementations (typically subclasses
  * of {@link AbstractStateBackend}) are meant to be like <i>factories</i> that create the proper
  * states stores that provide access to the persistent storage and hold the keyed- and operator
@@ -79,9 +67,9 @@ import java.util.Collection;
  * configurations) which makes it easier to be serializable.
  *
  * <h2>Thread Safety</h2>
- * 
- * State backend implementations have to be thread-safe. Multiple threads may be creating
- * streams and keyed-/operator state backends concurrently.
+ *
+ *<p>State backend implementations have to be thread-safe. Multiple threads may be creating
+ * keyed-/operator state backends concurrently.
  */
 @PublicEvolving
 public interface StateBackend extends java.io.Serializable {
@@ -154,7 +142,7 @@ public interface StateBackend extends java.io.Serializable {
 			stateHandles,
 			cancelStreamRegistry);
 	}
-	
+
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
 	 *

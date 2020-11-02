@@ -255,15 +255,15 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		File dbDir = temporaryFolder.newFolder();
 
-		final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
+		final EmbeddedRocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
 
 		final int skipStreams;
 
-		if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.HEAP) {
+		if (timerServicePriorityQueueType == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
 			// we skip the first created stream, because it is used to checkpoint the timer service, which is
 			// currently not asynchronous.
 			skipStreams = 1;
-		} else if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
+		} else if (timerServicePriorityQueueType == EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
 			skipStreams = 0;
 		} else {
 			throw new AssertionError(String.format("Unknown timer service priority queue type %s.", timerServicePriorityQueueType));

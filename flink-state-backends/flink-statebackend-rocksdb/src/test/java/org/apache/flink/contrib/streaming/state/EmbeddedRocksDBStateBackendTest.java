@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -36,7 +37,8 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.IOUtils;
@@ -87,10 +89,10 @@ import static org.mockito.internal.verification.VerificationModeFactory.times;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
- * Tests for the partitioned state part of {@link RocksDBStateBackend}.
+ * Tests for the partitioned state part of {@link EmbeddedRocksDBStateBackend}.
  */
 @RunWith(Parameterized.class)
-public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
+public class EmbeddedRocksDBStateBackendTest extends StateBackendTestBase<EmbeddedRocksDBStateBackend> {
 
 	private OneShotLatch blocker;
 	private OneShotLatch waiter;
@@ -100,13 +102,21 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
-	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
+	@Parameterized.Parameters(name = "Incremental checkpointing: {0} CheckpointStorage: {1}")
+	public static List<Object[]> modes() {
+		return Arrays.asList(new Object[][] {
+				{true, CheckpointStorageType.JM},
+				{true, CheckpointStorageType.FILE},
+				{false, CheckpointStorageType.JM},
+				{false, CheckpointStorageType.FILE}
+		});
 	}
 
-	@Parameterized.Parameter
+	@Parameterized.Parameter(value = 0)
 	public boolean enableIncrementalCheckpointing;
+
+	@Parameterized.Parameter(value = 1)
+	public CheckpointStorageType storageType;
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -128,15 +138,27 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Override
-	protected RocksDBStateBackend getStateBackend() throws IOException {
+	protected EmbeddedRocksDBStateBackend getStateBackend() throws IOException {
 		dbPath = tempFolder.newFolder().getAbsolutePath();
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+		EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
 		Configuration configuration = new Configuration();
-		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
 		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
 		backend.setDbStoragePath(dbPath);
 		return backend;
+	}
+
+	@Override
+	protected CheckpointStorage getCheckpointStorage() throws Exception {
+		switch (storageType) {
+			case JM:
+				return new JobManagerCheckpointStorage();
+			case FILE:
+				String checkpointPath = tempFolder.newFolder().toURI().toString();
+				return new FileSystemCheckpointStorage(checkpointPath);
+		}
+
+		throw new IllegalStateException("Unknown storage type " + storageType);
 	}
 
 	@Override
@@ -560,5 +582,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		public boolean accept(File file, String s) {
 			return true;
 		}
+	}
+
+	enum CheckpointStorageType {
+		JM,
+		FILE
 	}
 }

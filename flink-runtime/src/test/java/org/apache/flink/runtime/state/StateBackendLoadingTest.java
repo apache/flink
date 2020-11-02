@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -68,11 +69,11 @@ public class StateBackendLoadingTest {
 	}
 
 	@Test
-	public void testInstantiateMemoryBackendByDefault() throws Exception {
+	public void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
 		StateBackend backend =
 				StateBackendLoader.fromApplicationOrConfigOrDefault(null, new Configuration(), cl, null);
 
-		assertTrue(backend instanceof MemoryStateBackend);
+		assertTrue(backend instanceof HashMapStateBackend);
 	}
 
 	@Test

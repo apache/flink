@@ -87,7 +87,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
 	/** String that identifies the operator that owns this backend. */
 	private final String operatorIdentifier;
-	private final RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+	private final EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
 
@@ -127,7 +127,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		LocalRecoveryConfig localRecoveryConfig,
-		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+		EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
@@ -173,7 +173,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		LocalRecoveryConfig localRecoveryConfig,
-		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+		EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
