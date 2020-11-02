@@ -18,102 +18,33 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.util.Preconditions;
-
-import java.util.Objects;
 
 /**
  * Unique identifier for the attempt to execute a tasks. Multiple attempts happen
  * in cases of failures and recovery.
  */
-public class ExecutionAttemptID implements java.io.Serializable {
+public class ExecutionAttemptID extends AbstractID {
 
 	private static final long serialVersionUID = -1169683445778281344L;
 
-	private final JobID jobId;
-	private final ExecutionVertexID executionVertexId;
-	private final int attemptNumber;
-
-	/**
-	 * Get a random execution attempt id.
-	 */
 	public ExecutionAttemptID() {
-		this(new JobID(), new ExecutionVertexID(new JobVertexID(), 0), 0);
 	}
 
-	public ExecutionAttemptID(JobID jobId, ExecutionVertexID executionVertexId, int attemptNumber) {
-		Preconditions.checkState(attemptNumber >= 0);
-		this.jobId = Preconditions.checkNotNull(jobId);
-		this.executionVertexId = Preconditions.checkNotNull(executionVertexId);
-		this.attemptNumber = attemptNumber;
+	public ExecutionAttemptID(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
 	}
 
 	public void writeTo(ByteBuf buf) {
-		writeJobIdTo(buf);
-		executionVertexId.writeTo(buf);
-		buf.writeInt(this.attemptNumber);
+		buf.writeLong(this.lowerPart);
+		buf.writeLong(this.upperPart);
 	}
 
 	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
-		final JobID jobId = jobIdFromByteBuf(buf);
-		final ExecutionVertexID executionVertexId = ExecutionVertexID.fromByteBuf(buf);
-		final int attemptNumber = buf.readInt();
-		return new ExecutionAttemptID(jobId, executionVertexId, attemptNumber);
-	}
-
-	private static JobID jobIdFromByteBuf(ByteBuf buf) {
-		final long lower = buf.readLong();
-		final long upper = buf.readLong();
-		return new JobID(lower, upper);
-	}
-
-	private void writeJobIdTo(ByteBuf buf) {
-		buf.writeLong(jobId.getLowerPart());
-		buf.writeLong(jobId.getUpperPart());
-	}
-
-	@VisibleForTesting
-	public int getAttemptNumber() {
-		return attemptNumber;
-	}
-
-	@VisibleForTesting
-	public ExecutionVertexID getExecutionVertexId() {
-		return executionVertexId;
-	}
-
-	@VisibleForTesting
-	public JobID getJobId() {
-		return jobId;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == getClass()) {
-			ExecutionAttemptID that = (ExecutionAttemptID) obj;
-			return that.jobId.equals(this.jobId)
-				&& that.executionVertexId.equals(this.executionVertexId)
-				&& that.attemptNumber == this.attemptNumber;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(jobId, executionVertexId, attemptNumber);
-	}
-
-	@Override
-	public String toString() {
-		return jobId.toString() + "_" + executionVertexId.toString() + "_" + attemptNumber;
+		long lower = buf.readLong();
+		long upper = buf.readLong();
+		return new ExecutionAttemptID(lower, upper);
 	}
 }

@@ -702,7 +702,7 @@ public class StreamTaskTest extends TestLogger {
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
-			new ExecutionAttemptID(),
+			new ExecutionAttemptID(1L, 2L),
 			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);
@@ -876,7 +876,7 @@ public class StreamTaskTest extends TestLogger {
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
-			new ExecutionAttemptID(),
+			new ExecutionAttemptID(1L, 2L),
 			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);

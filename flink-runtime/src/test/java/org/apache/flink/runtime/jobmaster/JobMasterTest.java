@@ -404,7 +404,7 @@ public class JobMasterTest extends TestLogger {
 			RpcCheckpointResponder rpcCheckpointResponder = new RpcCheckpointResponder(jobMasterGateway);
 			rpcCheckpointResponder.declineCheckpoint(
 				jobGraph.getJobID(),
-				new ExecutionAttemptID(),
+				new ExecutionAttemptID(1, 1),
 				1,
 				userException
 			);
@@ -1655,7 +1655,7 @@ public class JobMasterTest extends TestLogger {
 			final ResultPartitionDeploymentDescriptor partition = tdd.getProducedPartitions().iterator().next();
 
 			final ExecutionAttemptID executionAttemptId = tdd.getExecutionAttemptId();
-			final ExecutionAttemptID copiedExecutionAttemptId = new ExecutionAttemptID(executionAttemptId.getJobId(), executionAttemptId.getExecutionVertexId(), executionAttemptId.getAttemptNumber());
+			final ExecutionAttemptID copiedExecutionAttemptId = new ExecutionAttemptID(executionAttemptId.getLowerPart(), executionAttemptId.getUpperPart());
 
 			// finish the producer task
 			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();

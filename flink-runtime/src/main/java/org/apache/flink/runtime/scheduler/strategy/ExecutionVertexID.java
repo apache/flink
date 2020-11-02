@@ -22,8 +22,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.topology.VertexID;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,17 +46,6 @@ public class ExecutionVertexID implements VertexID {
 
 	public int getSubtaskIndex() {
 		return subtaskIndex;
-	}
-
-	public void writeTo(ByteBuf buf) {
-		jobVertexId.writeTo(buf);
-		buf.writeInt(subtaskIndex);
-	}
-
-	public static ExecutionVertexID fromByteBuf(ByteBuf buf) {
-		final JobVertexID jobVertexID = JobVertexID.fromByteBuf(buf);
-		final int subtaskIndex = buf.readInt();
-		return new ExecutionVertexID(jobVertexID, subtaskIndex);
 	}
 
 	@Override

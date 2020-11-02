@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.scope;
 
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.util.AbstractID;
 
@@ -43,7 +42,7 @@ public class TaskScopeFormat extends ScopeFormat {
 
 	public String[] formatScope(
 			TaskManagerJobMetricGroup parent,
-			AbstractID vertexId, ExecutionAttemptID attemptId,
+			AbstractID vertexId, AbstractID attemptId,
 			String taskName, int subtask, int attemptNumber) {
 
 		final String[] template = copyTemplate();

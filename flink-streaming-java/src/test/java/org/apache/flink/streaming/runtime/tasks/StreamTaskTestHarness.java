@@ -488,7 +488,7 @@ public class StreamTaskTestHarness<OUT> {
 				new TestMetricRegistry(metrics),
 				new UnregisteredMetricGroups.UnregisteredTaskManagerJobMetricGroup(),
 				new JobVertexID(0, 0),
-				new ExecutionAttemptID(),
+				new ExecutionAttemptID(0, 0),
 				"test",
 				0,
 				0);

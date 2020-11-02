@@ -45,7 +45,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -97,8 +96,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	private final JobID jobID;
 
 	private final JobVertexID jobVertexID;
-
-	private final ExecutionAttemptID executionAttemptID;
 
 	private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
 
@@ -156,7 +153,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.taskConfiguration = taskConfiguration;
 		this.inputs = new LinkedList<>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
-		this.executionAttemptID = new ExecutionAttemptID();
 
 		this.memManager = memManager;
 		this.ioManager = ioManager;
@@ -310,7 +306,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public ExecutionAttemptID getExecutionId() {
-		return executionAttemptID;
+		return new ExecutionAttemptID(0L, 0L);
 	}
 
 	@Override

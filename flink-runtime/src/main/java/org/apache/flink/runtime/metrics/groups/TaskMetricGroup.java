@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -50,7 +49,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	private final TaskIOMetricGroup ioMetrics;
 
 	/** The execution Id uniquely identifying the executed task represented by this metrics group. */
-	private final ExecutionAttemptID executionId;
+	private final AbstractID executionId;
 
 	@Nullable
 	protected final JobVertexID vertexId;
@@ -68,7 +67,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 			MetricRegistry registry,
 			TaskManagerJobMetricGroup parent,
 			@Nullable JobVertexID vertexId,
-			ExecutionAttemptID executionId,
+			AbstractID executionId,
 			@Nullable String taskName,
 			int subtaskIndex,
 			int attemptNumber) {
@@ -92,7 +91,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 		return parent;
 	}
 
-	public ExecutionAttemptID executionId() {
+	public AbstractID executionId() {
 		return executionId;
 	}
 
