@@ -41,9 +41,9 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link GlobalStreamingCommitterOperator}.
+ * Test for {@link StreamingGlobalCommitterOperator}.
  */
-public class GlobalStreamingCommitterOperatorTest extends TestLogger {
+public class StreamingGlobalCommitterOperatorTest extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void throwExceptionWithoutSerializer() throws Exception {
@@ -237,7 +237,7 @@ public class GlobalStreamingCommitterOperatorTest extends TestLogger {
 			GlobalCommitter<String, String> globalCommitter,
 			SimpleVersionedSerializer<String> serializer) throws Exception {
 		return new OneInputStreamOperatorTestHarness<>(
-				new GlobalStreamingCommitterOperatorFactory<>(TestSink
+				new StreamingGlobalCommitterOperatorFactory<>(TestSink
 						.newBuilder()
 						.setGlobalCommitter(globalCommitter)
 						.setGlobalCommittableSerializer(serializer)

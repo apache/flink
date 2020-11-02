@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
 @Internal
-public final class GlobalStreamingCommitterOperator<CommT, GlobalCommT> extends AbstractStreamingCommitterOperator<CommT, GlobalCommT>
+public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamingCommitterOperator<CommT, GlobalCommT>
 		implements BoundedOneInput {
 
 	/** Aggregate committables to global committables and commit the global committables to the external system. */
@@ -47,7 +47,7 @@ public final class GlobalStreamingCommitterOperator<CommT, GlobalCommT> extends 
 
 	private boolean endOfInput;
 
-	GlobalStreamingCommitterOperator(
+	StreamingGlobalCommitterOperator(
 			GlobalCommitter<CommT, GlobalCommT> globalCommitter,
 			SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
 		super(committableSerializer);
