@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -54,9 +55,9 @@ public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
 	 * Commit the given list of {@link GlobalCommT}.
 	 * @param globalCommittables a list of {@link GlobalCommT}.
 	 * @return A list of {@link GlobalCommT} needed to re-commit, which is needed in case we implement a "commit-with-retry" pattern.
-	 * @throws Exception if the commit operation fail and do not want to retry any more.
+	 * @throws IOException if the commit operation fail and do not want to retry any more.
 	 */
-	List<GlobalCommT> commit(List<GlobalCommT> globalCommittables) throws Exception;
+	List<GlobalCommT> commit(List<GlobalCommT> globalCommittables) throws IOException;
 
 	/**
 	 * Signals that there is no committable any more.

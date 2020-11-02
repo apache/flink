@@ -22,6 +22,8 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
+import java.io.IOException;
+
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
  * StatefulSinkWriterOperator}.
@@ -39,7 +41,7 @@ public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT
 	}
 
 	@Override
-	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator() {
+	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator() throws IOException {
 		return new StatefulSinkWriterOperator<>(sink, sink.getWriterStateSerializer().get());
 	}
 

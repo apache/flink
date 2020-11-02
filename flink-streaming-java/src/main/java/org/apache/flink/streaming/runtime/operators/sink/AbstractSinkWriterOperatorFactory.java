@@ -24,6 +24,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
+import java.io.IOException;
+
 /**
  * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link AbstractSinkWriterOperator}.
  *
@@ -36,10 +38,14 @@ abstract class AbstractSinkWriterOperatorFactory<InputT, CommT> extends Abstract
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
-		final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
-		writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		return (T) writerOperator;
+		try {
+			final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
+			writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+			return (T) writerOperator;
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to create the writer operator", e);
+		}
 	}
 
-	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator();
+	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator() throws IOException;
 }

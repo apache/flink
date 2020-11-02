@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
@@ -50,32 +51,34 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	 * @param states the writer's state.
 	 * @return A sink writer.
 	 */
-	SinkWriter<InputT, CommT, WriterStateT> createWriter(InitContext context, List<WriterStateT> states);
+	SinkWriter<InputT, CommT, WriterStateT> createWriter(
+			InitContext context,
+			List<WriterStateT> states) throws IOException;
 
 	/**
 	 * Creates a {@link Committer}.
 	 */
-	Optional<Committer<CommT>> createCommitter();
+	Optional<Committer<CommT>> createCommitter() throws IOException;
 
 	/**
 	 * Creates a {@link GlobalCommitter}.
 	 */
-	Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter();
+	Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter() throws IOException;
 
 	/**
 	 * Returns the serializer of the committable type.
 	 */
-	Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer();
+	Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer() throws IOException;
 
 	/**
 	 * Returns the serializer of the aggregated committable type.
 	 */
-	Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer();
+	Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer() throws IOException;
 
 	/**
 	 * Return the serializer of the writer's state type.
 	 */
-	Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer();
+	Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer() throws IOException;
 
 	/**
 	 * The interface exposes some runtime info for creating a {@link SinkWriter}.

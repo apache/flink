@@ -42,6 +42,7 @@ import org.apache.flink.streaming.util.graph.StreamGraphUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,55 +65,62 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> transformation,
 			Context context) {
 
-		StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
-		final int parallelism = getParallelism(transformation, context);
+		try {
+			StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
+			final int parallelism = getParallelism(transformation, context);
 
-		int writerId = addWriter(
-				transformation,
-				parallelism,
-				context);
-		int committerId = addCommitter(
-				writerId,
-				transformation,
-				new BatchCommitterOperatorFactory<>(transformation.getSink()),
-				1,
-				1,
-				context);
-		addGlobalCommitter(
-				committerId >= 0 ? committerId : writerId,
-				transformation,
-				new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()),
-				context);
-		return Collections.emptyList();
+			int writerId = addWriter(
+					transformation,
+					parallelism,
+					context);
+			int committerId = addCommitter(
+					writerId,
+					transformation,
+					new BatchCommitterOperatorFactory<>(transformation.getSink()),
+					1,
+					1,
+					context);
+			addGlobalCommitter(
+					committerId >= 0 ? committerId : writerId,
+					transformation,
+					new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()),
+					context);
+			return Collections.emptyList();
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to translate in batching mode", e);
+		}
 	}
 
 	@Override
 	public Collection<Integer> translateForStreaming(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> transformation,
 			Context context) {
+		try {
+			StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
 
-		StreamGraphUtils.validateTransformationUid(context.getStreamGraph(), transformation);
+			final int parallelism = getParallelism(transformation, context);
 
-		final int parallelism = getParallelism(transformation, context);
+			int writerId = addWriter(
+					transformation,
+					parallelism,
+					context);
+			int committerId = addCommitter(
+					writerId,
+					transformation,
+					new StreamingCommitterOperatorFactory<>(transformation.getSink()),
+					parallelism,
+					transformation.getMaxParallelism(),
+					context);
+			addGlobalCommitter(
+					committerId >= 0 ? committerId : writerId,
+					transformation,
+					new StreamingGlobalCommitterOperatorFactory<>(transformation.getSink()),
+					context);
 
-		int writerId = addWriter(
-				transformation,
-				parallelism,
-				context);
-		int committerId = addCommitter(
-				writerId,
-				transformation,
-				new StreamingCommitterOperatorFactory<>(transformation.getSink()),
-				parallelism,
-				transformation.getMaxParallelism(),
-				context);
-		addGlobalCommitter(
-				committerId >= 0 ? committerId : writerId,
-				transformation,
-				new StreamingGlobalCommitterOperatorFactory<>(transformation.getSink()),
-				context);
-
-		return Collections.emptyList();
+			return Collections.emptyList();
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to translate in streaming mode", e);
+		}
 	}
 
 	/**
@@ -126,11 +134,12 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	private int addWriter(
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			int parallelism,
-			Context context) {
+			Context context) throws IOException {
 		final boolean hasState = sinkTransformation
 				.getSink()
 				.getWriterStateSerializer()
 				.isPresent();
+
 		checkState(sinkTransformation.getInputs().size() == 1);
 		@SuppressWarnings("unchecked")
 		final Transformation<InputT> input = (Transformation<InputT>) sinkTransformation
@@ -176,7 +185,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
 			int parallelism,
 			int maxParallelism,
-			Context context) {
+			Context context) throws IOException {
 
 		if (!sinkTransformation.getSink().createCommitter().isPresent()) {
 			return -1;
@@ -208,7 +217,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			int inputId,
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
 			OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
-			Context context) {
+			Context context) throws IOException {
 
 		if (!sinkTransformation.getSink().createGlobalCommitter().isPresent()) {
 			return;
@@ -287,7 +296,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		return transformationId;
 	}
 
-	private CommittableTypeInformation<CommT> extractCommittableTypeInformation(Sink<InputT, CommT, WriterStateT, GlobalCommT> sink) {
+	private CommittableTypeInformation<CommT> extractCommittableTypeInformation(Sink<InputT, CommT, WriterStateT, GlobalCommT> sink) throws IOException {
 		if (sink.getCommittableSerializer().isPresent()) {
 			final Type committableType = TypeExtractor.getParameterType(
 					Sink.class,
@@ -296,7 +305,13 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			LOG.debug("Extracted committable type [{}] from sink [{}].", committableType.toString(), sink.getClass().getCanonicalName());
 			return new CommittableTypeInformation<>(
 					typeToClass(committableType),
-					() -> sink.getCommittableSerializer().get());
+					() -> {
+						try {
+							return sink.getCommittableSerializer().get();
+						} catch (IOException e) {
+							throw new RuntimeException("Cound not create the committable serializer", e);
+						}
+					});
 		} else {
 			return null;
 		}

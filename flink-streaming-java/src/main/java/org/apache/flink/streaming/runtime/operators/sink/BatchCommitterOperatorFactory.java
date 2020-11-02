@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
+import java.io.IOException;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -46,16 +48,20 @@ public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOp
 	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<CommT>> T createStreamOperator(
 			StreamOperatorParameters<CommT> parameters) {
-		final BatchCommitterOperator<CommT> committerOperator =
-				new BatchCommitterOperator<>(
-						sink.createCommitter().orElseThrow(
-								() -> new IllegalStateException(
-										"Could not create committer from the sink")));
-		committerOperator.setup(
-				parameters.getContainingTask(),
-				parameters.getStreamConfig(),
-				parameters.getOutput());
-		return (T) committerOperator;
+		try {
+			final BatchCommitterOperator<CommT> committerOperator =
+					new BatchCommitterOperator<>(
+							sink.createCommitter().orElseThrow(
+									() -> new IllegalStateException(
+											"Could not create committer from the sink")));
+			committerOperator.setup(
+					parameters.getContainingTask(),
+					parameters.getStreamConfig(),
+					parameters.getOutput());
+			return (T) committerOperator;
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to create the committer operator", e);
+		}
 	}
 
 	@Override

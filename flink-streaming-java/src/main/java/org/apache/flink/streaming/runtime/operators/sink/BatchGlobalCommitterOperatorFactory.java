@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
+import java.io.IOException;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -46,17 +48,21 @@ public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT> exten
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<GlobalCommT>> T createStreamOperator(StreamOperatorParameters<GlobalCommT> parameters) {
-		final BatchGlobalCommitterOperator<CommT, GlobalCommT> batchGlobalCommitterOperator =
-				new BatchGlobalCommitterOperator<>(
-						sink.createGlobalCommitter().orElseThrow(
-								() -> new IllegalStateException(
-										"Could not create global committer from the sink")));
+		try {
+			final BatchGlobalCommitterOperator<CommT, GlobalCommT> batchGlobalCommitterOperator =
+					new BatchGlobalCommitterOperator<>(
+							sink.createGlobalCommitter().orElseThrow(
+									() -> new IllegalStateException(
+											"Could not create global committer from the sink")));
 
-		batchGlobalCommitterOperator.setup(
-				parameters.getContainingTask(),
-				parameters.getStreamConfig(),
-				parameters.getOutput());
-		return (T) batchGlobalCommitterOperator;
+			batchGlobalCommitterOperator.setup(
+					parameters.getContainingTask(),
+					parameters.getStreamConfig(),
+					parameters.getOutput());
+			return (T) batchGlobalCommitterOperator;
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to create the global committer operator", e);
+		}
 	}
 
 	@Override
