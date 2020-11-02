@@ -132,16 +132,16 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Internal
-		protected abstract FileWriter<IN, BucketID> createWriter(final InitContext context) throws IOException;
+		abstract FileWriter<IN, BucketID> createWriter(final InitContext context) throws IOException;
 
 		@Internal
-		protected abstract FileCommitter createCommitter() throws IOException;
+		abstract FileCommitter createCommitter() throws IOException;
 
 		@Internal
-		protected abstract SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException;
+		abstract SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException;
 
 		@Internal
-		protected abstract SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException;
+		abstract SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException;
 	}
 
 	/**
@@ -207,35 +207,13 @@ public class FileSink<IN, BucketID>
 			return self();
 		}
 
-		public RowFormatBuilder<IN, BucketID, ? extends RowFormatBuilder<IN, BucketID, ?>> withNewBucketAssignerAndPolicy(
-				BucketAssigner<IN, BucketID> assigner,
-				RollingPolicy<IN, BucketID> policy) {
-			checkState(
-					bucketFactory.getClass() == DefaultFileWriterBucketFactory.class,
-					"newBuilderWithBucketAssignerAndPolicy() cannot be called "
-							+ "after specifying a customized bucket factory");
-			return new RowFormatBuilder<>(
-					basePath,
-					encoder,
-					checkNotNull(assigner),
-					checkNotNull(policy),
-					bucketFactory,
-					outputFileConfig);
-		}
-
-		@VisibleForTesting
-		T withBucketFactory(final FileWriterBucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = checkNotNull(factory);
-			return self();
-		}
-
 		/** Creates the actual sink. */
 		public FileSink<IN, BucketID> build() {
 			return new FileSink<>(this);
 		}
 
 		@Override
-		public FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
+		FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
 			return new FileWriter<>(
 					basePath,
 					bucketAssigner,
@@ -246,12 +224,12 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		public FileCommitter createCommitter() throws IOException {
+		FileCommitter createCommitter() throws IOException {
 			return new FileCommitter(createBucketWriter());
 		}
 
 		@Override
-		public SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
+		SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
 			return new FileWriterBucketStateSerializer<>(
 					createBucketWriter()
 							.getProperties()
@@ -260,7 +238,7 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		public SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
+		SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
 			BucketWriter<IN, BucketID> bucketWriter = createBucketWriter();
 
 			return new FileSinkCommittableSerializer(
@@ -348,12 +326,6 @@ public class FileSink<IN, BucketID>
 			return self();
 		}
 
-		@VisibleForTesting
-		T withBucketFactory(final FileWriterBucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = checkNotNull(factory);
-			return self();
-		}
-
 		public T withOutputFileConfig(final OutputFileConfig outputFileConfig) {
 			this.outputFileConfig = outputFileConfig;
 			return self();
@@ -380,7 +352,7 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		public FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
+		FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
 			return new FileWriter<>(
 					basePath,
 					bucketAssigner,
@@ -391,12 +363,12 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		public FileCommitter createCommitter() throws IOException {
+		FileCommitter createCommitter() throws IOException {
 			return new FileCommitter(createBucketWriter());
 		}
 
 		@Override
-		public SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
+		SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
 			return new FileWriterBucketStateSerializer<>(
 					createBucketWriter()
 							.getProperties()
@@ -405,7 +377,7 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		public SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
+		SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
 			BucketWriter<IN, BucketID> bucketWriter = createBucketWriter();
 
 			return new FileSinkCommittableSerializer(
