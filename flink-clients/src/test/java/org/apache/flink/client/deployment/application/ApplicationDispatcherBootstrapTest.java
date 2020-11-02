@@ -377,6 +377,43 @@ public class ApplicationDispatcherBootstrapTest {
 	}
 
 	@Test
+	public void testClusterIsShutdownInAttachedModeWhenJobCancelled() throws Exception {
+		final CompletableFuture<ApplicationStatus> clusterShutdown = new CompletableFuture<>();
+
+		final TestingDispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.CANCELED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createCancelledJobResult(jobId)))
+				.setClusterShutdownFunction(status -> {
+					clusterShutdown.complete(status);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				}).build();
+
+		final PackagedProgram program = PackagedProgram.newBuilder()
+					.setUserClassPaths(Collections.singletonList(new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
+					.setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
+					.setArguments(String.valueOf(2), String.valueOf(true))
+					.build();
+
+		final Configuration configuration = getConfiguration();
+		configuration.set(DeploymentOptions.ATTACHED, true);
+
+		final ApplicationDispatcherBootstrap bootstrap = new ApplicationDispatcherBootstrap(
+				program,
+				Collections.emptyList(),
+				configuration,
+				dispatcherGateway,
+				scheduledExecutor,
+				e -> {});
+
+		final CompletableFuture<Void> applicationFuture =
+				bootstrap.getApplicationCompletionFuture();
+		assertException(applicationFuture, ApplicationFailureException.class);
+
+		assertEquals(clusterShutdown.get(), ApplicationStatus.CANCELED);
+	}
+
+	@Test
 	public void testClusterShutdownWhenApplicationSucceeds() throws Exception {
 		// we're "listening" on this to be completed to verify that the cluster
 		// is being shut down from the ApplicationDispatcherBootstrap

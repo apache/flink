@@ -32,6 +32,7 @@ public class MultiExecuteJob {
 
 	public static void main(String[] args) throws Exception {
 		int noOfExecutes = Integer.parseInt(args[0]);
+		boolean attached  = args.length > 1 && Boolean.parseBoolean(args[1]);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -44,7 +45,12 @@ public class MultiExecuteJob {
 			env.fromCollection(input)
 					.map(element -> element + 1)
 					.output(new DiscardingOutputFormat<>());
-			env.executeAsync();
+
+			if (attached) {
+				env.execute();
+			} else {
+				env.executeAsync();
+			}
 		}
 	}
 }
