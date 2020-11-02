@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.filesystem.DefaultPartTimeExtractor.{toLocalDateTime, toMills}
 import org.apache.flink.table.filesystem.FileSystemOptions._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
@@ -119,10 +118,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await()
 
-    check(
-      ddl,
-      "select * from sink_table",
-      data)
+    check("select * from sink_table", data)
   }
 
   @Test
@@ -133,12 +129,10 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     test(partition = true, "metastore")
   }
 
-  def check(ddl: String, sqlQuery: String, expectedResult: Seq[Row]): Unit = {
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-    val tEnv = TableEnvironment.create(setting)
-    tEnv.executeSql(ddl)
-
-    val result = CollectionUtil.iteratorToList(tEnv.sqlQuery(sqlQuery).execute().collect())
+  def check(sqlQuery: String, expectedResult: Seq[Row]): Unit = {
+    val iter = tEnv.sqlQuery(sqlQuery).execute().collect()
+    val result = CollectionUtil.iteratorToList(iter)
+    iter.close()
 
     assertEquals(
       expectedResult.map(TestSinkUtil.rowToString(_)).sorted,
