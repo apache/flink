@@ -129,8 +129,8 @@ class CommonPhysicalSink (
         }
 
         val primaryKeys = TableSchemaUtils.getPrimaryKeyIndices(catalogTable.getSchema)
-        val theFinalInputTransformation = if (inputParallelism == parallelism || changelogMode
-          .containsOnly(RowKind.INSERT)) {
+        val theFinalInputTransformation = if (inputParallelism == parallelism ||
+            changelogMode.containsOnly(RowKind.INSERT)) {
           // if the inputParallelism is equals to the parallelism or insert-only mode, do nothing.
           inputTransformation
         } else if (primaryKeys.isEmpty) {
@@ -139,19 +139,18 @@ class CommonPhysicalSink (
               s"configured parallelism is different from input parallelism and the changelog " +
               s"mode contains [${changelogMode.getContainedKinds.toList.mkString(",")}], which " +
               s"is not INSERT_ONLY mode, primary key is required but no primary key is found")
-
-          } else {
-            //key by before sink
-            //according to [[StreamExecExchange]]
-            val selector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputTypeInfo)
-            val partitioner = new KeyGroupStreamPartitioner(selector,
-              DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
-            val transformation = new PartitionTransformation(
-              inputTransformation,
-              partitioner.asInstanceOf[StreamPartitioner[RowData]])
-            transformation.setParallelism(parallelism)
-            transformation
-          }
+        } else {
+          //key by before sink
+          //according to [[StreamExecExchange]]
+          val selector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputTypeInfo)
+          val partitioner = new KeyGroupStreamPartitioner(selector,
+            DEFAULT_LOWER_BOUND_MAX_PARALLELISM)
+          val transformation = new PartitionTransformation(
+            inputTransformation,
+            partitioner.asInstanceOf[StreamPartitioner[RowData]])
+          transformation.setParallelism(parallelism)
+          transformation
+        }
 
         new LegacySinkTransformation(
           theFinalInputTransformation,
