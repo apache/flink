@@ -88,6 +88,53 @@ Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, c, d, e, f, a0, b0, c
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDisableReuseTableSourceOnNewSource">
+    <Resource name="sql">
+      <![CDATA[
+WITH t AS (
+  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+  FROM newX, newY
+  WHERE newX.a = newY.d)
+SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7])
++- LogicalFilter(condition=[AND(=($1, $7), <($0, 10), >($4, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+      :  +- LogicalFilter(condition=[=($0, $3)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, newY]])
+      +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+         +- LogicalFilter(condition=[=($0, $3)])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, newY]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b])
+:     +- Exchange(distribution=[hash[d]])
+:        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b])
+      +- Exchange(distribution=[hash[d]])
+         +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testEnableReuseTableSource">
     <Resource name="sql">
       <![CDATA[
@@ -235,6 +282,52 @@ Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, random_udf() AS EXPR$1], where=[>(a, 10)], reuse_id=[1])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnableReuseTableSourceOnNewSource">
+    <Resource name="sql">
+      <![CDATA[
+WITH t AS (
+  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+  FROM newX, newY
+  WHERE newX.a = newY.d)
+SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7])
++- LogicalFilter(condition=[AND(=($1, $7), <($0, 10), >($4, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+      :  +- LogicalFilter(condition=[=($0, $3)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, newY]])
+      +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+         +- LogicalFilter(condition=[=($0, $3)])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, newX]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, newY]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(b, e0)], select=[a, b, d, e, a0, b0, d0, e0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[b]])
+:  +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b], where=[<(a, 10)])
+:     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b]]], fields=[a, b], reuse_id=[1])
+:     +- Exchange(distribution=[hash[d]], reuse_id=[2])
+:        +- TableSourceScan(table=[[default_catalog, default_database, newY, project=[d, e]]], fields=[d, e])
++- Exchange(distribution=[hash[e]])
+   +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b], where=[>(a, 5)])
+      :     +- Reused(reference_id=[1])
+      +- Reused(reference_id=[2])
 ]]>
     </Resource>
   </TestCase>

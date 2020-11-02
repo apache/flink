@@ -448,4 +448,52 @@ class SubplanReuseTest extends TableTestBase {
       """.stripMargin
     util.verifyPlan(sqlQuery)
   }
+
+  @Test
+  def testEnableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    testReuseOnNewSource()
+  }
+
+  @Test
+  def testDisableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    testReuseOnNewSource()
+  }
+
+  private def testReuseOnNewSource(): Unit = {
+    util.addTable(
+      s"""
+         |create table newX(
+         |  a int,
+         |  b bigint,
+         |  c varchar
+         |) with (
+         |  'connector' = 'values',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin)
+    util.addTable(
+      s"""
+         |create table newY(
+         |  d int,
+         |  e bigint,
+         |  f varchar
+         |) with (
+         |  'connector' = 'values',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        |WITH t AS (
+        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+        |  FROM newX, newY
+        |  WHERE newX.a = newY.d)
+        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }
