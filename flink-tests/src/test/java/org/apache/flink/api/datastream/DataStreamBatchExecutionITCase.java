@@ -22,6 +22,9 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -104,6 +107,28 @@ public class DataStreamBatchExecutionITCase {
 		// only the operators after the key-by "barrier" are restarted and will have the "attempt 1"
 		// suffix
 		assertThat(result, contains("ciao-a0-b0-c0-d0", "ciao-a0-b0-c0-d0"));
+	}
+
+	@Test
+	public void dataSetBatchFailoverWithKeyByBarrier() throws Exception {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
+
+		DataSet<String> source = env.fromElements("foo", "bar");
+
+		MapOperator<String, String> mapped = source
+				.map(new SuffixAttemptId("a"))
+				.map(new SuffixAttemptId("b"))
+				.groupBy(in -> in)
+				.first(1)
+				.map(new SuffixAttemptId("c"))
+				.map(new OnceFailingMapper("d"));
+
+		List<String> result = mapped.collect();
+
+		// it seems the DataSet API restarts the whole graph here?
+		assertThat(result, containsInAnyOrder("foo-a1-b1-c1-d1", "bar-a1-b1-c1-d1"));
 	}
 
 	private StreamExecutionEnvironment getExecutionEnvironment() {
