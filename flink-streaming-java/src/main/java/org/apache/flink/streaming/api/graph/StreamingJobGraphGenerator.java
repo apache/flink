@@ -216,6 +216,12 @@ public class StreamingJobGraphGenerator {
 						+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
 						+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 			}
+			if (streamGraph.isIterative() && checkpointConfig.isUnalignedCheckpointsEnabled() && !checkpointConfig.isForceUnalignedCheckpoints()) {
+				throw new UnsupportedOperationException(
+					"Unaligned Checkpoints are currently not supported for iterative jobs, "
+						+ " as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+						+ "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
+			}
 
 			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 			for (StreamNode node : streamGraph.getStreamNodes()) {
