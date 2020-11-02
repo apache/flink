@@ -25,16 +25,23 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static org.apache.flink.util.CollectionUtil.iteratorToList;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
@@ -80,6 +87,42 @@ public class DataStreamBatchExecutionITCase {
 			assertThat(
 					iteratorToList(result),
 					containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+		}
+	}
+
+	@Test
+	public void batchReduceSingleResultPerKey() throws Exception {
+		StreamExecutionEnvironment env = getExecutionEnvironment();
+		DataStreamSource<Long> numbers = env
+			.fromSequence(0, 10);
+
+		// send all records into a single reducer
+		KeyedStream<Long, Long> stream = numbers.keyBy(i -> i % 2);
+		DataStream<Long> sums = stream.reduce(Long::sum);
+
+		try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
+			List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
+			assertThat(results, equalTo(Arrays.asList(
+				30L, 25L
+			)));
+		}
+	}
+
+	@Test
+	public void batchSumSingleResultPerKey() throws Exception {
+		StreamExecutionEnvironment env = getExecutionEnvironment();
+		DataStreamSource<Long> numbers = env
+			.fromSequence(0, 10);
+
+		// send all records into a single reducer
+		KeyedStream<Long, Long> stream = numbers.keyBy(i -> i % 2);
+		DataStream<Long> sums = stream.sum(0);
+
+		try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
+			List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
+			assertThat(results, equalTo(Arrays.asList(
+				30L, 25L
+			)));
 		}
 	}
 
