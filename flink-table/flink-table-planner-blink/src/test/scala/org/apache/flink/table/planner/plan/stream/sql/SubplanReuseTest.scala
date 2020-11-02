@@ -305,35 +305,17 @@ class SubplanReuseTest extends TableTestBase {
   def testEnableReuseTableSourceOnNewSource(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
-    addNewSource()
-    val sqlQuery =
-      """
-        |WITH t AS (
-        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
-        |  FROM newX, newY
-        |  WHERE newX.a = newY.d)
-        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
+    testReuseOnNewSource()
   }
 
   @Test
   def testDisableReuseTableSourceOnNewSource(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
-    addNewSource()
-    val sqlQuery =
-      """
-        |WITH t AS (
-        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
-        |  FROM newX, newY
-        |  WHERE newX.a = newY.d)
-        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
+    testReuseOnNewSource()
   }
 
-  private def addNewSource(): Unit = {
+  private def testReuseOnNewSource(): Unit = {
     util.addTable(
       s"""
          |create table newX(
@@ -354,5 +336,14 @@ class SubplanReuseTest extends TableTestBase {
          |  'connector' = 'values'
          |)
        """.stripMargin)
+    val sqlQuery =
+      """
+        |WITH t AS (
+        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+        |  FROM newX, newY
+        |  WHERE newX.a = newY.d)
+        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
   }
 }
