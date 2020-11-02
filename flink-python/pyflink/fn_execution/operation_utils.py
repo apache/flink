@@ -20,6 +20,7 @@ import datetime
 from typing import Any, Tuple, Dict, List
 
 from pyflink.common import Row
+from pyflink.datastream import TimeCharacteristic
 from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
@@ -259,6 +260,15 @@ def extract_user_defined_stateful_function(user_defined_function_proto, ctx, on_
         if value[0] is not None:
             timer_key = value[3]
             keyed_state_backend.set_current_key(timer_key)
+            if value[0] == 0:
+                time_domain = TimeCharacteristic.ProcessingTime
+            elif value[0] == 1:
+                time_domain = TimeCharacteristic.IngestionTime
+            elif value[0] == 2:
+                time_domain = TimeCharacteristic.EventTime
+            else:
+                raise TypeError("TimeCharacteristic[%s] is not supported." % str(value[0]))
+            on_timer_ctx._time_domain = time_domain
             on_timer_func(value[1], on_timer_ctx, collector)
         else:
             # it is normal data

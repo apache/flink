@@ -231,21 +231,19 @@ PAYMENT_MSGS='{"createTime": "2020-10-26 10:30:13", "orderId": 1603679414, "payA
 {"createTime": "2020-10-26 10:32:02", "orderId": 1603679523, "payAmount": 81861.73063103345, "payPlatform": 0, "provinceId": 4}'
 
 function send_msg_to_kafka {
-
     while read line
     do
-	 	send_messages_to_kafka "$line" "timer-stream-source"
+	    send_messages_to_kafka "$line" "timer-stream-source"
         sleep 3
     done <<< "$1"
 }
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run \
-    -p 2 \
     -pyfs "${FLINK_PYTHON_TEST_DIR}/python/datastream" \
     -pyreq "${REQUIREMENTS_PATH}" \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
-    -pym "data_stream_timer_job" \
+    -pym "data_stream_job" \
     -j "${KAFKA_SQL_JAR}")
 
 echo "${JOB_ID}"
@@ -259,7 +257,7 @@ sleep 10
 send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 15 timer-stream-sink pyflink-e2e-test)
+READ_MSG=$(read_messages_from_kafka 15 timer-stream-sink pyflink-e2e-test-timer)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"

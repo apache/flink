@@ -66,7 +66,7 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 		"flink:transform:datastream_stateful_function:v1";
 
 	private static final String DATA_STREAM_STATEFUL_PROCESS_FUNCTION_CODER_URN =
-		"flink:coder:datastream:stateful_process_function:v1";
+		"flink:coder:datastream:flatmap_function:v1";
 
 	/**
 	 * The python {@link org.apache.flink.streaming.api.functions.ProcessFunction} to be executed.
@@ -185,7 +185,7 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 		InternalTimerService<VoidNamespace> internalTimerService = getInternalTimerService("user-timers",
 			VoidNamespaceSerializer.INSTANCE, this);
 
-		this.streamRecordCollector = new StreamRecordCollector(output);
+		streamRecordCollector = new StreamRecordCollector(output);
 		timerservice = new SimpleTimerService(internalTimerService);
 		reusableInput = new Row(5);
 		reusableTimerData = new Row(5);
@@ -273,7 +273,7 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 		if (procTime) {
 			reusableTimerData.setField(0, 0);
 		} else {
-			reusableTimerData.setField(0, 1);
+			reusableTimerData.setField(0, 2);
 		}
 		reusableTimerData.setField(1, time);
 		reusableTimerData.setField(2, timerservice.currentWatermark());
