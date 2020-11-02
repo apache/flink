@@ -20,9 +20,9 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.util.FlinkException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -32,9 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * application with a given {@link ApplicationStatus}.
  */
 @Internal
-public class ApplicationFailureException extends FlinkException {
-
-	private final JobID jobID;
+public class ApplicationFailureException extends JobExecutionException {
 
 	private final ApplicationStatus status;
 
@@ -43,13 +41,8 @@ public class ApplicationFailureException extends FlinkException {
 			final ApplicationStatus status,
 			final String message,
 			final Throwable cause) {
-		super(message, cause);
-		this.jobID = jobID;
+		super(jobID, message, cause);
 		this.status = checkNotNull(status);
-	}
-
-	public JobID getJobID() {
-		return jobID;
 	}
 
 	public ApplicationStatus getStatus() {
@@ -63,20 +56,22 @@ public class ApplicationFailureException extends FlinkException {
 		checkState(result != null && !result.isSuccess());
 		checkNotNull(userClassLoader);
 
-		final JobID jobID = result.getJobId();
-		final ApplicationStatus status = result.getApplicationStatus();
+		// We do this to uniformize the behavior of the "ATTACHED" and "DETACHED"
+		// in application mode, while maintaining the expected exceptions thrown in case
+		// of a failed job execution.
 
-		final Throwable throwable = result
-				.getSerializedThrowable()
-				.map(ser -> ser.deserializeError(userClassLoader))
-				.orElse(new FlinkException("Unknown reason."));
+		try {
+			result.toJobExecutionResult(userClassLoader);
+			throw new IllegalStateException("No exception thrown although the job execution was not successful.");
 
-		if (status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED) {
-			return new ApplicationFailureException(
-					jobID, status, "Application Status: " + status.name(), throwable);
+		} catch (Throwable t) {
+
+			final JobID jobID = result.getJobId();
+			final ApplicationStatus status = result.getApplicationStatus();
+
+			return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
+					? new ApplicationFailureException(jobID, status, "Application Status: " + status.name(), t)
+					: new ApplicationFailureException(jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
 		}
-
-		return new ApplicationFailureException(
-				jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", throwable);
 	}
 }
