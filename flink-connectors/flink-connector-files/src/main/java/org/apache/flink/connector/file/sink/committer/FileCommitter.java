@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.sink.committer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
@@ -32,6 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Committer implementation for {@link FileSink}.
  */
+@Internal
 public class FileCommitter implements Committer<FileSinkCommittable> {
 	private final BucketWriter<?, ?> bucketWriter;
 

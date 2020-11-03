@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.sink.writer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -46,6 +47,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Writer implementation for {@link FileSink}.
  */
+@Internal
 public class FileWriter<IN, BucketID>
 		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState<BucketID>> {
 

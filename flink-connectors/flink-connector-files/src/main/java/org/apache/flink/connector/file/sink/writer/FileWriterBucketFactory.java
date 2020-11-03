@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.sink.writer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
@@ -30,6 +31,7 @@ import java.io.Serializable;
 /**
  * A factory able to create {@link FileWriterBucket} for the {@link FileSink}.
  */
+@Internal
 public interface FileWriterBucketFactory<IN, BucketID> extends Serializable {
 
 	FileWriterBucket<IN, BucketID> getNewBucket(
