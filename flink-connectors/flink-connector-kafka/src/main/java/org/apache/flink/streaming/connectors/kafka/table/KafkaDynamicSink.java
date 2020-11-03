@@ -38,7 +38,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
