@@ -110,7 +110,7 @@ public class FileSinkITCase {
 	public void testFileSink() throws Exception {
 		String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 		String sourceLatchId = UUID.randomUUID().toString();
-		TestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(NUMBER_OF_SOURCE));
+		BlockingTestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(NUMBER_OF_SOURCE));
 
 		JobGraph jobGraph = createJobGraph(path, sourceLatchId);
 
@@ -126,7 +126,7 @@ public class FileSinkITCase {
 			miniCluster.start();
 			miniCluster.executeJobBlocking(jobGraph);
 		} finally {
-			TestSource.LATCH_MAP.remove(sourceLatchId);
+			BlockingTestSource.LATCH_MAP.remove(sourceLatchId);
 		}
 
 		checkResult(path);
@@ -149,7 +149,7 @@ public class FileSinkITCase {
 		}
 
 		// Create a testing job with a bounded legacy source in a bit hacky way.
-		StreamSource<Integer, ?> sourceOperator = new StreamSource<>(new TestSource(
+		StreamSource<Integer, ?> sourceOperator = new StreamSource<>(new BlockingTestSource(
 				sourceLatchId,
 				NUMBER_RECORD,
 				triggerFailover,
@@ -163,12 +163,12 @@ public class FileSinkITCase {
 				Boundedness.BOUNDED);
 		FileSink<Integer, String> fileSink = FileSink
 				.forRowFormat(new Path(path), new IntEncoder())
-				.withBucketAssigner(new ModuleBucketAssigner())
+				.withBucketAssigner(new ModuloBucketAssigner())
 				.withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
 				.build();
 		source.setParallelism(NUMBER_OF_SOURCE)
 				.rebalance()
-				.map(new FailoverMap(NUMBER_RECORD, triggerFailover))
+				.map(new OnceFailingMap(NUMBER_RECORD, triggerFailover))
 				.setParallelism(NUMBER_OF_SINK)
 				.sinkTo(fileSink)
 				.setParallelism(NUMBER_OF_SINK);
@@ -233,7 +233,7 @@ public class FileSinkITCase {
 		}
 	}
 
-	private static class ModuleBucketAssigner implements BucketAssigner<Integer, String> {
+	private static class ModuloBucketAssigner implements BucketAssigner<Integer, String> {
 
 		@Override
 		public String getBucketId(Integer element, Context context) {
@@ -270,7 +270,12 @@ public class FileSinkITCase {
 		}
 	}
 
-	private static class TestSource extends RichParallelSourceFunction<Integer>
+	/**
+	 * A testing source that blocks until we see at least once successful checkpoint. We need this
+	 * to ensure that our sink (which is also in the pipeline) has the chance to commit the output
+	 * data.
+	 */
+	private static class BlockingTestSource extends RichParallelSourceFunction<Integer>
 			implements CheckpointListener, CheckpointedFunction {
 
 		private static final Map<String, CountDownLatch> LATCH_MAP = new ConcurrentHashMap<>();
@@ -279,6 +284,10 @@ public class FileSinkITCase {
 
 		private final int numberOfRecords;
 
+		/**
+		 * Whether the test is executing in a scenario that induces a failover. This doesn't mean
+		 * that this source induces the failover.
+		 */
 		private final boolean triggerFailover;
 
 		private final RuntimeExecutionMode mode;
@@ -289,7 +298,7 @@ public class FileSinkITCase {
 
 		private volatile boolean isWaitingCheckpointComplete;
 
-		public TestSource(
+		public BlockingTestSource(
 				String latchId,
 				int numberOfRecords,
 				boolean triggerFailover,
@@ -306,6 +315,13 @@ public class FileSinkITCase {
 				ctx.collect(i);
 			}
 
+			// We have two cases here:
+			//
+			// 1. We're not in a failover-testing scenario. Need to wait for one successful
+			// checkpoint to allow the sink to commit its data
+			//
+			// 2. We are in a failover-testing scenario. We don't block on the first attempt but
+			// block after that to allow the sink to commit.
 			if (mode.equals(RuntimeExecutionMode.STREAMING) &&
 					(!triggerFailover || getRuntimeContext().getAttemptNumber() == 1)) {
 				isWaitingCheckpointComplete = true;
@@ -340,13 +356,17 @@ public class FileSinkITCase {
 		}
 	}
 
-	private static class FailoverMap extends RichMapFunction<Integer, Integer> {
+	/**
+	 * A {@link RichMapFunction} that throws an exception to fail the job iff {@code
+	 * triggerFailover} is {@code true} and when it is subtask 0 and we're in execution attempt 0.
+	 */
+	private static class OnceFailingMap extends RichMapFunction<Integer, Integer> {
 
 		private final int maxNumber;
 
 		private final boolean triggerFailover;
 
-		public FailoverMap(int maxNumber, boolean triggerFailover) {
+		public OnceFailingMap(int maxNumber, boolean triggerFailover) {
 			this.maxNumber = maxNumber;
 			this.triggerFailover = triggerFailover;
 		}
