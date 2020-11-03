@@ -44,6 +44,11 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	}
 
 	@Override
+	public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+		activeController = chooseController(barrier);
+	}
+
+	@Override
 	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
 		checkActiveController(barrier);
 		activeController.barrierReceived(channelInfo, barrier);
@@ -53,7 +58,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	public boolean preProcessFirstBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException, CheckpointException {
-		activeController = chooseController(barrier);
+		checkActiveController(barrier);
 		return activeController.preProcessFirstBarrier(channelInfo, barrier);
 	}
 

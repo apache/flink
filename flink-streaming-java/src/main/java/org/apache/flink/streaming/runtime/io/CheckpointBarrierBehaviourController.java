@@ -32,6 +32,11 @@ import java.io.IOException;
 public interface CheckpointBarrierBehaviourController {
 
 	/**
+	 * Invoked before first {@link CheckpointBarrier} or it's announcement.
+	 */
+	void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier);
+
+	/**
 	 * Invoked per every received {@link CheckpointBarrier}.
 	 */
 	void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier);
