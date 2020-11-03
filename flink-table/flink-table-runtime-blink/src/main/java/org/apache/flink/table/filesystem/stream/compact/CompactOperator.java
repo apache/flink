@@ -72,9 +72,9 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String UNCOMPACTED_PREFIX = ".uncompacted-";
+	public static final String UNCOMPACTED_PREFIX = ".uncompacted-";
 
-	private static final String COMPACTED_PREFIX = "compacted-";
+	public static final String COMPACTED_PREFIX = "compacted-";
 
 	private final SupplierWithException<FileSystem, IOException> fsFactory;
 	private final CompactReader.Factory<T> readerFactory;
@@ -151,10 +151,12 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
-		super.snapshotState(context);
+		snapshotState(context.getCheckpointId());
+	}
 
+	private void snapshotState(long checkpointId) throws Exception {
 		expiredFilesState.clear();
-		expiredFiles.put(context.getCheckpointId(), new ArrayList<>(currentExpiredFiles));
+		expiredFiles.put(checkpointId, new ArrayList<>(currentExpiredFiles));
 		expiredFilesState.add(expiredFiles);
 		currentExpiredFiles.clear();
 	}
@@ -168,6 +170,7 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
 	@Override
 	public void endInput() throws Exception {
 		endCompaction(Long.MAX_VALUE);
+		snapshotState(Long.MAX_VALUE);
 		clearExpiredFiles(Long.MAX_VALUE);
 	}
 

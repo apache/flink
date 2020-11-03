@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem.stream;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.Bucket;
@@ -72,6 +73,14 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 	protected abstract void partitionInactive(String partition);
 
 	/**
+     * Notifies a new file has been opened.
+     *
+     * <p>Note that this does not mean that the file has been created in the file system. It is
+     * only created logically and the actual file will be generated after it is committed.
+	 */
+	protected abstract void onPartFileOpened(String partition, Path newPath);
+
+	/**
 	 * Commit up to this checkpoint id.
 	 */
 	protected void commitUpToCheckpoint(long checkpointId) throws Exception {
@@ -95,6 +104,8 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 				AbstractStreamingWriter.this.partitionInactive(bucket.getBucketId());
 			}
 		});
+
+		buckets.setFileLifeCycleListener(AbstractStreamingWriter.this::onPartFileOpened);
 
 		helper = new StreamingFileSinkHelper<>(
 				buckets,

@@ -106,6 +106,35 @@ public class CompactOperatorTest extends AbstractCompactTestBase {
 	}
 
 	@Test
+	public void testEndInput() throws Exception {
+		Path f0 = newFile(".uncompacted-f0", 3);
+		Path f1 = newFile(".uncompacted-f1", 4);
+		Path f2 = newFile(".uncompacted-f2", 2);
+
+		FileSystem fs = f0.getFileSystem();
+
+		runCompact(harness -> {
+			harness.setup();
+			harness.open();
+
+			harness.processElement(new CompactionUnit(0, "p0", Arrays.asList(f0, f1)), 0);
+			harness.processElement(new CompactionUnit(1, "p0", Collections.singletonList(f2)), 0);
+
+			// test without snapshot
+			harness.endInput();
+
+			// check all compacted file generated
+			Assert.assertTrue(fs.exists(new Path(folder, "compacted-f0")));
+			Assert.assertTrue(fs.exists(new Path(folder, "compacted-f2")));
+
+			// check all temp files have been deleted
+			Assert.assertFalse(fs.exists(f0));
+			Assert.assertFalse(fs.exists(f1));
+			Assert.assertFalse(fs.exists(f2));
+		});
+	}
+
+	@Test
 	public void testUnitSelection() throws Exception {
 		OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness0 = create(2, 0);
 		harness0.setup();
