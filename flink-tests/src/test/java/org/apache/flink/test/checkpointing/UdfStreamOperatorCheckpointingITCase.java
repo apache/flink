@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.EvictingQueue;
 
@@ -45,7 +45,7 @@ import java.util.Random;
  * of {@link AbstractUdfStreamOperator} is correctly restored in case of recovery from
  * a failure.
  *
- * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduce} operator.
+ * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduceOperator} operator.
  */
 @SuppressWarnings("serial")
 public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
