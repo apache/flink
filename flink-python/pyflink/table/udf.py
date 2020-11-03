@@ -160,7 +160,8 @@ class UserDefinedFunctionWrapper(object):
                 "Invalid function: not a function or callable (__call__ is not defined): {0}"
                 .format(type(func)))
 
-        if not isinstance(input_types, collections.Iterable):
+        from pyflink.table.types import RowType
+        if not isinstance(input_types, collections.Iterable) or isinstance(input_types, RowType):
             input_types = [input_types]
 
         for input_type in input_types:
@@ -254,7 +255,8 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
         super(UserDefinedTableFunctionWrapper, self).__init__(
             func, input_types, deterministic, name)
 
-        if not isinstance(result_types, collections.Iterable):
+        from pyflink.table.types import RowType
+        if not isinstance(result_types, collections.Iterable) or isinstance(result_types, RowType):
             result_types = [result_types]
 
         for result_type in result_types:
