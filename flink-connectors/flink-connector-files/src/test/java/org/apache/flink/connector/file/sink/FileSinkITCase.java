@@ -288,7 +288,7 @@ public class FileSinkITCase {
 		 * Whether the test is executing in a scenario that induces a failover. This doesn't mean
 		 * that this source induces the failover.
 		 */
-		private final boolean triggerFailover;
+		private final boolean inFailoverScenario;
 
 		private final RuntimeExecutionMode mode;
 
@@ -301,11 +301,11 @@ public class FileSinkITCase {
 		public BlockingTestSource(
 				String latchId,
 				int numberOfRecords,
-				boolean triggerFailover,
+				boolean inFailoverScenario,
 				RuntimeExecutionMode mode) {
 			this.latchId = latchId;
 			this.numberOfRecords = numberOfRecords;
-			this.triggerFailover = triggerFailover;
+			this.inFailoverScenario = inFailoverScenario;
 			this.mode = mode;
 		}
 
@@ -323,7 +323,7 @@ public class FileSinkITCase {
 			// 2. We are in a failover-testing scenario. We don't block on the first attempt but
 			// block after that to allow the sink to commit.
 			if (mode.equals(RuntimeExecutionMode.STREAMING) &&
-					(!triggerFailover || getRuntimeContext().getAttemptNumber() == 1)) {
+					(!inFailoverScenario || getRuntimeContext().getAttemptNumber() == 1)) {
 				isWaitingCheckpointComplete = true;
 				CountDownLatch latch = LATCH_MAP.get(latchId);
 				latch.await();
