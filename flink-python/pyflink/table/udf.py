@@ -287,7 +287,9 @@ class UserDefinedFunctionWrapper(object):
                 .format(type(func)))
 
         if input_types is not None:
-            if not isinstance(input_types, collections.Iterable):
+            from pyflink.table.types import RowType
+            if not isinstance(input_types, collections.Iterable) \
+                    or isinstance(input_types, RowType):
                 input_types = [input_types]
 
             for input_type in input_types:
@@ -396,7 +398,9 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
         super(UserDefinedTableFunctionWrapper, self).__init__(
             func, input_types, "general", deterministic, name)
 
-        if not isinstance(result_types, collections.Iterable):
+        from pyflink.table.types import RowType
+        if not isinstance(result_types, collections.Iterable) \
+                or isinstance(result_types, RowType):
             result_types = [result_types]
 
         for result_type in result_types:
