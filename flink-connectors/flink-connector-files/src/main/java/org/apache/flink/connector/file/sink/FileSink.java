@@ -123,8 +123,6 @@ public class FileSink<IN>
 
 		private static final long serialVersionUID = 1L;
 
-		public static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
-
 		@SuppressWarnings("unchecked")
 		protected T self() {
 			return (T) this;
