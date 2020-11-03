@@ -20,13 +20,14 @@ package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
 /**
  * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link DynamicTableSink}.
  */
 @PublicEvolving
-public interface SinkFunctionProvider extends DynamicTableSink.SinkRuntimeProvider {
+public interface SinkFunctionProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
 	/**
 	 * Helper method for creating a static provider.

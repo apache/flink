@@ -97,7 +97,7 @@ class StreamExecSink(
     val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
       getInput.asInstanceOf[StreamPhysicalRel]).get
     // tell sink the ChangelogMode of input
-    tableSink.getChangelogMode(inputChangelogMode)
+    val changelogMode = tableSink.getChangelogMode(inputChangelogMode)
     val rowtimeFieldIndex: Int = rowtimeFields.map(_._2).headOption.getOrElse(-1)
 
     createSinkTransformation(
@@ -105,6 +105,7 @@ class StreamExecSink(
       inputTransformation,
       planner.getTableConfig,
       rowtimeFieldIndex,
-      isBounded = false)
+      isBounded = false,
+      changelogMode = changelogMode)
   }
 }
