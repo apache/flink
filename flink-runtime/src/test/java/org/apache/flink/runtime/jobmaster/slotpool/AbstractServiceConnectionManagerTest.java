@@ -24,6 +24,7 @@ import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link DefaultDeclareResourceRequirementServiceConnectionManager}.
@@ -61,6 +62,7 @@ public class AbstractServiceConnectionManagerTest extends TestLogger {
 		connectionManager.close();
 		try {
 			connectionManager.checkNotClosed();
+			fail("checkNotClosed() did not fail for a closed connection manager");
 		} catch (IllegalStateException expected) {
 		}
 	}

@@ -83,7 +83,6 @@ class DefaultDeclareResourceRequirementServiceConnectionManager
 				scheduledExecutor);
 	}
 
-	@GuardedBy("lock")
 	private CompletableFuture<Acknowledge> sendResourceRequirements(ResourceRequirements resourceRequirementsToSend) {
 		synchronized (lock) {
 			if (isConnected()) {
