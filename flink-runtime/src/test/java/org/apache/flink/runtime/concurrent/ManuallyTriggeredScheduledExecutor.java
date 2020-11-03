@@ -25,6 +25,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -148,13 +149,26 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 		}
 	}
 
-	public void triggerNonPeriodicScheduledTasks() {
+	public void triggerNonPeriodicScheduledTasksWithRecursion() {
 		while (!nonPeriodicScheduledTasks.isEmpty()) {
 			final ScheduledTask<?> scheduledTask = nonPeriodicScheduledTasks.poll();
 
 			if (!scheduledTask.isCancelled()) {
 				scheduledTask.execute();
 			}
+		}
+	}
+
+	public void triggerNonPeriodicScheduledTasks() {
+		final Iterator<ScheduledTask<?>> iterator = nonPeriodicScheduledTasks.iterator();
+
+		while (iterator.hasNext()) {
+			final ScheduledTask<?> scheduledTask = iterator.next();
+
+			if (!scheduledTask.isCancelled()) {
+				scheduledTask.execute();
+			}
+			iterator.remove();
 		}
 	}
 

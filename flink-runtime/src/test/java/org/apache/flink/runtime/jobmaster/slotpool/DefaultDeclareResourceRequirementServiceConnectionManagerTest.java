@@ -85,7 +85,7 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
 
 		declareResourceRequirementServiceConnectionManager.declareResourceRequirements(resourceRequirements);
 
-		scheduledExecutor.triggerNonPeriodicScheduledTasks();
+		scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
 		assertThat(failingDeclareResourceRequirementsService.nextResourceRequirements(), is(resourceRequirements));
 		assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements(), is(false));
@@ -113,7 +113,7 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
 		declareResourceRequirementsService.waitForResourceRequirementsDeclaration();
 
 		testAction.accept(declareResourceRequirementServiceConnectionManager);
-		scheduledExecutor.triggerNonPeriodicScheduledTasks();
+		scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
 		assertThat(declareResourceRequirementsService.hasResourceRequirements(), is(false));
 	}
@@ -133,7 +133,7 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
 
 		declareResourceRequirementServiceConnectionManager.declareResourceRequirements(resourceRequirements2);
 
-		scheduledExecutor.triggerNonPeriodicScheduledTasks();
+		scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
 		assertThat(failingDeclareResourceRequirementsService.nextResourceRequirements(), is(resourceRequirements2));
 		assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements(), is(false));
