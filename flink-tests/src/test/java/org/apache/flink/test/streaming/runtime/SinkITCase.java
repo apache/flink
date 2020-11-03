@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -51,6 +52,11 @@ public class SinkITCase extends AbstractTestBase {
 	static final List<Integer> SOURCE_DATA = Arrays.asList(
 			895, 127, 148, 161, 148, 662, 822, 491, 275, 122,
 			850, 630, 682, 765, 434, 970, 714, 795, 288, 422);
+
+	// source send data two times
+	static final int STREAMING_SOURCE_SEND_ELEMENTS_NUM = SOURCE_DATA.size() * 2;
+
+	static final long STREAM_SOURCE_EXIT_WAIT_TIME_OUT = 30_000;
 
 	static final List<String> EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE = SOURCE_DATA
 			.stream()
@@ -88,6 +94,16 @@ public class SinkITCase extends AbstractTestBase {
 
 	static final Queue<String> GLOBAL_COMMIT_QUEUE = new ConcurrentLinkedQueue<>();
 
+	static final BooleanSupplier COMMIT_QUEUE_RECEIVE_ALL_DATA = (BooleanSupplier & Serializable) () ->
+			COMMIT_QUEUE.size() == STREAMING_SOURCE_SEND_ELEMENTS_NUM;
+
+	static final BooleanSupplier GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA = (BooleanSupplier & Serializable) () ->
+			getSplittedGlobalCommittedData().size() == STREAMING_SOURCE_SEND_ELEMENTS_NUM;
+
+	static final BooleanSupplier BOTH_QUEUE_RECEIVE_ALL_DATA = (BooleanSupplier & Serializable) () ->
+			COMMIT_QUEUE_RECEIVE_ALL_DATA.getAsBoolean()
+					&& GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA.getAsBoolean();
+
 	@Before
 	public void init() {
 		COMMIT_QUEUE.clear();
@@ -97,7 +113,10 @@ public class SinkITCase extends AbstractTestBase {
 	@Test
 	public void writerAndCommitterAndGlobalCommitterExecuteInStreamingMode() throws Exception {
 		final StreamExecutionEnvironment env = buildStreamEnv();
-		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(
+				BOTH_QUEUE_RECEIVE_ALL_DATA,
+				STREAM_SOURCE_EXIT_WAIT_TIME_OUT,
+				SOURCE_DATA);
 
 		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
 				.sinkTo(TestSink
@@ -142,7 +161,10 @@ public class SinkITCase extends AbstractTestBase {
 	@Test
 	public void writerAndCommitterExecuteInStreamingMode() throws Exception {
 		final StreamExecutionEnvironment env = buildStreamEnv();
-		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(
+				COMMIT_QUEUE_RECEIVE_ALL_DATA,
+				STREAM_SOURCE_EXIT_WAIT_TIME_OUT,
+				SOURCE_DATA);
 
 		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
 				.sinkTo(TestSink
@@ -173,7 +195,10 @@ public class SinkITCase extends AbstractTestBase {
 	@Test
 	public void writerAndGlobalCommitterExecuteInStreamingMode() throws Exception {
 		final StreamExecutionEnvironment env = buildStreamEnv();
-		final FiniteTestSource<Integer> source = new FiniteTestSource<>(SOURCE_DATA);
+		final FiniteTestSource<Integer> source = new FiniteTestSource<>(
+				GLOBAL_COMMIT_QUEUE_RECEIVE_ALL_DATA,
+				STREAM_SOURCE_EXIT_WAIT_TIME_OUT,
+				SOURCE_DATA);
 
 		env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
 				.sinkTo(TestSink
