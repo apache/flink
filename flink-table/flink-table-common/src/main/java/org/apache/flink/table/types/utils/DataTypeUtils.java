@@ -120,6 +120,8 @@ public final class DataTypeUtils {
 	/**
 	 * Projects a (possibly nested) row data type by returning a new data type that only includes
 	 * fields of the given indices.
+	 *
+	 * <p>Note: This method only projects (possibly nested) fields in the top-level row.
 	 */
 	public static DataType projectRow(DataType dataType, int[] indices) {
 		final int[][] indexPaths = IntStream.of(indices)

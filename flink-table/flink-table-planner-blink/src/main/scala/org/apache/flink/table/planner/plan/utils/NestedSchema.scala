@@ -47,7 +47,8 @@ import scala.collection.JavaConverters._
  *                                In some cases, it can reduce the cost of the
  *                                reorder of the fields in query.
  * @param indexOfLeafInNewSchema  It is used by the leaf node to memorize the
- *                                index in the new schema.
+ *                                index in the new schema. For non-leaf node
+ *                                the value is always -1.
  */
 class NestedColumn(
     val name: String,
@@ -260,8 +261,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
 /**
  * An RexVisitor to extract all referenced input fields
  */
-private class NestedSchemaExtractor(schema: NestedSchema)
-    extends RexVisitorImpl[Unit](true) {
+private class NestedSchemaExtractor(schema: NestedSchema) extends RexVisitorImpl[Unit](true) {
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
     def internalVisit(fieldAccess: RexFieldAccess): (Int, List[String]) = {

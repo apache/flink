@@ -27,8 +27,7 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- *  Tests for [[NestedSchema]]. The tests are as same as test in [[RexNodeExtractor]]
- *  and [[RexNodeRewriter]].
+ *  Tests for [[NestedSchema]].
  */
 class NestedSchemaTest extends RexNodeTestBase{
 
