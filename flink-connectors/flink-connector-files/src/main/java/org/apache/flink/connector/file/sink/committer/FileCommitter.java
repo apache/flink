@@ -24,7 +24,6 @@ import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
