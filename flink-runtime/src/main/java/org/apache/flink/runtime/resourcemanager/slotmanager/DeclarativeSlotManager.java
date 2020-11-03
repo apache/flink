@@ -197,6 +197,10 @@ public class DeclarativeSlotManager implements SlotManager {
 	 */
 	@Override
 	public void suspend() {
+		if (!started) {
+			return;
+		}
+
 		LOG.info("Suspending the slot manager.");
 
 		resourceTracker.clear();
