@@ -189,10 +189,10 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>Defines the parallelism for the Kafka sink.If not specified,the parallelism are
+      <td>Defines the parallelism for the Kafka sink. If not specified, the parallelism are
       <ul>
         <li><code>Chained</code>: Use upstream parallelism.</li>
-        <li><code>Non-Chained</code>: Use global parallelism setting</li>
+        <li><code>Non-Chained</code>: Use global parallelism setting.</li>
       </ul>
       </td>
     </tr>
