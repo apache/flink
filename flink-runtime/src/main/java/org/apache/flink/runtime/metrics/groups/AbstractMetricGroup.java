@@ -120,11 +120,14 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	public Map<String, String> getAllVariables(int reporterIndex, Set<String> excludedVariables) {
+		if (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length) {
+			// invalid reporter index; either a programming mistake, or we try to retrieve variables outside of a reporter
+			reporterIndex = -1;
+		}
+
 		// offset cache location to account for general cache at position 0
 		reporterIndex += 1;
-		if (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length) {
-			reporterIndex = 0;
-		}
+
 		// if no variables are excluded (which is the default!) we re-use the general variables map to save space
 		return internalGetAllVariables(excludedVariables.isEmpty() ? 0 : reporterIndex, excludedVariables);
 	}
