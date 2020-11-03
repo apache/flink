@@ -27,9 +27,9 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.NestedColumn;
+import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
-import org.apache.flink.table.planner.plan.utils.RexNodeNestedField;
-import org.apache.flink.table.planner.plan.utils.RexNodeNestedFields;
 import org.apache.flink.table.planner.sources.DynamicSourceUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -98,7 +98,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		List<RexNode> oldProjectsWithPK = new ArrayList<>(project.getProjects());
 		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
 		if (isUpsertSource(oldTableSourceTable)) {
-			// add pk into projects
+			// add pk into projects for upsert source
 			oldSchema.getPrimaryKey().ifPresent(
 					pks -> {
 						for (String name: pks.getColumns()) {
@@ -114,54 +114,24 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		// build used schema tree
 		RowType originType =
 				DynamicSourceUtils.createProducedType(oldSchema, oldSource);
-		RexNodeNestedFields root = RexNodeNestedFields.build(
+		NestedSchema nestedSchema = NestedSchema.build(
 				oldProjectsWithPK, flinkTypeFactory.buildRelNodeRowType(originType));
 		if (!supportsNestedProjection) {
-			// mark the fields in the top level as useall
-			for (RexNodeNestedField column: root.columns().values()) {
-				column.isLeaf_$eq(true);
+			// mark the fields in the top level as leaf
+			for (NestedColumn column: nestedSchema.columns().values()) {
+				column.markLeaf();
 			}
 		}
-		final DynamicTableSource newSource = oldSource.copy();
-		final int[][] projectedFields;
-		final DataType newProducedDataType;
+		DynamicTableSource newSource = oldSource.copy();
 		DataType producedDataType = TypeConversions.fromLogicalToDataType(originType);
 
+		DataType newProducedDataType;
 		if (oldSource instanceof SupportsReadingMetadata) {
-			//TODO: supports nested projection for metadata
-			final List<String> metadataKeys = DynamicSourceUtils.createRequiredMetadataKeys(oldSchema, oldSource);
-			List<RexNodeNestedField> usedMetaDataFields = new LinkedList<>();
-			int physicalCount = fieldNames.size() - metadataKeys.size();
-			// rm metadata in the tree
-			for (int i = 0; i < metadataKeys.size(); i++) {
-				final RexInputRef key = new RexInputRef(i + physicalCount,
-						flinkTypeFactory.createFieldTypeFromLogicalType(originType.getChildren().get(i + physicalCount)));
-				RexNodeNestedField usedMetadata = root.columns().remove(key.getName());
-				if (usedMetadata != null) {
-					usedMetaDataFields.add(usedMetadata);
-				}
-			}
-			// label the tree and get path
-			int[][] projectedPhysicalFields = RexNodeNestedFields.labelAndConvert(root);
-			((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
-			// push the metadata back for later rewrite and extract the location in the origin row
-			int order = projectedPhysicalFields.length;
-			List<String> usedMetadataNames = new LinkedList<>();
-			for (RexNodeNestedField metadata: usedMetaDataFields) {
-				metadata.indexInNewSchema_$eq(order++);
-				root.columns().put(metadata.name(), metadata);
-				usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
-			}
-			// apply metadata push down
-			projectedFields = Stream.concat(
-					Stream.of(projectedPhysicalFields),
-					usedMetaDataFields.stream().map(field -> new int[]{field.indexInOriginSchema()})
-			).toArray(int[][]::new);
-			newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
-			((SupportsReadingMetadata) newSource).applyReadableMetadata(
-					usedMetadataNames, newProducedDataType);
+			List<String> metadataKeys = DynamicSourceUtils.createRequiredMetadataKeys(oldSchema, oldSource);
+			newProducedDataType =
+					applyPhysicalAndMetadataPushDown(nestedSchema, metadataKeys, originType, newSource);
 		} else {
-			projectedFields = RexNodeNestedFields.labelAndConvert(root);
+			int[][] projectedFields = NestedSchema.convertToIndexArray(nestedSchema);
 			((SupportsProjectionPushDown) newSource).applyProjection(projectedFields);
 			newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
 		}
@@ -174,10 +144,10 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 						("project=[" + String.join(", ", newRowType.getFieldNames()) + "]") });
 		LogicalTableScan newScan = new LogicalTableScan(
 				scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
-		// rewrite input field in projections
-		// the origin projections are enough. Because the upsert source only uses pk info in the deduplication node.
+		// rewrite the input field in projections
+		// the origin projections are enough. Because the upsert source only uses pk info normalization node.
 		List<RexNode> newProjects =
-				RexNodeNestedFields.rewrite(project.getProjects(), root, call.builder().getRexBuilder());
+				NestedSchema.rewrite(project.getProjects(), nestedSchema, call.builder().getRexBuilder());
 		// rewrite new source
 		LogicalProject newProject = project.copy(
 				project.getTraitSet(),
@@ -207,5 +177,48 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			return mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE);
 		}
 		return false;
+	}
+
+	/**
+	 * Push the used physical column and metadata into table source. The returned value is used
+	 * to build new table schema.
+	 */
+	private static DataType applyPhysicalAndMetadataPushDown(
+			NestedSchema nestedSchema,
+			List<String> metadataKeys,
+			RowType originType,
+			DynamicTableSource newSource) {
+		//TODO: supports nested projection for metadata
+		List<NestedColumn> usedMetaDataFields = new LinkedList<>();
+		int physicalCount = originType.getFieldCount() - metadataKeys.size();
+		List<String> fieldNames = originType.getFieldNames();
+		// rm metadata in the tree
+		for (int i = 0; i < metadataKeys.size(); i++) {
+			NestedColumn usedMetadata = nestedSchema.columns().remove(fieldNames.get(i + physicalCount));
+			if (usedMetadata != null) {
+				usedMetaDataFields.add(usedMetadata);
+			}
+		}
+		// get path of the used fields
+		int[][] projectedPhysicalFields = NestedSchema.convertToIndexArray(nestedSchema);
+		((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
+		// push the metadata back for later rewrite and extract the location in the origin row
+		int newIndex = projectedPhysicalFields.length;
+		List<String> usedMetadataNames = new LinkedList<>();
+		for (NestedColumn metadata: usedMetaDataFields) {
+			metadata.setIndex(newIndex++);
+			nestedSchema.columns().put(metadata.name(), metadata);
+			usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
+		}
+		// apply metadata push down
+		int[][] projectedFields = Stream.concat(
+				Stream.of(projectedPhysicalFields),
+				usedMetaDataFields.stream().map(field -> new int[]{field.indexInOriginSchema()})
+		).toArray(int[][]::new);
+		DataType newProducedDataType =
+				DataTypeUtils.projectRow(TypeConversions.fromLogicalToDataType(originType), projectedFields);
+		((SupportsReadingMetadata) newSource).applyReadableMetadata(
+				usedMetadataNames, newProducedDataType);
+		return newProducedDataType;
 	}
 }

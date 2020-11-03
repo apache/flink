@@ -20,87 +20,60 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
 
-import java.util
-import java.util.{List => JList}
-
-import org.junit.Assert.{assertThat, assertTrue}
+import org.junit.Assert.assertTrue
 import org.junit.Test
-
-import org.hamcrest.{BaseMatcher, Description}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- *  Test for RexNodeNestedField.
+ *  Tests for [[NestedSchema]]. The tests are as same as test in [[RexNodeExtractor]]
+ *  and [[RexNodeRewriter]].
  */
-class RexNodeNestedFieldTest extends RexNodeTestBase{
-  private class UnorderedArrayMatcher(expected: util.HashSet[JList[Int]])
-    extends BaseMatcher[Array[Array[Int]]] {
-    override def matches(item: Any): Boolean = {
-      for (path <- item.asInstanceOf[Array[Array[Int]]]) {
-        if (!expected.contains(path.toSeq.asJava)) {
-          return false
-        }
-      }
-      true
-    }
+class NestedSchemaTest extends RexNodeTestBase{
 
-    override def describeTo(description: Description): Unit = {
-      description.appendValueList("", ",", "", expected)
+  private def compare(actual: Array[Array[Int]], expected: Array[Array[Int]]): Unit = {
+    actual.zip(expected).foreach{
+      case (result, expect) =>
+        assert(result.sameElements(expect))
     }
   }
 
   @Test
   def testExtractRefInputFields(): Unit = {
     val (exprs, rowType) = buildExprs()
-    val nestedFields = RexNodeNestedFields.build(exprs, rowType)
-    val actual = RexNodeNestedFields.labelAndConvert(nestedFields)
-    val expected = new util.HashSet[JList[Int]]
-    expected.add(util.Arrays.asList(2))
-    expected.add(util.Arrays.asList(3))
-    expected.add(util.Arrays.asList(1))
+    val nestedFields = NestedSchema.build(exprs, rowType)
+    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val expected = Array(Array(2), Array(3), Array(1))
 
-    assertThat(actual, new UnorderedArrayMatcher(expected))
+    compare(actual, expected)
   }
 
   @Test
   def testExtractRefNestedInputFields(): Unit = {
     val (rexProgram, rowType) = buildExprsWithNesting()
 
-    val nestedFields = RexNodeNestedFields.build(rexProgram, rowType)
-    val actual = RexNodeNestedFields.labelAndConvert(nestedFields)
-    val expected = new util.HashSet[JList[Int]]
-    expected.add(Array(1, 1).toSeq.asJava)
-    expected.add(Array(0).toSeq.asJava)
-    assertThat(actual, new UnorderedArrayMatcher(expected))
-  }
+    val nestedFields = NestedSchema.build(rexProgram, rowType)
+    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val expected = Array(Array(1, 1), Array(0))
 
-  @Test
-  def testExtractRefNestedInputFieldsWithNoNestingUsingNestedField(): Unit = {
-    val (exprs, rowType) = buildExprs()
-
-    val nestedFields = RexNodeNestedFields.build(exprs, rowType)
-    val actual = RexNodeNestedFields.labelAndConvert(nestedFields)
-    val expected = new util.HashSet[JList[Int]]
-    expected.add(Array(2).toSeq.asJava)
-    expected.add(Array(3).toSeq.asJava)
-    expected.add(Array(1).toSeq.asJava)
-    assertThat(actual, new UnorderedArrayMatcher(expected))
+    compare(actual, expected)
   }
 
   @Test
   def testExtractDeepRefNestedInputFieldsUsingNestedField(): Unit = {
     val (rexProgram, rowType) = buildExprsWithDeepNesting()
 
-    val nestedFields = RexNodeNestedFields.build(rexProgram, rowType)
-    val actual = RexNodeNestedFields.labelAndConvert(nestedFields)
-    val expected = new util.HashSet[JList[Int]]
-    expected.add(Array(0).toSeq.asJava)
-    expected.add(Array(1, 1).toSeq.asJava)
-    expected.add(Array(2, 0, 0, 0).toSeq.asJava)
-    expected.add(Array(2, 0, 1, 0).toSeq.asJava)
-    assertThat(actual, new UnorderedArrayMatcher(expected))
+    val nestedFields = NestedSchema.build(rexProgram, rowType)
+    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val expected = Array(
+      Array(1, 1),
+      Array(0),
+      Array(2, 0, 0, 0),
+      Array(2, 0, 1, 0)
+    )
+
+    compare(actual, expected)
   }
 
   @Test
@@ -120,8 +93,8 @@ class RexNodeNestedFieldTest extends RexNodeTestBase{
       ">($t1, $t8)",
       "AND($t7, $t9)")))
 
-    val nestedField = RexNodeNestedFields.build(exprs, rexProgram.getInputRowType)
-    val paths = RexNodeNestedFields.labelAndConvert(nestedField)
+    val nestedField = NestedSchema.build(exprs, rexProgram.getInputRowType)
+    val paths = NestedSchema.convertToIndexArray(nestedField)
     val orderedPaths = Array(
       Array(0),
       Array(1),
@@ -129,18 +102,15 @@ class RexNodeNestedFieldTest extends RexNodeTestBase{
       Array(3),
       Array(4)
     )
-    // actual data has the same order as expected
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
+    compare(paths, orderedPaths)
     val builder = new FlinkRexBuilder(typeFactory)
     val projectExprs = rexProgram.getProjectList.map(expr => rexProgram.expandLocalRef(expr))
     val newProjectExprs =
-      RexNodeNestedFields.rewrite(
+      NestedSchema.rewrite(
         projectExprs, nestedField, builder)
     val conditionExprs = rexProgram.expandLocalRef(rexProgram.getCondition)
     val newConditionExprs =
-      RexNodeNestedFields.rewrite(Seq(conditionExprs), nestedField, builder)
+      NestedSchema.rewrite(Seq(conditionExprs), nestedField, builder)
     assertTrue(newProjectExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "$2",
       "*($2, $3)")))
@@ -160,17 +130,14 @@ class RexNodeNestedFieldTest extends RexNodeTestBase{
       "100"
     )))
 
-    val nestedField = RexNodeNestedFields.build(exprs, rowType)
-    val paths = RexNodeNestedFields.labelAndConvert(nestedField)
+    val nestedField = NestedSchema.build(exprs, rowType)
+    val paths = NestedSchema.convertToIndexArray(nestedField)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0)
     )
-    // actual data has the same order as expected
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
-    val newExprs = RexNodeNestedFields.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
+    compare(paths, orderedPaths)
+    val newExprs = NestedSchema.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
 
     assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "$0",
@@ -209,19 +176,17 @@ class RexNodeNestedFieldTest extends RexNodeTestBase{
       "$2.with.deeper.entry",
       "$0"
     )))
-    val nestedFields = RexNodeNestedFields.build(exprs, rowType)
-    val paths = RexNodeNestedFields.labelAndConvert(nestedFields)
+    val nestedFields = NestedSchema.build(exprs, rowType)
+    val paths = NestedSchema.convertToIndexArray(nestedFields)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0),
       Array(2, 0, 0, 0),
       Array(2, 0, 1, 0)
     )
-    orderedPaths.zip(paths).foreach {
-      case (expected, actual) => assert(expected.sameElements(actual))
-    }
+    compare(paths, orderedPaths)
     val newExprs =
-      RexNodeNestedFields.rewrite(exprs, nestedFields, new FlinkRexBuilder(typeFactory))
+      NestedSchema.rewrite(exprs, nestedFields, new FlinkRexBuilder(typeFactory))
 
     assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "*($0, 10)",

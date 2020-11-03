@@ -19,63 +19,75 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-
 import java.util
-import java.util.{List => JList}
+import java.util.{function, LinkedHashMap => JLinkedHashMap, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- * RexNodeNestedField is a tree node to build the used fields tree.
+ * [[NestedColumn]] is a tree node to build the used fields tree. The leaf node
+ * is the real node that is used by the query. The non-leaf node is a virtual
+ * node to represents the logical structure.
  *
- * @param name                 The name of the fields in the origin schema
- * @param indexInOriginSchema  The index of the field in the origin schema.
- *                             It only works for the RowType.
- * @param fieldType            The type of the field. It is useful when
- *                             rewriting the projections.
- * @param isLeaf               Mark the field is the leaf node in the tree.
- * @param children             Store the children of the field. It's safe
- *                             to use name as the index because name is
- *                             unique in every level. It uses the
- *                             LinkedHashMap to keep the insert order.
- *                             In some cases, it can reduce the cost of the
- *                             reorder of the fields in query.
- * @param indexInNewSchema     It is used by the leaf node to memorize the
- *                             index in the new schema.
+ * @param name                    The name of the fields in the origin schema
+ * @param indexInOriginSchema     The index of the field in the origin schema.
+ *                                It only works for the RowType.
+ * @param originFieldType               The type of the field. It is useful when
+ *                                rewriting the projections.
+ * @param isLeaf                  Mark the field is the leaf node in the tree.
+ * @param children                Store the children of the field. It's safe
+ *                                to use name as the index because name is
+ *                                unique in every level. It uses the
+ *                                LinkedHashMap to keep the insert order.
+ *                                In some cases, it can reduce the cost of the
+ *                                reorder of the fields in query.
+ * @param indexOfLeafInNewSchema  It is used by the leaf node to memorize the
+ *                                index in the new schema.
  */
-class RexNodeNestedField(
+class NestedColumn(
     val name: String,
     val indexInOriginSchema: Int,
-    val fieldType: RelDataType,
-    val children: util.LinkedHashMap[String, RexNodeNestedField],
-    var isLeaf: Boolean,
-    var indexInNewSchema: Int) {
+    val originFieldType: RelDataType,
+    val children: JLinkedHashMap[String, NestedColumn] = new JLinkedHashMap[String, NestedColumn](),
+    var isLeaf: Boolean = false,
+    var indexOfLeafInNewSchema: Int = -1) {
 
-  def addChild(field: RexNodeNestedField): Unit = {
+  def addChild(field: NestedColumn): Unit = {
     if (!children.contains(field.name)) {
       isLeaf = false
       children.put(field.name, field)
     }
   }
+
+  def markLeaf(): Unit = {
+    isLeaf = true
+    children.clear()
+  }
+
+  def setIndex(index: Int): Unit = {
+    indexOfLeafInNewSchema = index
+  }
 }
 
 /**
- * RexNodeNestedFields could be regard as a table schema that represents
+ * [[NestedSchema]] could be regard as a table schema that represents
  * a table's structure with field names and data types. It uses a
  * LinkedHashMap to store the pairs of name: String and column: RexNodeNestedField.
  *
- * @param columns  Fields in the origin schema are used by the query.
+ * @param originRowType  The data type of the origin schema.
+ * @param columns        Fields in the origin schema are used by the query.
  */
-class RexNodeNestedFields(
-    val columns: util.LinkedHashMap[String, RexNodeNestedField]) {
+class NestedSchema(
+    val originRowType: RelDataType,
+    val columns: JLinkedHashMap[String, NestedColumn] = new JLinkedHashMap[String, NestedColumn]) {
 
 }
 
-object RexNodeNestedFields {
+object NestedSchema {
   /**
    * It will uses the RexNodes to build a tree of the used fields.
    * It uses a visitor to visit the operands of the expression. For
@@ -91,28 +103,19 @@ object RexNodeNestedFields {
    * rather than the child "child" only. In this situation, it will mark
    * the node "$0" as a leaf node and delete its children.
    * */
-  def build(exprs: JList[RexNode], rowType: RelDataType):
-      RexNodeNestedFields = {
-    // the order field in the root node is to memorize
-    // the number of leaf
-    val root = new RexNodeNestedField(
-      "root",
-      -1,
-      rowType,
-      new util.LinkedHashMap[String, RexNodeNestedField](),
-      false,
-      -1)
-    val visitor = new NestedFieldExtractor(root, rowType)
+  def build(exprs: JList[RexNode], rowType: RelDataType): NestedSchema = {
+    val schema = new NestedSchema(rowType)
+    val visitor = new NestedSchemaExtractor(schema)
     for(expr <- exprs) {
       expr.accept(visitor)
     }
-    new RexNodeNestedFields(root.children)
+    schema
   }
 
   /**
    * After the projection, the used fields location has been changed.
-   * If the node in the tree has been labeled with the order, it will
-   * rewrite the location in the old schema with the new location.
+   * If the node in the tree has been labeled with the new index, it will
+   * rewrite the index in the old schema with the new index.
    *
    * It uses a visitor to visit operands of the RexNode. If the type of
    * operand is InputRef, it still in the top level of the schema and get
@@ -123,66 +126,69 @@ object RexNodeNestedFields {
    */
   def rewrite(
       exprs: JList[RexNode],
-      root: RexNodeNestedFields,
+      schema: NestedSchema,
       builder: RexBuilder): JList[RexNode] = {
-    val writer = new NestedFieldReWriter(root, builder)
+    val writer = new NestedSchemaRewriter(schema, builder)
     exprs.map(_.accept(writer)).toList.asJava
   }
 
   /**
-   * It will label the order of the leaf node with the insert order rather
-   * than the natural order of the name and output the path to the every
-   * leaf node. The paths are useful for interface SupportsProjectionPushDown
-   * and test(debug).
+   * It will label the index of the leaf node in the new schema with the
+   * insert order rather than the natural order of the name and output the path
+   * to the every leaf node. The paths are useful for interface
+   * [[SupportsProjectionPushDown]] and test(debug).
    */
-  def labelAndConvert(root: RexNodeNestedFields): Array[Array[Int]] = {
+  def convertToIndexArray(root: NestedSchema): Array[Array[Int]] = {
     val allPaths = new util.LinkedList[Array[Int]]()
     val path = new util.LinkedList[Int]()
     root.columns.foldLeft(0) {
-      case (newOrder, (_, column)) =>
-        traverse(column, newOrder, path, allPaths)
+      case (newIndex, (_, column)) =>
+        traverse(column, newIndex, path, allPaths)
     }
     allPaths.toArray(new Array[Array[Int]](0))
   }
 
   private def traverse(
-      parent: RexNodeNestedField,
-      order: Int,
+      parent: NestedColumn,
+      index: Int,
       path: JList[Int],
       allPaths: JList[Array[Int]]): Int ={
     val tail = path.size()
     // push self
     path.add(parent.indexInOriginSchema)
-    val newOrder = if (parent.isLeaf) {
+    val newIndex = if (parent.isLeaf) {
       // leaf node
-      parent.indexInNewSchema = order
+      parent.indexOfLeafInNewSchema = index
       // ignore root node
       allPaths.add(path.asScala.toArray)
-      order + 1
+      index + 1
     } else {
       // iterate children
-      parent.children.values().foldLeft(order) {
-        case (newOrder, child) =>
-          traverse(child, newOrder, path, allPaths)
+      parent.children.values().foldLeft(index) {
+        case (index, child) =>
+          traverse(child, index, path, allPaths)
       }
     }
     // pop self
     path.remove(tail)
-    newOrder
+    newIndex
   }
 }
 
 /**
  * A RexShuttle to rewrite field accesses of RexNode with nested projection.
+ *
  * For `RexInputRef`, it uses the old input ref name to find the new input fields ref
- * and use the order to generate the new input ref.
+ * and use the [[NestedColumn.indexOfLeafInNewSchema]] to generate the new input ref.
+ *
  * For `RexFieldAccess`, it will traverse to the top level of the field access and
  * then to generate new RexNode. There are 3 situations we need to consider:
  *  1. if top level field is marked to use all sub-fields , make field access of the reference
  *  and warp the ref as RexFieldAccess with the sub field name;
  *  2. if top level field isn't marked to use all sub-fields and its direct field
- *  is marked as useall, make field reference of the direct subfield;
+ *  is marked as leaf node, make field reference of the direct subfield;
  *  3. if neither situation above happens, return from the recursion with the updated parent.
+ *
  * When the process is back from the recursion, it still has 2 situations need to
  * consider:
  *  1. if the process has found the reference of the upper level, just make an access on the
@@ -190,16 +196,16 @@ object RexNodeNestedFields {
  *  2. if the process hasn't found the first reference, the process continues to search under
  *  the current parent.
  */
-private class NestedFieldReWriter(
-    usedFields: RexNodeNestedFields,
-    builder: RexBuilder) extends RexShuttle {
+private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder)
+    extends RexShuttle {
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
-    if (!usedFields.columns.containsKey(inputRef.getName)) {
+    val name = schema.originRowType.getFieldNames.get(inputRef.getIndex)
+    if (!schema.columns.containsKey(name)) {
       throw new TableException(
-        "Illegal input field access" + inputRef.getName)
+        "Illegal input field access" + name)
     } else {
-      val field = usedFields.columns.get(inputRef.getName)
-      new RexInputRef(field.indexInNewSchema, field.fieldType)
+      val field = schema.columns.get(name)
+      new RexInputRef(field.indexOfLeafInNewSchema, field.originFieldType)
     }
   }
 
@@ -213,21 +219,21 @@ private class NestedFieldReWriter(
     }
   }
 
-  private def traverse(
-      fieldAccess: RexFieldAccess): (Option[RexNode], RexNodeNestedField) = {
+  private def traverse(fieldAccess: RexFieldAccess): (Option[RexNode], NestedColumn) = {
     fieldAccess.getReferenceExpr match {
       case ref: RexInputRef =>
-        val parent = usedFields.columns.get(ref.getName)
+        val name = schema.originRowType.getFieldNames.get(ref.getIndex)
+        val parent = schema.columns.get(name)
         if (parent.isLeaf) {
           (
             Some(builder.makeFieldAccess(
-              new RexInputRef(parent.indexInNewSchema, parent.fieldType),
+              new RexInputRef(parent.indexOfLeafInNewSchema, parent.originFieldType),
               fieldAccess.getField.getName,
               true)), parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexInNewSchema, child.fieldType)), child)
+            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
           } else {
             (Option.empty, child)
           }
@@ -237,15 +243,12 @@ private class NestedFieldReWriter(
         if (field.isDefined) {
           (
             Some(
-              builder.makeFieldAccess(
-                field.get,
-                fieldAccess.getField.getName,
-                true)),
+              builder.makeFieldAccess(field.get, fieldAccess.getField.getName, true)),
             parent)
         } else {
           val child = parent.children.get(fieldAccess.getField.getName)
           if (child.isLeaf) {
-            (Some(new RexInputRef(child.indexInNewSchema, child.fieldType)), child)
+            (Some(new RexInputRef(child.indexOfLeafInNewSchema, child.originFieldType)), child)
           } else {
             (Option.empty, child)
           }
@@ -257,8 +260,8 @@ private class NestedFieldReWriter(
 /**
  * An RexVisitor to extract all referenced input fields
  */
-private class NestedFieldExtractor(val root: RexNodeNestedField, val rowType: RelDataType)
-  extends RexVisitorImpl[Unit](true) {
+private class NestedSchemaExtractor(schema: NestedSchema)
+    extends RexVisitorImpl[Unit](true) {
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
     def internalVisit(fieldAccess: RexFieldAccess): (Int, List[String]) = {
@@ -273,60 +276,49 @@ private class NestedFieldExtractor(val root: RexNodeNestedField, val rowType: Re
 
     // extract the info
     val (index, names) = internalVisit(fieldAccess)
-    root.addChild(
-      new RexNodeNestedField(
-        names.get(0),
-        index,
-        rowType.getFieldList.get(index).getType,
-        new util.LinkedHashMap[String, RexNodeNestedField](),
-        false,
-        -1))
-    val (leaf, _) = names.foldLeft(Tuple2(root, rowType)) {
-      case((parent, fieldType), name) =>
+
+    val topVirtualNodeName = schema.originRowType.getFieldNames.get(index)
+    val topVirtualNode = if (!schema.columns.contains(topVirtualNodeName)) {
+      val fieldType = schema.originRowType.getFieldList.get(index).getType
+      val node = new NestedColumn(topVirtualNodeName, index, fieldType)
+      schema.columns.put(topVirtualNodeName, node)
+      node
+    } else {
+      schema.columns.get(topVirtualNodeName)
+    }
+
+    val leaf = names.slice(1, names.size).foldLeft(topVirtualNode) {
+      case(parent, name) =>
         if (parent.isLeaf) {
           return
         }
         if(!parent.children.containsKey(name)) {
-          val index = fieldType.getFieldNames.indexOf(name)
+          val rowtype = parent.originFieldType
+          val index = rowtype.getFieldNames.indexOf(name)
           if (index < 0) {
             throw new TableException(
-              String.format("Could not find filed %s in field %s.", name, parent.fieldType))
+              String.format("Could not find field %s in field %s.", name, parent.originFieldType))
           }
-          parent.addChild(
-            new RexNodeNestedField(
-              name,
-              index,
-              fieldType.getFieldList.get(index).getType,
-              new util.LinkedHashMap[String, RexNodeNestedField](),
-              false,
-              -1
-            )
-          )
+          parent.addChild(new NestedColumn(name, index, rowtype.getFieldList.get(index).getType))
         }
-
-        val son = parent.children.get(name)
-        (son, fieldType.getFieldList.get(son.indexInOriginSchema).getType)
+        parent.children.get(name)
     }
-    leaf.isLeaf = true
-    leaf.children.clear()
+    leaf.markLeaf()
   }
 
   override def visitInputRef(inputRef: RexInputRef): Unit = {
-    val name = inputRef.getName
-    if (root.children.containsKey(name)) {
+    val name = schema.originRowType.getFieldNames.get(inputRef.getIndex)
+    if (schema.columns.containsKey(name)) {
       // mark the node as top level node
-      val child = root.children.get(name)
-      child.children.clear()
-      child.isLeaf = true
+      val leaf = schema.columns.get(name)
+      leaf.markLeaf()
     } else {
       val index = inputRef.getIndex
-      root.addChild(
-        new RexNodeNestedField(name,
-          index,
-          rowType.getFieldList.get(index).getType,
-          new util.LinkedHashMap[String, RexNodeNestedField](),
-          true,
-          -1))
+      val fieldType = schema.originRowType.getFieldList.get(index).getType
+      val leaf =
+        new NestedColumn(name, index, fieldType)
+      schema.columns.put(leaf.name, leaf)
+      leaf.markLeaf()
     }
   }
 }
