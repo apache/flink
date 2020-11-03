@@ -105,6 +105,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	/** Sink commit semantic.*/
 	protected final KafkaSinkSemantic semantic;
 
+	protected final Integer parallelism;
 	public KafkaDynamicSink(
 			DataType physicalDataType,
 			@Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
@@ -115,7 +116,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 			String topic,
 			Properties properties,
 			@Nullable FlinkKafkaPartitioner<RowData> partitioner,
-			KafkaSinkSemantic semantic) {
+			KafkaSinkSemantic semantic,
+			Integer parallelism) {
 		// Format attributes
 		this.physicalDataType = Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
 		this.keyEncodingFormat = keyEncodingFormat;
@@ -130,6 +132,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = partitioner;
 		this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
+		this.parallelism = parallelism;
 	}
 
 	@Override
@@ -175,7 +178,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 				topic,
 				properties,
 				partitioner,
-				semantic);
+				semantic,
+				parallelism);
 		copy.metadataKeys = metadataKeys;
 		return copy;
 	}
@@ -296,12 +300,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	 */
 	@Override
 	public Optional<Integer> getParallelism() {
-		String parallelism = properties.getProperty(KafkaOptions.SINK_PARALLELISM.key());
-		if (parallelism != null && StringUtils.isNumeric(parallelism)) {
-			return Optional.of(Integer.parseInt(parallelism));
-		} else {
-			return Optional.empty();
-		}
+		return parallelism != null ? Optional.of(parallelism) : Optional.empty();
 	}
 
 	// --------------------------------------------------------------------------------------------

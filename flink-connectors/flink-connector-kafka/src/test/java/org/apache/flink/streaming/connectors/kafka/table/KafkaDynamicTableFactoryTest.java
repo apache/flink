@@ -288,7 +288,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				TOPIC,
 				KAFKA_SINK_PROPERTIES,
 				new FlinkFixedPartitioner<>(),
-				KafkaSinkSemantic.EXACTLY_ONCE
+				KafkaSinkSemantic.EXACTLY_ONCE,
+				null
 			);
 		assertEquals(expectedSink, actualSink);
 
@@ -330,7 +331,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				TOPIC,
 				KAFKA_FINAL_SINK_PROPERTIES,
 				new FlinkFixedPartitioner<>(),
-				KafkaSinkSemantic.EXACTLY_ONCE
+				KafkaSinkSemantic.EXACTLY_ONCE,
+				null
 			);
 
 		assertEquals(expectedSink, actualSink);
@@ -502,7 +504,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			String topic,
 			Properties properties,
 			@Nullable FlinkKafkaPartitioner<RowData> partitioner,
-			KafkaSinkSemantic semantic) {
+			KafkaSinkSemantic semantic,
+			Integer parallelism) {
 		return new KafkaDynamicSink(
 				physicalDataType,
 				keyEncodingFormat,
@@ -513,7 +516,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				topic,
 				properties,
 				partitioner,
-				semantic);
+				semantic,
+				parallelism);
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {

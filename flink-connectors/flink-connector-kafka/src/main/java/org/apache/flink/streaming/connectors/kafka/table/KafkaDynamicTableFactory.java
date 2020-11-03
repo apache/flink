@@ -196,6 +196,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
+		final Integer parallelism = tableOptions.getOptional(SINK_PARALLELISM).orElse(null);
+
 		return createKafkaTableSink(
 				physicalDataType,
 				keyEncodingFormat.orElse(null),
@@ -206,7 +208,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				tableOptions.get(TOPIC).get(0),
 				getKafkaProperties(context.getCatalogTable().getOptions()),
 				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()).orElse(null),
-				getSinkSemantic(tableOptions));
+				getSinkSemantic(tableOptions),
+				parallelism);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -299,7 +302,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 			String topic,
 			Properties properties,
 			FlinkKafkaPartitioner<RowData> partitioner,
-			KafkaSinkSemantic semantic) {
+			KafkaSinkSemantic semantic,
+			Integer parallelism) {
 		return new KafkaDynamicSink(
 				physicalDataType,
 				keyEncodingFormat,
@@ -310,6 +314,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				topic,
 				properties,
 				partitioner,
-				semantic);
+				semantic,
+				parallelism);
 	}
 }
