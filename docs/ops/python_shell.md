@@ -75,8 +75,7 @@ The example below is a simple program in the Python shell:
 ...         .field("c", DataTypes.STRING()))\
 ...     .create_temporary_table("stream_sink")
 >>> t.select("a + 1, b, c")\
-...     .insert_into("stream_sink")
->>> st_env.execute("stream_job")
+...     .execute_insert("stream_sink").wait()
 >>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())
@@ -107,8 +106,7 @@ The example below is a simple program in the Python shell:
 ...         .field("c", DataTypes.STRING()))\
 ...     .create_temporary_table("batch_sink")
 >>> t.select("a + 1, b, c")\
-...     .insert_into("batch_sink")
->>> bt_env.execute("batch_job")
+...     .execute_insert("batch_sink").wait()
 >>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())

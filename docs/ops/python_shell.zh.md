@@ -75,8 +75,7 @@ $ pyflink-shell.sh local
 ...         .field("c", DataTypes.STRING()))\
 ...     .create_temporary_table("stream_sink")
 >>> t.select("a + 1, b, c")\
-...     .insert_into("stream_sink")
->>> st_env.execute("stream_job")
+...     .execute_insert("stream_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())
@@ -107,8 +106,7 @@ $ pyflink-shell.sh local
 ...         .field("c", DataTypes.STRING()))\
 ...     .create_temporary_table("batch_sink")
 >>> t.select("a + 1, b, c")\
-...     .insert_into("batch_sink")
->>> bt_env.execute("batch_job")
+...     .execute_insert("batch_sink").wait()
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())

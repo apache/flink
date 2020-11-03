@@ -110,7 +110,7 @@ table_env.register_table_sink("outputTable",  # table name
                               sink)  # table sink
 
 # emit result Table via a TableSink
-result.insert_into("outputTable")
+result.execute_insert("outputTable").wait()
 
 {% endhighlight %}
 </div>

@@ -143,9 +143,7 @@ t_env.execute_sql(sink_ddl)
 # specify table program
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-orders.group_by(orders.a).select(orders.a, orders.b.count.alias('cnt')).insert_into("Result")
-
-t_env.execute("python_job")
+orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_insert("result").wait()
 
 {% endhighlight %}
 

@@ -75,7 +75,7 @@ t_env.execute_sql(source_ddl)
 t_env.execute_sql(sink_ddl)
 
 t_env.sql_query("SELECT a FROM source_table") \
-    .insert_into("sink_table")
+    .execute_insert("sink_table").wait()
 {% endhighlight %}
 
 Below is a complete example of how to use a Kafka source/sink and the JSON format in PyFlink.
@@ -122,9 +122,7 @@ def log_processing():
     t_env.execute_sql(sink_ddl)
 
     t_env.sql_query("SELECT a FROM source_table") \
-        .insert_into("sink_table")
-
-    t_env.execute("payment_demo")
+        .execute_insert("sink_table").wait()
 
 
 if __name__ == '__main__':
