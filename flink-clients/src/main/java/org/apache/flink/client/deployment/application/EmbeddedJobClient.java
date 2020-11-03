@@ -123,7 +123,7 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 						return jobResult.toJobExecutionResult(userClassloader);
 					} catch (Throwable t) {
 						throw new CompletionException(
-								ApplicationFailureException.fromJobResult(jobResult, classLoader));
+								UnsuccessfulExecutionException.fromJobResult(jobResult, classLoader));
 					}
 				});
 	}

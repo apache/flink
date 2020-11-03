@@ -234,7 +234,7 @@ public class ApplicationDispatcherBootstrapTest {
 				});
 
 		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2);
-		final ApplicationFailureException exception = assertException(applicationFuture, ApplicationFailureException.class);
+		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.FAILED);
 	}
 
@@ -408,7 +408,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Void> applicationFuture =
 				bootstrap.getApplicationCompletionFuture();
-		assertException(applicationFuture, ApplicationFailureException.class);
+		assertException(applicationFuture, UnsuccessfulExecutionException.class);
 
 		assertEquals(clusterShutdown.get(), ApplicationStatus.CANCELED);
 	}
@@ -513,7 +513,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Acknowledge> applicationFuture = bootstrap.getClusterShutdownFuture();
 
-		final ApplicationFailureException exception = assertException(applicationFuture, ApplicationFailureException.class);
+		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
 	}
 
