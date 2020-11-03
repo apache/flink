@@ -46,6 +46,7 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +56,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -76,6 +79,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	// --------------------------------------------------------------------------------------------
 	// Format attributes
 	// --------------------------------------------------------------------------------------------
+
+	private static final String VALUE_METADATA_PREFIX = "value.";
 
 	/** Data type to configure the formats. */
 	protected final DataType physicalDataType;
@@ -184,13 +189,42 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	@Override
 	public Map<String, DataType> listReadableMetadata() {
 		final Map<String, DataType> metadataMap = new LinkedHashMap<>();
-		Stream.of(ReadableMetadata.values()).forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
+
+		// according to convention, the order of the final row must be
+		// PHYSICAL + FORMAT METADATA + CONNECTOR METADATA
+		// where the format metadata has highest precedence
+
+		// add value format metadata with prefix
+		valueDecodingFormat
+			.listReadableMetadata()
+			.forEach((key, value) -> metadataMap.put(VALUE_METADATA_PREFIX + key, value));
+
+		// add connector metadata
+		Stream.of(ReadableMetadata.values())
+			.forEachOrdered(m -> metadataMap.putIfAbsent(m.key, m.dataType));
+
 		return metadataMap;
 	}
 
 	@Override
 	public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
-		this.metadataKeys = metadataKeys;
+		// separate connector and format metadata
+		final List<String> formatMetadataKeys = metadataKeys.stream()
+			.filter(k -> k.startsWith(VALUE_METADATA_PREFIX))
+			.collect(Collectors.toList());
+		final List<String> connectorMetadataKeys = new ArrayList<>(metadataKeys);
+		connectorMetadataKeys.removeAll(formatMetadataKeys);
+
+		// push down format metadata
+		final Map<String, DataType> formatMetadata = valueDecodingFormat.listReadableMetadata();
+		if (formatMetadata.size() > 0) {
+			final List<String> requestedFormatMetadataKeys = formatMetadataKeys.stream()
+				.map(k -> k.substring(VALUE_METADATA_PREFIX.length()))
+				.collect(Collectors.toList());
+			valueDecodingFormat.applyReadableMetadata(requestedFormatMetadataKeys);
+		}
+
+		this.metadataKeys = connectorMetadataKeys;
 		this.producedDataType = producedDataType;
 	}
 
@@ -282,15 +316,24 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				.map(m -> m.converter)
 				.toArray(MetadataConverter[]::new);
 
-		// check if metadata is used at all
+		// check if connector metadata is used at all
 		final boolean hasMetadata = metadataKeys.size() > 0;
 
+		// adjust physical arity with value format's metadata
+		final int adjustedPhysicalArity = producedDataType.getChildren().size() - metadataKeys.size();
+
+		// adjust value format projection to include value format's metadata columns at the end
+		final int[] adjustedValueProjection = IntStream.concat(
+				IntStream.of(valueProjection),
+				IntStream.range(keyProjection.length + valueProjection.length, adjustedPhysicalArity))
+			.toArray();
+
 		final KafkaDeserializationSchema<RowData> kafkaDeserializer = new DynamicKafkaDeserializationSchema(
-				physicalDataType.getChildren().size(),
+				adjustedPhysicalArity,
 				keyDeserialization,
 				keyProjection,
 				valueDeserialization,
-				valueProjection,
+				adjustedValueProjection,
 				hasMetadata,
 				metadataConverters,
 				producedTypeInfo,

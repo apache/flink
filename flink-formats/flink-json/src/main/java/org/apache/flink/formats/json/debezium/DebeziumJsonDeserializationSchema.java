@@ -23,19 +23,23 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowDataDeserializationSchema;
 import org.apache.flink.formats.json.TimestampFormat;
+import org.apache.flink.formats.json.debezium.DebeziumJsonDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
  * Deserialization schema from Debezium JSON to Flink Table/SQL internal data structure {@link RowData}.
@@ -62,11 +66,17 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 		"if you are using Debezium Postgres Connector, " +
 		"please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
 
-	/** The deserializer to deserialize Debezium JSON data. **/
+	/** The deserializer to deserialize Debezium JSON data. */
 	private final JsonRowDataDeserializationSchema jsonDeserializer;
 
-	/** TypeInformation of the produced {@link RowData}. **/
-	private final TypeInformation<RowData> resultTypeInfo;
+	/** Flag that indicates that an additional projection is required for metadata. */
+	private final boolean hasMetadata;
+
+	/** Metadata to be extracted for every record. */
+	private final MetadataConverter[] metadataConverters;
+
+	/** {@link TypeInformation} of the produced {@link RowData} (physical + meta data). */
+	private final TypeInformation<RowData> producedTypeInfo;
 
 	/**
 	 * Flag indicating whether the Debezium JSON data contains schema part or not.
@@ -80,25 +90,29 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 	private final boolean ignoreParseErrors;
 
 	public DebeziumJsonDeserializationSchema(
-			RowType rowType,
-			TypeInformation<RowData> resultTypeInfo,
+			DataType physicalDataType,
+			List<ReadableMetadata> requestedMetadata,
+			TypeInformation<RowData> producedTypeInfo,
 			boolean schemaInclude,
 			boolean ignoreParseErrors,
-			TimestampFormat timestampFormatOption) {
-		this.resultTypeInfo = resultTypeInfo;
-		this.schemaInclude = schemaInclude;
-		this.ignoreParseErrors = ignoreParseErrors;
+			TimestampFormat timestampFormat) {
+		final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata, schemaInclude);
 		this.jsonDeserializer = new JsonRowDataDeserializationSchema(
-			createJsonRowType(fromLogicalToDataType(rowType), schemaInclude),
-			// the result type is never used, so it's fine to pass in Debezium's result type
-			resultTypeInfo,
+			jsonRowType,
+			// the result type is never used, so it's fine to pass in the produced type info
+			producedTypeInfo,
 			false, // ignoreParseErrors already contains the functionality of failOnMissingField
 			ignoreParseErrors,
-			timestampFormatOption);
+			timestampFormat);
+		this.hasMetadata = requestedMetadata.size() > 0;
+		this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata, schemaInclude);
+		this.producedTypeInfo = producedTypeInfo;
+		this.schemaInclude = schemaInclude;
+		this.ignoreParseErrors = ignoreParseErrors;
 	}
 
 	@Override
-	public RowData deserialize(byte[] message) throws IOException {
+	public RowData deserialize(byte[] message) {
 		throw new RuntimeException(
 			"Please invoke DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
 	}
@@ -123,21 +137,21 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			String op = payload.getField(2).toString();
 			if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
 				after.setRowKind(RowKind.INSERT);
-				out.collect(after);
+				emitRow(row, after, out);
 			} else if (OP_UPDATE.equals(op)) {
 				if (before == null) {
 					throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
 				}
 				before.setRowKind(RowKind.UPDATE_BEFORE);
 				after.setRowKind(RowKind.UPDATE_AFTER);
-				out.collect(before);
-				out.collect(after);
+				emitRow(row, before, out);
+				emitRow(row, after, out);
 			} else if (OP_DELETE.equals(op)) {
 				if (before == null) {
 					throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "DELETE"));
 				}
 				before.setRowKind(RowKind.DELETE);
-				out.collect(before);
+				emitRow(row, before, out);
 			} else {
 				if (!ignoreParseErrors) {
 					throw new IOException(format(
@@ -153,6 +167,31 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 		}
 	}
 
+	private void emitRow(GenericRowData rootRow, GenericRowData physicalRow, Collector<RowData> out) {
+		// shortcut in case no output projection is required
+		if (!hasMetadata) {
+			out.collect(physicalRow);
+			return;
+		}
+
+		final int physicalArity = physicalRow.getArity();
+		final int metadataArity = metadataConverters.length;
+
+		final GenericRowData producedRow = new GenericRowData(
+					physicalRow.getRowKind(),
+					physicalArity + metadataArity);
+
+		for (int physicalPos = 0; physicalPos < physicalArity; physicalPos++) {
+			producedRow.setField(physicalPos, physicalRow.getField(physicalPos));
+		}
+
+		for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
+			producedRow.setField(physicalArity + metadataPos, metadataConverters[metadataPos].convert(rootRow));
+		}
+
+		out.collect(producedRow);
+	}
+
 	@Override
 	public boolean isEndOfStream(RowData nextElement) {
 		return false;
@@ -160,7 +199,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 
 	@Override
 	public TypeInformation<RowData> getProducedType() {
-		return resultTypeInfo;
+		return producedTypeInfo;
 	}
 
 	@Override
@@ -172,32 +211,113 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			return false;
 		}
 		DebeziumJsonDeserializationSchema that = (DebeziumJsonDeserializationSchema) o;
-		return schemaInclude == that.schemaInclude &&
-			ignoreParseErrors == that.ignoreParseErrors &&
-			Objects.equals(jsonDeserializer, that.jsonDeserializer) &&
-			Objects.equals(resultTypeInfo, that.resultTypeInfo);
+		return Objects.equals(jsonDeserializer, that.jsonDeserializer)
+				&& hasMetadata == that.hasMetadata
+				&& Objects.equals(producedTypeInfo, that.producedTypeInfo)
+				&& schemaInclude == that.schemaInclude
+				&& ignoreParseErrors == that.ignoreParseErrors;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(jsonDeserializer, resultTypeInfo, schemaInclude, ignoreParseErrors);
+		return Objects.hash(
+				jsonDeserializer,
+				hasMetadata,
+				producedTypeInfo,
+				schemaInclude,
+				ignoreParseErrors);
 	}
 
-	private static RowType createJsonRowType(DataType databaseSchema, boolean schemaInclude) {
+	// --------------------------------------------------------------------------------------------
+
+	private static RowType createJsonRowType(
+			DataType physicalDataType,
+			List<ReadableMetadata> readableMetadata,
+			boolean schemaInclude) {
 		DataType payload = DataTypes.ROW(
-			DataTypes.FIELD("before", databaseSchema),
-			DataTypes.FIELD("after", databaseSchema),
+			DataTypes.FIELD("before", physicalDataType),
+			DataTypes.FIELD("after", physicalDataType),
 			DataTypes.FIELD("op", DataTypes.STRING()));
+
+		// append fields that are required for reading metadata in the payload
+		final List<DataTypes.Field> payloadMetadataFields = readableMetadata.stream()
+				.filter(m -> m.isJsonPayload)
+				.map(m -> m.requiredJsonField)
+				.distinct()
+				.collect(Collectors.toList());
+		payload = DataTypeUtils.appendRowFields(payload, payloadMetadataFields);
+
+		DataType root = payload;
 		if (schemaInclude) {
 			// when Debezium Kafka connect enables "value.converter.schemas.enable",
-			// the JSON will contain "schema" information, but we just ignore "schema"
-			// and extract data from "payload".
-			return (RowType) DataTypes.ROW(
-				DataTypes.FIELD("payload", payload)).getLogicalType();
-		} else {
-			// payload contains some other information, e.g. "source", "ts_ms"
-			// but we don't need them.
-			return (RowType) payload.getLogicalType();
+			// the JSON will contain "schema" information and we need to extract data from "payload".
+			root = DataTypes.ROW(DataTypes.FIELD("payload", payload));
 		}
+
+		// append fields that are required for reading metadata in the root
+		final List<DataTypes.Field> rootMetadataFields = readableMetadata.stream()
+				.filter(m -> !m.isJsonPayload)
+				.map(m -> m.requiredJsonField)
+				.distinct()
+				.collect(Collectors.toList());
+		root = DataTypeUtils.appendRowFields(root, rootMetadataFields);
+
+		return (RowType) root.getLogicalType();
+	}
+
+	private static MetadataConverter[] createMetadataConverters(
+			RowType jsonRowType,
+			List<ReadableMetadata> requestedMetadata,
+			boolean schemaInclude) {
+		return requestedMetadata.stream()
+				.map(m -> {
+					if (m.isJsonPayload) {
+						return convertInPayload(jsonRowType, m, schemaInclude);
+					} else {
+						return convertInRoot(jsonRowType, m);
+					}
+				})
+				.toArray(MetadataConverter[]::new);
+	}
+
+	private static MetadataConverter convertInRoot(
+			RowType jsonRowType,
+			ReadableMetadata metadata) {
+		final int pos = findFieldPos(metadata, jsonRowType);
+		return (root, unused) -> metadata.converter.convert(root, pos);
+	}
+
+	private static MetadataConverter convertInPayload(
+			RowType jsonRowType,
+			ReadableMetadata metadata,
+			boolean schemaInclude) {
+		if (schemaInclude) {
+			final int pos = findFieldPos(metadata, (RowType) jsonRowType.getChildren().get(0));
+			return (root, unused) -> {
+				final GenericRowData payload = (GenericRowData) root.getField(0);
+				return metadata.converter.convert(payload, pos);
+			};
+		}
+		return convertInRoot(jsonRowType, metadata);
+	}
+
+	private static int findFieldPos(ReadableMetadata metadata, RowType jsonRowType) {
+		return jsonRowType.getFieldNames().indexOf(metadata.requiredJsonField.getName());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Converter that extracts a metadata field from the row (root or payload) that comes out of the
+	 * JSON schema and converts it to the desired data type.
+	 */
+	interface MetadataConverter extends Serializable {
+
+		// Method for top-level access.
+		default Object convert(GenericRowData row) {
+			return convert(row, -1);
+		}
+
+		Object convert(GenericRowData row, int pos);
 	}
 }

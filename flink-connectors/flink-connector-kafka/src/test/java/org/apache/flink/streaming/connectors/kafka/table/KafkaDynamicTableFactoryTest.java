@@ -30,11 +30,13 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -94,6 +96,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 	private static final String NAME = "name";
 	private static final String COUNT = "count";
 	private static final String TIME = "time";
+	private static final String METADATA = "metadata";
 	private static final String WATERMARK_EXPRESSION = TIME + " - INTERVAL '5' SECOND";
 	private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
 	private static final String COMPUTED_COLUMN_NAME = "computed-column";
@@ -128,11 +131,18 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 					PARTITION_0, OFFSET_0, PARTITION_1, OFFSET_1);
 
 	private static final TableSchema SCHEMA = TableSchema.builder()
-			.field(NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(38, 18))
-			.field(TIME, DataTypes.TIMESTAMP(3))
-			.field(COMPUTED_COLUMN_NAME, COMPUTED_COLUMN_DATATYPE, COMPUTED_COLUMN_EXPRESSION)
+			.add(TableColumn.physical(NAME, DataTypes.STRING()))
+			.add(TableColumn.physical(COUNT, DataTypes.DECIMAL(38, 18)))
+			.add(TableColumn.physical(TIME, DataTypes.TIMESTAMP(3)))
+			.add(TableColumn.computed(COMPUTED_COLUMN_NAME, COMPUTED_COLUMN_DATATYPE, COMPUTED_COLUMN_EXPRESSION))
 			.watermark(TIME, WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
+			.build();
+
+	private static final TableSchema SCHEMA_WITH_METADATA = TableSchema.builder()
+			.add(TableColumn.physical(NAME, DataTypes.STRING()))
+			.add(TableColumn.physical(COUNT, DataTypes.DECIMAL(38, 18)))
+			.add(TableColumn.metadata(TIME, DataTypes.TIMESTAMP(3), "timestamp"))
+			.add(TableColumn.metadata(METADATA, DataTypes.STRING(), "value.metadata_2"))
 			.build();
 
 	private static final DataType SCHEMA_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
@@ -273,6 +283,60 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 	}
 
 	@Test
+	public void testTableSourceWithKeyValueAndMetadata() {
+		final Map<String, String> options = getKeyValueOptions();
+		options.put("value.test-format.readable-metadata", "metadata_1:INT, metadata_2:STRING");
+
+		final DynamicTableSource actualSource = createTableSource(SCHEMA_WITH_METADATA, options);
+		final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
+		// initialize stateful testing formats
+		actualKafkaSource.applyReadableMetadata(Arrays.asList("timestamp", "value.metadata_2"), SCHEMA_WITH_METADATA.toRowDataType());
+		actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+
+		final DecodingFormatMock expectedKeyFormat = new DecodingFormatMock(
+			"#",
+			false,
+			ChangelogMode.insertOnly(),
+			Collections.emptyMap());
+		expectedKeyFormat.producedDataType = DataTypes.ROW(
+				DataTypes.FIELD(NAME, DataTypes.STRING()))
+			.notNull();
+
+		final Map<String, DataType> expectedReadableMetadata = new HashMap<>();
+		expectedReadableMetadata.put("metadata_1", DataTypes.INT());
+		expectedReadableMetadata.put("metadata_2", DataTypes.STRING());
+
+		final DecodingFormatMock expectedValueFormat = new DecodingFormatMock(
+			"|",
+			false,
+			ChangelogMode.insertOnly(),
+			expectedReadableMetadata);
+		expectedValueFormat.producedDataType = DataTypes.ROW(
+				DataTypes.FIELD(COUNT, DataTypes.DECIMAL(38, 18)),
+				DataTypes.FIELD("metadata_2", DataTypes.STRING()))
+			.notNull();
+		expectedValueFormat.metadataKeys = Collections.singletonList("metadata_2");
+
+		final KafkaDynamicSource expectedKafkaSource = createExpectedScanSource(
+				SCHEMA_WITH_METADATA.toPhysicalRowDataType(),
+				expectedKeyFormat,
+				expectedValueFormat,
+				new int[]{0},
+				new int[]{1},
+				null,
+				Collections.singletonList(TOPIC),
+				null,
+				KAFKA_FINAL_SOURCE_PROPERTIES,
+				StartupMode.GROUP_OFFSETS,
+				Collections.emptyMap(),
+				0);
+		expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toRowDataType();
+		expectedKafkaSource.metadataKeys = Collections.singletonList("timestamp");
+
+		assertEquals(actualSource, expectedKafkaSource);
+	}
+
+	@Test
 	public void testTableSink() {
 		final DynamicTableSink actualSink = createTableSink(SCHEMA, getBasicSinkOptions());
 
@@ -368,6 +432,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
 		assertThat(provider, instanceOf(SinkFunctionProvider.class));
 		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+		assertTrue(sinkFunctionProvider.getParallelism().isPresent());
 		assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
 	}
 
@@ -498,11 +563,13 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
 		Map<String, String> options1 = getModifiedOptions(
 			getBasicSourceOptions(),
-			options -> {
+			options ->
 				options.put(
-					String.format("%s.%s", TestFormatFactory.IDENTIFIER, TestFormatFactory.CHANGELOG_MODE.key()),
-					"I;UA;UB;D");
-			});
+					String.format(
+						"%s.%s",
+						TestFormatFactory.IDENTIFIER,
+						TestFormatFactory.CHANGELOG_MODE.key()),
+					"I;UA;UB;D"));
 		// pk can be defined on cdc table, should pass
 		createTableSink(pkSchema, options1);
 		createTableSink(pkSchema, options1);
