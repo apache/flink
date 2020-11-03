@@ -80,13 +80,13 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class FileSinkITCase {
 
-	private static final  int NUMBER_OF_SOURCE = 4;
+	private static final  int NUM_SOURCES = 4;
 
-	private static final int NUMBER_OF_SINK = 3;
+	private static final int NUM_SINKS = 3;
 
-	private static final int NUMBER_RECORD = 10000;
+	private static final int NUM_RECORDS = 10000;
 
-	private static final int NUMBER_BUCKET = 4;
+	private static final int NUM_BUCKETS = 4;
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -99,7 +99,7 @@ public class FileSinkITCase {
 
 	@Parameterized.Parameters(name = "executionMode = {0}, triggerFailover = {1}")
 	public static Collection<Object[]> params() {
-		return Arrays.<Object[]>asList(
+		return Arrays.asList(
 				new Object[]{RuntimeExecutionMode.STREAMING, true},
 				new Object[]{RuntimeExecutionMode.BATCH, false},
 				new Object[]{RuntimeExecutionMode.STREAMING, true},
@@ -110,7 +110,7 @@ public class FileSinkITCase {
 	public void testFileSink() throws Exception {
 		String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 		String sourceLatchId = UUID.randomUUID().toString();
-		TestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(NUMBER_OF_SOURCE));
+		BlockingTestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(NUM_SOURCES));
 
 		JobGraph jobGraph = createJobGraph(path, sourceLatchId);
 
@@ -126,7 +126,7 @@ public class FileSinkITCase {
 			miniCluster.start();
 			miniCluster.executeJobBlocking(jobGraph);
 		} finally {
-			TestSource.LATCH_MAP.remove(sourceLatchId);
+			BlockingTestSource.LATCH_MAP.remove(sourceLatchId);
 		}
 
 		checkResult(path);
@@ -149,9 +149,9 @@ public class FileSinkITCase {
 		}
 
 		// Create a testing job with a bounded legacy source in a bit hacky way.
-		StreamSource<Integer, ?> sourceOperator = new StreamSource<>(new TestSource(
+		StreamSource<Integer, ?> sourceOperator = new StreamSource<>(new BlockingTestSource(
 				sourceLatchId,
-				NUMBER_RECORD,
+				NUM_RECORDS,
 				triggerFailover,
 				executionMode));
 		DataStreamSource<Integer> source = new DataStreamSource<>(
@@ -163,15 +163,15 @@ public class FileSinkITCase {
 				Boundedness.BOUNDED);
 		FileSink<Integer> fileSink = FileSink
 				.forRowFormat(new Path(path), new IntEncoder())
-				.withBucketAssigner(new ModuleBucketAssigner())
+				.withBucketAssigner(new ModuloBucketAssigner())
 				.withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
 				.build();
-		source.setParallelism(NUMBER_OF_SOURCE)
+		source.setParallelism(NUM_SOURCES)
 				.rebalance()
-				.map(new FailoverMap(NUMBER_RECORD, triggerFailover))
-				.setParallelism(NUMBER_OF_SINK)
+				.map(new OnceFailingMap(NUM_RECORDS, triggerFailover))
+				.setParallelism(NUM_SINKS)
 				.sinkTo(fileSink)
-				.setParallelism(NUMBER_OF_SINK);
+				.setParallelism(NUM_SINKS);
 
 		StreamGraph streamGraph = env.getStreamGraph();
 		return streamGraph.getJobGraph();
@@ -183,8 +183,8 @@ public class FileSinkITCase {
 		assertNotNull(subDirNames);
 
 		Arrays.sort(subDirNames, Comparator.comparingInt(Integer::parseInt));
-		assertEquals(NUMBER_BUCKET, subDirNames.length);
-		for (int i = 0; i < NUMBER_BUCKET; ++i) {
+		assertEquals(NUM_BUCKETS, subDirNames.length);
+		for (int i = 0; i < NUM_BUCKETS; ++i) {
 			assertEquals(Integer.toString(i), subDirNames[i]);
 
 			// now check its content
@@ -210,15 +210,15 @@ public class FileSinkITCase {
 				}
 			}
 
-			int expectedCount = NUMBER_RECORD / NUMBER_BUCKET +
-					(i < NUMBER_RECORD % NUMBER_BUCKET ? 1 : 0);
+			int expectedCount = NUM_RECORDS / NUM_BUCKETS +
+					(i < NUM_RECORDS % NUM_BUCKETS ? 1 : 0);
 			assertEquals(expectedCount, counts.size());
 
-			for (int j = i; j < NUMBER_RECORD; j += NUMBER_BUCKET) {
+			for (int j = i; j < NUM_RECORDS; j += NUM_BUCKETS) {
 				assertEquals(
-						"The record " + j + " should occur " + NUMBER_OF_SOURCE + " times, " +
+						"The record " + j + " should occur " + NUM_SOURCES + " times, " +
 								" but only occurs " + counts.getOrDefault(j, 0) + "time",
-						NUMBER_OF_SOURCE,
+						NUM_SOURCES,
 						counts.getOrDefault(j, 0).intValue());
 			}
 		}
@@ -233,11 +233,11 @@ public class FileSinkITCase {
 		}
 	}
 
-	private static class ModuleBucketAssigner implements BucketAssigner<Integer, String> {
+	private static class ModuloBucketAssigner implements BucketAssigner<Integer, String> {
 
 		@Override
 		public String getBucketId(Integer element, Context context) {
-			return Integer.toString(element % NUMBER_BUCKET);
+			return Integer.toString(element % NUM_BUCKETS);
 		}
 
 		@Override
@@ -265,12 +265,17 @@ public class FileSinkITCase {
 		@Override
 		public boolean shouldRollOnProcessingTime(
 				PartFileInfo<String> partFileState,
-				long currentTime) throws IOException {
+				long currentTime) {
 			return false;
 		}
 	}
 
-	private static class TestSource extends RichParallelSourceFunction<Integer>
+	/**
+	 * A testing source that blocks until we see at least once successful checkpoint. We need this
+	 * to ensure that our sink (which is also in the pipeline) has the chance to commit the output
+	 * data.
+	 */
+	private static class BlockingTestSource extends RichParallelSourceFunction<Integer>
 			implements CheckpointListener, CheckpointedFunction {
 
 		private static final Map<String, CountDownLatch> LATCH_MAP = new ConcurrentHashMap<>();
@@ -279,7 +284,11 @@ public class FileSinkITCase {
 
 		private final int numberOfRecords;
 
-		private final boolean triggerFailover;
+		/**
+		 * Whether the test is executing in a scenario that induces a failover. This doesn't mean
+		 * that this source induces the failover.
+		 */
+		private final boolean isFailoverScenario;
 
 		private final RuntimeExecutionMode mode;
 
@@ -289,14 +298,14 @@ public class FileSinkITCase {
 
 		private volatile boolean isWaitingCheckpointComplete;
 
-		public TestSource(
+		public BlockingTestSource(
 				String latchId,
 				int numberOfRecords,
-				boolean triggerFailover,
+				boolean isFailoverScenario,
 				RuntimeExecutionMode mode) {
 			this.latchId = latchId;
 			this.numberOfRecords = numberOfRecords;
-			this.triggerFailover = triggerFailover;
+			this.isFailoverScenario = isFailoverScenario;
 			this.mode = mode;
 		}
 
@@ -306,8 +315,15 @@ public class FileSinkITCase {
 				ctx.collect(i);
 			}
 
+			// We have two cases here:
+			//
+			// 1. We're not in a failover-testing scenario. Need to wait for one successful
+			// checkpoint to allow the sink to commit its data
+			//
+			// 2. We are in a failover-testing scenario. We don't block on the first attempt but
+			// block after that to allow the sink to commit.
 			if (mode.equals(RuntimeExecutionMode.STREAMING) &&
-					(!triggerFailover || getRuntimeContext().getAttemptNumber() == 1)) {
+					(!isFailoverScenario || getRuntimeContext().getAttemptNumber() == 1)) {
 				isWaitingCheckpointComplete = true;
 				CountDownLatch latch = LATCH_MAP.get(latchId);
 				latch.await();
@@ -335,18 +351,22 @@ public class FileSinkITCase {
 		}
 
 		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
+		public void initializeState(FunctionInitializationContext context) {
 
 		}
 	}
 
-	private static class FailoverMap extends RichMapFunction<Integer, Integer> {
+	/**
+	 * A {@link RichMapFunction} that throws an exception to fail the job iff {@code
+	 * triggerFailover} is {@code true} and when it is subtask 0 and we're in execution attempt 0.
+	 */
+	private static class OnceFailingMap extends RichMapFunction<Integer, Integer> {
 
 		private final int maxNumber;
 
 		private final boolean triggerFailover;
 
-		public FailoverMap(int maxNumber, boolean triggerFailover) {
+		public OnceFailingMap(int maxNumber, boolean triggerFailover) {
 			this.maxNumber = maxNumber;
 			this.triggerFailover = triggerFailover;
 		}
