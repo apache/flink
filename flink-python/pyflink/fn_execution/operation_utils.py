@@ -242,8 +242,6 @@ def load_aggregate_function(payload):
         return pickle.loads(payload)
 
 
-def extract_user_defined_stateful_function(user_defined_function_proto, ctx, collector,
-                                           keyed_state_backend):
 def extract_user_defined_stateful_function(user_defined_function_proto, ctx, on_timer_ctx,
                                            collector, keyed_state_backend):
     proc_func = pickle.loads(user_defined_function_proto.payload)
@@ -290,4 +288,4 @@ def extract_user_defined_stateful_function(user_defined_function_proto, ctx, on_
             else:
                 yield Row(a[0], a[1], a[2], None)
         collector.clear()
-    return wrapped_func, [proc_func]
+    return wrapped_func, proc_func

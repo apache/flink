@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
+import org.apache.flink.streaming.api.operators.python.PythonProcessFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.StatelessOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.StatelessTwoInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
@@ -156,7 +157,8 @@ public class PythonConfigUtil {
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
 				if ((streamOperator instanceof StatelessOneInputPythonFunctionOperator) ||
-					(streamOperator instanceof StatelessTwoInputPythonFunctionOperator)) {
+					(streamOperator instanceof StatelessTwoInputPythonFunctionOperator) ||
+					(streamOperator instanceof PythonProcessFunctionOperator)) {
 					AbstractPythonFunctionOperator abstractPythonFunctionOperator =
 						(AbstractPythonFunctionOperator) streamOperator;
 

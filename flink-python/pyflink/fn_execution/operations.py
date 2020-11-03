@@ -363,7 +363,7 @@ class DataStreamStatefulFunctionOperation(StatefulFunctionOperation):
         func, proc_func = operation_utils.extract_user_defined_stateful_function(
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
             self.keyed_state_backend)
-        return func, proc_func
+        return func, [proc_func]
 
     class InternalCollector(Collector):
         """
