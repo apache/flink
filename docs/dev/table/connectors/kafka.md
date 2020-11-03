@@ -184,6 +184,18 @@ Connector Options
       <td>String</td>
       <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
     </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism for the Kafka sink.If not specified,the parallelism are
+      <ul>
+        <li><code>Chained</code>: Use upstream parallelism.</li>
+        <li><code>Non-Chained</code>: Use global parallelism setting</li>
+      </ul>
+      </td>
+    </tr>
     </tbody>
 </table>
 
