@@ -30,7 +30,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 
 @Internal
-public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
+public class StreamGroupedReduceOperator<IN>
+		extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
 		implements OneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
@@ -39,9 +40,9 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 
 	private transient ValueState<IN> values;
 
-	private TypeSerializer<IN> serializer;
+	private final TypeSerializer<IN> serializer;
 
-	public StreamGroupedReduce(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
+	public StreamGroupedReduceOperator(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
 		super(reducer);
 		this.serializer = serializer;
 	}

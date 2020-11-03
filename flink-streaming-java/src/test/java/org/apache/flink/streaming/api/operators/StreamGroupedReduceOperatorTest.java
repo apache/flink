@@ -36,7 +36,7 @@ import org.junit.Test;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Tests for {@link StreamGroupedReduce}. These test that:
+ * Tests for {@link StreamGroupedReduceOperator}. These test that:
  *
  * <ul>
  *     <li>RichFunction methods are called correctly</li>
@@ -45,14 +45,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * </ul>
  */
 
-public class StreamGroupedReduceTest {
+public class StreamGroupedReduceOperatorTest {
 
 	@Test
 	public void testGroupedReduce() throws Exception {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
-		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), IntSerializer.INSTANCE);
+		StreamGroupedReduceOperator<Integer> operator = new StreamGroupedReduceOperator<>(new MyReducer(), IntSerializer.INSTANCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
@@ -84,8 +84,8 @@ public class StreamGroupedReduceTest {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
-		StreamGroupedReduce<Integer> operator =
-				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
+		StreamGroupedReduceOperator<Integer> operator =
+				new StreamGroupedReduceOperator<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
 

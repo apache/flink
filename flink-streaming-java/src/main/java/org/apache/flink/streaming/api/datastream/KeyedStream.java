@@ -48,7 +48,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -734,7 +734,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<>(
+		return transform("Keyed Reduce", getType(), new StreamGroupedReduceOperator<>(
 				clean(reducer), getType().createSerializer(getExecutionConfig())));
 	}
 
@@ -1011,7 +1011,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<>(
+		StreamGroupedReduceOperator<T> operator = new StreamGroupedReduceOperator<>(
 				clean(aggregate), getType().createSerializer(getExecutionConfig()));
 		return transform("Keyed Aggregation", getType(), operator);
 	}
