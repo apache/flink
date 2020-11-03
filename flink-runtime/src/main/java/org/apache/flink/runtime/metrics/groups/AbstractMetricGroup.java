@@ -116,7 +116,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	@Override
 	public Map<String, String> getAllVariables() {
-		return internalGetAllVariables(-1, Collections.emptySet());
+		return internalGetAllVariables(0, Collections.emptySet());
 	}
 
 	public Map<String, String> getAllVariables(int reporterIndex, Set<String> excludedVariables) {
