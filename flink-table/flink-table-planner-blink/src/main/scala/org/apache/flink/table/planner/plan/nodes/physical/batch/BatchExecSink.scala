@@ -83,12 +83,13 @@ class BatchExecSink(
     }
 
     // tell sink the ChangelogMode of input, batch only supports INSERT only.
-    tableSink.getChangelogMode(ChangelogMode.insertOnly())
+    val changelogMode = tableSink.getChangelogMode(ChangelogMode.insertOnly())
     createSinkTransformation(
       planner.getExecEnv,
       inputTransformation,
       planner.getTableConfig,
       -1 /* not rowtime field */,
-      isBounded = true)
+      isBounded = true,
+      changelogMode = changelogMode)
   }
 }

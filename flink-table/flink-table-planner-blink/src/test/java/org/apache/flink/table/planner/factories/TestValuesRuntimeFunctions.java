@@ -26,7 +26,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
@@ -44,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -100,6 +105,28 @@ final class TestValuesRuntimeFunctions {
 			globalRawResult.clear();
 			globalUpsertResult.clear();
 			globalRetractResult.clear();
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Specialized test provider implementations
+	// ------------------------------------------------------------------------------------------
+	static class InternalDataStreamSinkProviderWithParallelism implements DataStreamSinkProvider, ParallelismProvider {
+
+		private final Integer parallelism;
+
+		public InternalDataStreamSinkProviderWithParallelism(Integer parallelism) {
+			this.parallelism = parallelism;
+		}
+
+		@Override
+		public DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
+			throw new UnsupportedOperationException("should not be called");
+		}
+
+		@Override
+		public Optional<Integer> getParallelism() {
+			return Optional.ofNullable(parallelism);
 		}
 	}
 

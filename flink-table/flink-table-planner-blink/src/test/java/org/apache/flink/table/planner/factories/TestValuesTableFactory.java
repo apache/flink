@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
@@ -288,6 +289,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.defaultValues();
 
+	private static final ConfigOption<String> SINK_CHANGELOG_MODE_ENFORCED = ConfigOptions
+		.key("sink-changelog-mode-enforced")
+		.stringType()
+		.noDefaultValue();
+
+	private static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -386,9 +394,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
+		Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
+		final ChangelogMode changelogMode = Optional.ofNullable(helper.getOptions()
+			.get(SINK_CHANGELOG_MODE_ENFORCED)).map(m -> parseChangelogMode(m)).orElse(null);
 
 		final DataType consumedType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
@@ -402,7 +413,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isInsertOnly,
 				runtimeSink,
 				expectedNum,
-				writableMetadata);
+				writableMetadata,
+				parallelism,
+				changelogMode);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -440,6 +453,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			FILTERABLE_FIELDS,
 			PARTITION_LIST,
 			READABLE_METADATA,
+			SINK_PARALLELISM,
+			SINK_CHANGELOG_MODE_ENFORCED,
 			WRITABLE_METADATA));
 	}
 
@@ -933,6 +948,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final String runtimeSink;
 		private final int expectedNum;
 		private final Map<String, DataType> writableMetadata;
+		private final Integer parallelism;
+		private final ChangelogMode changelogModeEnforced;
 
 		private TestValuesTableSink(
 				DataType consumedDataType,
@@ -941,7 +958,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				boolean isInsertOnly,
 				String runtimeSink,
 				int expectedNum,
-				Map<String, DataType> writableMetadata) {
+				Map<String, DataType> writableMetadata,
+				@Nullable Integer parallelism,
+				@Nullable ChangelogMode changelogModeEnforced) {
 			this.consumedDataType = consumedDataType;
 			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
@@ -949,10 +968,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.runtimeSink = runtimeSink;
 			this.expectedNum = expectedNum;
 			this.writableMetadata = writableMetadata;
+			this.parallelism = parallelism;
+			this.changelogModeEnforced = changelogModeEnforced;
 		}
 
 		@Override
 		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+			// if param [changelogModeEnforced] is passed in, return it directly
+			if (changelogModeEnforced != null) {
+				return changelogModeEnforced;
+			}
 			if (isInsertOnly) {
 				return ChangelogMode.insertOnly();
 			} else {
@@ -975,23 +1000,48 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
 			DataStructureConverter converter = context.createDataStructureConverter(consumedDataType);
+			final Optional<Integer> parallelismOption = Optional.ofNullable(this.parallelism);
+			final Boolean isEnforcedInsertOnly = Optional.ofNullable(changelogModeEnforced)
+				.map(changelogMode -> changelogMode.equals(ChangelogMode.insertOnly()))
+				.orElse(false);
+			final Boolean isInsertOnly = isEnforcedInsertOnly || this.isInsertOnly;
 			if (isInsertOnly) {
 				checkArgument(expectedNum == -1,
 					"Appending Sink doesn't support '" + SINK_EXPECTED_MESSAGES_NUM.key() + "' yet.");
 				switch (runtimeSink) {
 					case "SinkFunction":
-						return SinkFunctionProvider.of(
-								new AppendingSinkFunction(
+						return new SinkFunctionProvider() {
+								@Override
+								public Optional<Integer> getParallelism() {
+									return parallelismOption;
+								}
+
+								@Override
+								public SinkFunction<RowData> createSinkFunction() {
+									return new AppendingSinkFunction(
 										tableName,
-										converter));
+										converter);
+								}
+							};
 					case "OutputFormat":
-						return OutputFormatProvider.of(
-								new AppendingOutputFormat(
+						return new OutputFormatProvider() {
+								@Override
+								public OutputFormat<RowData> createOutputFormat() {
+									return new AppendingOutputFormat(
 										tableName,
-										converter));
+										converter);
+								}
+
+								@Override
+								public Optional<Integer> getParallelism() {
+									return parallelismOption;
+								}
+							};
 					case "DataStream":
 						return (DataStreamSinkProvider) dataStream ->
 								dataStream.addSink(new AppendingSinkFunction(tableName, converter));
+					case "DataStreamWithParallelism":
+						return new TestValuesRuntimeFunctions.InternalDataStreamSinkProviderWithParallelism(1);
 					default:
 						throw new IllegalArgumentException("Unsupported runtime sink class: " + runtimeSink);
 				}
@@ -1025,7 +1075,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				isInsertOnly,
 				runtimeSink,
 				expectedNum,
-				writableMetadata);
+				writableMetadata,
+				parallelism,
+				changelogModeEnforced);
 		}
 
 		@Override
