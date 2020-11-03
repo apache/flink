@@ -51,17 +51,17 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link BucketAssigner} is queried to see in which bucket this element should be written to.
  */
 @Internal
-class FileWriterBucket<IN, BucketID> {
+class FileWriterBucket<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriterBucket.class);
 
-	private final BucketID bucketId;
+	private final String bucketId;
 
 	private final Path bucketPath;
 
-	private final BucketWriter<IN, BucketID> bucketWriter;
+	private final BucketWriter<IN, String> bucketWriter;
 
-	private final RollingPolicy<IN, BucketID> rollingPolicy;
+	private final RollingPolicy<IN, String> rollingPolicy;
 
 	private final OutputFileConfig outputFileConfig;
 
@@ -75,16 +75,16 @@ class FileWriterBucket<IN, BucketID> {
 	private InProgressFileRecoverable inProgressFileToCleanup;
 
 	@Nullable
-	private InProgressFileWriter<IN, BucketID> inProgressPart;
+	private InProgressFileWriter<IN, String> inProgressPart;
 
 	/**
 	 * Constructor to create a new empty bucket.
 	 */
 	private FileWriterBucket(
-			BucketID bucketId,
+			String bucketId,
 			Path bucketPath,
-			BucketWriter<IN, BucketID> bucketWriter,
-			RollingPolicy<IN, BucketID> rollingPolicy,
+			BucketWriter<IN, String> bucketWriter,
+			RollingPolicy<IN, String> rollingPolicy,
 			OutputFileConfig outputFileConfig) {
 		this.bucketId = checkNotNull(bucketId);
 		this.bucketPath = checkNotNull(bucketPath);
@@ -100,9 +100,9 @@ class FileWriterBucket<IN, BucketID> {
 	 * Constructor to restore a bucket from checkpointed state.
 	 */
 	private FileWriterBucket(
-			BucketWriter<IN, BucketID> partFileFactory,
-			RollingPolicy<IN, BucketID> rollingPolicy,
-			FileWriterBucketState<BucketID> bucketState,
+			BucketWriter<IN, String> partFileFactory,
+			RollingPolicy<IN, String> rollingPolicy,
+			FileWriterBucketState bucketState,
 			OutputFileConfig outputFileConfig) throws IOException {
 
 		this(
@@ -115,7 +115,7 @@ class FileWriterBucket<IN, BucketID> {
 		restoreInProgressFile(bucketState);
 	}
 
-	private void restoreInProgressFile(FileWriterBucketState<BucketID> state) throws IOException {
+	private void restoreInProgressFile(FileWriterBucketState state) throws IOException {
 		if (!state.hasInProgressFileRecoverable()) {
 			return;
 		}
@@ -132,7 +132,7 @@ class FileWriterBucket<IN, BucketID> {
 		}
 	}
 
-	public BucketID getBucketId() {
+	public String getBucketId() {
 		return bucketId;
 	}
 
@@ -148,7 +148,7 @@ class FileWriterBucket<IN, BucketID> {
 		return inProgressPart != null || inProgressFileToCleanup != null || pendingFiles.size() > 0;
 	}
 
-	void merge(final FileWriterBucket<IN, BucketID> bucket) throws IOException {
+	void merge(final FileWriterBucket<IN> bucket) throws IOException {
 		checkNotNull(bucket);
 		checkState(Objects.equals(bucket.bucketPath, bucketPath));
 
@@ -198,7 +198,7 @@ class FileWriterBucket<IN, BucketID> {
 		return committables;
 	}
 
-	FileWriterBucketState<BucketID> snapshotState() throws IOException {
+	FileWriterBucketState snapshotState() throws IOException {
 		InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable = null;
 		long inProgressFileCreationTime = Long.MAX_VALUE;
 
@@ -208,14 +208,14 @@ class FileWriterBucket<IN, BucketID> {
 			inProgressFileCreationTime = inProgressPart.getCreationTime();
 		}
 
-		return new FileWriterBucketState<>(
+		return new FileWriterBucketState(
 				bucketId,
 				bucketPath,
 				inProgressFileCreationTime,
 				inProgressFileRecoverable);
 	}
 
-	private InProgressFileWriter<IN, BucketID> rollPartFile(long currentTime) throws IOException {
+	private InProgressFileWriter<IN, String> rollPartFile(long currentTime) throws IOException {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
@@ -262,7 +262,7 @@ class FileWriterBucket<IN, BucketID> {
 
 	@Nullable
 	@VisibleForTesting
-	InProgressFileWriter<IN, BucketID> getInProgressPart() {
+	InProgressFileWriter<IN, String> getInProgressPart() {
 		return inProgressPart;
 	}
 
@@ -280,16 +280,15 @@ class FileWriterBucket<IN, BucketID> {
 	 * @param bucketPath the path to where the part files for the bucket will be written to.
 	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
 	 * @param <IN> the type of input elements to the sink.
-	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
 	 * @param outputFileConfig the part file configuration.
 	 *
 	 * @return The new Bucket.
 	 */
-	static <IN, BucketID> FileWriterBucket<IN, BucketID> getNew(
-			final BucketID bucketId,
+	static <IN> FileWriterBucket<IN> getNew(
+			final String bucketId,
 			final Path bucketPath,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
+			final BucketWriter<IN, String> bucketWriter,
+			final RollingPolicy<IN, String> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 		return new FileWriterBucket<>(
 				bucketId,
@@ -305,15 +304,14 @@ class FileWriterBucket<IN, BucketID> {
 	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
 	 * @param bucketState the initial state of the restored bucket.
 	 * @param <IN> the type of input elements to the sink.
-	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
 	 * @param outputFileConfig the part file configuration.
 	 *
 	 * @return The restored Bucket.
 	 */
-	static <IN, BucketID> FileWriterBucket<IN, BucketID> restore(
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final FileWriterBucketState<BucketID> bucketState,
+	static <IN> FileWriterBucket<IN> restore(
+			final BucketWriter<IN, String> bucketWriter,
+			final RollingPolicy<IN, String> rollingPolicy,
+			final FileWriterBucketState bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException {
 		return new FileWriterBucket<>(
 				bucketWriter,

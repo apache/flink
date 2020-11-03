@@ -30,14 +30,14 @@ import java.io.IOException;
  * A factory returning {@link FileWriter writer}.
  */
 @Internal
-public class DefaultFileWriterBucketFactory<IN, BucketID> implements FileWriterBucketFactory<IN, BucketID> {
+public class DefaultFileWriterBucketFactory<IN> implements FileWriterBucketFactory<IN> {
 
 	@Override
-	public FileWriterBucket<IN, BucketID> getNewBucket(
-			BucketID bucketId,
+	public FileWriterBucket<IN> getNewBucket(
+			String bucketId,
 			Path bucketPath,
-			BucketWriter<IN, BucketID> bucketWriter,
-			RollingPolicy<IN, BucketID> rollingPolicy,
+			BucketWriter<IN, String> bucketWriter,
+			RollingPolicy<IN, String> rollingPolicy,
 			OutputFileConfig outputFileConfig) throws IOException {
 		return FileWriterBucket.getNew(
 				bucketId,
@@ -48,10 +48,10 @@ public class DefaultFileWriterBucketFactory<IN, BucketID> implements FileWriterB
 	}
 
 	@Override
-	public FileWriterBucket<IN, BucketID> restoreBucket(
-			BucketWriter<IN, BucketID> bucketWriter,
-			RollingPolicy<IN, BucketID> rollingPolicy,
-			FileWriterBucketState<BucketID> bucketState,
+	public FileWriterBucket<IN> restoreBucket(
+			BucketWriter<IN, String> bucketWriter,
+			RollingPolicy<IN, String> rollingPolicy,
+			FileWriterBucketState bucketState,
 			OutputFileConfig outputFileConfig) throws IOException {
 		return FileWriterBucket.restore(
 				bucketWriter,

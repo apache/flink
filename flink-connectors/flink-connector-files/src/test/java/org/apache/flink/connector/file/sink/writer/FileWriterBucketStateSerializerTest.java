@@ -20,7 +20,6 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 
 import org.junit.Test;
 
@@ -35,29 +34,29 @@ public class FileWriterBucketStateSerializerTest {
 
 	@Test
 	public void testWithoutInProgressFile() throws IOException {
-		FileWriterBucketState<String> bucketState = new FileWriterBucketState<>(
+		FileWriterBucketState bucketState = new FileWriterBucketState(
 				"bucketId",
 				new Path("file:///tmp/bucketId"),
 				1429537268,
 				null);
-		FileWriterBucketState<String> deserialized = serializeAndDeserialize(bucketState);
+		FileWriterBucketState deserialized = serializeAndDeserialize(bucketState);
 		assertBucketStateEquals(bucketState, deserialized);
 	}
 
 	@Test
 	public void testWithInProgressFile() throws IOException {
-		FileWriterBucketState<String> bucketState = new FileWriterBucketState<>(
+		FileWriterBucketState bucketState = new FileWriterBucketState(
 				"bucketId",
 				new Path("file:///tmp/bucketId"),
 				1429537268,
 				new FileSinkTestUtils.TestInProgressFileRecoverable());
-		FileWriterBucketState<String> deserialized = serializeAndDeserialize(bucketState);
+		FileWriterBucketState deserialized = serializeAndDeserialize(bucketState);
 		assertBucketStateEquals(bucketState, deserialized);
 	}
 
 	private void assertBucketStateEquals(
-			FileWriterBucketState<String> bucketState,
-			FileWriterBucketState<String> deserialized) {
+			FileWriterBucketState bucketState,
+			FileWriterBucketState deserialized) {
 		assertEquals(bucketState.getBucketId(), deserialized.getBucketId());
 		assertEquals(bucketState.getBucketPath(), deserialized.getBucketPath());
 		assertEquals(
@@ -68,11 +67,10 @@ public class FileWriterBucketStateSerializerTest {
 				deserialized.getInProgressFileRecoverable());
 	}
 
-	private FileWriterBucketState<String> serializeAndDeserialize(FileWriterBucketState<String> bucketState) throws IOException {
-		FileWriterBucketStateSerializer<String> serializer = new FileWriterBucketStateSerializer<>(
+	private FileWriterBucketState serializeAndDeserialize(FileWriterBucketState bucketState) throws IOException {
+		FileWriterBucketStateSerializer serializer = new FileWriterBucketStateSerializer(
 				new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
-						FileSinkTestUtils.TestInProgressFileRecoverable::new),
-				SimpleVersionedStringSerializer.INSTANCE);
+						FileSinkTestUtils.TestInProgressFileRecoverable::new));
 		byte[] data = serializer.serialize(bucketState);
 		return serializer.deserialize(serializer.getVersion(), data);
 	}

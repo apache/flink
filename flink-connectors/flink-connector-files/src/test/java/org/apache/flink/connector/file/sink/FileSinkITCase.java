@@ -161,7 +161,7 @@ public class FileSinkITCase {
 				true,
 				"Source",
 				Boundedness.BOUNDED);
-		FileSink<Integer, String> fileSink = FileSink
+		FileSink<Integer> fileSink = FileSink
 				.forRowFormat(new Path(path), new IntEncoder())
 				.withBucketAssigner(new ModuloBucketAssigner())
 				.withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))

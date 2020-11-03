@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 
 import java.io.IOException;
 
@@ -36,21 +37,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@code SimpleVersionedSerializer} used to serialize the {@link FileWriterBucketState BucketState}.
  */
 @Internal
-public class FileWriterBucketStateSerializer<BucketID>
-		implements SimpleVersionedSerializer<FileWriterBucketState<BucketID>> {
+public class FileWriterBucketStateSerializer
+		implements SimpleVersionedSerializer<FileWriterBucketState> {
 
 	private static final int MAGIC_NUMBER = 0x1e764b79;
 
 	private final SimpleVersionedSerializer<InProgressFileRecoverable> inProgressFileRecoverableSerializer;
 
-	private final SimpleVersionedSerializer<BucketID> bucketIdSerializer;
-
 	public FileWriterBucketStateSerializer(
-			SimpleVersionedSerializer<InProgressFileRecoverable> inProgressFileRecoverableSerializer,
-			SimpleVersionedSerializer<BucketID> bucketIdSerializer) {
+			SimpleVersionedSerializer<InProgressFileRecoverable> inProgressFileRecoverableSerializer) {
 		this.inProgressFileRecoverableSerializer = checkNotNull(
 				inProgressFileRecoverableSerializer);
-		this.bucketIdSerializer = checkNotNull(bucketIdSerializer);
 	}
 
 	@Override
@@ -59,7 +56,7 @@ public class FileWriterBucketStateSerializer<BucketID>
 	}
 
 	@Override
-	public byte[] serialize(FileWriterBucketState<BucketID> state) throws IOException {
+	public byte[] serialize(FileWriterBucketState state) throws IOException {
 		DataOutputSerializer out = new DataOutputSerializer(256);
 		out.writeInt(MAGIC_NUMBER);
 		serializeV1(state, out);
@@ -67,7 +64,7 @@ public class FileWriterBucketStateSerializer<BucketID>
 	}
 
 	@Override
-	public FileWriterBucketState<BucketID> deserialize(
+	public FileWriterBucketState deserialize(
 			int version,
 			byte[] serialized) throws IOException {
 		DataInputDeserializer in = new DataInputDeserializer(serialized);
@@ -82,10 +79,10 @@ public class FileWriterBucketStateSerializer<BucketID>
 	}
 
 	private void serializeV1(
-			FileWriterBucketState<BucketID> state,
+			FileWriterBucketState state,
 			DataOutputView dataOutputView) throws IOException {
 		SimpleVersionedSerialization.writeVersionAndSerialize(
-				bucketIdSerializer,
+				SimpleVersionedStringSerializer.INSTANCE,
 				state.getBucketId(),
 				dataOutputView);
 		dataOutputView.writeUTF(state.getBucketPath().toString());
@@ -105,9 +102,9 @@ public class FileWriterBucketStateSerializer<BucketID>
 		}
 	}
 
-	private FileWriterBucketState<BucketID> deserializeV1(DataInputView dataInputView) throws IOException {
-		BucketID bucketId = SimpleVersionedSerialization.readVersionAndDeSerialize(
-				bucketIdSerializer,
+	private FileWriterBucketState deserializeV1(DataInputView dataInputView) throws IOException {
+		String bucketId = SimpleVersionedSerialization.readVersionAndDeSerialize(
+				SimpleVersionedStringSerializer.INSTANCE,
 				dataInputView);
 		String bucketPathStr = dataInputView.readUTF();
 		long creationTime = dataInputView.readLong();
@@ -120,7 +117,7 @@ public class FileWriterBucketStateSerializer<BucketID>
 					dataInputView);
 		}
 
-		return new FileWriterBucketState<>(
+		return new FileWriterBucketState(
 				bucketId,
 				new Path(bucketPathStr),
 				creationTime,

@@ -59,26 +59,26 @@ import static org.apache.flink.util.Preconditions.checkState;
  * A unified sink for both streaming and blocking mode, based on the new Sink API.
  */
 @Experimental
-public class FileSink<IN, BucketID>
-		implements Sink<IN, FileSinkCommittable, FileWriterBucketState<BucketID>, Void> {
+public class FileSink<IN>
+		implements Sink<IN, FileSinkCommittable, FileWriterBucketState, Void> {
 
-	private final BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder;
+	private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
 
-	private FileSink(BucketsBuilder<IN, BucketID, ? extends BucketsBuilder<IN, BucketID, ?>> bucketsBuilder) {
+	private FileSink(BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder) {
 		this.bucketsBuilder = checkNotNull(bucketsBuilder);
 	}
 
 	@Override
-	public SinkWriter<IN, FileSinkCommittable, FileWriterBucketState<BucketID>> createWriter(
+	public SinkWriter<IN, FileSinkCommittable, FileWriterBucketState> createWriter(
 			InitContext context,
-			List<FileWriterBucketState<BucketID>> states) throws IOException {
-		FileWriter<IN, BucketID> writer = bucketsBuilder.createWriter(context);
+			List<FileWriterBucketState> states) throws IOException {
+		FileWriter<IN> writer = bucketsBuilder.createWriter(context);
 		writer.initializeState(states);
 		return writer;
 	}
 
 	@Override
-	public Optional<SimpleVersionedSerializer<FileWriterBucketState<BucketID>>> getWriterStateSerializer()
+	public Optional<SimpleVersionedSerializer<FileWriterBucketState>> getWriterStateSerializer()
 			throws IOException {
 		return Optional.of(bucketsBuilder.getWriterStateSerializer());
 	}
@@ -118,7 +118,7 @@ public class FileSink<IN, BucketID>
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
 	@Internal
-	private abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>>
+	private abstract static class BucketsBuilder<IN, T extends BucketsBuilder<IN, T>>
 			implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -131,13 +131,13 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Internal
-		abstract FileWriter<IN, BucketID> createWriter(final InitContext context) throws IOException;
+		abstract FileWriter<IN> createWriter(final InitContext context) throws IOException;
 
 		@Internal
 		abstract FileCommitter createCommitter() throws IOException;
 
 		@Internal
-		abstract SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException;
+		abstract SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() throws IOException;
 
 		@Internal
 		abstract SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException;
@@ -146,8 +146,8 @@ public class FileSink<IN, BucketID>
 	/**
 	 * A builder for configuring the sink for row-wise encoding formats.
 	 */
-	public static class RowFormatBuilder<IN, BucketID, T extends RowFormatBuilder<IN, BucketID, T>>
-			extends BucketsBuilder<IN, BucketID, T> {
+	public static class RowFormatBuilder<IN, T extends RowFormatBuilder<IN, T>>
+			extends BucketsBuilder<IN, T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -155,18 +155,18 @@ public class FileSink<IN, BucketID>
 
 		private final Encoder<IN> encoder;
 
-		private BucketAssigner<IN, BucketID> bucketAssigner;
+		private BucketAssigner<IN, String> bucketAssigner;
 
-		private RollingPolicy<IN, BucketID> rollingPolicy;
+		private RollingPolicy<IN, String> rollingPolicy;
 
-		private FileWriterBucketFactory<IN, BucketID> bucketFactory;
+		private FileWriterBucketFactory<IN> bucketFactory;
 
 		private OutputFileConfig outputFileConfig;
 
 		protected RowFormatBuilder(
 				Path basePath,
 				Encoder<IN> encoder,
-				BucketAssigner<IN, BucketID> bucketAssigner) {
+				BucketAssigner<IN, String> bucketAssigner) {
 			this(
 					basePath,
 					encoder,
@@ -179,9 +179,9 @@ public class FileSink<IN, BucketID>
 		protected RowFormatBuilder(
 				Path basePath,
 				Encoder<IN> encoder,
-				BucketAssigner<IN, BucketID> assigner,
-				RollingPolicy<IN, BucketID> policy,
-				FileWriterBucketFactory<IN, BucketID> bucketFactory,
+				BucketAssigner<IN, String> assigner,
+				RollingPolicy<IN, String> policy,
+				FileWriterBucketFactory<IN> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = checkNotNull(basePath);
 			this.encoder = checkNotNull(encoder);
@@ -191,12 +191,12 @@ public class FileSink<IN, BucketID>
 			this.outputFileConfig = checkNotNull(outputFileConfig);
 		}
 
-		public T withBucketAssigner(final BucketAssigner<IN, BucketID> assigner) {
+		public T withBucketAssigner(final BucketAssigner<IN, String> assigner) {
 			this.bucketAssigner = checkNotNull(assigner);
 			return self();
 		}
 
-		public T withRollingPolicy(final RollingPolicy<IN, BucketID> policy) {
+		public T withRollingPolicy(final RollingPolicy<IN, String> policy) {
 			this.rollingPolicy = checkNotNull(policy);
 			return self();
 		}
@@ -207,12 +207,12 @@ public class FileSink<IN, BucketID>
 		}
 
 		/** Creates the actual sink. */
-		public FileSink<IN, BucketID> build() {
+		public FileSink<IN> build() {
 			return new FileSink<>(this);
 		}
 
 		@Override
-		FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
+		FileWriter<IN> createWriter(InitContext context) throws IOException {
 			return new FileWriter<>(
 					basePath,
 					bucketAssigner,
@@ -228,24 +228,23 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
-			return new FileWriterBucketStateSerializer<>(
+		SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() throws IOException {
+			return new FileWriterBucketStateSerializer(
 					createBucketWriter()
 							.getProperties()
-							.getInProgressFileRecoverableSerializer(),
-					bucketAssigner.getSerializer());
+							.getInProgressFileRecoverableSerializer());
 		}
 
 		@Override
 		SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
-			BucketWriter<IN, BucketID> bucketWriter = createBucketWriter();
+			BucketWriter<IN, String> bucketWriter = createBucketWriter();
 
 			return new FileSinkCommittableSerializer(
 					bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
 					bucketWriter.getProperties().getInProgressFileRecoverableSerializer());
 		}
 
-		private BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+		private BucketWriter<IN, String> createBucketWriter() throws IOException {
 			return new RowWiseBucketWriter<>(
 					FileSystem.get(basePath.toUri()).createRecoverableWriter(),
 					encoder);
@@ -255,7 +254,7 @@ public class FileSink<IN, BucketID>
 	/**
 	 * Builder for the vanilla {@link FileSink} using a row format.
 	 */
-	public static final class DefaultRowFormatBuilder<IN> extends RowFormatBuilder<IN, String, DefaultRowFormatBuilder<IN>> {
+	public static final class DefaultRowFormatBuilder<IN> extends RowFormatBuilder<IN, DefaultRowFormatBuilder<IN>> {
 		private static final long serialVersionUID = -8503344257202146718L;
 
 		private DefaultRowFormatBuilder(
@@ -270,8 +269,8 @@ public class FileSink<IN, BucketID>
 	 * A builder for configuring the sink for bulk-encoding formats, e.g. Parquet/ORC.
 	 */
 	@PublicEvolving
-	public static class BulkFormatBuilder<IN, BucketID, T extends BulkFormatBuilder<IN, BucketID, T>>
-			extends BucketsBuilder<IN, BucketID, T> {
+	public static class BulkFormatBuilder<IN, T extends BulkFormatBuilder<IN, T>>
+			extends BucketsBuilder<IN, T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -279,18 +278,18 @@ public class FileSink<IN, BucketID>
 
 		private BulkWriter.Factory<IN> writerFactory;
 
-		private BucketAssigner<IN, BucketID> bucketAssigner;
+		private BucketAssigner<IN, String> bucketAssigner;
 
-		private CheckpointRollingPolicy<IN, BucketID> rollingPolicy;
+		private CheckpointRollingPolicy<IN, String> rollingPolicy;
 
-		private FileWriterBucketFactory<IN, BucketID> bucketFactory;
+		private FileWriterBucketFactory<IN> bucketFactory;
 
 		private OutputFileConfig outputFileConfig;
 
 		protected BulkFormatBuilder(
 				Path basePath,
 				BulkWriter.Factory<IN> writerFactory,
-				BucketAssigner<IN, BucketID> assigner) {
+				BucketAssigner<IN, String> assigner) {
 			this(
 					basePath,
 					writerFactory,
@@ -303,9 +302,9 @@ public class FileSink<IN, BucketID>
 		protected BulkFormatBuilder(
 				Path basePath,
 				BulkWriter.Factory<IN> writerFactory,
-				BucketAssigner<IN, BucketID> assigner,
-				CheckpointRollingPolicy<IN, BucketID> policy,
-				FileWriterBucketFactory<IN, BucketID> bucketFactory,
+				BucketAssigner<IN, String> assigner,
+				CheckpointRollingPolicy<IN, String> policy,
+				FileWriterBucketFactory<IN> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = checkNotNull(basePath);
 			this.writerFactory = writerFactory;
@@ -315,12 +314,12 @@ public class FileSink<IN, BucketID>
 			this.outputFileConfig = checkNotNull(outputFileConfig);
 		}
 
-		public T withBucketAssigner(BucketAssigner<IN, BucketID> assigner) {
+		public T withBucketAssigner(BucketAssigner<IN, String> assigner) {
 			this.bucketAssigner = checkNotNull(assigner);
 			return self();
 		}
 
-		public T withRollingPolicy(CheckpointRollingPolicy<IN, BucketID> rollingPolicy) {
+		public T withRollingPolicy(CheckpointRollingPolicy<IN, String> rollingPolicy) {
 			this.rollingPolicy = checkNotNull(rollingPolicy);
 			return self();
 		}
@@ -330,8 +329,8 @@ public class FileSink<IN, BucketID>
 			return self();
 		}
 
-		public BulkFormatBuilder<IN, BucketID, ? extends BulkFormatBuilder<IN, BucketID, ?>> withNewBucketAssigner(
-				BucketAssigner<IN, BucketID> assigner) {
+		public BulkFormatBuilder<IN, ? extends BulkFormatBuilder<IN, ?>> withNewBucketAssigner(
+				BucketAssigner<IN, String> assigner) {
 			checkState(
 					bucketFactory.getClass() == DefaultFileWriterBucketFactory.class,
 					"newBuilderWithBucketAssigner() cannot be called "
@@ -346,12 +345,12 @@ public class FileSink<IN, BucketID>
 		}
 
 		/** Creates the actual sink. */
-		public FileSink<IN, BucketID> build() {
+		public FileSink<IN> build() {
 			return new FileSink<>(this);
 		}
 
 		@Override
-		FileWriter<IN, BucketID> createWriter(InitContext context) throws IOException {
+		FileWriter<IN> createWriter(InitContext context) throws IOException {
 			return new FileWriter<>(
 					basePath,
 					bucketAssigner,
@@ -367,24 +366,23 @@ public class FileSink<IN, BucketID>
 		}
 
 		@Override
-		SimpleVersionedSerializer<FileWriterBucketState<BucketID>> getWriterStateSerializer() throws IOException {
-			return new FileWriterBucketStateSerializer<>(
+		SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() throws IOException {
+			return new FileWriterBucketStateSerializer(
 					createBucketWriter()
 							.getProperties()
-							.getInProgressFileRecoverableSerializer(),
-					bucketAssigner.getSerializer());
+							.getInProgressFileRecoverableSerializer());
 		}
 
 		@Override
 		SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() throws IOException {
-			BucketWriter<IN, BucketID> bucketWriter = createBucketWriter();
+			BucketWriter<IN, String> bucketWriter = createBucketWriter();
 
 			return new FileSinkCommittableSerializer(
 					bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
 					bucketWriter.getProperties().getInProgressFileRecoverableSerializer());
 		}
 
-		private BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+		private BucketWriter<IN, String> createBucketWriter() throws IOException {
 			return new BulkBucketWriter<>(
 					FileSystem.get(basePath.toUri()).createRecoverableWriter(),
 					writerFactory);
@@ -396,7 +394,7 @@ public class FileSink<IN, BucketID>
 	 *
 	 * @param <IN> record type
 	 */
-	public static final class DefaultBulkFormatBuilder<IN> extends BulkFormatBuilder<IN, String, DefaultBulkFormatBuilder<IN>> {
+	public static final class DefaultBulkFormatBuilder<IN> extends BulkFormatBuilder<IN, DefaultBulkFormatBuilder<IN>> {
 
 		private static final long serialVersionUID = 7493169281036370228L;
 

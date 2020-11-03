@@ -59,7 +59,7 @@ public class FileWriterTest {
 		File outDir = TEMP_FOLDER.newFolder();
 		Path path = new Path(outDir.toURI());
 
-		FileWriter<String, String> fileWriter = createWriter(
+		FileWriter<String> fileWriter = createWriter(
 				path,
 				OnCheckpointRollingPolicy.build(),
 				new OutputFileConfig("part-", ""));
@@ -79,7 +79,7 @@ public class FileWriterTest {
 		File outDir = TEMP_FOLDER.newFolder();
 		Path path = new Path(outDir.toURI());
 
-		FileWriter<String, String> fileWriter = createWriter(
+		FileWriter<String> fileWriter = createWriter(
 				path,
 				DefaultRollingPolicy.builder().build(),
 				new OutputFileConfig("part-", ""));
@@ -90,7 +90,7 @@ public class FileWriterTest {
 		assertEquals(3, fileWriter.getActiveBuckets().size());
 
 		fileWriter.prepareCommit(false);
-		List<FileWriterBucketState<String>> states = fileWriter.snapshotState();
+		List<FileWriterBucketState> states = fileWriter.snapshotState();
 		assertEquals(3, states.size());
 
 		fileWriter = restoreWriter(
@@ -101,7 +101,7 @@ public class FileWriterTest {
 		assertEquals(
 				fileWriter.getActiveBuckets().keySet(),
 				new HashSet<>(Arrays.asList("test1", "test2", "test3")));
-		for (FileWriterBucket<String, String> bucket : fileWriter.getActiveBuckets().values()) {
+		for (FileWriterBucket<String> bucket : fileWriter.getActiveBuckets().values()) {
 			assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
 		}
 	}
@@ -111,7 +111,7 @@ public class FileWriterTest {
 		File outDir = TEMP_FOLDER.newFolder();
 		Path path = new Path(outDir.toURI());
 
-		FileWriter<String, String> firstFileWriter = createWriter(
+		FileWriter<String> firstFileWriter = createWriter(
 				path,
 				DefaultRollingPolicy.builder().build(),
 				new OutputFileConfig("part-", ""));
@@ -121,9 +121,9 @@ public class FileWriterTest {
 		firstFileWriter.write("test3", new ContextImpl());
 
 		firstFileWriter.prepareCommit(false);
-		List<FileWriterBucketState<String>> firstState = firstFileWriter.snapshotState();
+		List<FileWriterBucketState> firstState = firstFileWriter.snapshotState();
 
-		FileWriter<String, String> secondFileWriter = createWriter(
+		FileWriter<String> secondFileWriter = createWriter(
 				path,
 				DefaultRollingPolicy.builder().build(),
 				new OutputFileConfig("part-", ""));
@@ -132,13 +132,13 @@ public class FileWriterTest {
 		secondFileWriter.write("test2", new ContextImpl());
 
 		secondFileWriter.prepareCommit(false);
-		List<FileWriterBucketState<String>> secondState = secondFileWriter.snapshotState();
+		List<FileWriterBucketState> secondState = secondFileWriter.snapshotState();
 
-		List<FileWriterBucketState<String>> mergedState = new ArrayList<>();
+		List<FileWriterBucketState> mergedState = new ArrayList<>();
 		mergedState.addAll(firstState);
 		mergedState.addAll(secondState);
 
-		FileWriter<String, String> restoredWriter = restoreWriter(
+		FileWriter<String> restoredWriter = restoreWriter(
 				mergedState,
 				path,
 				DefaultRollingPolicy.builder().build(),
@@ -147,14 +147,14 @@ public class FileWriterTest {
 
 		// Merged buckets
 		for (String bucketId : Arrays.asList("test1", "test2")) {
-			FileWriterBucket<String, String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
+			FileWriterBucket<String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
 			assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
 			assertEquals(1, bucket.getPendingFiles().size());
 		}
 
 		// Not merged buckets
 		for (String bucketId : Collections.singletonList("test3")) {
-			FileWriterBucket<String, String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
+			FileWriterBucket<String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
 			assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
 			assertEquals(0, bucket.getPendingFiles().size());
 		}
@@ -165,7 +165,7 @@ public class FileWriterTest {
 		File outDir = TEMP_FOLDER.newFolder();
 		Path path = new Path(outDir.toURI());
 
-		FileWriter<String, String> fileWriter = createWriter(
+		FileWriter<String> fileWriter = createWriter(
 				path,
 				OnCheckpointRollingPolicy.build(),
 				new OutputFileConfig("part-", ""));
@@ -208,7 +208,7 @@ public class FileWriterTest {
 
 	// ------------------------------- Utility Methods --------------------------------
 
-	private static FileWriter<String, String> createWriter(
+	private static FileWriter<String> createWriter(
 			Path basePath,
 			RollingPolicy<String, String> rollingPolicy,
 			OutputFileConfig outputFileConfig) throws IOException {
@@ -223,12 +223,12 @@ public class FileWriterTest {
 				outputFileConfig);
 	}
 
-	private static FileWriter<String, String> restoreWriter(
-			List<FileWriterBucketState<String>> states,
+	private static FileWriter<String> restoreWriter(
+			List<FileWriterBucketState> states,
 			Path basePath,
 			RollingPolicy<String, String> rollingPolicy,
 			OutputFileConfig outputFileConfig) throws IOException {
-		FileWriter<String, String> writer = createWriter(basePath, rollingPolicy, outputFileConfig);
+		FileWriter<String> writer = createWriter(basePath, rollingPolicy, outputFileConfig);
 		writer.initializeState(states);
 		return writer;
 	}

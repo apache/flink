@@ -32,19 +32,19 @@ import java.io.Serializable;
  * A factory able to create {@link FileWriterBucket} for the {@link FileSink}.
  */
 @Internal
-public interface FileWriterBucketFactory<IN, BucketID> extends Serializable {
+public interface FileWriterBucketFactory<IN> extends Serializable {
 
-	FileWriterBucket<IN, BucketID> getNewBucket(
-			BucketID bucketId,
+	FileWriterBucket<IN> getNewBucket(
+			String bucketId,
 			Path bucketPath,
-			BucketWriter<IN, BucketID> bucketWriter,
-			RollingPolicy<IN, BucketID> rollingPolicy,
+			BucketWriter<IN, String> bucketWriter,
+			RollingPolicy<IN, String> rollingPolicy,
 			OutputFileConfig outputFileConfig) throws IOException;
 
-	FileWriterBucket<IN, BucketID> restoreBucket(
-			BucketWriter<IN, BucketID> bucketWriter,
-			RollingPolicy<IN, BucketID> rollingPolicy,
-			FileWriterBucketState<BucketID> bucketState,
+	FileWriterBucket<IN> restoreBucket(
+			BucketWriter<IN, String> bucketWriter,
+			RollingPolicy<IN, String> rollingPolicy,
+			FileWriterBucketState bucketState,
 			OutputFileConfig outputFileConfig) throws IOException;
 
 }

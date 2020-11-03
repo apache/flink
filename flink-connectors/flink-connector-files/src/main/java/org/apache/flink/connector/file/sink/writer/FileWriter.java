@@ -48,8 +48,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Writer implementation for {@link FileSink}.
  */
 @Internal
-public class FileWriter<IN, BucketID>
-		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState<BucketID>> {
+public class FileWriter<IN>
+		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
 
@@ -57,25 +57,25 @@ public class FileWriter<IN, BucketID>
 
 	private final Path basePath;
 
-	private final FileWriterBucketFactory<IN, BucketID> bucketFactory;
+	private final FileWriterBucketFactory<IN> bucketFactory;
 
-	private final BucketAssigner<IN, BucketID> bucketAssigner;
+	private final BucketAssigner<IN, String> bucketAssigner;
 
-	private final BucketWriter<IN, BucketID> bucketWriter;
+	private final BucketWriter<IN, String> bucketWriter;
 
-	private final RollingPolicy<IN, BucketID> rollingPolicy;
+	private final RollingPolicy<IN, String> rollingPolicy;
 
 	// --------------------------- runtime fields -----------------------------
 
 	private final BucketerContext bucketerContext;
 
-	private final Map<BucketID, FileWriterBucket<IN, BucketID>> activeBuckets;
+	private final Map<String, FileWriterBucket<IN>> activeBuckets;
 
 	private final OutputFileConfig outputFileConfig;
 
 	// --------------------------- State Related Fields -----------------------------
 
-	private final FileWriterBucketStateSerializer<BucketID> bucketStateSerializer;
+	private final FileWriterBucketStateSerializer bucketStateSerializer;
 
 	/**
 	 * A constructor creating a new empty bucket manager.
@@ -88,10 +88,10 @@ public class FileWriter<IN, BucketID>
 	 */
 	public FileWriter(
 			final Path basePath,
-			final BucketAssigner<IN, BucketID> bucketAssigner,
-			final FileWriterBucketFactory<IN, BucketID> bucketFactory,
-			final BucketWriter<IN, BucketID> bucketWriter,
-			final RollingPolicy<IN, BucketID> rollingPolicy,
+			final BucketAssigner<IN, String> bucketAssigner,
+			final FileWriterBucketFactory<IN> bucketFactory,
+			final BucketWriter<IN, String> bucketWriter,
+			final RollingPolicy<IN, String> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 
 		this.basePath = checkNotNull(basePath);
@@ -105,9 +105,8 @@ public class FileWriter<IN, BucketID>
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new BucketerContext();
 
-		this.bucketStateSerializer = new FileWriterBucketStateSerializer<>(
-				bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
-				bucketAssigner.getSerializer());
+		this.bucketStateSerializer = new FileWriterBucketStateSerializer(
+				bucketWriter.getProperties().getInProgressFileRecoverableSerializer());
 	}
 
 	/**
@@ -127,17 +126,17 @@ public class FileWriter<IN, BucketID>
 	 * @throws IOException if anything goes wrong during retrieving the state or restoring/committing of any
 	 * 		in-progress/pending part files
 	 */
-	public void initializeState(List<FileWriterBucketState<BucketID>> bucketStates) throws IOException {
+	public void initializeState(List<FileWriterBucketState> bucketStates) throws IOException {
 		checkNotNull(bucketStates, "The retrieved state was null.");
 
-		for (FileWriterBucketState<BucketID> state : bucketStates) {
-			BucketID bucketId = state.getBucketId();
+		for (FileWriterBucketState state : bucketStates) {
+			String bucketId = state.getBucketId();
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Restoring: {}", state);
 			}
 
-			FileWriterBucket<IN, BucketID> restoredBucket = bucketFactory.restoreBucket(
+			FileWriterBucket<IN> restoredBucket = bucketFactory.restoreBucket(
 					bucketWriter,
 					rollingPolicy,
 					state,
@@ -148,9 +147,9 @@ public class FileWriter<IN, BucketID>
 	}
 
 	private void updateActiveBucketId(
-			BucketID bucketId,
-			FileWriterBucket<IN, BucketID> restoredBucket) throws IOException {
-		final FileWriterBucket<IN, BucketID> bucket = activeBuckets.get(bucketId);
+			String bucketId,
+			FileWriterBucket<IN> restoredBucket) throws IOException {
+		final FileWriterBucket<IN> bucket = activeBuckets.get(bucketId);
 		if (bucket != null) {
 			bucket.merge(restoredBucket);
 		} else {
@@ -165,8 +164,8 @@ public class FileWriter<IN, BucketID>
 				context.timestamp(),
 				context.currentWatermark());
 
-		final BucketID bucketId = bucketAssigner.getBucketId(element, bucketerContext);
-		final FileWriterBucket<IN, BucketID> bucket = getOrCreateBucketForBucketId(bucketId);
+		final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
+		final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
 		bucket.write(element);
 	}
 
@@ -177,10 +176,10 @@ public class FileWriter<IN, BucketID>
 		// Every time before we prepare commit, we first check and remove the inactive
 		// buckets. Checking the activeness right before pre-committing avoid re-creating
 		// the bucket every time if the bucket use OnCheckpointingRollingPolicy.
-		Iterator<Map.Entry<BucketID, FileWriterBucket<IN, BucketID>>> activeBucketIt =
+		Iterator<Map.Entry<String, FileWriterBucket<IN>>> activeBucketIt =
 				activeBuckets.entrySet().iterator();
 		while (activeBucketIt.hasNext()) {
-			Map.Entry<BucketID, FileWriterBucket<IN, BucketID>> entry = activeBucketIt.next();
+			Map.Entry<String, FileWriterBucket<IN>> entry = activeBucketIt.next();
 			if (!entry.getValue().isActive()) {
 				activeBucketIt.remove();
 			} else {
@@ -192,21 +191,21 @@ public class FileWriter<IN, BucketID>
 	}
 
 	@Override
-	public List<FileWriterBucketState<BucketID>> snapshotState() throws IOException {
+	public List<FileWriterBucketState> snapshotState() throws IOException {
 		checkState(
 				bucketWriter != null && bucketStateSerializer != null,
 				"sink has not been initialized");
 
-		List<FileWriterBucketState<BucketID>> state = new ArrayList<>();
-		for (FileWriterBucket<IN, BucketID> bucket : activeBuckets.values()) {
+		List<FileWriterBucketState> state = new ArrayList<>();
+		for (FileWriterBucket<IN> bucket : activeBuckets.values()) {
 			state.add(bucket.snapshotState());
 		}
 
 		return state;
 	}
 
-	private FileWriterBucket<IN, BucketID> getOrCreateBucketForBucketId(BucketID bucketId) throws IOException {
-		FileWriterBucket<IN, BucketID> bucket = activeBuckets.get(bucketId);
+	private FileWriterBucket<IN> getOrCreateBucketForBucketId(String bucketId) throws IOException {
+		FileWriterBucket<IN> bucket = activeBuckets.get(bucketId);
 		if (bucket == null) {
 			final Path bucketPath = assembleBucketPath(bucketId);
 			bucket = bucketFactory.getNewBucket(
@@ -227,12 +226,11 @@ public class FileWriter<IN, BucketID>
 		}
 	}
 
-	private Path assembleBucketPath(BucketID bucketId) {
-		final String child = bucketId.toString();
-		if ("".equals(child)) {
+	private Path assembleBucketPath(String bucketId) {
+		if ("".equals(bucketId)) {
 			return basePath;
 		}
-		return new Path(basePath, child);
+		return new Path(basePath, bucketId);
 	}
 
 	/**
@@ -277,7 +275,7 @@ public class FileWriter<IN, BucketID>
 	// --------------------------- Testing Methods -----------------------------
 
 	@VisibleForTesting
-	Map<BucketID, FileWriterBucket<IN, BucketID>> getActiveBuckets() {
+	Map<String, FileWriterBucket<IN>> getActiveBuckets() {
 		return activeBuckets;
 	}
 }

@@ -29,9 +29,9 @@ import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgres
  * States for {@link FileWriterBucket}.
  */
 @Internal
-public class FileWriterBucketState<BucketID> {
+public class FileWriterBucketState {
 
-	private final BucketID bucketId;
+	private final String bucketId;
 
 	/** The directory where all the part files of the bucket are stored. */
 	private final Path bucketPath;
@@ -50,7 +50,7 @@ public class FileWriterBucketState<BucketID> {
 	private final InProgressFileRecoverable inProgressFileRecoverable;
 
 	public FileWriterBucketState(
-			BucketID bucketId,
+			String bucketId,
 			Path bucketPath,
 			long inProgressFileCreationTime,
 			@Nullable InProgressFileRecoverable inProgressFileRecoverable) {
@@ -60,7 +60,7 @@ public class FileWriterBucketState<BucketID> {
 		this.inProgressFileRecoverable = inProgressFileRecoverable;
 	}
 
-	public BucketID getBucketId() {
+	public String getBucketId() {
 		return bucketId;
 	}
 

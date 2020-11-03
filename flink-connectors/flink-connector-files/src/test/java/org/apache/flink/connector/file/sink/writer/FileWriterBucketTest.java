@@ -68,14 +68,14 @@ public class FileWriterBucketTest {
 
 		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 
-		FileWriterBucket<String, String> bucket = createBucket(
+		FileWriterBucket<String> bucket = createBucket(
 				recoverableWriter,
 				path,
 				DEFAULT_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
 		bucket.write("test-element");
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 0);
 		assertEquals(BUCKET_ID, bucketState.getBucketId());
@@ -92,14 +92,14 @@ public class FileWriterBucketTest {
 
 		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 
-		FileWriterBucket<String, String> bucket = createBucket(
+		FileWriterBucket<String> bucket = createBucket(
 				recoverableWriter,
 				path,
 				ON_CHECKPOING_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
 		bucket.write("test-element");
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
 		assertEquals(BUCKET_ID, bucketState.getBucketId());
@@ -116,7 +116,7 @@ public class FileWriterBucketTest {
 
 		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 
-		FileWriterBucket<String, String> bucket = createBucket(
+		FileWriterBucket<String> bucket = createBucket(
 				recoverableWriter,
 				path,
 				EACH_ELEMENT_ROLLING_POLICY,
@@ -125,7 +125,7 @@ public class FileWriterBucketTest {
 		bucket.write("test-element");
 		bucket.write("test-element");
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 
 		// The last element would not roll
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
@@ -143,7 +143,7 @@ public class FileWriterBucketTest {
 
 		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 
-		FileWriterBucket<String, String> bucket = createBucket(
+		FileWriterBucket<String> bucket = createBucket(
 				recoverableWriter,
 				path,
 				DEFAULT_ROLLING_POLICY,
@@ -156,7 +156,7 @@ public class FileWriterBucketTest {
 		// One more checkpoint
 		bucket.write("test-element");
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 1);
 		assertEquals(BUCKET_ID, bucketState.getBucketId());
@@ -173,7 +173,7 @@ public class FileWriterBucketTest {
 
 		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
 
-		FileWriterBucket<String, String> bucket = createBucket(
+		FileWriterBucket<String> bucket = createBucket(
 				recoverableWriter,
 				path,
 				DEFAULT_ROLLING_POLICY,
@@ -192,13 +192,13 @@ public class FileWriterBucketTest {
 	@Test
 	public void testRestoreWithInprogressFileNotSupportResume() throws IOException {
 		StubNonResumableWriter nonResumableWriter = new StubNonResumableWriter();
-		FileWriterBucket<String, String> bucket = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket = getRestoredBucketWithOnlyInProgressPart(
 				nonResumableWriter,
 				DEFAULT_ROLLING_POLICY);
 		assertNull("The in-progress file should be pre-committed", bucket.getInProgressPart());
 
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
 		assertNull(
 				"The bucket should not have in-progress recoverable",
@@ -208,13 +208,13 @@ public class FileWriterBucketTest {
 	@Test
 	public void testRestoreWithInprogressFileSupportResume() throws IOException {
 		StubResumableWriter resumableWriter = new StubResumableWriter();
-		FileWriterBucket<String, String> bucket = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket = getRestoredBucketWithOnlyInProgressPart(
 				resumableWriter,
 				DEFAULT_ROLLING_POLICY);
 		assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
 
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket.snapshotState();
+		FileWriterBucketState bucketState = bucket.snapshotState();
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 0, 0);
 		assertNotNull(
 				"The bucket should have in-progress recoverable",
@@ -223,17 +223,17 @@ public class FileWriterBucketTest {
 
 	@Test
 	public void testMergeWithInprogressFileNotSupportResume() throws IOException {
-		FileWriterBucket<String, String> bucket1 = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket1 = getRestoredBucketWithOnlyInProgressPart(
 				new StubNonResumableWriter(),
 				DEFAULT_ROLLING_POLICY);
-		FileWriterBucket<String, String> bucket2 = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket2 = getRestoredBucketWithOnlyInProgressPart(
 				new StubNonResumableWriter(),
 				DEFAULT_ROLLING_POLICY);
 		bucket1.merge(bucket2);
 		assertNull("The in-progress file should be pre-committed", bucket1.getInProgressPart());
 
 		List<FileSinkCommittable> fileSinkCommittables = bucket1.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket1.snapshotState();
+		FileWriterBucketState bucketState = bucket1.snapshotState();
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 2, 0);
 		assertNull(
 				"The bucket should have in-progress recoverable",
@@ -242,17 +242,17 @@ public class FileWriterBucketTest {
 
 	@Test
 	public void testMergeWithInprogressFileSupportResume() throws IOException {
-		FileWriterBucket<String, String> bucket1 = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket1 = getRestoredBucketWithOnlyInProgressPart(
 				new StubResumableWriter(),
 				DEFAULT_ROLLING_POLICY);
-		FileWriterBucket<String, String> bucket2 = getRestoredBucketWithOnlyInProgressPart(
+		FileWriterBucket<String> bucket2 = getRestoredBucketWithOnlyInProgressPart(
 				new StubResumableWriter(),
 				DEFAULT_ROLLING_POLICY);
 		bucket1.merge(bucket2);
 		assertNotNull("The in-progress file should be recovered", bucket1.getInProgressPart());
 
 		List<FileSinkCommittable> fileSinkCommittables = bucket1.prepareCommit(false);
-		FileWriterBucketState<String> bucketState = bucket1.snapshotState();
+		FileWriterBucketState bucketState = bucket1.snapshotState();
 		compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
 		assertNotNull(
 				"The bucket should not have in-progress recoverable",
@@ -388,7 +388,7 @@ public class FileWriterBucketTest {
 
 	private static final EachElementRollingPolicy EACH_ELEMENT_ROLLING_POLICY = new EachElementRollingPolicy();
 
-	private static FileWriterBucket<String, String> createBucket(
+	private static FileWriterBucket<String> createBucket(
 			RecoverableWriter writer,
 			Path bucketPath,
 			RollingPolicy<String, String> rollingPolicy,
@@ -437,11 +437,11 @@ public class FileWriterBucketTest {
 		assertEquals(expectedInProgressFiles, numInProgressFiles);
 	}
 
-	private FileWriterBucket<String, String> getRestoredBucketWithOnlyInProgressPart(
+	private FileWriterBucket<String> getRestoredBucketWithOnlyInProgressPart(
 			BaseStubWriter writer,
 			RollingPolicy<String, String> rollingPolicy) throws IOException {
-		FileWriterBucketState<String> stateWithOnlyInProgressFile =
-				new FileWriterBucketState<>(
+		FileWriterBucketState stateWithOnlyInProgressFile =
+				new FileWriterBucketState(
 						"test",
 						new Path("file:///fake/fakefile"),
 						12345L,
