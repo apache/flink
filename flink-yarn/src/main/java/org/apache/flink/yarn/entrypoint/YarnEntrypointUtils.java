@@ -42,7 +42,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
+import static org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils.tryFindUserLibDirectory;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**

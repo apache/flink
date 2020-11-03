@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
