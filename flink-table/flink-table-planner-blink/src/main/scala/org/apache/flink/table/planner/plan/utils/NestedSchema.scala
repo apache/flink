@@ -23,7 +23,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import java.util
-import java.util.{function, LinkedHashMap => JLinkedHashMap, List => JList}
+import java.util.{LinkedHashMap => JLinkedHashMap, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
