@@ -22,6 +22,8 @@ import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 import java.util.Optional;
 
@@ -38,12 +40,14 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
 	private String tableName;
 	private JdbcDialect dialect;
+	private final @Nullable Integer parallelism;
 
 	private JdbcOptions(String dbURL, String tableName, String driverName, String username,
-						String password, JdbcDialect dialect) {
+						String password, JdbcDialect dialect, Integer parallelism) {
 		super(dbURL, driverName, username, password);
 		this.tableName = tableName;
 		this.dialect = dialect;
+		this.parallelism = parallelism;
 	}
 
 	public String getTableName() {
@@ -52,6 +56,10 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
 	public JdbcDialect getDialect() {
 		return dialect;
+	}
+
+	public Integer getParallelism() {
+		return parallelism;
 	}
 
 	public static Builder builder() {
@@ -67,10 +75,16 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				Objects.equals(driverName, options.driverName) &&
 				Objects.equals(username, options.username) &&
 				Objects.equals(password, options.password) &&
-				Objects.equals(dialect.getClass().getName(), options.dialect.getClass().getName());
+				Objects.equals(dialect.getClass().getName(), options.dialect.getClass().getName()) &&
+				Objects.equals(parallelism, options.parallelism);
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(url, tableName, driverName, username, password, dialect, parallelism);
 	}
 
 	/**
@@ -83,6 +97,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		private String username;
 		private String password;
 		private JdbcDialect dialect;
+		private Integer parallelism;
 
 		/**
 		 * required, table name.
@@ -134,6 +149,11 @@ public class JdbcOptions extends JdbcConnectionOptions {
 			return this;
 		}
 
+		public Builder setParallelism(Integer parallelism) {
+			this.parallelism = parallelism;
+			return this;
+		}
+
 		public JdbcOptions build() {
 			checkNotNull(dbURL, "No dbURL supplied.");
 			checkNotNull(tableName, "No tableName supplied.");
@@ -150,7 +170,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				});
 			}
 
-			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect);
+			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect, parallelism);
 		}
 	}
 }
