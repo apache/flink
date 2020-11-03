@@ -234,9 +234,11 @@ function send_msg_to_kafka {
     while read line
     do
 	    send_messages_to_kafka "$line" "timer-stream-source"
-        sleep 3
+        sleep 1
     done <<< "$1"
 }
+
+send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run \
     -pyfs "${FLINK_PYTHON_TEST_DIR}/python/datastream" \
@@ -251,37 +253,36 @@ JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 
 wait_job_running ${JOB_ID}
 
-# wait 60s to ensure all tasks are up.
-sleep 60
-
-send_msg_to_kafka "${PAYMENT_MSGS[*]}"
-
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 15 timer-stream-sink pyflink-e2e-test-timer)
+READ_MSG=$(read_messages_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"
 
 EXPECTED_MSG='Current orderId: 1603679414 payAmount: 83685.44904332698
-On timer Current timestamp: -9223372036854774308, watermark: 1603708211000
 Current orderId: 1603679427 payAmount: 30092.50657757042
-On timer Current timestamp: 1603708212500, watermark: 1603708224000
 Current orderId: 1603679428 payAmount: 62644.01719293056
 Current orderId: 1603679429 payAmount: 6449.806795118451
-On timer Current timestamp: 1603708225500, watermark: 1603708226000
 Current orderId: 1603679492 payAmount: 41108.36128417494
-On timer Current timestamp: 1603708226500, watermark: 1603708289000
-On timer Current timestamp: 1603708227500, watermark: 1603708289000
 Current orderId: 1603679493 payAmount: 64882.44233197067
 Current orderId: 1603679522 payAmount: 81648.80712644062
-On timer Current timestamp: 1603708290500, watermark: 1603708319000
-On timer Current timestamp: 1603708291500, watermark: 1603708319000
-Current orderId: 1603679523 payAmount: 81861.73063103345'
+Current orderId: 1603679523 payAmount: 81861.73063103345
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308
+On timer timestamp: -9223372036854774308'
 
-if [[ "${EXPECTED_MSG[*]}" != "${READ_MSG[*]}" ]]; then
+EXPECTED_MSG=$(sort_msg "${EXPECTED_MSG[*]}")
+SORTED_READ_MSG=$(sort_msg "${READ_MSG[*]}")
+
+if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
-    echo -e "ACTUAL: --${READ_MSG[*]}--"
+    echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
     exit 1
 fi
 

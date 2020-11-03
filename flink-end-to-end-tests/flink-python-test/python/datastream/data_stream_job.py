@@ -50,7 +50,7 @@ def python_data_stream_example():
                   'connector.topic' = 'timer-stream-source',
                   'connector.properties.bootstrap.servers' = 'localhost:9092',
                   'connector.properties.group.id' = 'test_3',
-                  'connector.startup-mode' = 'latest-offset',
+                  'connector.startup-mode' = 'earliest-offset',
                   'format.type' = 'json'
                 )
                 """
@@ -82,9 +82,7 @@ class MyProcessFunction(ProcessFunction):
         ctx.timer_service().register_event_time_timer(current_watermark + 1500)
 
     def on_timer(self, timestamp, ctx: 'ProcessFunction.OnTimerContext', out: 'Collector'):
-        current_watermark = ctx.timer_service().current_watermark()
-        out.collect("On timer Current timestamp: " + str(timestamp) + ", watermark: "
-                    + str(current_watermark))
+        out.collect("On timer timestamp: " + str(timestamp))
 
 
 if __name__ == '__main__':
