@@ -50,7 +50,7 @@ public class SelectTableSinkSchemaConverter {
 	 * Convert time attributes (proc time / event time) to regular timestamp
 	 * and build a new {@link TableSchema}.
 	 */
-	static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
+	public static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
 		DataType[] dataTypes = tableSchema.getFieldDataTypes();
 		String[] oldNames = tableSchema.getFieldNames();
 
