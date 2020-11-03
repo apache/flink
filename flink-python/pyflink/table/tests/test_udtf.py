@@ -92,6 +92,17 @@ class PyFlinkBatchUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
     def _get_output(self, t):
         return self.collect(t)
 
+    def test_row_type_as_input_types_and_result_types(self):
+        # test input_types and result_types are DataTypes.ROW
+        a = udtf(lambda i: i,
+                 input_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]),
+                 result_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]))
+
+        self.assertEqual(a._input_types,
+                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
+        self.assertEqual(a._result_types,
+                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
+
 
 class MultiEmit(TableFunction, unittest.TestCase):
 
