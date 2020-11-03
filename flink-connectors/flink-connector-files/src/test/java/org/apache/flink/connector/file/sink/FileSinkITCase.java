@@ -80,13 +80,13 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class FileSinkITCase {
 
-	private static final  int NUMBER_OF_SOURCE = 4;
+	private static final  int SOURCE_PARALLELISM = 4;
 
-	private static final int NUMBER_OF_SINK = 3;
+	private static final int SINK_PARALLELISM = 3;
 
-	private static final int NUMBER_RECORD = 10000;
+	private static final int NUM_RECORDS = 10000;
 
-	private static final int NUMBER_BUCKET = 4;
+	private static final int NUM_BUCKETS = 4;
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -110,7 +110,7 @@ public class FileSinkITCase {
 	public void testFileSink() throws Exception {
 		String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 		String sourceLatchId = UUID.randomUUID().toString();
-		BlockingTestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(NUMBER_OF_SOURCE));
+		BlockingTestSource.LATCH_MAP.put(sourceLatchId, new CountDownLatch(SOURCE_PARALLELISM));
 
 		JobGraph jobGraph = createJobGraph(path, sourceLatchId);
 
@@ -151,7 +151,7 @@ public class FileSinkITCase {
 		// Create a testing job with a bounded legacy source in a bit hacky way.
 		StreamSource<Integer, ?> sourceOperator = new StreamSource<>(new BlockingTestSource(
 				sourceLatchId,
-				NUMBER_RECORD,
+				NUM_RECORDS,
 				triggerFailover,
 				executionMode));
 		DataStreamSource<Integer> source = new DataStreamSource<>(
@@ -166,12 +166,12 @@ public class FileSinkITCase {
 				.withBucketAssigner(new ModuloBucketAssigner())
 				.withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
 				.build();
-		source.setParallelism(NUMBER_OF_SOURCE)
+		source.setParallelism(SOURCE_PARALLELISM)
 				.rebalance()
-				.map(new OnceFailingMap(NUMBER_RECORD, triggerFailover))
-				.setParallelism(NUMBER_OF_SINK)
+				.map(new OnceFailingMap(NUM_RECORDS, triggerFailover))
+				.setParallelism(SINK_PARALLELISM)
 				.sinkTo(fileSink)
-				.setParallelism(NUMBER_OF_SINK);
+				.setParallelism(SINK_PARALLELISM);
 
 		StreamGraph streamGraph = env.getStreamGraph();
 		return streamGraph.getJobGraph();
@@ -183,8 +183,8 @@ public class FileSinkITCase {
 		assertNotNull(subDirNames);
 
 		Arrays.sort(subDirNames, Comparator.comparingInt(Integer::parseInt));
-		assertEquals(NUMBER_BUCKET, subDirNames.length);
-		for (int i = 0; i < NUMBER_BUCKET; ++i) {
+		assertEquals(NUM_BUCKETS, subDirNames.length);
+		for (int i = 0; i < NUM_BUCKETS; ++i) {
 			assertEquals(Integer.toString(i), subDirNames[i]);
 
 			// now check its content
@@ -210,15 +210,15 @@ public class FileSinkITCase {
 				}
 			}
 
-			int expectedCount = NUMBER_RECORD / NUMBER_BUCKET +
-					(i < NUMBER_RECORD % NUMBER_BUCKET ? 1 : 0);
+			int expectedCount = NUM_RECORDS / NUM_BUCKETS +
+					(i < NUM_RECORDS % NUM_BUCKETS ? 1 : 0);
 			assertEquals(expectedCount, counts.size());
 
-			for (int j = i; j < NUMBER_RECORD; j += NUMBER_BUCKET) {
+			for (int j = i; j < NUM_RECORDS; j += NUM_BUCKETS) {
 				assertEquals(
-						"The record " + j + " should occur " + NUMBER_OF_SOURCE + " times, " +
+						"The record " + j + " should occur " + SOURCE_PARALLELISM + " times, " +
 								" but only occurs " + counts.getOrDefault(j, 0) + "time",
-						NUMBER_OF_SOURCE,
+						SOURCE_PARALLELISM,
 						counts.getOrDefault(j, 0).intValue());
 			}
 		}
@@ -237,7 +237,7 @@ public class FileSinkITCase {
 
 		@Override
 		public String getBucketId(Integer element, Context context) {
-			return Integer.toString(element % NUMBER_BUCKET);
+			return Integer.toString(element % NUM_BUCKETS);
 		}
 
 		@Override
