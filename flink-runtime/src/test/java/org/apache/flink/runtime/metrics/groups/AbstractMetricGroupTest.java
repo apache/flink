@@ -43,9 +43,11 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -91,6 +93,26 @@ public class AbstractMetricGroupTest extends TestLogger {
 
 		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
 		assertEquals(group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)).size(), 0);
+	}
+
+	@Test
+	public void testGetAllVariablesWithExclusionsForReporters() {
+		MetricRegistry registry = TestingMetricRegistry.builder().setNumberReporters(2).build();
+
+		AbstractMetricGroup<?> group = new GenericMetricGroup(registry, null, "test") {
+			@Override
+			protected void putVariables(Map<String, String> variables) {
+				variables.put("k1", "v1");
+				variables.put("k2", "v2");
+			}
+		};
+
+		group.getAllVariables(-1, Collections.emptySet());
+
+		assertThat(group.getAllVariables(0, Collections.singleton("k1")), not(IsMapContaining.hasKey("k1")));
+		assertThat(group.getAllVariables(0, Collections.singleton("k1")), IsMapContaining.hasKey("k2"));
+		assertThat(group.getAllVariables(1, Collections.singleton("k2")), IsMapContaining.hasKey("k1"));
+		assertThat(group.getAllVariables(1, Collections.singleton("k2")), not(IsMapContaining.hasKey("k2")));
 	}
 
 	// ========================================================================
