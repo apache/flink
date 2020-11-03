@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED;
 
 /**
@@ -65,6 +66,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	 * different channels.
 	 */
 	private long currentCheckpointId = -1L;
+
+	private long lastCancelledOrCompletedCheckpointId = -1L;
 
 	private int numOpenChannels;
 
@@ -105,18 +108,14 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			return;
 		}
 
-		if (currentCheckpointId < barrierId) {
-			if (isCheckpointPending()) {
-				cancelSubsumedCheckpoint(barrierId);
-			}
+		checkSubsumedCheckpoint(channelInfo, barrier);
 
+		if (numBarriersReceived == 0) {
 			if (getNumOpenChannels() == 1) {
 				markAlignmentStartAndEnd(barrier.getTimestamp());
 			} else {
 				markAlignmentStart(barrier.getTimestamp());
 			}
-			currentCheckpointId = barrierId;
-			numBarriersReceived = 0;
 			allBarriersReceivedFuture = new CompletableFuture<>();
 			if (controller.preProcessFirstBarrier(channelInfo, barrier)) {
 				LOG.debug("{}: Triggering checkpoint {} on the first barrier at {}.",
@@ -135,6 +134,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 					markAlignmentEnd();
 				}
 				numBarriersReceived = 0;
+				lastCancelledOrCompletedCheckpointId = currentCheckpointId;
 				if (controller.postProcessLastBarrier(channelInfo, barrier)) {
 					LOG.debug("{}: Triggering checkpoint {} on the last barrier at {}.",
 						taskName,
@@ -152,23 +152,29 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber,
 			InputChannelInfo channelInfo) throws IOException {
+		checkSubsumedCheckpoint(channelInfo, announcedBarrier);
 		// TODO: FLINK-19681
+	}
+
+	private void checkSubsumedCheckpoint(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+		long barrierId = barrier.getId();
+		if (currentCheckpointId < barrierId) {
+			if (isCheckpointPending()) {
+				cancelSubsumedCheckpoint(barrierId);
+			}
+			currentCheckpointId = barrierId;
+			numBarriersReceived = 0;
+			controller.preProcessFirstBarrierOrAnnouncement(barrier);
+		}
 	}
 
 	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long cancelledId = cancelBarrier.getCheckpointId();
-		if (currentCheckpointId > cancelledId || (currentCheckpointId == cancelledId && numBarriersReceived == 0)) {
+		if (currentCheckpointId > cancelledId || (currentCheckpointId == cancelledId && !isCheckpointPending())) {
 			return;
 		}
-		// by setting the currentCheckpointId to this checkpoint while keeping the numBarriers
-		// at zero means that no checkpoint barrier can start a new alignment
-		currentCheckpointId = cancelledId;
-		numBarriersReceived = 0;
-		CheckpointException exception = new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
-		controller.abortPendingCheckpoint(cancelledId, exception);
-		allBarriersReceivedFuture.completeExceptionally(exception);
-		notifyAbort(cancelledId, exception);
+		abortPendingCheckpoint(cancelledId, CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
 	}
 
 	@Override
@@ -180,11 +186,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				"{}: Received EndOfPartition(-1) before completing current checkpoint {}. Skipping current checkpoint.",
 				taskName,
 				currentCheckpointId);
-			numBarriersReceived = 0;
-			CheckpointException exception = new CheckpointException(CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
-			controller.abortPendingCheckpoint(currentCheckpointId, exception);
-			allBarriersReceivedFuture.completeExceptionally(exception);
-			notifyAbort(currentCheckpointId, exception);
+			abortPendingCheckpoint(currentCheckpointId, CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
 		}
 	}
 
@@ -201,20 +203,23 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	protected boolean isCheckpointPending() {
-		return numBarriersReceived > 0;
+		return currentCheckpointId != lastCancelledOrCompletedCheckpointId && currentCheckpointId >= 0;
 	}
 
 	private void cancelSubsumedCheckpoint(long barrierId) throws IOException {
-		CheckpointException exception = new CheckpointException("Barrier id: " + barrierId,
-			CHECKPOINT_DECLINED_SUBSUMED);
-		// we did not complete the current checkpoint, another started before
 		LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
 				"Skipping current checkpoint.",
 			taskName,
 			barrierId,
 			currentCheckpointId);
+		abortPendingCheckpoint(currentCheckpointId, CHECKPOINT_DECLINED_SUBSUMED);
+	}
 
-		// let the task know we are not completing this
+	private void abortPendingCheckpoint(long cancelledId, CheckpointFailureReason reason) throws IOException {
+		currentCheckpointId = cancelledId;
+		lastCancelledOrCompletedCheckpointId = cancelledId;
+		numBarriersReceived = 0;
+		CheckpointException exception = new CheckpointException("Barrier id: " + cancelledId, reason);
 		controller.abortPendingCheckpoint(currentCheckpointId, exception);
 		allBarriersReceivedFuture.completeExceptionally(exception);
 		notifyAbort(currentCheckpointId, exception);
