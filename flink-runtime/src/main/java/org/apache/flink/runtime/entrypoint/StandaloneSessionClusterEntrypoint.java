@@ -21,7 +21,6 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
-import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
