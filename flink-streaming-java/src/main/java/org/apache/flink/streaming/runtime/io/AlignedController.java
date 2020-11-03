@@ -49,6 +49,10 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	}
 
 	@Override
+	public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+	}
+
+	@Override
 	public void barrierReceived(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) {
