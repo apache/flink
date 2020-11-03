@@ -16,56 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem.stream;
+package org.apache.flink.table.filesystem.stream.compact;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import org.apache.flink.table.filesystem.stream.AbstractStreamingWriter;
+import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCheckpoint;
+import org.apache.flink.table.filesystem.stream.compact.CompactMessages.InputFile;
 
 /**
- * Writer for emitting {@link PartitionCommitInfo} to downstream.
+ * Writer for emitting {@link InputFile} and {@link EndCheckpoint} to downstream.
  */
-public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, PartitionCommitInfo> {
+public class CompactFileWriter<T> extends AbstractStreamingWriter<T, CompactMessages.CoordinatorInput> {
 
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 1L;
 
-	private transient Set<String> inactivePartitions;
-
-	public StreamingFileWriter(
+	public CompactFileWriter(
 			long bucketCheckInterval,
-			StreamingFileSink.BucketsBuilder<IN, String, ? extends
-					StreamingFileSink.BucketsBuilder<IN, String, ?>> bucketsBuilder) {
+			StreamingFileSink.BucketsBuilder<T, String,
+					? extends StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder) {
 		super(bucketCheckInterval, bucketsBuilder);
 	}
 
 	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		inactivePartitions = new HashSet<>();
-		super.initializeState(context);
-	}
-
-	@Override
 	protected void partitionInactive(String partition) {
-		inactivePartitions.add(partition);
 	}
 
 	@Override
-	protected void onPartFileOpened(String s, Path newPath) {
+	protected void onPartFileOpened(String partition, Path newPath) {
+		output.collect(new StreamRecord<>(new InputFile(partition, newPath)));
 	}
 
 	@Override
-	protected void commitUpToCheckpoint(long checkpointId) throws Exception {
-		super.commitUpToCheckpoint(checkpointId);
-		output.collect(new StreamRecord<>(new PartitionCommitInfo(
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		super.notifyCheckpointComplete(checkpointId);
+		output.collect(new StreamRecord<>(new EndCheckpoint(
 				checkpointId,
 				getRuntimeContext().getIndexOfThisSubtask(),
-				getRuntimeContext().getNumberOfParallelSubtasks(),
-				new ArrayList<>(inactivePartitions))));
-		inactivePartitions.clear();
+				getRuntimeContext().getNumberOfParallelSubtasks())));
 	}
 }
