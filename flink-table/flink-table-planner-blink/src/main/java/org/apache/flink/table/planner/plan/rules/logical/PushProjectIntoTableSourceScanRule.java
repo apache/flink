@@ -199,9 +199,11 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 				usedMetaDataFields.add(usedMetadata);
 			}
 		}
+
 		// get path of the used fields
 		int[][] projectedPhysicalFields = NestedSchema.convertToIndexArray(nestedSchema);
 		((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
+
 		// push the metadata back for later rewrite and extract the location in the origin row
 		int newIndex = projectedPhysicalFields.length;
 		List<String> usedMetadataNames = new LinkedList<>();

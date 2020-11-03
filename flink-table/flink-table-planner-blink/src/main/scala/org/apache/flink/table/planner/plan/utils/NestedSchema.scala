@@ -20,23 +20,24 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import java.util
-import java.util.{LinkedHashMap => JLinkedHashMap, List => JList}
+
+import java.util.{LinkedHashMap => JLinkedHashMap, List => JList, LinkedList => JLinkedList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- * [[NestedColumn]] is a tree node to build the used fields tree. The leaf node
- * is the real node that is used by the query. The non-leaf node is a virtual
- * node to represents the logical structure.
+ * [[NestedColumn]] is a tree node to build the used nested fields tree. For
+ * non-nested field, it is a single node in the tree.
+ *
  *
  * @param name                    The name of the fields in the origin schema
  * @param indexInOriginSchema     The index of the field in the origin schema.
  *                                It only works for the RowType.
- * @param originFieldType               The type of the field. It is useful when
+ * @param originFieldType         The type of the field. It is useful when
  *                                rewriting the projections.
  * @param isLeaf                  Mark the field is the leaf node in the tree.
  * @param children                Store the children of the field. It's safe
@@ -139,8 +140,8 @@ object NestedSchema {
    * [[SupportsProjectionPushDown]] and test(debug).
    */
   def convertToIndexArray(root: NestedSchema): Array[Array[Int]] = {
-    val allPaths = new util.LinkedList[Array[Int]]()
-    val path = new util.LinkedList[Int]()
+    val allPaths = new JLinkedList[Array[Int]]()
+    val path = new JLinkedList[Int]()
     root.columns.foldLeft(0) {
       case (newIndex, (_, column)) =>
         traverse(column, newIndex, path, allPaths)
@@ -196,8 +197,7 @@ object NestedSchema {
  *  2. if the process hasn't found the first reference, the process continues to search under
  *  the current parent.
  */
-private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder)
-    extends RexShuttle {
+private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) extends RexShuttle {
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     val name = schema.originRowType.getFieldNames.get(inputRef.getIndex)
     if (!schema.columns.containsKey(name)) {
@@ -277,17 +277,17 @@ private class NestedSchemaExtractor(schema: NestedSchema)
     // extract the info
     val (index, names) = internalVisit(fieldAccess)
 
-    val topVirtualNodeName = schema.originRowType.getFieldNames.get(index)
-    val topVirtualNode = if (!schema.columns.contains(topVirtualNodeName)) {
+    val topLevelNodeName = schema.originRowType.getFieldNames.get(index)
+    val topLevelNode = if (!schema.columns.contains(topLevelNodeName)) {
       val fieldType = schema.originRowType.getFieldList.get(index).getType
-      val node = new NestedColumn(topVirtualNodeName, index, fieldType)
-      schema.columns.put(topVirtualNodeName, node)
+      val node = new NestedColumn(topLevelNodeName, index, fieldType)
+      schema.columns.put(topLevelNodeName, node)
       node
     } else {
-      schema.columns.get(topVirtualNodeName)
+      schema.columns.get(topLevelNodeName)
     }
 
-    val leaf = names.slice(1, names.size).foldLeft(topVirtualNode) {
+    val leaf = names.slice(1, names.size).foldLeft(topLevelNode) {
       case(parent, name) =>
         if (parent.isLeaf) {
           return
@@ -315,8 +315,7 @@ private class NestedSchemaExtractor(schema: NestedSchema)
     } else {
       val index = inputRef.getIndex
       val fieldType = schema.originRowType.getFieldList.get(index).getType
-      val leaf =
-        new NestedColumn(name, index, fieldType)
+      val leaf = new NestedColumn(name, index, fieldType)
       schema.columns.put(leaf.name, leaf)
       leaf.markLeaf()
     }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
 
-import org.junit.Assert.assertTrue
+import org.junit.Assert.{assertTrue, assertEquals}
 import org.junit.Test
 
 import scala.collection.JavaConversions._
@@ -32,7 +32,8 @@ import scala.collection.JavaConverters._
  */
 class NestedSchemaTest extends RexNodeTestBase{
 
-  private def compare(actual: Array[Array[Int]], expected: Array[Array[Int]]): Unit = {
+  private def assertArray(actual: Array[Array[Int]], expected: Array[Array[Int]]): Unit = {
+    assertEquals(expected.length, actual.length)
     actual.zip(expected).foreach{
       case (result, expect) =>
         assert(result.sameElements(expect))
@@ -46,7 +47,7 @@ class NestedSchemaTest extends RexNodeTestBase{
     val actual = NestedSchema.convertToIndexArray(nestedFields)
     val expected = Array(Array(2), Array(3), Array(1))
 
-    compare(actual, expected)
+    assertArray(actual, expected)
   }
 
   @Test
@@ -57,7 +58,7 @@ class NestedSchemaTest extends RexNodeTestBase{
     val actual = NestedSchema.convertToIndexArray(nestedFields)
     val expected = Array(Array(1, 1), Array(0))
 
-    compare(actual, expected)
+    assertArray(actual, expected)
   }
 
   @Test
@@ -73,7 +74,7 @@ class NestedSchemaTest extends RexNodeTestBase{
       Array(2, 0, 1, 0)
     )
 
-    compare(actual, expected)
+    assertArray(actual, expected)
   }
 
   @Test
@@ -102,7 +103,7 @@ class NestedSchemaTest extends RexNodeTestBase{
       Array(3),
       Array(4)
     )
-    compare(paths, orderedPaths)
+    assertArray(paths, orderedPaths)
     val builder = new FlinkRexBuilder(typeFactory)
     val projectExprs = rexProgram.getProjectList.map(expr => rexProgram.expandLocalRef(expr))
     val newProjectExprs =
@@ -136,7 +137,7 @@ class NestedSchemaTest extends RexNodeTestBase{
       Array(1, 1),
       Array(0)
     )
-    compare(paths, orderedPaths)
+    assertArray(paths, orderedPaths)
     val newExprs = NestedSchema.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
 
     assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
@@ -184,7 +185,7 @@ class NestedSchemaTest extends RexNodeTestBase{
       Array(2, 0, 0, 0),
       Array(2, 0, 1, 0)
     )
-    compare(paths, orderedPaths)
+    assertArray(paths, orderedPaths)
     val newExprs =
       NestedSchema.rewrite(exprs, nestedFields, new FlinkRexBuilder(typeFactory))
 
