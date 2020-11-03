@@ -169,4 +169,51 @@ class BlinkBatchPandasConversionTests(PandasConversionTests,
 
 class BlinkStreamPandasConversionTests(PandasConversionITTests,
                                        PyFlinkBlinkStreamTableTestCase):
-    pass
+    def test_to_pandas_with_event_time(self):
+        self.env.set_parallelism(1)
+        # create source file path
+        import tempfile
+        from pyflink.datastream.time_characteristic import TimeCharacteristic
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:40:00',
+            '2018-03-11 04:20:00',
+            '2018-03-11 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_to_pandas_with_event_time.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+
+        source_table = """
+            create table source_table(
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+        result_pdf = t.to_pandas()
+        import pandas as pd
+        os.remove(source_path)
+        assert_frame_equal(result_pdf, pd.DataFrame(
+            data={"rowtime": [
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 40),
+                datetime.datetime(2018, 3, 11, 4, 20),
+                datetime.datetime(2018, 3, 11, 3, 30),
+            ]}))
