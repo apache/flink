@@ -62,7 +62,7 @@ public final class ClusterEntrypointUtils {
 		} catch (Exception e) {
 			LOG.error("Could not parse command line arguments {}.", args, e);
 			commandLineParser.printHelp(mainClass.getSimpleName());
-			System.exit(1);
+			System.exit(ClusterEntrypoint.STARTUP_FAILURE_RETURN_CODE);
 		}
 
 		return null;
