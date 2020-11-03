@@ -30,6 +30,10 @@ under the License.
         <name>dfs.namenode.http-address</name>
         <value>0.0.0.0:0</value>
     </property>
+    <property>
+        <name>dfs.namenode.https-address</name>
+        <value>0.0.0.0:0</value>
+    </property>
 
     <property>
          <name>dfs.permissions</name>
