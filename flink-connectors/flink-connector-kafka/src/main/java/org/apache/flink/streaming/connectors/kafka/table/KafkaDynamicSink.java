@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
@@ -37,6 +38,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
@@ -48,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Stream;
 
@@ -55,7 +58,7 @@ import java.util.stream.Stream;
  * A version-agnostic Kafka {@link DynamicTableSink}.
  */
 @Internal
-public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
+public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata, ParallelismProvider {
 
 	// --------------------------------------------------------------------------------------------
 	// Mutable attributes
@@ -280,6 +283,25 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 			physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
 		}
 		return format.createRuntimeEncoder(context, physicalFormatDataType);
+	}
+
+	/**
+	 * Returns the parallelism for this instance.
+	 *
+	 * <p>The parallelism denotes how many parallel instances of a source or sink will be spawned
+	 * during the execution.
+	 *
+	 * @return empty if the connector does not provide a custom parallelism, then the planner will
+	 * decide the number of parallel instances by itself.
+	 */
+	@Override
+	public Optional<Integer> getParallelism() {
+		String parallelism = properties.getProperty(KafkaOptions.SINK_PARALLELISM.key());
+		if (parallelism != null && StringUtils.isNumeric(parallelism)) {
+			return Optional.of(Integer.parseInt(parallelism));
+		} else {
+			return Optional.empty();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

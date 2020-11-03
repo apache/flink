@@ -450,6 +450,16 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSinkWithParallelism() {
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+			getBasicSourceOptions(),
+			options -> options.put("sink.parallelism", "1"));
+
+		KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(modifiedOptions);
+		assertEquals(1, (long) sink.getParallelism().get());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------

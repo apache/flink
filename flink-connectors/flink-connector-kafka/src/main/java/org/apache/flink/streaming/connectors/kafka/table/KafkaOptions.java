@@ -188,6 +188,11 @@ public class KafkaOptions {
 			.defaultValue("at-least-once")
 			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
+	public static final ConfigOption<Integer> SINK_PARALLELISM = ConfigOptions.key("sink.parallelism")
+			.intType()
+			.noDefaultValue()
+			.withDescription("Optional parallelism for Kafka Producer.");
+
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
 	// --------------------------------------------------------------------------------------------
