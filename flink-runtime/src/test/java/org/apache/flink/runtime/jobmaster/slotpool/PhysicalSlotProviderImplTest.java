@@ -77,7 +77,7 @@ public class PhysicalSlotProviderImplTest {
 	}
 
 	@Test
-	public void testBulkSlotAllocationFulfilledWithAvailableSlots() throws InterruptedException, ExecutionException {
+	public void testSlotAllocationFulfilledWithAvailableSlots() throws InterruptedException, ExecutionException {
 		PhysicalSlotRequest request = createPhysicalSlotRequest();
 		addSlotToSlotPool();
 		CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(request);
@@ -86,7 +86,7 @@ public class PhysicalSlotProviderImplTest {
 	}
 
 	@Test
-	public void testBulkSlotAllocationFulfilledWithNewSlots() throws ExecutionException, InterruptedException {
+	public void testSlotAllocationFulfilledWithNewSlots() throws ExecutionException, InterruptedException {
 		final CompletableFuture<PhysicalSlotRequest.Result> slotFuture = allocateSlot(createPhysicalSlotRequest());
 		assertThat(slotFuture.isDone(), is(false));
 		addSlotToSlotPool();
