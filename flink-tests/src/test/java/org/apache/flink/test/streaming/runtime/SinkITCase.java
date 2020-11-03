@@ -67,13 +67,14 @@ public class SinkITCase extends AbstractTestBase {
 			.collect(
 					Collectors.toList());
 
-	static final List<String> EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE = Collections.nCopies(
-			2,
-			SOURCE_DATA
-					.stream()
-					.map(x -> Tuple3.of(x, null, Long.MIN_VALUE).toString())
-					.sorted()
-					.collect(joining("+")));
+	static final List<String> EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE = SOURCE_DATA
+			.stream()
+			// source send data two times
+			.flatMap(x -> Collections
+					.nCopies(2, Tuple3.of(x, null, Long.MIN_VALUE).toString())
+					.stream())
+			.collect(
+					Collectors.toList());
 
 	static final List<String> EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE = Arrays.asList(
 			SOURCE_DATA
@@ -112,7 +113,7 @@ public class SinkITCase extends AbstractTestBase {
 				containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
 
 		assertThat(
-				GLOBAL_COMMIT_QUEUE,
+				getSplittedGlobalCommittedData(),
 				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
 	}
 
@@ -183,7 +184,7 @@ public class SinkITCase extends AbstractTestBase {
 
 		env.execute();
 		assertThat(
-				GLOBAL_COMMIT_QUEUE,
+				getSplittedGlobalCommittedData(),
 				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
 	}
 
@@ -203,6 +204,13 @@ public class SinkITCase extends AbstractTestBase {
 				GLOBAL_COMMIT_QUEUE,
 				containsInAnyOrder(EXPECTED_GLOBAL_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
 
+	}
+
+	private static List<String> getSplittedGlobalCommittedData() {
+		return GLOBAL_COMMIT_QUEUE
+				.stream()
+				.flatMap(x -> Arrays.stream(x.split("\\+")))
+				.collect(Collectors.toList());
 	}
 
 	private StreamExecutionEnvironment buildStreamEnv() {
