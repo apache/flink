@@ -47,11 +47,9 @@ class StreamExecIntervalJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
     val joinRowType = join.getRowType
-    val joinInfo = join.analyzeCondition()
 
-    // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
     // TODO support SEMI/ANTI join
-    if (!join.getJoinType.projectsRight || joinInfo.pairs().isEmpty) {
+    if (!join.getJoinType.projectsRight) {
       return false
     }
 

@@ -127,11 +127,33 @@ class IntervalJoinTest extends TableTestBase {
   }
 
   @Test
+  def testProcessingTimeInnerJoinWithoutEqualCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
+        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testRowTimeInnerJoinWithOnClause(): Unit = {
     val sqlQuery =
       """
         |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testRowTimeInnerJoinWithoutEqualCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
