@@ -38,7 +38,7 @@ public interface EncodingFormat<I> extends Format {
 	/**
 	 * Creates runtime encoder implementation that is configured to consume data of the given data type.
 	 */
-	I createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType);
+	I createRuntimeEncoder(DynamicTableSink.Context context, DataType physicalDataType);
 
 	/**
 	 * Returns the map of metadata keys and their corresponding data types that can be consumed by this
@@ -63,7 +63,7 @@ public interface EncodingFormat<I> extends Format {
 	 * <p>See {@link SupportsWritingMetadata} for more information.
 	 *
 	 * <p>Note: This method is only used if the outer {@link DynamicTableSink} implements {@link SupportsWritingMetadata}
-	 * and calls this method in {@link SupportsWritingMetadata#applyWritableMetadata(List)}.
+	 * and calls this method in {@link SupportsWritingMetadata#applyWritableMetadata(List, DataType)}.
 	 */
 	@SuppressWarnings("unused")
 	default void applyWritableMetadata(List<String> metadataKeys) {

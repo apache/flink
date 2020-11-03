@@ -38,7 +38,7 @@ public interface DecodingFormat<I> extends Format {
 	/**
 	 * Creates runtime decoder implementation that is configured to produce data of the given data type.
 	 */
-	I createRuntimeDecoder(DynamicTableSource.Context context, DataType producedDataType);
+	I createRuntimeDecoder(DynamicTableSource.Context context, DataType physicalDataType);
 
 	/**
 	 * Returns the map of metadata keys and their corresponding data types that can be produced by this
