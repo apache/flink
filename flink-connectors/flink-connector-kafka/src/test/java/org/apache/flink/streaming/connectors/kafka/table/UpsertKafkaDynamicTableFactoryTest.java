@@ -64,6 +64,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link UpsertKafkaDynamicTableFactory}.
@@ -113,11 +114,11 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
 		DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat =
 				new TestFormatFactory.DecodingFormatMock(
-						",", true, ChangelogMode.insertOnly());
+						",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
 
 		DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
 				new TestFormatFactory.DecodingFormatMock(
-						",", true, ChangelogMode.insertOnly());
+						",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
 
 		// Construct table source using options and table source factory
 		final DynamicTableSource actualSource = createActualSource(SOURCE_SCHEMA, getFullSourceOptions());
@@ -160,7 +161,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 				SINK_VALUE_FIELDS,
 				null,
 				SINK_TOPIC,
-				UPSERT_KAFKA_SOURCE_PROPERTIES,
+				UPSERT_KAFKA_SINK_PROPERTIES,
 				null);
 
 		// Test sink format.
@@ -196,7 +197,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 			SINK_VALUE_FIELDS,
 			null,
 			SINK_TOPIC,
-			UPSERT_KAFKA_SOURCE_PROPERTIES,
+			UPSERT_KAFKA_SINK_PROPERTIES,
 			100);
 		assertEquals(expectedSink, actualSink);
 
@@ -204,6 +205,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 			actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
 		assertThat(provider, instanceOf(SinkFunctionProvider.class));
 		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+		assertTrue(sinkFunctionProvider.getParallelism().isPresent());
 		assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
 	}
 

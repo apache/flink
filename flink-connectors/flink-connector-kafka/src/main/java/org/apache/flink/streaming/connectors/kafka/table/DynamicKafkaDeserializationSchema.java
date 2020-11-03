@@ -229,24 +229,25 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 		}
 
 		private void emitRow(@Nullable GenericRowData physicalKeyRow, @Nullable GenericRowData physicalValueRow) {
-			final int metadataArity = metadataConverters.length;
 			final RowKind rowKind;
 			if (physicalValueRow == null) {
 				if (upsertMode) {
 					rowKind = RowKind.DELETE;
 				} else {
 					throw new DeserializationException(
-							"Get null value in non-upsert mode. Could not to set rowkind for input record.");
+							"Invalid null value received in non-upsert mode. Could not to set row kind for output record.");
 				}
 			} else {
 				rowKind = physicalValueRow.getRowKind();
 			}
 
+			final int metadataArity = metadataConverters.length;
 			final GenericRowData producedRow = new GenericRowData(
 					rowKind,
 					physicalArity + metadataArity);
 
 			for (int keyPos = 0; keyPos < keyProjection.length; keyPos++) {
+				assert physicalKeyRow != null;
 				producedRow.setField(keyProjection[keyPos], physicalKeyRow.getField(keyPos));
 			}
 

@@ -21,6 +21,7 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -57,6 +58,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
@@ -149,6 +151,37 @@ public final class DataTypeUtils {
 				.collect(Collectors.toList());
 		final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
 		return new FieldsDataType(newRowType, dataType.getConversionClass(), dataType.getChildren());
+	}
+
+	/**
+	 * Appends the given list of fields to an existing row data type.
+	 */
+	public static DataType appendRowFields(DataType dataType, List<DataTypes.Field> fields) {
+		Preconditions.checkArgument(
+			hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			"Row data type expected.");
+		if (fields.size() == 0) {
+			return dataType;
+		}
+
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final List<RowField> newFields = Stream.concat(
+				rowType.getFields().stream(),
+				fields.stream()
+						.map(f ->
+								new RowField(
+										f.getName(),
+										f.getDataType().getLogicalType(),
+										f.getDescription().orElse(null))))
+				.collect(Collectors.toList());
+		final RowType newRowType = new RowType(rowType.isNullable(), newFields);
+
+		final List<DataType> newFieldDataTypes = Stream.concat(
+					dataType.getChildren().stream(),
+					fields.stream().map(DataTypes.Field::getDataType))
+				.collect(Collectors.toList());
+
+		return new FieldsDataType(newRowType, dataType.getConversionClass(), newFieldDataTypes);
 	}
 
 	/**
