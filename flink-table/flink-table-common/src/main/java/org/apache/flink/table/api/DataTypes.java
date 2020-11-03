@@ -72,6 +72,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -1109,6 +1110,24 @@ public final class DataTypes {
 		protected abstract AbstractDataType<?> getAbstractDataType();
 
 		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			AbstractField that = (AbstractField) o;
+			return name.equals(that.name)
+				&& Objects.equals(description, that.description);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(name, description);
+		}
+
+		@Override
 		public String toString() {
 			if (description != null) {
 				return String.format(
@@ -1147,6 +1166,26 @@ public final class DataTypes {
 		protected AbstractDataType<?> getAbstractDataType() {
 			return dataType;
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			if (!super.equals(o)) {
+				return false;
+			}
+			Field field = (Field) o;
+			return dataType.equals(field.dataType);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode(), dataType);
+		}
 	}
 
 	/**
@@ -1172,6 +1211,26 @@ public final class DataTypes {
 		@Override
 		protected AbstractDataType<?> getAbstractDataType() {
 			return dataType;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			if (!super.equals(o)) {
+				return false;
+			}
+			UnresolvedField that = (UnresolvedField) o;
+			return dataType.equals(that.dataType);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode(), dataType);
 		}
 	}
 
