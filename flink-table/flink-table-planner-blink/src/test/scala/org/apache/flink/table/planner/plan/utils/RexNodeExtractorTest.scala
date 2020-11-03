@@ -40,14 +40,12 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
-
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
 
 import java.math.BigDecimal
 import java.time.ZoneId
-import java.util
-import java.util.{TimeZone, List => JList}
+import java.util.{Arrays, TimeZone, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -76,7 +74,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
-    val expected = Array(Array(util.Arrays.asList("amount")), Array(util.Arrays.asList("*")))
+    val expected = Array(Array(Arrays.asList("amount")), Array(Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -87,8 +85,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(exprs, usedFields)
 
-    val expected = Array(Array(util.Arrays.asList("*")),
-      Array(util.Arrays.asList("*")), Array(util.Arrays.asList("*")))
+    val expected = Array(Array(Arrays.asList("*")),
+      Array(Arrays.asList("*")), Array(Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -100,10 +98,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
     val expected = Array(
-      Array(util.Arrays.asList("amount")),
-      Array(util.Arrays.asList("*")),
-      Array(util.Arrays.asList("with", "deeper", "entry"),
-        util.Arrays.asList("with", "deep", "entry")))
+      Array(Arrays.asList("amount")),
+      Array(Arrays.asList("*")),
+      Array(Arrays.asList("with", "deeper", "entry"), Arrays.asList("with", "deep", "entry")))
 
     assertThat(usedFields, is(Array(1, 0, 2)))
     assertThat(usedNestedFields, is(expected))

@@ -90,8 +90,8 @@ public class DataTypeUtilsTest {
 			equalTo(ROW(FIELD("a1_b1_c2", INT()), FIELD("a1_b1_c1", DOUBLE()), FIELD("a1_b1_c0", BOOLEAN()))));
 
 		assertThat(
-				DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 0}, {2}}),
-				equalTo(ROW(FIELD("a1_b1_c0", BOOLEAN()), FIELD("a1_b1_c0_$0", INT()))));
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 0}, {2}}),
+			equalTo(ROW(FIELD("a1_b1_c0", BOOLEAN()), FIELD("a1_b1_c0_$0", INT()))));
 	}
 
 	@Test

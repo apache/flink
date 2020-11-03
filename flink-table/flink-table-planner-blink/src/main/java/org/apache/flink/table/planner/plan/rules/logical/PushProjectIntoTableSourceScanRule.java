@@ -192,6 +192,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		List<NestedColumn> usedMetaDataFields = new LinkedList<>();
 		int physicalCount = originType.getFieldCount() - metadataKeys.size();
 		List<String> fieldNames = originType.getFieldNames();
+
 		// rm metadata in the tree
 		for (int i = 0; i < metadataKeys.size(); i++) {
 			NestedColumn usedMetadata = nestedSchema.columns().remove(fieldNames.get(i + physicalCount));
@@ -212,6 +213,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			nestedSchema.columns().put(metadata.name(), metadata);
 			usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
 		}
+
 		// apply metadata push down
 		int[][] projectedFields = Stream.concat(
 				Stream.of(projectedPhysicalFields),

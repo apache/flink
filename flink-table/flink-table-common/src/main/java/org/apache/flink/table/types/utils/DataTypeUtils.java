@@ -135,8 +135,8 @@ public final class DataTypeUtils {
 	 */
 	public static DataType stripRowPrefix(DataType dataType, String prefix) {
 		Preconditions.checkArgument(
-				hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
-				"Row data type expected.");
+			hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			"Row data type expected.");
 		final RowType rowType = (RowType) dataType.getLogicalType();
 		final List<String> newFieldNames = rowType.getFieldNames()
 				.stream()
