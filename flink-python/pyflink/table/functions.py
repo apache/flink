@@ -780,29 +780,20 @@ class SumWithRetractAggFunction(AggregateFunction):
 
     def create_accumulator(self):
         # [sum, count]
-        return [None, 0]
+        return [0, 0]
 
     def accumulate(self, accumulator, *args):
         if args[0] is not None:
-            if accumulator[0] is None:
-                accumulator[0] = args[0]
-            else:
-                accumulator[0] += args[0]
+            accumulator[0] += args[0]
             accumulator[1] += 1
 
     def retract(self, accumulator, *args):
         if args[0] is not None:
-            if accumulator[0] is None:
-                accumulator[0] = -args[0]
-            else:
-                accumulator[0] -= args[0]
+            accumulator[0] -= args[0]
             accumulator[1] -= 1
 
     def merge(self, accumulator, accumulators):
         for acc in accumulators:
             if acc[0] is not None:
-                if accumulator[0] is None:
-                    accumulator[0] = acc[0]
-                else:
-                    accumulator[0] += acc[0]
+                accumulator[0] += acc[0]
                 accumulator[1] += acc[1]
