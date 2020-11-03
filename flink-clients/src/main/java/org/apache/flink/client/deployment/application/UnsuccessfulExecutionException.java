@@ -32,11 +32,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * application with a given {@link ApplicationStatus}.
  */
 @Internal
-public class ApplicationFailureException extends JobExecutionException {
+public class UnsuccessfulExecutionException extends JobExecutionException {
 
 	private final ApplicationStatus status;
 
-	public ApplicationFailureException(
+	public UnsuccessfulExecutionException(
 			final JobID jobID,
 			final ApplicationStatus status,
 			final String message,
@@ -49,7 +49,7 @@ public class ApplicationFailureException extends JobExecutionException {
 		return status;
 	}
 
-	public static ApplicationFailureException fromJobResult(
+	public static UnsuccessfulExecutionException fromJobResult(
 			final JobResult result,
 			final ClassLoader userClassLoader) {
 
@@ -70,8 +70,8 @@ public class ApplicationFailureException extends JobExecutionException {
 			final ApplicationStatus status = result.getApplicationStatus();
 
 			return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
-					? new ApplicationFailureException(jobID, status, "Application Status: " + status.name(), t)
-					: new ApplicationFailureException(jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
+					? new UnsuccessfulExecutionException(jobID, status, "Application Status: " + status.name(), t)
+					: new UnsuccessfulExecutionException(jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
 		}
 	}
 }
