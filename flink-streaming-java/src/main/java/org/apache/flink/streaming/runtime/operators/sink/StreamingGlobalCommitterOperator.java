@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,14 +59,14 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends 
 	}
 
 	@Override
-	void recoveredCommittables(List<GlobalCommT> committables) {
+	void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
 		final List<GlobalCommT> recovered = globalCommitter.
 				filterRecoveredCommittables(checkNotNull(committables));
 		recoveredGlobalCommittables.addAll(recovered);
 	}
 
 	@Override
-	List<GlobalCommT> prepareCommit(List<CommT> input) {
+	List<GlobalCommT> prepareCommit(List<CommT> input) throws IOException {
 		checkNotNull(input);
 		final List<GlobalCommT> result =
 				new ArrayList<>(recoveredGlobalCommittables);
