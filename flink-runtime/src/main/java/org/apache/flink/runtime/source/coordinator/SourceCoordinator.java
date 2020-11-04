@@ -89,7 +89,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			String operatorName,
 			ExecutorService coordinatorExecutor,
 			Source<?, SplitT, EnumChkT> source,
-			SourceCoordinatorContext<SplitT> context) {
+			SourceCoordinatorContext<SplitT> context) throws Exception {
 		this.operatorName = operatorName;
 		this.coordinatorExecutor = coordinatorExecutor;
 		this.source = source;

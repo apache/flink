@@ -185,9 +185,10 @@ under the License.
 							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
 
-							<!-- additions to Source API context interfaces -->
+							<!-- additions to Source API context interfaces and exception signatures -->
 							<exclude>org.apache.flink.api.connector.source.SourceReaderContext</exclude>
 							<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext</exclude>
+							<exclude>org.apache.flink.api.connector.source.Source</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
