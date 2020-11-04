@@ -89,7 +89,7 @@ class NestedSchema(
 
 }
 
-object NestedSchema {
+object NestedProjectionUtil {
   /**
    * It will uses the RexNodes to build a tree of the used fields.
    * It uses a visitor to visit the operands of the expression. For

@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.NestedColumn;
+import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.sources.DynamicSourceUtils;
@@ -114,7 +115,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		// build used schema tree
 		RowType originType =
 				DynamicSourceUtils.createProducedType(oldSchema, oldSource);
-		NestedSchema nestedSchema = NestedSchema.build(
+		NestedSchema nestedSchema = NestedProjectionUtil.build(
 				oldProjectsWithPK, flinkTypeFactory.buildRelNodeRowType(originType));
 		if (!supportsNestedProjection) {
 			// mark the fields in the top level as leaf
@@ -131,7 +132,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			newProducedDataType =
 					applyPhysicalAndMetadataPushDown(nestedSchema, metadataKeys, originType, newSource);
 		} else {
-			int[][] projectedFields = NestedSchema.convertToIndexArray(nestedSchema);
+			int[][] projectedFields = NestedProjectionUtil.convertToIndexArray(nestedSchema);
 			((SupportsProjectionPushDown) newSource).applyProjection(projectedFields);
 			newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
 		}
@@ -147,7 +148,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		// rewrite the input field in projections
 		// the origin projections are enough. Because the upsert source only uses pk info normalization node.
 		List<RexNode> newProjects =
-				NestedSchema.rewrite(project.getProjects(), nestedSchema, call.builder().getRexBuilder());
+				NestedProjectionUtil.rewrite(project.getProjects(), nestedSchema, call.builder().getRexBuilder());
 		// rewrite new source
 		LogicalProject newProject = project.copy(
 				project.getTraitSet(),
@@ -202,7 +203,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		}
 
 		// get path of the used fields
-		int[][] projectedPhysicalFields = NestedSchema.convertToIndexArray(nestedSchema);
+		int[][] projectedPhysicalFields = NestedProjectionUtil.convertToIndexArray(nestedSchema);
 		((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
 
 		// push the metadata back for later rewrite and extract the location in the origin row

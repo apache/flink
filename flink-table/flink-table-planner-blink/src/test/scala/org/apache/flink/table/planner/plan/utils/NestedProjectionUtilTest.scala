@@ -29,7 +29,7 @@ import scala.collection.JavaConverters._
 /**
  *  Tests for [[NestedSchema]].
  */
-class NestedSchemaTest extends RexNodeTestBase{
+class NestedProjectionUtilTest extends RexNodeTestBase{
 
   private def assertArray(actual: Array[Array[Int]], expected: Array[Array[Int]]): Unit = {
     assertEquals(expected.length, actual.length)
@@ -42,8 +42,8 @@ class NestedSchemaTest extends RexNodeTestBase{
   @Test
   def testExtractRefInputFields(): Unit = {
     val (exprs, rowType) = buildExprs()
-    val nestedFields = NestedSchema.build(exprs, rowType)
-    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val nestedFields = NestedProjectionUtil.build(exprs, rowType)
+    val actual = NestedProjectionUtil.convertToIndexArray(nestedFields)
     val expected = Array(Array(2), Array(3), Array(1))
 
     assertArray(actual, expected)
@@ -53,8 +53,8 @@ class NestedSchemaTest extends RexNodeTestBase{
   def testExtractRefNestedInputFields(): Unit = {
     val (rexProgram, rowType) = buildExprsWithNesting()
 
-    val nestedFields = NestedSchema.build(rexProgram, rowType)
-    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val nestedFields = NestedProjectionUtil.build(rexProgram, rowType)
+    val actual = NestedProjectionUtil.convertToIndexArray(nestedFields)
     val expected = Array(Array(1, 1), Array(0))
 
     assertArray(actual, expected)
@@ -64,8 +64,8 @@ class NestedSchemaTest extends RexNodeTestBase{
   def testExtractDeepRefNestedInputFieldsUsingNestedField(): Unit = {
     val (rexProgram, rowType) = buildExprsWithDeepNesting()
 
-    val nestedFields = NestedSchema.build(rexProgram, rowType)
-    val actual = NestedSchema.convertToIndexArray(nestedFields)
+    val nestedFields = NestedProjectionUtil.build(rexProgram, rowType)
+    val actual = NestedProjectionUtil.convertToIndexArray(nestedFields)
     val expected = Array(
       Array(1, 1),
       Array(0),
@@ -93,8 +93,8 @@ class NestedSchemaTest extends RexNodeTestBase{
       ">($t1, $t8)",
       "AND($t7, $t9)")))
 
-    val nestedField = NestedSchema.build(exprs, rexProgram.getInputRowType)
-    val paths = NestedSchema.convertToIndexArray(nestedField)
+    val nestedField = NestedProjectionUtil.build(exprs, rexProgram.getInputRowType)
+    val paths = NestedProjectionUtil.convertToIndexArray(nestedField)
     val orderedPaths = Array(
       Array(0),
       Array(1),
@@ -106,11 +106,11 @@ class NestedSchemaTest extends RexNodeTestBase{
     val builder = new FlinkRexBuilder(typeFactory)
     val projectExprs = rexProgram.getProjectList.map(expr => rexProgram.expandLocalRef(expr))
     val newProjectExprs =
-      NestedSchema.rewrite(
+      NestedProjectionUtil.rewrite(
         projectExprs, nestedField, builder)
     val conditionExprs = rexProgram.expandLocalRef(rexProgram.getCondition)
     val newConditionExprs =
-      NestedSchema.rewrite(Seq(conditionExprs), nestedField, builder)
+      NestedProjectionUtil.rewrite(Seq(conditionExprs), nestedField, builder)
     assertTrue(newProjectExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "$2",
       "*($2, $3)")))
@@ -130,14 +130,15 @@ class NestedSchemaTest extends RexNodeTestBase{
       "100"
     )))
 
-    val nestedField = NestedSchema.build(exprs, rowType)
-    val paths = NestedSchema.convertToIndexArray(nestedField)
+    val nestedField = NestedProjectionUtil.build(exprs, rowType)
+    val paths = NestedProjectionUtil.convertToIndexArray(nestedField)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0)
     )
     assertArray(paths, orderedPaths)
-    val newExprs = NestedSchema.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
+    val newExprs =
+      NestedProjectionUtil.rewrite(exprs, nestedField, new FlinkRexBuilder(typeFactory))
 
     assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "$0",
@@ -176,8 +177,8 @@ class NestedSchemaTest extends RexNodeTestBase{
       "$2.with.deeper.entry",
       "$0"
     )))
-    val nestedFields = NestedSchema.build(exprs, rowType)
-    val paths = NestedSchema.convertToIndexArray(nestedFields)
+    val nestedFields = NestedProjectionUtil.build(exprs, rowType)
+    val paths = NestedProjectionUtil.convertToIndexArray(nestedFields)
     val orderedPaths = Array(
       Array(1, 1),
       Array(0),
@@ -186,7 +187,7 @@ class NestedSchemaTest extends RexNodeTestBase{
     )
     assertArray(paths, orderedPaths)
     val newExprs =
-      NestedSchema.rewrite(exprs, nestedFields, new FlinkRexBuilder(typeFactory))
+      NestedProjectionUtil.rewrite(exprs, nestedFields, new FlinkRexBuilder(typeFactory))
 
     assertTrue(newExprs.asScala.map(_.toString) == wrapRefArray(Array(
       "*($0, 10)",
