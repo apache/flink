@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
@@ -70,34 +69,64 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						" 'bounded' = 'true'\n" +
 						")";
 		util().tableEnv().executeSql(ddl2);
-	}
 
-	@Override
-	public void testNestedProject() {
-		expectedException().expect(TableException.class);
-		expectedException().expectMessage("Nested projection push down is unsupported now.");
-		testNestedProject(true);
-	}
-
-	@Test
-	public void testNestedProjectDisabled() {
-		testNestedProject(false);
-	}
-
-	private void testNestedProject(boolean nestedProjectionSupported) {
-		String ddl =
+		String ddl3 =
 				"CREATE TABLE NestedTable (\n" +
 						"  id int,\n" +
 						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
 						"  nested row<name string, `value` int>,\n" +
-						"  name string\n" +
+						"  `deepNestedWith.` row<`.value` int, nested row<name string, `.value` int>>,\n" +
+						"  name string,\n" +
+						"  testMap Map<string, string>\n" +
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
-						" 'nested-projection-supported' = '" + nestedProjectionSupported + "',\n" +
-						"  'bounded' = 'true'\n" +
+						" 'nested-projection-supported' = 'true'," +
+						" 'bounded' = 'true'\n" +
 						")";
-		util().tableEnv().executeSql(ddl);
+		util().tableEnv().executeSql(ddl3);
 
+		String ddl4 =
+				"CREATE TABLE MetadataTable(\n" +
+						"  id int,\n" +
+						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
+						"  metadata_1 int metadata,\n" +
+						"  metadata_2 string metadata\n" +
+						") WITH (" +
+						" 'connector' = 'values'," +
+						" 'nested-projection-supported' = 'true'," +
+						" 'bounded' = 'true',\n" +
+						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
+						")";
+		util().tableEnv().executeSql(ddl4);
+
+		String ddl5 =
+				"CREATE TABLE UpsertTable(" +
+						"  id int,\n" +
+						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
+						"  metadata_1 int metadata,\n" +
+						"  metadata_2 string metadata,\n" +
+						"  PRIMARY KEY(id, deepNested) NOT ENFORCED" +
+						") WITH (" +
+						"  'connector' = 'values'," +
+						"  'nested-projection-supported' = 'true'," +
+						"  'bounded' = 'false',\n" +
+						"  'changelod-mode' = 'I,UB,D'," +
+						" 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'" +
+						")";
+		util().tableEnv().executeSql(ddl5);
+	}
+
+	@Test
+	public void testProjectWithMapType() {
+		String sqlQuery =
+				"SELECT id, testMap['e']\n" +
+						"FROM NestedTable";
+		util().verifyPlan(sqlQuery);
+	}
+
+	@Override
+	@Test
+	public void testNestedProject() {
 		String sqlQuery = "SELECT id,\n" +
 				"    deepNested.nested1.name AS nestedName,\n" +
 				"    nested.`value` AS nestedValue,\n" +
@@ -107,4 +136,32 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 		util().verifyPlan(sqlQuery);
 	}
 
+	@Test
+	public void testComplicatedNestedProject() {
+		String sqlQuery = "SELECT id," +
+				"    deepNested.nested1.name AS nestedName,\n" +
+				"    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n" +
+				"FROM NestedTable";
+		util().verifyPlan(sqlQuery);
+	}
+
+	@Test
+	public void testNestProjectWithMetadata() {
+		String sqlQuery = "SELECT id," +
+				"    deepNested.nested1 AS nested1,\n" +
+				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
+				"FROM MetadataTable";
+
+		util().verifyPlan(sqlQuery);
+	}
+
+	@Test
+	public void testNestProjectWithUpsertSource() {
+		String sqlQuery = "SELECT id," +
+				"    deepNested.nested1 AS nested1,\n" +
+				"    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n" +
+				"FROM MetadataTable";
+
+		util().verifyPlan(sqlQuery);
+	}
 }

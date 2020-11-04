@@ -94,7 +94,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import scala.collection.Seq;
 
@@ -577,7 +576,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		protected Map<Map<String, String>, Collection<Row>> data;
 
 		private final boolean nestedProjectionSupported;
-		private @Nullable int[] projectedPhysicalFields;
+		private @Nullable int[][] projectedPhysicalFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
 		private long limit;
@@ -592,7 +591,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				String runtimeSource,
 				Map<Map<String, String>, Collection<Row>> data,
 				boolean nestedProjectionSupported,
-				@Nullable int[] projectedPhysicalFields,
+				@Nullable int[][] projectedPhysicalFields,
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit,
@@ -670,7 +669,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public void applyProjection(int[][] projectedFields) {
 			this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
-			this.projectedPhysicalFields = Arrays.stream(projectedFields).mapToInt(f -> f[0]).toArray();
+			this.projectedPhysicalFields = projectedFields;
 		}
 
 		@Override
@@ -749,17 +748,21 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			if (projectedPhysicalFields == null) {
 				return row;
 			}
-
-			final IntStream projectedPhysicalStream = IntStream.of(projectedPhysicalFields);
-			final IntStream projectedMetadataStream = (projectedMetadataFields != null) ?
-				IntStream.of(projectedMetadataFields).map(i -> i + projectedPhysicalFields.length) :
-				IntStream.empty();
-			final int[] projectedFields = IntStream
-				.concat(
-					projectedPhysicalStream,
-					projectedMetadataStream)
-				.toArray();
-			return Row.project(row, projectedFields);
+			int originPhysicalSize = row.getArity() - readableMetadata.size();
+			int newLength = projectedPhysicalFields.length +
+					(projectedMetadataFields == null ? 0 : projectedMetadataFields.length);
+			Object[] newValues = new Object[newLength];
+			for (int i = 0; i < projectedPhysicalFields.length; i++) {
+				Object field = row;
+				for (int dim:  projectedPhysicalFields[i]) {
+					field = ((Row) field).getField(dim);
+				}
+				newValues[i] = field;
+			}
+			for (int i = projectedPhysicalFields.length; i < newValues.length; i++) {
+				newValues[i] = row.getField(projectedMetadataFields[i - projectedPhysicalFields.length] + originPhysicalSize);
+			}
+			return Row.of(newValues);
 		}
 
 		@Override
@@ -807,8 +810,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			producedDataType = newProducedDataType;
 			final List<String> allMetadataKeys = new ArrayList<>(listReadableMetadata().keySet());
 			projectedMetadataFields = remainingMetadataKeys.stream()
-				.mapToInt(allMetadataKeys::indexOf)
-				.toArray();
+					.mapToInt(allMetadataKeys::indexOf)
+					.toArray();
 		}
 	}
 
@@ -834,7 +837,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
-				int[] projectedFields,
+				int[][] projectedFields,
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit,
