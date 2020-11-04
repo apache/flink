@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 
+import java.io.IOException;
 import java.util.Collections;
 
 /**
@@ -42,7 +43,7 @@ final class StatelessSinkWriterOperator<InputT, CommT> extends AbstractSinkWrite
 	}
 
 	@Override
-	SinkWriter<InputT, CommT, ?> createWriter() {
+	SinkWriter<InputT, CommT, ?> createWriter() throws IOException {
 		return sink.createWriter(createInitContext(), Collections.emptyList());
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -37,10 +38,13 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 
 	/**
 	 * Add an element to the writer.
+	 *
 	 * @param element The input record
 	 * @param context The additional information about the input record
+	 *
+	 * @throws IOException if fail to add an element.
 	 */
-	void write(InputT element, Context context);
+	void write(InputT element, Context context) throws IOException;
 
 	/**
 	 * Prepare for a commit.
@@ -49,13 +53,17 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
 	 *
 	 * @param flush Whether flushing the un-staged data or not
 	 * @return The data is ready to commit.
+	 *
+	 * @throws IOException if fail to prepare for a commit.
 	 */
-	List<CommT> prepareCommit(boolean flush);
+	List<CommT> prepareCommit(boolean flush) throws IOException;
 
 	/**
 	 * @return The writer's state.
+	 *
+	 * @throws IOException if fail to snapshot writer's state.
 	 */
-	List<WriterStateT> snapshotState();
+	List<WriterStateT> snapshotState() throws IOException;
 
 
 	/**

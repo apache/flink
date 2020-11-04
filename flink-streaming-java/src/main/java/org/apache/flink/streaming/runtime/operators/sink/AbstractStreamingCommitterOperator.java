@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -76,7 +77,7 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	 *
 	 * @param committables A list of committables
 	 */
-	abstract void recoveredCommittables(List<CommT> committables);
+	abstract void recoveredCommittables(List<CommT> committables) throws IOException;
 
 	/**
 	 * Prepares a commit.
@@ -85,7 +86,7 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	 *
 	 * @return A list of committables that could be committed in the following checkpoint complete.
 	 */
-	abstract List<CommT> prepareCommit(List<InputT> input);
+	abstract List<CommT> prepareCommit(List<InputT> input) throws IOException;
 
 	/**
 	 * Commits a list of committables.
