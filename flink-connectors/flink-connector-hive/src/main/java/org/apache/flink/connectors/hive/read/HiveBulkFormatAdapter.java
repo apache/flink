@@ -30,7 +30,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.filesystem.PartitionValueConverter;
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -73,13 +73,13 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 	private final int[] selectedFields;
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
-	private final DataType producedDataType;
+	private final RowType producedDataType;
 	private final boolean useMapRedReader;
-	// We should limit the input read count of the splits, -1 represents no limit.
-	private final long limit;
+	// We should limit the input read count of the splits, null represents no limit.
+	private final Long limit;
 
 	public HiveBulkFormatAdapter(JobConfWrapper jobConfWrapper, List<String> partitionKeys, String[] fieldNames, DataType[] fieldTypes,
-			int[] selectedFields, String hiveVersion, DataType producedDataType, boolean useMapRedReader, long limit) {
+			int[] selectedFields, String hiveVersion, RowType producedDataType, boolean useMapRedReader, Long limit) {
 		this.jobConfWrapper = jobConfWrapper;
 		this.partitionKeys = partitionKeys;
 		this.fieldNames = fieldNames;
@@ -110,7 +110,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 	@Override
 	public TypeInformation<RowData> getProducedType() {
-		return (TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType);
+		return InternalTypeInfo.of(producedDataType);
 	}
 
 	private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(HiveSourceSplit split) {
@@ -118,7 +118,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			// TODO: need a way to support limit push down
 			return ParquetColumnarRowInputFormat.createPartitionedFormat(
 					jobConfWrapper.conf(),
-					(RowType) producedDataType.getLogicalType(),
+					producedDataType,
 					partitionKeys,
 					jobConfWrapper.conf().get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 							HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal),
@@ -211,7 +211,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 		@Override
 		public TypeInformation<RowData> getProducedType() {
-			return (TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType);
+			return InternalTypeInfo.of(producedDataType);
 		}
 	}
 
@@ -219,6 +219,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 		private final HiveMapredSplitReader hiveMapredSplitReader;
 		private final RowDataSerializer serializer;
+		private final ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
 		private long numRead = 0;
 
 		private HiveReader(HiveSourceSplit split) throws IOException {
@@ -226,7 +227,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			addSchemaToConf(clonedConf);
 			HiveTableInputSplit oldSplit = new HiveTableInputSplit(-1, split.toMapRedSplit(), clonedConf, split.getHiveTablePartition());
 			hiveMapredSplitReader = new HiveMapredSplitReader(clonedConf, partitionKeys, fieldTypes, selectedFields, oldSplit, hiveShim);
-			serializer = new RowDataSerializer((RowType) producedDataType.getLogicalType());
+			serializer = new RowDataSerializer(producedDataType);
 		}
 
 		@Override
@@ -240,7 +241,6 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			if (num == 0) {
 				return null;
 			}
-			ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
 			iterator.set(records, num, NO_OFFSET, skipCount);
 			return iterator;
 		}
@@ -257,7 +257,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 		}
 
 		private boolean reachLimit() {
-			return limit > 0 && numRead >= limit;
+			return limit != null && numRead >= limit;
 		}
 
 		private void seek(long toSkip) throws IOException {

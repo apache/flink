@@ -20,7 +20,6 @@ package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
-import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.core.fs.Path;
 
@@ -79,11 +78,7 @@ public class HiveSourceSplit extends FileSourceSplit {
 
 	@Override
 	public FileSourceSplit updateWithCheckpointedPosition(@Nullable CheckpointedPosition position) {
-		try {
-			return new HiveSourceSplit(toMapRedSplit(), hiveTablePartition, position);
-		} catch (IOException e) {
-			throw new FlinkHiveException("Failed to update checkpoint position for split:" + toString(), e);
-		}
+		return new HiveSourceSplit(splitId(), path(), offset(), length(), hostnames(), position, hiveTablePartition);
 	}
 
 	@Override

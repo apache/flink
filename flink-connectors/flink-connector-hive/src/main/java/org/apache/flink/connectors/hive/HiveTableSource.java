@@ -62,6 +62,7 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
@@ -121,7 +122,7 @@ public class HiveTableSource implements
 	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
 	private int[] projectedFields;
-	private long limit = -1L;
+	private Long limit = null;
 	private Duration hiveTableCacheTTL;
 
 	public HiveTableSource(
@@ -191,14 +192,14 @@ public class HiveTableSource implements
 				hiveVersion,
 				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
 				isStreamingSource(),
-				getProducedDataType());
+				(RowType) getProducedDataType().getLogicalType());
 		DataStreamSource<RowData> source = execEnv.fromSource(
 				hiveSource, WatermarkStrategy.noWatermarks(), "HiveSource-" + tablePath.getFullName());
 
 		int parallelism = new HiveParallelismInference(tablePath, flinkConf)
 				.infer(
-						() -> HiveSource.getNumFiles(allHivePartitions, jobConf),
-						() -> HiveSource.createInputSplits(0, allHivePartitions, jobConf).size())
+						() -> HiveSourceFileEnumerator.getNumFiles(allHivePartitions, jobConf),
+						() -> HiveSourceFileEnumerator.createInputSplits(0, allHivePartitions, jobConf).size())
 				.limit(limit);
 
 		return source.setParallelism(parallelism);
