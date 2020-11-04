@@ -80,7 +80,9 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 			if (reachLimit()) {
 				return null;
 			}
-			return new LimitableIterator(reader.readBatch());
+
+			RecordIterator<T> batch = reader.readBatch();
+			return batch == null ? null : new LimitableIterator(batch);
 		}
 
 		@Override
