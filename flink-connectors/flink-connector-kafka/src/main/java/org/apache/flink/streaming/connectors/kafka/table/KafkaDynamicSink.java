@@ -150,17 +150,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 		final FlinkKafkaProducer<RowData> kafkaProducer =
 				createKafkaProducer(keySerialization, valueSerialization);
 
-		return new SinkFunctionProvider() {
-			@Override
-			public SinkFunction<RowData> createSinkFunction() {
-				return kafkaProducer;
-			}
-
-			@Override
-			public Optional<Integer> getParallelism() {
-				return parallelism == null ? Optional.empty() : Optional.of(parallelism);
-			}
-		};
+		return SinkFunctionProvider.of(kafkaProducer, parallelism);
 	}
 
 	@Override

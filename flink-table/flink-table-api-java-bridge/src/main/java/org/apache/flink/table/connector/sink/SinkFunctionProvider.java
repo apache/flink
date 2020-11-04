@@ -23,6 +23,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
 
+import java.util.Optional;
+
 /**
  * Provider of a {@link SinkFunction} instance as a runtime implementation for {@link DynamicTableSink}.
  */
@@ -34,6 +36,24 @@ public interface SinkFunctionProvider extends DynamicTableSink.SinkRuntimeProvid
 	 */
 	static SinkFunctionProvider of(SinkFunction<RowData> sinkFunction) {
 		return () -> sinkFunction;
+	}
+
+	/**
+	 * Helper method for creating a SinkFunction provider with a provided sink parallelism.
+	 */
+	static SinkFunctionProvider of(SinkFunction<RowData> sinkFunction, Integer sinkParallelism) {
+		return new SinkFunctionProvider() {
+
+			@Override
+			public SinkFunction<RowData> createSinkFunction() {
+				return sinkFunction;
+			}
+
+			@Override
+			public Optional<Integer> getParallelism() {
+				return Optional.ofNullable(sinkParallelism);
+			}
+		};
 	}
 
 	/**
