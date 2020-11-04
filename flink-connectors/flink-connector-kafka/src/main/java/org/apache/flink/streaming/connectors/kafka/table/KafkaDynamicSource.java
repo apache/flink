@@ -117,6 +117,9 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	/** The start timestamp to locate partition offsets; only relevant when startup mode is {@link StartupMode#TIMESTAMP}.*/
 	protected final long startupTimestampMillis;
 
+	/** Flag to determine source mode. In upsert mode, it will keep the tombstone message. **/
+	protected final boolean upsertMode;
+
 	public KafkaDynamicSource(
 			DataType physicalDataType,
 			@Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -129,7 +132,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			Properties properties,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+			long startupTimestampMillis,
+			boolean upsertMode) {
 		// Format attributes
 		this.physicalDataType = Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
 		this.keyDecodingFormat = keyDecodingFormat;
@@ -152,6 +156,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 		this.specificStartupOffsets = Preconditions.checkNotNull(
 			specificStartupOffsets, "Specific offsets must not be null.");
 		this.startupTimestampMillis = startupTimestampMillis;
+		this.upsertMode = upsertMode;
 	}
 
 	@Override
@@ -203,7 +208,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				properties,
 				startupMode,
 				specificStartupOffsets,
-				startupTimestampMillis);
+				startupTimestampMillis,
+				upsertMode);
 		copy.producedDataType = producedDataType;
 		copy.metadataKeys = metadataKeys;
 		return copy;
@@ -236,7 +242,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			Objects.equals(properties, that.properties) &&
 			startupMode == that.startupMode &&
 			Objects.equals(specificStartupOffsets, that.specificStartupOffsets) &&
-			startupTimestampMillis == that.startupTimestampMillis;
+			startupTimestampMillis == that.startupTimestampMillis &&
+			Objects.equals(upsertMode, that.upsertMode);
 	}
 
 	@Override
@@ -255,7 +262,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			properties,
 			startupMode,
 			specificStartupOffsets,
-			startupTimestampMillis);
+			startupTimestampMillis,
+			upsertMode);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -285,7 +293,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				valueProjection,
 				hasMetadata,
 				metadataConverters,
-				producedTypeInfo);
+				producedTypeInfo,
+				upsertMode);
 
 		final FlinkKafkaConsumer<RowData> kafkaConsumer;
 		if (topics != null) {

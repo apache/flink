@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 
@@ -54,6 +55,8 @@ class DynamicKafkaSerializationSchema
 
 	private final boolean hasMetadata;
 
+	private final boolean upsertMode;
+
 	/**
 	 * Contains the position for each value of {@link KafkaDynamicSink.WritableMetadata} in the consumed row or
 	 * -1 if this metadata key is not used.
@@ -74,7 +77,12 @@ class DynamicKafkaSerializationSchema
 			RowData.FieldGetter[] keyFieldGetters,
 			RowData.FieldGetter[] valueFieldGetters,
 			boolean hasMetadata,
-			int[] metadataPositions) {
+			int[] metadataPositions,
+			boolean upsertMode) {
+		if (upsertMode) {
+			Preconditions.checkArgument(keySerialization != null && keyFieldGetters.length > 0,
+					"Key must be set in upsert mode for serialization schema.");
+		}
 		this.topic = topic;
 		this.partitioner = partitioner;
 		this.keySerialization = keySerialization;
@@ -83,6 +91,7 @@ class DynamicKafkaSerializationSchema
 		this.valueFieldGetters = valueFieldGetters;
 		this.hasMetadata = hasMetadata;
 		this.metadataPositions = metadataPositions;
+		this.upsertMode = upsertMode;
 	}
 
 	@Override
@@ -116,8 +125,21 @@ class DynamicKafkaSerializationSchema
 			keySerialized = keySerialization.serialize(keyRow);
 		}
 
-		final RowData valueRow = createProjectedRow(consumedRow, consumedRow.getRowKind(), valueFieldGetters);
-		final byte[] valueSerialized = valueSerialization.serialize(valueRow);
+		final byte[] valueSerialized;
+		final RowKind kind = consumedRow.getRowKind();
+		final RowData valueRow = createProjectedRow(consumedRow, kind, valueFieldGetters);
+		if (upsertMode) {
+			if (kind == RowKind.DELETE || kind == RowKind.UPDATE_BEFORE) {
+				// transform the message as the tombstone message
+				valueSerialized = null;
+			} else {
+				// make the message to be INSERT to be compliant with the INSERT-ONLY format
+				valueRow.setRowKind(RowKind.INSERT);
+				valueSerialized = valueSerialization.serialize(valueRow);
+			}
+		} else {
+			valueSerialized = valueSerialization.serialize(valueRow);
+		}
 
 		return new ProducerRecord<>(
 				topic,
