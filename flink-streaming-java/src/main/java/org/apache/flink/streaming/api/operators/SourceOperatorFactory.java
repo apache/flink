@@ -32,8 +32,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
-
-import java.util.function.Function;
+import org.apache.flink.util.function.FunctionWithException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -137,7 +136,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T, SplitT extends SourceSplit> SourceOperator<T, SplitT> instantiateSourceOperator(
-			Function<SourceReaderContext, SourceReader<T, ?>> readerFactory,
+			FunctionWithException<SourceReaderContext, SourceReader<T, ?>, Exception> readerFactory,
 			OperatorEventGateway eventGateway,
 			SimpleVersionedSerializer<?> splitSerializer,
 			WatermarkStrategy<T> watermarkStrategy,
@@ -147,8 +146,9 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 			boolean emitProgressiveWatermarks) {
 
 		// jumping through generics hoops: cast the generics away to then cast them back more strictly typed
-		final Function<SourceReaderContext, SourceReader<T, SplitT>> typedReaderFactory =
-				(Function<SourceReaderContext, SourceReader<T, SplitT>>) (Function<?, ?>) readerFactory;
+		final FunctionWithException<SourceReaderContext, SourceReader<T, SplitT>, Exception> typedReaderFactory =
+				(FunctionWithException<SourceReaderContext, SourceReader<T, SplitT>, Exception>)
+				(FunctionWithException<?, ?, ?>) readerFactory;
 
 		final SimpleVersionedSerializer<SplitT> typedSplitSerializer = (SimpleVersionedSerializer<SplitT>) splitSerializer;
 

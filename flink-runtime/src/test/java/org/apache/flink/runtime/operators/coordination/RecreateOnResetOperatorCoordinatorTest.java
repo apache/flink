@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
+
 import org.junit.Test;
 
 import java.util.Collections;
@@ -90,7 +91,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 
 	private RecreateOnResetOperatorCoordinator createCoordinator(
 			TestingCoordinatorProvider provider,
-			OperatorCoordinator.Context context) {
+			OperatorCoordinator.Context context) throws Exception {
 		return (RecreateOnResetOperatorCoordinator) provider.create(context);
 	}
 
