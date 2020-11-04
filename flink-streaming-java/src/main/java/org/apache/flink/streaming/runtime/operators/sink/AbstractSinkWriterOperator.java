@@ -28,8 +28,11 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Abstract base class for operators that work with a {@link SinkWriter}.
@@ -57,7 +60,8 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 	/** The sink writer that does most of the work. */
 	protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-	AbstractSinkWriterOperator() {
+	AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+		this.processingTimeService = checkNotNull(processingTimeService);
 		this.context = new Context<>();
 	}
 
@@ -100,17 +104,10 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 	}
 
 	protected Sink.InitContext createInitContext() {
-		return new Sink.InitContext() {
-			@Override
-			public int getSubtaskId() {
-				return getRuntimeContext().getIndexOfThisSubtask();
-			}
-
-			@Override
-			public MetricGroup metricGroup() {
-				return getMetricGroup();
-			}
-		};
+		return new InitContextImpl(
+				getRuntimeContext().getIndexOfThisSubtask(),
+				processingTimeService,
+				getMetricGroup());
 	}
 
 	/**
@@ -141,6 +138,60 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 				return element.getTimestamp();
 			}
 			return null;
+		}
+	}
+
+	private static class InitContextImpl implements Sink.InitContext {
+
+		private final int subtaskIdx;
+
+		private final ProcessingTimeService processingTimeService;
+
+		private final MetricGroup metricGroup;
+
+		public InitContextImpl(
+				int subtaskIdx,
+				ProcessingTimeService processingTimeService,
+				MetricGroup metricGroup) {
+			this.subtaskIdx = subtaskIdx;
+			this.processingTimeService = checkNotNull(processingTimeService);
+			this.metricGroup = checkNotNull(metricGroup);
+		}
+
+		@Override
+		public Sink.ProcessingTimeService getProcessingTimeService() {
+			return new ProcessingTimerServiceImpl(processingTimeService);
+		}
+
+		@Override
+		public int getSubtaskId() {
+			return subtaskIdx;
+		}
+
+		@Override
+		public MetricGroup metricGroup() {
+			return metricGroup;
+		}
+	}
+
+	private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
+
+		private final ProcessingTimeService processingTimeService;
+
+		public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
+			this.processingTimeService = checkNotNull(processingTimeService);
+		}
+
+		@Override
+		public long getCurrentProcessingTime() {
+			return processingTimeService.getCurrentProcessingTime();
+		}
+
+		@Override
+		public void registerProcessingTimer(long time, ProcessingTimeCallback processingTimerCallback) {
+			checkNotNull(processingTimerCallback);
+			processingTimeService.registerTimer(
+					time, processingTimerCallback::onProcessingTime);
 		}
 	}
 }

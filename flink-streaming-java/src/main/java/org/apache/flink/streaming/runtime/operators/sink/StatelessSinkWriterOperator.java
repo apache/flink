@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,7 +39,8 @@ final class StatelessSinkWriterOperator<InputT, CommT> extends AbstractSinkWrite
 	/** Used to create the stateless {@link SinkWriter}. */
 	private final Sink<InputT, CommT, ?, ?> sink;
 
-	StatelessSinkWriterOperator(final Sink<InputT, CommT, ?, ?> sink) {
+	StatelessSinkWriterOperator(final ProcessingTimeService processingTimeService, final Sink<InputT, CommT, ?, ?> sink) {
+		super(processingTimeService);
 		this.sink = sink;
 	}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -28,11 +29,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -40,7 +43,8 @@ import static org.junit.Assert.assertThat;
  */
 public abstract class SinkWriterOperatorTestBase extends TestLogger {
 
-	protected abstract AbstractSinkWriterOperatorFactory<Integer, String> createWriterOperator(TestSink sink);
+	protected abstract AbstractSinkWriterOperatorFactory<Integer, String> createWriterOperator(
+			TestSink sink);
 
 	@Test
 	public void nonBufferingWriterEmitsWithoutFlush() throws Exception {
@@ -49,7 +53,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingSinkWriter())
+						.setWriter(new TestSink.DefaultSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -76,7 +80,7 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
 				createTestHarness(TestSink
 						.newBuilder()
-						.setWriter(new NonBufferingSinkWriter())
+						.setWriter(new TestSink.DefaultSinkWriter())
 						.withWriterState()
 						.build());
 		testHarness.open();
@@ -146,17 +150,41 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 						new StreamRecord<>(Tuple3.of(2, initialTime + 2, initialTime).toString())));
 	}
 
-	/**
-	 * A {@link SinkWriter} that returns all committables from {@link #prepareCommit(boolean)} without
-	 * waiting for {@code flush} to be {@code true}.
-	 */
-	static class NonBufferingSinkWriter extends TestSink.DefaultSinkWriter {
-		@Override
-		public List<String> prepareCommit(boolean flush) {
-			List<String> result = elements;
-			elements = new ArrayList<>();
-			return result;
-		}
+	@Test
+	public void timeBasedBufferingSinkWriter() throws Exception {
+		final long initialTime = 0;
+
+		final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+				createTestHarness(TestSink
+						.newBuilder()
+						.setWriter(new TimeBasedBufferingSinkWriter())
+						.withWriterState()
+						.build());
+		testHarness.open();
+
+		testHarness.setProcessingTime(0L);
+
+		testHarness.processElement(1, initialTime + 1);
+		testHarness.processElement(2, initialTime + 2);
+
+		testHarness.prepareSnapshotPreBarrier(1L);
+
+		assertThat(testHarness.getOutput().size(), equalTo(0));
+
+		testHarness.getProcessingTimeService().setCurrentTime(2001);
+
+		testHarness.prepareSnapshotPreBarrier(2L);
+		testHarness.endInput();
+
+		assertThat(
+				testHarness.getOutput(),
+				contains(
+						new StreamRecord<>(Tuple3
+								.of(1, initialTime + 1, Long.MIN_VALUE)
+								.toString()),
+						new StreamRecord<>(Tuple3
+								.of(2, initialTime + 2, Long.MIN_VALUE)
+								.toString())));
 	}
 
 	/**
@@ -172,6 +200,33 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
 			List<String> result = elements;
 			elements = new ArrayList<>();
 			return result;
+		}
+	}
+
+	/**
+	 * A {@link SinkWriter} that buffers the committables and send the cached committables per second.
+	 */
+	static class TimeBasedBufferingSinkWriter extends TestSink.DefaultSinkWriter implements Sink.ProcessingTimeService.ProcessingTimeCallback {
+
+		private final List<String> cachedCommittables = new ArrayList<>();
+
+		@Override
+		public void write(Integer element, Context context) {
+			cachedCommittables.add(Tuple3
+					.of(element, context.timestamp(), context.currentWatermark())
+					.toString());
+		}
+
+		void setProcessingTimerService(Sink.ProcessingTimeService processingTimerService) {
+			super.setProcessingTimerService(processingTimerService);
+			this.processingTimerService.registerProcessingTimer(1000, this);
+		}
+
+		@Override
+		public void onProcessingTime(long time) throws IOException {
+			elements.addAll(cachedCommittables);
+			cachedCommittables.clear();
+			this.processingTimerService.registerProcessingTimer(time + 1000, this);
 		}
 	}
 

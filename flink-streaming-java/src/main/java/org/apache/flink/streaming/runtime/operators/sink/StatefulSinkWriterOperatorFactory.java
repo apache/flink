@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
@@ -39,8 +40,8 @@ public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT
 	}
 
 	@Override
-	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator() {
-		return new StatefulSinkWriterOperator<>(sink, sink.getWriterStateSerializer().get());
+	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService) {
+		return new StatefulSinkWriterOperator<>(processingTimeService, sink, sink.getWriterStateSerializer().get());
 	}
 
 	@Override
