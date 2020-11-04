@@ -113,6 +113,9 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit> implements S
 	}
 
 	@Override
+	public void signalNoMoreSplits(int subtask) {}
+
+	@Override
 	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
 		if (stoppedAcceptAsyncCalls.get()) {
 			return;

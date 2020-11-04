@@ -20,7 +20,6 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.TestingReaderContext;
 import org.apache.flink.api.connector.source.mocks.TestingReaderOutput;
@@ -90,7 +89,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			reader.addSplits(Collections.singletonList(getSplit(0,
 				NUM_RECORDS_PER_SPLIT,
 				Boundedness.CONTINUOUS_UNBOUNDED)));
-			reader.handleSourceEvents(new NoMoreSplitsEvent());
+			reader.notifyNoMoreSplits();
 			// This is not a real infinite loop, it is supposed to throw exception after two polls.
 			while (true) {
 				InputStatus inputStatus = reader.pollNext(output);

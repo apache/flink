@@ -328,8 +328,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public void handleSourceEvents(SourceEvent sourceEvent) {
-			}
+			public void notifyNoMoreSplits() {}
 
 			@Override
 			public void close() throws Exception {

@@ -21,7 +21,6 @@ package org.apache.flink.api.connector.source.lib.util;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -66,7 +65,7 @@ public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>> 
 		if (nextSplit != null) {
 			context.assignSplit(nextSplit, subtaskId);
 		} else {
-			context.sendEventToSourceReader(subtaskId, new NoMoreSplitsEvent());
+			context.signalNoMoreSplits(subtaskId);
 		}
 	}
 

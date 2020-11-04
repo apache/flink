@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
@@ -242,7 +241,7 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 			if (noMoreNewPartitionSplits) {
 				LOG.debug("No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to the readers " +
 					"in consumer group {}.", consumerGroupId);
-				context.sendEventToSourceReader(readerOwner, new NoMoreSplitsEvent());
+				context.signalNoMoreSplits(readerOwner);
 			}
 		});
 	}
