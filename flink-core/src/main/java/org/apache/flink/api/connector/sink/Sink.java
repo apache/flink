@@ -120,13 +120,11 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 	 */
 	interface ProcessingTimeService {
 
-		/**
-		 * @return Current processing time.
-		 */
+		/** Returns the current processing time. */
 		long getCurrentProcessingTime();
 
 		/**
-		 * Invoking the given callback at the given timestamp.
+		 * Invokes the given callback at the given timestamp.
 		 *
 		 * @param time Time when the callback is invoked at
 		 * @param processingTimerCallback The callback to be invoked.
@@ -134,14 +132,15 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 		void registerProcessingTimer(long time, ProcessingTimeCallback processingTimerCallback);
 
 		/**
-		 * The callback that could be register at {@link ProcessingTimeService}.
+		 * A callback that can be registered via {@link #registerProcessingTimer(long,
+		 * ProcessingTimeCallback)}.
 		 */
 		interface ProcessingTimeCallback {
 
 			/**
 			 * This method is invoked with the time which the callback register for.
 			 *
-			 * @param time The time this callback registers with the {@link ProcessingTimeService}
+			 * @param time The time this callback was registered for.
 			 */
 			void onProcessingTime(long time) throws IOException;
 		}
