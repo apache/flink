@@ -25,14 +25,11 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -47,10 +44,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -574,24 +571,5 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		} else {
 			return false;
 		}
-	}
-
-	private static List<Row> collectRows(Table table, int expectedSize) throws Exception {
-		final TableResult result = table.execute();
-		final List<Row> collectedRows = new ArrayList<>();
-		try (CloseableIterator<Row> iterator = result.collect()) {
-			while (collectedRows.size() < expectedSize && iterator.hasNext()) {
-				collectedRows.add(iterator.next());
-			}
-		}
-		result.getJobClient().ifPresent(jc -> {
-			try {
-				jc.cancel().get(5, TimeUnit.SECONDS);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		});
-
-		return collectedRows;
 	}
 }

@@ -289,7 +289,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				properties,
 				startupMode,
 				specificStartupOffsets,
-				startupTimestampMillis);
+				startupTimestampMillis,
+				false);
 	}
 
 	protected KafkaDynamicSink createKafkaTableSink(
@@ -315,6 +316,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				properties,
 				partitioner,
 				semantic,
+				false,
 				parallelism);
 	}
 }
