@@ -23,16 +23,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
-import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 /**
  * Tests for validation in {@link Elasticsearch6DynamicSinkFactory}.
