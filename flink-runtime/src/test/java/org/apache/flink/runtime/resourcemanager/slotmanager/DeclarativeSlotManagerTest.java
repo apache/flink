@@ -95,6 +95,13 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 		.setManagedMemoryMB(10000)
 		.build();
 
+	@Test
+	public void testCloseAfterSuspendDoesNotThrowException() throws Exception {
+		try (DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder().buildAndStartWithDirectExec()) {
+			slotManager.suspend();
+		}
+	}
+
 	/**
 	 * Tests that we can register task manager and their slots at the slot manager.
 	 */
