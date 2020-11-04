@@ -42,6 +42,8 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -162,30 +164,27 @@ public class SequentialChannelStateReaderImplTest {
 		SingleInputGate[] gates = new SingleInputGate[parLevel];
 		final int segmentsToAllocate = parLevel + parLevel * parLevel * buffersPerChannel;
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(segmentsToAllocate, bufferSize);
-		try {
-			for (int i = 0; i < parLevel; i++) {
-				gates[i] = new SingleInputGateBuilder()
-					.setNumberOfChannels(parLevel)
-					.setSingleInputGateIndex(i)
-					.setBufferPoolFactory(networkBufferPool.createBufferPool(1, buffersPerChannel))
-					.setSegmentProvider(networkBufferPool)
-					.setChannelFactory((builder, gate) -> builder
-					.setNetworkBuffersPerChannel(buffersPerChannel)
-					.buildRemoteRecoveredChannel(gate))
-					.build();
-				gates[i].setup();
+		try (Closer poolCloser = Closer.create()) {
+			poolCloser.register(networkBufferPool::destroy);
+			poolCloser.register(networkBufferPool::destroyAllBufferPools);
+
+			try (Closer gateCloser = Closer.create()) {
+				for (int i = 0; i < parLevel; i++) {
+					gates[i] = new SingleInputGateBuilder()
+						.setNumberOfChannels(parLevel)
+						.setSingleInputGateIndex(i)
+						.setBufferPoolFactory(networkBufferPool.createBufferPool(1, buffersPerChannel))
+						.setSegmentProvider(networkBufferPool)
+						.setChannelFactory((builder, gate) -> builder
+							.setNetworkBuffersPerChannel(buffersPerChannel)
+							.buildRemoteRecoveredChannel(gate))
+						.build();
+					gates[i].setup();
+					gateCloser.register(gates[i]::close);
+				}
+				action.accept(gates);
 			}
-			action.accept(gates);
-		} finally {
-			for (InputGate inputGate: gates) {
-				inputGate.close();
-			}
-			try {
-				assertEquals(segmentsToAllocate, networkBufferPool.getNumberOfAvailableMemorySegments());
-			} finally {
-				networkBufferPool.destroyAllBufferPools();
-				networkBufferPool.destroy();
-			}
+			assertEquals(segmentsToAllocate, networkBufferPool.getNumberOfAvailableMemorySegments());
 		}
 	}
 
