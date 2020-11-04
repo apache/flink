@@ -52,7 +52,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	private final WatermarkStrategy<OUT> watermarkStrategy;
 
 	/**
-	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
+	 * Whether to emit intermediate watermarks or only one final watermark at the end of
 	 * input.
 	 */
 	private final boolean emitProgressiveWatermarks;
