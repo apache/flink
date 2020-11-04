@@ -23,13 +23,13 @@ import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
-import org.apache.flink.table.planner.{JHashMap, JInt, JLong}
+import org.apache.flink.table.planner.{JHashMap, JInt}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
-import java.lang.{Long => JLong}
+import java.lang.{Long => JLong, Boolean => JBool}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
@@ -268,6 +268,31 @@ object TestData {
       data.+=(((2, 2), "two"))
       data.+=(((3, 3), "three"))
     data
+  }
+
+  lazy val deepNestedRow: Seq[Row] = {
+    Seq(
+      Row.of(new JLong(1),
+        Row.of(
+          Row.of("Sarah", new JInt(100)),
+          Row.of(new JInt(1000), new JBool(true))
+        ),
+        Row.of("Peter", new JInt(10000)),
+        "Mary"),
+      Row.of(new JLong(2),
+        Row.of(
+          Row.of("Rob", new JInt(200)),
+          Row.of(new JInt(2000), new JBool(false))
+        ),
+        Row.of("Lucy", new JInt(20000)),
+        "Bob"),
+      Row.of(new JLong(3),
+        Row.of(
+          Row.of("Mike", new JInt(300)),
+          Row.of(new JInt(3000), new JBool(true))
+        ),
+        Row.of("Betty", new JInt(30000)),
+        "Liz"))
   }
 
   lazy val tupleData5: Seq[(Int, Long, Int, String, Long)] = {

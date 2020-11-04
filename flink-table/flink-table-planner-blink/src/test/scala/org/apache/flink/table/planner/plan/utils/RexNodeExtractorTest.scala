@@ -27,11 +27,9 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREA
 import org.apache.flink.table.functions.{AggregateFunctionDefinition, FunctionIdentifier}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
-import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
 import org.apache.flink.table.utils.CatalogManagerMocks
 
@@ -39,7 +37,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
@@ -48,7 +45,7 @@ import org.junit.Test
 
 import java.math.BigDecimal
 import java.time.ZoneId
-import java.util.{TimeZone, List => JList}
+import java.util.{Arrays, TimeZone, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -63,162 +60,50 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     catalogManager,
     moduleManager)
 
-  private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
-
   @Test
   def testExtractRefInputFields(): Unit = {
-    val usedFields = RexNodeExtractor.extractRefInputFields(buildExprs())
+    val (exprs, _) = buildExprs()
+    val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     assertArrayEquals(usedFields, Array(2, 3, 1))
   }
 
   @Test
   def testExtractRefNestedInputFields(): Unit = {
-    val rexProgram = buildExprsWithNesting()
+    val (rexProgram, _) = buildExprsWithNesting()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
-    val expected = Array(Array("amount"), Array("*"))
+    val expected = Array(Array(Arrays.asList("amount")), Array(Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
   @Test
   def testExtractRefNestedInputFieldsWithNoNesting(): Unit = {
-    val exprs = buildExprs()
+    val (exprs, _) = buildExprs()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(exprs, usedFields)
 
-    val expected = Array(Array("*"), Array("*"), Array("*"))
+    val expected = Array(Array(Arrays.asList("*")),
+      Array(Arrays.asList("*")), Array(Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
   @Test
   def testExtractDeepRefNestedInputFields(): Unit = {
-    val rexProgram = buildExprsWithDeepNesting()
+    val (rexProgram, _) = buildExprsWithDeepNesting()
 
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
     val expected = Array(
-      Array("amount"),
-      Array("*"),
-      Array("with.deeper.entry", "with.deep.entry"))
+      Array(Arrays.asList("amount")),
+      Array(Arrays.asList("*")),
+      Array(Arrays.asList("with", "deeper", "entry"), Arrays.asList("with", "deep", "entry")))
 
     assertThat(usedFields, is(Array(1, 0, 2)))
     assertThat(usedNestedFields, is(expected))
-  }
-
-  private def buildExprsWithDeepNesting(): JList[RexNode] = {
-
-    // person input
-    val passportRow = inputOf(typeFactory)
-      .field("id", VARCHAR)
-      .field("status", VARCHAR)
-      .build
-
-    val personRow = inputOf(typeFactory)
-      .field("name", VARCHAR)
-      .field("age", INTEGER)
-      .nestedField("passport", passportRow)
-      .build
-
-    // payment input
-    val paymentRow = inputOf(typeFactory)
-      .field("id", BIGINT)
-      .field("amount", INTEGER)
-      .build
-
-    // deep field input
-    val deepRowType = inputOf(typeFactory)
-      .field("entry", VARCHAR)
-      .build
-
-    val entryRowType = inputOf(typeFactory)
-      .nestedField("inside", deepRowType)
-      .build
-
-    val deeperRowType = inputOf(typeFactory)
-      .nestedField("entry", entryRowType)
-      .build
-
-    val withRowType = inputOf(typeFactory)
-      .nestedField("deep", deepRowType)
-      .nestedField("deeper", deeperRowType)
-      .build
-
-    val fieldRowType = inputOf(typeFactory)
-      .nestedField("with", withRowType)
-      .build
-
-    // inputRowType
-    //
-    // [ persons:  [ name: VARCHAR, age:  INT, passport: [id: VARCHAR, status: VARCHAR ] ],
-    //   payments: [ id: BIGINT, amount: INT ],
-    //   field:    [ with: [ deep: [ entry: VARCHAR ],
-    //                       deeper: [ entry: [ inside: [entry: VARCHAR ] ] ]
-    //             ] ]
-    // ]
-
-    val t0 = rexBuilder.makeInputRef(personRow, 0)
-    val t1 = rexBuilder.makeInputRef(paymentRow, 1)
-    val t2 = rexBuilder.makeInputRef(fieldRowType, 2)
-    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(10L))
-
-    // person
-    val person$pass = rexBuilder.makeFieldAccess(t0, "passport", false)
-    val person$pass$stat = rexBuilder.makeFieldAccess(person$pass, "status", false)
-
-    // payment
-    val pay$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
-    val multiplyAmount = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, pay$amount, t3)
-
-    // field
-    val field$with = rexBuilder.makeFieldAccess(t2, "with", false)
-    val field$with$deep = rexBuilder.makeFieldAccess(field$with, "deep", false)
-    val field$with$deeper = rexBuilder.makeFieldAccess(field$with, "deeper", false)
-    val field$with$deep$entry = rexBuilder.makeFieldAccess(field$with$deep, "entry", false)
-    val field$with$deeper$entry = rexBuilder.makeFieldAccess(field$with$deeper, "entry", false)
-    val field$with$deeper$entry$inside = rexBuilder
-      .makeFieldAccess(field$with$deeper$entry, "inside", false)
-    val field$with$deeper$entry$inside$entry = rexBuilder
-      .makeFieldAccess(field$with$deeper$entry$inside, "entry", false)
-
-    // Program
-    // (
-    //   payments.amount * 10),
-    //   persons.passport.status,
-    //   field.with.deep.entry
-    //   field.with.deeper.entry.inside.entry
-    //   field.with.deeper.entry
-    //   persons
-    // )
-    List(multiplyAmount, person$pass$stat, field$with$deep$entry,
-      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0).asJava
-
-  }
-
-  private def buildExprsWithNesting(): JList[RexNode] = {
-    val personRow = inputOf(typeFactory)
-      .field("name", INTEGER)
-      .field("age", VARCHAR)
-      .build
-
-    val paymentRow = inputOf(typeFactory)
-      .field("id", BIGINT)
-      .field("amount", INTEGER)
-      .build
-
-    val types = List(personRow, paymentRow).asJava
-
-    val t0 = rexBuilder.makeInputRef(types.get(0), 0)
-    val t1 = rexBuilder.makeInputRef(types.get(1), 1)
-    val t2 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
-
-    val payment$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
-
-    List(payment$amount, t0, t2).asJava
   }
 
   @Test
@@ -896,19 +781,6 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       actual: Array[Expression]): Unit = {
     val sortedExpected = expected.sortBy(e => e.toString)
     val sortedActual = actual.sortBy(e => e.toString)
-
-    assertEquals(sortedExpected.length, sortedActual.length)
-    sortedExpected.zip(sortedActual).foreach {
-      case (l, r) => assertEquals(l.toString, r.toString)
-    }
-  }
-
-  private def assertPlannerExpressionArrayEquals(
-      expected: Array[Expression],
-      actual: Array[Expression]): Unit = {
-    // TODO we assume only planner expression as a temporary solution to keep the old interfaces
-    val sortedExpected = expected.map(expressionBridge.bridge).sortBy(e => e.toString)
-    val sortedActual = actual.map(expressionBridge.bridge).sortBy(e => e.toString)
 
     assertEquals(sortedExpected.length, sortedActual.length)
     sortedExpected.zip(sortedActual).foreach {

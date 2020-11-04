@@ -36,6 +36,7 @@ class TableSourceTest extends TableTestBase {
          |  c varchar(32)
          |) WITH (
          |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
          |  'bounded' = 'true'
          |)
        """.stripMargin
@@ -50,10 +51,28 @@ class TableSourceTest extends TableTestBase {
         |  name string
         |) WITH (
         | 'connector' = 'values',
-        |  'bounded' = 'true'
+        | 'nested-projection-supported' = 'true',
+        | 'bounded' = 'true'
         |)
         |""".stripMargin
     util.tableEnv.executeSql(ddl2)
+    val ddl3 =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |    nested2 row<num int, flag boolean>>,
+         |  metadata_1 int metadata,
+         |  metadata_2 string metadata
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'bounded' = 'true',
+         |  'readable-metadata' =
+         |    'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl3)
   }
 
   @Test
@@ -80,4 +99,15 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testNestProjectWithMetadata(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT id,
+        |       deepNested.nested1 AS nested1,
+        |       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+        |FROM T
+        |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }
