@@ -138,7 +138,11 @@ public class ElasticsearchOptions {
 			.withDescription("Elasticsearch connector requires to specify a format.\n" +
 				"The format must produce a valid json document. \n" +
 				"By default uses built-in 'json' format. Please refer to Table Formats section for more details.");
-
+	public static final ConfigOption<Integer> PARALLELISM =
+		ConfigOptions.key("sink.parallelism")
+			.intType()
+			.noDefaultValue()
+			.withDescription("the parallelism of elasticsearch sink");
 	private ElasticsearchOptions() {
 	}
 }

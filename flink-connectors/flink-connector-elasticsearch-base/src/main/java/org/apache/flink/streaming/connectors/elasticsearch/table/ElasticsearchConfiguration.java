@@ -146,6 +146,9 @@ class ElasticsearchConfiguration {
 	public Optional<String> getPathPrefix() {
 		return config.getOptional(ElasticsearchOptions.CONNECTION_PATH_PREFIX);
 	}
+	public Optional<Integer> getParellelism(){
+		return config.getOptional(ElasticsearchOptions.PARALLELISM);
+	}
 
 	@Override
 	public boolean equals(Object o) {

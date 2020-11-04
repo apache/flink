@@ -53,6 +53,7 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.HOSTS_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.INDEX_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.KEY_DELIMITER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PARALLELISM;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
 
@@ -80,7 +81,8 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 		CONNECTION_PATH_PREFIX,
 		FORMAT_OPTION,
 		PASSWORD_OPTION,
-		USERNAME_OPTION
+		USERNAME_OPTION,
+		PARALLELISM
 	).collect(Collectors.toSet());
 
 	@Override
@@ -148,6 +150,15 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 					config.getUsername().get(),
 					config.getPassword().orElse("")
 				));
+		}
+		if (config.getParellelism().isPresent()) {
+			validate(config.getParellelism().get() > 0, () -> (
+				String.format(
+					"'%s' must be set  greater than 0.Got: %d",
+					PARALLELISM.key(),
+					config.getParellelism().get()
+				)
+			));
 		}
 	}
 

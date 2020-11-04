@@ -27,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PARALLELISM;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
 /**
@@ -214,6 +215,26 @@ public class Elasticsearch7DynamicSinkFactoryTest {
 				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
 				.withOption(ElasticsearchOptions.USERNAME_OPTION.key(), "username")
 				.withOption(ElasticsearchOptions.PASSWORD_OPTION.key(), "")
+				.build()
+		);
+	}
+
+	@Test
+	public void validateWrongPARALLELISM(){
+		Elasticsearch7DynamicSinkFactory sinkFactory = new Elasticsearch7DynamicSinkFactory();
+		int parallelism =-1;
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(String.format("'%s' must be set  greater than 0.Got: %d",
+			PARALLELISM.key(),
+			parallelism));
+		sinkFactory.createDynamicTableSink(
+			context()
+				.withSchema(TableSchema.builder()
+					.field("a", DataTypes.TIME())
+					.build())
+				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+				.withOption(ElasticsearchOptions.PARALLELISM.key(), ""+parallelism)
 				.build()
 		);
 	}
