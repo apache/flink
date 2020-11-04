@@ -24,7 +24,7 @@ import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionValueConverter;
+import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -218,7 +218,7 @@ public class ParquetColumnarRowInputFormatTest {
 				new DoubleType(),
 				new TinyIntType(),
 				new IntType()};
-		ParquetColumnarRowInputFormat format = new ParquetColumnarRowInputFormat(
+		ParquetColumnarRowInputFormat<FileSourceSplit> format = new ParquetColumnarRowInputFormat(
 				new Configuration(),
 				RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
 				500,
@@ -476,12 +476,11 @@ public class ParquetColumnarRowInputFormatTest {
 		RowType producedType = new RowType(Arrays.stream(projected)
 				.mapToObj(i -> rowType.getFields().get(i)).collect(Collectors.toList()));
 
-		ParquetColumnarRowInputFormat format = ParquetColumnarRowInputFormat.createPartitionedFormat(
+		ParquetColumnarRowInputFormat<FileSourceSplit> format = ParquetColumnarRowInputFormat.createPartitionedFormat(
 				new Configuration(),
 				producedType,
 				partitionKeys,
-				"my_default_value",
-				PartitionValueConverter.DEFAULT,
+				PartitionFieldExtractor.forFileSystem("my_default_value"),
 				500,
 				false,
 				true);
