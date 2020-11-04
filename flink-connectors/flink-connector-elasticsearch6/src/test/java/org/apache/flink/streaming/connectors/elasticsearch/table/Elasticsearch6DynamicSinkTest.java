@@ -46,6 +46,8 @@ import java.util.List;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
+
 
 /**
  * Tests for {@link Elasticsearch6DynamicSink} parameters.
@@ -155,7 +157,7 @@ public class Elasticsearch6DynamicSinkTest {
 		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
 		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
 		configuration.setString(ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
-		configuration.setInteger(ElasticsearchOptions.PARALLELISM.key(),PARALLELISM);
+		configuration.setInteger(SINK_PARALLELISM.key(),PARALLELISM);
 		BuilderProvider provider = new BuilderProvider();
 		final Elasticsearch6DynamicSink testSink = new Elasticsearch6DynamicSink(
 			new DummyEncodingFormat(),

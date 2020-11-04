@@ -39,6 +39,7 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FAILURE_HANDLER_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 /**
  * Accessor methods to elasticsearch options.
@@ -146,8 +147,9 @@ class ElasticsearchConfiguration {
 	public Optional<String> getPathPrefix() {
 		return config.getOptional(ElasticsearchOptions.CONNECTION_PATH_PREFIX);
 	}
-	public Optional<Integer> getParellelism(){
-		return config.getOptional(ElasticsearchOptions.PARALLELISM);
+
+	public Optional<Integer> getParellelism() {
+		return config.getOptional(SINK_PARALLELISM);
 	}
 
 	@Override
