@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.processors.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
@@ -59,6 +61,11 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
 
 	public Map<ExecNode<?, ?>, Integer> calculate() {
 		createTopologyGraph();
+
+		// some boundaries node may be connected from the outside of the sub-graph,
+		// which we cannot deduce by the above process,
+		// so we need to check each pair of boundaries and see if they're related
+		dealWithPossiblyRelatedBoundaries();
 		Map<ExecNode<?, ?>, Integer> distances = graph.calculateMaximumDistance();
 
 		// extract only the distances of the boundaries and renumbering the distances
@@ -76,6 +83,86 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
 			results.put(boundary, boundaryDistanceList.indexOf(distances.get(boundary)));
 		}
 		return results;
+	}
+
+	private void dealWithPossiblyRelatedBoundaries() {
+		List<ExecNode<?, ?>> boundaries = new ArrayList<>(this.boundaries);
+		for (int i = 0; i < boundaries.size(); i++) {
+			ExecNode<?, ?> boundaryA = boundaries.get(i);
+			for (int j = i + 1; j < boundaries.size(); j++) {
+				ExecNode<?, ?> boundaryB = boundaries.get(j);
+				// if boundaries are already comparable in the topology graph
+				// we do not need to check them
+				if (graph.canReach(boundaryA, boundaryB) || graph.canReach(boundaryB, boundaryA)) {
+					continue;
+				}
+				dealWithPossiblyRelatedBoundaries(boundaryA, boundaryB);
+			}
+		}
+	}
+
+	private void dealWithPossiblyRelatedBoundaries(ExecNode<?, ?> boundaryA, ExecNode<?, ?> boundaryB) {
+		Set<ExecNode<?, ?>> ancestorsA = calculateAllAncestors(boundaryA);
+		Set<ExecNode<?, ?>> ancestorsB = calculateAllAncestors(boundaryB);
+		if (checkPipelinedPath(boundaryA, ancestorsB)) {
+			// boundary A and B are related, and there exists a path
+			// which only goes through PIPELINED edges from their public ancestor to boundary A.
+			// this means that the priority of boundary B should be at least as low as A
+			graph.makeAsFarAs(boundaryB, boundaryA);
+		}
+		if (checkPipelinedPath(boundaryB, ancestorsA)) {
+			// similar situation with above
+			graph.makeAsFarAs(boundaryA, boundaryB);
+		}
+	}
+
+	private static Set<ExecNode<?, ?>> calculateAllAncestors(ExecNode<?, ?> node) {
+		Set<ExecNode<?, ?>> ret = new HashSet<>();
+		AbstractExecNodeExactlyOnceVisitor visitor = new AbstractExecNodeExactlyOnceVisitor() {
+			@Override
+			protected void visitNode(ExecNode<?, ?> node) {
+				ret.add(node);
+				visitInputs(node);
+			}
+		};
+		node.accept(visitor);
+		return ret;
+	}
+
+	@VisibleForTesting
+	static boolean checkPipelinedPath(ExecNode<?, ?> node, Set<ExecNode<?, ?>> goals) {
+		PipelinedPathChecker checker = new PipelinedPathChecker(goals);
+		node.accept(checker);
+		return checker.res;
+	}
+
+	private static class PipelinedPathChecker extends AbstractExecNodeExactlyOnceVisitor {
+		private final Set<ExecNode<?, ?>> goals;
+		private boolean res;
+
+		private PipelinedPathChecker(Set<ExecNode<?, ?>> goals) {
+			this.goals = goals;
+			this.res = false;
+		}
+
+		@Override
+		protected void visitNode(ExecNode<?, ?> node) {
+			if (goals.contains(node)) {
+				res = true;
+				return;
+			}
+
+			List<ExecEdge> inputEdges = node.getInputEdges();
+			for (int i = 0; i < inputEdges.size(); i++) {
+				if (inputEdges.get(i).getDamBehavior().stricterOrEqual(ExecEdge.DamBehavior.END_INPUT)) {
+					continue;
+				}
+				visit(node.getInputNodes().get(i));
+				if (res) {
+					return;
+				}
+			}
+		}
 	}
 
 	@Override

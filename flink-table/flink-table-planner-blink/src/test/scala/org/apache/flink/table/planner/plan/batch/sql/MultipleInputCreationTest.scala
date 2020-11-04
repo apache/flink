@@ -28,9 +28,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
 import org.junit.{Before, Test}
 
-class MultipleInputCreationTest extends TableTestBase {
+@RunWith(classOf[Parameterized])
+class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -40,6 +44,8 @@ class MultipleInputCreationTest extends TableTestBase {
     util.addTableSource[(Int, Long, String, Int)]("y", 'd, 'e, 'f, 'ny)
     util.addTableSource[(Int, Long, String, Int)]("z", 'g, 'h, 'i, 'nz)
     util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.tableConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, shuffleMode)
     util.tableConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, true)
   }
@@ -193,6 +199,55 @@ class MultipleInputCreationTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
+  @Test
+  def testNoPriorityConstraint(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+    val sql =
+      """
+        |SELECT * FROM x
+        |  INNER JOIN y ON x.a = y.d
+        |  INNER JOIN t ON x.a = t.a
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRelatedInputs(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
+        |  T2 AS (
+        |    SELECT a, b FROM
+        |      (SELECT a, b FROM T1)
+        |      UNION ALL
+        |      (SELECT x.a AS a, x.b AS b FROM x))
+        |SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRelatedInputsWithAgg(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,SortAgg")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
+        |  T2 AS (
+        |    SELECT a, b FROM
+        |      (SELECT a, b FROM T1)
+        |      UNION ALL
+        |      (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
+        |SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
   def createChainableTableSource(): Unit = {
     val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
     val dataStream = env.fromSource(
@@ -202,4 +257,10 @@ class MultipleInputCreationTest extends TableTestBase {
     val tableEnv = util.tableEnv
     TableTestUtil.createTemporaryView[Integer](tableEnv, "chainable", dataStream, Some(Array('a)))
   }
+}
+
+object MultipleInputCreationTest {
+
+  @Parameters(name = "shuffleMode: {0}")
+  def parameters: Array[String] = Array("ALL_EDGES_BLOCKING", "ALL_EDGES_PIPELINED")
 }
