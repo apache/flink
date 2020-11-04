@@ -20,12 +20,12 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
@@ -57,7 +57,7 @@ import java.util.stream.Stream;
  * A version-agnostic Kafka {@link DynamicTableSink}.
  */
 @Internal
-public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata, ParallelismProvider {
+public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
 
 	// --------------------------------------------------------------------------------------------
 	// Mutable attributes
@@ -150,7 +150,17 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 		final FlinkKafkaProducer<RowData> kafkaProducer =
 				createKafkaProducer(keySerialization, valueSerialization);
 
-		return SinkFunctionProvider.of(kafkaProducer);
+		return new SinkFunctionProvider() {
+			@Override
+			public SinkFunction<RowData> createSinkFunction() {
+				return kafkaProducer;
+			}
+
+			@Override
+			public Optional<Integer> getParallelism() {
+				return parallelism == null ? Optional.empty() : Optional.of(parallelism);
+			}
+		};
 	}
 
 	@Override
@@ -287,21 +297,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 		}
 		return format.createRuntimeEncoder(context, physicalFormatDataType);
 	}
-
-	/**
-	 * Returns the parallelism for this instance.
-	 *
-	 * <p>The parallelism denotes how many parallel instances of a source or sink will be spawned
-	 * during the execution.
-	 *
-	 * @return empty if the connector does not provide a custom parallelism, then the planner will
-	 * decide the number of parallel instances by itself.
-	 */
-	@Override
-	public Optional<Integer> getParallelism() {
-		return parallelism != null ? Optional.of(parallelism) : Optional.empty();
-	}
-
 	// --------------------------------------------------------------------------------------------
 	// Metadata handling
 	// --------------------------------------------------------------------------------------------

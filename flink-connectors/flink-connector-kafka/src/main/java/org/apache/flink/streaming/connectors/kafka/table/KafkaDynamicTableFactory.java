@@ -63,7 +63,6 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCA
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_TOPIC_PARTITION_DISCOVERY;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_PARALLELISM;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_PARTITIONER;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_SEMANTIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.StartupOptions;
@@ -79,6 +78,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.get
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getStartupOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableSinkOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableSourceOptions;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 /**
  * Factory for creating configured instances of {@link KafkaDynamicSource} and {@link KafkaDynamicSink}.

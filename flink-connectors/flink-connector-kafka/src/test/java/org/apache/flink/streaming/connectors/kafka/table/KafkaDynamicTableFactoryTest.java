@@ -459,7 +459,11 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			options -> options.put("sink.parallelism", "1"));
 
 		KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(modifiedOptions);
-		assertEquals(1, (long) sink.getParallelism().get());
+		final DynamicTableSink.SinkRuntimeProvider provider =
+			sink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
+		assertThat(provider, instanceOf(SinkFunctionProvider.class));
+		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+		assertEquals(1, (long) sinkFunctionProvider.getParallelism().get());
 	}
 
 	// --------------------------------------------------------------------------------------------
