@@ -297,6 +297,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 		}
 		return format.createRuntimeEncoder(context, physicalFormatDataType);
 	}
+
 	// --------------------------------------------------------------------------------------------
 	// Metadata handling
 	// --------------------------------------------------------------------------------------------

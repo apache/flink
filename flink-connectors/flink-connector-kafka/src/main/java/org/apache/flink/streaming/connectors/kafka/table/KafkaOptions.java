@@ -187,6 +187,7 @@ public class KafkaOptions {
 			.stringType()
 			.defaultValue("at-least-once")
 			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
+
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
 	// --------------------------------------------------------------------------------------------
