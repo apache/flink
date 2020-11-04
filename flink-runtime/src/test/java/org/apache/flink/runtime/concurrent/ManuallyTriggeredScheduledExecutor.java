@@ -149,6 +149,20 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 		}
 	}
 
+	/**
+	 * Triggers all non-periodically scheduled tasks. In contrast to {@link #triggerNonPeriodicScheduledTasks()},
+	 * if such a task schedules another non-periodically schedule task, then this new task will also be triggered.
+	 */
+	public void triggerNonPeriodicScheduledTasksWithRecursion() {
+		while (!nonPeriodicScheduledTasks.isEmpty()) {
+			final ScheduledTask<?> scheduledTask = nonPeriodicScheduledTasks.poll();
+
+			if (!scheduledTask.isCancelled()) {
+				scheduledTask.execute();
+			}
+		}
+	}
+
 	public void triggerNonPeriodicScheduledTasks() {
 		final Iterator<ScheduledTask<?>> iterator = nonPeriodicScheduledTasks.iterator();
 
