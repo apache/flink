@@ -35,7 +35,7 @@ import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.filesystem.FileSystemOptions;
-import org.apache.flink.table.filesystem.PartitionValueConverter;
+import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -69,14 +69,14 @@ public class ParquetFileSystemFormatFactory implements BulkReaderFormatFactory, 
 			public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
 					DynamicTableSource.Context sourceContext,
 					DataType producedDataType) {
+				String defaultPartName = context.getCatalogTable().getOptions().getOrDefault(
+						FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
+						FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
 				return ParquetColumnarRowInputFormat.createPartitionedFormat(
 						getParquetConfiguration(formatOptions),
 						(RowType) producedDataType.getLogicalType(),
 						context.getCatalogTable().getPartitionKeys(),
-						context.getCatalogTable().getOptions().getOrDefault(
-								FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
-								FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue()),
-						PartitionValueConverter.DEFAULT,
+						PartitionFieldExtractor.forFileSystem(defaultPartName),
 						VectorizedColumnBatch.DEFAULT_SIZE,
 						formatOptions.get(UTC_TIMEZONE),
 						true);
