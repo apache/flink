@@ -54,7 +54,7 @@ import java.util.Map;
  * }</pre>
  *
  * <p>If all partition keys get a value assigned in the {@code PARTITION} clause, the operation is considered
- * as an "insertion into a static partition". In the above example, the query result should be written
+ * an "insertion into a static partition". In the above example, the query result should be written
  * into the static partition {@code region='europe', month='2020-01'} which will be passed by the planner
  * into {@link #applyStaticPartition(Map)}. The planner is also able to derived static partitions from
  * literals of a query:
@@ -68,12 +68,12 @@ import java.util.Map;
  *     INSERT INTO t PARTITION (region='europe') SELECT a, b, c, month FROM another_view;
  * }</pre>
  *
- * <p>If only a subset of all partition keys (a prefix part) get a value assigned in the {@code PARTITION}
- * clause, the operation is considered as an "insertion into a dynamic partition". In the above example,
- * the static partition part is {@code region='europe'} which will be passed by the planner into
- * {@link #applyStaticPartition(Map)}. The remaining values for partition keys should be obtained from
- * each individual record by the sink during runtime. In the example, the {@code month} field is the dynamic
- * partition key.
+ * <p>If only a subset of all partition keys get a static value assigned in the {@code PARTITION} clause
+ * or with a constant part in a {@code SELECT} clause, the operation is considered an "insertion into
+ * a dynamic partition". In the above example, the static partition part is {@code region='europe'}
+ * which will be passed by the planner into {@link #applyStaticPartition(Map)}. The remaining values
+ * for partition keys should be obtained from each individual record by the sink during runtime. In
+ * the two examples above, the {@code month} field is the dynamic partition key.
  *
  * <p>If the {@code PARTITION} clause contains no static assignments or is omitted entirely, all values
  * for partition keys are either derived from static parts of the query or obtained dynamically.
