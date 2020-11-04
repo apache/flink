@@ -21,7 +21,6 @@ package org.apache.flink.connector.base.source.reader;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.TestingReaderContext;
 import org.apache.flink.api.connector.source.mocks.TestingReaderOutput;
@@ -95,7 +94,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			reader.addSplits(Collections.singletonList(getSplit(0,
 				NUM_RECORDS_PER_SPLIT,
 				Boundedness.CONTINUOUS_UNBOUNDED)));
-			reader.handleSourceEvents(new NoMoreSplitsEvent());
+			reader.notifyNoMoreSplits();
 			// This is not a real infinite loop, it is supposed to throw exception after two polls.
 			while (true) {
 				InputStatus inputStatus = reader.pollNext(output);
@@ -151,7 +150,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			getSplit(1, 12, Boundedness.BOUNDED)
 		);
 		reader.addSplits(splits);
-		reader.handleSourceEvents(new NoMoreSplitsEvent());
+		reader.notifyNoMoreSplits();
 
 		while (true) {
 			InputStatus status = reader.pollNext(new TestingReaderOutput<>());
@@ -185,7 +184,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			getSplit(1, 10, Boundedness.BOUNDED)
 		);
 		reader.addSplits(splits);
-		reader.handleSourceEvents(new NoMoreSplitsEvent());
+		reader.notifyNoMoreSplits();
 
 		while (true) {
 			InputStatus status = reader.pollNext(new TestingReaderOutput<>());
@@ -216,7 +215,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		// Create and add a split that only contains one record
 		final MockSourceSplit split = new MockSourceSplit(0, 0, 1);
 		sourceReader.addSplits(Collections.singletonList(split));
-		sourceReader.handleSourceEvents(new NoMoreSplitsEvent());
+		sourceReader.notifyNoMoreSplits();
 
 		// Add the last record to the split when the splitFetcherManager shutting down SplitFetchers
 		splitFetcherManager.getInShutdownSplitFetcherFuture().thenRun(() -> split.addRecord(1));
