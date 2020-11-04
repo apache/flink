@@ -139,6 +139,19 @@ class TopologyGraph {
 		return result;
 	}
 
+	/**
+	 * Make the distance of node A at least as far as node B by adding edges
+	 * from all inputs of node B to node A.
+	 */
+	void makeAsFarAs(ExecNode<?, ?> a, ExecNode<?, ?> b) {
+		TopologyNode nodeA = getOrCreateTopologyNode(a);
+		TopologyNode nodeB = getOrCreateTopologyNode(b);
+
+		for (TopologyNode input : nodeB.inputs) {
+			link(input.execNode, nodeA.execNode);
+		}
+	}
+
 	@VisibleForTesting
 	boolean canReach(ExecNode<?, ?> from, ExecNode<?, ?> to) {
 		TopologyNode fromNode = getOrCreateTopologyNode(from);

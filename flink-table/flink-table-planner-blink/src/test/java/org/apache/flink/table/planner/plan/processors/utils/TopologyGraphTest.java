@@ -157,4 +157,16 @@ public class TopologyGraphTest {
 		Assert.assertEquals(2, result.get(nodes[5]).intValue());
 		Assert.assertEquals(2, result.get(nodes[7]).intValue());
 	}
+
+	@Test
+	public void testMakeAsFarAs() {
+		Tuple2<TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
+		TopologyGraph graph = tuple2.f0;
+		TestingBatchExecNode[] nodes = tuple2.f1;
+
+		graph.makeAsFarAs(nodes[4], nodes[7]);
+		Map<ExecNode<?, ?>, Integer> distances = graph.calculateMaximumDistance();
+		Assert.assertEquals(4, distances.get(nodes[7]).intValue());
+		Assert.assertEquals(4, distances.get(nodes[4]).intValue());
+	}
 }
