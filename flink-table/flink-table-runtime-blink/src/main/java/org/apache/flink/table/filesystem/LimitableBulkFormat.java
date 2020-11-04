@@ -33,10 +33,12 @@ import java.io.IOException;
  */
 public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements BulkFormat<T, SplitT> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final BulkFormat<T, SplitT> format;
 	private final long limit;
 
-	private long numRead = 0;
+	private transient long numRead = 0;
 
 	private LimitableBulkFormat(BulkFormat<T, SplitT> format, long limit) {
 		this.format = format;
