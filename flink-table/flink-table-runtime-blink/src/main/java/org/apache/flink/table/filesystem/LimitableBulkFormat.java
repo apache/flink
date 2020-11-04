@@ -39,21 +39,32 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 	private final BulkFormat<T, SplitT> format;
 	private final long limit;
 
-	private transient AtomicLong numRead;
+	/**
+	 * Limit the total number of records read by this format. When the limit is reached,
+	 * subsequent readers will no longer read data.
+	 */
+	@Nullable private transient AtomicLong globalNumberRead;
 
 	private LimitableBulkFormat(BulkFormat<T, SplitT> format, long limit) {
 		this.format = format;
 		this.limit = limit;
 	}
 
+	private AtomicLong numRead() {
+		if (globalNumberRead == null) {
+			globalNumberRead = new AtomicLong(0);
+		}
+		return globalNumberRead;
+	}
+
 	@Override
 	public Reader<T> createReader(Configuration config, SplitT split) throws IOException {
-		return new LimitableReader(format.createReader(config, split));
+		return new LimitableReader<>(format.createReader(config, split), numRead(), limit);
 	}
 
 	@Override
 	public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
-		return new LimitableReader(format.restoreReader(config, split));
+		return new LimitableReader<>(format.restoreReader(config, split), numRead(), limit);
 	}
 
 	@Override
@@ -66,12 +77,20 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 		return format.getProducedType();
 	}
 
-	private class LimitableReader implements Reader<T> {
+	private static class LimitableReader<T> implements Reader<T> {
 
 		private final Reader<T> reader;
+		private final AtomicLong numRead;
+		private final long limit;
 
-		private LimitableReader(Reader<T> reader) {
+		private LimitableReader(Reader<T> reader, AtomicLong numRead, long limit) {
 			this.reader = reader;
+			this.numRead = numRead;
+			this.limit = limit;
+		}
+
+		private boolean reachLimit() {
+			return numRead.get() >= limit;
 		}
 
 		@Nullable
@@ -89,41 +108,30 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 		public void close() throws IOException {
 			reader.close();
 		}
-	}
 
-	private class LimitableIterator implements RecordIterator<T> {
+		private class LimitableIterator implements RecordIterator<T> {
 
-		private final RecordIterator<T> iterator;
+			private final RecordIterator<T> iterator;
 
-		private LimitableIterator(RecordIterator<T> iterator) {
-			this.iterator = iterator;
-		}
-
-		@Nullable
-		@Override
-		public RecordAndPosition<T> next() {
-			if (reachLimit()) {
-				return null;
+			private LimitableIterator(RecordIterator<T> iterator) {
+				this.iterator = iterator;
 			}
-			getNumRead().incrementAndGet();
-			return iterator.next();
-		}
 
-		@Override
-		public void releaseBatch() {
-			iterator.releaseBatch();
-		}
-	}
+			@Nullable
+			@Override
+			public RecordAndPosition<T> next() {
+				if (reachLimit()) {
+					return null;
+				}
+				numRead.incrementAndGet();
+				return iterator.next();
+			}
 
-	private AtomicLong getNumRead() {
-		if (numRead == null) {
-			numRead = new AtomicLong(0);
+			@Override
+			public void releaseBatch() {
+				iterator.releaseBatch();
+			}
 		}
-		return numRead;
-	}
-
-	private boolean reachLimit() {
-		return getNumRead().get() >= limit;
 	}
 
 	public static <T, SplitT extends FileSourceSplit> BulkFormat<T, SplitT> create(
