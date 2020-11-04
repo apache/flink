@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
-import org.apache.flink.util.function.TriFunctionWithException;
+import org.apache.flink.util.function.QuadFunction;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -52,7 +52,7 @@ class ChannelStateHandleSerializer {
 
 		return deserializeChannelStateHandle(
 			is -> new ResultSubpartitionInfo(is.readInt(), is.readInt()),
-			(streamStateHandle, contentMetaInfo, info) -> new ResultSubpartitionStateHandle(info, streamStateHandle, contentMetaInfo),
+			ResultSubpartitionStateHandle::new,
 			dis,
 			context);
 	}
@@ -70,7 +70,7 @@ class ChannelStateHandleSerializer {
 
 		return deserializeChannelStateHandle(
 			is -> new InputChannelInfo(is.readInt(), is.readInt()),
-			(streamStateHandle, contentMetaInfo, inputChannelInfo) -> new InputChannelStateHandle(inputChannelInfo, streamStateHandle, contentMetaInfo),
+			InputChannelStateHandle::new,
 			dis,
 			context);
 	}
@@ -79,6 +79,7 @@ class ChannelStateHandleSerializer {
 			AbstractChannelStateHandle<I> handle,
 			DataOutputStream dos,
 			BiConsumerWithException<I, DataOutputStream, IOException> infoWriter) throws IOException {
+		dos.writeInt(handle.getSubtaskIndex());
 		infoWriter.accept(handle.getInfo(), dos);
 		dos.writeInt(handle.getOffsets().size());
 		for (long offset : handle.getOffsets()) {
@@ -90,10 +91,11 @@ class ChannelStateHandleSerializer {
 
 	private static <Info, Handle extends AbstractChannelStateHandle<Info>> Handle deserializeChannelStateHandle(
 			FunctionWithException<DataInputStream, Info, IOException> infoReader,
-			TriFunctionWithException<StreamStateHandle, StateContentMetaInfo, Info, Handle, IOException> handleBuilder,
+			QuadFunction<Integer, Info, StreamStateHandle, StateContentMetaInfo, Handle> handleBuilder,
 			DataInputStream dis,
 			MetadataV2V3SerializerBase.DeserializationContext context) throws IOException {
 
+		int subtaskIndex = dis.readInt();
 		final Info info = infoReader.apply(dis);
 		int offsetsSize = dis.readInt();
 		final List<Long> offsets = new ArrayList<>(offsetsSize);
@@ -101,6 +103,6 @@ class ChannelStateHandleSerializer {
 			offsets.add(dis.readLong());
 		}
 		final long size = dis.readLong();
-		return handleBuilder.apply(deserializeStreamStateHandle(dis, context), new StateContentMetaInfo(offsets, size), info);
+		return handleBuilder.apply(subtaskIndex, info, deserializeStreamStateHandle(dis, context), new StateContentMetaInfo(offsets, size));
 	}
 }

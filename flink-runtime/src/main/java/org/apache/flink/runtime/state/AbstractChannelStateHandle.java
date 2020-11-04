@@ -46,7 +46,13 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 	private final List<Long> offsets;
 	private final long size;
 
-	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, Info info, long size) {
+	/**
+	 * The original subtask index before rescaling recovery.
+	 */
+	private final int subtaskIndex;
+
+	AbstractChannelStateHandle(StreamStateHandle delegate, List<Long> offsets, int subtaskIndex, Info info, long size) {
+		this.subtaskIndex = subtaskIndex;
 		this.info = checkNotNull(info);
 		this.delegate = checkNotNull(delegate);
 		this.offsets = checkNotNull(offsets);
@@ -85,21 +91,37 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 		return info;
 	}
 
+	public int getSubtaskIndex() {
+		return subtaskIndex;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
 			return true;
 		}
-		if (!(o instanceof AbstractChannelStateHandle)) {
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
 		final AbstractChannelStateHandle<?> that = (AbstractChannelStateHandle<?>) o;
-		return info.equals(that.info) && delegate.equals(that.delegate) && offsets.equals(that.offsets);
+		return subtaskIndex == that.subtaskIndex &&
+			info.equals(that.info) &&
+			delegate.equals(that.delegate) &&
+			offsets.equals(that.offsets);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(info, delegate, offsets);
+		return Objects.hash(subtaskIndex, info, delegate, offsets);
+	}
+
+	@Override
+	public String toString() {
+		return "AbstractChannelStateHandle{" +
+			"info=" + info +
+			", delegate=" + delegate +
+			", offsets=" + offsets +
+			'}';
 	}
 
 	/**

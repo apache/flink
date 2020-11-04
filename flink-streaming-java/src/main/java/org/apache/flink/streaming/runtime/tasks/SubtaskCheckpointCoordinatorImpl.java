@@ -139,7 +139,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			asyncExceptionHandler,
 			prepareInputSnapshot,
 			maxRecordAbortedCheckpoints,
-			unalignedCheckpointEnabled ? openChannelStateWriter(taskName, checkpointStorage) : ChannelStateWriter.NO_OP);
+			unalignedCheckpointEnabled ? openChannelStateWriter(taskName, checkpointStorage, env) : ChannelStateWriter.NO_OP);
 	}
 
 	@VisibleForTesting
@@ -170,8 +170,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.closed = false;
 	}
 
-	private static ChannelStateWriter openChannelStateWriter(String taskName, CheckpointStorageWorkerView checkpointStorage) {
-		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(taskName, checkpointStorage);
+	private static ChannelStateWriter openChannelStateWriter(String taskName, CheckpointStorageWorkerView checkpointStorage, Environment env) {
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(taskName, env.getTaskInfo().getIndexOfThisSubtask(), checkpointStorage);
 		writer.open();
 		return writer;
 	}

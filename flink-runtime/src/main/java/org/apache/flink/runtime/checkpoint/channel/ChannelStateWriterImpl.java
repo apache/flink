@@ -19,8 +19,6 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -66,8 +64,8 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	/**
 	 * Creates a {@link ChannelStateWriterImpl} with {@link #DEFAULT_MAX_CHECKPOINTS} as {@link #maxCheckpoints}.
 	 */
-	public ChannelStateWriterImpl(String taskName, CheckpointStorageWorkerView streamFactoryResolver) {
-		this(taskName, streamFactoryResolver, DEFAULT_MAX_CHECKPOINTS);
+	public ChannelStateWriterImpl(String taskName, int subtaskIndex, CheckpointStorageWorkerView streamFactoryResolver) {
+		this(taskName, subtaskIndex, streamFactoryResolver, DEFAULT_MAX_CHECKPOINTS);
 	}
 
 	/**
@@ -77,11 +75,13 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	 * @param streamFactoryResolver a factory to obtain output stream factory for a given checkpoint
 	 * @param maxCheckpoints        maximum number of checkpoints to be written currently or finished but not taken yet.
 	 */
-	ChannelStateWriterImpl(String taskName, CheckpointStorageWorkerView streamFactoryResolver, int maxCheckpoints) {
+	ChannelStateWriterImpl(String taskName, int subtaskIndex, CheckpointStorageWorkerView streamFactoryResolver, int maxCheckpoints) {
 		this(
 			taskName,
 			new ConcurrentHashMap<>(maxCheckpoints),
-			new ChannelStateWriteRequestExecutorImpl(taskName, new ChannelStateWriteRequestDispatcherImpl(streamFactoryResolver, new ChannelStateSerializerImpl())),
+			new ChannelStateWriteRequestExecutorImpl(taskName, new ChannelStateWriteRequestDispatcherImpl(
+				subtaskIndex,
+				streamFactoryResolver, new ChannelStateSerializerImpl())),
 			maxCheckpoints);
 	}
 
@@ -188,16 +188,6 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 				wrapped.addSuppressed(cancelException);
 			}
 			throw wrapped;
-		}
-	}
-
-	private static String buildBufferTypeErrorMessage(Buffer buffer) {
-		try {
-			AbstractEvent event = EventSerializer.fromBuffer(buffer, ChannelStateWriterImpl.class.getClassLoader());
-			return String.format("Should be buffer but [%s] found", event);
-		}
-		catch (Exception ex) {
-			return "Should be buffer";
 		}
 	}
 }

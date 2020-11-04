@@ -38,8 +38,10 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
 	private final Map<Long, ChannelStateCheckpointWriter> writers; // limited indirectly by results max size
 	private final CheckpointStorageWorkerView streamFactoryResolver;
 	private final ChannelStateSerializer serializer;
+	private final int subtaskIndex;
 
-	ChannelStateWriteRequestDispatcherImpl(CheckpointStorageWorkerView streamFactoryResolver, ChannelStateSerializer serializer) {
+	ChannelStateWriteRequestDispatcherImpl(int subtaskIndex, CheckpointStorageWorkerView streamFactoryResolver, ChannelStateSerializer serializer) {
+		this.subtaskIndex = subtaskIndex;
 		this.writers = new HashMap<>();
 		this.streamFactoryResolver = checkNotNull(streamFactoryResolver);
 		this.serializer = checkNotNull(serializer);
@@ -79,6 +81,7 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
 
 	private ChannelStateCheckpointWriter buildWriter(CheckpointStartRequest request) throws Exception {
 		return new ChannelStateCheckpointWriter(
+			subtaskIndex,
 			request,
 			streamFactoryResolver.resolveCheckpointStorageLocation(request.getCheckpointId(), request.getLocationReference()),
 			serializer,

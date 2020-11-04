@@ -197,7 +197,7 @@ public class ChannelPersistenceITCase {
 		int maxStateSize = sizeOfBytes(icMap) + sizeOfBytes(rsMap) + Long.BYTES * 2;
 		Map<InputChannelInfo, Buffer> icBuffers = wrapWithBuffers(icMap);
 		Map<ResultSubpartitionInfo, Buffer> rsBuffers = wrapWithBuffers(rsMap);
-		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl("test", getStreamFactoryFactory(maxStateSize))) {
+		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl("test", 0, getStreamFactoryFactory(maxStateSize))) {
 			writer.open();
 			writer.start(checkpointId, new CheckpointOptions(CHECKPOINT, new CheckpointStorageLocationReference("poly".getBytes())));
 			for (Map.Entry<InputChannelInfo, Buffer> e : icBuffers.entrySet()) {

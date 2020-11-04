@@ -49,7 +49,10 @@ public class ChannelStateWriteRequestDispatcherImplTest {
 	}
 
 	private void testBuffersRecycled(Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
-		ChannelStateWriteRequestDispatcher dispatcher = new ChannelStateWriteRequestDispatcherImpl(new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1), new ChannelStateSerializerImpl());
+		ChannelStateWriteRequestDispatcher dispatcher = new ChannelStateWriteRequestDispatcherImpl(
+			0,
+			new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1),
+			new ChannelStateSerializerImpl());
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		dispatcher.dispatch(ChannelStateWriteRequest.start(1L, result, CheckpointStorageLocationReference.getDefault()));
 

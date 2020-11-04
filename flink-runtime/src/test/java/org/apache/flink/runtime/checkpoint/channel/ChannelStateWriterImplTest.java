@@ -189,7 +189,7 @@ public class ChannelStateWriterImplTest {
 	@Test(expected = IllegalStateException.class)
 	public void testLimit() throws IOException {
 		int maxCheckpoints = 3;
-		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, getStreamFactoryFactory(), maxCheckpoints)) {
+		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, 0, getStreamFactoryFactory(), maxCheckpoints)) {
 			writer.open();
 			for (int i = 0; i < maxCheckpoints; i++) {
 				writer.start(i, CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -201,7 +201,7 @@ public class ChannelStateWriterImplTest {
 	@Test(expected = IllegalStateException.class)
 	public void testStartNotOpened() throws Exception {
 		unwrappingError(IllegalStateException.class, () -> {
-			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, getStreamFactoryFactory())) {
+			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, 0, getStreamFactoryFactory())) {
 				callStart(writer);
 			}
 		});
@@ -276,7 +276,7 @@ public class ChannelStateWriterImplTest {
 	}
 
 	private ChannelStateWriterImpl openWriter() {
-		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, getStreamFactoryFactory());
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, 0, getStreamFactoryFactory());
 		writer.open();
 		return writer;
 	}
@@ -310,7 +310,7 @@ class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestEx
 
 	SyncChannelStateWriteRequestExecutor() {
 		deque = new ArrayDeque<>();
-		requestProcessor = new ChannelStateWriteRequestDispatcherImpl(getStreamFactoryFactory(), new ChannelStateSerializerImpl());
+		requestProcessor = new ChannelStateWriteRequestDispatcherImpl(0, getStreamFactoryFactory(), new ChannelStateSerializerImpl());
 	}
 
 	@Override
