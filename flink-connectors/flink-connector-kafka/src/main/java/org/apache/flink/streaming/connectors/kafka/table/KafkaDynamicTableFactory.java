@@ -22,14 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -138,6 +142,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		validateTableSourceOptions(tableOptions);
 
+		validatePKConstraints(context.getObjectIdentifier(), context.getCatalogTable(), valueDecodingFormat);
+
 		final StartupOptions startupOptions = getStartupOptions(tableOptions);
 
 		final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
@@ -187,6 +193,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		helper.validateExcept(PROPERTIES_PREFIX);
 
 		validateTableSinkOptions(tableOptions);
+
+		validatePKConstraints(context.getObjectIdentifier(), context.getCatalogTable(), valueEncodingFormat);
 
 		final DataType physicalDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 
@@ -260,6 +268,19 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	private static EncodingFormat<SerializationSchema<RowData>> getValueEncodingFormat(TableFactoryHelper helper) {
 		return helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, FactoryUtil.FORMAT)
 			.orElseGet(() -> helper.discoverEncodingFormat(SerializationFormatFactory.class, VALUE_FORMAT));
+	}
+
+	private static void validatePKConstraints(ObjectIdentifier tableName, CatalogTable catalogTable, Format format) {
+		if (catalogTable.getSchema().getPrimaryKey().isPresent() && format.getChangelogMode().containsOnly(RowKind.INSERT)) {
+			Configuration options = Configuration.fromMap(catalogTable.getOptions());
+			String formatName = options.getOptional(FactoryUtil.FORMAT).orElse(options.get(VALUE_FORMAT));
+			throw new ValidationException(String.format(
+				"The Kafka table '%s' with '%s' format doesn't support defining PRIMARY KEY constraint" +
+					" on the table, because it can't guarantee the semantic of primary key.",
+				tableName.asSummaryString(),
+				formatName
+			));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
