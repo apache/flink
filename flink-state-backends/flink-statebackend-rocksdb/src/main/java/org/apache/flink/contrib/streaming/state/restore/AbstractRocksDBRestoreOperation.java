@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
@@ -189,12 +190,16 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 			new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 		serializationProxy.read(dataInputView);
 		if (!isKeySerializerCompatibilityChecked) {
+			// fetch current serializer now because if it is incompatible, we can't access
+			// it anymore to improve the error message
+			TypeSerializer<K> currentSerializer =
+				keySerializerProvider.currentSchemaSerializer();
 			// check for key serializer compatibility; this also reconfigures the
 			// key serializer to be compatible, if it is required and is possible
 			TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
 				keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(serializationProxy.getKeySerializerSnapshot());
 			if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
-				throw new StateMigrationException("The new key serializer must be compatible.");
+				throw new StateMigrationException("The new key serializer (" + currentSerializer + ") must be compatible with the previous key serializer (" + keySerializerProvider.previousSchemaSerializer() + ").");
 			}
 
 			isKeySerializerCompatibilityChecked = true;
