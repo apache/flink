@@ -36,18 +36,13 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
 /**
  * IT cases for Kafka with changelog format for Table API & SQL.
@@ -187,35 +182,5 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
 		tableResult.getJobClient().get().cancel().get(); // stop the job
 		deleteTestTopic(topic);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------
-
-	private static List<String> readLines(String resource) throws IOException {
-		final URL url = KafkaChangelogTableITCase.class.getClassLoader().getResource(resource);
-		assert url != null;
-		Path path = new File(url.getFile()).toPath();
-		return Files.readAllLines(path);
-	}
-
-	private static void waitingExpectedResults(String sinkName, List<String> expected, Duration timeout) throws InterruptedException {
-		long now = System.currentTimeMillis();
-		long stop = now + timeout.toMillis();
-		Collections.sort(expected);
-		while (System.currentTimeMillis() < stop) {
-			List<String> actual = TestValuesTableFactory.getResults(sinkName);
-			Collections.sort(actual);
-			if (expected.equals(actual)) {
-				return;
-			}
-			Thread.sleep(100);
-		}
-
-		// timeout, assert again
-		List<String> actual = TestValuesTableFactory.getResults(sinkName);
-		Collections.sort(actual);
-		assertEquals(expected, actual);
 	}
 }

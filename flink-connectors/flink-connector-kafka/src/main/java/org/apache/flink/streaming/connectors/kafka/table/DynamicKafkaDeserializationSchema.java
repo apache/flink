@@ -24,7 +24,10 @@ import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.DeserializationException;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -53,6 +56,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
 	private final TypeInformation<RowData> producedTypeInfo;
 
+	private final boolean upsertMode;
+
 	DynamicKafkaDeserializationSchema(
 			int physicalArity,
 			@Nullable DeserializationSchema<RowData> keyDeserialization,
@@ -61,7 +66,13 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 			int[] valueProjection,
 			boolean hasMetadata,
 			MetadataConverter[] metadataConverters,
-			TypeInformation<RowData> producedTypeInfo) {
+			TypeInformation<RowData> producedTypeInfo,
+			boolean upsertMode) {
+		if (upsertMode) {
+			Preconditions.checkArgument(
+					keyDeserialization != null && keyProjection.length > 0,
+					"Key must be set in upsert mode for deserialization schema.");
+		}
 		this.keyDeserialization = keyDeserialization;
 		this.valueDeserialization = valueDeserialization;
 		this.hasMetadata = hasMetadata;
@@ -70,8 +81,10 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 				physicalArity,
 				keyProjection,
 				valueProjection,
-				metadataConverters);
+				metadataConverters,
+				upsertMode);
 		this.producedTypeInfo = producedTypeInfo;
+		this.upsertMode = upsertMode;
 	}
 
 	@Override
@@ -110,7 +123,12 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 		outputCollector.inputRecord = record;
 		outputCollector.physicalKeyRows = keyCollector.buffer;
 		outputCollector.outputCollector = collector;
-		valueDeserialization.deserialize(record.value(), outputCollector);
+		if (record.value() == null && upsertMode) {
+			// collect tombstone messages in upsert mode by hand
+			outputCollector.collect(null);
+		} else {
+			valueDeserialization.deserialize(record.value(), outputCollector);
+		}
 		keyCollector.buffer.clear();
 	}
 
@@ -155,6 +173,7 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 	 *     <li>A key is used.
 	 *     <li>The deserialization schema emits multiple keys.
 	 *     <li>Keys and values have overlapping fields.
+	 *     <li>Keys are used and value is null.
 	 * </ul>
 	 */
 	private static final class OutputProjectionCollector implements Collector<RowData>, Serializable {
@@ -169,6 +188,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
 		private final MetadataConverter[] metadataConverters;
 
+		private final boolean upsertMode;
+
 		private transient ConsumerRecord<?, ?> inputRecord;
 
 		private transient List<RowData> physicalKeyRows;
@@ -179,11 +200,13 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 				int physicalArity,
 				int[] keyProjection,
 				int[] valueProjection,
-				MetadataConverter[] metadataConverters) {
+				MetadataConverter[] metadataConverters,
+				boolean upsertMode) {
 			this.physicalArity = physicalArity;
 			this.keyProjection = keyProjection;
 			this.valueProjection = valueProjection;
 			this.metadataConverters = metadataConverters;
+			this.upsertMode = upsertMode;
 		}
 
 		@Override
@@ -205,19 +228,32 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 			// nothing to do
 		}
 
-		private void emitRow(GenericRowData physicalKeyRow, GenericRowData physicalValueRow) {
+		private void emitRow(@Nullable GenericRowData physicalKeyRow, @Nullable GenericRowData physicalValueRow) {
 			final int metadataArity = metadataConverters.length;
+			final RowKind rowKind;
+			if (physicalValueRow == null) {
+				if (upsertMode) {
+					rowKind = RowKind.DELETE;
+				} else {
+					throw new DeserializationException(
+							"Get null value in non-upsert mode. Could not to set rowkind for input record.");
+				}
+			} else {
+				rowKind = physicalValueRow.getRowKind();
+			}
 
 			final GenericRowData producedRow = new GenericRowData(
-					physicalValueRow.getRowKind(),
+					rowKind,
 					physicalArity + metadataArity);
 
 			for (int keyPos = 0; keyPos < keyProjection.length; keyPos++) {
 				producedRow.setField(keyProjection[keyPos], physicalKeyRow.getField(keyPos));
 			}
 
-			for (int valuePos = 0; valuePos < valueProjection.length; valuePos++) {
-				producedRow.setField(valueProjection[valuePos], physicalValueRow.getField(valuePos));
+			if (physicalValueRow != null) {
+				for (int valuePos = 0; valuePos < valueProjection.length; valuePos++) {
+					producedRow.setField(valueProjection[valuePos], physicalValueRow.getField(valuePos));
+				}
 			}
 
 			for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {

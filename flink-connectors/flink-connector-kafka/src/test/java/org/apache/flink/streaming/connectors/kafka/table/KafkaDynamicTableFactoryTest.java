@@ -495,7 +495,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				properties,
 				startupMode,
 				specificStartupOffsets,
-				startupTimestampMillis);
+				startupTimestampMillis,
+				false);
 	}
 
 	private static KafkaDynamicSink createExpectedSink(
@@ -509,7 +510,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			Properties properties,
 			@Nullable FlinkKafkaPartitioner<RowData> partitioner,
 			KafkaSinkSemantic semantic,
-			Integer parallelism) {
+			@Nullable Integer parallelism) {
 		return new KafkaDynamicSink(
 				physicalDataType,
 				keyEncodingFormat,
@@ -521,6 +522,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				properties,
 				partitioner,
 				semantic,
+				false,
 				parallelism);
 	}
 
