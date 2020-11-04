@@ -591,7 +591,7 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression): GeneratedExpression = {
     if (ctx.nullCheck) {
-      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
@@ -600,10 +600,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} == null;
            |""".stripMargin
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
@@ -617,7 +617,7 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = !${operand.nullTerm};
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("result")
@@ -626,10 +626,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} != null;
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
