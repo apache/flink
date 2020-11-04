@@ -20,12 +20,14 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Map.Entry;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -36,7 +38,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class AlternatingController implements CheckpointBarrierBehaviourController {
 	private final AlignedController alignedController;
 	private final UnalignedController unalignedController;
+
 	private CheckpointBarrierBehaviourController activeController;
+	private long timeOutedBarrierId = -1; // used to shortcut timeout check
 
 	public AlternatingController(
 			AlignedController alignedController,
@@ -51,30 +55,69 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	}
 
 	@Override
-	public boolean barrierAnnouncement(
+	public void barrierAnnouncement(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber) throws IOException {
 
-		activeController.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
+		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(announcedBarrier);
+		announcedBarrier = maybeTimedOut.orElse(announcedBarrier);
 
-		if (unalignedController == activeController) {
-			// already unaligned checkpoint
-			return false;
+		if (maybeTimedOut.isPresent() && activeController != unalignedController) {
+			// Let's timeout this barrier
+			unalignedController.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
 		}
-
-		checkState(activeController == alignedController);
-		if (announcedBarrier.getCheckpointOptions().isUnalignedCheckpoint()) {
-			return timeoutToUnalignedCheckpoint(announcedBarrier);
+		else {
+			// Either we have already timed out before, or we are still going with aligned checkpoints
+			activeController.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
 		}
-		return false;
 	}
 
-	private boolean timeoutToUnalignedCheckpoint(CheckpointBarrier announcedBarrier) throws IOException {
-		for (Entry<InputChannelInfo, Integer> entry : alignedController.getSequenceNumberInAnnouncedChannels().entrySet()) {
+	@Override
+	public Optional<CheckpointBarrier> barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(barrier);
+		barrier = maybeTimedOut.orElse(barrier);
+
+		checkState(!activeController.barrierReceived(channelInfo, barrier).isPresent());
+
+		if (maybeTimedOut.isPresent()) {
+			if (activeController == alignedController) {
+				timeoutToUnalignedCheckpoint(channelInfo, barrier);
+				return maybeTimedOut;
+			}
+			else {
+				// TODO: add unit test for this
+				alignedController.resumeConsumption(channelInfo);
+			}
+		}
+		return Optional.empty();
+	}
+
+	@Override
+	public Optional<CheckpointBarrier> preProcessFirstBarrier(
+			InputChannelInfo channelInfo,
+			CheckpointBarrier barrier) throws IOException {
+		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(barrier);
+
+		if (maybeTimedOut.isPresent()) {
+			timeoutToUnalignedCheckpoint(channelInfo, maybeTimedOut.get());
+			return maybeTimedOut;
+		}
+		else {
+			return activeController.preProcessFirstBarrier(channelInfo, barrier);
+		}
+	}
+
+	private void timeoutToUnalignedCheckpoint(
+			InputChannelInfo channelInfo,
+			CheckpointBarrier barrier) throws IOException {
+		checkState(alignedController == activeController);
+
+		// timeout all not yet processed barriers for which alignedController has processed an announcement
+		for (Map.Entry<InputChannelInfo, Integer> entry : alignedController.getSequenceNumberInAnnouncedChannels().entrySet()) {
 			InputChannelInfo unProcessedChannelInfo = entry.getKey();
 			int announcedBarrierSequenceNumber = entry.getValue();
-			unalignedController.barrierAnnouncement(unProcessedChannelInfo, announcedBarrier, announcedBarrierSequenceNumber);
+			unalignedController.barrierAnnouncement(unProcessedChannelInfo, barrier, announcedBarrierSequenceNumber);
 		}
 
 		// get blocked channels before resuming consumption
@@ -82,42 +125,17 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 		alignedController.resumeConsumption();
 		activeController = unalignedController;
 
-		if (blockedChannels.isEmpty()) {
-			// alignedController didn't process any barriers, this announcement is for the first barrier.
-			// Checkpoint will be triggered on this.preProcessFirstBarrier call
-			return false;
-		} else {
-			// alignedController has already processed some barriers, so "migrate"/forward those calls to unalignedController.
-			// preProcessFirstBarrier has already been triggered, so we need to trigger the checkpoint here.
-			unalignedController.preProcessFirstBarrier(blockedChannels.iterator().next(), announcedBarrier);
-			for (InputChannelInfo blockedChannel : blockedChannels) {
-				unalignedController.barrierReceived(blockedChannel, announcedBarrier);
-			}
-			return true;
+		// alignedController might has already processed some barriers, so "migrate"/forward those calls to unalignedController.
+		unalignedController.preProcessFirstBarrier(channelInfo, barrier);
+		for (InputChannelInfo blockedChannel : blockedChannels) {
+			unalignedController.barrierReceived(blockedChannel, barrier);
 		}
 	}
 
 	@Override
-	public void barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
-		/**
-		 * we can be in aligned mode and this can be the a time-outed barrier, but we do not do the
-		 * {@link #timeoutToUnalignedCheckpoint}) here, as we will relay on the register timer to kick in.
-		 */
-		activeController.barrierReceived(channelInfo, barrier);
-	}
-
-	@Override
-	public boolean preProcessFirstBarrier(
-			InputChannelInfo channelInfo,
-			CheckpointBarrier barrier) throws IOException {
-		checkActiveController(barrier);
-		return activeController.preProcessFirstBarrier(channelInfo, barrier);
-	}
-
-	@Override
-	public boolean postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
-		checkActiveController(barrier);
-		return activeController.postProcessLastBarrier(channelInfo, barrier);
+	public Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+		// regardless of timeout or not, complete this checkpoint as it was started
+		return activeController.postProcessLastBarrier(channelInfo, maybeTimeOut(barrier).orElse(barrier));
 	}
 
 	@Override
@@ -145,5 +163,22 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 	private CheckpointBarrierBehaviourController chooseController(CheckpointBarrier barrier) {
 		return isAligned(barrier) ? alignedController : unalignedController;
+	}
+
+	private Optional<CheckpointBarrier> maybeTimeOut(CheckpointBarrier barrier) {
+		CheckpointOptions options = barrier.getCheckpointOptions();
+		boolean shouldTimeout = (options.isTimeoutable()) && (
+			barrier.getId() == timeOutedBarrierId ||
+				(System.currentTimeMillis() - barrier.getTimestamp()) > options.getAlignmentTimeout());
+		if (options.isUnalignedCheckpoint() || !shouldTimeout) {
+			return Optional.empty();
+		}
+		else {
+			timeOutedBarrierId = Math.max(timeOutedBarrierId, barrier.getId());
+			return Optional.of(new CheckpointBarrier(
+				barrier.getId(),
+				barrier.getTimestamp(),
+				options.toTimeouted()));
+		}
 	}
 }

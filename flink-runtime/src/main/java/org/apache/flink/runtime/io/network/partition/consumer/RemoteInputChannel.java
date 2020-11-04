@@ -496,6 +496,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 
 	private SequenceBuffer announce(SequenceBuffer sequenceBuffer) throws IOException {
 		checkState(!sequenceBuffer.buffer.isBuffer(), "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
+		checkAnnouncedOnlyOnce(sequenceBuffer);
 		AbstractEvent event = EventSerializer.fromBuffer(
 				sequenceBuffer.buffer,
 				getClass().getClassLoader());
@@ -506,6 +507,20 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 				sequenceBuffer.sequenceNumber);
 	}
 
+	private void checkAnnouncedOnlyOnce(SequenceBuffer sequenceBuffer) {
+		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
+		int count = 0;
+		while (iterator.hasNext()) {
+			if (iterator.next().sequenceNumber == sequenceBuffer.sequenceNumber) {
+				count++;
+			}
+		}
+		checkState(
+			count == 1,
+			"Before enqueuing the announcement there should be exactly single occurrence of the buffer, but found [%d]",
+			count);
+	}
+
 	/**
 	 * Spills all queued buffers on checkpoint start. If barrier has already been received (and reordered), spill only
 	 * the overtaken buffers.
@@ -514,7 +529,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		synchronized (receivedBuffers) {
 			channelStatePersister.startPersisting(
 				barrier.getId(),
-				getInflightBuffers());
+				getInflightBuffersUnsafe());
 		}
 	}
 
@@ -537,9 +552,15 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		boolean firstPriorityEvent;
 		synchronized (receivedBuffers) {
 			checkState(!channelStatePersister.hasBarrierReceived());
+			int numPriorityElementsBeforeRemoval = receivedBuffers.getNumPriorityElements();
 			SequenceBuffer toPrioritize = receivedBuffers.getAndRemove(
 				sequenceBuffer -> sequenceBuffer.sequenceNumber == sequenceNumber);
 			checkState(!toPrioritize.buffer.isBuffer());
+			checkState(
+				numPriorityElementsBeforeRemoval == receivedBuffers.getNumPriorityElements(),
+				"Attempted to convertToPriorityEvent an event [%s] that has already been prioritized [%s]",
+				toPrioritize,
+				numPriorityElementsBeforeRemoval);
 			firstPriorityEvent = addPriorityBuffer(toPrioritize);
 		}
 		if (firstPriorityEvent) {
@@ -552,7 +573,6 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 	 */
 	private List<Buffer> getInflightBuffersUnsafe() {
 		assert Thread.holdsLock(receivedBuffers);
-
 
 		final List<Buffer> inflightBuffers = new ArrayList<>();
 		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
@@ -659,6 +679,15 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		private SequenceBuffer(Buffer buffer, int sequenceNumber) {
 			this.buffer = buffer;
 			this.sequenceNumber = sequenceNumber;
+		}
+
+		@Override
+		public String toString() {
+			return String.format(
+				"SequenceBuffer(isEvent = %s, dataType = %s, sequenceNumber = %s)",
+				!buffer.isBuffer(),
+				buffer.getDataType(),
+				sequenceNumber);
 		}
 	}
 }

@@ -26,13 +26,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A deque-like data structure that supports prioritization of elements, such they will be polled before any
@@ -152,18 +150,17 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	 */
 	public T getAndRemove(Predicate<T> preCondition) {
 		Iterator<T> iterator = deque.iterator();
-		T found = null;
 		for (int i = 0; i < deque.size(); i++) {
 			T next = iterator.next();
 			if (preCondition.test(next)) {
 				if (i < numPriorityElements) {
 					numPriorityElements--;
 				}
-				found = next;
-				checkState(deque.remove(found));
+				iterator.remove();
+				return next;
 			}
 		}
-		return checkNotNull(found);
+		throw new NoSuchElementException();
 	}
 
 	/**

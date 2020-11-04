@@ -387,6 +387,7 @@ public abstract class InputChannel {
 
 		protected void startPersisting(long barrierId, List<Buffer> knownBuffers) {
 			checkState(isInitialized(), "Channel state writer not injected");
+			checkState(pendingCheckpointBarrierId != barrierId);
 
 			if (pendingCheckpointBarrierId != BARRIER_RECEIVED) {
 				pendingCheckpointBarrierId = barrierId;

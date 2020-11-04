@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -59,14 +60,17 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	}
 
 	@Override
-	public boolean barrierAnnouncement(
+	public void barrierAnnouncement(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber) {
+		Integer previousValue = sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber);
 		checkState(
-			sequenceNumberInAnnouncedChannels.put(channelInfo, sequenceNumber) == null,
-			"Stream corrupt: Repeated barrierAnnouncement for same checkpoint on input " + channelInfo);
-		return false;
+			previousValue == null,
+			"Stream corrupt: Repeated barrierAnnouncement [%s] overwriting [%s] for the same checkpoint on input %s",
+			announcedBarrier,
+			sequenceNumber,
+			channelInfo);
 	}
 
 	@Override
@@ -74,28 +78,29 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	}
 
 	@Override
-	public void barrierReceived(
+	public Optional<CheckpointBarrier> barrierReceived(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) {
 		checkState(!blockedChannels.put(channelInfo, true), "Stream corrupt: Repeated barrier for same checkpoint on input " + channelInfo);
 		sequenceNumberInAnnouncedChannels.remove(channelInfo);
 		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
 		input.blockConsumption(channelInfo);
+		return Optional.empty();
 	}
 
 	@Override
-	public boolean preProcessFirstBarrier(
+	public Optional<CheckpointBarrier> preProcessFirstBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) {
-		return false;
+		return Optional.empty();
 	}
 
 	@Override
-	public boolean postProcessLastBarrier(
+	public Optional<CheckpointBarrier> postProcessLastBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException {
 		resumeConsumption();
-		return true;
+		return Optional.of(barrier);
 	}
 
 	@Override
@@ -134,7 +139,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 		sequenceNumberInAnnouncedChannels.clear();
 	}
 
-	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
+	void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
 		input.resumeConsumption(channelInfo);
 	}

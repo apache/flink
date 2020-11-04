@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -38,6 +37,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM;
@@ -70,8 +70,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	private long lastCancelledOrCompletedCheckpointId = -1L;
 
-	private long timeoutedBarrierId = -1; // used to shortcut timeout check
-
 	private int numOpenChannels;
 
 	private CompletableFuture<Void> allBarriersReceivedFuture = FutureUtils.completedVoidFuture();
@@ -103,8 +101,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	public void processBarrier(CheckpointBarrier barrier, InputChannelInfo channelInfo) throws IOException {
-		barrier = maybeTimeout(barrier);
-
 		long barrierId = barrier.getId();
 		LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
 
@@ -122,16 +118,10 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				markAlignmentStart(barrier.getTimestamp());
 			}
 			allBarriersReceivedFuture = new CompletableFuture<>();
-			if (controller.preProcessFirstBarrier(channelInfo, barrier)) {
-				LOG.debug("{}: Triggering checkpoint {} on the first barrier at {}.",
-					taskName,
-					barrier.getId(),
-					barrier.getTimestamp());
-				notifyCheckpoint(barrier);
-			}
+			maybeTriggerCheckpoint(controller.preProcessFirstBarrier(channelInfo, barrier));
 		}
 
-		controller.barrierReceived(channelInfo, barrier);
+		maybeTriggerCheckpoint(controller.barrierReceived(channelInfo, barrier));
 
 		if (currentCheckpointId == barrierId) {
 			if (++numBarriersReceived == numOpenChannels) {
@@ -140,13 +130,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 				}
 				numBarriersReceived = 0;
 				lastCancelledOrCompletedCheckpointId = currentCheckpointId;
-				if (controller.postProcessLastBarrier(channelInfo, barrier)) {
-					LOG.debug("{}: Triggering checkpoint {} on the last barrier at {}.",
-						taskName,
-						barrier.getId(),
-						barrier.getTimestamp());
-					notifyCheckpoint(barrier);
-				}
+				maybeTriggerCheckpoint(controller.postProcessLastBarrier(channelInfo, barrier));
 				allBarriersReceivedFuture.complete(null);
 			}
 		}
@@ -159,8 +143,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			InputChannelInfo channelInfo) throws IOException {
 		checkSubsumedCheckpoint(channelInfo, announcedBarrier);
 
-		announcedBarrier = maybeTimeout(announcedBarrier);
-
 		long barrierId = announcedBarrier.getId();
 		if (currentCheckpointId > barrierId || (currentCheckpointId == barrierId && !isCheckpointPending())) {
 			LOG.debug("{}: Obsolete announcement of checkpoint {} for channel {}.",
@@ -170,12 +152,17 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			return;
 		}
 
-		if (controller.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber)) {
-			LOG.debug("{}: Triggering checkpoint {} on the barrier announcement at {}.",
-					taskName,
-					barrierId,
-					announcedBarrier.getTimestamp());
-			notifyCheckpoint(announcedBarrier);
+		controller.barrierAnnouncement(channelInfo, announcedBarrier, sequenceNumber);
+	}
+
+	private void maybeTriggerCheckpoint(Optional<CheckpointBarrier> barrier) throws IOException {
+		if (barrier.isPresent()) {
+			LOG.debug(
+				"{}: Triggering checkpoint {} on the barrier announcement at {}.",
+				taskName,
+				barrier.get().getId(),
+				barrier.get().getTimestamp());
+			notifyCheckpoint(barrier.get());
 		}
 	}
 
@@ -261,23 +248,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	@VisibleForTesting
 	int getNumOpenChannels() {
 		return numOpenChannels;
-	}
-
-	private CheckpointBarrier maybeTimeout(CheckpointBarrier barrier) {
-		CheckpointOptions options = barrier.getCheckpointOptions();
-		boolean shouldTimeout = (options.isTimeoutable()) && (
-			barrier.getId() == timeoutedBarrierId ||
-			(System.currentTimeMillis() - barrier.getTimestamp()) > options.getAlignmentTimeout());
-		if (options.isUnalignedCheckpoint() || !shouldTimeout) {
-			return barrier;
-		}
-		else {
-			timeoutedBarrierId = Math.max(timeoutedBarrierId, barrier.getId());
-			return new CheckpointBarrier(
-				barrier.getId(),
-				barrier.getTimestamp(),
-				options.toTimeouted());
-		}
 	}
 
 	@Override
