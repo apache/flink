@@ -979,25 +979,6 @@ public class SqlDateTimeUtils {
 	}
 
 	/**
-	 * Returns current timestamp(count by seconds).
-	 *
-	 * @return current timestamp.
-	 */
-	public static long now() {
-		return System.currentTimeMillis() / 1000;
-	}
-
-	/**
-	 * Returns current timestamp(count by seconds) with offset.
-	 *
-	 * @param offset value(count by seconds).
-	 * @return current timestamp with offset.
-	 */
-	public static long now(long offset) {
-		return now() + offset;
-	}
-
-	/**
 	 * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string
 	 * in the "yyyy-MM-dd HH:mm:ss" format.
 	 */
