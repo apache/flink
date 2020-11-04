@@ -43,10 +43,10 @@ import org.mockito.Mockito;
 
 import java.util.List;
 
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 
 /**
@@ -149,6 +149,7 @@ public class Elasticsearch6DynamicSinkTest {
 		verify(provider.builderSpy).setRestClientFactory(new Elasticsearch6DynamicSink.AuthRestClientFactory(null, USERNAME, PASSWORD));
 		verify(provider.sinkSpy, never()).disableFlushOnCheckpoint();
 	}
+
 	@Test
 	public void testParallelismConfig(){
 
@@ -157,7 +158,7 @@ public class Elasticsearch6DynamicSinkTest {
 		configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
 		configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
 		configuration.setString(ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
-		configuration.setInteger(SINK_PARALLELISM.key(),PARALLELISM);
+		configuration.setInteger(SINK_PARALLELISM.key(), PARALLELISM);
 		BuilderProvider provider = new BuilderProvider();
 		final Elasticsearch6DynamicSink testSink = new Elasticsearch6DynamicSink(
 			new DummyEncodingFormat(),
@@ -167,7 +168,7 @@ public class Elasticsearch6DynamicSinkTest {
 		);
 		SinkFunctionProvider sinkRuntimeProvider = testSink.getSinkRuntimeProvider(new MockSinkContext());
 		Integer parallelism = sinkRuntimeProvider.getParallelism().get();
-		Assert.assertEquals(parallelism,PARALLELISM);
+		Assert.assertEquals(parallelism, PARALLELISM);
 	}
 
 	private Configuration getConfig() {
