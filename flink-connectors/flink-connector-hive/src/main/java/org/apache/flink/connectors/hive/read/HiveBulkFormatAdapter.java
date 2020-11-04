@@ -29,14 +29,15 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionValueConverter;
+import org.apache.flink.table.filesystem.LimitableBulkFormat;
+import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.mapred.JobConf;
@@ -69,8 +70,6 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 	private final List<String> partitionKeys;
 	private final String[] fieldNames;
 	private final DataType[] fieldTypes;
-	// indices of fields to be returned, with projection applied (if any)
-	private final int[] selectedFields;
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
 	private final RowType producedDataType;
@@ -79,12 +78,11 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 	private final Long limit;
 
 	public HiveBulkFormatAdapter(JobConfWrapper jobConfWrapper, List<String> partitionKeys, String[] fieldNames, DataType[] fieldTypes,
-			int[] selectedFields, String hiveVersion, RowType producedDataType, boolean useMapRedReader, Long limit) {
+			String hiveVersion, RowType producedDataType, boolean useMapRedReader, Long limit) {
 		this.jobConfWrapper = jobConfWrapper;
 		this.partitionKeys = partitionKeys;
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
-		this.selectedFields = selectedFields;
 		this.hiveVersion = hiveVersion;
 		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		this.producedDataType = producedDataType;
@@ -115,18 +113,18 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 	private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(HiveSourceSplit split) {
 		if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
-			// TODO: need a way to support limit push down
-			return ParquetColumnarRowInputFormat.createPartitionedFormat(
-					jobConfWrapper.conf(),
-					producedDataType,
-					partitionKeys,
-					jobConfWrapper.conf().get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-							HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal),
-					(PartitionValueConverter) (colName, valStr, type) -> split.getHiveTablePartition().getPartitionSpec().get(colName),
-					DEFAULT_SIZE,
-					hiveVersion.startsWith("3"),
-					false
-			);
+			PartitionFieldExtractor<HiveSourceSplit> extractor = (PartitionFieldExtractor<HiveSourceSplit>)
+					(split1, fieldName, fieldType) -> split1.getHiveTablePartition().getPartitionSpec().get(fieldName);
+			return LimitableBulkFormat.create(
+					ParquetColumnarRowInputFormat.createPartitionedFormat(
+							jobConfWrapper.conf(),
+							producedDataType,
+							partitionKeys,
+							extractor,
+							DEFAULT_SIZE,
+							hiveVersion.startsWith("3"),
+							false),
+					limit);
 		} else {
 			return new HiveMapRedBulkFormat();
 		}
@@ -139,9 +137,9 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			return false;
 		}
 
-		for (int i : selectedFields) {
-			if (isVectorizationUnsupported(fieldTypes[i].getLogicalType())) {
-				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + fieldTypes[i]);
+		for (RowType.RowField field : producedDataType.getFields()) {
+			if (isVectorizationUnsupported(field.getType())) {
+				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + field.getType());
 				return false;
 			}
 		}
@@ -220,9 +218,11 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 		private final HiveMapredSplitReader hiveMapredSplitReader;
 		private final RowDataSerializer serializer;
 		private final ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
+		private final int[] selectedFields;
 		private long numRead = 0;
 
 		private HiveReader(HiveSourceSplit split) throws IOException {
+			selectedFields = computeSelectedFields();
 			JobConf clonedConf = new JobConf(jobConfWrapper.conf());
 			addSchemaToConf(clonedConf);
 			HiveTableInputSplit oldSplit = new HiveTableInputSplit(-1, split.toMapRedSplit(), clonedConf, split.getHiveTablePartition());
@@ -286,6 +286,19 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 					.mapToObj(String::valueOf)
 					.collect(Collectors.joining(","));
 			jobConf.set(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR, readColIDs);
+		}
+
+		// compute indices of selected fields according to the produced type
+		private int[] computeSelectedFields() {
+			int[] selectedFields = new int[producedDataType.getFieldCount()];
+			for (int i = 0; i < selectedFields.length; i++) {
+				String name = producedDataType.getFieldNames().get(i);
+				int index = Arrays.asList(fieldNames).indexOf(name);
+				Preconditions.checkState(index >= 0,
+						"Produced field name %s not found in table schema fields %s", name, Arrays.toString(fieldNames));
+				selectedFields[i] = index;
+			}
+			return selectedFields;
 		}
 	}
 }

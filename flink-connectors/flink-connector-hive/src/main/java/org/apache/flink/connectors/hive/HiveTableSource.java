@@ -187,7 +187,6 @@ public class HiveTableSource implements
 				jobConf,
 				catalogTable,
 				allHivePartitions,
-				projectedFields,
 				limit,
 				hiveVersion,
 				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),

@@ -34,7 +34,6 @@ import org.apache.hadoop.mapred.JobConf;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,7 +49,6 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 			JobConf jobConf,
 			CatalogTable catalogTable,
 			List<HiveTablePartition> partitions,
-			int[] projectedFields,
 			@Nullable Long limit,
 			String hiveVersion,
 			boolean useMapRedReader,
@@ -60,7 +58,7 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 				new org.apache.flink.core.fs.Path[1],
 				new HiveSourceFileEnumerator.Provider(partitions, new JobConfWrapper(jobConf)),
 				DEFAULT_SPLIT_ASSIGNER,
-				createBulkFormat(new JobConf(jobConf), catalogTable, projectedFields, hiveVersion, producedDataType, useMapRedReader, limit),
+				createBulkFormat(new JobConf(jobConf), catalogTable, hiveVersion, producedDataType, useMapRedReader, limit),
 				null);
 		Preconditions.checkArgument(!isStreamingSource, "HiveSource currently only supports bounded mode");
 	}
@@ -73,7 +71,6 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 	private static BulkFormat<RowData, HiveSourceSplit> createBulkFormat(
 			JobConf jobConf,
 			CatalogTable catalogTable,
-			@Nullable int[] projectedFields,
 			String hiveVersion,
 			RowType producedDataType,
 			boolean useMapRedReader,
@@ -84,7 +81,6 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 				catalogTable.getPartitionKeys(),
 				catalogTable.getSchema().getFieldNames(),
 				catalogTable.getSchema().getFieldDataTypes(),
-				projectedFields != null ? projectedFields : IntStream.range(0, catalogTable.getSchema().getFieldCount()).toArray(),
 				hiveVersion,
 				producedDataType,
 				useMapRedReader,
