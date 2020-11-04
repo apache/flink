@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}

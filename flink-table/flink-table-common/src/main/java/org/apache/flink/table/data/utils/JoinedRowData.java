@@ -16,9 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.data;
+package org.apache.flink.table.data.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.RowKind;
 
 import java.util.Objects;
@@ -33,7 +40,8 @@ public class JoinedRowData implements RowData {
 	private RowData row1;
 	private RowData row2;
 
-	public JoinedRowData() {}
+	public JoinedRowData() {
+	}
 
 	public JoinedRowData(RowData row1, RowData row2) {
 		this.row1 = row1;
