@@ -100,8 +100,7 @@ Flink 进程启动时，会根据配置的和自动推导出的各内存部分�
 | *-XX:MaxDirectMemorySize*<br/>（TaskManager 始终设置，JobManager 见注释）                 | 框架堆外内存 + 任务堆外内存(\*\*) + 网络内存     | 堆外内存 (\*\*) (\*\*\*)                               |
 | *-XX:MaxMetaspaceSize*                    | JVM Metaspace                                      | JVM Metaspace                                     |
 {:.table-bordered}
-(\*) Keep in mind that you might not be able to use the full amount of heap memory depending on the GC algorithm used. Some GC algorithms allocate a certain amount of heap memory for themselves. 
-This will lead to a different maximum being returned by the [Heap metrics]({% link monitoring/metrics.zh.md %}#memory).
+(\*) 请记住，根据所使用的 GC 算法，你可能无法使用到全部堆内存。一些 GC 算法会为它们自身分配一定量的堆内存。这会导致[堆的指标]({% link monitoring/metrics.zh.md %}#memory)返回一个不同的最大值。
 <br/>
 (\*\*) 请注意，堆外内存也包括了用户代码使用的本地内存（非直接内存）。
 <br/>
