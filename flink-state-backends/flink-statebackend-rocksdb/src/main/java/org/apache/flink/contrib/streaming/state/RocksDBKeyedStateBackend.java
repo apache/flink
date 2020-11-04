@@ -569,19 +569,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@SuppressWarnings("unchecked")
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
 
+		// fetch current serializer now because if it is incompatible, we can't access
+		// it anymore to improve the error message
+		TypeSerializer<N> previousNamespaceSerializer =
+			restoredKvStateMetaInfo.getNamespaceSerializer();
+
 		TypeSerializerSchemaCompatibility<N> s = restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
 		if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
-			throw new StateMigrationException("The new namespace serializer must be compatible.");
+			throw new StateMigrationException("The new namespace serializer (" + namespaceSerializer + ") must be compatible with the old namespace serializer (" + previousNamespaceSerializer + ").");
 		}
 
 		restoredKvStateMetaInfo.checkStateMetaInfo(stateDesc);
+
+		// fetch current serializer now because if it is incompatible, we can't access
+		// it anymore to improve the error message
+		TypeSerializer<SV> previousStateSerializer = restoredKvStateMetaInfo.getStateSerializer();
 
 		TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
 			restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
 		if (newStateSerializerCompatibility.isCompatibleAfterMigration()) {
 			migrateStateValues(stateDesc, oldStateInfo);
 		} else if (newStateSerializerCompatibility.isIncompatible()) {
-			throw new StateMigrationException("The new state serializer cannot be incompatible.");
+			throw new StateMigrationException("The new state serializer (" + stateSerializer + ") must not be incompatible with the old state serializer (" + previousStateSerializer + ").");
 		}
 
 		return restoredKvStateMetaInfo;
