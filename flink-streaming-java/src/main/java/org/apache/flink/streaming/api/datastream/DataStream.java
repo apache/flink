@@ -79,6 +79,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -93,7 +94,6 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -900,17 +900,17 @@ public class DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			WatermarkStrategy<T> watermarkStrategy) {
-
 		final WatermarkStrategy<T> cleanedStrategy = clean(watermarkStrategy);
-
-		final TimestampsAndWatermarksOperator<T> operator =
-			new TimestampsAndWatermarksOperator<>(cleanedStrategy);
-
 		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
 		final int inputParallelism = getTransformation().getParallelism();
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-			.setParallelism(inputParallelism);
+		final TimestampsAndWatermarksTransformation<T> transformation =
+				new TimestampsAndWatermarksTransformation<>(
+						"Timestamps/Watermarks",
+						inputParallelism,
+						getTransformation(),
+						cleanedStrategy);
+		getExecutionEnvironment().addOperator(transformation);
+		return new SingleOutputStreamOperator<>(getExecutionEnvironment(), transformation);
 	}
 
 	/**

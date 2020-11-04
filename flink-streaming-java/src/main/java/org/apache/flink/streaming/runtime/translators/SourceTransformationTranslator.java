@@ -46,7 +46,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
 			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
 
-		return translateInternal(transformation, context, false /* emit progressive watermarks */);
+		return translateInternal(transformation, context, false /* don't emit progressive watermarks */);
 	}
 
 	@Override
@@ -54,7 +54,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
 			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
 
-		return translateInternal(transformation, context, true /* don't emit progressive watermarks */);
+		return translateInternal(transformation, context, true /* emit progressive watermarks */);
 	}
 
 	private Collection<Integer> translateInternal(

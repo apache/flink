@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
@@ -61,6 +62,7 @@ import org.apache.flink.streaming.runtime.translators.ReduceTransformationTransl
 import org.apache.flink.streaming.runtime.translators.SideOutputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.TimestampsAndWatermarksTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
 
@@ -164,6 +166,7 @@ public class StreamGraphGenerator {
 		tmp.put(PartitionTransformation.class, new PartitionTransformationTranslator<>());
 		tmp.put(SideOutputTransformation.class, new SideOutputTransformationTranslator<>());
 		tmp.put(ReduceTransformation.class, new ReduceTransformationTranslator<>());
+		tmp.put(TimestampsAndWatermarksTransformation.class, new TimestampsAndWatermarksTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 

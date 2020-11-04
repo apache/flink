@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -64,11 +65,18 @@ public class TimestampsAndWatermarksOperator<T>
 	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
 	private transient long watermarkInterval;
 
-	public TimestampsAndWatermarksOperator(
-			WatermarkStrategy<T> watermarkStrategy) {
+	/**
+	 * Whether to emit intermediate watermarks or only one final watermark at the end of
+	 * input.
+	 */
+	private final boolean emitProgressiveWatermarks;
 
+	public TimestampsAndWatermarksOperator(
+			WatermarkStrategy<T> watermarkStrategy,
+			boolean emitProgressiveWatermarks) {
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
+		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+		this.chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 	}
 
 	@Override
@@ -76,12 +84,14 @@ public class TimestampsAndWatermarksOperator<T>
 		super.open();
 
 		timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
-		watermarkGenerator = watermarkStrategy.createWatermarkGenerator(this::getMetricGroup);
+		watermarkGenerator = emitProgressiveWatermarks ?
+				watermarkStrategy.createWatermarkGenerator(this::getMetricGroup) :
+				new NoWatermarksGenerator<>();
 
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
 
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
+		if (watermarkInterval > 0 && emitProgressiveWatermarks) {
 			final long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
