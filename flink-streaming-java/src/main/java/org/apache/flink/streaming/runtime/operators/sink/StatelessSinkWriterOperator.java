@@ -42,7 +42,7 @@ final class StatelessSinkWriterOperator<InputT, CommT> extends AbstractSinkWrite
 	}
 
 	@Override
-	SinkWriter<InputT, CommT, ?> createWriter() {
+	SinkWriter<InputT, CommT, ?> createWriter() throws Exception {
 		return sink.createWriter(createInitContext(), Collections.emptyList());
 	}
 }
