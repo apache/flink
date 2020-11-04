@@ -22,6 +22,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -54,7 +55,6 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	public LocalStreamEnvironment(@Nonnull Configuration configuration) {
 		super(validateAndGetConfiguration(configuration));
-		setParallelism(1);
 	}
 
 	private static Configuration validateAndGetConfiguration(final Configuration configuration) {
@@ -66,6 +66,9 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
 		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
+		if (!configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).isPresent()) {
+			configuration.set(CoreOptions.DEFAULT_PARALLELISM, 1);
+		}
 		return effectiveConfiguration;
 	}
 

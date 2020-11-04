@@ -23,12 +23,14 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
@@ -37,6 +39,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -127,17 +130,17 @@ public class DataStreamBatchExecutionITCase {
 	}
 
 	private StreamExecutionEnvironment getExecutionEnvironment() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		Configuration config = new Configuration();
 		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, DataStreamBatchExecutionITCase.class.getClassLoader());
-
-		env.setParallelism(1);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
-
+		config.set(CoreOptions.DEFAULT_PARALLELISM, 1);
 		// trick the collecting sink into working even in the face of failures 🙏
-		env.enableCheckpointing(42);
+		config.set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(42));
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
+			config);
+
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
 
 		return env;
 	}
