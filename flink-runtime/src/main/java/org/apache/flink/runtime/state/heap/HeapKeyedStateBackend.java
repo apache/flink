@@ -213,19 +213,29 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			restoredKvMetaInfo.updateSnapshotTransformFactory(snapshotTransformFactory);
 
+			// fetch current serializer now because if it is incompatible, we can't access
+			// it anymore to improve the error message
+			TypeSerializer<N> previousNamespaceSerializer =
+				restoredKvMetaInfo.getNamespaceSerializer();
+
 			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				restoredKvMetaInfo.updateNamespaceSerializer(namespaceSerializer);
 			if (namespaceCompatibility.isCompatibleAfterMigration() || namespaceCompatibility.isIncompatible()) {
-				throw new StateMigrationException("For heap backends, the new namespace serializer must be compatible.");
+				throw new StateMigrationException("For heap backends, the new namespace serializer (" + namespaceSerializer + ") must be compatible with the old namespace serializer (" + previousNamespaceSerializer + ").");
 			}
 
 			restoredKvMetaInfo.checkStateMetaInfo(stateDesc);
+
+			// fetch current serializer now because if it is incompatible, we can't access
+			// it anymore to improve the error message
+			TypeSerializer<V> previousStateSerializer =
+				restoredKvMetaInfo.getStateSerializer();
 
 			TypeSerializerSchemaCompatibility<V> stateCompatibility =
 				restoredKvMetaInfo.updateStateSerializer(newStateSerializer);
 
 			if (stateCompatibility.isIncompatible()) {
-				throw new StateMigrationException("For heap backends, the new state serializer must not be incompatible.");
+				throw new StateMigrationException("For heap backends, the new state serializer (" + newStateSerializer + ") must not be incompatible with the old state serializer (" + previousStateSerializer + ").");
 			}
 
 			stateTable.setMetaInfo(restoredKvMetaInfo);
