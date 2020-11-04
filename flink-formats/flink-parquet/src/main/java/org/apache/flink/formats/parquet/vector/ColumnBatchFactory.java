@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.parquet.vector;
 
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 
@@ -28,9 +28,11 @@ import java.io.Serializable;
  * Interface to create {@link VectorizedColumnBatch}.
  */
 @FunctionalInterface
-public interface ColumnBatchFactory extends Serializable {
+public interface ColumnBatchFactory<SplitT extends FileSourceSplit> extends Serializable {
 
-	ColumnBatchFactory DEFAULT = (filePath, vectors) -> new VectorizedColumnBatch(vectors);
+	VectorizedColumnBatch create(SplitT split, ColumnVector[] vectors);
 
-	VectorizedColumnBatch create(Path filePath, ColumnVector[] vectors);
+	static <SplitT extends FileSourceSplit> ColumnBatchFactory<SplitT> withoutExtraFields() {
+		return (ColumnBatchFactory<SplitT>) (split, vectors) -> new VectorizedColumnBatch(vectors);
+	}
 }
