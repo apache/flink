@@ -197,6 +197,6 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 		/**
 		 * Creates the {@code OperatorCoordinator}, using the given context.
 		 */
-		OperatorCoordinator create(Context context);
+		OperatorCoordinator create(Context context) throws Exception;
 	}
 }

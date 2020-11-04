@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -39,7 +40,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
 	private RecreateOnResetOperatorCoordinator(
 			QuiesceableContext context,
-			Provider provider) {
+			Provider provider) throws Exception {
 		this.quiesceableContext = context;
 		this.provider = provider;
 		this.coordinator = provider.getCoordinator(context);
@@ -107,7 +108,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
 	// ---------------------
 
-	public static abstract class Provider implements OperatorCoordinator.Provider {
+	public abstract static class Provider implements OperatorCoordinator.Provider {
 		private static final long serialVersionUID = 3002837631612629071L;
 		private final OperatorID operatorID;
 
@@ -121,12 +122,12 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 		}
 
 		@Override
-		public OperatorCoordinator create(Context context) {
+		public OperatorCoordinator create(Context context) throws Exception {
 			QuiesceableContext quiesceableContext = new QuiesceableContext(context);
 			return new RecreateOnResetOperatorCoordinator(quiesceableContext, this);
 		}
 
-		protected abstract OperatorCoordinator getCoordinator(OperatorCoordinator.Context context);
+		protected abstract OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) throws Exception;
 	}
 
 	// ----------------------
