@@ -126,19 +126,14 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	private SourceProvider sourceProvider(
 			DecodingFormat<BulkFormat<RowData, FileSourceSplit>> decodingFormat, ScanContext scanContext) {
-		if (decodingFormat instanceof BulkDecodingFormat) {
-			BulkDecodingFormat<RowData> bulkFormat = (BulkDecodingFormat<RowData>) decodingFormat;
-			if (limit != null) {
-				bulkFormat.applyLimit(limit);
-			}
-			if (filters != null && filters.size() > 0) {
-				bulkFormat.applyFilters(filters);
-			}
+		if (decodingFormat instanceof BulkDecodingFormat && filters != null && filters.size() > 0) {
+			((BulkDecodingFormat<RowData>) decodingFormat).applyFilters(filters);
 		}
 		BulkFormat<RowData, FileSourceSplit> bulkFormat = decodingFormat.createRuntimeDecoder(
 				scanContext, getProducedDataType());
-		FileSource.FileSourceBuilder<RowData> builder = FileSource
-				.forBulkFileFormat(bulkFormat, paths());
+		FileSource.FileSourceBuilder<RowData> builder = FileSource.forBulkFileFormat(
+				LimitableBulkFormat.create(bulkFormat, limit),
+				paths());
 		return SourceProvider.of(builder.build());
 	}
 
