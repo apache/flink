@@ -108,12 +108,10 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof MockNoMoreSplitsEvent) {
-			waitingForMoreSplits = false;
-			markAvailable();
-		}
-		receivedSourceEvents.add(sourceEvent);
+	public void notifyNoMoreSplits() {
+		waitingForMoreSplits = false;
+		markAvailable();
+		receivedSourceEvents.add(new MockNoMoreSplitsEvent());
 	}
 
 	@Override

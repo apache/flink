@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -220,13 +219,15 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Override
+	public void notifyNoMoreSplits() {
+		LOG.info("Reader received NoMoreSplits event.");
+		noMoreSplitsAssignment = true;
+		elementsQueue.notifyAvailable();
+	}
+
+	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
-		LOG.trace("Handling source event: {}", sourceEvent);
-		if (sourceEvent instanceof NoMoreSplitsEvent) {
-			LOG.info("Reader received NoMoreSplits event.");
-			noMoreSplitsAssignment = true;
-			elementsQueue.notifyAvailable();
-		}
+		LOG.info("Received unhandled source event: {}", sourceEvent);
 	}
 
 	@Override
@@ -234,8 +235,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		LOG.info("Closing Source Reader.");
 		splitFetcherManager.close(options.sourceReaderCloseTimeout);
 	}
-
-
 
 	// -------------------- Abstract method to allow different implementations ------------------
 	/**

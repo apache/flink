@@ -19,13 +19,10 @@
 package org.apache.flink.api.connector.source.lib.util;
 
 import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -122,6 +119,16 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 	}
 
 	@Override
+	public void notifyNoMoreSplits() {
+		// if we get this after we already had a split, we must have requested more than
+		// one split, which is not expected here.
+		checkState(remainingSplits == null, "Unexpected response, requested more than one split.");
+
+		// non-null queue signals splits were assigned, in this case no splits
+		remainingSplits = new ArrayDeque<>();
+	}
+
+	@Override
 	public List<SplitT> snapshotState(long checkpointId) {
 		final ArrayList<SplitT> allSplits = new ArrayList<>(1 + remainingSplits.size());
 		if (iterator != null) {
@@ -131,16 +138,6 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 		}
 		allSplits.addAll(remainingSplits);
 		return allSplits;
-	}
-
-	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof NoMoreSplitsEvent) {
-			// non-null queue signals splits were assigned, in this case no splits
-			remainingSplits = new ArrayDeque<>();
-		} else {
-			throw new FlinkRuntimeException("Unexpected event: " + sourceEvent);
-		}
 	}
 
 	@Override

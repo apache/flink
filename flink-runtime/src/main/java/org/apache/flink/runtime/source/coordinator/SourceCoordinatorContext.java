@@ -31,6 +31,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -180,6 +181,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 					});
 			return null;
 		}, String.format("Failed to assign splits %s due to ", assignment));
+	}
+
+	@Override
+	public void signalNoMoreSplits(int subtask) {
+		// Ensure the split assignment is done by the the coordinator executor.
+		callInCoordinatorThread(() -> {
+			try {
+				operatorCoordinatorContext.sendEvent(new NoMoreSplitsEvent(), subtask);
+				return null; // void return value
+			} catch (TaskNotRunningException e) {
+				throw new FlinkRuntimeException("Failed to send 'NoMoreSplits' to reader " + subtask, e);
+			}
+		}, "Failed to send 'NoMoreSplits' to reader " + subtask);
 	}
 
 	@Override
