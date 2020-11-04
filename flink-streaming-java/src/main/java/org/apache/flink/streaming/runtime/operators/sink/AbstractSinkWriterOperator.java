@@ -28,8 +28,11 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Abstract base class for operators that work with a {@link SinkWriter}.
@@ -57,7 +60,8 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 	/** The sink writer that does most of the work. */
 	protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-	AbstractSinkWriterOperator() {
+	AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+		this.processingTimeService = checkNotNull(processingTimeService);
 		this.context = new Context<>();
 	}
 
@@ -102,6 +106,11 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 	protected Sink.InitContext createInitContext() {
 		return new Sink.InitContext() {
 			@Override
+			public Sink.ProcessingTimerService getProcessingTimerService() {
+				return new InternalProcessingTimerService();
+			}
+
+			@Override
 			public int getSubtaskId() {
 				return getRuntimeContext().getIndexOfThisSubtask();
 			}
@@ -141,6 +150,23 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 				return element.getTimestamp();
 			}
 			return null;
+		}
+	}
+
+	private class InternalProcessingTimerService implements Sink.ProcessingTimerService {
+
+		@Override
+		public long getCurrentProcessingTime() {
+			return processingTimeService.getCurrentProcessingTime();
+		}
+
+		@Override
+		public void registerProcessingTimer(
+				long time,
+				ProcessingTimerCallback processingTimerCallback) {
+			checkNotNull(processingTimerCallback);
+			processingTimeService.registerTimer(time,
+					processingTimerCallback::onProcessingTime);
 		}
 	}
 }
