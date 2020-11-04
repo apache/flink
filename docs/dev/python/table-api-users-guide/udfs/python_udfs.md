@@ -232,16 +232,16 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the group aggregate operation of the blink stream planner. For batch execution or windowed aggregate, it is recommended to use the [Vectorized Aggregate Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation of the blink planner in streaming mode. For batch mode or windowed aggregation, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
 is computed.
 
-For each set of rows that needs to be aggregated, the runtime will create an empty accumulator by calling
-`create_accumulator()`. Subsequently, the `accumulate(...)` method of the function is called for each input
+For each set of rows that need to be aggregated, the runtime will create an empty accumulator by calling
+`create_accumulator()`. Subsequently, the `accumulate(...)` method of the aggregate function will be called for each input
 row to update the accumulator. Currently after each row has been processed, the `get_value(...)` method of the
-function is called to compute and return the immediate result. 
+aggregate function will be called to compute the aggregated result.
 
 The following example illustrates the aggregation process:
 
@@ -249,16 +249,16 @@ The following example illustrates the aggregation process:
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism-python.png" width="80%">
 </center>
 
-In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
+In the above example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the highest price of all beverages in the table, i.e., perform
-a `max()` aggregation. We need to consider each of the 5 rows. The result is a single numeric value.
+a `max()` aggregation.
 
 In order to define an aggregate function, one has to extend the base class `AggregateFunction` in
 `pyflink.table` and implement the evaluation method named `accumulate(...)`. 
-The result type and accumulator type of the aggregate function can be specified by such 2 approach:
+The result type and accumulator type of the aggregate function can be specified by one of the following two approaches:
 
-- implement the method named `get_result_type()` and `get_accumulator_type()`.
-- wrap the function instance with the decorator `udaf` in `pyflink.table.udf` and specify the parameter `result_type` and `accumulator_type`.
+- Implement the method named `get_result_type()` and `get_accumulator_type()`.
+- Wrap the function instance with the decorator `udaf` in `pyflink.table.udf` and specify the parameters `result_type` and `accumulator_type`.
 
 The following example shows how to define your own aggregate function and call it in a query.
 
@@ -329,11 +329,11 @@ result = table_env.sql_query(
 print(result)
 {% endhighlight %}
 
-The `accumulate(...)` method of our `WeightedAvg` class takes three inputs. The first one is the accumulator
+The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
 and the other two are user-defined inputs. In order to calculate a weighted average value, the accumulator
-needs to store the weighted sum and count of all the data that has been accumulated. In our example, we
-use a `Row` object to be the accumulator. Accumulators are automatically managed
-by Flink's checkpointing mechanism and are restored in case of a failure to ensure exactly-once semantics.
+needs to store the weighted sum and count of all the data that have already been accumulated. In our example, we
+use a `Row` object as the accumulator. Accumulators will be managed
+by Flink's checkpointing mechanism and are restored in case of failover to ensure exactly-once semantics.
 
 ### Mandatory and Optional Methods
 
@@ -345,15 +345,16 @@ by Flink's checkpointing mechanism and are restored in case of a failure to ensu
 
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
-- `retract(...)` is required when there are other operations that generate retract messages before current UDAF call, e.g. group aggregate , outer join. \
+- `retract(...)` is required when there are operations that could generate retraction messages before the current aggregation operation, e.g. group aggregate, outer join. \
 This method is optional, but it is strongly recommended to be implemented to ensure the UDAF can be used in any use case.
 - `get_result_type()` and `get_accumulator_type()` is required if the result type and accumulator type would not be specified in the `udaf` decorator.
 
 ### ListView and MapView
 
 If an accumulator needs to store large amounts of data, `pyflink.table.ListView` and `pyflink.table.MapView` 
-provide advanced features for leveraging Flink's state backends in unbounded data scenarios. 
-This feature can be enabled by declaring `DataTypes.LIST_VIEW(...)` and `DataTypes.MAP_VIEW(...)` in the accumulator type, e.g.:
+could be used instead of list and dict. These two data structures provide the similar functionalities as list and dict, 
+however usually having better performance by leveraging Flink's state backend to eliminate unnecessary state access. 
+You can use them by declaring `DataTypes.LIST_VIEW(...)` and `DataTypes.MAP_VIEW(...)` in the accumulator type, e.g.:
 
 {% highlight python %}
 from pyflink.table import ListView
@@ -382,9 +383,14 @@ class ListViewConcatAggregateFunction(AggregateFunction):
         return DataTypes.STRING()
 {% endhighlight %}
 
-Currently there are 2 limitations to use the:
+Currently there are 2 limitations to use the ListView and MapView:
 
 1. The accumulator must be a `Row`.
 2. The `ListView` and `MapView` must be the first level children of the `Row` accumulator.
 
-Please see the docs of the corresponding classes for more information about this advanced feature.
+Please refer to the [documentation of the corresponding classes]({{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.ListView) for more information about this advanced feature.
+
+**NOTE:** For reducing the data transmission cost between Python UDF worker and Java process caused by accessing the data in Flink states(e.g. accumulators and data views), 
+there is a cached layer between the raw state handler and the Python state backend. You can adjust the values of these configuration options to change the behavior of the cache layer for best performance:
+`python.state.cache-size`, `python.map-state.read-cache-size`, `python.map-state.write-cache-size`, `python.map-state.iterate-response-batch-size`.
+For more details please refer to the [Python Configuration Documentation]({% link dev/python/table-api-users-guide/python_config.md %}).
