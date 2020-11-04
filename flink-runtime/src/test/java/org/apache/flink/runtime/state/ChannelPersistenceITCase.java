@@ -77,20 +77,12 @@ public class ChannelPersistenceITCase {
 
 	@Test
 	public void testUpstreamBlocksAfterRecoveringState() throws Exception {
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
-		byte[] dataAfterRecovery = randomBytes(1024);
-		try {
-			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, 0, 1);
-			new SequentialChannelStateReaderImpl(new TaskStateSnapshot()).readOutputData(new BufferWritingResultPartition[]{resultPartition}, true);
-			resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
-			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
-			assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
-			assertNull(view.getNextBuffer());
-			view.resumeConsumption();
-			assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
-		} finally {
-			networkBufferPool.destroy();
-		}
+		upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testNotBlocksAfterRecoveringStateForApproximateLocalRecovery() throws Exception {
+		upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED_APPROXIMATE);
 	}
 
 	@Test
@@ -112,7 +104,11 @@ public class ChannelPersistenceITCase {
 			reader.readInputData(new InputGate[]{gate});
 			assertArrayEquals(inputChannelInfoData, collectBytes(() -> gate.pollNext().map(BufferOrEvent::getBuffer)));
 
-			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, partitionIndex, numChannels);
+			BufferWritingResultPartition resultPartition = buildResultPartition(
+				networkBufferPool,
+				ResultPartitionType.PIPELINED,
+				partitionIndex,
+				numChannels);
 			reader.readOutputData(new BufferWritingResultPartition[]{resultPartition}, false);
 			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
 			assertArrayEquals(resultSubpartitionInfoData, collectBytes(() -> Optional.ofNullable(view.getNextBuffer()).map(BufferAndBacklog::buffer)));
@@ -121,10 +117,34 @@ public class ChannelPersistenceITCase {
 		}
 	}
 
-	private BufferWritingResultPartition buildResultPartition(NetworkBufferPool networkBufferPool, int index, int numberOfSubpartitions) throws IOException {
+	private void upstreamBlocksAfterRecoveringState(ResultPartitionType type) throws Exception {
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
+		byte[] dataAfterRecovery = randomBytes(1024);
+		try {
+			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, type, 0, 1);
+			new SequentialChannelStateReaderImpl(new TaskStateSnapshot())
+				.readOutputData(new BufferWritingResultPartition[]{resultPartition}, true);
+			resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
+			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+			if (type != ResultPartitionType.PIPELINED_APPROXIMATE) {
+				assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
+				assertNull(view.getNextBuffer());
+				view.resumeConsumption();
+			}
+			assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
+		} finally {
+			networkBufferPool.destroy();
+		}
+	}
+
+	private BufferWritingResultPartition buildResultPartition(
+			NetworkBufferPool networkBufferPool,
+			ResultPartitionType resultPartitionType,
+			int index,
+			int numberOfSubpartitions) throws IOException {
 		ResultPartition resultPartition = new ResultPartitionBuilder()
 			.setResultPartitionIndex(index)
-			.setResultPartitionType(ResultPartitionType.PIPELINED)
+			.setResultPartitionType(resultPartitionType)
 			.setNumberOfSubpartitions(numberOfSubpartitions)
 			.setBufferPoolFactory(() -> networkBufferPool.createBufferPool(
 				numberOfSubpartitions,
