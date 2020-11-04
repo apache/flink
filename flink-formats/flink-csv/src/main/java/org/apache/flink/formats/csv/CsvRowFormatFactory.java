@@ -48,7 +48,6 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
 	public List<String> supportedFormatProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add(CsvValidator.FORMAT_FIELD_DELIMITER);
-		properties.add(CsvValidator.FORMAT_LINE_DELIMITER);
 		properties.add(CsvValidator.FORMAT_DISABLE_QUOTE_CHARACTER);
 		properties.add(CsvValidator.FORMAT_QUOTE_CHARACTER);
 		properties.add(CsvValidator.FORMAT_ALLOW_COMMENTS);
@@ -100,9 +99,6 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
 
 		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_FIELD_DELIMITER)
 			.ifPresent(schemaBuilder::setFieldDelimiter);
-
-		descriptorProperties.getOptionalString(CsvValidator.FORMAT_LINE_DELIMITER)
-			.ifPresent(schemaBuilder::setLineDelimiter);
 
 		if (descriptorProperties.getOptionalBoolean(CsvValidator.FORMAT_DISABLE_QUOTE_CHARACTER).orElse(false)) {
 			schemaBuilder.disableQuoteCharacter();

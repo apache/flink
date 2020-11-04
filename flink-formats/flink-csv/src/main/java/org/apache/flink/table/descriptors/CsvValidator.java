@@ -21,8 +21,6 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
-import java.util.Arrays;
-
 /**
   * Validator for {@link Csv}.
   */
@@ -45,7 +43,6 @@ public class CsvValidator extends FormatDescriptorValidator {
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateString(FORMAT_FIELD_DELIMITER, true, 1, 1);
-		properties.validateEnumValues(FORMAT_LINE_DELIMITER, true, Arrays.asList("\r", "\n", "\r\n", ""));
 		properties.validateBoolean(FORMAT_DISABLE_QUOTE_CHARACTER, true);
 		properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1);
 		properties.validateBoolean(FORMAT_ALLOW_COMMENTS, true);
