@@ -50,21 +50,21 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 		this.limit = limit;
 	}
 
-	private AtomicLong numRead() {
-		if (globalNumberRead == null) {
-			globalNumberRead = new AtomicLong(0);
-		}
-		return globalNumberRead;
-	}
-
 	@Override
 	public Reader<T> createReader(Configuration config, SplitT split) throws IOException {
-		return new LimitableReader<>(format.createReader(config, split), numRead(), limit);
+		return wrapReader(format.createReader(config, split));
 	}
 
 	@Override
 	public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
-		return new LimitableReader<>(format.restoreReader(config, split), numRead(), limit);
+		return wrapReader(format.restoreReader(config, split));
+	}
+
+	private synchronized Reader<T> wrapReader(Reader<T> reader) {
+		if (globalNumberRead == null) {
+			globalNumberRead = new AtomicLong(0);
+		}
+		return new LimitableReader<>(reader, globalNumberRead, limit);
 	}
 
 	@Override
