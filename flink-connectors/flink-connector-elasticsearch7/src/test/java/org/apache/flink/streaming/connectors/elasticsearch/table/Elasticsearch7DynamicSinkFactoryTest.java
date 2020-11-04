@@ -220,7 +220,7 @@ public class Elasticsearch7DynamicSinkFactoryTest {
 	}
 
 	@Test
-	public void validateWrongPARALLELISM(){
+	public void validatewrongParallelism(){
 		Elasticsearch7DynamicSinkFactory sinkFactory = new Elasticsearch7DynamicSinkFactory();
 		int parallelism =-1;
 		thrown.expect(ValidationException.class);

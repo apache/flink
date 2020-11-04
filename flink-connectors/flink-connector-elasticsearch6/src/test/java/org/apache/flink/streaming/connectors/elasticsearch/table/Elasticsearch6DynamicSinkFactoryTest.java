@@ -231,7 +231,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 		);
 	}
 	@Test
-	public void validateWrongPARALLELISM(){
+	public void validatewrongParallelism(){
 		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
 		int parallelism =-1;
 		thrown.expect(ValidationException.class);
