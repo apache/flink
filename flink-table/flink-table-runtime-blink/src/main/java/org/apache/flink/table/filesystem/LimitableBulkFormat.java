@@ -27,6 +27,7 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A {@link BulkFormat} that can limit output record number.
@@ -38,7 +39,7 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 	private final BulkFormat<T, SplitT> format;
 	private final long limit;
 
-	private transient long numRead = 0;
+	private transient AtomicLong numRead;
 
 	private LimitableBulkFormat(BulkFormat<T, SplitT> format, long limit) {
 		this.format = format;
@@ -102,7 +103,7 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 			if (reachLimit()) {
 				return null;
 			}
-			numRead++;
+			getNumRead().incrementAndGet();
 			return iterator.next();
 		}
 
@@ -112,8 +113,15 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit> implements B
 		}
 	}
 
+	private AtomicLong getNumRead() {
+		if (numRead == null) {
+			numRead = new AtomicLong(0);
+		}
+		return numRead;
+	}
+
 	private boolean reachLimit() {
-		return numRead >= limit;
+		return getNumRead().get() >= limit;
 	}
 
 	public static <T, SplitT extends FileSourceSplit> BulkFormat<T, SplitT> create(
