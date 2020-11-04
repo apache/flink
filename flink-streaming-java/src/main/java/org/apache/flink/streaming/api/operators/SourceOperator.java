@@ -47,11 +47,11 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,7 +79,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	/** The factory for the source reader. This is a workaround, because currently the SourceReader
 	 * must be lazily initialized, which is mainly because the metrics groups that the reader relies on is
 	 * lazily initialized. */
-	private final Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory;
+	private final FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception> readerFactory;
 
 	/** The serializer for the splits, applied to the split types before storing them in the reader state. */
 	private final SimpleVersionedSerializer<SplitT> splitSerializer;
@@ -119,7 +119,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	private TimestampsAndWatermarks<OUT> eventTimeLogic;
 
 	public SourceOperator(
-			Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory,
+			FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception> readerFactory,
 			OperatorEventGateway operatorEventGateway,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
 			WatermarkStrategy<OUT> watermarkStrategy,

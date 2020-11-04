@@ -55,7 +55,7 @@ public class SourceCoordinatorProviderTest {
 	}
 
 	@Test
-	public void testCreate() {
+	public void testCreate() throws Exception {
 		OperatorCoordinator coordinator =
 				provider.create(new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS));
 		assertTrue(coordinator instanceof RecreateOnResetOperatorCoordinator);
