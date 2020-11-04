@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
+
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -90,6 +92,11 @@ public class PipelinedApproximateSubpartition extends PipelinedSubpartition {
 			isBlocked = false;
 			sequenceNumber = 0;
 		}
+	}
+
+	@Override
+	public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
+		// The Approximate Local Recovery can not work with unaligned checkpoint for now, so no need to recover channel state
 	}
 
 	/** for testing only. */
