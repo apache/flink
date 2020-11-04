@@ -18,22 +18,22 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.{RowData, JoinedRowData}
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
-import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.types.logical.RowType
+import java.util
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
-
-import java.util
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.runtime.generated.GeneratedFunction
+import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConversions._
 

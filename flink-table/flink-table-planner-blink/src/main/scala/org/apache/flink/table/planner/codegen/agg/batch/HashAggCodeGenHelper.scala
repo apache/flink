@@ -22,7 +22,8 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}

@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.codegen
 
+import java.lang.reflect.Method
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.core.memory.MemorySegment
@@ -26,6 +30,7 @@ import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFS
 import org.apache.flink.table.data.binary._
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
@@ -42,10 +47,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCou
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
-
-import java.lang.reflect.Method
-import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.tailrec
 

@@ -39,7 +39,7 @@ abstract class TimeIntervalStreamJoinTestBase {
 	private String funcCode =
 			"public class IntervalJoinFunction\n" +
 					"    extends org.apache.flink.api.common.functions.RichFlatJoinFunction {\n" +
-					"  final org.apache.flink.table.data.JoinedRowData joinedRow = new org.apache.flink.table.data.JoinedRowData();\n" +
+					"  final org.apache.flink.table.data.utils.JoinedRowData joinedRow = new org.apache.flink.table.data.utils.JoinedRowData();\n" +
 
 					"  public IntervalJoinFunction(Object[] references) throws Exception {}\n" +
 

@@ -23,6 +23,7 @@ import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.binary.TypedSetters;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.{JoinedRowData, RowData}
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
@@ -28,8 +30,6 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
-
-import org.apache.calcite.tools.RelBuilder
 
 /**
   * Sort aggregation code generator to deal with all aggregate functions with keys.

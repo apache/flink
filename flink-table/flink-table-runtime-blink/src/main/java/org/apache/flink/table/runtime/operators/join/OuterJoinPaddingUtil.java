@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
