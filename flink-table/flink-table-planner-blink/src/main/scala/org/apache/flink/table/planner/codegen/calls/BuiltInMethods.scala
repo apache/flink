@@ -242,9 +242,6 @@ object BuiltInMethods {
     "strToDate",
     classOf[String], classOf[String])
 
-  val NOW = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "now")
-
   val DATE_FORMAT_STRING_STRING_STRING_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateFormat", classOf[String],
     classOf[String], classOf[String], classOf[TimeZone])
