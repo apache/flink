@@ -64,11 +64,18 @@ public class TimestampsAndWatermarksOperator<T>
 	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
 	private transient long watermarkInterval;
 
-	public TimestampsAndWatermarksOperator(
-			WatermarkStrategy<T> watermarkStrategy) {
+	/**
+	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
+	 * input.
+	 */
+	private final boolean emitProgressiveWatermarks;
 
+	public TimestampsAndWatermarksOperator(
+			WatermarkStrategy<T> watermarkStrategy,
+			boolean emitProgressiveWatermarks) {
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
+		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+		this.chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 	}
 
 	@Override
@@ -81,7 +88,7 @@ public class TimestampsAndWatermarksOperator<T>
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
 
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
+		if (watermarkInterval > 0 && emitProgressiveWatermarks) {
 			final long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
@@ -122,7 +129,9 @@ public class TimestampsAndWatermarksOperator<T>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		watermarkGenerator.onPeriodicEmit(wmOutput);
+		if (emitProgressiveWatermarks) {
+			watermarkGenerator.onPeriodicEmit(wmOutput);
+		}
 	}
 
 	// ------------------------------------------------------------------------
