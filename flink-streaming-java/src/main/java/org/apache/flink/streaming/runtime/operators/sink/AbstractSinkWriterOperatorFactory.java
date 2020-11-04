@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 /**
  * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link AbstractSinkWriterOperator}.
@@ -36,10 +37,10 @@ abstract class AbstractSinkWriterOperatorFactory<InputT, CommT> extends Abstract
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<CommT>> T createStreamOperator(StreamOperatorParameters<CommT> parameters) {
-		final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator();
+		final AbstractSinkWriterOperator<InputT, CommT> writerOperator = createWriterOperator(this.processingTimeService);
 		writerOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return (T) writerOperator;
 	}
 
-	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator();
+	abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService);
 }

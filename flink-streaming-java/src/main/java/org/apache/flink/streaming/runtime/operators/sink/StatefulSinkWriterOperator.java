@@ -28,6 +28,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
 
 import java.util.List;
@@ -59,8 +60,10 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT> extends Abst
 	private ListState<WriterStateT> writerState;
 
 	StatefulSinkWriterOperator(
+			final ProcessingTimeService processingTimeService,
 			final Sink<InputT, CommT, WriterStateT, ?> sink,
 			final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
+		super(processingTimeService);
 		this.sink = sink;
 		this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
 	}
