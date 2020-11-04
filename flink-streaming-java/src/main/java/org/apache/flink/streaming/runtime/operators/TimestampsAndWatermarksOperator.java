@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.eventtime.NoOpWatermarkGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -64,10 +65,7 @@ public class TimestampsAndWatermarksOperator<T>
 	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
 	private transient long watermarkInterval;
 
-	/**
-	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
-	 * input.
-	 */
+	/** Whether to periodically emit watermarks or only one final watermark at the end of input.*/
 	private final boolean emitProgressiveWatermarks;
 
 	public TimestampsAndWatermarksOperator(
@@ -83,12 +81,14 @@ public class TimestampsAndWatermarksOperator<T>
 		super.open();
 
 		timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
-		watermarkGenerator = watermarkStrategy.createWatermarkGenerator(this::getMetricGroup);
+		watermarkGenerator = new NoOpWatermarkGenerator<>(
+				watermarkStrategy.createWatermarkGenerator(this::getMetricGroup),
+				emitProgressiveWatermarks);
 
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
 
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0 && emitProgressiveWatermarks) {
+		if (watermarkInterval > 0) {
 			final long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
@@ -129,9 +129,7 @@ public class TimestampsAndWatermarksOperator<T>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		if (emitProgressiveWatermarks) {
-			watermarkGenerator.onPeriodicEmit(wmOutput);
-		}
+		watermarkGenerator.onPeriodicEmit(wmOutput);
 	}
 
 	// ------------------------------------------------------------------------
