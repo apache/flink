@@ -44,6 +44,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,6 +68,7 @@ public class DeclarativeSlotManager implements SlotManager {
 	private final SlotTracker slotTracker;
 	private final ResourceTracker resourceTracker;
 	private final BiFunction<Executor, ResourceActions, TaskExecutorManager> taskExecutorManagerFactory;
+	@Nullable
 	private TaskExecutorManager taskExecutorManager;
 
 	/** Timeout for slot requests to the task manager. */
@@ -81,12 +84,15 @@ public class DeclarativeSlotManager implements SlotManager {
 	private boolean sendNotEnoughResourceNotifications = true;
 
 	/** ResourceManager's id. */
+	@Nullable
 	private ResourceManagerId resourceManagerId;
 
 	/** Executor for future callbacks which have to be "synchronized". */
+	@Nullable
 	private Executor mainThreadExecutor;
 
 	/** Callbacks for resource (de-)allocations. */
+	@Nullable
 	private ResourceActions resourceActions;
 
 	/** True iff the component has been started. */
@@ -209,13 +215,19 @@ public class DeclarativeSlotManager implements SlotManager {
 	 */
 	@Override
 	public void suspend() {
+		if (!started) {
+			return;
+		}
+
 		LOG.info("Suspending the slot manager.");
 
 		resourceTracker.clear();
-		taskExecutorManager.close();
+		if (taskExecutorManager != null) {
+			taskExecutorManager.close();
 
-		for (InstanceID registeredTaskManager : taskExecutorManager.getTaskExecutors()) {
-			unregisterTaskManager(registeredTaskManager, new SlotManagerException("The slot manager is being suspended."));
+			for (InstanceID registeredTaskManager : taskExecutorManager.getTaskExecutors()) {
+				unregisterTaskManager(registeredTaskManager, new SlotManagerException("The slot manager is being suspended."));
+			}
 		}
 
 		taskExecutorManager = null;
