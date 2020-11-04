@@ -18,45 +18,45 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.BulkDecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.factories.BulkReaderFormatFactory;
+import org.apache.flink.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
-import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePartValueFromType;
-
 /**
- * Orc {@link FileSystemFormatFactory} for file system.
+ * Orc format factory for file system.
  */
-public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
+public class OrcFileSystemFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
 	public static final String IDENTIFIER = "orc";
 
@@ -85,141 +85,88 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
+	public BulkDecodingFormat<RowData> createDecodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		return new BulkDecodingFormat<RowData>() {
 
-		for (Expression pred : context.getPushedDownFilters()) {
-			OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
-			if (orcPred != null) {
-				orcPredicates.add(orcPred);
+			private List<ResolvedExpression> filters;
+
+			@Override
+			public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
+					DynamicTableSource.Context sourceContext,
+					DataType producedDataType) {
+				List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
+
+				if (filters != null) {
+					for (Expression pred : filters) {
+						OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+						if (orcPred != null) {
+							orcPredicates.add(orcPred);
+						}
+					}
+				}
+
+				RowType tableType = (RowType) context.getCatalogTable().getSchema()
+						.toPhysicalRowDataType().getLogicalType();
+				List<String> tableFieldNames = tableType.getFieldNames();
+				RowType projectedType = (RowType) producedDataType.getLogicalType();
+
+				int[] selectedFields = projectedType.getFieldNames().stream()
+						.mapToInt(tableFieldNames::indexOf).toArray();
+
+				Properties properties = getOrcProperties(formatOptions);
+				Configuration conf = new Configuration();
+				properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
+
+				String defaultPartName = context.getCatalogTable().getOptions().getOrDefault(
+						FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
+						FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
+
+				return OrcColumnarRowFileInputFormat.createPartitionedFormat(
+						OrcShim.defaultShim(),
+						conf,
+						tableType,
+						context.getCatalogTable().getPartitionKeys(),
+						PartitionFieldExtractor.forFileSystem(defaultPartName),
+						selectedFields,
+						orcPredicates,
+						VectorizedColumnBatch.DEFAULT_SIZE);
 			}
-		}
 
-		return new OrcRowDataInputFormat(
-				context.getPaths(),
-				context.getSchema().getFieldNames(),
-				context.getSchema().getFieldDataTypes(),
-				context.getProjectFields(),
-				context.getDefaultPartName(),
-				orcPredicates,
-				context.getPushedDownLimit(),
-				getOrcProperties(context.getFormatOptions()));
+			@Override
+			public ChangelogMode getChangelogMode() {
+				return ChangelogMode.insertOnly();
+			}
+
+			@Override
+			public void applyFilters(List<ResolvedExpression> filters) {
+				this.filters = filters;
+			}
+		};
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		LogicalType[] orcTypes = Arrays.stream(context.getFormatFieldTypes())
-				.map(DataType::getLogicalType)
-				.toArray(LogicalType[]::new);
+	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+			@Override
+			public BulkWriter.Factory<RowData> createRuntimeEncoder(
+					DynamicTableSink.Context sinkContext, DataType consumedDataType) {
+				RowType formatRowType = (RowType) consumedDataType.getLogicalType();
+				LogicalType[] orcTypes = formatRowType.getChildren().toArray(new LogicalType[0]);
 
-		TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(
-				RowType.of(orcTypes, context.getFormatFieldNames()));
+				TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(formatRowType);
 
-		OrcBulkWriterFactory<RowData> factory = new OrcBulkWriterFactory<>(
-				new RowDataVectorizer(typeDescription.toString(), orcTypes),
-				getOrcProperties(context.getFormatOptions()),
-				new Configuration());
-		return Optional.of(factory);
-	}
-
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.empty();
-	}
-
-	/**
-	 * An implementation of {@link FileInputFormat} to read {@link RowData} records
-	 * from orc files.
-	 */
-	public static class OrcRowDataInputFormat extends FileInputFormat<RowData> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final String[] fullFieldNames;
-		private final DataType[] fullFieldTypes;
-		private final int[] selectedFields;
-		private final String partDefaultName;
-		private List<OrcFilters.Predicate> pushedDownFilters;
-		private final Properties properties;
-		private final long limit;
-
-		private transient OrcColumnarRowSplitReader<VectorizedRowBatch> reader;
-		private transient long currentReadCount;
-
-		public OrcRowDataInputFormat(
-				Path[] paths,
-				String[] fullFieldNames,
-				DataType[] fullFieldTypes,
-				int[] selectedFields,
-				String partDefaultName,
-				List<OrcFilters.Predicate> pushedDownFilters,
-				long limit,
-				Properties properties) {
-			super.setFilePaths(paths);
-			this.limit = limit;
-			this.partDefaultName = partDefaultName;
-			this.pushedDownFilters = pushedDownFilters;
-			this.fullFieldNames = fullFieldNames;
-			this.fullFieldTypes = fullFieldTypes;
-			this.selectedFields = selectedFields;
-			this.properties = properties;
-		}
-
-		@Override
-		public void open(FileInputSplit fileSplit) throws IOException {
-			// generate partition specs.
-			List<String> fieldNameList = Arrays.asList(fullFieldNames);
-			LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(
-					fileSplit.getPath());
-			LinkedHashMap<String, Object> partObjects = new LinkedHashMap<>();
-			partSpec.forEach((k, v) -> partObjects.put(k, restorePartValueFromType(
-					partDefaultName.equals(v) ? null : v,
-					fullFieldTypes[fieldNameList.indexOf(k)])));
-
-			Configuration conf = new Configuration();
-			properties.forEach((k, v) -> conf.set(k.toString(), v.toString()));
-
-			this.reader = OrcSplitReaderUtil.genPartColumnarRowReader(
-					"3.1.1", // use the latest hive version
-					conf,
-					fullFieldNames,
-					fullFieldTypes,
-					partObjects,
-					selectedFields,
-					pushedDownFilters,
-					DEFAULT_SIZE,
-					new Path(fileSplit.getPath().toString()),
-					fileSplit.getStart(),
-					fileSplit.getLength());
-			this.currentReadCount = 0L;
-		}
-
-		@Override
-		public boolean supportsMultiPaths() {
-			return true;
-		}
-
-		@Override
-		public boolean reachedEnd() throws IOException {
-			if (currentReadCount >= limit) {
-				return true;
-			} else {
-				return reader.reachedEnd();
+				return new OrcBulkWriterFactory<>(
+						new RowDataVectorizer(typeDescription.toString(), orcTypes),
+						getOrcProperties(formatOptions),
+						new Configuration());
 			}
-		}
 
-		@Override
-		public RowData nextRecord(RowData reuse) {
-			currentReadCount++;
-			return reader.nextRecord(reuse);
-		}
-
-		@Override
-		public void close() throws IOException {
-			if (reader != null) {
-				this.reader.close();
+			@Override
+			public ChangelogMode getChangelogMode() {
+				return ChangelogMode.insertOnly();
 			}
-			this.reader = null;
-		}
+		};
 	}
 }
