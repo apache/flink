@@ -29,7 +29,6 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
-import org.apache.flink.api.connector.source.mocks.MockSourceReader.MockNoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.metrics.Counter;
@@ -48,7 +47,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
-import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -98,6 +97,7 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link MultipleInputStreamTask}. Theses tests implicitly also test the
  * {@link StreamMultipleInputProcessor}.
  */
+@SuppressWarnings("serial")
 public class MultipleInputStreamTaskTest {
 	private static final List<String> LIFE_CYCLE_EVENTS = new ArrayList<>();
 
@@ -869,7 +869,7 @@ public class MultipleInputStreamTaskTest {
 	private void finishAddingRecords(StreamTaskMailboxTestHarness<String> testHarness, int sourceId) throws Exception {
 		testHarness.getStreamTask().dispatchOperatorEvent(
 			getSourceOperatorID(testHarness, sourceId),
-			new SerializedValue<>(new SourceEventWrapper(new MockNoMoreSplitsEvent())));
+			new SerializedValue<>(new NoMoreSplitsEvent()));
 	}
 
 	static class LifeCycleTrackingMapToStringMultipleInputOperator

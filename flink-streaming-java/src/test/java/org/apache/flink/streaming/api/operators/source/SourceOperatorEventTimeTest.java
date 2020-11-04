@@ -22,7 +22,6 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -293,7 +292,7 @@ public class SourceOperatorEventTimeTest {
 		public void addSplits(List<MockSourceSplit> splits) {}
 
 		@Override
-		public void handleSourceEvents(SourceEvent sourceEvent) {}
+		public void notifyNoMoreSplits() {}
 
 		@Override
 		public void close() {}

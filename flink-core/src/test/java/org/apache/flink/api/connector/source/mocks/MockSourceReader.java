@@ -108,12 +108,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof MockNoMoreSplitsEvent) {
-			waitingForMoreSplits = false;
-			markAvailable();
-		}
-		receivedSourceEvents.add(sourceEvent);
+	public void notifyNoMoreSplits() {
+		waitingForMoreSplits = false;
+		markAvailable();
 	}
 
 	@Override
@@ -135,6 +132,11 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		if (availableFuture.isDone()) {
 			availableFuture = new CompletableFuture<>();
 		}
+	}
+
+	@Override
+	public void handleSourceEvents(SourceEvent sourceEvent) {
+		receivedSourceEvents.add(sourceEvent);
 	}
 
 	// --------------- methods for unit tests ---------------
@@ -173,11 +175,5 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	public List<Long> getAbortedCheckpoints() {
 		return abortedCheckpoints;
-	}
-
-	/**
-	 * Simple event allowing {@link MockSourceReader} to finish when requested.
-	 */
-	public static class MockNoMoreSplitsEvent implements SourceEvent {
 	}
 }

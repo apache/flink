@@ -84,6 +84,14 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	}
 
 	/**
+	 * Signals a subtask that it will not receive any further split.
+	 *
+	 * @param subtask The index of the operator's parallel subtask that shall be
+	 *                signaled it will not receive any further split.
+	 */
+	void signalNoMoreSplits(int subtask);
+
+	/**
 	 * Invoke the callable and handover the return value to the handler which will be executed
 	 * by the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>s
 	 * may be executed in a thread pool concurrently.

@@ -94,13 +94,25 @@ public interface SourceReader<T, SplitT extends SourceSplit>
 	void addSplits(List<SplitT> splits);
 
 	/**
+	 * This method is called when the reader is notified that it will not
+	 * receive any further splits.
+	 *
+	 * <p>It is triggered when the enumerator calls {@link SplitEnumeratorContext#signalNoMoreSplits(int)}
+	 * with the reader's parallel subtask.
+	 */
+	void notifyNoMoreSplits();
+
+	/**
 	 * Handle a custom source event sent by the {@link SplitEnumerator}.
 	 * This method is called when the enumerator sends an event via
 	 * {@link SplitEnumeratorContext#sendEventToSourceReader(int, SourceEvent)}.
 	 *
+	 * <p>This method has a default implementation that does nothing, because
+	 * most sources do not require any custom events.
+	 *
 	 * @param sourceEvent the event sent by the {@link SplitEnumerator}.
 	 */
-	void handleSourceEvents(SourceEvent sourceEvent);
+	default void handleSourceEvents(SourceEvent sourceEvent) {}
 
 	/**
 	 * We have an empty default implementation here because most source readers do not have

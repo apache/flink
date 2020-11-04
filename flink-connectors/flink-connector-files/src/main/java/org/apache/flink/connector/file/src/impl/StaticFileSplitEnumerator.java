@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -121,7 +120,7 @@ public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSpli
 			LOG.info("Assigned split to subtask {} : {}", subtask, split);
 		}
 		else {
-			context.sendEventToSourceReader(subtask, new NoMoreSplitsEvent());
+			context.signalNoMoreSplits(subtask);
 			LOG.info("No more splits available for subtask {}", subtask);
 		}
 	}
