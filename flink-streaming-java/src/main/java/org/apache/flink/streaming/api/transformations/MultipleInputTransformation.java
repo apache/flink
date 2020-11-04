@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
+import static java.util.stream.Collectors.joining;
+
 /**
  * {@link AbstractMultipleInputTransformation} implementation for non-keyed streams.
  */
@@ -39,5 +41,10 @@ public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTrans
 	public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
 		inputs.add(input);
 		return this;
+	}
+
+	@Override
+	public String getName() {
+		return inputs.isEmpty() ? super.getName() : "[" + inputs.stream().map(Transformation::getName).collect(joining(", ")) + "]";
 	}
 }

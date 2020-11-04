@@ -258,7 +258,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 		MultipleInputTransformation<String> transform = new MultipleInputTransformation<String>(
 			"My Operator",
-			new MultipleInputOperatorFactory(),
+			unsupportedOperatorFactory(),
 			BasicTypeInfo.STRING_TYPE_INFO,
 			3);
 
@@ -605,25 +605,27 @@ public class StreamGraphGeneratorTest extends TestLogger {
 		}
 	}
 
-	private static class MultipleInputOperatorFactory implements StreamOperatorFactory<String> {
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			throw new UnsupportedOperationException();
-		}
+	public static <X> StreamOperatorFactory<X> unsupportedOperatorFactory() {
+		return new StreamOperatorFactory<X>() {
+			@Override
+			public <T extends StreamOperator<X>> T createStreamOperator(StreamOperatorParameters<X> parameters) {
+				throw new UnsupportedOperationException();
+			}
 
-		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			throw new UnsupportedOperationException();
-		}
+			@Override
+			public void setChainingStrategy(ChainingStrategy strategy) {
+				throw new UnsupportedOperationException();
+			}
 
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			throw new UnsupportedOperationException();
-		}
+			@Override
+			public ChainingStrategy getChainingStrategy() {
+				throw new UnsupportedOperationException();
+			}
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			throw new UnsupportedOperationException();
-		}
+			@Override
+			public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+				throw new UnsupportedOperationException();
+			}
+		};
 	}
 }
