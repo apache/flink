@@ -42,6 +42,7 @@ if [ ! -z "$TF_BUILD" ] ; then
 
 	function run_on_exit {
 		collect_coredumps $(pwd) $ARTIFACTS_DIR
+		collect_dmesg $ARTIFACTS_DIR
 		compress_logs
 	}
 
