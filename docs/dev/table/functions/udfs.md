@@ -1247,6 +1247,8 @@ def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit
 
 </div>
 
+If you intend to implement or call functions in Python, please refer to the [Python Aggregate Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#aggregate-functions) documentation for more details.
+
 {% top %}
 
 Table Aggregate Functions
