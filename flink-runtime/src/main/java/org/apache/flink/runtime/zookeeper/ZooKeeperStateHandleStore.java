@@ -40,7 +40,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
 
@@ -159,7 +158,8 @@ public class ZooKeeperStateHandleStore<T extends Serializable> implements StateH
 			return storeHandle;
 		}
 		catch (KeeperException.NodeExistsException e) {
-			throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", e);
+			// We wrap the exception here so that it could be caught in DefaultJobGraphStore
+			throw new AlreadyExistException("ZooKeeper node " + path + " already exists.", e);
 		}
 		finally {
 			if (!success) {
@@ -202,7 +202,8 @@ public class ZooKeeperStateHandleStore<T extends Serializable> implements StateH
 					.forPath(path, serializedStateHandle);
 			success = true;
 		} catch (KeeperException.NoNodeException e) {
-			throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", e);
+			// We wrap the exception here so that it could be caught in DefaultJobGraphStore
+			throw new NotExistException("ZooKeeper node " + path + " does not exist.", e);
 		} finally {
 			if (success) {
 				oldStateHandle.discardState();
@@ -492,6 +493,10 @@ public class ZooKeeperStateHandleStore<T extends Serializable> implements StateH
 				client.create().withMode(CreateMode.EPHEMERAL).forPath(getLockPath(path));
 			} catch (KeeperException.NodeExistsException ignored) {
 				// we have already created the lock
+			} catch (KeeperException.NoNodeException ex) {
+				// We could run into this exception because the parent node does not exist when we are trying to lock.
+				// We wrap the exception here so that it could be caught in DefaultJobGraphStore
+				throw new NotExistException("ZooKeeper node " + path + " does not exist.", ex);
 			}
 		}
 
@@ -500,18 +505,19 @@ public class ZooKeeperStateHandleStore<T extends Serializable> implements StateH
 		try {
 			byte[] data = client.getData().forPath(path);
 
-			try {
-				RetrievableStateHandle<T> retrievableStateHandle = InstantiationUtil.deserializeObject(
-					data,
-					Thread.currentThread().getContextClassLoader());
+			RetrievableStateHandle<T> retrievableStateHandle = InstantiationUtil.deserializeObject(
+				data,
+				Thread.currentThread().getContextClassLoader());
 
-				success = true;
+			success = true;
 
-				return retrievableStateHandle;
-			} catch (IOException | ClassNotFoundException e) {
-				throw new IOException("Failed to deserialize state handle from ZooKeeper data from " +
-					path + '.', e);
-			}
+			return retrievableStateHandle;
+		} catch (KeeperException.NoNodeException ex) {
+			// We wrap the exception here so that it could be caught in DefaultJobGraphStore
+			throw new NotExistException("ZooKeeper node " + path + " does not exist.", ex);
+		} catch (IOException | ClassNotFoundException e) {
+			throw new IOException("Failed to deserialize state handle from ZooKeeper data from " +
+				path + '.', e);
 		} finally {
 			if (!success && lock) {
 				// release the lock
