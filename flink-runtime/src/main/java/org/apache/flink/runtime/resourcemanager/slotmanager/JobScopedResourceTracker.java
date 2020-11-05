@@ -185,15 +185,25 @@ class JobScopedResourceTracker {
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("There are {} excess resources for job {} before re-assignment.", jobId, excessResources.getResourceCount());
 		}
-		// this is a quick-and-dirty solution; in the worse case we copy the excessResources map twice
-		ResourceCounter copy = excessResources.copy();
-		excessResources.clear();
-		for (Map.Entry<ResourceProfile, Integer> resourceProfileIntegerEntry : copy.getResourceProfilesWithCount().entrySet()) {
-			for (int x = 0; x < resourceProfileIntegerEntry.getValue(); x++) {
-				// try making use of this resource again; any excess resources will be added again to excessResources
-				notifyAcquiredResource(resourceProfileIntegerEntry.getKey());
+
+		final ResourceCounter assignedResources = new ResourceCounter();
+		for (Map.Entry<ResourceProfile, Integer> excessResource : excessResources.getResourceProfilesWithCount().entrySet()) {
+			for (int i = 0; i < excessResource.getValue(); i++) {
+				final ResourceProfile resourceProfile = excessResource.getKey();
+				final Optional<ResourceProfile> matchingRequirement = findMatchingRequirement(resourceProfile);
+				if (matchingRequirement.isPresent()) {
+					resourceToRequirementMapping.incrementCount(matchingRequirement.get(), resourceProfile, 1);
+					assignedResources.incrementCount(resourceProfile, 1);
+				} else {
+					break;
+				}
 			}
 		}
+
+		for (Map.Entry<ResourceProfile, Integer> assignedResource : assignedResources.getResourceProfilesWithCount().entrySet()) {
+			excessResources.decrementCount(assignedResource.getKey(), assignedResource.getValue());
+		}
+
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("There are {} excess resources for job {} after re-assignment.", jobId, excessResources.getResourceCount());
 		}
