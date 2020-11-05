@@ -78,6 +78,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.get
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getStartupOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableSinkOptions;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableSourceOptions;
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 /**
  * Factory for creating configured instances of {@link KafkaDynamicSource} and {@link KafkaDynamicSink}.
@@ -117,6 +118,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
 		options.add(SINK_PARTITIONER);
 		options.add(SINK_SEMANTIC);
+		options.add(SINK_PARALLELISM);
 		return options;
 	}
 
@@ -194,6 +196,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 
+		final Integer parallelism = tableOptions.getOptional(SINK_PARALLELISM).orElse(null);
+
 		return createKafkaTableSink(
 				physicalDataType,
 				keyEncodingFormat.orElse(null),
@@ -204,7 +208,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				tableOptions.get(TOPIC).get(0),
 				getKafkaProperties(context.getCatalogTable().getOptions()),
 				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()).orElse(null),
-				getSinkSemantic(tableOptions));
+				getSinkSemantic(tableOptions),
+				parallelism);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -297,7 +302,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 			String topic,
 			Properties properties,
 			FlinkKafkaPartitioner<RowData> partitioner,
-			KafkaSinkSemantic semantic) {
+			KafkaSinkSemantic semantic,
+			Integer parallelism) {
 		return new KafkaDynamicSink(
 				physicalDataType,
 				keyEncodingFormat,
@@ -308,6 +314,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				topic,
 				properties,
 				partitioner,
-				semantic);
+				semantic,
+				parallelism);
 	}
 }
