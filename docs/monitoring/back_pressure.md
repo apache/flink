@@ -38,7 +38,7 @@ Take a simple `Source -> Sink` job as an example. If you see a warning for `Sour
 
 Back pressure monitoring works by repeatedly taking back pressure samples of your running tasks. The JobManager triggers repeated calls to `Task.isBackPressured()` for the tasks of your job.
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling.png %}" class="img-responsive">
 <!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
 
 Internally, back pressure is judged based on the availability of output buffers. If there is no available buffer (at least one) for output, then it indicates that there is back pressure for the task.
@@ -70,14 +70,14 @@ This means that the JobManager triggered a back pressure sample of the running t
 
 Note that clicking the row, you trigger the sample for all subtasks of this operator.
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_in_progress.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_in_progress.png %}" class="img-responsive">
 
 ### Back Pressure Status
 
 If you see status **OK** for the tasks, there is no indication of back pressure. **HIGH** on the other hand means that the tasks are back pressured.
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_ok.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_ok.png %}" class="img-responsive">
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_high.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_high.png %}" class="img-responsive">
 
 {% top %}
