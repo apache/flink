@@ -365,13 +365,13 @@ under the License.
        y="202.19572"
        id="text3085"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:13.8034px;font-family:'Courier New';text-align:start;text-anchor:start;fill:#000000">BucketingSink</text>
+       style="font-style:normal;font-weight:normal;font-size:13.8034px;font-family:'Courier New';text-align:start;text-anchor:start;fill:#000000">MySink</text>
     <text
-       x="281.16571"
+       x="221.16571"
        y="202.05418"
        id="text3087"
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:13.8034px;font-family:'Courier New';text-align:start;text-anchor:start;fill:#000000">(path));</text>
+       style="font-style:normal;font-weight:normal;font-size:13.8034px;font-family:'Courier New';text-align:start;text-anchor:start;fill:#000000">(...));</text>
     <path
        d="m 32.445583,379.40702 c 0,-17.70441 14.309815,-32.05174 31.957962,-32.05174 17.648146,0 31.957961,14.34733 31.957961,32.05174 0,17.68566 -14.309815,32.03298 -31.957961,32.03298 -17.648147,0 -31.957962,-14.34732 -31.957962,-32.03298"
        id="path3089"
