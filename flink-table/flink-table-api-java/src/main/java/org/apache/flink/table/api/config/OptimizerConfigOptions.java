@@ -104,6 +104,6 @@ public class OptimizerConfigOptions {
 	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED =
 		key("table.optimizer.multiple-input-enabled")
 			.defaultValue(true)
-			.withDescription("When it is true, the optimizer will merge the operators with pipeline shuffling " +
+			.withDescription("When it is true, the optimizer will merge the operators with pipelined shuffling " +
 					"into a multiple input operator to reduce shuffling and improve performance. Default value is true.");
 }
