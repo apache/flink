@@ -22,7 +22,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="java-dependency"/>
+* This will be replaced by the TOC
+{:toc}
+
+<a name="java-dependency-in-python-program"/>
 
 # Java 依赖管理
 
@@ -38,7 +41,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-<a name="python-dependency"/>
+<a name="python-dependency-in-python-program"/>
 
 # Python 依赖管理
 
@@ -112,3 +115,36 @@ table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
     </tr>
   </tbody>
 </table>
+
+<a name="python-dependency-in-javascala-program"/>
+
+# Java/Scala程序中的Python依赖管理
+
+It also supports to use Python UDFs in the Java Table API programs or pure SQL programs. The following example shows how to
+use the Python UDFs in a Java Table API program:
+
+{% highlight java %}
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+
+TableEnvironment tEnv = TableEnvironment.create(
+    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
+
+// register the Python UDF
+tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");
+
+tEnv.createTemporaryView("source", tEnv.fromValues(1L, 2L, 3L).as("a"));
+
+// use Python UDF in the Java Table API program
+tEnv.executeSql("select add_one(a) as a from source").collect();
+{% endhighlight %}
+
+You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sql/create.zh.md %}#create-function) for more details
+on how to create Python user-defined functions using SQL statements.
+
+The Python dependencies could be specified via the Python [config options]({% link  dev/python/table-api-users-guide/python_config.zh.md %}#python-options),
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link ops/cli.zh.md %}#usage) when submitting the job.
+
+

@@ -60,7 +60,7 @@ $ # 指定用于执行python UDF workers (用户自定义函数工作者) 的pyt
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency)。
+如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency-in-python-program)。
 
 ## 添加Jar文件
 
@@ -75,7 +75,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-有关添加Java依赖项的API的详细信息，请参阅[相关文档]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#java-dependency)。
+有关添加Java依赖项的API的详细信息，请参阅[相关文档]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#java-dependency-in-python-program)。
 
 ## 添加Python文件
 您可以使用命令行参数`pyfs`或TableEnvironment的API `add_python_file`添加python文件依赖，这些依赖可以是python文件，python软件包或本地目录。

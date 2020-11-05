@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="java-dependency"/>
+<a name="java-dependency-in-python-program"/>
 
 # Java 依赖管理
 
@@ -39,7 +39,7 @@ stream_execution_environment.add_classpaths("file:///my/jar/path/connector.jar",
 {% endhighlight %}
 **注意：** 这些 API 能被多次调用。
 
-<a name="python-dependency"/>
+<a name="python-dependency-in-python-program"/>
 
 # Python 依赖管理
 如果 Python DataStream 程序中应用到了 Python 第三方依赖，用户可以使用以下 API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。

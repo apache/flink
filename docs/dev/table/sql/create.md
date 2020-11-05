@@ -431,6 +431,8 @@ If the language tag is JAVA/SCALA, the identifier is the full classpath of the U
 
 If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) for more details.
 
+If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({% link dev/python/table-api-users-guide/dependency_management.md %}#python-dependency-in-javascala-program).
+
 **TEMPORARY**
 
 Create temporary catalog function that has catalog and database namespaces and overrides catalog functions.

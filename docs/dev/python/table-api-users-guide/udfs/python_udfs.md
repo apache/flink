@@ -228,7 +228,7 @@ def iterable_func(x):
       return result
 {% endhighlight %}
 
-## Aggregation Functions
+## Aggregate Functions
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 

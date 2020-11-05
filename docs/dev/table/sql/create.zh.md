@@ -429,7 +429,9 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)。
 
-如果 language tag 是 PYTHON ，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
+如果 language tag 是 PYTHON，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
+
+如果 language tag 是 PYTHON，而当前程序是 Java／Scala 程序或者纯 SQL 程序，则需要[配置 Python 相关的依赖]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency-in-javascala-program)。
 
 **TEMPORARY**
 

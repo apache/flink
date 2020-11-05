@@ -30,6 +30,8 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+<a name="scalar-functions"></a>
+
 ## 标量函数（ScalarFunction）
 
 PyFlink支持在Python Table API程序中使用Python标量函数。 如果要定义Python标量函数，
@@ -130,7 +132,9 @@ my_table.select("add(a, b)")
 my_table.select(add(my_table.a, my_table.b))
 {% endhighlight %}
 
-## 表值函数
+<a name="table-functions"></a>
+
+## 表值函数（TableFunction）
 与Python用户自定义标量函数类似，Python用户自定义表值函数以零个，一个或者多个列作为输入参数。但是，与标量函数不同的是，表值函数可以返回
 任意数量的行作为输出而不是单个值。Python用户自定义表值函数的返回类型可以是Iterable，Iterator或generator类型。
 
@@ -223,7 +227,9 @@ def iterable_func(x):
       return result
 {% endhighlight %}
 
-## Aggregation Functions
+<a name="aggregate-functions"></a>
+
+## 聚合函数（AggregateFunction）
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
