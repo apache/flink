@@ -431,6 +431,8 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 PYTHON ，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
 
+如果 language tag 是 PYTHON 而执行SQL的程序是Java/Scala，通常需要先[配置Python依赖]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency-in-javascala-program)，程序才能正常执行。
+
 **TEMPORARY**
 
 创建一个有 catalog 和数据库命名空间的临时 catalog function ，并覆盖原有的 catalog function 。

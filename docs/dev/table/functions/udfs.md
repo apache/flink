@@ -743,6 +743,8 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#scalar-functions) documentation for more details.
 
+If you intend to use Python UDFs in Java/Scala program, you need to register them via SQL, please refer to the [CREATE FUNCTION Statement]({% link dev/table/sql/create.md %}#create-function) documentation for more details.
+
 {% top %}
 
 Table Functions
@@ -900,6 +902,8 @@ env.sqlQuery(
 If you intend to implement functions in Scala, do not implement a table function as a Scala `object`. Scala `object`s are singletons and will cause concurrency issues.
 
 If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#table-functions) documentation for more details.
+
+If you intend to use Python UDFs in Java/Scala program, you need to register them via SQL, please refer to the [CREATE FUNCTION Statement]({% link dev/table/sql/create.md %}#create-function) documentation for more details.
 
 {% top %}
 
@@ -1246,6 +1250,10 @@ def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit
 </div>
 
 </div>
+
+If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#aggregation-functions) documentation for more details.
+
+If you intend to use Python UDFs in Java/Scala program, you need to register them via SQL, please refer to the [CREATE FUNCTION Statement]({% link  dev/table/sql/create.md %}#create-function) documentation for more details.
 
 {% top %}
 

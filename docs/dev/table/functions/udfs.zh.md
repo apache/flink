@@ -711,6 +711,8 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
 
+如果你打算在Java/Scala程序中使用Python函数，你需要先使用SQL语句注册它们，详情可参考[CREATE FUNCTION语句]({% link dev/table/sql/create.zh.md %}#create-function).
+
 {% top %}
 
 表值函数
@@ -868,6 +870,8 @@ env.sqlQuery(
 如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
 
 如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#表值函数)。
+
+如果你打算在Java/Scala程序中使用Python函数，你需要先使用SQL语句注册它们，详情可参考[CREATE FUNCTION语句]({% link dev/table/sql/create.zh.md %}#create-function).
 
 {% top %}
 
@@ -1346,6 +1350,8 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 {% endhighlight %}
 </div>
 </div>
+
+如果你打算在Java/Scala程序中使用Python函数，你需要先使用SQL语句注册它们，详情可参考[CREATE FUNCTION语句]({% link dev/table/sql/create.zh.md %}#create-function).
 
 {% top %}
 

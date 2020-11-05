@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Java Dependency
+# Java Dependency in Python Program
 
 If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
 
@@ -36,7 +36,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-# Python Dependency
+# Python Dependency in Python Program
 
 If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
 
@@ -108,3 +108,27 @@ table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
     </tr>
   </tbody>
 </table>
+
+# Python Dependency in Java/Scala Program
+
+If Python UDFs is created via the [CREATE FUNCTION SQL Statement]({% link  dev/table/sql/create.md %}#create-function) 
+and used in Java/Scala program, usually the Python environment need to be well prepared and the Python dependencies need 
+to be well configured via [Python configuration options]({% link dev/python/table-api-users-guide/python_config.md %}) 
+or [Python commandline options]({% link ops/cli.md %}#usage).
+
+If you are using Python UDF in a Java/Scala program for the first time, you can prepare the Python environment and 
+specify the Python dependencies as follows: 
+
+1. Prepare a **portable** Python environment which has installed PyFlink, for Mac/Linux users we prepare a 
+[convenient script]({% link downloads/setup-pyflink-virtual-env.sh %}) to create a miniconda environment with PyFlink 
+installed. If your Python UDFs have additional dependencies, you need to install them in the environment.
+2. Set the configuration option `python.client.executable` to the Python interpreter path of the Python environment 
+above at the beginning of your program. 
+3. Set the configuration option `python.files` to the paths of the Python files which define the 
+Python UDFs, use "," as the separator of paths at the beginning of your program. 
+4. Pack the Python environment to a zip file, and set the configuration option `python.archives` to the path of the zip 
+file at the beginning of your program. 
+5. Set the configuration option `python.executable` to the Python interpreter path in the zip file created above at the 
+beginning of your program, e.g. for the zip file generated from the 
+[convenient script]({% link downloads/setup-pyflink-virtual-env.sh %}), the value of the configuration option should be 
+"venv.zip/venv/bin/python".

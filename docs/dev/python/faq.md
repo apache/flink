@@ -76,7 +76,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency-in-python-program)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
