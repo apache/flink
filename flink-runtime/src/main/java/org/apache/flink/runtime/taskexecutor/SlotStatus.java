@@ -134,9 +134,9 @@ public class SlotStatus implements Serializable {
 	public String toString() {
 		return "SlotStatus{" +
 			"slotID=" + slotID +
-			", resourceProfile=" + resourceProfile +
 			", allocationID=" + allocationID +
 			", jobID=" + jobID +
+			", resourceProfile=" + resourceProfile +
 			'}';
 	}
 }
