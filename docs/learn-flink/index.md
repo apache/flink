@@ -62,7 +62,7 @@ exchange, or sensor readings from a machine on a factory floor, data is created 
 But when you analyze data, you can either organize your processing around _bounded_ or _unbounded_
 streams, and which of these paradigms you choose has profound consequences.
 
-<img src="{{ site.baseurl }}/fig/bounded-unbounded.png" alt="Bounded and unbounded streams" class="offset" width="90%" />
+<img src="{% link /fig/bounded-unbounded.png %}" alt="Bounded and unbounded streams" class="offset" width="90%" />
 
 **Batch processing** is the paradigm at work when you process a bounded data stream. In this mode of
 operation you can choose to ingest the entire dataset before producing any results, which means that
@@ -76,7 +76,7 @@ In Flink, applications are composed of **streaming dataflows** that may be trans
 user-defined **operators**. These dataflows form directed graphs that start with one or more
 **sources**, and end in one or more **sinks**.
 
-<img src="{{ site.baseurl }}/fig/program_dataflow.svg" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
+<img src="{% link /fig/program_dataflow.svg %}" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
 
 Often there is a one-to-one correspondence between the transformations in the program and the
 operators in the dataflow. Sometimes, however, one transformation may consist of multiple operators.
@@ -86,7 +86,7 @@ distributed logs, like Apache Kafka or Kinesis. But flink can also consume bound
 from a variety of data sources. Similarly, the streams of results being produced by a Flink
 application can be sent to a wide variety of systems that can be connected as sinks.
 
-<img src="{{ site.baseurl }}/fig/flink-application-sources-sinks.png" alt="Flink application with sources and sinks" class="offset" width="90%" />
+<img src="{% link /fig/flink-application-sources-sinks.png %}" alt="Flink application with sources and sinks" class="offset" width="90%" />
 
 ### Parallel Dataflows
 
@@ -101,7 +101,7 @@ operator.
 Different operators of the same program may have different levels of
 parallelism.
 
-<img src="{{ site.baseurl }}/fig/parallel_dataflow.svg" alt="A parallel dataflow" class="offset" width="80%" />
+<img src="{% link /fig/parallel_dataflow.svg %}" alt="A parallel dataflow" class="offset" width="80%" />
 
 Streams can transport data between two operators in a *one-to-one* (or
 *forwarding*) pattern, or in a *redistributing* pattern:
@@ -163,13 +163,13 @@ and you can see that a fully-connected network shuffle is occurring between the 
 operators. This is being done to partition the stream by some key, so that all of the events that
 need to be processed together, will be.
 
-<img src="{{ site.baseurl }}/fig/parallel-job.png" alt="State is sharded" class="offset" width="65%" />
+<img src="{% link /fig/parallel-job.png %}" alt="State is sharded" class="offset" width="65%" />
 
 State is always accessed locally, which helps Flink applications achieve high throughput and
 low-latency. You can choose to keep state on the JVM heap, or if it is too large, in efficiently
 organized on-disk data structures. 
 
-<img src="{{ site.baseurl }}/fig/local-state.png" alt="State is local" class="offset" width="90%" />
+<img src="{% link /fig/local-state.png %}" alt="State is local" class="offset" width="90%" />
 
 {% top %}
 
