@@ -189,7 +189,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 
 		return addOperatorToStreamGraph(
 				writer,
-				input.getId(),
+				context.getStreamNodeIds(input),
 				inputTypeInfo,
 				extractCommittableTypeInformation(sinkTransformation.getSink()),
 				"Sink Writer:",
@@ -226,7 +226,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		checkNotNull(committableTypeInfo);
 
 		return addOperatorToStreamGraph(
-				committerFactory, inputId,
+				committerFactory,
+				Collections.singletonList(inputId),
 				committableTypeInfo,
 				committableTypeInfo,
 				"Sink Committer:",
@@ -254,7 +255,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 		}
 
 		addOperatorToStreamGraph(
-				globalCommitterFactory, inputId,
+				globalCommitterFactory,
+				Collections.singletonList(inputId),
 				checkNotNull(extractCommittableTypeInformation(sinkTransformation.getSink())),
 				null,
 				"Sink Global Committer:",
@@ -276,7 +278,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	 * Add a operator to the {@link StreamGraph}.
 	 *
 	 * @param operatorFactory The operator factory
-	 * @param inputId The upstream stream node id of the operator
+	 * @param inputs A collection of upstream stream node ids.
 	 * @param inTypeInfo The input type information of the operator
 	 * @param outTypInfo The output type information of the operator
 	 * @param prefix The prefix of the name and uid of the operator
@@ -287,7 +289,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	 * @return The stream node id of the operator
 	 */
 	private <IN, OUT> int addOperatorToStreamGraph(
-			StreamOperatorFactory<OUT> operatorFactory, int inputId,
+			StreamOperatorFactory<OUT> operatorFactory,
+			Collection<Integer> inputs,
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypInfo,
 			String prefix,
@@ -321,7 +324,10 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 					transformationId,
 					String.format("%s %s", prefix, sinkTransformation.getUid()));
 		}
-		streamGraph.addEdge(inputId, transformationId, 0);
+
+		for (int input : inputs) {
+			streamGraph.addEdge(input, transformationId, 0);
+		}
 
 		return transformationId;
 	}
