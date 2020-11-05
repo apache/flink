@@ -17,8 +17,6 @@
 ################################################################################
 from enum import Enum
 
-from pyflink.java_gateway import get_gateway
-
 
 class TimeDomain(Enum):
     """
@@ -26,7 +24,7 @@ class TimeDomain(Enum):
 
     EVENT_TIME: Time is based on timestamp of events.
     PROCESSING_TIME: Time is based on the current processing-time of a machine where processing
-                     happens.
+    happens.
     """
 
     EVENT_TIME = 0
