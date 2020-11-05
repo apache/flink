@@ -165,6 +165,13 @@ Connector Options
       can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.
       </td>
     </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the HBase sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+    </tr>
     </tbody>
 </table>
 

@@ -41,6 +41,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
 /**
@@ -138,6 +139,7 @@ public class HBase1DynamicTableFactory implements DynamicTableSourceFactory, Dyn
 		writeBuilder.setBufferFlushMaxSizeInBytes(helper.getOptions().get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
 		writeBuilder.setBufferFlushIntervalMillis(helper.getOptions().get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
 		writeBuilder.setBufferFlushMaxRows(helper.getOptions().get(SINK_BUFFER_FLUSH_MAX_ROWS));
+		writeBuilder.setParallelism(helper.getOptions().getOptional(SINK_PARALLELISM).orElse(null));
 		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
@@ -169,6 +171,7 @@ public class HBase1DynamicTableFactory implements DynamicTableSourceFactory, Dyn
 		set.add(SINK_BUFFER_FLUSH_MAX_SIZE);
 		set.add(SINK_BUFFER_FLUSH_MAX_ROWS);
 		set.add(SINK_BUFFER_FLUSH_INTERVAL);
+		set.add(SINK_PARALLELISM);
 		return set;
 	}
 

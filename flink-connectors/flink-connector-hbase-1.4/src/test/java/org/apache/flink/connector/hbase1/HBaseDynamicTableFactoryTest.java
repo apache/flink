@@ -30,11 +30,13 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
@@ -208,6 +210,23 @@ public class HBaseDynamicTableFactoryTest {
 			.build();
 		HBaseWriteOptions actual = ((HBaseDynamicTableSink) sink).getWriteOptions();
 		assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testParallelismOptions() {
+		Map<String, String> options = getAllOptions();
+		options.put("sink.parallelism", "2");
+
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.build();
+
+		DynamicTableSink sink = createTableSink(schema, options);
+		assertTrue(sink instanceof HBaseDynamicTableSink);
+		HBaseDynamicTableSink hbaseSink = (HBaseDynamicTableSink) sink;
+		SinkFunctionProvider provider = (SinkFunctionProvider) hbaseSink.getSinkRuntimeProvider(
+			new SinkRuntimeProviderContext(false));
+		assertEquals(2, (long) provider.getParallelism().get());
 	}
 
 	@Test
