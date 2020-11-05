@@ -30,3 +30,4 @@ cd $END_TO_END_DIR/../flink-kubernetes
 run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientITCase
 run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
 run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
+run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
