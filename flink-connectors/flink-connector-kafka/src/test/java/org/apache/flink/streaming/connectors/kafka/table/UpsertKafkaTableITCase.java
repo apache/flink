@@ -24,7 +24,6 @@ import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 
@@ -208,7 +207,8 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 				+ "  'properties.bootstrap.servers' = '%s',\n"
 				+ "  'key.format' = '%s',\n"
 				+ "  'value.format' = '%s',\n"
-				+ "  'value.fields-include' = 'ALL'\n"
+				+ "  'value.fields-include' = 'ALL',\n"
+				+ "  'sink.parallelism' = '4'"  // enable different parallelism to check ordering
 				+ ")",
 			topic,
 			bootstraps,
