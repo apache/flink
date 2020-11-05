@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.ExceptionUtils;
@@ -221,9 +222,9 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 			synchronized (cacheLock) {
 				verifyIsRunning();
 
-				int currentVersion = jobGraphsInZooKeeper.exists(path);
+				final IntegerResourceVersion currentVersion = jobGraphsInZooKeeper.exists(path);
 
-				if (currentVersion == -1) {
+				if (!currentVersion.isExisting()) {
 					try {
 						jobGraphsInZooKeeper.addAndLock(path, jobGraph);
 
@@ -299,7 +300,7 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 		LOG.debug("Retrieving all stored job ids from ZooKeeper under {}.", zooKeeperFullBasePath);
 
 		try {
-			paths = jobGraphsInZooKeeper.getAllPaths();
+			paths = jobGraphsInZooKeeper.getAllHandles();
 		} catch (Exception e) {
 			throw new Exception("Failed to retrieve entry paths from ZooKeeperStateHandleStore.", e);
 		}
