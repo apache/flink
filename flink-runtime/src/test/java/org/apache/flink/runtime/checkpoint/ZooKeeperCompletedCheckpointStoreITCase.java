@@ -63,6 +63,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 	private static final String CHECKPOINT_PATH = "/checkpoints";
 
+	private static final ZooKeeperCheckpointStoreUtil checkpointStoreUtil = ZooKeeperCheckpointStoreUtil.INSTANCE;
+
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (ZOOKEEPER != null) {
@@ -76,15 +78,18 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	}
 
 	@Override
-	protected ZooKeeperCompletedCheckpointStore createCompletedCheckpoints(int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception {
+	protected CompletedCheckpointStore createCompletedCheckpoints(
+			int maxNumberOfCheckpointsToRetain,
+			Executor executor) throws Exception {
 		final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper = ZooKeeperUtils.createZooKeeperStateHandleStore(
 			ZOOKEEPER.getClient(),
 			CHECKPOINT_PATH,
 			new TestingRetrievableStateStorageHelper<>());
 
-		return new ZooKeeperCompletedCheckpointStore(
+		return new DefaultCompletedCheckpointStore<>(
 			maxNumberOfCheckpointsToRetain,
 			checkpointsInZooKeeper,
+			checkpointStoreUtil,
 			executor);
 	}
 
@@ -163,12 +168,14 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
 		});
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		assertNotNull(client.checkExists().forPath(CHECKPOINT_PATH + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
+		assertNotNull(client.checkExists().forPath(
+				CHECKPOINT_PATH + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID())));
 
 		store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {
 		});
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
-		assertNull(client.checkExists().forPath(CHECKPOINT_PATH + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
+		assertNull(client.checkExists().forPath(
+			CHECKPOINT_PATH + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID())));
 
 		sharedStateRegistry.close();
 		store.recover();
@@ -192,14 +199,16 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
 		});
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		assertNotNull(client.checkExists().forPath(CHECKPOINT_PATH + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
+		assertNotNull(client.checkExists().forPath(
+			CHECKPOINT_PATH + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID())));
 
 		store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {
 		});
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 
-		final String checkpointPath = CHECKPOINT_PATH + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID());
+		final String checkpointPath = CHECKPOINT_PATH + checkpointStoreUtil
+			.checkpointIDToName(checkpoint.getCheckpointID());
 		Stat stat = client.checkExists().forPath(checkpointPath);
 
 		assertNotNull("The checkpoint node should exist.", stat);
@@ -214,9 +223,9 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 	}
 
 	/**
-	 * FLINK-6284
+	 * FLINK-6284.
 	 *
-	 * Tests that the latest recovered checkpoint is the one with the highest checkpoint id
+	 * <p>Tests that the latest recovered checkpoint is the one with the highest checkpoint id
 	 */
 	@Test
 	public void testLatestCheckpointRecovery() throws Exception {
@@ -239,13 +248,13 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		CompletedCheckpoint latestCheckpoint = checkpointStore.getLatestCheckpoint(false);
 
-		assertEquals(checkpoints.get(checkpoints.size() -1), latestCheckpoint);
+		assertEquals(checkpoints.get(checkpoints.size() - 1), latestCheckpoint);
 	}
 
 	/**
 	 * FLINK-6612
 	 *
-	 * Checks that a concurrent checkpoint completion won't discard a checkpoint which has been
+	 * <p>Checks that a concurrent checkpoint completion won't discard a checkpoint which has been
 	 * recovered by a different completed checkpoint store.
 	 */
 	@Test
@@ -315,7 +324,13 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		clock.advanceTime(1, TimeUnit.DAYS);
 		int maxCleaningCheckpoints = 1;
 		CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
-		CheckpointRequestDecider checkpointRequestDecider =  new CheckpointRequestDecider(maxCleaningCheckpoints, unused ->{}, clock, 1, new AtomicInteger(0)::get, checkpointsCleaner::getNumberOfCheckpointsToClean);
+		CheckpointRequestDecider checkpointRequestDecider =  new CheckpointRequestDecider(
+			maxCleaningCheckpoints,
+			unused -> {},
+			clock,
+			1,
+			new AtomicInteger(0)::get,
+			checkpointsCleaner::getNumberOfCheckpointsToClean);
 
 		final int maxCheckpointsToRetain = 1;
 		ManuallyTriggeredScheduledExecutor executor = new ManuallyTriggeredScheduledExecutor();
