@@ -128,7 +128,7 @@ RUN set -x \
     && echo "Port 2122" >> /etc/ssh/sshd_config
 
 # Hdfs ports
-EXPOSE 50470 9000 50010 50020 50070 50075 50090 50475 50091 8020
+EXPOSE 9000 50010 50020 50075 50090 50475 50091 8020
 # Mapred ports
 EXPOSE 19888
 # Yarn ports
