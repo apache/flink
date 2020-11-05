@@ -290,7 +290,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			}
 
 			completedCheckpoints.clear();
-			checkpointsInZooKeeper.deleteChildren();
+			checkpointsInZooKeeper.clearEntries();
 		} else {
 			LOG.info("Suspending");
 

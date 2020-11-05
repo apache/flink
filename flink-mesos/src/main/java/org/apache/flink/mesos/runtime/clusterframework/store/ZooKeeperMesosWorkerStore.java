@@ -20,6 +20,7 @@ package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
@@ -211,8 +212,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			int currentVersion = workersInZooKeeper.exists(path);
-			if (currentVersion == -1) {
+			final IntegerResourceVersion currentVersion = workersInZooKeeper.exists(path);
+			if (!currentVersion.isExisting()) {
 				workersInZooKeeper.addAndLock(path, worker);
 				LOG.debug("Added {} in ZooKeeper.", worker);
 			} else {
@@ -229,7 +230,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			if (workersInZooKeeper.exists(path) == -1) {
+			if (!workersInZooKeeper.exists(path).isExisting()) {
 				LOG.debug("No such worker {} in ZooKeeper.", taskID);
 				return false;
 			}
