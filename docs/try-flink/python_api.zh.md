@@ -26,10 +26,13 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+<a name="python-table-api-tutorial"></a>
 
 ## Python Table API 教程
 
 详细信息请参考 [Python Table API 教程]({% link dev/python/table_api_tutorial.zh.md %})文档
+
+<a name="python-datastream-api-tutorial"></a>
 
 ## Python DataStream API 教程
 
