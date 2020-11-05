@@ -342,7 +342,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 	@Test
 	public void testTableSinkWithParallelism() {
 		final Map<String, String> modifiedOptions = getModifiedOptions(
-			getBasicSourceOptions(),
+			getBasicSinkOptions(),
 			options -> options.put("sink.parallelism", "100"));
 		KafkaDynamicSink actualSink = (KafkaDynamicSink) createTableSink(SCHEMA, modifiedOptions);
 
