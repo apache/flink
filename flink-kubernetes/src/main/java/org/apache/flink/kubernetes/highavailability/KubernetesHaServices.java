@@ -31,7 +31,6 @@ import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
@@ -114,8 +113,9 @@ public class KubernetesHaServices extends AbstractHaServices {
 	}
 
 	@Override
-	public JobGraphStore createJobGraphStore() {
-		return new StandaloneJobGraphStore();
+	public JobGraphStore createJobGraphStore() throws Exception {
+		return KubernetesUtils.createJobGraphStore(
+			configuration, kubeClient, getLeaderNameForDispatcher(), lockIdentity);
 	}
 
 	@Override

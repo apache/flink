@@ -24,9 +24,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.highavailability.KubernetesJobGraphStoreUtil;
+import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.NoOpJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -49,8 +59,10 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.SUBMITTED_JOBGRAPH_FILE_PREFIX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -176,6 +188,61 @@ public class KubernetesUtils {
 			return LeaderInformation.empty();
 		}
 		return LeaderInformation.known(sessionID, leaderAddress);
+	}
+
+	/**
+	 * Create a {@link DefaultJobGraphStore} with {@link NoOpJobGraphStoreWatcher}.
+	 *
+	 * @param configuration configuration to build a RetrievableStateStorageHelper
+	 * @param flinkKubeClient flink kubernetes client
+	 * @param configMapName ConfigMap name
+	 * @param lockIdentity lock identity to check the leadership
+	 *
+	 * @return a {@link DefaultJobGraphStore} with {@link NoOpJobGraphStoreWatcher}
+	 * @throws Exception when create the storage helper
+	 */
+	public static JobGraphStore createJobGraphStore(
+			Configuration configuration,
+			FlinkKubeClient flinkKubeClient,
+			String configMapName,
+			String lockIdentity) throws Exception {
+
+		final KubernetesStateHandleStore<JobGraph> stateHandleStore = createJobGraphStateHandleStore(
+			configuration, flinkKubeClient, configMapName, lockIdentity);
+		return new DefaultJobGraphStore<>(
+			stateHandleStore,
+			NoOpJobGraphStoreWatcher.INSTANCE,
+			KubernetesJobGraphStoreUtil.INSTANCE);
+	}
+
+	/**
+	 * Create a {@link KubernetesStateHandleStore} which storing {@link JobGraph}.
+	 *
+	 * @param configuration configuration to build a RetrievableStateStorageHelper
+	 * @param flinkKubeClient flink kubernetes client
+	 * @param configMapName ConfigMap name
+	 * @param lockIdentity lock identity to check the leadership
+	 *
+	 * @return a {@link KubernetesStateHandleStore} which storing {@link JobGraph}.
+	 *
+	 * @throws Exception when create the storage helper
+	 */
+	public static KubernetesStateHandleStore<JobGraph> createJobGraphStateHandleStore(
+			Configuration configuration,
+			FlinkKubeClient flinkKubeClient,
+			String configMapName,
+			String lockIdentity) throws Exception {
+
+		final RetrievableStateStorageHelper<JobGraph> stateStorage =
+			new FileSystemStateStorageHelper<>(HighAvailabilityServicesUtils
+				.getClusterHighAvailableStoragePath(configuration), SUBMITTED_JOBGRAPH_FILE_PREFIX);
+
+		return new KubernetesStateHandleStore<>(
+			flinkKubeClient,
+			configMapName,
+			stateStorage,
+			k -> k.startsWith(JOB_GRAPH_STORE_KEY_PREFIX),
+			lockIdentity);
 	}
 
 	/**
