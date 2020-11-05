@@ -251,7 +251,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		config.set(ExecutionOptions.RUNTIME_MODE, runtimeExecutionMode);
 		env.configure(config, getClass().getClassLoader());
 		final DataStreamSource<Integer> src = env.fromElements(1, 2);
-		final DataStreamSink<Integer> dataStreamSink = src.sinkTo(sink);
+		final DataStreamSink<Integer> dataStreamSink = src.rebalance().sinkTo(sink);
 		setSinkProperty(dataStreamSink);
 		return env.getStreamGraph("test");
 	}
