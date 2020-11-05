@@ -154,6 +154,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
 		}
 
 		private FlinkKubeClient createFlinkKubeClient() {
+			return createFlinkKubeClientBuilder().build();
+		}
+
+		TestingFlinkKubeClient.Builder createFlinkKubeClientBuilder() {
 			return TestingFlinkKubeClient.builder()
 				.setCreateConfigMapFunction(configMap -> {
 					configMapStore.put(configMap.getName(), configMap);
@@ -200,8 +204,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
 				.setCreateLeaderElectorFunction((leaderConfig, callbackHandler) -> {
 					leaderCallbackHandlerFuture.complete(callbackHandler);
 					return new TestingFlinkKubeClient.TestingKubernetesLeaderElector(leaderConfig, callbackHandler);
-				})
-				.build();
+				});
 		}
 
 		private LeaderElectionDriver createLeaderElectionDriver() {
