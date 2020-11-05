@@ -30,6 +30,8 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 * This will be replaced by the TOC
 {:toc}
 
+<a name="what-are-you-building"></a>
+
 ## 你要搭建一个什么系统
 
 在当今数字时代，信用卡欺诈行为越来越被重视。
@@ -40,14 +42,20 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 在这个教程中，你将会建立一个针对可疑信用卡交易行为的反欺诈检测系统。
 通过使用一组简单的规则，你将了解到 Flink 如何为我们实现复杂业务逻辑并实时执行。
 
+<a name="prerequisites"></a>
+
 ## 准备条件
 
 这个代码练习假定你对 Java 或 Scala 有一定的了解，当然，如果你之前使用的是其他开发语言，你也应该能够跟随本教程进行学习。
+
+<a name="help-im-stuck"></a>
 
 ## 困难求助
 
 如果遇到困难，可以参考 [社区支持资源](https://flink.apache.org/zh/gettinghelp.html)。
 当然也可以在邮件列表提问，Flink 的 [用户邮件列表](https://flink.apache.org/zh/community.html#mailing-lists)  一直被评为所有Apache项目中最活跃的一个，这也是快速获得帮助的好方法。
+
+<a name="how-to-follow-along"></a>
 
 ## 怎样跟着教程练习
 
@@ -59,7 +67,7 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 一个准备好的 Flink Maven Archetype 能够快速创建一个包含了必要依赖的 Flink 程序骨架，基于此，你可以把精力集中在编写业务逻辑上即可。
 这些已包含的依赖包括 `flink-streaming-java`、`flink-walkthrough-common` 等，他们分别是 Flink 应用程序的核心依赖项和这个代码练习需要的数据生成器，当然还包括其他本代码练习所依赖的类。
 
-{% panel **说明:** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#完整的程序) 中找到。 %}
+{% panel **说明:** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#final-application) 中找到。 %}
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -125,6 +133,9 @@ Maven 将会创建一个名为 `frauddetection` 的文件夹，包含了所有�
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
+
+<a name="frauddetectionjobjava"></a>
+
 #### FraudDetectionJob.java
 
 {% highlight java %}
@@ -160,6 +171,8 @@ public class FraudDetectionJob {
 }
 {% endhighlight %}
 
+<a name="frauddetectorjava"></a>
+
 #### FraudDetector.java
 {% highlight java %}
 package spendreport;
@@ -193,6 +206,9 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
 </div>
 
 <div data-lang="scala" markdown="1">
+
+<a name="frauddetectionjobscala"></a>
+
 #### FraudDetectionJob.scala
 
 {% highlight scala %}
@@ -227,6 +243,8 @@ object FraudDetectionJob {
   }
 }
 {% endhighlight %}
+
+<a name="frauddetectorscala"></a>
 
 #### FraudDetector.scala
 
@@ -264,11 +282,15 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
+<a name="breaking-down-the-code"></a>
+
 ## 代码分析
 
 让我们一步步地来分析一下这两个代码文件。`FraudDetectionJob` 类定义了程序的数据流，而 `FraudDetector` 类定义了欺诈交易检测的业务逻辑。
 
 下面我们开始讲解整个 Job 是如何组装到 `FraudDetectionJob` 类的 `main` 函数中的。
+
+<a name="the-execution-environment"></a>
 
 #### 执行环境
 
@@ -288,6 +310,8 @@ val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnv
 {% endhighlight %}
 </div>
 </div>
+
+<a name="creating-a-source"></a>
 
 #### 创建数据源
 
@@ -314,6 +338,7 @@ val transactions: DataStream[Transaction] = env
 </div>
 </div>
 
+<a name="partitioning-events--detecting-fraud"></a>
 
 #### 对事件分区 & 欺诈检测
 
@@ -344,6 +369,8 @@ val alerts: DataStream[Alert] = transactions
 </div>
 </div>
 
+<a name="outputting-results"></a>
+
 #### 输出结果
 
 sink 会将 `DataStream` 写出到外部系统，例如 Apache Kafka、Cassandra 或者 AWS Kinesis 等。
@@ -363,6 +390,8 @@ alerts.addSink(new AlertSink)
 </div>
 </div>
 
+<a name="executing-the-job"></a>
+
 #### 运行作业
 
 Flink 程序是懒加载的，并且只有在完全搭建好之后，才能够发布到集群上执行。
@@ -381,6 +410,8 @@ env.execute("Fraud Detection")
 {% endhighlight %}
 </div>
 </div>
+
+<a name="the-fraud-detector"></a>
 
 #### 欺诈检测器
 
@@ -441,6 +472,8 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
+<a name="writing-a-real-application-v1"></a>
+
 ## 实现一个真正的应用程序
 
 我们先实现第一版报警程序，对于一个账户，如果出现小于 $1 美元的交易后紧跟着一个大于 $500 的交易，就输出一个报警信息。
@@ -448,14 +481,14 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 假设你的欺诈检测器所处理的交易数据如下：
 
 <p class="text-center">
-    <img alt="Transactions" width="80%" src="{{ site.baseurl }}/fig/fraud-transactions.svg"/>
+    <img alt="Transactions" width="80%" src="{% link /fig/fraud-transactions.svg %}"/>
 </p>
 
 交易 3 和交易 4 应该被标记为欺诈行为，因为交易 3 是一个 $0.09 的小额交易，而紧随着的交易 4 是一个 $510 的大额交易。
 另外，交易 7、8 和 交易 9 就不属于欺诈交易了，因为在交易 7 这个 $0.02 的小额交易之后，并没有跟随一个大额交易，而是一个金额适中的交易，这使得交易 7 到 交易 9 不属于欺诈行为。
 
 欺诈检测器需要在多个交易事件之间记住一些信息。仅当一个大额的交易紧随一个小额交易的情况发生时，这个大额交易才被认为是欺诈交易。
-在多个事件之间存储信息就需要使用到 [状态]({{ site.baseurl }}/zh/concepts/glossary.html#managed-state)，这也是我们选择使用 [KeyedProcessFunction]({{ site.baseurl }}/zh/dev/stream/operators/process_function.html) 的原因。
+在多个事件之间存储信息就需要使用到 [状态]({% link concepts/glossary.zh.md %}#managed-state)，这也是我们选择使用 [KeyedProcessFunction]({% link dev/stream/operators/process_function.zh.md %}) 的原因。
 它能够同时提供对状态和时间的细粒度操作，这使得我们能够在接下来的代码练习中实现更复杂的算法。
 
 最直接的实现方式是使用一个 boolean 型的标记状态来表示是否刚处理过一个小额交易。
@@ -468,7 +501,7 @@ Flink 会在同一个 `FraudDetector` 的并发实例中处理多个账户的交
 
 为了应对这个问题，Flink 提供了一套支持容错状态的原语，这些原语几乎与常规成员变量一样易于使用。
 
-Flink 中最基础的状态类型是 [ValueState]({{ site.baseurl }}/zh/dev/stream/state/state.html#using-managed-keyed-state)，这是一种能够为被其封装的变量添加容错能力的类型。
+Flink 中最基础的状态类型是 [ValueState]({% link dev/stream/state/state.zh.md %}#using-managed-keyed-state)，这是一种能够为被其封装的变量添加容错能力的类型。
 `ValueState` 是一种 _keyed state_，也就是说它只能被用于 _keyed context_ 提供的 operator 中，即所有能够紧随 `DataStream#keyBy` 之后被调用的operator。
 一个 operator 中的  _keyed state_ 的作用域默认是属于它所属的 key 的。
 这个例子中，key 就是当前正在处理的交易行为所属的信用卡账户（key 传入 keyBy() 函数调用），而 `FraudDetector` 维护了每个帐户的标记状态。
@@ -750,6 +783,8 @@ private def cleanUp(ctx: KeyedProcessFunction[Long, Transaction, Alert]#Context)
 
 这就是一个功能完备的，有状态的分布式流处理程序了。
 
+<a name="final-application"></a>
+
 ## 完整的程序
 
 <div class="codetabs" markdown="1">
@@ -930,6 +965,8 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 {% endhighlight %}
 </div>
 </div>
+
+<a name="expected-output"></a>
 
 ### 期望的结果
 
