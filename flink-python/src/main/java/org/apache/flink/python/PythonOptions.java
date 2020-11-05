@@ -123,9 +123,9 @@ public class PythonOptions {
 		.stringType()
 		.defaultValue("python")
 		.withDescription("The python interpreter used to launch the python process when compiling " +
-			"the jobs containing Python UDFs. Equivalent to the environment variable PYFLINK_EXECUTABLE. " +
+			"the jobs containing Python UDFs. Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. " +
 			"The priority is as following: 1. the configuration 'python.client.executable' defined in " +
-			"the source code; 2. the environment variable PYFLINK_EXECUTABLE; 3. the configuration " +
+			"the source code; 2. the environment variable PYFLINK_CLIENT_EXECUTABLE; 3. the configuration " +
 			"'python.client.executable' defined in flink-conf.yaml");
 
 	/**
