@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -61,6 +62,7 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
@@ -120,7 +122,7 @@ public class HiveTableSource implements
 	@Nullable
 	private List<Map<String, String>> remainingPartitions = null;
 	private int[] projectedFields;
-	private long limit = -1L;
+	private Long limit = null;
 	private Duration hiveTableCacheTTL;
 
 	public HiveTableSource(
@@ -169,7 +171,7 @@ public class HiveTableSource implements
 				return createStreamSourceForPartitionTable(execEnv, typeInfo, inputFormat);
 			}
 		} else {
-			return createBatchSource(execEnv, typeInfo, inputFormat);
+			return createBatchSource(execEnv, allHivePartitions);
 		}
 	}
 
@@ -180,15 +182,26 @@ public class HiveTableSource implements
 	}
 
 	private DataStream<RowData> createBatchSource(StreamExecutionEnvironment execEnv,
-			TypeInformation<RowData> typeInfo, HiveTableInputFormat inputFormat) {
-		DataStreamSource<RowData> source = execEnv.createInput(inputFormat, typeInfo);
+			List<HiveTablePartition> allHivePartitions) {
+		HiveSource hiveSource = new HiveSource(
+				jobConf,
+				catalogTable,
+				allHivePartitions,
+				limit,
+				hiveVersion,
+				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
+				isStreamingSource(),
+				(RowType) getProducedDataType().getLogicalType());
+		DataStreamSource<RowData> source = execEnv.fromSource(
+				hiveSource, WatermarkStrategy.noWatermarks(), "HiveSource-" + tablePath.getFullName());
 
 		int parallelism = new HiveParallelismInference(tablePath, flinkConf)
-				.infer(inputFormat::getNumFiles, () -> inputFormat.createInputSplits(0).length)
+				.infer(
+						() -> HiveSourceFileEnumerator.getNumFiles(allHivePartitions, jobConf),
+						() -> HiveSourceFileEnumerator.createInputSplits(0, allHivePartitions, jobConf).size())
 				.limit(limit);
 
-		source.setParallelism(parallelism);
-		return source.name("HiveSource-" + tablePath.getFullName());
+		return source.setParallelism(parallelism);
 	}
 
 	private DataStream<RowData> createStreamSourceForPartitionTable(
