@@ -93,4 +93,6 @@ public class Constants {
 	// Constants for Kubernetes high availability
 	public static final String LEADER_ADDRESS_KEY = "address";
 	public static final String LEADER_SESSION_ID_KEY = "sessionId";
+	public static final String JOB_GRAPH_STORE_KEY_PREFIX = "jobGraph-";
+	public static final String SUBMITTED_JOBGRAPH_FILE_PREFIX = "submittedJobGraph";
 }
