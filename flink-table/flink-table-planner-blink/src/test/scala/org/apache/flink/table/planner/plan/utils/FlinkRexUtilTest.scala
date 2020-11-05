@@ -418,7 +418,6 @@ class FlinkRexUtilTest {
       newPredicate17.toString)
 
     // c = 0 OR SEARCH(c, [0, 1])
-    // TODO improve this
     val predicate18Search = rexBuilder.makeIn(c, java.util.Arrays.asList(
       intLiteral(0),
       intLiteral(1)))
@@ -452,8 +451,16 @@ class FlinkRexUtilTest {
     assertEquals(
       rexBuilder.makeIn(c, Collections.singletonList[RexNode](intLiteral(1))).toString,
       newPredicate19.toString)
+
+    // c >= 0 OR SEARCH(c, [0, 1])
+    // TODO `c >= 0 OR SEARCH(c, [0, 1])` should be simplified to c >= 0
+    val predicate20 = rexBuilder.makeCall(
+      OR,
+      rexBuilder.makeCall(GREATER_THAN_OR_EQUAL, c, intLiteral(0)),
+      predicate18Search)
+    val newPredicate20 = FlinkRexUtil.simplify(rexBuilder, predicate20)
+    assertEquals(predicate20.toString, newPredicate20.toString)
   }
 
-  def intLiteral(x: Int): RexLiteral =
-    rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
+  def intLiteral(x: Int): RexLiteral = rexBuilder.makeExactLiteral(BigDecimal.valueOf(x))
 }

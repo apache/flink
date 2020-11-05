@@ -70,7 +70,7 @@ import static org.apache.calcite.rex.RexUnknownAs.UNKNOWN;
  *
  * <p>Copied to fix CALCITE-4364, should be removed for the next Calcite upgrade.
  *
- * <p>Changes: Line 1307, Line 1764, Line 2683 ~ Line 2656.
+ * <p>Changes: Line 1307, Line 1764, Line 2638 ~ Line 2656.
  */
 public class RexSimplify {
   private final boolean paranoid;
