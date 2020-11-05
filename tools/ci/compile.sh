@@ -105,9 +105,11 @@ EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_connector_elasticsearch 6
 EXIT_CODE=$(($EXIT_CODE+$?))
 
-echo "============ Run license check ============" 
+echo "============ Run license check ============"
 
-${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) || exit $?
+if [[ ${PROFILE} != *"scala-2.12"* ]]; then
+  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $(pwd) || exit $?
+fi
 
 exit $EXIT_CODE
 
