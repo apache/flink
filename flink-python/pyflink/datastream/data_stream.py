@@ -444,7 +444,7 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.broadcast())
 
-    def process(self, func: ProcessFunction, output_type: TypeInformation = None):
+    def process(self, func: ProcessFunction, output_type: TypeInformation = None) -> 'DataStream':
         """
         Applies the given ProcessFunction on the input stream, thereby creating a transformed output
         stream.

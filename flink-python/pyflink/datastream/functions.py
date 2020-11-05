@@ -19,9 +19,9 @@
 import abc
 from typing import Union, Any, Dict
 
-from apache_beam import TimeDomain
 from py4j.java_gateway import JavaObject
 
+from pyflink.datastream.time_domain import TimeDomain
 from pyflink.java_gateway import get_gateway
 
 

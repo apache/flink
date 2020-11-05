@@ -31,12 +31,3 @@ class TimeDomain(Enum):
 
     EVENT_TIME = 0
     PROCESSING_TIME = 1
-
-    @staticmethod
-    def _from_j_time_domain(j_time_domain) -> 'TimeDomain':
-        return TimeDomain[j_time_domain.name()]
-
-    def _to_j_time_domain(self):
-        gateway = get_gateway()
-        JTimeDomain = gateway.jvm.org.apache.flink.streaming.api.TimeDomain
-        return getattr(JTimeDomain, self.name)
