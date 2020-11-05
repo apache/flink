@@ -21,8 +21,10 @@ package org.apache.flink.runtime.zookeeper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.persistence.IntegerResourceVersion;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
+import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper.LongRetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -199,7 +201,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
 		// Test
 		store.addAndLock(pathInZooKeeper, initialState);
-		store.replace(pathInZooKeeper, 0, replaceState);
+		store.replace(pathInZooKeeper, IntegerResourceVersion.valueOf(0), replaceState);
 
 		// Verify
 		// State handles created
@@ -231,7 +233,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		ZooKeeperStateHandleStore<Long> store = new ZooKeeperStateHandleStore<>(
 				ZOOKEEPER.getClient(), stateStorage);
 
-		store.replace("/testReplaceNonExistingPath", 0, 1L);
+		store.replace("/testReplaceNonExistingPath", IntegerResourceVersion.valueOf(0), 1L);
 	}
 
 	/**
@@ -257,7 +259,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		store.addAndLock(pathInZooKeeper, initialState);
 
 		try {
-			store.replace(pathInZooKeeper, 0, replaceState);
+			store.replace(pathInZooKeeper, IntegerResourceVersion.valueOf(0), replaceState);
 			fail("Did not throw expected exception");
 		}
 		catch (Exception ignored) {
@@ -295,14 +297,14 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		final Long state = 311222268470898L;
 
 		// Test
-		assertEquals(-1, store.exists(pathInZooKeeper));
+		assertThat(store.exists(pathInZooKeeper).isExisting(), is(false));
 
 		store.addAndLock(pathInZooKeeper, state);
 		RetrievableStateHandle<Long> actual = store.getAndLock(pathInZooKeeper);
 
 		// Verify
 		assertEquals(state, actual.retrieveState());
-		assertTrue(store.exists(pathInZooKeeper) >= 0);
+		assertTrue(store.exists(pathInZooKeeper).getValue() >= 0);
 	}
 
 	/**
@@ -401,16 +403,14 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
 		store.addAndLock(pathInZooKeeper, state);
 
-		final int numberOfGlobalDiscardCalls = TestingLongStateHandleHelper.LongRetrievableStateHandle
-			.getNumberOfGlobalDiscardCalls();
+		final int numberOfGlobalDiscardCalls = LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls();
 
 		// Test
 		store.releaseAndTryRemove(pathInZooKeeper);
 
 		// Verify discarded
 		assertEquals(0, ZOOKEEPER.getClient().getChildren().forPath("/").size());
-		assertEquals(numberOfGlobalDiscardCalls + 1, TestingLongStateHandleHelper.LongRetrievableStateHandle
-			.getNumberOfGlobalDiscardCalls());
+		assertEquals(numberOfGlobalDiscardCalls + 1, LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls());
 	}
 
 	/** Tests that all state handles are correctly discarded. */
@@ -649,7 +649,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
 		stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
-		assertNull("State node should have been removed.",stat);
+		assertNull("State node should have been removed.", stat);
 	}
 
 	/**
@@ -693,14 +693,14 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteAllShouldRemoveAllPaths() throws Exception {
+	public void testRemoveAllHandlesShouldRemoveAllPaths() throws Exception {
 		final ZooKeeperStateHandleStore<Long> zkStore = new ZooKeeperStateHandleStore<>(
 			ZooKeeperUtils.useNamespaceAndEnsurePath(ZOOKEEPER.getClient(), "/path"),
 			new TestingLongStateHandleHelper());
 
 		zkStore.addAndLock("/state", 1L);
-		zkStore.deleteChildren();
+		zkStore.clearEntries();
 
-		assertThat(zkStore.getAllPaths(), is(empty()));
+		assertThat(zkStore.getAllHandles(), is(empty()));
 	}
 }
