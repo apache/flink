@@ -36,14 +36,17 @@ public class HBaseWriteOptions implements Serializable {
 	private final long bufferFlushMaxSizeInBytes;
 	private final long bufferFlushMaxRows;
 	private final long bufferFlushIntervalMillis;
+	private final Integer parallelism;
 
 	private HBaseWriteOptions(
 			long bufferFlushMaxSizeInBytes,
 			long bufferFlushMaxMutations,
-			long bufferFlushIntervalMillis) {
+			long bufferFlushIntervalMillis,
+			Integer parallelism) {
 		this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
 		this.bufferFlushMaxRows = bufferFlushMaxMutations;
 		this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
+		this.parallelism = parallelism;
 	}
 
 	public long getBufferFlushMaxSizeInBytes() {
@@ -58,12 +61,17 @@ public class HBaseWriteOptions implements Serializable {
 		return bufferFlushIntervalMillis;
 	}
 
+	public Integer getParallelism() {
+		return parallelism;
+	}
+
 	@Override
 	public String toString() {
 		return "HBaseWriteOptions{" +
 			"bufferFlushMaxSizeInBytes=" + bufferFlushMaxSizeInBytes +
 			", bufferFlushMaxRows=" + bufferFlushMaxRows +
 			", bufferFlushIntervalMillis=" + bufferFlushIntervalMillis +
+			", parallelism=" + parallelism +
 			'}';
 	}
 
@@ -78,12 +86,13 @@ public class HBaseWriteOptions implements Serializable {
 		HBaseWriteOptions that = (HBaseWriteOptions) o;
 		return bufferFlushMaxSizeInBytes == that.bufferFlushMaxSizeInBytes &&
 			bufferFlushMaxRows == that.bufferFlushMaxRows &&
-			bufferFlushIntervalMillis == that.bufferFlushIntervalMillis;
+			bufferFlushIntervalMillis == that.bufferFlushIntervalMillis &&
+			parallelism == that.parallelism;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(bufferFlushMaxSizeInBytes, bufferFlushMaxRows, bufferFlushIntervalMillis);
+		return Objects.hash(bufferFlushMaxSizeInBytes, bufferFlushMaxRows, bufferFlushIntervalMillis, parallelism);
 	}
 
 	/**
@@ -101,6 +110,7 @@ public class HBaseWriteOptions implements Serializable {
 		private long bufferFlushMaxSizeInBytes = ConnectionConfiguration.WRITE_BUFFER_SIZE_DEFAULT;
 		private long bufferFlushMaxRows = 0;
 		private long bufferFlushIntervalMillis = 0;
+		private Integer parallelism;
 
 		/**
 		 * Optional. Sets when to flush a buffered request based on the memory size of rows currently added.
@@ -130,13 +140,23 @@ public class HBaseWriteOptions implements Serializable {
 		}
 
 		/**
+		 * Optional. Defines the parallelism of the JDBC sink operator.
+		 * By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.
+		 */
+		public Builder setParallelism(Integer parallelism) {
+			this.parallelism = parallelism;
+			return this;
+		}
+
+		/**
 		 * Creates a new instance of {@link HBaseWriteOptions}.
 		 */
 		public HBaseWriteOptions build() {
 			return new HBaseWriteOptions(
 				bufferFlushMaxSizeInBytes,
 				bufferFlushMaxRows,
-				bufferFlushIntervalMillis);
+				bufferFlushIntervalMillis,
+				parallelism);
 		}
 	}
 }
