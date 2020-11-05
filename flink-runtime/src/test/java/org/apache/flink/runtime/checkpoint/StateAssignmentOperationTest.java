@@ -168,13 +168,13 @@ public class StateAssignmentOperationTest extends TestLogger {
 		int newParallelism,
 		Map<String, Integer> stateInfoCounts
 	) {
-		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates =
-			StateAssignmentOperation.reDistributePartitionableStates(
-				Collections.singletonMap(operatorID, operatorState),
-				newParallelism,
-				OperatorSubtaskState::getManagedOperatorState,
-				RoundRobinOperatorStateRepartitioner.INSTANCE
-			);
+		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = new HashMap<>();
+		StateAssignmentOperation.reDistributePartitionableStates(
+			Collections.singletonMap(operatorID, operatorState),
+			newParallelism,
+			OperatorSubtaskState::getManagedOperatorState,
+			RoundRobinOperatorStateRepartitioner.INSTANCE,
+			newManagedOperatorStates);
 
 		// Verify the repartitioned managed operator states per sub-task.
 		for (List<OperatorStateHandle> operatorStateHandles : newManagedOperatorStates.values()) {
