@@ -53,7 +53,7 @@ The overview tabs lists the following statistics. Note that these statistics don
 The checkpoint history keeps statistics about recently triggered checkpoints, including those that are currently in progress.
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-history.png" width="700px" alt="Checkpoint Monitoring: History">
+  <img src="{% link /fig/checkpoint_monitoring-history.png %}" width="700px" alt="Checkpoint Monitoring: History">
 </center>
 
 - **ID**: The ID of the triggered checkpoint. The IDs are incremented for each checkpoint, starting at 1.
@@ -68,7 +68,7 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 For subtasks there are a couple of more detailed stats available.
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">
+  <img src="{% link /fig/checkpoint_monitoring-history-subtasks.png %}" width="700px" alt="Checkpoint Monitoring: History">
 </center>
 
 - **Sync Duration**: The duration of the synchronous part of the checkpoint. This includes snapshotting state of the operators and blocks all other activity on the subtask (processing records, firing timers, etc).
@@ -90,7 +90,7 @@ web.checkpoints.history: 15
 The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, Checkpointed Data Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary">
+  <img src="{% link /fig/checkpoint_monitoring-summary.png %}" width="700px" alt="Checkpoint Monitoring: Summary">
 </center>
 
 Note that these statistics don't survive a JobManager loss and are reset to if your JobManager fails over.
@@ -111,19 +111,19 @@ The configuration list your streaming configuration:
 When you click on a *More details* link for a checkpoint, you get a Minimum/Average/Maximum summary over all its operators and also the detailed numbers per single subtask.
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details.png" width="700px" alt="Checkpoint Monitoring: Details">
+  <img src="{% link /fig/checkpoint_monitoring-details.png %}" width="700px" alt="Checkpoint Monitoring: Details">
 </center>
 
 #### Summary per Operator
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_summary.png" width="700px" alt="Checkpoint Monitoring: Details Summary">
+  <img src="{% link /fig/checkpoint_monitoring-details_summary.png %}" width="700px" alt="Checkpoint Monitoring: Details Summary">
 </center>
 
 #### All Subtask Statistics
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_subtasks.png" width="700px" alt="Checkpoint Monitoring: Subtasks">
+  <img src="{% link /fig/checkpoint_monitoring-details_subtasks.png %}" width="700px" alt="Checkpoint Monitoring: Subtasks">
 </center>
 
 {% top %}
