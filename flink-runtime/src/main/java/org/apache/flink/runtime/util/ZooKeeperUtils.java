@@ -30,8 +30,11 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
@@ -294,14 +297,15 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperJobGraphStore} instance.
+	 * Creates a {@link DefaultJobGraphStore} instance with {@link ZooKeeperStateHandleStore},
+	 * {@link ZooKeeperJobGraphStoreWatcher} and {@link ZooKeeperJobGraphStoreUtil}.
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
-	 * @return {@link ZooKeeperJobGraphStore} instance
+	 * @return {@link DefaultJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
-	public static ZooKeeperJobGraphStore createJobGraphs(
+	public static JobGraphStore createJobGraphs(
 			CuratorFramework client,
 			Configuration configuration) throws Exception {
 
@@ -326,10 +330,10 @@ public class ZooKeeperUtils {
 
 		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-		return new ZooKeeperJobGraphStore(
-			zooKeeperFullJobsPath,
+		return new DefaultJobGraphStore<>(
 			zooKeeperStateHandleStore,
-			pathCache);
+			new ZooKeeperJobGraphStoreWatcher(pathCache),
+			ZooKeeperJobGraphStoreUtil.INSTANCE);
 	}
 
 	/**
@@ -359,7 +363,7 @@ public class ZooKeeperUtils {
 			configuration,
 			HA_STORAGE_COMPLETED_CHECKPOINT);
 
-		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
+		checkpointsPath += getPathForJob(jobId);
 
 		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
@@ -368,6 +372,15 @@ public class ZooKeeperUtils {
 
 		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
 		return zooKeeperCompletedCheckpointStore;
+	}
+
+
+	/**
+	 * Returns the JobID as a String (with leading slash).
+	 */
+	public static String getPathForJob(JobID jobId) {
+		checkNotNull(jobId, "Job ID");
+		return String.format("/%s", jobId);
 	}
 
 	/**
@@ -404,7 +417,7 @@ public class ZooKeeperUtils {
 		String checkpointIdCounterPath = configuration.getString(
 				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
-		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
+		checkpointIdCounterPath += getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath, new DefaultLastStateConnectionStateListener());
 	}
