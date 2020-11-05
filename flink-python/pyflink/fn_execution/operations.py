@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import abc
 import time
 from functools import reduce
 from itertools import chain
@@ -22,8 +23,8 @@ from itertools import chain
 from apache_beam.coders import PickleCoder
 from typing import Tuple, Any
 
-from pyflink.datastream.functions import RuntimeContext, InternalProcessFunctionContext, \
-    TimerService, Collector, InternalProcessFunctionOnTimerContext
+from pyflink.datastream import TimeDomain
+from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
@@ -33,7 +34,20 @@ from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
 
 
-class Operation(object):
+# table operations
+SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
+TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
+PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
+PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
+    "flink:transform:batch_over_window_aggregate_function:arrow:v1"
+
+# datastream operations
+DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
+DATA_STREAM_PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
+
+
+class Operation(abc.ABC):
     def __init__(self, spec):
         super(Operation, self).__init__()
         self.spec = spec
@@ -47,12 +61,12 @@ class Operation(object):
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.open(FunctionContext(self.base_metric_group))
 
-    def finish(self):
-        self._update_gauge(self.base_metric_group)
-
     def close(self):
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.close()
+
+    def finish(self):
+        self._update_gauge(self.base_metric_group)
 
     def _update_gauge(self, base_metric_group):
         if base_metric_group is not None:
@@ -63,6 +77,7 @@ class Operation(object):
             for sub_group in base_metric_group._sub_groups:
                 self._update_gauge(sub_group)
 
+    @abc.abstractmethod
     def generate_func(self, serialized_fn) -> Tuple:
         pass
 
@@ -103,28 +118,6 @@ class TableFunctionOperation(Operation):
             operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
         generate_func = eval('lambda value: %s' % table_function, variable_dict)
         return generate_func, user_defined_funcs
-
-
-class DataStreamStatelessFunctionOperation(Operation):
-
-    def __init__(self, spec):
-        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
-
-    def open(self):
-        for user_defined_func in self.user_defined_funcs:
-            runtime_context = RuntimeContext(
-                self.spec.serialized_fn.runtime_context.task_name,
-                self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
-                self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
-                self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
-                self.spec.serialized_fn.runtime_context.index_of_this_subtask,
-                self.spec.serialized_fn.runtime_context.attempt_number,
-                {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters})
-            user_defined_func.open(runtime_context)
-
-    def generate_func(self, serialized_fn):
-        func, user_defined_func = operation_utils.extract_data_stream_stateless_funcs(serialized_fn)
-        return func, [user_defined_func]
 
 
 class PandasAggregateFunctionOperation(Operation):
@@ -284,6 +277,9 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
     def open(self):
         self.group_agg_function.open(FunctionContext(self.base_metric_group))
 
+    def close(self):
+        self.group_agg_function.close()
+
     def generate_func(self, serialized_fn):
         user_defined_aggs = []
         input_extractors = []
@@ -344,23 +340,44 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             self.group_agg_function.on_timer(input_data[3])
             return []
 
-    def close(self):
-        if self.group_agg_function is not None:
-            self.group_agg_function.close()
+
+class DataStreamStatelessFunctionOperation(Operation):
+
+    def __init__(self, spec):
+        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
+
+    def open(self):
+        for user_defined_func in self.user_defined_funcs:
+            runtime_context = RuntimeContext(
+                self.spec.serialized_fn.runtime_context.task_name,
+                self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                self.spec.serialized_fn.runtime_context.attempt_number,
+                {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters})
+            user_defined_func.open(runtime_context)
+
+    def generate_func(self, serialized_fn):
+        func, user_defined_func = operation_utils.extract_data_stream_stateless_function(
+            serialized_fn)
+        return func, [user_defined_func]
 
 
 class ProcessFunctionOperation(StatefulFunctionOperation):
 
     def __init__(self, spec, keyed_state_backend):
         self._collector = ProcessFunctionOperation.InternalCollector()
-        internal_timer_service = ProcessFunctionOperation\
-            .InternalTimerService(self._collector, keyed_state_backend)
-        self.function_context = InternalProcessFunctionContext(internal_timer_service)
-        self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
+        internal_timer_service = ProcessFunctionOperation.InternalTimerService(
+            self._collector, keyed_state_backend)
+        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
+            internal_timer_service)
+        self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext(
+            internal_timer_service)
         super(ProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
 
     def generate_func(self, serialized_fn) -> tuple:
-        func, proc_func = operation_utils.extract_user_defined_process_function(
+        func, proc_func = operation_utils.extract_process_function(
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
             self.keyed_state_backend)
         return func, [proc_func]
@@ -414,3 +431,29 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def current_watermark(self) -> int:
             return self._current_watermark
+
+    class InternalProcessFunctionContext(ProcessFunction.Context):
+        """
+        Internal implementation of ProcessFunction.Context.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+
+        def timer_service(self):
+            return self._timer_service
+
+    class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
+        """
+        Internal implementation of ProcessFunction.OnTimerContext.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+            self._time_domain = None
+
+        def timer_service(self):
+            return self._timer_service
+
+        def time_domain(self) -> TimeDomain:
+            return self._time_domain

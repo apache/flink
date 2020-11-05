@@ -21,12 +21,24 @@ from typing import Dict, List, Union
 
 from pyflink.common import typeinfo
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
-from pyflink.common.typeinfo import RowTypeInfo, WrapperTypeInfo
+from pyflink.common.typeinfo import RowTypeInfo, WrapperTypeInfo, TypeInformation
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class, to_jarray
 
 from py4j.java_gateway import java_import
+
+
+__all__ = [
+    'FlinkKafkaConsumer',
+    'FlinkKafkaProducer',
+    'JdbcSink',
+    'JdbcConnectionOptions',
+    'JdbcExecutionOptions',
+    'RollingPolicy',
+    'DefaultRollingPolicy',
+    'StreamingFileSink',
+    'OutputFileConfig']
 
 
 class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
@@ -125,7 +137,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             .disableFilterRestoredPartitionsWithSubscribedTopics()
         return self
 
-    def get_produced_type(self):
+    def get_produced_type(self) -> TypeInformation:
         return typeinfo._from_java_type(self._j_function.getProducedType())
 
 
@@ -181,7 +193,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
     def __init__(self, j_flink_kafka_producer):
         super(FlinkKafkaProducerBase, self).__init__(sink_func=j_flink_kafka_producer)
 
-    def set_log_failures_only(self, log_failures_only: bool):
+    def set_log_failures_only(self, log_failures_only: bool) -> 'FlinkKafkaProducerBase':
         """
         Defines whether the producer should fail on errors, or only log them. If this is set to
         true, then exceptions will be only logged, if set to false, exceptions will be eventually
@@ -190,8 +202,9 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
         :param log_failures_only: The flag to indicate logging-only on exceptions.
         """
         self._j_function.setLogFailuresOnly(log_failures_only)
+        return self
 
-    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool):
+    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool) -> 'FlinkKafkaProducerBase':
         """
         If set to true, the Flink producer will wait for all outstanding messages in the Kafka
         buffers to be acknowledged by the Kafka producer on a checkpoint.
@@ -202,8 +215,10 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
         :param flush_on_checkpoint: Flag indicating the flush mode (true = flush on checkpoint)
         """
         self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
+        return self
 
-    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
+    def set_write_timestamp_to_kafka(self,
+                                     write_timestamp_to_kafka: bool) -> 'FlinkKafkaProducerBase':
         """
         If set to true, Flink will write the (event time) timestamp attached to each record into
         Kafka. Timestamps must be positive for Kafka to accept them.
@@ -212,6 +227,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
                                          to Kafka.
         """
         self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
+        return self
 
 
 class Semantic(Enum):

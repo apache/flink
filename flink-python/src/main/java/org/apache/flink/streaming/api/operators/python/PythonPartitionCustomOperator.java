@@ -43,6 +43,8 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
 public class PythonPartitionCustomOperator<IN, OUT> extends
 	StatelessOneInputPythonFunctionOperator<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final String DATA_STREAM_NUM_PARTITIONS = "DATA_STREAM_NUM_PARTITIONS";
 
 	private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();

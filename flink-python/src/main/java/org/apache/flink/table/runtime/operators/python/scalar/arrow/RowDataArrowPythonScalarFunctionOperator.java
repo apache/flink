@@ -38,7 +38,7 @@ public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPyt
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
+	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
 
 	/**
 	 * The current number of elements to be included in an arrow batch.
