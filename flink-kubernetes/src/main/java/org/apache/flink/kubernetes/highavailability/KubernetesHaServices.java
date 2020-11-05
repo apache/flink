@@ -26,7 +26,6 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -108,7 +107,8 @@ public class KubernetesHaServices extends AbstractHaServices {
 
 	@Override
 	public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-		return new StandaloneCheckpointRecoveryFactory();
+		return new KubernetesCheckpointRecoveryFactory(
+			kubeClient, configuration, ioExecutor, this::getLeaderNameForJobManager, lockIdentity);
 	}
 
 	@Override
