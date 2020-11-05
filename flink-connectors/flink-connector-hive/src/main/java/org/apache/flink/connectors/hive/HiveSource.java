@@ -26,6 +26,7 @@ import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.filesystem.LimitableBulkFormat;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -53,12 +54,12 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 			String hiveVersion,
 			boolean useMapRedReader,
 			boolean isStreamingSource,
-			RowType producedDataType) {
+			RowType producedRowType) {
 		super(
 				new org.apache.flink.core.fs.Path[1],
 				new HiveSourceFileEnumerator.Provider(partitions, new JobConfWrapper(jobConf)),
 				DEFAULT_SPLIT_ASSIGNER,
-				createBulkFormat(new JobConf(jobConf), catalogTable, hiveVersion, producedDataType, useMapRedReader, limit),
+				createBulkFormat(new JobConf(jobConf), catalogTable, hiveVersion, producedRowType, useMapRedReader, limit),
 				null);
 		Preconditions.checkArgument(!isStreamingSource, "HiveSource currently only supports bounded mode");
 	}
@@ -72,18 +73,20 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> imp
 			JobConf jobConf,
 			CatalogTable catalogTable,
 			String hiveVersion,
-			RowType producedDataType,
+			RowType producedRowType,
 			boolean useMapRedReader,
 			Long limit) {
 		checkNotNull(catalogTable, "catalogTable can not be null.");
-		return new HiveBulkFormatAdapter(
-				new JobConfWrapper(jobConf),
-				catalogTable.getPartitionKeys(),
-				catalogTable.getSchema().getFieldNames(),
-				catalogTable.getSchema().getFieldDataTypes(),
-				hiveVersion,
-				producedDataType,
-				useMapRedReader,
-				limit);
+		return LimitableBulkFormat.create(
+				new HiveBulkFormatAdapter(
+						new JobConfWrapper(jobConf),
+						catalogTable.getPartitionKeys(),
+						catalogTable.getSchema().getFieldNames(),
+						catalogTable.getSchema().getFieldDataTypes(),
+						hiveVersion,
+						producedRowType,
+						useMapRedReader),
+				limit
+		);
 	}
 }

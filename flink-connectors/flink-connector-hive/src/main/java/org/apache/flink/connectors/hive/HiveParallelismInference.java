@@ -59,7 +59,7 @@ class HiveParallelismInference {
 	 */
 	int limit(Long limit) {
 		if (limit != null) {
-			parallelism = Math.min(parallelism, limit.intValue() / 1000);
+			parallelism = Math.min(parallelism, (int) (limit / 1000));
 		}
 
 		// make sure that parallelism is at least 1

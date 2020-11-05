@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.LimitableBulkFormat;
 import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -72,22 +71,19 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 	private final DataType[] fieldTypes;
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
-	private final RowType producedDataType;
+	private final RowType producedRowType;
 	private final boolean useMapRedReader;
-	// We should limit the input read count of the splits, null represents no limit.
-	private final Long limit;
 
 	public HiveBulkFormatAdapter(JobConfWrapper jobConfWrapper, List<String> partitionKeys, String[] fieldNames, DataType[] fieldTypes,
-			String hiveVersion, RowType producedDataType, boolean useMapRedReader, Long limit) {
+			String hiveVersion, RowType producedRowType, boolean useMapRedReader) {
 		this.jobConfWrapper = jobConfWrapper;
 		this.partitionKeys = partitionKeys;
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		this.hiveVersion = hiveVersion;
 		this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		this.producedDataType = producedDataType;
+		this.producedRowType = producedRowType;
 		this.useMapRedReader = useMapRedReader;
-		this.limit = limit;
 	}
 
 	@Override
@@ -108,23 +104,22 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 	@Override
 	public TypeInformation<RowData> getProducedType() {
-		return InternalTypeInfo.of(producedDataType);
+		return InternalTypeInfo.of(producedRowType);
 	}
 
 	private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(HiveSourceSplit split) {
 		if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
 			PartitionFieldExtractor<HiveSourceSplit> extractor = (PartitionFieldExtractor<HiveSourceSplit>)
 					(split1, fieldName, fieldType) -> split1.getHiveTablePartition().getPartitionSpec().get(fieldName);
-			return LimitableBulkFormat.create(
-					ParquetColumnarRowInputFormat.createPartitionedFormat(
-							jobConfWrapper.conf(),
-							producedDataType,
-							partitionKeys,
-							extractor,
-							DEFAULT_SIZE,
-							hiveVersion.startsWith("3"),
-							false),
-					limit);
+			return ParquetColumnarRowInputFormat.createPartitionedFormat(
+					jobConfWrapper.conf(),
+					producedRowType,
+					partitionKeys,
+					extractor,
+					DEFAULT_SIZE,
+					hiveVersion.startsWith("3"),
+					false
+			);
 		} else {
 			return new HiveMapRedBulkFormat();
 		}
@@ -137,7 +132,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			return false;
 		}
 
-		for (RowType.RowField field : producedDataType.getFields()) {
+		for (RowType.RowField field : producedRowType.getFields()) {
 			if (isVectorizationUnsupported(field.getType())) {
 				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + field.getType());
 				return false;
@@ -209,7 +204,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 		@Override
 		public TypeInformation<RowData> getProducedType() {
-			return InternalTypeInfo.of(producedDataType);
+			return InternalTypeInfo.of(producedRowType);
 		}
 	}
 
@@ -227,7 +222,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			addSchemaToConf(clonedConf);
 			HiveTableInputSplit oldSplit = new HiveTableInputSplit(-1, split.toMapRedSplit(), clonedConf, split.getHiveTablePartition());
 			hiveMapredSplitReader = new HiveMapredSplitReader(clonedConf, partitionKeys, fieldTypes, selectedFields, oldSplit, hiveShim);
-			serializer = new RowDataSerializer(producedDataType);
+			serializer = new RowDataSerializer(producedRowType);
 		}
 
 		@Override
@@ -235,7 +230,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			RowData[] records = new RowData[DEFAULT_SIZE];
 			final long skipCount = numRead;
 			int num = 0;
-			while (!hiveMapredSplitReader.reachedEnd() && num < DEFAULT_SIZE && !reachLimit()) {
+			while (!hiveMapredSplitReader.reachedEnd() && num < DEFAULT_SIZE) {
 				records[num++] = serializer.copy(nextRecord());
 			}
 			if (num == 0) {
@@ -254,10 +249,6 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			RowData res = hiveMapredSplitReader.nextRecord(null);
 			numRead++;
 			return res;
-		}
-
-		private boolean reachLimit() {
-			return limit != null && numRead >= limit;
 		}
 
 		private void seek(long toSkip) throws IOException {
@@ -290,9 +281,9 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 		// compute indices of selected fields according to the produced type
 		private int[] computeSelectedFields() {
-			int[] selectedFields = new int[producedDataType.getFieldCount()];
+			int[] selectedFields = new int[producedRowType.getFieldCount()];
 			for (int i = 0; i < selectedFields.length; i++) {
-				String name = producedDataType.getFieldNames().get(i);
+				String name = producedRowType.getFieldNames().get(i);
 				int index = Arrays.asList(fieldNames).indexOf(name);
 				Preconditions.checkState(index >= 0,
 						"Produced field name %s not found in table schema fields %s", name, Arrays.toString(fieldNames));
