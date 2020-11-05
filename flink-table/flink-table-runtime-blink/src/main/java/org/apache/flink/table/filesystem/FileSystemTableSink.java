@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -312,29 +311,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 				return Collections.emptyList();
 			}
 		};
-	}
-
-	@Deprecated
-	public static DataStreamSink<?> createStreamingSink(
-			Configuration conf,
-			Path path,
-			List<String> partitionKeys,
-			ObjectIdentifier tableIdentifier,
-			boolean overwrite,
-			DataStream<RowData> inputStream,
-			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
-			TableMetaStoreFactory msFactory,
-			FileSystemFactory fsFactory,
-			long rollingCheckInterval) {
-		if (overwrite) {
-			throw new IllegalStateException("Streaming mode not support overwrite.");
-		}
-
-		DataStream<PartitionCommitInfo> writer = StreamingSink.writer(
-				inputStream, rollingCheckInterval, bucketsBuilder);
-
-		return StreamingSink.sink(
-				writer, path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
 	}
 
 	private Path toStagingPath() {
