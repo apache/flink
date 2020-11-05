@@ -19,6 +19,8 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.slots.DefaultRequirementMatcher;
+import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
@@ -48,6 +50,8 @@ class JobScopedResourceTracker {
 	private final BiDirectionalResourceToRequirementMapping resourceToRequirementMapping = new BiDirectionalResourceToRequirementMapping();
 	private final ResourceCounter excessResources = new ResourceCounter();
 
+	private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
+
 	JobScopedResourceTracker(JobID jobId) {
 		this.jobId = Preconditions.checkNotNull(jobId);
 	}
@@ -75,16 +79,10 @@ class JobScopedResourceTracker {
 	}
 
 	private Optional<ResourceProfile> findMatchingRequirement(ResourceProfile resourceProfile) {
-		for (Map.Entry<ResourceProfile, Integer> requirementCandidate : resourceRequirements.getResourceProfilesWithCount().entrySet()) {
-			ResourceProfile requirementProfile = requirementCandidate.getKey();
-
-			// beware the order when matching resources to requirements, because ResourceProfile.UNKNOWN (which only
-			// occurs as a requirement) does not match any resource!
-			if (resourceProfile.isMatching(requirementProfile) && requirementCandidate.getValue() > resourceToRequirementMapping.getNumFulfillingResources(requirementProfile)) {
-				return Optional.of(requirementProfile);
-			}
-		}
-		return Optional.empty();
+		return requirementMatcher.match(
+				resourceProfile,
+				resourceRequirements.getResourceProfilesWithCount().entrySet(),
+				resourceToRequirementMapping::getNumFulfillingResources);
 	}
 
 	public void notifyLostResource(ResourceProfile resourceProfile) {
