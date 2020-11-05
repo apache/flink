@@ -1184,7 +1184,8 @@ public class DataStream<T> {
 	 *
 	 * <p>The output is not participating in Flink's checkpointing!
 	 *
-	 * <p>For writing to a file system periodically, the use of the "flink-connector-filesystem"
+	 * <p>For writing to a file system periodically, the use of the
+	 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}
 	 * is recommended.
 	 *
 	 * @param format The output format
