@@ -446,14 +446,14 @@ For the first version, the fraud detector should output an alert for any account
 Imagine your fraud detector processes the following stream of transactions for a particular account.
 
 <p class="text-center">
-    <img alt="Transactions" width="80%" src="{{ site.baseurl }}/fig/fraud-transactions.svg"/>
+    <img alt="Transactions" width="80%" src="{% link /fig/fraud-transactions.svg %}"/>
 </p>
 
 Transactions 3 and 4 should be marked as fraudulent because it is a small transaction, $0.09, followed by a large one, $510.
 Alternatively, transactions 7, 8, and 9 are not fraud because the small amount of $0.02 is not immediately followed by the large one; instead, there is an intermediate transaction that breaks the pattern.
 
 To do this, the fraud detector must _remember_ information across events; a large transaction is only fraudulent if the previous one was small.
-Remembering information across events requires [state]({{ site.baseurl }}/concepts/glossary.html#managed-state), and that is why we decided to use a [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html). 
+Remembering information across events requires [state]({% link concepts/glossary.md %}#managed-state), and that is why we decided to use a [KeyedProcessFunction]({% link dev/stream/operators/process_function.md %}). 
 It provides fine-grained control over both state and time, which will allow us to evolve our algorithm with more complex requirements throughout this walkthrough.
 
 The most straightforward implementation is a boolean flag that is set whenever a small transaction is processed.
@@ -466,7 +466,7 @@ Hence, the fraud detector would possibly miss alerts if the application ever had
 
 To address these challenges, Flink provides primitives for fault-tolerant state that are almost as easy to use as regular member variables.
 
-The most basic type of state in Flink is [ValueState]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state), a data type that adds fault tolerance to any variable it wraps.
+The most basic type of state in Flink is [ValueState]({% link dev/stream/state/state.md %}#using-managed-keyed-state), a data type that adds fault tolerance to any variable it wraps.
 `ValueState` is a form of _keyed state_, meaning it is only available in operators that are applied in a _keyed context_; any operator immediately following `DataStream#keyBy`.
 A _keyed state_ of an operator is automatically scoped to the key of the record that is currently processed.
 In this example, the key is the account id for the current transaction (as declared by `keyBy()`), and `FraudDetector` maintains an independent state for each account. 
