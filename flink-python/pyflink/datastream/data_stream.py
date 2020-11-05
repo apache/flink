@@ -459,10 +459,9 @@ class DataStream(object):
 
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_function_operator, j_output_type_info = \
-            self._get_java_python_function_operator(func,
-                                                    output_type,
-                                                    flink_fn_execution_pb2
-                                                    .UserDefinedDataStreamFunction.PROCESS)
+            self._get_java_python_function_operator(
+                func, output_type,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.PROCESS)  # type: ignore
         return DataStream(self._j_data_stream.transform(
             "PROCESS",
             j_output_type_info,
@@ -589,7 +588,7 @@ class DataStream(object):
                 j_output_type_info,
                 j_data_stream_python_function_info)
             return j_python_reduce_operator, j_output_type_info
-        elif func_type == UserDefinedDataStreamFunction.PROCESS:
+        elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
             DataStreamPythonFunctionOperator = gateway.jvm\
                 .org.apache.flink.streaming.api.operators.python\
                 .PythonProcessFunctionOperator

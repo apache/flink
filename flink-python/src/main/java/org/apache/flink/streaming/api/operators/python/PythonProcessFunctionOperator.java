@@ -62,11 +62,11 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATA_STREAM_STATEFUL_PYTHON_FUNCTION_URN =
-		"flink:transform:datastream_stateful_function:v1";
+	private static final String DATA_STREAM_PROCESS_FUNCTION_URN =
+		"flink:transform:process_function:v1";
 
-	private static final String DATA_STREAM_STATEFUL_PROCESS_FUNCTION_CODER_URN =
-		"flink:coder:datastream:flatmap_function:v1";
+	private static final String DATA_STREAM_PROCESS_FUNCTION_CODER_URN =
+		"flink:coder:flat_map:v1";
 
 	/**
 	 * The python {@link org.apache.flink.streaming.api.functions.ProcessFunction} to be executed.
@@ -213,10 +213,10 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
 			runnerOutputTypeInfo,
-			DATA_STREAM_STATEFUL_PYTHON_FUNCTION_URN,
+			DATA_STREAM_PROCESS_FUNCTION_URN,
 			PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
 				pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP, keyTypeInfo),
-			DATA_STREAM_STATEFUL_PROCESS_FUNCTION_CODER_URN,
+			DATA_STREAM_PROCESS_FUNCTION_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
 			getKeyedStateBackend(),
@@ -271,9 +271,9 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 		long time = timer.getTimestamp();
 		Row timerKey = Row.of(timer.getKey());
 		if (procTime) {
-			reusableTimerData.setField(0, 0);
+			reusableTimerData.setField(0, 1);
 		} else {
-			reusableTimerData.setField(0, 2);
+			reusableTimerData.setField(0, 0);
 		}
 		reusableTimerData.setField(1, time);
 		reusableTimerData.setField(2, timerservice.currentWatermark());

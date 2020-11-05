@@ -56,8 +56,8 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
 	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:map:v1";
+	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:flat_map:v1";
 
 
 	private final DataStreamPythonFunctionInfo pythonFunctionInfo;

@@ -349,18 +349,18 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             self.group_agg_function.close()
 
 
-class DataStreamStatefulFunctionOperation(StatefulFunctionOperation):
+class ProcessFunctionOperation(StatefulFunctionOperation):
 
     def __init__(self, spec, keyed_state_backend):
-        self._collector = DataStreamStatefulFunctionOperation.InternalCollector()
-        internal_timer_service = DataStreamStatefulFunctionOperation\
+        self._collector = ProcessFunctionOperation.InternalCollector()
+        internal_timer_service = ProcessFunctionOperation\
             .InternalTimerService(self._collector, keyed_state_backend)
         self.function_context = InternalProcessFunctionContext(internal_timer_service)
         self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
-        super(DataStreamStatefulFunctionOperation, self).__init__(spec, keyed_state_backend)
+        super(ProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
 
     def generate_func(self, serialized_fn) -> tuple:
-        func, proc_func = operation_utils.extract_user_defined_stateful_function(
+        func, proc_func = operation_utils.extract_user_defined_process_function(
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
             self.keyed_state_backend)
         return func, [proc_func]

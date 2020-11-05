@@ -19,8 +19,8 @@
 import abc
 from typing import Union, Any, Dict
 
+from apache_beam import TimeDomain
 from py4j.java_gateway import JavaObject
-from pyflink.datastream.time_characteristic import TimeCharacteristic
 
 from pyflink.java_gateway import get_gateway
 
@@ -599,23 +599,16 @@ class ProcessFunction(Function):
             """
             pass
 
-    class OnTimerContext(abc.ABC):
+    class OnTimerContext(Context):
         """
         Information available in an invocation of on_timer(long, OnTimerContext, Collector)
         """
 
         @abc.abstractmethod
-        def timer_service(self):
-            """
-            A Timer service for querying time and registering timers.
-            """
-            pass
-
-        @abc.abstractmethod
-        def time_domain(self) -> TimeCharacteristic:
+        def time_domain(self) -> TimeDomain:
             """
             The TimeDomain of the firing timer.
-            :return: The TimeCharacteristic of current fired timer.
+            :return: The TimeDomain of current fired timer.
             """
             pass
 
@@ -704,5 +697,5 @@ class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
     def timer_service(self):
         return self._timer_service
 
-    def time_domain(self) -> TimeCharacteristic:
+    def time_domain(self) -> TimeDomain:
         return self._time_domain
