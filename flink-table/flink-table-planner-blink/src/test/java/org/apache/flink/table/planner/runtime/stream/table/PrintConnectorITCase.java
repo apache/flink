@@ -77,6 +77,31 @@ public class PrintConnectorITCase extends StreamingTestBase {
 		test(true);
 	}
 
+	@Test
+	public void testWithParallelism() throws Exception {
+		tEnv().executeSql("create table print_t (" +
+				"f0 int," +
+				"f1 double" +
+				") with (" +
+				"'connector' = 'print'," +
+				"'print-identifier' = 'test_print'," +
+				"'sink.parallelism' = '2'," +
+				"'standard-error'='false')");
+		DataType type = tEnv().from("print_t").getSchema().toRowDataType();
+		Row row = Row.of(1, 1.1);
+		tEnv().fromValues(type, Arrays.asList(row)).executeInsert("print_t").await();
+
+		String expectedLine1 = "test_print:1> +I(" +
+			/* 0 */ "1," +
+			/* 1 */ "1.1" +
+			")";
+		String expectedLine2 = "test_print:2> +I(" +
+			/* 0 */ "1," +
+			/* 1 */ "1.1" +
+			")";
+		Assert.assertTrue(arrayOutputStream.toString().equals(expectedLine1 + "\n") || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
+	}
+
 	private void test(boolean standardError) throws Exception {
 		tEnv().executeSql(String.format("create table print_t (" +
 						"f0 int," +
