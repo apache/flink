@@ -70,8 +70,8 @@ from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedC
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
-                                          CoFlatMapFunction, ReduceFunction, KeySelector,
-                                          FilterFunction, Partitioner, SourceFunction,
+                                          CoFlatMapFunction, ReduceFunction, RuntimeContext,
+                                          KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction)
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
@@ -93,6 +93,7 @@ __all__ = [
     'KeySelector',
     'Partitioner',
     'ReduceFunction',
+    'RuntimeContext',
     'SinkFunction',
     'SourceFunction',
     'StateBackend',

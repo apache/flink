@@ -334,10 +334,9 @@ class DataStream(object):
 
         type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        j_data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)._j_data_stream
-        filtered_stream = DataStream(j_data_stream)
-        filtered_stream.name("Filter")
-        return filtered_stream
+        data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)
+        data_stream.name("Filter")
+        return data_stream
 
     def union(self, *streams: 'DataStream') -> 'DataStream':
         """
@@ -351,8 +350,8 @@ class DataStream(object):
         for data_stream in streams:
             j_data_streams.append(data_stream._j_data_stream)
         gateway = get_gateway()
-        j_data_stream_class = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream
-        j_data_stream_arr = get_gateway().new_array(j_data_stream_class, len(j_data_streams))
+        JDataStream = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream
+        j_data_stream_arr = get_gateway().new_array(JDataStream, len(j_data_streams))
         for i in range(len(j_data_streams)):
             j_data_stream_arr[i] = j_data_streams[i]
         j_united_stream = self._j_data_stream.union(j_data_stream_arr)

@@ -27,15 +27,6 @@ from pyflink.table import functions
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
     AggregateFunction, PandasAggregateFunctionWrapper
 
-SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
-TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
-STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
-DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
-DATA_STREAM_PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
-PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
-PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
-    "flink:transform:batch_over_window_aggregate_function:arrow:v1"
-
 _func_num = 0
 _constant_num = 0
 
@@ -66,6 +57,28 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
         _func_num = _func_num + 1
         return _func_num
 
+    def _extract_input(args) -> Tuple[str, Dict, List]:
+        local_variable_dict = {}
+        local_funcs = []
+        args_str = []
+        for arg in args:
+            if arg.HasField("udf"):
+                # for chaining Python UDF input: the input argument is a Python ScalarFunction
+                udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(arg.udf)
+                args_str.append(udf_arg)
+                local_variable_dict.update(udf_variable_dict)
+                local_funcs.extend(udf_funcs)
+            elif arg.HasField("inputOffset"):
+                # the input argument is a column of the input row
+                args_str.append("value[%s]" % arg.inputOffset)
+            else:
+                # the input argument is a constant value
+                constant_value_name, parsed_constant_value = \
+                    _parse_constant_value(arg.inputConstant)
+                args_str.append(constant_value_name)
+                local_variable_dict[constant_value_name] = parsed_constant_value
+        return ",".join(args_str), local_variable_dict, local_funcs
+
     variable_dict = {}
     user_defined_funcs = []
 
@@ -84,68 +97,6 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     variable_dict.update(input_variable_dict)
     user_defined_funcs.extend(input_funcs)
     return "%s(%s)" % (func_name, func_args), variable_dict, user_defined_funcs
-
-
-def _extract_input(args) -> Tuple[str, Dict, List]:
-    local_variable_dict = {}
-    local_funcs = []
-    args_str = []
-    for arg in args:
-        if arg.HasField("udf"):
-            # for chaining Python UDF input: the input argument is a Python ScalarFunction
-            udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(arg.udf)
-            args_str.append(udf_arg)
-            local_variable_dict.update(udf_variable_dict)
-            local_funcs.extend(udf_funcs)
-        elif arg.HasField("inputOffset"):
-            # the input argument is a column of the input row
-            args_str.append("value[%s]" % arg.inputOffset)
-        else:
-            # the input argument is a constant value
-            constant_value_name, parsed_constant_value = \
-                _parse_constant_value(arg.inputConstant)
-            args_str.append(constant_value_name)
-            local_variable_dict[constant_value_name] = parsed_constant_value
-    return ",".join(args_str), local_variable_dict, local_funcs
-
-
-def extract_data_stream_stateless_funcs(udf_proto):
-    """
-    Extracts user-defined-function from the proto representation of a
-    :class:`Function`.
-
-    :param udf_proto: the proto representation of the Python :class:`Function`
-    """
-    func_type = udf_proto.function_type
-    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
-    func = None
-    # import pyflink.datastream.tests.test_data_stream
-    # from pyflink.datastream.tests.test_data_stream import MyKeySelector
-    user_defined_func = pickle.loads(udf_proto.payload)
-    if func_type == UserDefinedDataStreamFunction.MAP:
-        func = user_defined_func.map
-    elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
-        func = user_defined_func.flat_map
-    elif func_type == UserDefinedDataStreamFunction.REDUCE:
-        reduce_func = user_defined_func.reduce
-
-        def wrap_func(value):
-            return reduce_func(value[0], value[1])
-        func = wrap_func
-    elif func_type == UserDefinedDataStreamFunction.CO_MAP:
-        co_map_func = user_defined_func
-
-        def wrap_func(value):
-            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
-        func = wrap_func
-    elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
-        co_flat_map_func = user_defined_func
-
-        def wrap_func(value):
-            return co_flat_map_func.flat_map1(value[1]) if value[0] else \
-                co_flat_map_func.flat_map2(value[2])
-        func = wrap_func
-    return func, user_defined_func
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:
@@ -242,14 +193,52 @@ def load_aggregate_function(payload):
         return pickle.loads(payload)
 
 
-def extract_user_defined_process_function(user_defined_function_proto, ctx, on_timer_ctx,
-                                          collector, keyed_state_backend):
-    proc_func = pickle.loads(user_defined_function_proto.payload)
-    process_element_func = proc_func.process_element
-    on_timer_func = proc_func.on_timer
+def extract_data_stream_stateless_function(udf_proto):
+    """
+    Extracts user-defined-function from the proto representation of a
+    :class:`Function`.
+
+    :param udf_proto: the proto representation of the Python :class:`Function`
+    """
+    func_type = udf_proto.function_type
+    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+    func = None
+    # import pyflink.datastream.tests.test_data_stream
+    # from pyflink.datastream.tests.test_data_stream import MyKeySelector
+    user_defined_func = pickle.loads(udf_proto.payload)
+    if func_type == UserDefinedDataStreamFunction.MAP:
+        func = user_defined_func.map
+    elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
+        func = user_defined_func.flat_map
+    elif func_type == UserDefinedDataStreamFunction.REDUCE:
+        reduce_func = user_defined_func.reduce
+
+        def wrap_func(value):
+            return reduce_func(value[0], value[1])
+        func = wrap_func
+    elif func_type == UserDefinedDataStreamFunction.CO_MAP:
+        co_map_func = user_defined_func
+
+        def wrap_func(value):
+            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
+        func = wrap_func
+    elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
+        co_flat_map_func = user_defined_func
+
+        def wrap_func(value):
+            return co_flat_map_func.flat_map1(value[1]) if value[0] else \
+                co_flat_map_func.flat_map2(value[2])
+        func = wrap_func
+    return func, user_defined_func
+
+
+def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
+                             collector, keyed_state_backend):
+    process_function = pickle.loads(user_defined_function_proto.payload)
+    process_element = process_function.process_element
+    on_timer_func = process_function.on_timer
 
     def wrapped_func(value):
-
         # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
         current_watermark = value[2]
         ctx.timer_service()._current_watermark = current_watermark
@@ -274,7 +263,7 @@ def extract_user_defined_process_function(user_defined_function_proto, ctx, on_t
             keyed_state_backend.set_current_key(current_key)
 
             real_data = value[4][1]
-            process_element_func(real_data, ctx, collector)
+            process_element(real_data, ctx, collector)
 
         for a in collector.buf:
             # 0: proc time timer data
@@ -286,4 +275,4 @@ def extract_user_defined_process_function(user_defined_function_proto, ctx, on_t
             else:
                 yield Row(a[0], a[1], a[2], None)
         collector.clear()
-    return wrapped_func, proc_func
+    return wrapped_func, process_function

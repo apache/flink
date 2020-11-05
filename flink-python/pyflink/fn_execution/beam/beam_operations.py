@@ -18,7 +18,7 @@
 
 from apache_beam.runners.worker import bundle_processor, operation_specs
 
-from pyflink.fn_execution import operation_utils, flink_fn_execution_pb2
+from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
@@ -31,7 +31,7 @@ except ImportError:
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    operations.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
@@ -40,7 +40,7 @@ def create_scalar_function(factory, transform_id, transform_proto, parameter, co
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    operations.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
@@ -49,7 +49,7 @@ def create_table_function(factory, transform_id, transform_proto, parameter, con
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.DATA_STREAM_STATELESS_FUNCTION_URN,
+    operations.DATA_STREAM_STATELESS_FUNCTION_URN,
     flink_fn_execution_pb2.UserDefinedDataStreamFunction)
 def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
@@ -59,7 +59,7 @@ def create_data_stream_function(factory, transform_id, transform_proto, paramete
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.PANDAS_AGGREGATE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    operations.PANDAS_AGGREGATE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_pandas_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
@@ -68,7 +68,7 @@ def create_pandas_aggregate_function(factory, transform_id, transform_proto, par
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN,
+    operations.PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN,
     flink_fn_execution_pb2.UserDefinedFunctions)
 def create_pandas_over_window_aggregate_function(
         factory, transform_id, transform_proto, parameter, consumers):
@@ -79,7 +79,7 @@ def create_pandas_over_window_aggregate_function(
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.STREAM_GROUP_AGGREGATE_URN,
+    operations.STREAM_GROUP_AGGREGATE_URN,
     flink_fn_execution_pb2.UserDefinedAggregateFunctions)
 def create_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
@@ -89,7 +89,7 @@ def create_aggregate_function(factory, transform_id, transform_proto, parameter,
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.DATA_STREAM_PROCESS_FUNCTION_URN,
+    operations.DATA_STREAM_PROCESS_FUNCTION_URN,
     flink_fn_execution_pb2.UserDefinedDataStreamFunction)
 def create_data_stream_stateful_function(factory, transform_id, transform_proto, parameter,
                                          consumers):
