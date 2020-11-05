@@ -277,6 +277,10 @@ class CsvRowSerializationSchema(SerializationSchema):
             self._j_builder = self._j_builder.setFieldDelimiter(c)
             return self
 
+        def set_line_delimiter(self, delimiter: str):
+            self._j_builder = self._j_builder.setLineDelimiter(delimiter)
+            return self
+
         def set_array_element_delimiter(self, delimiter: str):
             self._j_builder = self._j_builder.setArrayElementDelimiter(delimiter)
             return self

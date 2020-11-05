@@ -86,8 +86,8 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 		this.typeInfo = typeInfo;
 		this.runtimeConverter = createRowRuntimeConverter(typeInfo, true);
 		this.csvMapper = new CsvMapper();
-		this.csvSchema = csvSchema.withLineSeparator("");
-		this.objectWriter = csvMapper.writer(this.csvSchema);
+		this.csvSchema = csvSchema;
+		this.objectWriter = csvMapper.writer(csvSchema);
 	}
 
 	/**
@@ -117,6 +117,16 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 		public Builder setFieldDelimiter(char c) {
 			this.csvSchema = this.csvSchema.rebuild().setColumnSeparator(c).build();
+			return this;
+		}
+
+		public Builder setLineDelimiter(String delimiter) {
+			Preconditions.checkNotNull(delimiter, "Delimiter must not be null.");
+			if (!delimiter.equals("\n") && !delimiter.equals("\r") && !delimiter.equals("\r\n") && !delimiter.equals("")) {
+				throw new IllegalArgumentException(
+					"Unsupported new line delimiter. Only \\n, \\r, \\r\\n, or empty string are supported.");
+			}
+			this.csvSchema = this.csvSchema.rebuild().setLineSeparator(delimiter).build();
 			return this;
 		}
 

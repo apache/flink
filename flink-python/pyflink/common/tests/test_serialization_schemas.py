@@ -71,7 +71,7 @@ class TestRowSerializationSchemas(PyFlinkTestCase):
 
         def field_assertion(field_info, csv_value, value, field_delimiter):
             row_info = Types.ROW([Types.STRING(), field_info, Types.STRING()])
-            expected_csv = "BEGIN" + field_delimiter + csv_value + field_delimiter + "END"
+            expected_csv = "BEGIN" + field_delimiter + csv_value + field_delimiter + "END\n"
             j_row.setField(1, value)
 
             csv_row_serialization_schema = CsvRowSerializationSchema.Builder(row_info)\

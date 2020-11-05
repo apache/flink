@@ -166,23 +166,35 @@ public class CsvRowDeSerializationSchemaTest {
 	@Test
 	public void testSerializationProperties() throws Exception {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
-		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo);
+		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo)
+			.setLineDelimiter("\r");
 
 		assertArrayEquals(
-			"Test,12,Hello".getBytes(),
+			"Test,12,Hello\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
 
 		serSchemaBuilder.setQuoteCharacter('#');
 
 		assertArrayEquals(
-			"Test,12,#2019-12-26 12:12:12#".getBytes(),
+			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
 
 		serSchemaBuilder.disableQuoteCharacter();
 
 		assertArrayEquals(
-			"Test,12,2019-12-26 12:12:12".getBytes(),
+			"Test,12,2019-12-26 12:12:12\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
+	}
+
+	@Test
+	public void testEmptyLineDelimiter() throws Exception {
+		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo)
+				.setLineDelimiter("");
+
+		assertArrayEquals(
+				"Test,12,Hello".getBytes(),
+				serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -237,7 +249,7 @@ public class CsvRowDeSerializationSchemaTest {
 			Consumer<CsvRowDeserializationSchema.Builder> deserializationConfig,
 			String fieldDelimiter) throws Exception {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, fieldInfo, Types.STRING);
-		final String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
+		final String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
 		final Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// serialization
@@ -260,7 +272,7 @@ public class CsvRowDeSerializationSchemaTest {
 			Consumer<CsvRowDeserializationSchema.Builder> deserializationConfig,
 			String fieldDelimiter) throws Exception {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, fieldInfo, Types.STRING);
-		final String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
+		final String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
 		final Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// deserialization
