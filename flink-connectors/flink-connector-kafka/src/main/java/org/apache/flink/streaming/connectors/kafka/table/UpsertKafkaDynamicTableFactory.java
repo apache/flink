@@ -88,6 +88,7 @@ public class UpsertKafkaDynamicTableFactory implements DynamicTableSourceFactory
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(KEY_FIELDS_PREFIX);
 		options.add(VALUE_FIELDS_INCLUDE);
+		options.add(FactoryUtil.SINK_PARALLELISM);
 		return options;
 	}
 
@@ -152,6 +153,8 @@ public class UpsertKafkaDynamicTableFactory implements DynamicTableSourceFactory
 		final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
 		final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 
+		Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
+
 		// use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
 		// it will use hash partition if key is set else in round-robin behaviour.
 		return new KafkaDynamicSink(
@@ -165,7 +168,8 @@ public class UpsertKafkaDynamicTableFactory implements DynamicTableSourceFactory
 				properties,
 				null,
 				KafkaSinkSemantic.AT_LEAST_ONCE,
-				true
+				true,
+				parallelism
 		);
 	}
 
