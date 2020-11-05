@@ -53,20 +53,23 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link ZooKeeperCompletedCheckpointStore}.
+ * Tests for {@link DefaultCompletedCheckpointStore} with {@link ZooKeeperStateHandleStore}.
  */
 public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 	@ClassRule
 	public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
+	private static final ZooKeeperCheckpointStoreUtil zooKeeperCheckpointStoreUtil =
+		ZooKeeperCheckpointStoreUtil.INSTANCE;
+
 	@Test
 	public void testPathConversion() {
 		final long checkpointId = 42L;
 
-		final String path = ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpointId);
+		final String path = zooKeeperCheckpointStoreUtil.checkpointIDToName(checkpointId);
 
-		assertEquals(checkpointId, ZooKeeperCompletedCheckpointStore.pathToCheckpointId(path));
+		assertEquals(checkpointId, zooKeeperCheckpointStoreUtil.nameToCheckpointID(path));
 	}
 
 	@Test(expected = ExpectedTestException.class)
@@ -115,7 +118,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		});
 	}
 
-	private void testDownloadInternal(TriConsumer<ZooKeeperCompletedCheckpointStore, List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>>, SharedStateRegistry> test) throws Exception {
+	private void testDownloadInternal(TriConsumer<CompletedCheckpointStore, List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>>, SharedStateRegistry> test) throws Exception {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Configuration configuration = new Configuration();
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
@@ -129,7 +132,11 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 				}
 			};
 
-		ZooKeeperCompletedCheckpointStore store = new ZooKeeperCompletedCheckpointStore(10, checkpointsInZooKeeper, Executors.directExecutor());
+		CompletedCheckpointStore store = new DefaultCompletedCheckpointStore<>(
+			10,
+			checkpointsInZooKeeper,
+			zooKeeperCheckpointStoreUtil,
+			Executors.directExecutor());
 		try {
 			test.accept(store, checkpointsInZk, sharedStateRegistry);
 		} finally {
@@ -141,7 +148,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 	private Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> createHandle(long id, Function<Long, CompletedCheckpoint> checkpointSupplier) {
 		return Tuple2.of(
 			new CheckpointStateHandle(checkpointSupplier, id),
-			ZooKeeperCompletedCheckpointStore.checkpointIdToPath(id)
+			zooKeeperCheckpointStoreUtil.checkpointIDToName(id)
 		);
 	}
 
@@ -155,7 +162,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 
 		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-		final ZooKeeperCompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
+		final CompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
 
 		try {
 			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
@@ -189,7 +196,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 
 		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-		final ZooKeeperCompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
+		final CompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
 
 		try {
 			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
@@ -209,15 +216,16 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 	}
 
 	@Nonnull
-	private ZooKeeperCompletedCheckpointStore createZooKeeperCheckpointStore(CuratorFramework client) throws Exception {
+	private CompletedCheckpointStore createZooKeeperCheckpointStore(CuratorFramework client) throws Exception {
 		final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper = ZooKeeperUtils.createZooKeeperStateHandleStore(
 			client,
 			"/checkpoints",
 			new TestingRetrievableStateStorageHelper<>());
 
-		return new ZooKeeperCompletedCheckpointStore(
+		return new DefaultCompletedCheckpointStore<>(
 			1,
 			checkpointsInZooKeeper,
+			zooKeeperCheckpointStoreUtil,
 			Executors.directExecutor());
 	}
 
