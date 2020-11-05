@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.runtime;
+package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -29,15 +27,12 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
-import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.net.SSLUtilsTest;
@@ -54,7 +49,6 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -123,15 +117,10 @@ public class FileBufferReaderITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {
 			miniCluster.start();
 
-			final MiniClusterClient client = new MiniClusterClient(configuration, miniCluster);
 			final JobGraph jobGraph = createJobGraph();
-			// wait for the submission to succeed
-			final JobID jobID = client.submitJob(jobGraph).get();
 
-			final CompletableFuture<JobResult> resultFuture = client.requestJobResult(jobID);
-			final JobResult jobResult = resultFuture.get();
-
-			assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+			// the job needs to complete without throwing an exception
+			miniCluster.executeJobBlocking(jobGraph);
 		}
 	}
 
