@@ -95,6 +95,118 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable (
+         | x string,
+         | y int,
+         | a int,
+         | b bigint
+         | ,`flink.fs.basename` VARCHAR METADATA VIRTUAL
+         | ,`flink.fs.path` VARCHAR METADATA VIRTUAL
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable2 (
+         | x string,
+         | y int,
+         | a int,
+         | b bigint
+         | ,`flink.fs.path` VARCHAR METADATA VIRTUAL
+         | ,`flink.fs.basename` VARCHAR METADATA VIRTUAL
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable3 (
+         | x string,
+         | y int,
+         | a int,
+         | b bigint
+         | ,`flink.fs.path` VARCHAR METADATA VIRTUAL
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable4 (
+         | x string,
+         | y int,
+         | a int,
+         | b bigint
+         | ,`flink.fs.basename` VARCHAR METADATA VIRTUAL
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable5 (
+         | x string,
+         | `flink.fs.basename` VARCHAR METADATA VIRTUAL,
+         | y int,
+         | a int,
+         | `flink.fs.path` VARCHAR METADATA VIRTUAL,
+         | b bigint
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable6 (
+         | x string,
+         | `bname` VARCHAR METADATA FROM 'flink.fs.basename',
+         | y int,
+         | a int,
+         | `flink.fs.path` VARCHAR METADATA VIRTUAL,
+         | b bigint
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
+
+    tableEnv.executeSql(
+      s"""
+         |create table withMetadataTable7 (
+         | x string,
+         | `flink.fs.path` VARCHAR METADATA VIRTUAL,
+         | y int,
+         | a int,
+         | `bname` VARCHAR METADATA FROM 'flink.fs.basename',
+         | b bigint
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$resultPath',
+         |  ${formatProperties().mkString(",\n")}
+         |)
+      """.stripMargin
+    )
   }
 
   @Test

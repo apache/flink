@@ -244,6 +244,7 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
                             fieldNames,
                             fieldTypes,
                             projectFields,
+                            0,
                             partitionKeys,
                             currentSplit.getPath(),
                             defaultPartValue);

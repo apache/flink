@@ -40,7 +40,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
@@ -117,6 +120,16 @@ public class TestCsvFileSystemFormatFactory
                 return ChangelogMode.insertOnly();
             }
         };
+    }
+
+    @Override
+    public Map<String, DataType> listReadableMetadata() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+        // TODO: implement
     }
 
     private static class CsvBulkWriter implements BulkWriter<RowData> {

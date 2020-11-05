@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.types.DataType;
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
  */
 @Deprecated
 @Internal
-public interface FileSystemFormatFactory extends Factory {
+public interface FileSystemFormatFactory extends Factory, SupportsReadingMetadata {
 
     /** Create {@link InputFormat} reader. */
     InputFormat<RowData, ?> createReader(ReaderContext context);
