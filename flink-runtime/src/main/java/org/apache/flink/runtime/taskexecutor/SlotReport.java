@@ -63,11 +63,10 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 	public String toString() {
 		final String lineSeparator = slotsStatus.size() == 1 || slotsStatus.size() > 10
 			? ""
-			: System.lineSeparator();
+			: System.lineSeparator() + "\t";
 
 		return slotsStatus.stream()
 			.map(SlotStatus::toString)
-			.map(s -> "\t" + s)
 			.collect(Collectors.joining(lineSeparator, "SlotReport{" + lineSeparator, "}"));
 	}
 }
