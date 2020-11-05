@@ -56,7 +56,7 @@ import java.util.Set;
 /**
  * Orc format factory for file system.
  */
-public class OrcFileSystemFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
+public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
 	public static final String IDENTIFIER = "orc";
 

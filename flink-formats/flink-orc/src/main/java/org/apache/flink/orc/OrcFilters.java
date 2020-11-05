@@ -52,7 +52,7 @@ import java.util.function.Function;
  */
 public class OrcFilters {
 
-	private static final Logger LOG = LoggerFactory.getLogger(OrcFileSystemFormatFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(OrcFilters.class);
 
 	private static final ImmutableMap<FunctionDefinition, Function<CallExpression, Predicate>> FILTERS =
 			new ImmutableMap.Builder<FunctionDefinition, Function<CallExpression, Predicate>>()
