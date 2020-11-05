@@ -31,7 +31,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollation, RelNode}
 
 /**
-  * Rule that matches [[FlinkLogicalRank]] which is sorted by proc-time attribute and
+  * Rule that matches [[FlinkLogicalRank]] which is sorted by time attribute and
   * limits 1 and its rank type is ROW_NUMBER, and converts it to [[StreamExecDeduplicate]].
   *
   * NOTES: Queries that can be converted to [[StreamExecDeduplicate]] could be converted to
@@ -45,14 +45,15 @@ import org.apache.calcite.rel.{RelCollation, RelNode}
   *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as row_num
   *   FROM MyTable
   * ) WHERE row_num <= 1
-  * }}} will be converted to StreamExecDeduplicate which keeps first row.
+  * }}} will be converted to StreamExecDeduplicate which keeps first row in proctime.
+  *
   * 2. {{{
   * SELECT a, b, c FROM (
-  *   SELECT a, b, c, proctime,
-  *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as row_num
+  *   SELECT a, b, c, rowtime,
+  *          ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as row_num
   *   FROM MyTable
   * ) WHERE row_num <= 1
-  * }}} will be converted to StreamExecDeduplicate which keeps last row.
+  * }}} will be converted to StreamExecDeduplicate which keeps last row in rowtime.
   */
 class StreamExecDeduplicateRule
   extends ConverterRule(
@@ -81,12 +82,18 @@ class StreamExecDeduplicateRule
     // order by timeIndicator desc ==> lastRow, otherwise is firstRow
     val fieldCollation = rank.orderKey.getFieldCollations.get(0)
     val isLastRow = fieldCollation.direction.isDescending
+
+    val fieldType = rank.getInput().getRowType.getFieldList
+      .get(fieldCollation.getFieldIndex).getType
+    val isRowtime = FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     new StreamExecDeduplicate(
       rel.getCluster,
       providedTraitSet,
       convInput,
       rank.partitionKey.toArray,
+      isRowtime,
       isLastRow)
   }
 }
@@ -98,7 +105,7 @@ object StreamExecDeduplicateRule {
   /**
     * Whether the given rank could be converted to [[StreamExecDeduplicate]].
     *
-    * Returns true if the given rank is sorted by proc-time attribute and limits 1
+    * Returns true if the given rank is sorted by time attribute and limits 1
     * and its RankFunction is ROW_NUMBER, else false.
     *
     * @param rank The [[FlinkLogicalRank]] node
@@ -117,12 +124,12 @@ object StreamExecDeduplicateRule {
     }
 
     val inputRowType = rank.getInput.getRowType
-    val isSortOnProctime = sortOnProcTimeAttribute(sortCollation, inputRowType)
+    val isSortOnProctime = sortOnTimeAttribute(sortCollation, inputRowType)
 
     !rank.outputRankNumber && isLimit1 && isSortOnProctime && isRowNumberType
   }
 
-  private def sortOnProcTimeAttribute(
+  private def sortOnTimeAttribute(
       sortCollation: RelCollation,
       inputRowType: RelDataType): Boolean = {
     if (sortCollation.getFieldCollations.size() != 1) {
@@ -130,7 +137,8 @@ object StreamExecDeduplicateRule {
     } else {
       val firstSortField = sortCollation.getFieldCollations.get(0)
       val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      FlinkTypeFactory.isProctimeIndicatorType(fieldType)
+      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
+        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
     }
   }
 }

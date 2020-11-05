@@ -123,7 +123,6 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeAsc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -139,7 +138,6 @@ class RankTest extends TableTestBase {
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeDesc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c

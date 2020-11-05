@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
-import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
+import org.apache.flink.table.runtime.operators.deduplicate.{ProcTimeDeduplicateKeepLastRowFunction, ProcTimeMiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import java.util
@@ -96,23 +96,23 @@ class StreamExecChangelogNormalize(
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
-      val processFunction = new MiniBatchDeduplicateKeepLastRowFunction(
+      val processFunction = new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
         rowTypeInfo,
-        generateUpdateBefore,
-        true,   // generateInsert
-        false,  // inputInsertOnly
         rowSerializer,
         // disable state ttl, the changelog normalize should keep all state to have data integrity
         // we can enable state ttl if this is really needed in some cases
-        -1)
+        -1,
+        generateUpdateBefore,
+        true,   // generateInsert
+        false)  // inputInsertOnly
       val trigger = AggregateUtil.createMiniBatchTrigger(tableConfig)
       new KeyedMapBundleOperator(
         processFunction,
         trigger)
     } else {
-      val processFunction = new DeduplicateKeepLastRowFunction(
-        -1,     // disable state ttl
+      val processFunction = new ProcTimeDeduplicateKeepLastRowFunction(
         rowTypeInfo,
+        -1,     // disable state ttl
         generateUpdateBefore,
         true,   // generateInsert
         false)  // inputInsertOnly

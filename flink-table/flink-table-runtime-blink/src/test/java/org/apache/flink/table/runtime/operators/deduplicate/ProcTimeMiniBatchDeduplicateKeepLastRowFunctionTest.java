@@ -38,27 +38,27 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
- * Tests for {@link MiniBatchDeduplicateKeepLastRowFunction}.
+ * Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}.
  */
-public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestBase {
+public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
 
 	private TypeSerializer<RowData> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 
-	private MiniBatchDeduplicateKeepLastRowFunction createFunction(
+	private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
 			boolean generateUpdateBefore,
 			boolean generateInsert,
 			long minRetentionTime) {
-		return new MiniBatchDeduplicateKeepLastRowFunction(
-			inputRowType,
-			generateUpdateBefore,
-			generateInsert,
-			true,
-			typeSerializer,
-			minRetentionTime);
+		return new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
+				inputRowType,
+				typeSerializer,
+				minRetentionTime,
+				generateUpdateBefore,
+				generateInsert,
+				true);
 	}
 
 	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			MiniBatchDeduplicateKeepLastRowFunction func)
+			ProcTimeMiniBatchDeduplicateKeepLastRowFunction func)
 			throws Exception {
 		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
 		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
@@ -67,7 +67,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	@Test
 	public void testWithoutGenerateUpdateBefore() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, true, minTime.toMilliseconds());
+		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, true, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 10));
@@ -95,7 +95,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	@Test
 	public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, false, minTime.toMilliseconds());
+		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(false, false, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 10));
@@ -123,7 +123,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	@Test
 	public void testWithGenerateUpdateBefore() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
+		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 10));
@@ -154,7 +154,7 @@ public class MiniBatchDeduplicateKeepLastRowFunctionTest extends DeduplicateFunc
 
 	@Test
 	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
-		MiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
+		ProcTimeMiniBatchDeduplicateKeepLastRowFunction func = createFunction(true, true, minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.setup();
 		testHarness.open();

@@ -153,9 +153,10 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUniqueKeysOnStreamExecDeduplicate(): Unit = {
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(streamDeduplicateFirstRow).toSet)
-    assertEquals(uniqueKeys(Array(1, 2)), mq.getUniqueKeys(streamDeduplicateLastRow).toSet)
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(rowtimeDeduplicate).toSet)
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(streamProcTimeDeduplicateFirstRow).toSet)
+    assertEquals(uniqueKeys(Array(1, 2)), mq.getUniqueKeys(streamProcTimeDeduplicateLastRow).toSet)
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(streamRowTimeDeduplicateFirstRow).toSet)
+    assertEquals(uniqueKeys(Array(1, 2)), mq.getUniqueKeys(streamRowTimeDeduplicateLastRow).toSet)
   }
 
   @Test

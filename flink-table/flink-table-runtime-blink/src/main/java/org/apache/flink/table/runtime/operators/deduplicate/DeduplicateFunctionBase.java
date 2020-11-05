@@ -21,44 +21,46 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRow;
 import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
- * This function is used to deduplicate on keys and keeps only first row.
+ * Base class for deduplicate function.
+ * @param <T>   Type of the value in the state.
+ * @param <K>   Type of the key.
+ * @param <IN>  Type of the input elements.
+ * @param <OUT> Type of the returned elements.
  */
-public class DeduplicateKeepFirstRowFunction
-		extends KeyedProcessFunction<RowData, RowData, RowData> {
+abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFunction<K, IN, OUT> {
 
-	private static final long serialVersionUID = 5865777137707602549L;
+	// the TypeInformation of the values in the state.
+	protected final TypeInformation<T> typeInfo;
+	protected final long minRetentionTime;
+	protected final TypeSerializer<OUT> serializer;
+	// state stores previous message under the key.
+	protected ValueState<T> state;
 
-	private final long minRetentionTime;
-	// state stores a boolean flag to indicate whether key appears before.
-	private ValueState<Boolean> state;
-
-	public DeduplicateKeepFirstRowFunction(long minRetentionTime) {
+	public DeduplicateFunctionBase(
+			TypeInformation<T> typeInfo,
+			TypeSerializer<OUT> serializer,
+			long minRetentionTime) {
+		this.typeInfo = typeInfo;
 		this.minRetentionTime = minRetentionTime;
+		this.serializer = serializer;
 	}
 
 	@Override
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
-		ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("existsState", Types.BOOLEAN);
+		ValueStateDescriptor<T> stateDesc = new ValueStateDescriptor<>("deduplicate-state", typeInfo);
 		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
 		if (ttlConfig.isEnabled()) {
 			stateDesc.enableTimeToLive(ttlConfig);
 		}
 		state = getRuntimeContext().getState(stateDesc);
-	}
-
-	@Override
-	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		processFirstRow(input, state, out);
 	}
 }

@@ -18,16 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
-import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -36,51 +31,41 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
- * Tests for {@link MiniBatchDeduplicateKeepFirstRowFunction}.
+ * Tests for {@link ProcTimeDeduplicateKeepFirstRowFunction}.
  */
-public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
-
-	private TypeSerializer<RowData> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
+public class ProcTimeDeduplicateKeepFirstRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
 
 	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			MiniBatchDeduplicateKeepFirstRowFunction func)
+			ProcTimeDeduplicateKeepFirstRowFunction func)
 			throws Exception {
-		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
-		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
-		return new KeyedOneInputStreamOperatorTestHarness<>(op, rowKeySelector, rowKeySelector.getProducedType());
+		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
+		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
 	}
 
 	@Test
-	public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
-		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
+	public void test() throws Exception {
+		ProcTimeDeduplicateKeepFirstRowFunction func = new ProcTimeDeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
-
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
-
 		testHarness.processElement(insertRecord("book", 1L, 13));
+		testHarness.close();
 
 		// Keep FirstRow in deduplicate will not send retraction
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord("book", 1L, 12));
 		expectedOutput.add(insertRecord("book", 2L, 11));
 		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-		testHarness.close();
 	}
 
 	@Test
-	public void testKeepFirstRowWithStateTtl() throws Exception {
-		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
+	public void testWithStateTtl() throws Exception {
+		ProcTimeDeduplicateKeepFirstRowFunction func = new ProcTimeDeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.setup();
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
 		testHarness.processElement(insertRecord("book", 1L, 13));
 
 		testHarness.setStateTtlProcessingTime(30);
@@ -88,7 +73,7 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 		testHarness.processElement(insertRecord("book", 2L, 18));
 		testHarness.processElement(insertRecord("book", 1L, 19));
 
-		// Keep FirstRow in deduplicate
+		// Keep FirstRow in deduplicate will not send retraction
 		List<Object> expectedOutput = new ArrayList<>();
 		expectedOutput.add(insertRecord("book", 1L, 12));
 		expectedOutput.add(insertRecord("book", 2L, 11));
