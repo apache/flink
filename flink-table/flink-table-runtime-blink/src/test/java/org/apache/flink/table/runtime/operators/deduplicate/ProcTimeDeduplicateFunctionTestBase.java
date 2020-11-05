@@ -29,9 +29,9 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 /**
- * Base class of tests for all kinds of DeduplicateFunction.
+ * Base class of tests for all kinds of processing-time DeduplicateFunction.
  */
-abstract class DeduplicateFunctionTestBase {
+abstract class ProcTimeDeduplicateFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
 	InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),

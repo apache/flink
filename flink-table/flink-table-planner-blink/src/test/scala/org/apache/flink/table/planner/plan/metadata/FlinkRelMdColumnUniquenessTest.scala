@@ -260,19 +260,19 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testAreColumnsUniqueCountOnStreamExecDeduplicate(): Unit = {
-    assertFalse(mq.areColumnsUnique(streamDeduplicateFirstRow, ImmutableBitSet.of(0)))
-    assertTrue(mq.areColumnsUnique(streamDeduplicateFirstRow, ImmutableBitSet.of(1)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateFirstRow, ImmutableBitSet.of(0, 1)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateFirstRow, ImmutableBitSet.of(2)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateFirstRow, ImmutableBitSet.of(1, 2)))
+    assertTrue(mq.areColumnsUnique(streamProcTimeDeduplicateFirstRow, ImmutableBitSet.of(1)))
+    assertFalse(mq.areColumnsUnique(streamProcTimeDeduplicateFirstRow, ImmutableBitSet.of(0, 2)))
+    assertFalse(mq.areColumnsUnique(streamProcTimeDeduplicateFirstRow, ImmutableBitSet.of(0, 1, 2)))
+    assertFalse(mq.areColumnsUnique(streamProcTimeDeduplicateLastRow, ImmutableBitSet.of(0)))
+    assertFalse(mq.areColumnsUnique(streamProcTimeDeduplicateLastRow, ImmutableBitSet.of(0, 1)))
+    assertFalse(mq.areColumnsUnique(streamProcTimeDeduplicateLastRow, ImmutableBitSet.of(0, 1, 2)))
 
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(0)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(1)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(2)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(0, 1)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(0, 2)))
-    assertTrue(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(1, 2)))
-    assertFalse(mq.areColumnsUnique(streamDeduplicateLastRow, ImmutableBitSet.of(0, 1, 2)))
+    assertTrue(mq.areColumnsUnique(streamRowTimeDeduplicateFirstRow, ImmutableBitSet.of(1)))
+    assertFalse(mq.areColumnsUnique(streamRowTimeDeduplicateFirstRow, ImmutableBitSet.of(0, 2)))
+    assertFalse(mq.areColumnsUnique(streamRowTimeDeduplicateFirstRow, ImmutableBitSet.of(0, 1, 2)))
+    assertFalse(mq.areColumnsUnique(streamRowTimeDeduplicateLastRow, ImmutableBitSet.of(0)))
+    assertFalse(mq.areColumnsUnique(streamRowTimeDeduplicateLastRow, ImmutableBitSet.of(0, 1)))
+    assertFalse(mq.areColumnsUnique(streamRowTimeDeduplicateLastRow, ImmutableBitSet.of(0, 1, 2)))
   }
 
   @Test
