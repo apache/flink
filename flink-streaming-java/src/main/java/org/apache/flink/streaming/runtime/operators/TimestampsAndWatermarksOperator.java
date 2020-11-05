@@ -65,7 +65,7 @@ public class TimestampsAndWatermarksOperator<T>
 	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
 	private transient long watermarkInterval;
 
-	/** Whether to periodically emit watermarks or only one final watermark at the end of input.*/
+	/** Whether to emit intermediate watermarks or only one. */
 	private final boolean emitProgressiveWatermarks;
 
 	public TimestampsAndWatermarksOperator(

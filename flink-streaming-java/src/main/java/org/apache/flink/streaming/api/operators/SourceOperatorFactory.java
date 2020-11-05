@@ -51,10 +51,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	/** The event time setup (timestamp assigners, watermark generators, etc.). */
 	private final WatermarkStrategy<OUT> watermarkStrategy;
 
-	/**
-	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
-	 * input.
-	 */
+	/** Whether to emit intermediate watermarks or only one. */
 	private final boolean emitProgressiveWatermarks;
 
 	/** The number of worker thread for the source coordinator. */

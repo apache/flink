@@ -96,10 +96,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	/** Host name of the machine where the operator runs, to support locality aware work assignment. */
 	private final String localHostname;
 
-	/**
-	 * Whether to periodically emit watermarks as we go or only one final watermark at the end of
-	 * input.
-	 */
+	/** Whether to emit intermediate watermarks or only one. */
 	private final boolean emitProgressiveWatermarks;
 
 	// ---- lazily initialized fields (these fields are the "hot" fields) ----
