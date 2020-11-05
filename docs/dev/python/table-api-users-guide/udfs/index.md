@@ -2,7 +2,7 @@
 title: "User Defined Functions"
 nav-id: python_udf
 nav-parent_id: python_tableapi
-nav-pos: 40
+nav-pos: 35
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

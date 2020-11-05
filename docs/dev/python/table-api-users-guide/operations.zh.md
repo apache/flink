@@ -1,8 +1,8 @@
 ---
-title: "自定义函数"
-nav-id: python_udf
+title: "Operations"
 nav-parent_id: python_tableapi
-nav-pos: 35
+nav-pos: 29
+code_tab: python
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,3 +22,4 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+{% include_without_header dev/table/tableApi.zh.md %}
