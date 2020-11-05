@@ -151,11 +151,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case deduplicate: StreamExecDeduplicate =>
         // deduplicate only support insert only as input
         val children = visitChildren(deduplicate, ModifyKindSetTrait.INSERT_ONLY)
-        val providedTrait = if (deduplicate.keepLastRow) {
-          // produce updates if it keeps last row
-          ModifyKindSetTrait.ALL_CHANGES
-        } else {
+        val providedTrait = if (!deduplicate.keepLastRow && !deduplicate.isRowtime) {
+          // only proctime first row deduplicate does not produce UPDATE changes
           ModifyKindSetTrait.INSERT_ONLY
+        } else {
+          // other deduplicate produce update changes
+          ModifyKindSetTrait.ALL_CHANGES
         }
         createNewNode(deduplicate, children, providedTrait, requiredTrait, requester)
 

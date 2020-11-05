@@ -639,7 +639,25 @@ class FlinkRelMdHandlerTestBase {
   //  select a, b, c, proctime
   //  ROW_NUMBER() over (partition by b, c order by proctime desc) rn from TemporalTable3
   // ) t where rn <= 1
-  protected lazy val (streamDeduplicateFirstRow, streamDeduplicateLastRow) = {
+  protected lazy val (streamProcTimeDeduplicateFirstRow, streamProcTimeDeduplicateLastRow) = {
+    buildFirstRowAndLastRowDeduplicateNode(false)
+  }
+
+  // equivalent SQL is
+  // select a, b, c from (
+  //  select a, b, c, rowtime
+  //  ROW_NUMBER() over (partition by b order by rowtime) rn from TemporalTable3
+  // ) t where rn <= 1
+  //
+  // select a, b, c from (
+  //  select a, b, c, rowtime
+  //  ROW_NUMBER() over (partition by b, c order by rowtime desc) rn from TemporalTable3
+  // ) t where rn <= 1
+  protected lazy val (streamRowTimeDeduplicateFirstRow, streamRowTimeDeduplicateLastRow) = {
+    buildFirstRowAndLastRowDeduplicateNode(true)
+  }
+
+  def buildFirstRowAndLastRowDeduplicateNode(isRowtime: Boolean): (RelNode, RelNode) = {
     val scan: StreamExecDataStreamScan =
       createDataStreamScan(ImmutableList.of("TemporalTable3"), streamPhysicalTraits)
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
@@ -650,6 +668,7 @@ class FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       streamExchange1,
       Array(1),
+      isRowtime,
       keepLastRow = false
     )
 
@@ -678,6 +697,7 @@ class FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       streamExchange2,
       Array(1, 2),
+      isRowtime,
       keepLastRow = true
     )
     val calcOfLastRow = new StreamExecCalc(
@@ -701,27 +721,6 @@ class FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       streamExchange,
       key)
-  }
-
-  // equivalent SQL is
-  // select a, b, c from (
-  //  select a, b, c, rowtime
-  //  ROW_NUMBER() over (partition by b order by rowtime) rn from TemporalTable3
-  // ) t where rn <= 1
-  protected lazy val rowtimeDeduplicate = {
-    val temporalLogicalScan: LogicalTableScan =
-      createDataStreamScan(ImmutableList.of("TemporalTable3"), logicalTraits)
-    new FlinkLogicalRank(
-      cluster,
-      flinkLogicalTraits,
-      temporalLogicalScan,
-      ImmutableBitSet.of(1),
-      RelCollations.of(4),
-      RankType.ROW_NUMBER,
-      new ConstantRankRange(1, 1),
-      new RelDataTypeFieldImpl("rk", 6, longType),
-      outputRankNumber = false
-    )
   }
 
   // equivalent SQL is
