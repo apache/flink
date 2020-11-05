@@ -288,7 +288,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				TOPIC,
 				KAFKA_SINK_PROPERTIES,
 				new FlinkFixedPartitioner<>(),
-				KafkaSinkSemantic.EXACTLY_ONCE
+				KafkaSinkSemantic.EXACTLY_ONCE,
+				null
 			);
 		assertEquals(expectedSink, actualSink);
 
@@ -330,7 +331,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				TOPIC,
 				KAFKA_FINAL_SINK_PROPERTIES,
 				new FlinkFixedPartitioner<>(),
-				KafkaSinkSemantic.EXACTLY_ONCE
+				KafkaSinkSemantic.EXACTLY_ONCE,
+				null
 			);
 
 		assertEquals(expectedSink, actualSink);
@@ -450,6 +452,20 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSinkWithParallelism() {
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+			getBasicSourceOptions(),
+			options -> options.put("sink.parallelism", "1"));
+
+		KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(modifiedOptions);
+		final DynamicTableSink.SinkRuntimeProvider provider =
+			sink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
+		assertThat(provider, instanceOf(SinkFunctionProvider.class));
+		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+		assertEquals(1, (long) sinkFunctionProvider.getParallelism().get());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
@@ -492,7 +508,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			String topic,
 			Properties properties,
 			@Nullable FlinkKafkaPartitioner<RowData> partitioner,
-			KafkaSinkSemantic semantic) {
+			KafkaSinkSemantic semantic,
+			Integer parallelism) {
 		return new KafkaDynamicSink(
 				physicalDataType,
 				keyEncodingFormat,
@@ -503,7 +520,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				topic,
 				properties,
 				partitioner,
-				semantic);
+				semantic,
+				parallelism);
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {
