@@ -18,8 +18,9 @@
 ################################################################################
 
 OUT_TYPE="${1:-local}" # other type: s3
+SINK_TO_TEST="${2:-"StreamingFileSink"}"
 
-S3_PREFIX=temp/test_streaming_file_sink-$(uuidgen)
+S3_PREFIX=temp/test_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$S3_PREFIX"
 S3_OUTPUT_PATH="s3://$IT_CASE_S3_BUCKET/$S3_PREFIX"
 source "$(dirname "$0")"/common.sh
@@ -60,7 +61,7 @@ if [ "${OUT_TYPE}" == "s3" ]; then
   on_exit out_cleanup
 fi
 
-TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"
+TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-file-sink-test/target/FileSinkProgram.jar"
 
 ###################################
 # Get all lines in part files and sort them numerically.
@@ -135,7 +136,7 @@ function wait_for_complete_result {
     done
 }
 
-function run_streaming_file_sink_test {
+function run_file_sink_test {
   start_cluster
 
   "${FLINK_DIR}/bin/taskmanager.sh" start
@@ -143,7 +144,8 @@ function run_streaming_file_sink_test {
   "${FLINK_DIR}/bin/taskmanager.sh" start
 
   echo "Submitting job."
-  CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}")
+  CLIENT_OUTPUT=$("$FLINK_DIR/bin/flink" run -d "${TEST_PROGRAM_JAR}" --outputPath "${JOB_OUTPUT_PATH}" \
+    --sinkToTest "${SINK_TO_TEST}")
   JOB_ID=$(echo "${CLIENT_OUTPUT}" | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
   if [[ -z $JOB_ID ]]; then
@@ -187,4 +189,4 @@ function run_streaming_file_sink_test {
 }
 
 # usual runtime is ~6 minutes
-run_test_with_timeout 900 run_streaming_file_sink_test
+run_test_with_timeout 900 run_file_sink_test
