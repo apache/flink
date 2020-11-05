@@ -32,24 +32,24 @@ public class ExecutionAttemptID implements java.io.Serializable {
 
 	private static final long serialVersionUID = -1169683445778281344L;
 
-	private final AbstractID executonAttemptId;
+	private final AbstractID executionAttemptId;
 
 	public ExecutionAttemptID() {
 		this(new AbstractID());
 	}
 
 	private ExecutionAttemptID(AbstractID id) {
-		this.executonAttemptId = id;
+		this.executionAttemptId = id;
 	}
 
 	@VisibleForTesting
 	public ExecutionAttemptID(ExecutionAttemptID toCopy) {
-		this.executonAttemptId = new AbstractID(toCopy.executonAttemptId);
+		this.executionAttemptId = new AbstractID(toCopy.executionAttemptId);
 	}
 
 	public void writeTo(ByteBuf buf) {
-		buf.writeLong(this.executonAttemptId.getLowerPart());
-		buf.writeLong(this.executonAttemptId.getUpperPart());
+		buf.writeLong(this.executionAttemptId.getLowerPart());
+		buf.writeLong(this.executionAttemptId.getUpperPart());
 	}
 
 	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
@@ -63,7 +63,7 @@ public class ExecutionAttemptID implements java.io.Serializable {
 			return true;
 		} else if (obj != null && obj.getClass() == getClass()) {
 			ExecutionAttemptID that = (ExecutionAttemptID) obj;
-			return that.executonAttemptId.equals(this.executonAttemptId);
+			return that.executionAttemptId.equals(this.executionAttemptId);
 		} else {
 			return false;
 		}
@@ -71,12 +71,12 @@ public class ExecutionAttemptID implements java.io.Serializable {
 
 	@Override
 	public int hashCode() {
-		return executonAttemptId.hashCode();
+		return executionAttemptId.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return executonAttemptId.toString();
+		return executionAttemptId.toString();
 	}
 
 }
