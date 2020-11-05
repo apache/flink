@@ -66,16 +66,12 @@ public class TimestampsAndWatermarksTransformationTranslator<IN>
 				emitProgressiveWatermarks);
 		SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(operator);
 		operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
-		Collection<Integer> transformationIds = translateInternal(
+		return translateInternal(
 				transformation,
 				operatorFactory,
 				transformation.getInputType(),
 				null,
 				null,
 				context);
-		if (!emitProgressiveWatermarks) {
-			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
-		}
-		return transformationIds;
 	}
 }

@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.common.eventtime.NoOpWatermarkGenerator;
+import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -81,14 +81,14 @@ public class TimestampsAndWatermarksOperator<T>
 		super.open();
 
 		timestampAssigner = watermarkStrategy.createTimestampAssigner(this::getMetricGroup);
-		watermarkGenerator = new NoOpWatermarkGenerator<>(
-				watermarkStrategy.createWatermarkGenerator(this::getMetricGroup),
-				emitProgressiveWatermarks);
+		watermarkGenerator = emitProgressiveWatermarks ?
+				watermarkStrategy.createWatermarkGenerator(this::getMetricGroup) :
+				new NoWatermarksGenerator<>();
 
 		wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
 
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
+		if (watermarkInterval > 0 && emitProgressiveWatermarks) {
 			final long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
