@@ -339,6 +339,38 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		assertEquals(expectedSink, actualSink);
 	}
 
+	@Test
+	public void testTableSinkWithParallelism() {
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+			getBasicSinkOptions(),
+			options -> options.put("sink.parallelism", "100"));
+		KafkaDynamicSink actualSink = (KafkaDynamicSink) createTableSink(SCHEMA, modifiedOptions);
+
+		final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
+			new EncodingFormatMock(",");
+
+		final DynamicTableSink expectedSink = createExpectedSink(
+			SCHEMA_DATA_TYPE,
+			null,
+			valueEncodingFormat,
+			new int[0],
+			new int[]{0, 1, 2},
+			null,
+			TOPIC,
+			KAFKA_SINK_PROPERTIES,
+			new FlinkFixedPartitioner<>(),
+			KafkaSinkSemantic.EXACTLY_ONCE,
+			100
+		);
+		assertEquals(expectedSink, actualSink);
+
+		final DynamicTableSink.SinkRuntimeProvider provider =
+			actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
+		assertThat(provider, instanceOf(SinkFunctionProvider.class));
+		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
+		assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Negative tests
 	// --------------------------------------------------------------------------------------------
@@ -496,20 +528,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testSinkWithParallelism() {
-		final Map<String, String> modifiedOptions = getModifiedOptions(
-			getBasicSourceOptions(),
-			options -> options.put("sink.parallelism", "1"));
-
-		KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(SCHEMA, modifiedOptions);
-		final DynamicTableSink.SinkRuntimeProvider provider =
-			sink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-		assertThat(provider, instanceOf(SinkFunctionProvider.class));
-		final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-		assertEquals(1, (long) sinkFunctionProvider.getParallelism().get());
-	}
-
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
@@ -526,8 +544,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 			Properties properties,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis,
-			@Nullable Integer parallelism) {
+			long startupTimestampMillis) {
 		return new KafkaDynamicSource(
 				physicalDataType,
 				keyDecodingFormat,
@@ -541,8 +558,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				startupMode,
 				specificStartupOffsets,
 				startupTimestampMillis,
-				false,
-				parallelism);
+				false);
 	}
 
 	private static KafkaDynamicSink createExpectedSink(
