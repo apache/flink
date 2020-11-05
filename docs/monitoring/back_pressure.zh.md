@@ -40,7 +40,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 
 通过不断对每个 Task 的反压状态采样来进行反压监控。JobManager 会触发对 Task `Task.isBackPressured()` 的重复调用。
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling.png %}" class="img-responsive">
 <!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
 
 Task 是否反压是基于输出 Buffer 的可用性判断的，如果一个用于数据输出的 Buffer 都没有了，则表明 Task 被反压了。
@@ -73,14 +73,14 @@ Task 是否反压是基于输出 Buffer 的可用性判断的，如果一个用�
 
 注意，点击该行，可触发该算子所有 SubTask 的采样。
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_in_progress.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_in_progress.png %}" class="img-responsive">
 
 ### 反压状态
 
 如果你看到 Task 的状态为 **OK** 表示没有反压。**HIGH** 表示这个 Task 被反压。
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_ok.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_ok.png %}" class="img-responsive">
 
-<img src="{{ site.baseurl }}/fig/back_pressure_sampling_high.png" class="img-responsive">
+<img src="{% link /fig/back_pressure_sampling_high.png %}" class="img-responsive">
 
 {% top %}

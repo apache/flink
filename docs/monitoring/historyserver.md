@@ -71,7 +71,7 @@ historyserver.archive.fs.refresh-interval: 10000
 
 The contained archives are downloaded and cached in the local filesystem. The local directory for this is configured via `historyserver.web.tmpdir`.
 
-Check out the configuration page for a [complete list of configuration options]({{ site.baseurl }}/ops/config.html#history-server).
+Check out the configuration page for a [complete list of configuration options]({% link ops/config.md %}#history-server).
 
 ## Available Requests
 
