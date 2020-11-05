@@ -25,9 +25,10 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
@@ -337,14 +338,14 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperCompletedCheckpointStore} instance.
+	 * Creates a {@link DefaultCompletedCheckpointStore} instance with {@link ZooKeeperStateHandleStore}.
 	 *
 	 * @param client                         The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration                  {@link Configuration} object
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
 	 * @param executor to run ZooKeeper callbacks
-	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
+	 * @return {@link DefaultCompletedCheckpointStore} instance
 	 * @throws Exception if the completed checkpoint store cannot be created
 	 */
 	public static CompletedCheckpointStore createCompletedCheckpoints(
@@ -365,12 +366,19 @@ public class ZooKeeperUtils {
 
 		checkpointsPath += getPathForJob(jobId);
 
-		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		final ZooKeeperStateHandleStore<CompletedCheckpoint> completedCheckpointStateHandleStore =
+			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage);
+		final CompletedCheckpointStore zooKeeperCompletedCheckpointStore = new DefaultCompletedCheckpointStore<>(
 			maxNumberOfCheckpointsToRetain,
-			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage),
+			completedCheckpointStateHandleStore,
+			ZooKeeperCheckpointStoreUtil.INSTANCE,
 			executor);
 
-		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
+		LOG.info(
+			"Initialized {} in '{}' with {}.",
+			DefaultCompletedCheckpointStore.class.getSimpleName(),
+			completedCheckpointStateHandleStore,
+			checkpointsPath);
 		return zooKeeperCompletedCheckpointStore;
 	}
 
