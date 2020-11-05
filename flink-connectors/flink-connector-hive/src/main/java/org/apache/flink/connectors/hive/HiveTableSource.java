@@ -27,6 +27,7 @@ import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableFileInputFormat;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -58,7 +59,6 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -77,8 +77,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -414,7 +412,7 @@ public class HiveTableSource implements
 				// while this is inline with Hive, seems it should be null for string columns as well
 				partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
 			} else {
-				partitionObject = restorePartitionValueFromFromType(shim, partitionValue, type);
+				partitionObject = HivePartitionUtils.restorePartitionValueFromType(shim, partitionValue, type);
 			}
 			partitionColValues.put(partitionColName, partitionObject);
 		}
@@ -425,44 +423,6 @@ public class HiveTableSource implements
 		Preconditions.checkArgument(spec.size() == partitionColNames.size() && spec.keySet().containsAll(partitionColNames),
 				"Partition spec (%s) and partition column names (%s) doesn't match", spec, partitionColNames);
 		return partitionColNames.stream().map(spec::get).collect(Collectors.toList());
-	}
-
-	private static Object restorePartitionValueFromFromType(HiveShim shim, String valStr, DataType type) {
-		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
-		//note: it's not a complete list ofr partition key types that Hive support, we may need add more later.
-		switch (typeRoot) {
-			case CHAR:
-			case VARCHAR:
-				return valStr;
-			case BOOLEAN:
-				return Boolean.parseBoolean(valStr);
-			case TINYINT:
-				return Integer.valueOf(valStr).byteValue();
-			case SMALLINT:
-				return Short.valueOf(valStr);
-			case INTEGER:
-				return Integer.valueOf(valStr);
-			case BIGINT:
-				return Long.valueOf(valStr);
-			case FLOAT:
-				return Float.valueOf(valStr);
-			case DOUBLE:
-				return Double.valueOf(valStr);
-			case DATE:
-				return HiveInspectors.toFlinkObject(
-						HiveInspectors.getObjectInspector(type),
-						shim.toHiveDate(Date.valueOf(valStr)),
-						shim);
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return HiveInspectors.toFlinkObject(
-						HiveInspectors.getObjectInspector(type),
-						shim.toHiveTimestamp(Timestamp.valueOf(valStr)),
-						shim);
-			default:
-				break;
-		}
-		throw new FlinkHiveException(
-				new IllegalArgumentException(String.format("Can not convert %s to type %s for partition value", valStr, type)));
 	}
 
 	@Override
