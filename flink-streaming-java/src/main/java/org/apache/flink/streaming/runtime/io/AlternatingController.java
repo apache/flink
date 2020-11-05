@@ -97,15 +97,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	public Optional<CheckpointBarrier> preProcessFirstBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException {
-		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(barrier);
-
-		if (maybeTimedOut.isPresent()) {
-			timeoutToUnalignedCheckpoint(channelInfo, maybeTimedOut.get());
-			return maybeTimedOut;
-		}
-		else {
-			return activeController.preProcessFirstBarrier(channelInfo, barrier);
-		}
+		return activeController.preProcessFirstBarrier(channelInfo, barrier);
 	}
 
 	private void timeoutToUnalignedCheckpoint(

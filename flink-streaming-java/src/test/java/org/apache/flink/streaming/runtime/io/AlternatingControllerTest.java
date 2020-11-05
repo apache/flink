@@ -182,6 +182,41 @@ public class AlternatingControllerTest {
 		assertFalse(gate.pollNext().get().isEvent());
 	}
 
+	/**
+	 * This test tries to make sure that the first time out happens after processing
+	 * {@link EventAnnouncement} but before/during processing the first {@link CheckpointBarrier}.
+	 */
+	@Test
+	public void testTimeoutAlignmentOnFirstBarrier() throws Exception {
+		int numChannels = 2;
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels);
+
+		long alignmentTimeout = 100;
+		long checkpointCreationTime = System.currentTimeMillis();
+		Buffer checkpointBarrier = barrier(1, CHECKPOINT, checkpointCreationTime, alignmentTimeout);
+
+		RemoteInputChannel channel0 = (RemoteInputChannel) gate.getChannel(0);
+		RemoteInputChannel channel1 = (RemoteInputChannel) gate.getChannel(1);
+		channel0.onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+		channel1.onBuffer(checkpointBarrier.retainBuffer(), 0, 0);
+
+		assertEquals(0, target.getTriggeredCheckpointCounter());
+		// First announcements and prioritsed barriers
+		List<AbstractEvent> events = new ArrayList<>();
+		events.add(gate.pollNext().get().getEvent());
+		events.add(gate.pollNext().get().getEvent());
+
+		Thread.sleep(alignmentTimeout * 2);
+
+		events.add(gate.pollNext().get().getEvent());
+		assertThat(events, contains(
+			instanceOf(EventAnnouncement.class),
+			instanceOf(EventAnnouncement.class),
+			instanceOf(CheckpointBarrier.class)));
+		assertEquals(1, target.getTriggeredCheckpointCounter());
+	}
+
 	@Test
 	public void testMetricsAlternation() throws Exception {
 		int numChannels = 2;
