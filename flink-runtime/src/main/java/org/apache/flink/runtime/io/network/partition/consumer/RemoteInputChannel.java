@@ -555,6 +555,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 			int numPriorityElementsBeforeRemoval = receivedBuffers.getNumPriorityElements();
 			SequenceBuffer toPrioritize = receivedBuffers.getAndRemove(
 				sequenceBuffer -> sequenceBuffer.sequenceNumber == sequenceNumber);
+			checkState(lastOvertakenSequenceNumber == sequenceNumber);
 			checkState(!toPrioritize.buffer.isBuffer());
 			checkState(
 				numPriorityElementsBeforeRemoval == receivedBuffers.getNumPriorityElements(),

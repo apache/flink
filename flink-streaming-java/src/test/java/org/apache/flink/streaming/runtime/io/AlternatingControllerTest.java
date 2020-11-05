@@ -19,7 +19,10 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.NoOpChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -214,6 +217,49 @@ public class AlternatingControllerTest {
 			instanceOf(EventAnnouncement.class),
 			instanceOf(EventAnnouncement.class),
 			instanceOf(CheckpointBarrier.class)));
+		assertEquals(1, target.getTriggeredCheckpointCounter());
+	}
+
+	/**
+	 * First we process aligned {@link CheckpointBarrier} and after that we receive an already unaligned
+	 * {@link CheckpointBarrier}, that has timed out on an upstream task.
+	 */
+	@Test
+	public void testTimeoutAlignmentOnUnalignedCheckpoint() throws Exception {
+		int numChannels = 2;
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+		CheckpointedInputGate gate = buildRemoteInputGate(target, numChannels, channelStateWriter);
+
+		long checkpointCreationTime = System.currentTimeMillis();
+		Buffer alignedCheckpointBarrier = barrier(1, CHECKPOINT, checkpointCreationTime, Integer.MAX_VALUE);
+		Buffer unalignedCheckpointBarrier = barrier(1, CHECKPOINT, checkpointCreationTime, 0);
+		Buffer buffer = TestBufferFactory.createBuffer(1000);
+
+		RemoteInputChannel channel0 = (RemoteInputChannel) gate.getChannel(0);
+		RemoteInputChannel channel1 = (RemoteInputChannel) gate.getChannel(1);
+		channel0.onBuffer(alignedCheckpointBarrier.retainBuffer(), 0, 0);
+
+		List<AbstractEvent> events = new ArrayList<>();
+		events.add(gate.pollNext().get().getEvent());
+		events.add(gate.pollNext().get().getEvent());
+
+		assertThat(events, contains(
+			instanceOf(EventAnnouncement.class),
+			instanceOf(CheckpointBarrier.class)));
+
+		channel1.onBuffer(buffer.retainBuffer(), 0, 0);
+		channel1.onBuffer(buffer.retainBuffer(), 1, 0);
+		channel1.onBuffer(unalignedCheckpointBarrier.retainBuffer(), 2, 0);
+
+		events.add(gate.pollNext().get().getEvent());
+
+		assertThat(events, contains(
+			instanceOf(EventAnnouncement.class),
+			instanceOf(CheckpointBarrier.class),
+			instanceOf(CheckpointBarrier.class)));
+
+		assertEquals(channelStateWriter.getAddedInput().get(channel1.getChannelInfo()).size(), 2);
 		assertEquals(1, target.getTriggeredCheckpointCounter());
 	}
 
@@ -476,6 +522,13 @@ public class AlternatingControllerTest {
 	}
 
 	private static SingleCheckpointBarrierHandler barrierHandler(SingleInputGate inputGate, AbstractInvokable target) {
+		return barrierHandler(inputGate, target, new NoOpChannelStateWriter());
+	}
+
+	private static SingleCheckpointBarrierHandler barrierHandler(
+			SingleInputGate inputGate,
+			AbstractInvokable target,
+			ChannelStateWriter stateWriter) {
 		String taskName = "test";
 		return new SingleCheckpointBarrierHandler(
 			taskName,
@@ -483,7 +536,7 @@ public class AlternatingControllerTest {
 			inputGate.getNumberOfInputChannels(),
 			new AlternatingController(
 				new AlignedController(inputGate),
-				new UnalignedController(TestSubtaskCheckpointCoordinator.INSTANCE, inputGate)));
+				new UnalignedController(new TestSubtaskCheckpointCoordinator(stateWriter), inputGate)));
 	}
 
 	private Buffer barrier(long barrierId, CheckpointType checkpointType) throws IOException {
@@ -522,6 +575,13 @@ public class AlternatingControllerTest {
 	private static CheckpointedInputGate buildRemoteInputGate(
 			AbstractInvokable target,
 			int numChannels) throws IOException {
+		return buildRemoteInputGate(target, numChannels, new NoOpChannelStateWriter());
+	}
+
+	private static CheckpointedInputGate buildRemoteInputGate(
+			AbstractInvokable target,
+			int numChannels,
+			ChannelStateWriter channelStateWriter) throws IOException {
 		int maxUsedBuffers = 10;
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numChannels * maxUsedBuffers, 4096);
 		SingleInputGate gate = new SingleInputGateBuilder()
@@ -529,12 +589,13 @@ public class AlternatingControllerTest {
 			.setNumberOfChannels(numChannels)
 			.setSegmentProvider(networkBufferPool)
 			.setBufferPoolFactory(networkBufferPool.createBufferPool(numChannels, maxUsedBuffers))
+			.setChannelStateWriter(channelStateWriter)
 			.build();
 		gate.setup();
 		gate.requestPartitions();
 		// do not fire events automatically. If you need events, you should expose mailboxProcessor and
 		// execute it step by step
 		MailboxProcessor mailboxProcessor = new MailboxProcessor();
-		return new CheckpointedInputGate(gate, barrierHandler(gate, target), mailboxProcessor.getMainMailboxExecutor());
+		return new CheckpointedInputGate(gate, barrierHandler(gate, target, channelStateWriter), mailboxProcessor.getMainMailboxExecutor());
 	}
 }

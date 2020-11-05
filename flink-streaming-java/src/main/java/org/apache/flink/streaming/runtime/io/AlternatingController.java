@@ -75,6 +75,12 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 	@Override
 	public Optional<CheckpointBarrier> barrierReceived(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+		if (barrier.getCheckpointOptions().isUnalignedCheckpoint() && activeController == alignedController) {
+			timeoutToUnalignedCheckpoint(channelInfo, barrier);
+			activeController.barrierReceived(channelInfo, barrier);
+			return Optional.of(barrier);
+		}
+
 		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(barrier);
 		barrier = maybeTimedOut.orElse(barrier);
 
@@ -114,7 +120,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 		// get blocked channels before resuming consumption
 		Collection<InputChannelInfo> blockedChannels = alignedController.getBlockedChannels();
-		alignedController.resumeConsumption();
+
 		activeController = unalignedController;
 
 		// alignedController might has already processed some barriers, so "migrate"/forward those calls to unalignedController.
@@ -122,6 +128,8 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 		for (InputChannelInfo blockedChannel : blockedChannels) {
 			unalignedController.barrierReceived(blockedChannel, barrier);
 		}
+
+		alignedController.resumeConsumption();
 	}
 
 	@Override
