@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.Description;
 
 /**
  * Configuration options for the Python API.
@@ -122,11 +123,14 @@ public class PythonOptions {
 		.key("python.client.executable")
 		.stringType()
 		.defaultValue("python")
-		.withDescription("The python interpreter used to launch the python process when compiling " +
-			"the jobs containing Python UDFs. Equivalent to the environment variable PYFLINK_EXECUTABLE. " +
-			"The priority is as following: 1. the configuration 'python.client.executable' defined in " +
-			"the source code; 2. the environment variable PYFLINK_EXECUTABLE; 3. the configuration " +
-			"'python.client.executable' defined in flink-conf.yaml");
+		.withDescription(Description.builder()
+			.text("The path of the Python interpreter used to launch the Python process when submitting the "
+				+ "Python jobs via \"flink run\" or compiling the Java/Scala jobs containing Python UDFs. "
+				+ "Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+				+ "The priority is as following: ").linebreak()
+			.text("1. the configuration 'python.client.executable' defined in the source code;").linebreak()
+			.text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;").linebreak()
+			.text("3. the configuration 'python.client.executable' defined in flink-conf.yaml").build());
 
 	/**
 	 * Whether the memory used by the Python framework is managed memory.
