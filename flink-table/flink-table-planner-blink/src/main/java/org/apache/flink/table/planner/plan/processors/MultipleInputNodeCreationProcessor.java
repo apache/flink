@@ -162,7 +162,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 
 			// we then try to create a new multiple input group with this node as the root
 			if (canBeRootOfMultipleInputGroup(wrapper)) {
-				wrapper.createGroup();
+				wrapper.group = new MultipleInputGroup(wrapper);
 			}
 
 			// all our attempts failed, this node will not be in a multiple input node
@@ -227,37 +227,20 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// we only consider nodes currently in a multiple input group
 				continue;
 			}
-
-			boolean isUnion = wrapper.execNode instanceof Union;
-
-			if (group.members.size() == 1) {
-				Preconditions.checkState(
-					wrapper == group.root,
-					"The only member of a multiple input group is not its root. This is a bug.");
-				// optimization 1. we clean up multiple input groups with only 1 member,
-				// unless one of its input is a FLIP-27 source (for maximizing source chaining),
-				// however unions do not apply to this optimization because they're not real operators
-				if (isUnion || wrapper.inputs.stream().noneMatch(
-						inputWrapper -> isChainableSource(inputWrapper.execNode))) {
-					wrapper.group.removeRoot();
-				}
-				continue;
-			}
-
 			if (!isEntranceOfMultipleInputGroup(wrapper)) {
 				// we're not removing a node from the middle of a multiple input group
 				continue;
 			}
 
 			boolean shouldRemove = false;
-			if (isUnion) {
-				// optimization 2. we do not allow union to be the tail of a multiple input
+			if (wrapper.execNode instanceof Union) {
+				// optimization 1. we do not allow union to be the tail of a multiple input
 				// as we're paying extra function calls for this, unless one of the united
 				// input is a FLIP-27 source
 				shouldRemove = wrapper.inputs.stream().noneMatch(
 					inputWrapper -> isChainableSource(inputWrapper.execNode));
 			} else if (wrapper.inputs.size() == 1) {
-				// optimization 3. for one-input operators we'll remove it unless its input
+				// optimization 2. for one-input operators we'll remove it unless its input
 				// is an exchange or a FLIP-27 source, this is mainly to avoid the following
 				// pattern:
 				// non-chainable source -> calc --\
@@ -270,7 +253,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				shouldRemove = !(input instanceof Exchange) && !isChainableSource(input);
 			}
 
-			// optimization 4. for singleton operations (for example singleton global agg)
+			// optimization 3. for singleton operations (for example singleton global agg)
 			// we're not including it into the multiple input node as we have to ensure that
 			// the whole multiple input can only have 1 parallelism.
 			// continuous singleton operations connected by forwarding shuffle will be dealt
@@ -291,8 +274,25 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// we only consider nodes currently in a multiple input group
 				continue;
 			}
+			if (wrapper != wrapper.group.root) {
+				// we only consider nodes at the root of the multiple input
+				continue;
+			}
 
-			if (wrapper == wrapper.group.root && wrapper.execNode instanceof Union) {
+			boolean isUnion = wrapper.execNode instanceof Union;
+
+			if (group.members.size() == 1) {
+				// optimization 4. we clean up multiple input groups with only 1 member,
+				// unless one of its input is a FLIP-27 source (for maximizing source chaining),
+				// however unions do not apply to this optimization because they're not real operators
+				if (isUnion || wrapper.inputs.stream().noneMatch(
+					inputWrapper -> isChainableSource(inputWrapper.execNode))) {
+					wrapper.group.removeRoot();
+				}
+				continue;
+			}
+
+			if (isUnion) {
 				// optimization 5. this optimization remove redundant union at the output of a
 				// multiple input, consider the following graph:
 				//
@@ -342,6 +342,10 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 					}
 					wrapper.group.removeRoot();
 				}
+			} else if (wrapper.inputs.size() == 1) {
+				// optimization 6. operators with only 1 input are not allowed to be the root,
+				// as their chaining will be handled by operator chains.
+				wrapper.group.removeRoot();
 			}
 		}
 	}
@@ -532,10 +536,6 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			this.inputs = new ArrayList<>();
 			this.outputs = new ArrayList<>();
 			this.group = null;
-		}
-
-		private void createGroup() {
-			this.group = new MultipleInputGroup(this);
 		}
 	}
 

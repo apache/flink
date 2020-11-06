@@ -271,6 +271,41 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
   }
 
   @Test
+  def testRemoveOneInputOperatorFromRoot(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d),
+        |  T2 AS (SELECT b FROM x INNER JOIN y ON x.b = y.e)
+        |SELECT * FROM
+        |  (SELECT a, b FROM T1 LEFT JOIN T2 ON T1.a = T2.b)
+        |  UNION ALL
+        |  (SELECT a, b FROM x)
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testCleanUpMultipleInputWithOneMember(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, a + 1 FROM T1)
+        |  UNION ALL
+        |  (SELECT a, b FROM x)
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testKeepUsefulUnion(): Unit = {
     createChainableTableSource()
     util.tableEnv.getConfig.getConfiguration.setBoolean(

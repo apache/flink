@@ -190,15 +190,19 @@ LogicalUnion(all=[true])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-MultipleInput(members=[\nUnion(all=[true], union=[deptno, g, c])\n:- Calc(select=[deptno, 0:BIGINT AS g, c])\n:  +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])\n:     +- [#1] Exchange(distribution=[hash[deptno, $e]])\n+- Calc(select=[deptno, 1:BIGINT AS g, c])\n   +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_COUNT(count1$0) AS c])\n      +- [#2] Exchange(distribution=[hash[deptno]])\n])
-:- Exchange(distribution=[hash[deptno, $e]])
-:  +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
-:     +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-:        +- Calc(select=[deptno], reuse_id=[1])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
-+- Exchange(distribution=[hash[deptno]])
-   +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_COUNT(*) AS count1$0])
-      +- Reused(reference_id=[1])
+Union(all=[true], union=[deptno, g, c])
+:- Calc(select=[deptno, 0:BIGINT AS g, c])
+:  +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
+:     +- Exchange(distribution=[hash[deptno, $e]])
+:        +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
+:           +- Expand(projects=[deptno, $e], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+:              +- Calc(select=[deptno], reuse_id=[1])
+:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
++- Calc(select=[deptno, 1:BIGINT AS g, c])
+   +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_COUNT(count1$0) AS c])
+      +- Exchange(distribution=[hash[deptno]])
+         +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_COUNT(*) AS count1$0])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
