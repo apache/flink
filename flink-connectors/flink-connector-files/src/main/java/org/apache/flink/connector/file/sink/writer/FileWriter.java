@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
@@ -41,6 +42,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -49,7 +51,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class FileWriter<IN>
-		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState> {
+		implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
+		Sink.ProcessingTimeService.ProcessingTimeCallback {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
 
@@ -64,6 +67,10 @@ public class FileWriter<IN>
 	private final BucketWriter<IN, String> bucketWriter;
 
 	private final RollingPolicy<IN, String> rollingPolicy;
+
+	private final Sink.ProcessingTimeService processingTimeService;
+
+	private final long bucketCheckInterval;
 
 	// --------------------------- runtime fields -----------------------------
 
@@ -92,7 +99,9 @@ public class FileWriter<IN>
 			final FileWriterBucketFactory<IN> bucketFactory,
 			final BucketWriter<IN, String> bucketWriter,
 			final RollingPolicy<IN, String> rollingPolicy,
-			final OutputFileConfig outputFileConfig) {
+			final OutputFileConfig outputFileConfig,
+			final Sink.ProcessingTimeService processingTimeService,
+			final long bucketCheckInterval) {
 
 		this.basePath = checkNotNull(basePath);
 		this.bucketAssigner = checkNotNull(bucketAssigner);
@@ -107,6 +116,15 @@ public class FileWriter<IN>
 
 		this.bucketStateSerializer = new FileWriterBucketStateSerializer(
 				bucketWriter.getProperties().getInProgressFileRecoverableSerializer());
+
+		this.processingTimeService = checkNotNull(processingTimeService);
+		checkArgument(
+				bucketCheckInterval > 0,
+				"Bucket checking interval for processing time should be positive.");
+		this.bucketCheckInterval = bucketCheckInterval;
+		processingTimeService.registerProcessingTimer(
+				processingTimeService.getCurrentProcessingTime() + bucketCheckInterval,
+				this);
 	}
 
 	/**
@@ -166,7 +184,7 @@ public class FileWriter<IN>
 
 		final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
 		final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
-		bucket.write(element);
+		bucket.write(element, processingTimeService.getCurrentProcessingTime());
 	}
 
 	@Override
@@ -231,6 +249,17 @@ public class FileWriter<IN>
 			return basePath;
 		}
 		return new Path(basePath, bucketId);
+	}
+
+	@Override
+	public void onProcessingTime(long time) throws IOException {
+		for (FileWriterBucket<IN> bucket : activeBuckets.values()) {
+			bucket.onProcessingTime(time);
+		}
+
+		processingTimeService.registerProcessingTimer(
+				processingTimeService.getCurrentProcessingTime() + bucketCheckInterval,
+				this);
 	}
 
 	/**
