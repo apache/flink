@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -208,6 +210,34 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 				assertThat(testingContender.getError(), is(nullValue()));
 			});
 		}};
+	}
+
+	/**
+	 * Tests that we can shut down the DefaultLeaderElectionService if the used
+	 * LeaderElectionDriver holds an internal lock. See FLINK-20008 for more details.
+	 */
+	@Test
+	public void testServiceShutDownWithSynchronizedDriver() throws Exception {
+		final TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory testingLeaderElectionDriverFactory = new TestingLeaderElectionDriver.TestingLeaderElectionDriverFactory();
+		final DefaultLeaderElectionService leaderElectionService = new DefaultLeaderElectionService(
+			testingLeaderElectionDriverFactory);
+
+		final TestingContender testingContender = new TestingContender(TEST_URL, leaderElectionService);
+
+		leaderElectionService.start(testingContender);
+		final TestingLeaderElectionDriver currentLeaderDriver = Preconditions.checkNotNull(
+			testingLeaderElectionDriverFactory.getCurrentLeaderDriver());
+
+		final CheckedThread isLeaderThread = new CheckedThread() {
+			@Override
+			public void go() {
+				currentLeaderDriver.isLeader();
+			}
+		};
+		isLeaderThread.start();
+
+		leaderElectionService.stop();
+		isLeaderThread.sync();
 	}
 
 	private class Context {
