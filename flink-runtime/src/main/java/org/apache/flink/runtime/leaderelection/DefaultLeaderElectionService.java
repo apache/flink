@@ -71,6 +71,8 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 		confirmedLeaderSessionID = null;
 		confirmedLeaderAddress = null;
 
+		this.leaderElectionDriver = null;
+
 		running = false;
 	}
 
@@ -193,16 +195,16 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 						leaderContender.getDescription(),
 						issuedLeaderSessionID);
 				}
+
+				leaderContender.grantLeadership(issuedLeaderSessionID);
 			} else {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Ignoring the grant leadership notification since the {} has " +
 						"already been closed.", leaderElectionDriver);
 				}
-				return;
 			}
 		}
-		// The contender callback should be executed out of lock to avoid potential deadlock.
-		leaderContender.grantLeadership(issuedLeaderSessionID);
+
 	}
 
 	@Override
@@ -220,25 +222,18 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 
 				issuedLeaderSessionID = null;
 				clearConfirmedLeaderInformation();
+
+				leaderContender.revokeLeadership();
+
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
+				}
+				// Clear the old leader information on the external storage
+				leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
 			} else {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Ignoring the revoke leadership notification since the {} " +
 						"has already been closed.", leaderElectionDriver);
-				}
-				return;
-			}
-		}
-		// The contender callback should be executed out of lock to avoid potential deadlock.
-		leaderContender.revokeLeadership();
-
-		synchronized (lock) {
-			if (running) {
-				if (issuedLeaderSessionID == null) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Clearing the leader information on {}.", leaderElectionDriver);
-					}
-					// Clear the old leader information on the external storage
-					leaderElectionDriver.writeLeaderInformation(LeaderInformation.empty());
 				}
 			}
 		}
@@ -292,13 +287,12 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 					}
 					return;
 				}
-			}
 
-			// The contender callback should be executed out of lock to avoid potential deadlock.
-			if (throwable instanceof LeaderElectionException) {
-				leaderContender.handleError((LeaderElectionException) throwable);
-			} else {
-				leaderContender.handleError(new LeaderElectionException(throwable));
+				if (throwable instanceof LeaderElectionException) {
+					leaderContender.handleError((LeaderElectionException) throwable);
+				} else {
+					leaderContender.handleError(new LeaderElectionException(throwable));
+				}
 			}
 		}
 	}
