@@ -89,7 +89,7 @@ def create_aggregate_function(factory, transform_id, transform_proto, parameter,
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.DATA_STREAM_PROCESS_FUNCTION_URN,
+    operations.PROCESS_FUNCTION_URN,
     flink_fn_execution_pb2.UserDefinedDataStreamFunction)
 def create_data_stream_stateful_function(factory, transform_id, transform_proto, parameter,
                                          consumers):

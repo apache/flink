@@ -44,7 +44,7 @@ PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
 
 # datastream operations
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
-DATA_STREAM_PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
+PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
 
 
 class Operation(abc.ABC):
