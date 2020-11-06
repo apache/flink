@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWr
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +38,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.InProgressFileRecoverable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -92,7 +92,7 @@ class FileWriterBucket<IN> {
 		this.rollingPolicy = checkNotNull(rollingPolicy);
 		this.outputFileConfig = checkNotNull(outputFileConfig);
 
-		this.uniqueId = RandomStringUtils.randomAlphanumeric(32);
+		this.uniqueId = UUID.randomUUID().toString();
 		this.partCounter = 0;
 	}
 
