@@ -136,6 +136,8 @@ public class FileSink<IN>
 
 		private static final long serialVersionUID = 1L;
 
+		protected static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
+
 		@SuppressWarnings("unchecked")
 		protected T self() {
 			return (T) this;
@@ -164,6 +166,8 @@ public class FileSink<IN>
 
 		private final Path basePath;
 
+		private long bucketCheckInterval;
+
 		private final Encoder<IN> encoder;
 
 		private final FileWriterBucketFactory<IN> bucketFactory;
@@ -180,6 +184,7 @@ public class FileSink<IN>
 				BucketAssigner<IN, String> bucketAssigner) {
 			this(
 					basePath,
+					DEFAULT_BUCKET_CHECK_INTERVAL,
 					encoder,
 					bucketAssigner,
 					DefaultRollingPolicy.builder().build(),
@@ -189,17 +194,24 @@ public class FileSink<IN>
 
 		protected RowFormatBuilder(
 				Path basePath,
+				long bucketCheckInterval,
 				Encoder<IN> encoder,
 				BucketAssigner<IN, String> assigner,
 				RollingPolicy<IN, String> policy,
 				FileWriterBucketFactory<IN> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = checkNotNull(basePath);
+			this.bucketCheckInterval = bucketCheckInterval;
 			this.encoder = checkNotNull(encoder);
 			this.bucketAssigner = checkNotNull(assigner);
 			this.rollingPolicy = checkNotNull(policy);
 			this.bucketFactory = checkNotNull(bucketFactory);
 			this.outputFileConfig = checkNotNull(outputFileConfig);
+		}
+
+		public T withBucketCheckInterval(final long interval) {
+			this.bucketCheckInterval = interval;
+			return self();
 		}
 
 		public T withBucketAssigner(final BucketAssigner<IN, String> assigner) {
@@ -230,7 +242,9 @@ public class FileSink<IN>
 					bucketFactory,
 					createBucketWriter(),
 					rollingPolicy,
-					outputFileConfig);
+					outputFileConfig,
+					context.getProcessingTimeService(),
+					bucketCheckInterval);
 		}
 
 		@Override
@@ -287,6 +301,8 @@ public class FileSink<IN>
 
 		private final Path basePath;
 
+		private long bucketCheckInterval;
+
 		private final BulkWriter.Factory<IN> writerFactory;
 
 		private final FileWriterBucketFactory<IN> bucketFactory;
@@ -303,6 +319,7 @@ public class FileSink<IN>
 				BucketAssigner<IN, String> assigner) {
 			this(
 					basePath,
+					DEFAULT_BUCKET_CHECK_INTERVAL,
 					writerFactory,
 					assigner,
 					OnCheckpointRollingPolicy.build(),
@@ -312,17 +329,24 @@ public class FileSink<IN>
 
 		protected BulkFormatBuilder(
 				Path basePath,
+				long bucketCheckInterval,
 				BulkWriter.Factory<IN> writerFactory,
 				BucketAssigner<IN, String> assigner,
 				CheckpointRollingPolicy<IN, String> policy,
 				FileWriterBucketFactory<IN> bucketFactory,
 				OutputFileConfig outputFileConfig) {
 			this.basePath = checkNotNull(basePath);
+			this.bucketCheckInterval = bucketCheckInterval;
 			this.writerFactory = writerFactory;
 			this.bucketAssigner = checkNotNull(assigner);
 			this.rollingPolicy = checkNotNull(policy);
 			this.bucketFactory = checkNotNull(bucketFactory);
 			this.outputFileConfig = checkNotNull(outputFileConfig);
+		}
+
+		public T withBucketCheckInterval(final long interval) {
+			this.bucketCheckInterval = interval;
+			return self();
 		}
 
 		public T withBucketAssigner(BucketAssigner<IN, String> assigner) {
@@ -348,6 +372,7 @@ public class FileSink<IN>
 							+ "after specifying a customized bucket factory");
 			return new BulkFormatBuilder<>(
 					basePath,
+					bucketCheckInterval,
 					writerFactory,
 					checkNotNull(assigner),
 					rollingPolicy,
@@ -368,7 +393,9 @@ public class FileSink<IN>
 					bucketFactory,
 					createBucketWriter(),
 					rollingPolicy,
-					outputFileConfig);
+					outputFileConfig,
+					context.getProcessingTimeService(),
+					bucketCheckInterval);
 		}
 
 		@Override
