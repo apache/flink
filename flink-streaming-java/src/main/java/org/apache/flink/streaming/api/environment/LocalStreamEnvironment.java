@@ -22,7 +22,6 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
@@ -34,9 +33,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
  * multi-threaded, in the JVM where the environment is instantiated. It spawns an embedded
  * Flink cluster in the background and executes the program on that cluster.
- *
- * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. The default
- * parallelism can be set via {@link #setParallelism(int)}.
  */
 @Public
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
@@ -66,9 +62,6 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
 		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
-		if (!configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).isPresent()) {
-			configuration.set(CoreOptions.DEFAULT_PARALLELISM, 1);
-		}
 		return effectiveConfiguration;
 	}
 
