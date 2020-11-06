@@ -60,7 +60,6 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 	@GuardedBy("lock")
 	private volatile boolean running;
 
-	@GuardedBy("lock")
 	private LeaderElectionDriver leaderElectionDriver;
 
 	public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
@@ -100,8 +99,9 @@ public class DefaultLeaderElectionService implements LeaderElectionService, Lead
 			}
 			running = false;
 			clearConfirmedLeaderInformation();
-			leaderElectionDriver.close();
 		}
+
+		leaderElectionDriver.close();
 	}
 
 	@Override
