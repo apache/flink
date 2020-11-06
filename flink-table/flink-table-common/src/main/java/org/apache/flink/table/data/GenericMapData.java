@@ -118,7 +118,7 @@ public final class GenericMapData implements MapData {
 		int result = 0;
 		for (Object key : map.keySet()) {
 			// only include key because values can contain byte[]
-			result += 31 * key.hashCode();
+			result += 31 *  Objects.hashCode(key);
 		}
 		return result;
 	}
