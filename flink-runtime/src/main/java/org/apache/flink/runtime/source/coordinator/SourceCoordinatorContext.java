@@ -197,6 +197,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	}
 
 	@Override
+	public void runInCoordinatorThread(Runnable runnable) {
+		coordinatorExecutor.execute(runnable);
+	}
+
+	@Override
 	public void close() throws InterruptedException {
 		notifier.close();
 		coordinatorExecutor.shutdown();
