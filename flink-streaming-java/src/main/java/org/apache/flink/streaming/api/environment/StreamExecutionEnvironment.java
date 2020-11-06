@@ -2053,6 +2053,10 @@ public class StreamExecutionEnvironment {
 	 * method returns a local execution environment, as returned by
 	 * {@link #createLocalEnvironment(Configuration)}.
 	 *
+	 * <p>When executed from the command line the given configuration is stacked on top of the
+	 * global configuration which comes from the {@code flink-conf.yaml}, potentially overriding
+	 * duplicated options.
+	 *
 	 * @param configuration The configuration to instantiate the environment with.
 	 * @return The execution environment of the context in which the program is
 	 * executed.
