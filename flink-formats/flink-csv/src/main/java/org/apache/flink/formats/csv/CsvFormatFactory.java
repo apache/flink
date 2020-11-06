@@ -37,7 +37,6 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -48,7 +47,6 @@ import static org.apache.flink.formats.csv.CsvOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.csv.CsvOptions.LINE_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
 
@@ -131,7 +129,6 @@ public final class CsvFormatFactory implements
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(FIELD_DELIMITER);
-		options.add(LINE_DELIMITER);
 		options.add(DISABLE_QUOTE_CHARACTER);
 		options.add(QUOTE_CHARACTER);
 		options.add(ALLOW_COMMENTS);
@@ -158,18 +155,6 @@ public final class CsvFormatFactory implements
 		validateCharacterVal(tableOptions, ARRAY_ELEMENT_DELIMITER);
 		validateCharacterVal(tableOptions, QUOTE_CHARACTER);
 		validateCharacterVal(tableOptions, ESCAPE_CHARACTER);
-
-		tableOptions.getOptional(LINE_DELIMITER).ifPresent(delimiter -> {
-			Set<String> allowedValues = new HashSet<>(Arrays.asList("\r", "\n", "\r\n", ""));
-			if (!allowedValues.contains(delimiter)) {
-				throw new ValidationException(
-						String.format("Invalid value for option '%s.%s'. Supported values are %s, but was: %s",
-								IDENTIFIER,
-								LINE_DELIMITER.key(),
-								"[\\r, \\n, \\r\\n, \"\"]",
-								delimiter));
-			}
-		});
 	}
 
 	/** Validates the option {@code option} value must be a Character. */
@@ -225,9 +210,6 @@ public final class CsvFormatFactory implements
 		formatOptions.getOptional(FIELD_DELIMITER)
 				.map(delimiter -> delimiter.charAt(0))
 				.ifPresent(schemaBuilder::setFieldDelimiter);
-
-		formatOptions.getOptional(LINE_DELIMITER)
-				.ifPresent(schemaBuilder::setLineDelimiter);
 
 		if (formatOptions.get(DISABLE_QUOTE_CHARACTER)) {
 			schemaBuilder.disableQuoteCharacter();

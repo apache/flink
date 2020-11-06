@@ -55,7 +55,6 @@ import static org.apache.flink.formats.csv.CsvOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.csv.CsvOptions.LINE_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
 
@@ -80,7 +79,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(FIELD_DELIMITER);
-		options.add(LINE_DELIMITER);
 		options.add(DISABLE_QUOTE_CHARACTER);
 		options.add(QUOTE_CHARACTER);
 		options.add(ALLOW_COMMENTS);
@@ -157,9 +155,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		options.getOptional(NULL_LITERAL)
 			.ifPresent(csvBuilder::setNullValue);
 
-		options.getOptional(LINE_DELIMITER)
-			.ifPresent(csvBuilder::setLineSeparator);
-
 		return csvBuilder.build();
 	}
 
@@ -173,9 +168,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		options.getOptional(FIELD_DELIMITER).map(s -> s.charAt(0))
 			.ifPresent(builder::setFieldDelimiter);
-
-		options.getOptional(LINE_DELIMITER)
-			.ifPresent(builder::setLineDelimiter);
 
 		if (options.get(DISABLE_QUOTE_CHARACTER)) {
 			builder.disableQuoteCharacter();
@@ -194,7 +186,12 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		final CsvRowDataSerializationSchema serializationSchema = builder.build();
 
-		return Optional.of((record, stream) -> stream.write(serializationSchema.serialize(record)));
+		return Optional.of((record, stream) -> {
+			StringBuilder sb = new StringBuilder();
+			sb.append(new String(serializationSchema.serialize(record)));
+			sb.append("\n");
+			stream.write(sb.toString().getBytes());
+		});
 	}
 
 	@Override

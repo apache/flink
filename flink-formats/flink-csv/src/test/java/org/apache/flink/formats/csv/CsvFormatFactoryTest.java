@@ -91,7 +91,6 @@ public class CsvFormatFactoryTest extends TestLogger {
 
 		final CsvRowDataSerializationSchema expectedSer = new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
 			.setFieldDelimiter(';')
-			.setLineDelimiter("\n")
 			.setQuoteCharacter('\'')
 			.setArrayElementDelimiter("|")
 			.setEscapeCharacter('\\')
@@ -120,7 +119,6 @@ public class CsvFormatFactoryTest extends TestLogger {
 
 		final CsvRowDataSerializationSchema expectedSer = new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
 			.setFieldDelimiter(';')
-			.setLineDelimiter("\n")
 			.setArrayElementDelimiter("|")
 			.setEscapeCharacter('\\')
 			.setNullLiteral("n/a")
@@ -164,18 +162,6 @@ public class CsvFormatFactoryTest extends TestLogger {
 	}
 
 	@Test
-	public void testInvalidLineDelimiter() {
-		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException("Invalid value for option 'csv.line-delimiter'. "
-				+ "Supported values are [\\r, \\n, \\r\\n, \"\"], but was: abc")));
-
-		final Map<String, String> options =
-				getModifiedOptions(opts -> opts.put("csv.line-delimiter", "abc"));
-
-		createTableSink(options);
-	}
-
-	@Test
 	public void testInvalidIgnoreParseError() {
 		thrown.expect(ValidationException.class);
 		thrown.expect(containsCause(new IllegalArgumentException("Unrecognized option for boolean: abc. "
@@ -210,7 +196,6 @@ public class CsvFormatFactoryTest extends TestLogger {
 
 		options.put("format", CsvFormatFactory.IDENTIFIER);
 		options.put("csv.field-delimiter", ";");
-		options.put("csv.line-delimiter", "\n");
 		options.put("csv.quote-character", "'");
 		options.put("csv.allow-comments", "true");
 		options.put("csv.ignore-parse-errors", "true");
