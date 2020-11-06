@@ -27,8 +27,8 @@ under the License.
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-file-sink-test</artifactId>
-	<name>Flink : E2E Tests : File sink</name>
+	<artifactId>flink-streaming-file-sink-test</artifactId>
+	<name>Flink : E2E Tests : Streaming file sink</name>
 
 	<dependencies>
 		<dependency>
@@ -36,12 +36,6 @@ under the License.
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-files</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -52,16 +46,16 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>FileSinkTestProgram</id>
+						<id>StreamingFileSinkSinkTestProgram</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<finalName>FileSinkProgram</finalName>
+							<finalName>StreamingFileSinkProgram</finalName>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>FileSinkProgram</mainClass>
+									<mainClass>StreamingFileSinkProgram</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
