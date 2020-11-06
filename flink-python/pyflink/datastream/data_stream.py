@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Callable, Union, Optional, List
+from typing import Callable, Union, List
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, WrapperTypeInfo
@@ -284,8 +284,6 @@ class DataStream(object):
         if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
             raise TypeError("Parameter key_selector should be a type of KeySelector.")
 
-        gateway = get_gateway()
-        PickledKeySelector = gateway.jvm.PickledKeySelector
         output_type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
         is_key_pickled_byte_array = False
@@ -299,11 +297,13 @@ class DataStream(object):
         intermediate_map_stream = self.map(
             lambda x: Row(key_selector.get_key(x), x),  # type: ignore
             output_type=Types.ROW([key_type_info, output_type_info]))
+        gateway = get_gateway()
+        JKeyByKeySelector = gateway.jvm.KeyByKeySelector
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
                                      .STREAM_KEY_BY_MAP_OPERATOR_NAME)
         key_stream = KeyedStream(
             intermediate_map_stream._j_data_stream.keyBy(
-                PickledKeySelector(is_key_pickled_byte_array),
+                JKeyByKeySelector(is_key_pickled_byte_array),
                 key_type_info.get_java_type_info()), output_type_info,
             self)
         return key_stream
@@ -505,7 +505,7 @@ class DataStream(object):
 
             def open(self, runtime_context: RuntimeContext):
                 self.num_partitions = int(runtime_context.get_job_parameter(
-                    "DATA_STREAM_NUM_PARTITIONS", "-1"))
+                    "NUM_PARTITIONS", "-1"))
                 if self.num_partitions <= 0:
                     raise ValueError(
                         "The partition number should be a positive value, got %s"
@@ -538,7 +538,7 @@ class DataStream(object):
 
     def _get_java_python_function_operator(self,
                                            func: Union[Function, FunctionWrapper],
-                                           type_info: Optional[TypeInformation],
+                                           type_info: TypeInformation,
                                            func_type: int):
         """
         Create a flink operator according to user provided function object, data types,
@@ -557,19 +557,15 @@ class DataStream(object):
         j_input_types = self._j_data_stream.getTransformation().getOutputType()
         if type_info is None:
             output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+        elif isinstance(type_info, list):
+            output_type_info = RowTypeInfo(type_info)
         else:
-            if isinstance(type_info, list):
-                output_type_info = RowTypeInfo(type_info)
-            else:
-                output_type_info = type_info
+            output_type_info = type_info
 
-        JDataStreamPythonFunction = gateway.jvm.DataStreamPythonFunction
-        j_data_stream_python_function = JDataStreamPythonFunction(
+        j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
             bytearray(serialized_func),
             _get_python_env())
-
-        JDataStreamPythonFunctionInfo = gateway.jvm.DataStreamPythonFunctionInfo
-        j_data_stream_python_function_info = JDataStreamPythonFunctionInfo(
+        j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
             j_data_stream_python_function,
             func_type)
 
@@ -588,16 +584,13 @@ class DataStream(object):
                 j_data_stream_python_function_info)
             return j_python_reduce_operator, j_output_type_info
         elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
-            DataStreamPythonFunctionOperator = gateway.jvm\
-                .org.apache.flink.streaming.api.operators.python\
-                .PythonProcessFunctionOperator
-            j_python_data_stream_function_operator = DataStreamPythonFunctionOperator(
+            j_python_process_function_operator = gateway.jvm.PythonProcessFunctionOperator(
                 j_conf,
                 j_input_types,
                 output_type_info.get_java_type_info(),
                 j_data_stream_python_function_info
             )
-            return j_python_data_stream_function_operator, output_type_info.get_java_type_info()
+            return j_python_process_function_operator, output_type_info.get_java_type_info()
         else:
             if str(func) == '_Flink_PartitionCustomMapFunction':
                 JDataStreamPythonFunctionOperator = gateway.jvm.PythonPartitionCustomOperator
@@ -605,13 +598,13 @@ class DataStream(object):
                 JDataStreamPythonFunctionOperator = \
                     gateway.jvm.StatelessOneInputPythonFunctionOperator
 
-            j_data_stream_python_function_operator = JDataStreamPythonFunctionOperator(
+            j_python_function_operator = JDataStreamPythonFunctionOperator(
                 j_conf,
                 j_input_types,
                 output_type_info.get_java_type_info(),
                 j_data_stream_python_function_info)
 
-            return j_data_stream_python_function_operator, output_type_info.get_java_type_info()
+            return j_python_function_operator, output_type_info.get_java_type_info()
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         """
@@ -1012,27 +1005,22 @@ class ConnectedStreams(object):
 
         if type_info is None:
             output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+        elif isinstance(type_info, list):
+            output_type_info = RowTypeInfo(type_info)
         else:
-            if isinstance(type_info, list):
-                output_type_info = RowTypeInfo(type_info)
-            else:
-                output_type_info = type_info
+            output_type_info = type_info
 
-        DataStreamPythonFunction = gateway.jvm.DataStreamPythonFunction
-        j_data_stream_python_function = DataStreamPythonFunction(
+        j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
             bytearray(serialized_func),
             _get_python_env())
-
-        DataStreamPythonFunctionInfo = gateway.jvm.DataStreamPythonFunctionInfo
-
-        j_data_stream_python_function_info = DataStreamPythonFunctionInfo(
+        j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
             j_data_stream_python_function,
             func_type)
 
         j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
-        StatelessTwoInputPythonFunctionOperator = \
+        JStatelessTwoInputPythonFunctionOperator = \
             gateway.jvm.StatelessTwoInputPythonFunctionOperator
-        j_python_data_stream_function_operator = StatelessTwoInputPythonFunctionOperator(
+        j_python_data_stream_function_operator = JStatelessTwoInputPythonFunctionOperator(
             j_conf,
             j_input_types1,
             j_input_types2,

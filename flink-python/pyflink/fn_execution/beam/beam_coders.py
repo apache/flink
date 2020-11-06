@@ -28,8 +28,8 @@ from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
 from pyflink.fn_execution.beam import beam_coder_impl_slow
-from pyflink.fn_execution.coders import FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN, \
-    FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN
+from pyflink.fn_execution.coders import FLINK_MAP_CODER_URN, \
+    FLINK_FLAT_MAP_CODER_URN
 
 try:
     from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
@@ -293,7 +293,7 @@ class BeamDataStreamMapCoder(FastCoder):
     def is_deterministic(self):  # type: () -> bool
         return all(c.is_deterministic() for c in self._field_coder)
 
-    @Coder.register_urn(FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN, flink_fn_execution_pb2.TypeInfo)
+    @Coder.register_urn(FLINK_MAP_CODER_URN, flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
         return BeamDataStreamMapCoder(
             coders.DataStreamMapCoder.from_type_info_proto(type_info_proto))
@@ -319,7 +319,7 @@ class BeamDataStreamFlatMapCoder(FastCoder):
     def is_deterministic(self):  # type: () -> bool
         return all(c.is_deterministic() for c in self._field_coder)
 
-    @Coder.register_urn(FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN,
+    @Coder.register_urn(FLINK_FLAT_MAP_CODER_URN,
                         flink_fn_execution_pb2.TypeInfo)
     def _pickled_from_runner_api_parameter(type_info_proto, unused_components, unused_context):
         return BeamDataStreamFlatMapCoder(

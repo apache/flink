@@ -62,11 +62,14 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATA_STREAM_PROCESS_FUNCTION_URN =
-		"flink:transform:process_function:v1";
+	private static final String PROCESS_FUNCTION_URN = "flink:transform:process_function:v1";
 
-	private static final String DATA_STREAM_PROCESS_FUNCTION_CODER_URN =
-		"flink:coder:flat_map:v1";
+	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
+
+	/**
+	 * The options used to configure the Python worker process.
+	 */
+	protected final Map<String, String> jobOptions;
 
 	/**
 	 * The python {@link org.apache.flink.streaming.api.functions.ProcessFunction} to be executed.
@@ -112,11 +115,6 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 	 * TimerService for current operator to register or fire timer.
 	 */
 	private transient TimerService timerservice;
-
-	/**
-	 * The options used to configure the Python worker process.
-	 */
-	protected final Map<String, String> jobOptions;
 
 	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
@@ -213,10 +211,10 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
 			runnerOutputTypeInfo,
-			DATA_STREAM_PROCESS_FUNCTION_URN,
+			PROCESS_FUNCTION_URN,
 			PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
 				pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP, keyTypeInfo),
-			DATA_STREAM_PROCESS_FUNCTION_CODER_URN,
+			FLAT_MAP_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
 			getKeyedStateBackend(),

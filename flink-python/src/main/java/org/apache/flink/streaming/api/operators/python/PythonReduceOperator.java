@@ -43,18 +43,26 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
  * will start a python harness to execute user defined python ReduceFunction.
  */
 @Internal
-public class PythonReduceOperator<OUT>
-	extends StatelessOneInputPythonFunctionOperator<Row, OUT> {
+public class PythonReduceOperator<OUT> extends StatelessOneInputPythonFunctionOperator<Row, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_python_reduce_state";
 
-	private transient ValueState<OUT> values;
+	/**
+	 * This state is used to store the currently reduce value.
+	 */
+	private transient ValueState<OUT> valueState;
 
+	/**
+	 * The TypeInformation of python worker input data.
+	 */
+	private transient TypeInformation<Row> runnerInputTypeInfo;
+
+	/**
+	 * The TypeSerializer of python worker input data.
+	 */
 	private transient TypeSerializer<Row> runnerInputTypeSerializer;
-
-	private final TypeInformation<Row> runnerInputTypeInfo;
 
 	private transient Row reuseRow;
 
@@ -64,32 +72,32 @@ public class PythonReduceOperator<OUT>
 		TypeInformation<OUT> outputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
 		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-		runnerInputTypeInfo = new RowTypeInfo(outputTypeInfo, outputTypeInfo);
 	}
 
 	@Override
 	public void open() throws Exception {
-		super.open();
-
 		// create state
 		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(
 			STATE_NAME,
 			outputTypeInfo);
-		values = getPartitionedState(stateId);
+		valueState = getPartitionedState(stateId);
 
+		runnerInputTypeInfo = new RowTypeInfo(outputTypeInfo, outputTypeInfo);
 		runnerInputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 
 		reuseRow = new Row(2);
+
+		super.open();
 	}
 
 	@Override
 	public void processElement(StreamRecord<Row> element) throws Exception {
 		OUT inputData = (OUT) element.getValue().getField(1);
-		OUT currentValue = values.value();
+		OUT currentValue = valueState.value();
 		if (currentValue == null) {
 			// emit directly for the first element.
-			values.update(inputData);
+			valueState.update(inputData);
 			streamRecordCollector.collect(inputData);
 		} else {
 			reuseRow.setField(0, currentValue);
@@ -109,7 +117,7 @@ public class PythonReduceOperator<OUT>
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
 		OUT result = outputTypeSerializer.deserialize(baisWrapper);
-		values.update(result);
+		valueState.update(result);
 		streamRecordCollector.collect(result);
 	}
 
@@ -120,9 +128,9 @@ public class PythonReduceOperator<OUT>
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
 			outputTypeInfo,
-			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
+			DATA_STREAM_STATELESS_FUNCTION_URN,
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			DATA_STREAM_MAP_FUNCTION_CODER_URN,  // reuse map function coder
+			MAP_CODER_URN,  // reuse map function coder
 			jobOptions,
 			getFlinkMetricContainer(),
 			null,

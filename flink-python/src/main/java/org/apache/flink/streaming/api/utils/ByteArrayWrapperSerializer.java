@@ -34,6 +34,8 @@ import java.util.Arrays;
 @Internal
 public class ByteArrayWrapperSerializer extends TypeSerializerSingleton<ByteArrayWrapper> {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final ByteArrayWrapperSerializer INSTANCE = new ByteArrayWrapperSerializer();
 
 	@Override
