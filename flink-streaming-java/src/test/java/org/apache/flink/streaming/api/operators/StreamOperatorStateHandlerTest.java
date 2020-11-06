@@ -147,7 +147,8 @@ public class StreamOperatorStateHandlerTest {
 					CheckpointOptions.forCheckpointWithDefaultLocation(),
 					new MemCheckpointStreamFactory(1024),
 					operatorSnapshotResult,
-					context);
+					context,
+					false);
 				fail("Exception expected.");
 			} catch (CheckpointException e) {
 				// We can not check for ExpectedTestException class directly,
