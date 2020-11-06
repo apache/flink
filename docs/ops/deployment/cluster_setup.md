@@ -55,7 +55,7 @@ You can set this variable in `conf/flink-conf.yaml` via the `env.java.home` key.
 
 ## Flink Setup
 
-Go to the [downloads page]({{ site.download_url }}) and get the ready-to-run package. Make sure to pick the Flink package **matching your Hadoop version**. If you don't plan to use Hadoop, pick any version.
+Go to the [downloads page]({{ site.download_url }}) and get the ready-to-run package.
 
 After downloading the latest release, copy the archive to your master node and extract it:
 
