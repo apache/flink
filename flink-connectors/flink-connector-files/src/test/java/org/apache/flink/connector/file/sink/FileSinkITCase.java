@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -106,6 +107,7 @@ public class FileSinkITCase {
 				new Object[]{RuntimeExecutionMode.BATCH, true});
 	}
 
+	@Ignore
 	@Test
 	public void testFileSink() throws Exception {
 		String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
