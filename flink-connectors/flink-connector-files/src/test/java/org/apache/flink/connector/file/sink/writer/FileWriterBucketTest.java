@@ -73,7 +73,7 @@ public class FileWriterBucketTest {
 				path,
 				DEFAULT_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
 		FileWriterBucketState bucketState = bucket.snapshotState();
 
@@ -97,7 +97,7 @@ public class FileWriterBucketTest {
 				path,
 				ON_CHECKPOING_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
 		FileWriterBucketState bucketState = bucket.snapshotState();
 
@@ -121,9 +121,9 @@ public class FileWriterBucketTest {
 				path,
 				EACH_ELEMENT_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
-		bucket.write("test-element");
-		bucket.write("test-element");
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
+		bucket.write("test-element", 0);
+		bucket.write("test-element", 0);
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
 		FileWriterBucketState bucketState = bucket.snapshotState();
 
@@ -148,13 +148,13 @@ public class FileWriterBucketTest {
 				path,
 				DEFAULT_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
 
 		bucket.prepareCommit(false);
 		bucket.snapshotState();
 
 		// One more checkpoint
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
 		FileWriterBucketState bucketState = bucket.snapshotState();
 
@@ -178,7 +178,7 @@ public class FileWriterBucketTest {
 				path,
 				DEFAULT_ROLLING_POLICY,
 				OutputFileConfig.builder().build());
-		bucket.write("test-element");
+		bucket.write("test-element", 0);
 
 		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(true);
 
@@ -186,6 +186,39 @@ public class FileWriterBucketTest {
 		assertNull(
 				"The bucket should not have in-progress part after flushed",
 				bucket.getInProgressPart());
+	}
+
+	@Test
+	public void testRollingOnProcessingTime() throws IOException {
+		File outDir = TEMP_FOLDER.newFolder();
+		Path path = new Path(outDir.toURI());
+
+		RollingPolicy<String, String> onProcessingTimeRollingPolicy = DefaultRollingPolicy
+				.builder()
+				.withRolloverInterval(10)
+				.build();
+
+		TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
+		FileWriterBucket<String> bucket = createBucket(
+				recoverableWriter,
+				path,
+				onProcessingTimeRollingPolicy,
+				OutputFileConfig.builder().build());
+		bucket.write("test-element", 11);
+		bucket.write("test-element", 12);
+
+		bucket.onProcessingTime(20);
+		assertNotNull(
+				"The bucket should not roll since interval is not reached",
+				bucket.getInProgressPart());
+
+		bucket.write("test-element", 21);
+		bucket.onProcessingTime(21);
+		assertNull(
+				"The bucket should roll since interval is reached",
+				bucket.getInProgressPart());
+		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
+		compareNumberOfPendingAndInProgress(fileSinkCommittables, 1, 0);
 	}
 
 	// --------------------------- Checking Restore ---------------------------
