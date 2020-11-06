@@ -20,12 +20,17 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -33,10 +38,16 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static junit.framework.TestCase.assertTrue;
@@ -62,6 +73,22 @@ public class AbstractStreamOperatorTest {
 			testOperator,
 			new TestKeySelector(),
 			BasicTypeInfo.INT_TYPE_INFO,
+			maxParalelism,
+			numSubtasks,
+			subtaskIndex);
+	}
+
+	protected <K, IN, OUT> KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> createTestHarness(
+			int maxParalelism,
+			int numSubtasks,
+			int subtaskIndex,
+			OneInputStreamOperator<IN, OUT> testOperator,
+			KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyTypeInfo) throws Exception {
+		return new KeyedOneInputStreamOperatorTestHarness<>(
+			testOperator,
+			keySelector,
+			keyTypeInfo,
 			maxParalelism,
 			numSubtasks,
 			subtaskIndex);
@@ -410,6 +437,46 @@ public class AbstractStreamOperatorTest {
 		}
 	}
 
+	@Test
+	public void testCustomRawKeyedStateSnapshotAndRestore() throws Exception {
+		// setup: 10 key groups, all assigned to single subtask
+		final int maxParallelism = 10;
+		final int numSubtasks = 1;
+		final int subtaskIndex = 0;
+		final KeyGroupRange keyGroupRange = KeyGroupRange.of(0, maxParallelism - 1);
+
+		final byte[] testSnapshotData = "TEST".getBytes();
+		final CustomRawKeyedStateTestOperator testOperator = new CustomRawKeyedStateTestOperator(testSnapshotData);
+
+		// snapshot and then restore
+		OperatorSubtaskState snapshot;
+		try (KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness(
+				maxParallelism,
+				numSubtasks,
+				subtaskIndex,
+				testOperator,
+				input -> input,
+				BasicTypeInfo.STRING_TYPE_INFO)) {
+			testHarness.setup();
+			testHarness.open();
+			snapshot = testHarness.snapshot(0, 0);
+		}
+
+		try (KeyedOneInputStreamOperatorTestHarness<String, String, String> testHarness = createTestHarness(
+				maxParallelism,
+				numSubtasks,
+				subtaskIndex,
+				testOperator,
+				input -> input,
+				BasicTypeInfo.STRING_TYPE_INFO)) {
+			testHarness.setup();
+			testHarness.initializeState(snapshot);
+			testHarness.open();
+		}
+
+		assertThat(testOperator.restoredRawKeyedState, hasRestoredKeyGroupsWith(testSnapshotData, keyGroupRange));
+	}
+
 	/**
 	 * Extracts the result values form the test harness and clear the output queue.
 	 */
@@ -501,6 +568,57 @@ public class AbstractStreamOperatorTest {
 		}
 	}
 
+	/**
+	 * Operator that writes arbitrary bytes to raw keyed state on snapshots.
+	 */
+	private static class CustomRawKeyedStateTestOperator
+		extends AbstractStreamOperator<String>
+		implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final byte[] snapshotBytes;
+
+		private Map<Integer, byte[]> restoredRawKeyedState;
+
+		CustomRawKeyedStateTestOperator(byte[] snapshotBytes) {
+			this.snapshotBytes = Arrays.copyOf(snapshotBytes, snapshotBytes.length);
+		}
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			// do nothing
+		}
+
+		@Override
+		protected boolean isUsingCustomRawKeyedState() {
+			return true;
+		}
+
+		@Override
+		public void snapshotState(StateSnapshotContext context) throws Exception {
+			super.snapshotState(context);
+			KeyedStateCheckpointOutputStream rawKeyedStateStream = context.getRawKeyedOperatorStateOutput();
+			for (int keyGroupId : rawKeyedStateStream.getKeyGroupList()) {
+				rawKeyedStateStream.startNewKeyGroup(keyGroupId);
+				rawKeyedStateStream.write(snapshotBytes);
+			}
+			rawKeyedStateStream.close();
+		}
+
+		@Override
+		public void initializeState(StateInitializationContext context) throws Exception {
+			super.initializeState(context);
+
+			restoredRawKeyedState = new HashMap<>();
+			for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
+				byte[] readBuffer = new byte[snapshotBytes.length];
+				int ignored = streamProvider.getStream().read(readBuffer);
+				restoredRawKeyedState.put(streamProvider.getKeyGroupId(), readBuffer);
+			}
+		}
+	}
+
 	private static int getKeyInKeyGroupRange(KeyGroupRange range, int maxParallelism) {
 		Random rand = new Random(System.currentTimeMillis());
 		int result = rand.nextInt();
@@ -508,5 +626,29 @@ public class AbstractStreamOperatorTest {
 			result = rand.nextInt();
 		}
 		return result;
+	}
+
+	private static Matcher<Map<Integer, byte[]>> hasRestoredKeyGroupsWith(byte[] testSnapshotData, KeyGroupRange range) {
+		return new TypeSafeMatcher<Map<Integer, byte[]>>() {
+			@Override
+			protected boolean matchesSafely(Map<Integer, byte[]> restored) {
+				if (restored.size() != range.getNumberOfKeyGroups()) {
+					return false;
+				}
+
+				for (int writtenKeyGroupId : range) {
+					if (!Arrays.equals(restored.get(writtenKeyGroupId), testSnapshotData)) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("Key groups: " + range + " with snapshot data " + Arrays.toString(testSnapshotData));
+			}
+		};
 	}
 }

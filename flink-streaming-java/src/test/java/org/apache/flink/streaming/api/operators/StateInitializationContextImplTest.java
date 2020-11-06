@@ -199,7 +199,8 @@ public class StateInitializationContextImplTest {
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
 			closableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			false);
 
 		this.initializationContext =
 				new StateInitializationContextImpl(
