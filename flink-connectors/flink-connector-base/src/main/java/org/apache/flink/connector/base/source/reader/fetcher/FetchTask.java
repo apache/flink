@@ -62,8 +62,10 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 				// The order matters here. We must first put the last records into the queue.
 				// This ensures the handling of the fetched records is atomic to wakeup.
 				if (elementsQueue.put(fetcherIndex, lastRecords)) {
-					// The callback does not throw InterruptedException.
-					splitFinishedCallback.accept(lastRecords.finishedSplits());
+					if (!lastRecords.finishedSplits().isEmpty()) {
+						// The callback does not throw InterruptedException.
+						splitFinishedCallback.accept(lastRecords.finishedSplits());
+					}
 					lastRecords = null;
 				}
 			}

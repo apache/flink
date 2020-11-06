@@ -149,6 +149,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			Map.Entry<Integer, SplitFetcher<E, SplitT>> entry = iter.next();
 			SplitFetcher<E, SplitT> fetcher = entry.getValue();
 			if (fetcher.isIdle()) {
+				LOG.info("Closing splitFetcher {} because it is idle.", entry.getKey());
 				fetcher.shutdown();
 				iter.remove();
 			}
