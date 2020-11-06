@@ -31,7 +31,6 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<confluent.version>4.1.0</confluent.version>
 	</properties>
 
 	<repositories>

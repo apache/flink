@@ -63,7 +63,7 @@ CREATE TABLE user_behavior (
 ) WITH (
   'connector' = 'kafka',
   'properties.bootstrap.servers' = 'localhost:9092',
-  'topic' = 'user_behavior'
+  'topic' = 'user_behavior',
   'format' = 'avro-confluent',
   'avro-confluent.schema-registry.url' = 'http://localhost:8081',
   'avro-confluent.schema-registry.subject' = 'user_behavior'
