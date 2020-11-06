@@ -188,11 +188,14 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,HashAgg")
     val sql =
       """
-        |WITH T1 AS (SELECT COUNT(*) AS cnt FROM z)
-        |SELECT * FROM
-        |  (SELECT a FROM x INNER JOIN y ON x.a = y.d)
-        |  UNION ALL
-        |  (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt)
+        |WITH
+        |  T1 AS (SELECT COUNT(*) AS cnt FROM z),
+        |  T2 AS (
+        |    SELECT a FROM
+        |      (SELECT a FROM x INNER JOIN y ON x.a = y.d)
+        |      UNION ALL
+        |      (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt))
+        |SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
         |""".stripMargin
     util.verifyPlan(sql)
   }
@@ -242,6 +245,82 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
         |      UNION ALL
         |      (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
         |SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRemoveRedundantUnion(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT COUNT(*) AS cnt FROM x GROUP BY a),
+        |  T2 AS (SELECT COUNT(*) AS cnt FROM y GROUP BY d),
+        |  T3 AS (SELECT a AS cnt FROM x INNER JOIN y ON x.a = y.d),
+        |  T4 AS (SELECT b AS cnt FROM x INNER JOIN y ON x.b = y.e)
+        |SELECT cnt FROM
+        |  (SELECT cnt FROM (SELECT cnt FROM T1) UNION ALL (SELECT cnt FROM T2))
+        |  UNION ALL
+        |  (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testRemoveOneInputOperatorFromRoot(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d),
+        |  T2 AS (SELECT b FROM x INNER JOIN y ON x.b = y.e)
+        |SELECT * FROM
+        |  (SELECT a, b FROM T1 LEFT JOIN T2 ON T1.a = T2.b)
+        |  UNION ALL
+        |  (SELECT a, b FROM x)
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testCleanUpMultipleInputWithOneMember(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a, a + 1 FROM T1)
+        |  UNION ALL
+        |  (SELECT a, b FROM x)
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testKeepUsefulUnion(): Unit = {
+    createChainableTableSource()
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    val sql =
+      """
+        |WITH
+        |  T1 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN x ON chainable.a = x.a),
+        |  T2 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN y ON chainable.a = y.d)
+        |SELECT * FROM
+        |  (SELECT a FROM T1)
+        |  UNION ALL
+        |  (SELECT a FROM T2)
         |""".stripMargin
     util.verifyPlan(sql)
   }
