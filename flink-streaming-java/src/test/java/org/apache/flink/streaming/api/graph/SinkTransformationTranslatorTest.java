@@ -88,7 +88,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				sourceNode,
 				IntSerializer.class,
 				writerNode,
-				"Writer",
+				String.format("Sink Writer: %s", NAME),
+				UID,
 				StatelessSinkWriterOperatorFactory.class,
 				PARALLELISM,
 				-1);
@@ -111,7 +112,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				writerNode,
 				SimpleVersionedSerializerTypeSerializerProxy.class,
 				committerNode,
-				"Committer",
+				String.format("Sink Committer: %s", NAME),
+				String.format("Sink Committer: %s", UID),
 				committerClass,
 				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? PARALLELISM : 1,
 				runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? -1 : 1);
@@ -135,7 +137,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				committerNode,
 				SimpleVersionedSerializerTypeSerializerProxy.class,
 				globalCommitterNode,
-				"Global Committer",
+				String.format("Sink Global Committer: %s", NAME),
+				String.format("Sink Global Committer: %s", UID),
 				globalCommitterClass,
 				1,
 				1);
@@ -158,7 +161,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 				writerNode,
 				SimpleVersionedSerializerTypeSerializerProxy.class,
 				globalCommitterNode,
-				"Global Committer",
+				String.format("Sink Global Committer: %s", NAME),
+				String.format("Sink Global Committer: %s", UID),
 				globalCommitterClass,
 				1,
 				1);
@@ -208,7 +212,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 			StreamNode src,
 			Class<?> srcOutTypeInfo,
 			StreamNode dest,
-			String midName,
+			String name,
+			String uid,
 			Class<?> expectedOperatorFactory,
 			int expectedParallelism,
 			int expectedMaxParallelism) {
@@ -224,13 +229,12 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 		assertThat(dest.getTypeSerializersIn()[0], instanceOf(srcOutTypeInfo));
 
 		//verify dest node
-		assertThat(dest.getOperatorName(), equalTo(String.format("Sink %s: %s", midName, NAME)));
+		assertThat(dest.getOperatorName(), equalTo(name));
+		assertThat(dest.getTransformationUID(), equalTo(uid));
+
 		assertThat(
 				dest.getOperatorFactory(),
 				instanceOf(expectedOperatorFactory));
-		assertThat(
-				dest.getTransformationUID(),
-				equalTo(String.format("Sink %s: %s", midName, UID)));
 		assertThat(dest.getParallelism(), equalTo(expectedParallelism));
 		assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
 		assertThat(

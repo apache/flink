@@ -43,6 +43,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collection;
@@ -181,6 +183,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				hasState ? new StatefulSinkWriterOperatorFactory<>(sinkTransformation.getSink()) : new StatelessSinkWriterOperatorFactory<>(
 						sinkTransformation.getSink());
 
+		final String prefix = "Sink Writer:";
 		final ChainingStrategy chainingStrategy = sinkTransformation.getChainingStrategy();
 
 		if (chainingStrategy != null) {
@@ -192,7 +195,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				context.getStreamNodeIds(input),
 				inputTypeInfo,
 				extractCommittableTypeInformation(sinkTransformation.getSink()),
-				"Sink Writer:",
+				String.format("%s %s", prefix, sinkTransformation.getName()),
+				sinkTransformation.getUid(),
 				parallelism,
 				sinkTransformation.getMaxParallelism(),
 				sinkTransformation,
@@ -221,6 +225,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			return -1;
 		}
 
+		final String prefix = "Sink Committer:";
 		final CommittableTypeInformation<CommT> committableTypeInfo = extractCommittableTypeInformation(
 				sinkTransformation.getSink());
 		checkNotNull(committableTypeInfo);
@@ -230,7 +235,11 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				Collections.singletonList(inputId),
 				committableTypeInfo,
 				committableTypeInfo,
-				"Sink Committer:",
+				String.format("%s %s", prefix, sinkTransformation.getName()),
+				sinkTransformation.getUid() == null ? null : String.format(
+						"%s %s",
+						prefix,
+						sinkTransformation.getUid()),
 				parallelism,
 				maxParallelism,
 				sinkTransformation,
@@ -254,12 +263,18 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			return;
 		}
 
+		final String prefix = "Sink Global Committer:";
+
 		addOperatorToStreamGraph(
 				globalCommitterFactory,
 				Collections.singletonList(inputId),
 				checkNotNull(extractCommittableTypeInformation(sinkTransformation.getSink())),
 				null,
-				"Sink Global Committer:",
+				String.format("%s %s", prefix, sinkTransformation.getName()),
+				sinkTransformation.getUid() == null ? null : String.format(
+						"%s %s",
+						prefix,
+						sinkTransformation.getUid()),
 				1,
 				1,
 				sinkTransformation,
@@ -281,7 +296,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 	 * @param inputs A collection of upstream stream node ids.
 	 * @param inTypeInfo The input type information of the operator
 	 * @param outTypInfo The output type information of the operator
-	 * @param prefix The prefix of the name and uid of the operator
+	 * @param name The name of the operator.
+	 * @param uid The uid of the operator.
 	 * @param parallelism The parallelism of the operator
 	 * @param maxParallelism The max parallelism of the operator
 	 * @param sinkTransformation The sink transformation which the operator belongs to
@@ -293,7 +309,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 			Collection<Integer> inputs,
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypInfo,
-			String prefix,
+			String name,
+			@Nullable String uid,
 			int parallelism,
 			int maxParallelism,
 			SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
@@ -309,7 +326,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				operatorFactory,
 				inTypeInfo,
 				outTypInfo,
-				String.format("%s %s", prefix, sinkTransformation.getName()));
+				name);
 
 		streamGraph.setParallelism(transformationId, parallelism);
 		streamGraph.setMaxParallelism(transformationId, maxParallelism);
@@ -319,10 +336,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
 				transformationId,
 				sinkTransformation,
 				context.getDefaultBufferTimeout());
-		if (sinkTransformation.getUid() != null) {
-			streamGraph.setTransformationUID(
-					transformationId,
-					String.format("%s %s", prefix, sinkTransformation.getUid()));
+		if (uid != null) {
+			streamGraph.setTransformationUID(transformationId, uid);
 		}
 
 		for (int input : inputs) {
