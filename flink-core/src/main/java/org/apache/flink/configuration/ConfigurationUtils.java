@@ -86,6 +86,29 @@ public class ConfigurationUtils {
 		return splitPaths(configValue);
 	}
 
+	/**
+	 * Parses a string as a map of strings. The expected format of the map is:
+	 * <pre>
+	 * key1:value1,key2:value2
+	 * </pre>
+	 *
+	 * <p>Parts of the string can be escaped by wrapping with single or double quotes.
+	 *
+	 * @param stringSerializedMap a string to parse
+	 *
+	 * @return parsed map
+	 */
+	public static Map<String, String> parseMap(String stringSerializedMap) {
+		return StructuredOptionsSplitter.splitEscaped(stringSerializedMap, ',').stream()
+			.map(p -> StructuredOptionsSplitter.splitEscaped(p, ':'))
+			.collect(
+				Collectors.toMap(
+					arr -> arr.get(0), // key name
+					arr -> arr.get(1) // value
+				)
+			);
+	}
+
 	public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
 		final Time timeout;
 		long standaloneClusterStartupPeriodTime = configuration.getLong(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
