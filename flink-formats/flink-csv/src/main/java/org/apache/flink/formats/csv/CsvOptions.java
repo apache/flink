@@ -35,16 +35,6 @@ public class CsvOptions {
 			.defaultValue(",")
 			.withDescription("Optional field delimiter character (',' by default)");
 
-	public static final ConfigOption<String> LINE_DELIMITER = ConfigOptions
-			.key("line-delimiter")
-			.stringType()
-			.defaultValue("\n")
-			.withDescription("Optional line delimiter (\"\\n\" by default, otherwise\n"
-					+ "\"\\r\" or \"\\r\\n\" are allowed), unicode is supported if\n"
-					+ "the delimiter is an invisible special character,\n"
-					+ "e.g. U&'\\000D' is the unicode representation of carriage return \"\\r\""
-					+ "e.g. U&'\\000A' is the unicode representation of line feed \"\\n\"");
-
 	public static final ConfigOption<Boolean> DISABLE_QUOTE_CHARACTER = ConfigOptions
 			.key("disable-quote-character")
 			.booleanType()

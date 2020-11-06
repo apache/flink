@@ -200,38 +200,23 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
 		CsvRowDataSerializationSchema.Builder serSchemaBuilder =
-			new CsvRowDataSerializationSchema.Builder(rowType).setLineDelimiter("\r");
+			new CsvRowDataSerializationSchema.Builder(rowType);
 
 		assertArrayEquals(
-			"Test,12,Hello\r".getBytes(),
+			"Test,12,Hello".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "Hello")));
 
 		serSchemaBuilder.setQuoteCharacter('#');
 
 		assertArrayEquals(
-			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
+			"Test,12,#2019-12-26 12:12:12#".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
 
 		serSchemaBuilder.disableQuoteCharacter();
 
 		assertArrayEquals(
-			"Test,12,2019-12-26 12:12:12\r".getBytes(),
+			"Test,12,2019-12-26 12:12:12".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
-	}
-
-	@Test
-	public void testEmptyLineDelimiter() throws Exception {
-		DataType dataType = ROW(
-			FIELD("f0", STRING()),
-			FIELD("f1", INT()),
-			FIELD("f2", STRING()));
-		RowType rowType = (RowType) dataType.getLogicalType();
-		CsvRowDataSerializationSchema.Builder serSchemaBuilder =
-			new CsvRowDataSerializationSchema.Builder(rowType).setLineDelimiter("");
-
-		assertArrayEquals(
-			"Test,12,Hello".getBytes(),
-			serialize(serSchemaBuilder, rowData("Test", 12, "Hello")));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -305,7 +290,7 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f1", fieldType),
 			FIELD("f2", STRING())
 		).getLogicalType();
-		String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
+		String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
 
 		// deserialization
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
@@ -332,7 +317,7 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f1", fieldType),
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
-		String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
+		String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
 		Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// deserialization
