@@ -156,7 +156,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Table source format
+	// Table source format & deserialization schema
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -200,22 +200,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 			this.producedDataType = DataTypeUtils.appendRowFields(physicalDataType, metadataFields);
 
-			return new DeserializationSchema<RowData>() {
-				@Override
-				public RowData deserialize(byte[] message) {
-					throw new UnsupportedOperationException("Test deserialization schema doesn't support deserialize.");
-				}
-
-				@Override
-				public boolean isEndOfStream(RowData nextElement) {
-					return false;
-				}
-
-				@Override
-				public TypeInformation<RowData> getProducedType() {
-					return context.createTypeInformation(producedDataType);
-				}
-			};
+			return new DeserializationSchemaMock(context.createTypeInformation(producedDataType));
 		}
 
 		@Override
@@ -262,8 +247,36 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		}
 	}
 
+	/**
+	 * {@link DeserializationSchema} for testing.
+	 */
+	private static class DeserializationSchemaMock implements DeserializationSchema<RowData> {
+
+		private final TypeInformation<RowData> producedTypeInfo;
+
+		private DeserializationSchemaMock(TypeInformation<RowData> producedTypeInfo) {
+			this.producedTypeInfo = producedTypeInfo;
+		}
+
+		@Override
+		public RowData deserialize(byte[] message) {
+			String msg = "Test deserialization schema doesn't support deserialize.";
+			throw new UnsupportedOperationException(msg);
+		}
+
+		@Override
+		public boolean isEndOfStream(RowData nextElement) {
+			return false;
+		}
+
+		@Override
+		public TypeInformation<RowData> getProducedType() {
+			return producedTypeInfo;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
-	// Table sink format
+	// Table sink format & serialization schema
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -292,9 +305,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 				DynamicTableSink.Context context,
 				DataType physicalDataType) {
 			this.consumedDataType = physicalDataType;
-			return (SerializationSchema<RowData>) element -> {
-				throw new UnsupportedOperationException("Test serialization schema doesn't support serialize.");
-			};
+			return new SerializationSchemaMock();
 		}
 
 		@Override
@@ -319,6 +330,17 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		@Override
 		public int hashCode() {
 			return Objects.hash(delimiter, changelogMode, consumedDataType);
+		}
+	}
+
+	/**
+	 * {@link SerializationSchema} for testing.
+	 */
+	private static class SerializationSchemaMock implements SerializationSchema<RowData> {
+		@Override
+		public byte[] serialize(RowData element) {
+			String msg = "Test serialization schema doesn't support serialize.";
+			throw new UnsupportedOperationException(msg);
 		}
 	}
 
