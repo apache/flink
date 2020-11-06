@@ -134,8 +134,28 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 	@Override
 	public Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
-		// regardless of timeout or not, complete this checkpoint as it was started
-		return activeController.postProcessLastBarrier(channelInfo, maybeTimeOut(barrier).orElse(barrier));
+		Optional<CheckpointBarrier> maybeTimeOut = maybeTimeOut(barrier);
+		if (maybeTimeOut.isPresent() && activeController == alignedController) {
+			timeoutToUnalignedCheckpoint(channelInfo, maybeTimeOut.get());
+			checkState(activeController == unalignedController);
+			checkState(!activeController.postProcessLastBarrier(channelInfo, maybeTimeOut.orElse(barrier)).isPresent());
+			return maybeTimeOut;
+		}
+
+		barrier = maybeTimeOut.orElse(barrier);
+		if (barrier.getCheckpointOptions().isUnalignedCheckpoint()) {
+			checkState(activeController == unalignedController);
+			checkState(!activeController.postProcessLastBarrier(channelInfo, maybeTimeOut.orElse(barrier)).isPresent());
+			return Optional.empty();
+		}
+		else {
+			checkState(activeController == alignedController);
+			Optional<CheckpointBarrier> triggerResult = activeController.postProcessLastBarrier(
+				channelInfo,
+				barrier);
+			checkState(triggerResult.isPresent());
+			return triggerResult;
+		}
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.NoOpChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -47,6 +46,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Collections.singletonList;
 import static junit.framework.TestCase.assertTrue;
@@ -261,6 +261,93 @@ public class AlternatingControllerTest {
 
 		assertEquals(channelStateWriter.getAddedInput().get(channel1.getChannelInfo()).size(), 2);
 		assertEquals(1, target.getTriggeredCheckpointCounter());
+	}
+
+	@Test
+	public void testTimeoutAlignmentConsistencyOnPreProcessBarrier() throws Exception {
+		testTimeoutAlignmentConsistency(true, false, false);
+	}
+
+	@Test
+	public void testTimeoutAlignmentConsistencyOnProcessBarrier() throws Exception {
+		testTimeoutAlignmentConsistency(false, true, false);
+	}
+
+	@Test
+	public void testTimeoutAlignmentConsistencyOnPostProcessBarrier() throws Exception {
+		testTimeoutAlignmentConsistency(false, false, true);
+	}
+
+	public void testTimeoutAlignmentConsistency(
+			boolean sleepBeforePreProcess,
+			boolean sleepBeforeProcess,
+			boolean sleepBeforePostProcess) throws Exception {
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(1).build();
+		TestInputChannel channel0 = new TestInputChannel(gate, 0, false, true);
+		gate.setInputChannels(channel0);
+
+		RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+		AlternatingController controller = new AlternatingController(
+			new AlignedController(gate),
+			new UnalignedController(
+				new TestSubtaskCheckpointCoordinator(channelStateWriter),
+				gate));
+
+
+		long checkpointCreationTime = System.currentTimeMillis();
+		long alignmentTimeout = 10;
+		CheckpointBarrier barrier = checkpointBarrier(1, CHECKPOINT, checkpointCreationTime, alignmentTimeout);
+
+		InputChannelInfo channelInfo = channel0.getChannelInfo();
+
+		controller.preProcessFirstBarrierOrAnnouncement(barrier);
+		controller.barrierAnnouncement(channelInfo, barrier, 1);
+
+		if (sleepBeforePreProcess) {
+			Thread.sleep(alignmentTimeout * 2);
+		}
+		Optional<CheckpointBarrier> preProcessTrigger = controller.preProcessFirstBarrier(channelInfo, barrier);
+		if (sleepBeforeProcess) {
+			Thread.sleep(alignmentTimeout * 2);
+		}
+		Optional<CheckpointBarrier> processTrigger = controller.barrierReceived(channelInfo, barrier);
+		if (sleepBeforePostProcess) {
+			Thread.sleep(alignmentTimeout * 2);
+		}
+		Optional<CheckpointBarrier> postProcessTrigger = controller.postProcessLastBarrier(channelInfo, barrier);
+
+		int triggeredCount = 0;
+		boolean unalignedCheckpoint = false;
+		if (preProcessTrigger.isPresent()) {
+			triggeredCount++;
+			unalignedCheckpoint = preProcessTrigger.get().getCheckpointOptions().isUnalignedCheckpoint();
+			assertTrue(unalignedCheckpoint);
+		}
+		if (processTrigger.isPresent()) {
+			triggeredCount++;
+			unalignedCheckpoint = processTrigger.get().getCheckpointOptions().isUnalignedCheckpoint();
+			assertTrue(unalignedCheckpoint);
+		}
+		if (postProcessTrigger.isPresent()) {
+			triggeredCount++;
+			unalignedCheckpoint = postProcessTrigger.get().getCheckpointOptions().isUnalignedCheckpoint();
+		}
+
+		assertEquals(
+			String.format(
+				"Checkpoint should be triggered exactly once, but [%s, %s, %s] was found instead",
+				preProcessTrigger.isPresent(),
+				processTrigger.isPresent(),
+				postProcessTrigger.isPresent()),
+			1,
+			triggeredCount);
+
+		if (unalignedCheckpoint) {
+			// check that we can add output data if we are in unaligned checkpoint mode. In other words
+			// if the state writer has been initialised correctly.
+			assertEquals(barrier.getId(), channelStateWriter.getLastStartedCheckpointId());
+		}
 	}
 
 	@Test
@@ -522,7 +609,7 @@ public class AlternatingControllerTest {
 	}
 
 	private static SingleCheckpointBarrierHandler barrierHandler(SingleInputGate inputGate, AbstractInvokable target) {
-		return barrierHandler(inputGate, target, new NoOpChannelStateWriter());
+		return barrierHandler(inputGate, target, new RecordingChannelStateWriter());
 	}
 
 	private static SingleCheckpointBarrierHandler barrierHandler(
@@ -548,18 +635,27 @@ public class AlternatingControllerTest {
 	}
 
 	private Buffer barrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp, long alignmentTimeout) throws IOException {
+		CheckpointBarrier checkpointBarrier = checkpointBarrier(
+			barrierId,
+			checkpointType,
+			barrierTimestamp,
+			alignmentTimeout);
+		return toBuffer(
+			checkpointBarrier,
+			checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint());
+	}
+
+	private CheckpointBarrier checkpointBarrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp, long alignmentTimeout) {
 		CheckpointOptions options = CheckpointOptions.create(
 			checkpointType,
 			CheckpointStorageLocationReference.getDefault(),
 			true,
 			true,
 			alignmentTimeout);
-		return toBuffer(
-			new CheckpointBarrier(
-				barrierId,
-				barrierTimestamp,
-				options),
-			options.isUnalignedCheckpoint());
+		return new CheckpointBarrier(
+			barrierId,
+			barrierTimestamp,
+			options);
 	}
 
 	private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {
@@ -575,7 +671,7 @@ public class AlternatingControllerTest {
 	private static CheckpointedInputGate buildRemoteInputGate(
 			AbstractInvokable target,
 			int numChannels) throws IOException {
-		return buildRemoteInputGate(target, numChannels, new NoOpChannelStateWriter());
+		return buildRemoteInputGate(target, numChannels, new RecordingChannelStateWriter());
 	}
 
 	private static CheckpointedInputGate buildRemoteInputGate(
