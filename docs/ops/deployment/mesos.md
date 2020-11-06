@@ -59,9 +59,9 @@ or configuration files. For instance, in non-containerized environments, the
 artifact server will provide the Flink binaries. What files will be served
 depends on the configuration overlay used.
 
-### Flink's Dispatcher and Web Interface
+### Flink's JobManager and Web Interface
 
-The Dispatcher and the web interface provide a central point for monitoring,
+The JobManager and the web interface provide a central point for monitoring,
 job submission, and other client interaction with the cluster
 (see [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)).
 
