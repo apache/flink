@@ -79,7 +79,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				elementsQueue,
 				ids -> {
 					ids.forEach(assignedSplits::remove);
-					checkAndSetIdle();
+					LOG.info("Finished reading from splits {}", ids);
 				},
 				id);
 	}
@@ -124,6 +124,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				LOG.debug("Finished running task {}", runningTask);
 				// the task has finished running. Set it to null so it won't be enqueued.
 				runningTask = null;
+				checkAndSetIdle();
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(String.format(
@@ -148,9 +149,18 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * @param splitsToAdd the splits to add.
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
-		maybeEnqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		isIdle = false; // in case we were idle before
+		enqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		wakeUp(true);
+	}
+
+	public void enqueueTask(SplitFetcherTask task) {
+		isIdle = false;
+		taskQueue.offer(task);
+	}
+
+	public SplitReader<E, SplitT> getSplitReader() {
+		return splitReader;
 	}
 
 	/**

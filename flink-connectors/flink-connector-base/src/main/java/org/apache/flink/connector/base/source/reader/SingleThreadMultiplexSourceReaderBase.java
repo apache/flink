@@ -94,4 +94,23 @@ public abstract class SingleThreadMultiplexSourceReaderBase<E, T, SplitT extends
 			config,
 			context);
 	}
+
+	/**
+	 * This constructor behaves like
+	 * {@link #SingleThreadMultiplexSourceReaderBase(Supplier, RecordEmitter, Configuration, SourceReaderContext)},
+	 * but accepts a specific {@link FutureCompletingBlockingQueue} and {@link SingleThreadFetcherManager}.
+	 */
+	public SingleThreadMultiplexSourceReaderBase(
+			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+			SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
+			RecordEmitter<E, T, SplitStateT> recordEmitter,
+			Configuration config,
+			SourceReaderContext context) {
+		super(
+			elementsQueue,
+			splitFetcherManager,
+			recordEmitter,
+			config,
+			context);
+	}
 }
