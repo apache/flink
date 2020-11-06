@@ -32,12 +32,17 @@ import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -69,18 +74,44 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 	@Test
 	public void testLoadingCachedFilesFromConfiguration() {
 		StreamExecutionEnvironment envFromConfiguration = StreamExecutionEnvironment.getExecutionEnvironment();
-		envFromConfiguration.registerCachedFile("/tmp3", "file3", true);
+		envFromConfiguration.registerCachedFile("/tmp4", "file4", true);
 
 		Configuration configuration = new Configuration();
-		configuration.setString("pipeline.cached-files", "name:file1,path:/tmp1,executable:true;name:file2,path:/tmp2");
+		configuration.setString(
+			"pipeline.cached-files",
+			"name:file1,path:/tmp1,executable:true;"
+				+ "name:file2,path:/tmp2;"
+				+ "name:file3,path:'oss://bucket/file1'");
 
 		// mutate config according to configuration
 		envFromConfiguration.configure(configuration, Thread.currentThread().getContextClassLoader());
 
 		assertThat(envFromConfiguration.getCachedFiles(), equalTo(Arrays.asList(
 			Tuple2.of("file1", new DistributedCache.DistributedCacheEntry("/tmp1", true)),
-			Tuple2.of("file2", new DistributedCache.DistributedCacheEntry("/tmp2", false))
+			Tuple2.of("file2", new DistributedCache.DistributedCacheEntry("/tmp2", false)),
+			Tuple2.of(
+				"file3",
+				new DistributedCache.DistributedCacheEntry("oss://bucket/file1", false))
 		)));
+	}
+
+	@Test
+	public void testLoadingKryoSerializersFromConfiguration() {
+		Configuration configuration = new Configuration();
+		configuration.setString(
+			"pipeline.default-kryo-serializers",
+			"class:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo'"
+				+ ",serializer:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer'");
+
+		// mutate config according to configuration
+		StreamExecutionEnvironment envFromConfiguration = StreamExecutionEnvironment.getExecutionEnvironment(
+			configuration);
+
+		LinkedHashMap<Object, Object> serializers = new LinkedHashMap<>();
+		serializers.put(CustomPojo.class, CustomPojoSerializer.class);
+		assertThat(
+			envFromConfiguration.getConfig().getDefaultKryoSerializerClasses(),
+			equalTo(serializers));
 	}
 
 	@Test
@@ -188,6 +219,32 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		@Override
 		public void onJobExecuted(@Nullable JobExecutionResult jobExecutionResult, @Nullable Throwable throwable) {
 
+		}
+	}
+
+	/**
+	 * A dummy class to specify a Kryo serializer for.
+	 */
+	public static class CustomPojo {
+	}
+
+	/**
+	 * A dummy Kryo serializer which can be registered.
+	 */
+	public static class CustomPojoSerializer extends Serializer<CustomPojo> {
+		@Override
+		public void write(
+				Kryo kryo,
+				Output output,
+				CustomPojo object) {
+		}
+
+		@Override
+		public CustomPojo read(
+				Kryo kryo,
+				Input input,
+				Class<CustomPojo> type) {
+			return null;
 		}
 	}
 }

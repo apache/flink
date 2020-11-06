@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MetricOptions;
@@ -33,7 +34,6 @@ import org.apache.flink.util.Preconditions;
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1150,15 +1150,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			ClassLoader classLoader,
 			List<String> kryoSerializers) {
 		return kryoSerializers.stream()
-			.map(v -> Arrays.stream(v.split(","))
-				.map(p -> p.split(":"))
-				.collect(
-					Collectors.toMap(
-						arr -> arr[0], // entry key
-						arr -> arr[1] // entry value
-					)
-				)
-			)
+			.map(ConfigurationUtils::parseMap)
 			.collect(Collectors.toMap(
 				m -> loadClass(m.get("class"), classLoader, "Could not load class for kryo serialization"),
 				m -> loadClass(m.get("serializer"), classLoader, "Could not load serializer's class"),

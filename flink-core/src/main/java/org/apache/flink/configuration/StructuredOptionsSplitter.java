@@ -161,8 +161,6 @@ class StructuredOptionsSplitter {
 			char c = string.charAt(i);
 			if (c == delimiter) {
 				return i;
-			} else if (c == '\'' || c == '"') {
-				throw new IllegalArgumentException("Could not split string. Illegal quoting at position: " + i);
 			}
 
 			builder.append(c);

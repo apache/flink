@@ -53,7 +53,7 @@ public class StructuredOptionsSplitterTest {
 			TestSpec.split("'A;B';'C'", ';').expect("A;B", "C"),
 			TestSpec.split("A;B;C", ';').expect("A", "B", "C"),
 			TestSpec.split("'AB''D;B';C", ';').expect("AB'D;B", "C"),
-			TestSpec.split("A'BD;B';C", ';').expectException("Could not split string. Illegal quoting at position: 1"),
+			TestSpec.split("A'BD;B';C", ';').expect("A'BD", "B'", "C"),
 			TestSpec.split("'AB'D;B;C", ';').expectException("Could not split string. Illegal quoting at position: 3"),
 			TestSpec.split("'A", ';').expectException("Could not split string. Quoting was not closed properly."),
 			TestSpec.split("C;'", ';').expectException("Could not split string. Quoting was not closed properly."),
@@ -63,8 +63,7 @@ public class StructuredOptionsSplitterTest {
 			TestSpec.split("\"A;B\";\"C\"", ';').expect("A;B", "C"),
 			TestSpec.split("A;B;C", ';').expect("A", "B", "C"),
 			TestSpec.split("\"AB\"\"D;B\";C", ';').expect("AB\"D;B", "C"),
-			TestSpec.split("A\"BD;B\";C", ';')
-				.expectException("Could not split string. Illegal quoting at position: 1"),
+			TestSpec.split("A\"BD;B\";C", ';').expect("A\"BD", "B\"", "C"),
 			TestSpec.split("\"AB\"D;B;C", ';')
 				.expectException("Could not split string. Illegal quoting at position: 3"),
 			TestSpec.split("\"A", ';').expectException("Could not split string. Quoting was not closed properly."),
