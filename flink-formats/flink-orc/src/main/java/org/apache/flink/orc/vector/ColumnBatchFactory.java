@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.parquet;
+package org.apache.flink.orc.vector;
 
-import org.apache.flink.table.planner.runtime.stream.sql.FileCompactionITCaseBase;
+import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+
+import java.io.Serializable;
 
 /**
- * Compaction it case for {@link ParquetFileFormatFactory}.
+ * Interface to create {@link VectorizedColumnBatch}.
  */
-public class ParquetFileCompactionITCase extends FileCompactionITCaseBase {
+@FunctionalInterface
+public interface ColumnBatchFactory<BatchT, SplitT extends FileSourceSplit> extends Serializable {
 
-	@Override
-	protected String format() {
-		return "parquet";
-	}
+	VectorizedColumnBatch create(SplitT splitT, BatchT rowBatch);
 }

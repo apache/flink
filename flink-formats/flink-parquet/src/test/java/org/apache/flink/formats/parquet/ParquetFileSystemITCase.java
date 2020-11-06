@@ -39,7 +39,7 @@ import static org.apache.parquet.format.converter.ParquetMetadataConverter.range
 import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
 
 /**
- * ITCase for {@link ParquetFileSystemFormatFactory}.
+ * ITCase for {@link ParquetFileFormatFactory}.
  */
 @RunWith(Parameterized.class)
 public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {

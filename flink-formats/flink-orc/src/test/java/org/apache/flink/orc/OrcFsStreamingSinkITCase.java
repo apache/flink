@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Checkpoint ITCase for {@link OrcFileSystemFormatFactory}.
+ * Checkpoint ITCase for {@link OrcFileFormatFactory}.
  */
 public class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 

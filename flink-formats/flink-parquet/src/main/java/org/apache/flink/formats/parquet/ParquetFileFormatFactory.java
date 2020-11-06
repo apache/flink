@@ -50,7 +50,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * Parquet format factory for file system.
  */
-public class ParquetFileSystemFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
+public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWriterFormatFactory {
 
 	public static final String IDENTIFIER = "parquet";
 
