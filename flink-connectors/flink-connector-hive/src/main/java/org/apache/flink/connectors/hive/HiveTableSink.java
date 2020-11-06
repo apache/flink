@@ -21,7 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connectors.hive.read.HiveCompactReader;
+import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
@@ -301,7 +301,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
 	private CompactReader.Factory<RowData> createCompactReaderFactory(
 			StorageDescriptor sd, Properties properties) {
-		return HiveCompactReader.factory(
+		return new HiveCompactReaderFactory(
 				sd,
 				properties,
 				jobConf,
