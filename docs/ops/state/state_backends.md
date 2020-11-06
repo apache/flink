@@ -132,6 +132,17 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here](large_state_tuning.html#bounding-rocksdb-memory-usage) for details.
 
+# Choose The Right State Backend
+
+Currently, Flink's savepoint binary format is state backend specific.
+A savepoint taken with one state backend cannot be restored using another, and you should carefully consider which backend you use before going to production.
+
+In general, we recommend avoiding `MemoryStateBackend` in production because it stores its snapshots inside the JobManager as opposed to persistent disk.
+When deciding between `FsStateBackend` and `RocksDB`, it is a choice between performance and scalability.
+`FsStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
+On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
+However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
+
 # Configuring a State Backend
 
 The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
