@@ -156,13 +156,13 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			// we first try to assign this wrapper into the same group with its outputs
 			MultipleInputGroup outputGroup = canBeInSameGroupWithOutputs(wrapper);
 			if (outputGroup != null) {
-				wrapper.addToGroup(outputGroup);
+				outputGroup.addMember(wrapper);
 				continue;
 			}
 
 			// we then try to create a new multiple input group with this node as the root
 			if (canBeRootOfMultipleInputGroup(wrapper)) {
-				wrapper.createGroup();
+				wrapper.group = new MultipleInputGroup(wrapper);
 			}
 
 			// all our attempts failed, this node will not be in a multiple input node
@@ -227,37 +227,20 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// we only consider nodes currently in a multiple input group
 				continue;
 			}
-
-			boolean isUnion = wrapper.execNode instanceof Union;
-
-			if (group.members.size() == 1) {
-				Preconditions.checkState(
-					wrapper == group.root,
-					"The only member of a multiple input group is not its root. This is a bug.");
-				// optimization 1. we clean up multiple input groups with only 1 member,
-				// unless one of its input is a FLIP-27 source (for maximizing source chaining),
-				// however unions do not apply to this optimization because they're not real operators
-				if (isUnion || wrapper.inputs.stream().noneMatch(
-						inputWrapper -> isChainableSource(inputWrapper.execNode))) {
-					wrapper.removeFromGroup();
-				}
-				continue;
-			}
-
 			if (!isEntranceOfMultipleInputGroup(wrapper)) {
 				// we're not removing a node from the middle of a multiple input group
 				continue;
 			}
 
 			boolean shouldRemove = false;
-			if (isUnion) {
-				// optimization 2. we do not allow union to be the tail of a multiple input
+			if (wrapper.execNode instanceof Union) {
+				// optimization 1. we do not allow union to be the tail of a multiple input
 				// as we're paying extra function calls for this, unless one of the united
 				// input is a FLIP-27 source
 				shouldRemove = wrapper.inputs.stream().noneMatch(
 					inputWrapper -> isChainableSource(inputWrapper.execNode));
 			} else if (wrapper.inputs.size() == 1) {
-				// optimization 3. for one-input operators we'll remove it unless its input
+				// optimization 2. for one-input operators we'll remove it unless its input
 				// is an exchange or a FLIP-27 source, this is mainly to avoid the following
 				// pattern:
 				// non-chainable source -> calc --\
@@ -270,7 +253,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				shouldRemove = !(input instanceof Exchange) && !isChainableSource(input);
 			}
 
-			// optimization 4. for singleton operations (for example singleton global agg)
+			// optimization 3. for singleton operations (for example singleton global agg)
 			// we're not including it into the multiple input node as we have to ensure that
 			// the whole multiple input can only have 1 parallelism.
 			// continuous singleton operations connected by forwarding shuffle will be dealt
@@ -280,9 +263,119 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 					((Exchange) inputWrapper.execNode).distribution.getType() == RelDistribution.Type.SINGLETON);
 
 			if (shouldRemove) {
-				wrapper.removeFromGroup();
+				wrapper.group.removeMember(wrapper);
 			}
 		}
+
+		// wrappers are checked in topological order from sinks to sources
+		for (ExecNodeWrapper wrapper : orderedWrappers) {
+			MultipleInputGroup group = wrapper.group;
+			if (group == null) {
+				// we only consider nodes currently in a multiple input group
+				continue;
+			}
+			if (wrapper != wrapper.group.root) {
+				// we only consider nodes at the root of the multiple input
+				continue;
+			}
+
+			boolean isUnion = wrapper.execNode instanceof Union;
+
+			if (group.members.size() == 1) {
+				// optimization 4. we clean up multiple input groups with only 1 member,
+				// unless one of its input is a FLIP-27 source (for maximizing source chaining),
+				// however unions do not apply to this optimization because they're not real operators
+				if (isUnion || wrapper.inputs.stream().noneMatch(
+					inputWrapper -> isChainableSource(inputWrapper.execNode))) {
+					wrapper.group.removeRoot();
+				}
+				continue;
+			}
+
+			if (isUnion) {
+				// optimization 5. this optimization remove redundant union at the output of a
+				// multiple input, consider the following graph:
+				//
+				// source -> exchange -> agg ---\
+				// source -> exchange -> agg --> union ->
+				// source -> exchange -> join --/
+				// source -> exchange --/
+				//
+				// we'll initially put aggs, the join and the union into a multiple input, while
+				// the union here is actually redundant.
+				int numberOfUsefulInputs = 0;
+				List<Integer> uselessBranches = new ArrayList<>();
+				List<List<ExecNodeWrapper>> sameGroupWrappersList = new ArrayList<>();
+
+				// an input branch is useful if it contains a node with two or more inputs other
+				// than union. we shall keep the union if it has two or more useful input branches,
+				// as this may benefit source chaining. consider the following example:
+				//
+				// chainable source -> join -\
+				//                     /      \
+				// chainable source --<        union
+				//                     \      /
+				// chainable source -> join -/
+				for (int i = 0; i < wrapper.inputs.size(); i++) {
+					ExecNodeWrapper inputWrapper = wrapper.inputs.get(i);
+					List<ExecNodeWrapper> sameGroupWrappers = getInputWrappersInSameGroup(inputWrapper, wrapper.group);
+					sameGroupWrappersList.add(sameGroupWrappers);
+					long numberOfValuableNodes = sameGroupWrappers.stream()
+						.filter(w -> w.inputs.size() >= 2 && !(w.execNode instanceof Union))
+						.count();
+					if (numberOfValuableNodes > 0) {
+						numberOfUsefulInputs++;
+					} else {
+						uselessBranches.add(i);
+					}
+				}
+
+				if (numberOfUsefulInputs < 2) {
+					// remove this union and its useless branches from multiple input
+					for (int branch : uselessBranches) {
+						List<ExecNodeWrapper> sameGroupWrappers = sameGroupWrappersList.get(branch);
+						for (ExecNodeWrapper w : sameGroupWrappers) {
+							if (w.group != null) {
+								w.group.removeMember(w);
+							}
+						}
+					}
+					wrapper.group.removeRoot();
+				}
+			} else if (wrapper.inputs.size() == 1) {
+				// optimization 6. operators with only 1 input are not allowed to be the root,
+				// as their chaining will be handled by operator chains.
+				wrapper.group.removeRoot();
+			}
+		}
+	}
+
+	private List<ExecNodeWrapper> getInputWrappersInSameGroup(ExecNodeWrapper wrapper, MultipleInputGroup group) {
+		List<ExecNodeWrapper> ret = new ArrayList<>();
+		Queue<ExecNodeWrapper> queue = new LinkedList<>();
+		Set<ExecNodeWrapper> visited = new HashSet<>();
+		queue.add(wrapper);
+		visited.add(wrapper);
+
+		while (!queue.isEmpty()) {
+			ExecNodeWrapper w = queue.poll();
+			if (w.group != group) {
+				// if a wrapper is not in the required group than its inputs will
+				// also not be in the group, so we can just skip it
+				continue;
+			}
+			ret.add(w);
+
+			for (ExecNodeWrapper inputWrapper : w.inputs) {
+				if (visited.contains(inputWrapper)) {
+					continue;
+				}
+				queue.add(inputWrapper);
+				visited.add(inputWrapper);
+			}
+		}
+
+		return ret;
 	}
 
 	private boolean isEntranceOfMultipleInputGroup(ExecNodeWrapper wrapper) {
@@ -444,39 +537,62 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			this.outputs = new ArrayList<>();
 			this.group = null;
 		}
-
-		private void createGroup() {
-			this.group = new MultipleInputGroup(this);
-		}
-
-		private void addToGroup(MultipleInputGroup group) {
-			Preconditions.checkState(
-				this.group == null,
-				"This exec node wrapper is already in a multiple input group. This is a bug.");
-			group.members.add(this);
-			this.group = group;
-		}
-
-		private void removeFromGroup() {
-			Preconditions.checkNotNull(
-				group,
-				"Trying to remove an exec node from its multiple input group while it has none. This is a bug.");
-			group.members.remove(this);
-			group = null;
-		}
 	}
 
 	private static class MultipleInputGroup {
-		private final ExecNodeWrapper root;
 		// We use list instead of set here to ensure that the inputs of a multiple input node
 		// will not change order. Although order changes do not affect the correctness of the
 		// query, it does affect plan test cases.
 		private final List<ExecNodeWrapper> members;
 
+		private ExecNodeWrapper root;
+
 		private MultipleInputGroup(ExecNodeWrapper root) {
-			this.root = root;
 			this.members = new ArrayList<>();
 			members.add(root);
+			this.root = root;
+		}
+
+		private void addMember(ExecNodeWrapper wrapper) {
+			Preconditions.checkState(
+				wrapper.group == null,
+				"The given exec node wrapper is already in a multiple input group. This is a bug.");
+			members.add(wrapper);
+			wrapper.group = this;
+		}
+
+		private void removeMember(ExecNodeWrapper wrapper) {
+			if (wrapper == root) {
+				removeRoot();
+			} else {
+				Preconditions.checkState(
+					members.remove(wrapper),
+					"The given exec node wrapper does not exist in the multiple input group. This is a bug.");
+				wrapper.group = null;
+			}
+		}
+
+		private void removeRoot() {
+			Preconditions.checkNotNull(
+				root,
+				"Multiple input group does not have a root. This is a bug.");
+			Set<ExecNodeWrapper> sameGroupInputWrappers = new HashSet<>();
+			for (ExecNodeWrapper inputWrapper : root.inputs) {
+				if (members.contains(inputWrapper)) {
+					sameGroupInputWrappers.add(inputWrapper);
+				}
+			}
+			Preconditions.checkState(
+				sameGroupInputWrappers.size() < 2,
+				"There are two or more inputs of the root remaining in the multiple input group. This is a bug.");
+
+			members.remove(root);
+			root.group = null;
+			if (sameGroupInputWrappers.isEmpty()) {
+				root = null;
+			} else {
+				root = sameGroupInputWrappers.iterator().next();
+			}
 		}
 	}
 }

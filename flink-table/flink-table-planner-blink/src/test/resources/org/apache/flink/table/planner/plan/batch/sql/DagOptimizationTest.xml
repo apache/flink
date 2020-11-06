@@ -156,13 +156,15 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a
 Calc(select=[a, b], where=[<=(a, 10)], reuse_id=[1])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-MultipleInput(readOrder=[0,0,1], members=[\nUnion(all=[true], union=[a, b])\n:- [#1] Calc(select=[a, b], where=[<=(a, 10)])\n+- Calc(select=[a0 AS a, b AS b1])\n   +- HashJoin(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], build=[left])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n], reuse_id=[2])
+Union(all=[true], union=[a, b], reuse_id=[2])
 :- Reused(reference_id=[1])
-:- Exchange(distribution=[hash[a]])
-:  +- Reused(reference_id=[1])
-+- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
++- Calc(select=[a0 AS a, b AS b1])
+   +- HashJoin(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], build=[left])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Reused(reference_id=[1])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
 +- Reused(reference_id=[2])
@@ -751,14 +753,16 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
     <Resource name="planAfter">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
-+- MultipleInput(readOrder=[0,0,1], members=[\nUnion(all=[true], union=[a, b])\n:- [#1] Calc(select=[a, b], where=[<=(a, 10)])\n+- Calc(select=[a0 AS a, b AS b1])\n   +- HashJoin(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], build=[left])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
++- Union(all=[true], union=[a, b])
    :- Calc(select=[a, b], where=[<=(a, 10)], reuse_id=[1])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   :- Exchange(distribution=[hash[a]])
-   :  +- Reused(reference_id=[1])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a])
-         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
+   +- Calc(select=[a0 AS a, b AS b1])
+      +- HashJoin(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], build=[left])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Reused(reference_id=[1])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
