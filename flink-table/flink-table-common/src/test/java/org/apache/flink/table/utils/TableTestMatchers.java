@@ -34,21 +34,6 @@ import java.util.List;
 @Internal
 public final class TableTestMatchers {
 
-	public static Matcher<Row> deepEqualTo(Row row) {
-		return new BaseMatcher<Row>() {
-
-			@Override
-			public void describeTo(Description description) {
-				description.appendValue(row);
-			}
-
-			@Override
-			public boolean matches(Object item) {
-				return Row.deepEquals(row, (Row) item);
-			}
-		};
-	}
-
 	public static Matcher<List<Row>> deepEqualTo(List<Row> rows, boolean ignoreOrder) {
 		return new BaseMatcher<List<Row>>() {
 
