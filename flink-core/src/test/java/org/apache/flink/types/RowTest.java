@@ -27,8 +27,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 
 public class RowTest {
 	@Test
@@ -66,7 +66,7 @@ public class RowTest {
 
 		Row copy = Row.copy(row);
 		assertEquals(row, copy);
-		assertTrue(row != copy);
+		assertNotSame(row, copy);
 	}
 
 	@Test
@@ -112,12 +112,12 @@ public class RowTest {
 	}
 
 	@Test
-	public void testDeepEquals() {
+	public void testDeepEqualsAndHashCode() {
 		final Map<String, byte[]> originalMap = new HashMap<>();
 		originalMap.put("k1", new byte[]{1, 2, 3});
 		originalMap.put("k2", new byte[]{3, 4, 6});
 
-		final Row originalRow = Row.of(
+		final Row originalRow = Row.ofKind(
 				RowKind.INSERT,
 				true,
 				new Integer[]{1, null, 3},
@@ -127,11 +127,12 @@ public class RowTest {
 				new int[][]{{1, 2, 3}, {}, {4, 5}},
 				1.44
 		);
-		assertTrue(Row.deepEquals(originalRow, originalRow));
+		assertEquals(originalRow, originalRow);
+		assertEquals(originalRow.hashCode(), originalRow.hashCode());
 
 		{
 			// no diff
-			final Row row = Row.of(
+			final Row row = Row.ofKind(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3},
@@ -141,7 +142,8 @@ public class RowTest {
 					new int[][]{{1, 2, 3}, {}, {4, 5}},
 					1.44
 			);
-			assertTrue(Row.deepEquals(row, originalRow));
+			assertEquals(row, originalRow);
+			assertEquals(row.hashCode(), originalRow.hashCode());
 		}
 
 		{
@@ -149,7 +151,7 @@ public class RowTest {
 			map.put("k1", new byte[]{1, 2, 3});
 			map.put("k2", new byte[]{3, 4, 6});
 
-			final Row row = Row.of(
+			final Row row = Row.ofKind(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3, 99}, // diff here
@@ -159,7 +161,8 @@ public class RowTest {
 					new int[][]{{1, 2, 3}, {}, {4, 5}},
 					1.44
 			);
-			assertFalse(Row.deepEquals(row, originalRow));
+			assertNotEquals(row, originalRow);
+			assertNotEquals(row.hashCode(), originalRow.hashCode());
 		}
 
 		{
@@ -167,7 +170,7 @@ public class RowTest {
 			map.put("k1", new byte[]{1, 2, 2}); // diff here
 			map.put("k2", new byte[]{3, 4, 6});
 
-			final Row row = Row.of(
+			final Row row = Row.ofKind(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3},
@@ -177,7 +180,8 @@ public class RowTest {
 					new int[][]{{1, 2, 3}, {}, {4, 5}},
 					1.44
 			);
-			assertFalse(Row.deepEquals(row, originalRow));
+			assertNotEquals(row, originalRow);
+			assertNotEquals(row.hashCode(), originalRow.hashCode());
 		}
 
 		{
@@ -185,7 +189,7 @@ public class RowTest {
 			map.put("k1", new byte[]{1, 2, 3});
 			map.put("k2", new byte[]{3, 4, 6});
 
-			final Row row = Row.of(
+			final Row row = Row.ofKind(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3},
@@ -195,7 +199,8 @@ public class RowTest {
 					new Integer[][]{{1, 2, 3}, {}, {4, 5}}, // diff here
 					1.44
 			);
-			assertFalse(Row.deepEquals(row, originalRow));
+			assertNotEquals(row, originalRow);
+			assertNotEquals(row.hashCode(), originalRow.hashCode());
 		}
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -33,6 +34,10 @@ import java.util.Objects;
  */
 @PublicEvolving
 public final class RowUtils {
+
+	// --------------------------------------------------------------------------------------------
+	// Public utilities
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Compares two {@link List}s of {@link Row} for deep equality. This method supports all conversion
@@ -59,24 +64,15 @@ public final class RowUtils {
 		}
 	}
 
-	static boolean deepEqualsInternal(Object o1, Object o2) {
-		if (o1 == o2) {
-			return true;
-		} else if (o1 == null || o2 == null) {
-			return false;
-		} else if (o1 instanceof Row && o2 instanceof Row) {
-			return deepEqualsRow((Row) o1, (Row) o2);
-		} else if (o1 instanceof Object[] && o2 instanceof Object[]) {
-			return deepEqualsArray((Object[]) o1, (Object[]) o2);
-		} else if (o1 instanceof Map && o2 instanceof Map) {
-			return deepEqualsMap((Map<?, ?>) o1, (Map<?, ?>) o2);
-		} else if (o1 instanceof List && o2 instanceof List) {
-			return deepEqualsListOrdered((List<?>) o1, (List<?>) o2);
-		}
-		return Objects.deepEquals(o1, o2);
-	}
+	// --------------------------------------------------------------------------------------------
+	// Default scoped for Row class only
+	// --------------------------------------------------------------------------------------------
 
-	private static boolean deepEqualsRow(Row row1, Row row2) {
+	/**
+	 * Compares two objects with proper (nested) equality semantics. This method supports all external
+	 * and most internal conversion classes of the table ecosystem.
+	 */
+	static boolean deepEqualsRow(Row row1, Row row2) {
 		if (row1.getKind() != row2.getKind()) {
 			return false;
 		}
@@ -91,6 +87,39 @@ public final class RowUtils {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Hashes two objects with proper (nested) equality semantics. This method supports all external
+	 * and most internal conversion classes of the table ecosystem.
+	 */
+	static int deepHashCodeRow(Row row) {
+		int result = row.getKind().toByteValue(); // for stable hash across JVM instances
+		for (int i = 0; i < row.getArity(); i++) {
+			result = 31 * result + deepHashCodeInternal(row.getField(i));
+		}
+		return result;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Internal utilities
+	// --------------------------------------------------------------------------------------------
+
+	private static boolean deepEqualsInternal(Object o1, Object o2) {
+		if (o1 == o2) {
+			return true;
+		} else if (o1 == null || o2 == null) {
+			return false;
+		} else if (o1 instanceof Row && o2 instanceof Row) {
+			return deepEqualsRow((Row) o1, (Row) o2);
+		} else if (o1 instanceof Object[] && o2 instanceof Object[]) {
+			return deepEqualsArray((Object[]) o1, (Object[]) o2);
+		} else if (o1 instanceof Map && o2 instanceof Map) {
+			return deepEqualsMap((Map<?, ?>) o1, (Map<?, ?>) o2);
+		} else if (o1 instanceof List && o2 instanceof List) {
+			return deepEqualsListOrdered((List<?>) o1, (List<?>) o2);
+		}
+		return Objects.deepEquals(o1, o2);
 	}
 
 	private static boolean deepEqualsArray(Object[] a1, Object[] a2) {
@@ -169,6 +198,46 @@ public final class RowUtils {
 			}
 		}
 		return l2Mutable.size() == 0;
+	}
+
+	private static int deepHashCodeInternal(Object o) {
+		if (o == null) {
+			return 0;
+		}
+		if (o instanceof Row) {
+			return deepHashCodeRow((Row) o);
+		} else if (o instanceof Object[]) {
+			return deepHashCodeArray((Object[]) o);
+		} else if (o instanceof Map) {
+			return deepHashCodeMap((Map<?, ?>) o);
+		} else if (o instanceof List) {
+			return deepHashCodeList((List<?>) o);
+		}
+		return Arrays.deepHashCode(new Object[]{o});
+	}
+
+	private static int deepHashCodeArray(Object[] a) {
+		int result = 1;
+		for (Object element : a) {
+			result = 31 * result + deepHashCodeInternal(element);
+		}
+		return result;
+	}
+
+	private static int deepHashCodeMap(Map<?, ?> m) {
+		int result = 1;
+		for (Map.Entry<?, ?> entry : m.entrySet()) {
+			result += deepHashCodeInternal(entry.getKey()) ^ deepHashCodeInternal(entry.getValue());
+		}
+		return result;
+	}
+
+	private static int deepHashCodeList(List<?> l) {
+		int result = 1;
+		for (Object e : l) {
+			result = 31 * result + deepHashCodeInternal(e);
+		}
+        return result;
 	}
 
 	private RowUtils() {
