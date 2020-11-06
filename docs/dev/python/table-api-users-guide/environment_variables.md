@@ -37,9 +37,10 @@ These environment variables will change the behavior of PyFlink:
         <strong>FLINK_HOME</strong>
       </td>
       <td>
-        PyFlink needs a Java process as the Py4J gateway server.
-        Normally the Java process is started from the bundled flink jars under the PyFlink installation folder.
-        If this environment variable is set, the Java process will be started from the flink jars under the $FLINK_HOME folder.
+        Before submitting, the PyFlink jobs need to be compiled by the planners writing in Java.
+        Normally the planners are loaded from the bundled flink jars under the PyFlink installation folder.
+        If this environment variable is set, the the planners will be loaded from the flink jars under the $FLINK_HOME 
+        folder.
       </td>
     </tr>
     <tr>
@@ -47,14 +48,15 @@ These environment variables will change the behavior of PyFlink:
         <strong>PYFLINK_CLIENT_EXECUTABLE</strong>
       </td>
       <td>
-        The path of the python interpreter used to launch the python process when compiling the jobs containing Python UDFs.
+        The path of the Python interpreter used to launch the Python process when submitting the Python jobs via 
+        "flink run" or compiling the Java/Scala jobs containing Python UDFs.
         Equivalent to the configuration option 'python.client.executable'. The priority is as following: 
         <ol>
-        <li>the configuration 'python.client.executable' defined in the source code; </li>
-        <li>the environment variable PYFLINK_CLIENT_EXECUTABLE; </li>
-        <li>the configuration 'python.client.executable' defined in flink-conf.yaml</li>
+        <li>The configuration 'python.client.executable' defined in the source code; </li>
+        <li>The environment variable PYFLINK_CLIENT_EXECUTABLE; </li>
+        <li>The configuration 'python.client.executable' defined in flink-conf.yaml</li>
         </ol>
-        If none of above is set, the default python interpreter 'python' will be used.
+        If none of above is set, the default Python interpreter 'python' will be used.
       </td>
     </tr>
   </tbody>
