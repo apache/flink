@@ -108,18 +108,40 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 			Long limit,
 			String hiveVersion,
 			boolean useMapRedReader) {
+		this(
+				jobConf,
+				checkNotNull(catalogTable, "catalogTable can not be null.")
+						.getPartitionKeys(),
+				catalogTable.getSchema().getFieldDataTypes(),
+				catalogTable.getSchema().getFieldNames(),
+				projectedFields,
+				limit,
+				hiveVersion,
+				useMapRedReader,
+				partitions);
+	}
+
+	public HiveTableInputFormat(
+			JobConf jobConf,
+			List<String> partitionKeys,
+			DataType[] fieldTypes,
+			String[] fieldNames,
+			int[] projectedFields,
+			Long limit,
+			String hiveVersion,
+			boolean useMapRedReader,
+			List<HiveTablePartition> partitions) {
 		super(jobConf.getCredentials());
-		this.partitionKeys = catalogTable.getPartitionKeys();
-		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
-		this.fieldNames = catalogTable.getSchema().getFieldNames();
+		this.jobConf = new JobConf(jobConf);
+		this.partitionKeys = partitionKeys;
+		this.fieldTypes = fieldTypes;
+		this.fieldNames = fieldNames;
 		this.limit = limit;
 		this.hiveVersion = hiveVersion;
-		checkNotNull(catalogTable, "catalogTable can not be null.");
-		this.partitions = checkNotNull(partitions, "partitions can not be null.");
-		this.jobConf = new JobConf(jobConf);
-		int rowArity = catalogTable.getSchema().getFieldCount();
-		selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
+		int rowArity = fieldTypes.length;
+		this.selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
 		this.useMapRedReader = useMapRedReader;
+		this.partitions = checkNotNull(partitions, "partitions can not be null.");
 	}
 
 	public JobConf getJobConf() {
