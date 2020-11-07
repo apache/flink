@@ -20,11 +20,15 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.factories.BulkWriterFormatFactory;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -37,7 +41,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
@@ -46,11 +49,7 @@ import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITE
 /**
  * Test csv {@link FileSystemFormatFactory}.
  */
-public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
-
-	public static final ConfigOption<Boolean> USE_BULK_WRITER = ConfigOptions.key("use-bulk-writer")
-			.booleanType()
-			.defaultValue(false);
+public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory, BulkWriterFormatFactory {
 
 	@Override
 	public String factoryIdentifier() {
@@ -59,9 +58,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public Set<ConfigOption<?>> requiredOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(USE_BULK_WRITER);
-		return options;
+		return new HashSet<>();
 	}
 
 	@Override
@@ -78,22 +75,6 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getDefaultPartName(),
 				context.getProjectFields(),
 				context.getPushedDownLimit());
-	}
-
-	private boolean useBulkWriter(WriterContext context) {
-		return context.getFormatOptions().get(USE_BULK_WRITER);
-	}
-
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		if (useBulkWriter(context)) {
-			return Optional.empty();
-		}
-
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of((rowData, stream) -> {
-			writeCsvToStream(types, rowData, stream);
-		});
 	}
 
 	private static void writeCsvToStream(
@@ -123,13 +104,21 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		if (!useBulkWriter(context)) {
-			return Optional.empty();
-		}
+	public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
+			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+		return new EncodingFormat<BulkWriter.Factory<RowData>>() {
+			@Override
+			public BulkWriter.Factory<RowData> createRuntimeEncoder(
+					DynamicTableSink.Context context, DataType consumedDataType) {
+				return out -> new CsvBulkWriter(
+						consumedDataType.getChildren().toArray(new DataType[0]), out);
+			}
 
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of(out -> new CsvBulkWriter(types, out));
+			@Override
+			public ChangelogMode getChangelogMode() {
+				return ChangelogMode.insertOnly();
+			}
+		};
 	}
 
 	private static class CsvBulkWriter implements BulkWriter<RowData> {

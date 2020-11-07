@@ -22,6 +22,7 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -94,10 +95,14 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		SupportsPartitioning,
 		SupportsOverwrite {
 
+	// For compaction reading
 	@Nullable private final DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat;
+	@Nullable private final DecodingFormat<DeserializationSchema<RowData>> deserializationFormat;
+	@Nullable private final FileSystemFormatFactory formatFactory;
+
+	// For Writing
 	@Nullable private final EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat;
 	@Nullable private final EncodingFormat<SerializationSchema<RowData>> serializationFormat;
-	@Nullable private final FileSystemFormatFactory formatFactory;
 
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
@@ -106,11 +111,14 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 	FileSystemTableSink(
 			DynamicTableFactory.Context context,
 			@Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
+			@Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
+			@Nullable FileSystemFormatFactory formatFactory,
 			@Nullable EncodingFormat<BulkWriter.Factory<RowData>> bulkWriterFormat,
-			@Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat,
-			@Nullable FileSystemFormatFactory formatFactory) {
+			@Nullable EncodingFormat<SerializationSchema<RowData>> serializationFormat) {
 		super(context);
 		this.bulkReaderFormat = bulkReaderFormat;
+		this.deserializationFormat = deserializationFormat;
+		this.formatFactory = formatFactory;
 		if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory)
 				.allMatch(Objects::isNull)) {
 			throw new ValidationException("Please implement at least one of the following formats:" +
@@ -118,7 +126,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		}
 		this.bulkWriterFormat = bulkWriterFormat;
 		this.serializationFormat = serializationFormat;
-		this.formatFactory = formatFactory;
 	}
 
 	@Override
@@ -250,6 +257,14 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 				//noinspection unchecked
 				return Optional.of(FileInputFormatCompactReader.factory((FileInputFormat<RowData>) format));
 			}
+		} else if (deserializationFormat != null) {
+			// NOTE, we need pass full format types to deserializationFormat
+			DeserializationSchema<RowData> decoder = deserializationFormat.createRuntimeDecoder(
+					createSourceContext(context), getFormatDataType());
+			int[] projectedFields = IntStream.range(0, schema.getFieldCount()).toArray();
+			DeserializationSchemaAdapter format = new DeserializationSchemaAdapter(
+					decoder, schema, projectedFields, partitionKeys, defaultPartName);
+			return Optional.of(CompactBulkReader.factory(format));
 		}
 		return Optional.empty();
 	}
@@ -334,60 +349,14 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 				path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
 	}
 
-	private DataType getFormatDataType() {
-		TableSchema.Builder builder = TableSchema.builder();
-		schema.getTableColumns().forEach(column -> {
-			if (!partitionKeys.contains(column.getName())) {
-				builder.add(column);
-			}
-		});
-		return builder.build().toRowDataType();
-	}
-
 	private Object createWriter(Context sinkContext) {
 		if (bulkWriterFormat != null) {
 			return bulkWriterFormat.createRuntimeEncoder(sinkContext, getFormatDataType());
-		} else if (formatFactory != null) {
-			return createWriterFromFormatFactory();
 		} else if (serializationFormat != null) {
-			throw new UnsupportedOperationException("The serializationFormat is under developing.");
-			// TODO wrap serializationSchema to encoder
-			// return wrapSerializationFormat(
-			//     serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
+			return new SerializationSchemaAdapter(
+					serializationFormat.createRuntimeEncoder(sinkContext, getFormatDataType()));
 		} else {
 			throw new TableException("Can not find format factory.");
-		}
-	}
-
-	private Object createWriterFromFormatFactory() {
-		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
-
-			@Override
-			public TableSchema getSchema() {
-				return schema;
-			}
-
-			@Override
-			public ReadableConfig getFormatOptions() {
-				return formatOptions(formatFactory.factoryIdentifier());
-			}
-
-			@Override
-			public List<String> getPartitionKeys() {
-				return partitionKeys;
-			}
-		};
-
-		Optional<Encoder<RowData>> encoder = formatFactory.createEncoder(context);
-		Optional<BulkWriter.Factory<RowData>> bulk = formatFactory.createBulkWriterFactory(context);
-
-		if (encoder.isPresent()) {
-			return encoder.get();
-		} else if (bulk.isPresent()) {
-			return bulk.get();
-		} else {
-			throw new TableException(
-					formatFactory + " format should implement at least one Encoder or BulkWriter");
 		}
 	}
 
@@ -473,13 +442,19 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 
 	@Override
 	public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-		return ChangelogMode.insertOnly();
+		if (bulkWriterFormat != null) {
+			return bulkWriterFormat.getChangelogMode();
+		} else if (serializationFormat != null) {
+			return serializationFormat.getChangelogMode();
+		} else {
+			throw new TableException("Can not find format factory.");
+		}
 	}
 
 	@Override
 	public DynamicTableSink copy() {
 		FileSystemTableSink sink = new FileSystemTableSink(
-				context, bulkReaderFormat, bulkWriterFormat, serializationFormat, formatFactory);
+				context, bulkReaderFormat, deserializationFormat, formatFactory, bulkWriterFormat, serializationFormat);
 		sink.overwrite = overwrite;
 		sink.dynamicGrouping = dynamicGrouping;
 		sink.staticPartitions = staticPartitions;

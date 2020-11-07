@@ -20,8 +20,6 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
@@ -33,7 +31,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -50,16 +47,6 @@ public interface FileSystemFormatFactory extends Factory {
 	 * Create {@link InputFormat} reader.
 	 */
 	InputFormat<RowData, ?> createReader(ReaderContext context);
-
-	/**
-	 * Create {@link Encoder} writer.
-	 */
-	Optional<Encoder<RowData>> createEncoder(WriterContext context);
-
-	/**
-	 * Create {@link BulkWriter.Factory} writer.
-	 */
-	Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context);
 
 	/**
 	 * Context of {@link #createReader}.
@@ -151,59 +138,6 @@ public interface FileSystemFormatFactory extends Factory {
 			return selectFieldNames.stream()
 				.filter(name -> !getPartitionKeys().contains(name))
 				.collect(Collectors.toList());
-		}
-	}
-
-	/**
-	 * Context of {@link #createEncoder} and {@link #createBulkWriterFactory}.
-	 */
-	interface WriterContext {
-
-		/**
-		 * Full schema of the table.
-		 */
-		TableSchema getSchema();
-
-		/**
-		 * Options of this format.
-		 */
-		ReadableConfig getFormatOptions();
-
-		/**
-		 * Partition keys of the table.
-		 */
-		List<String> getPartitionKeys();
-
-		/**
-		 * Get field names without partition keys.
-		 */
-		default String[] getFormatFieldNames() {
-			return Arrays.stream(getSchema().getFieldNames())
-					.filter(name -> !getPartitionKeys().contains(name))
-					.toArray(String[]::new);
-		}
-
-		/**
-		 * Get field types without partition keys.
-		 */
-		default DataType[] getFormatFieldTypes() {
-			return Arrays.stream(getSchema().getFieldNames())
-					.filter(name -> !getPartitionKeys().contains(name))
-					.map(name -> getSchema().getFieldDataType(name).get())
-					.toArray(DataType[]::new);
-		}
-
-		/**
-		 * Get RowType of the table without partition keys.
-		 * @return
-		 */
-		default RowType getFormatRowType() {
-			return RowType.of(
-				false,
-				Arrays.stream(getFormatFieldTypes())
-					.map(DataType::getLogicalType)
-					.toArray(LogicalType[]::new),
-				getFormatFieldNames());
 		}
 	}
 }

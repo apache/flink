@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.stream.sql
+package org.apache.flink.formats.json;
 
-import scala.collection.Seq
+import org.apache.flink.table.planner.runtime.stream.sql.FileCompactionITCaseBase;
 
 /**
-  * Test csv [[StreamFileSystemITCaseBase]].
-  */
-class StreamFileSystemTestCsvITCase extends StreamFileSystemITCaseBase {
+ * Compaction it case for json.
+ */
+public class JsonFileCompactionITCase extends FileCompactionITCaseBase {
 
-  override def formatProperties(): Array[String] = {
-    super.formatProperties() ++ Seq("'format' = 'testcsv'")
-  }
+	@Override
+	protected String format() {
+		return "json";
+	}
 }
