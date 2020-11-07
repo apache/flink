@@ -574,7 +574,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						+ "  ts TIMESTAMP(3)"
 						+ ") WITH ("
 						+ "  'connector' = 'values',"
-						+ "  'sink-drop-late-data' = '2'"
+						+ "  'sink-index-of-rowtime' = '2'"
 						+ ")";
 		tEnv.executeSql(createSink);
 		tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");

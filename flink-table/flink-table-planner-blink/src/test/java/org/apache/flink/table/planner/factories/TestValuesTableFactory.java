@@ -291,8 +291,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			"Optional map of 'metadata_key:data_type'. The order will be alphabetically. " +
 			"The metadata is part of the data when enabled.");
 
-	private static final ConfigOption<Integer> SINK_DROP_LATE_DATA = ConfigOptions
-		.key("sink-drop-late-data")
+	private static final ConfigOption<Integer> SINK_INDEX_OF_ROWTIME = ConfigOptions
+		.key("sink-index-of-rowtime")
 		.intType()
 		.defaultValue(-1)
 		.withDeprecatedKeys(
@@ -434,7 +434,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
-		int dropLateData = helper.getOptions().get(SINK_DROP_LATE_DATA);
+		int rowtimeIndex = helper.getOptions().get(SINK_INDEX_OF_ROWTIME);
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
@@ -456,7 +456,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				writableMetadata,
 				parallelism,
 				changelogMode,
-				dropLateData);
+				rowtimeIndex);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -498,7 +498,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_CHANGELOG_MODE_ENFORCED,
 			WRITABLE_METADATA,
 			ENABLE_WATERMARK_PUSH_DOWN,
-			SINK_DROP_LATE_DATA));
+				SINK_INDEX_OF_ROWTIME));
 	}
 
 	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
@@ -1082,7 +1082,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final Map<String, DataType> writableMetadata;
 		private final Integer parallelism;
 		private final ChangelogMode changelogModeEnforced;
-		private final int dropLateData;
+		private final int rowtimeIndex;
 
 		private TestValuesTableSink(
 				DataType consumedDataType,
@@ -1094,7 +1094,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				Map<String, DataType> writableMetadata,
 				@Nullable Integer parallelism,
 				@Nullable ChangelogMode changelogModeEnforced,
-				int dropLateData) {
+				int rowtimeIndex) {
 			this.consumedDataType = consumedDataType;
 			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
@@ -1104,7 +1104,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.writableMetadata = writableMetadata;
 			this.parallelism = parallelism;
 			this.changelogModeEnforced = changelogModeEnforced;
-			this.dropLateData = dropLateData;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
 		@Override
@@ -1153,16 +1153,10 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 								@Override
 								public SinkFunction<RowData> createSinkFunction() {
-									if (dropLateData != -1) {
-										return new TestValuesRuntimeFunctions.WatermarkSinkFunction(
-											tableName,
-											converter,
-											dropLateData);
-									} else {
-										return new AppendingSinkFunction(
-											tableName,
-											converter);
-									}
+									return new AppendingSinkFunction(
+										tableName,
+										converter,
+											rowtimeIndex);
 								}
 							};
 					case "OutputFormat":
@@ -1181,7 +1175,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 							};
 					case "DataStream":
 						return (DataStreamSinkProvider) dataStream ->
-								dataStream.addSink(new AppendingSinkFunction(tableName, converter));
+								dataStream.addSink(new AppendingSinkFunction(tableName, converter, rowtimeIndex));
 					case "DataStreamWithParallelism":
 						return new TestValuesRuntimeFunctions.InternalDataStreamSinkProviderWithParallelism(1);
 					default:
@@ -1220,7 +1214,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				writableMetadata,
 				parallelism,
 				changelogModeEnforced,
-				dropLateData);
+					rowtimeIndex);
 		}
 
 		@Override

@@ -302,10 +302,12 @@ final class TestValuesRuntimeFunctions {
 
 		private static final long serialVersionUID = 1L;
 		private final DataStructureConverter converter;
+		private final int rowtimeIndex;
 
-		protected AppendingSinkFunction(String tableName, DataStructureConverter converter) {
+		protected AppendingSinkFunction(String tableName, DataStructureConverter converter, int rowtimeIndex) {
 			super(tableName);
 			this.converter = converter;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
 		@SuppressWarnings("rawtypes")
@@ -315,45 +317,18 @@ final class TestValuesRuntimeFunctions {
 			if (value.getRowKind() == RowKind.INSERT) {
 				Row row = (Row) converter.toExternal(value);
 				assert row != null;
-				localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
-			} else {
-				throw new RuntimeException(
-					"AppendingSinkFunction received " + value.getRowKind() + " messages.");
-			}
-		}
-	}
-
-	/**
-	 * The {@link WatermarkSinkFunction} will drop the data whose rowtime is late than current watermark.
-	 */
-	static class WatermarkSinkFunction extends AbstractExactlyOnceSink {
-
-		private static final long serialVersionUID = 1L;
-		private final int rowtimeIndex;
-		private final DataStructureConverter converter;
-
-		protected WatermarkSinkFunction(String tableName, DataStructureConverter converter, int rowTimeIndex) {
-			super(tableName);
-			this.converter = converter;
-			this.rowtimeIndex = rowTimeIndex;
-		}
-
-		@Override
-		public void invoke(RowData value, Context context) throws Exception {
-			RowKind kind = value.getRowKind();
-			if (value.getRowKind() == RowKind.INSERT) {
-				Row row = (Row) converter.toExternal(value);
-				assert row != null;
-				LocalDateTime rowtime = (LocalDateTime) row.getField(rowtimeIndex);
-				long mark = context.currentWatermark();
-				if (rowtime == null || mark > rowtime.toEpochSecond(ZoneOffset.UTC)) {
-					// discard the late data
-					return;
+				if (rowtimeIndex >= 0) {
+					LocalDateTime rowtime = (LocalDateTime) row.getField(rowtimeIndex);
+					long mark = context.currentWatermark();
+					if (rowtime == null || mark > rowtime.toEpochSecond(ZoneOffset.UTC)) {
+						// discard the late data
+						return;
+					}
 				}
 				localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
 			} else {
 				throw new RuntimeException(
-						"AppendingSinkFunction received " + value.getRowKind() + " messages.");
+					"AppendingSinkFunction received " + value.getRowKind() + " messages.");
 			}
 		}
 	}
