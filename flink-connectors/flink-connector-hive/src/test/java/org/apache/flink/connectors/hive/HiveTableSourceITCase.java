@@ -492,7 +492,112 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	}
 
 	@Test(timeout = 120000)
-	public void testStreamPartitionRead() throws Exception {
+	public void testStreamPartitionReadByPartitionName() throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "stream_partition_name_test";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		tEnv.useCatalog(catalogName);
+		tEnv.executeSql("CREATE TABLE source_db.stream_partition_name_test (x int, y string, z int)" +
+				" PARTITIONED BY (" +
+				" pt_year int, pt_mon string, pt_day string) TBLPROPERTIES(" +
+				"'streaming-source.enable'='true'," +
+				"'streaming-source.monitor-interval'='1s'," +
+				"'streaming-source.consume-start-offset'='pt_year=2019/pt_month=09/pt_day=02'" +
+				")");
+
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{0, "a", 11})
+				.commit("pt_year='2019',pt_mon='09',pt_day='01'");
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{1, "b", 12})
+				.commit("pt_year='2020',pt_mon='09',pt_day='03'");
+
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_partition_name_test");
+		CloseableIterator<Row> iter = result.collect();
+
+		Assert.assertEquals(
+				Row.of(1, "b", "12", "2020", "09", "03").toString(),
+				fetchRows(iter, 1).get(0));
+
+		for (int i = 2; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+					.addRow(new Object[]{i, "new_add", 11 + i})
+					.addRow(new Object[]{i, "new_add_1", 11 + i})
+					.commit("pt_year='2020',pt_mon='10',pt_day='0" + i + "'");
+
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, "new_add", 11 + i, "2020", "10", "0" + i).toString(),
+							Row.of(i, "new_add_1", 11 + i, "2020", "10", "0" + i).toString()),
+					fetchRows(iter, 2));
+		}
+
+		result.getJobClient().get().cancel();
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamPartitionReadByCreateTime() throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "stream_create_time_test";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		tEnv.useCatalog(catalogName);
+		tEnv.executeSql("CREATE TABLE source_db.stream_create_time_test (x int, y string, z int)" +
+				" PARTITIONED BY (" +
+				" p1 string, p2 string, p3 string) TBLPROPERTIES(" +
+				"'streaming-source.enable'='true'," +
+				"'streaming-source.partition-include'='all'," +
+				"'streaming-source.consume-order'='create-time'," +
+				"'streaming-source.monitor-interval'='1s'," +
+				"'streaming-source.consume-start-offset'='2020-10-02 00:00:00'" +
+				")");
+
+		// the create-time is near current timestamp and bigger than '2020-10-02 00:00:00' since the code wrote
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{0, "a", 11})
+				.commit("p1='A1',p2='B1',p3='C1'");
+
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_create_time_test");
+		CloseableIterator<Row> iter = result.collect();
+
+		Assert.assertEquals(
+				Row.of(0, "a", "11", "A1", "B1", "C1").toString(),
+				fetchRows(iter, 1).get(0));
+
+		for (int i = 1; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+					.addRow(new Object[]{i, "new_add", 11 + i})
+					.addRow(new Object[]{i, "new_add_1", 11 + i})
+					.commit("p1='A',p2='B',p3='" + i + "'");
+
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, "new_add", 11 + i, "A", "B", i).toString(),
+							Row.of(i, "new_add_1", 11 + i, "A", "B", i).toString()),
+					fetchRows(iter, 2));
+		}
+		result.getJobClient().get().cancel();
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamPartitionReadByPartitionTime() throws Exception {
 		final String catalogName = "hive";
 		final String dbName = "source_db";
 		final String tblName = "stream_test";
@@ -575,6 +680,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				"  b CHAR(1) " +
 				") stored as parquet TBLPROPERTIES (" +
 				"  'streaming-source.enable'='true'," +
+				"  'streaming-source.partition-order'='create-time'," +
 				"  'streaming-source.monitor-interval'='100ms'" +
 				")");
 

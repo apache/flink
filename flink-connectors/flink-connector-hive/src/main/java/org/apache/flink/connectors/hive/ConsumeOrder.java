@@ -35,7 +35,13 @@ public enum ConsumeOrder {
 	/**
 	 * partition-time compare time represented by partition name.
 	 */
-	PARTITION_TIME_ORDER("partition-time");
+	PARTITION_TIME_ORDER("partition-time"),
+
+	/**
+	 * partition-name compare partition names, the comparator oder
+	 * is the alphabetical order.
+	 */
+	PARTITION_NAME_ORDER("partition-name");
 
 	private final String order;
 
