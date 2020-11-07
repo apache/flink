@@ -1,5 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
@@ -10,7 +30,7 @@ import org.apache.flink.formats.avro.registry.confluent.ConfluentSchemaRegistryC
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
@@ -23,10 +43,12 @@ import org.apache.avro.generic.GenericRecord;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,6 +59,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link DebeziumAvroDeserializationSchema}.
@@ -45,8 +68,6 @@ public class DebeziumAvroSerDeSchemaTest {
 
 	private static final String SUBJECT = "testDebeziumAvro";
 
-	private static SchemaRegistryClient client = new MockSchemaRegistryClient();
-
 	private static final RowType rowType = (RowType) ROW(
 		FIELD("id", BIGINT()),
 		FIELD("name", STRING()),
@@ -54,7 +75,11 @@ public class DebeziumAvroSerDeSchemaTest {
 		FIELD("weight", DOUBLE())
 	).getLogicalType();
 
-	private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"Envelope\",\"namespace\":\"fullfillment.test1.person\",\"fields\":[{\"name\":\"before\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Value\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"name\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"description\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"weight\",\"type\":[\"null\",\"double\"],\"default\":null}],\"connect.name\":\"fullfillment.test1.person.Value\"}],\"default\":null},{\"name\":\"after\",\"type\":[\"null\",\"Value\"],\"default\":null},{\"name\":\"source\",\"type\":{\"type\":\"record\",\"name\":\"Source\",\"namespace\":\"io.debezium.connector.mysql\",\"fields\":[{\"name\":\"version\",\"type\":\"string\"},{\"name\":\"connector\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"ts_ms\",\"type\":\"long\"},{\"name\":\"snapshot\",\"type\":[{\"type\":\"string\",\"connect.version\":1,\"connect.parameters\":{\"allowed\":\"true,last,false\"},\"connect.default\":\"false\",\"connect.name\":\"io.debezium.data.Enum\"},\"null\"],\"default\":\"false\"},{\"name\":\"db\",\"type\":\"string\"},{\"name\":\"table\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"server_id\",\"type\":\"long\"},{\"name\":\"gtid\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file\",\"type\":\"string\"},{\"name\":\"pos\",\"type\":\"long\"},{\"name\":\"row\",\"type\":\"int\"},{\"name\":\"thread\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"query\",\"type\":[\"null\",\"string\"],\"default\":null}],\"connect.name\":\"io.debezium.connector.mysql.Source\"}},{\"name\":\"op\",\"type\":\"string\"},{\"name\":\"ts_ms\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"transaction\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"ConnectDefault\",\"namespace\":\"io.confluent.connect.avro\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"total_order\",\"type\":\"long\"},{\"name\":\"data_collection_order\",\"type\":\"long\"}]}],\"default\":null}],\"connect.name\":\"fullfillment.test1.person.Envelope\"}");
+	private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST = new Schema.Parser().parse(
+		new String(readBytesFromFile("debezium-test-schema.json"))
+	);
+
+	private SchemaRegistryClient client = new MockSchemaRegistryClient();
 
 	@Test
 	public void testSerializationDeserialization() throws Exception {
@@ -62,42 +87,41 @@ public class DebeziumAvroSerDeSchemaTest {
 		RowType rowTypeDe = DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 		RowType rowTypeSe = DebeziumAvroSerializationSchema.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
-		AvroRowDataSerializationSchema serializer = getSerializationSchema(rowTypeSe, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
-		DebeziumAvroSerializationSchema debeziumAvroSerializationSchema = new DebeziumAvroSerializationSchema(serializer);
-		serializer.open(null);
+		DebeziumAvroSerializationSchema dbzSerializer = new DebeziumAvroSerializationSchema(getSerializationSchema(rowTypeSe));
+		dbzSerializer.open(mock(SerializationSchema.InitializationContext.class));
 
-		byte[] serialize = debeziumAvroSerializationSchema.serialize(debeziumRow2RowData());
+		byte[] serialize = dbzSerializer.serialize(debeziumRow2RowData());
 
 		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
-		AvroRowDataDeserializationSchema deserializer = getDeserializationSchema(rowTypeDe, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
-		DebeziumAvroDeserializationSchema debeziumAvroDeserializationSchema = new DebeziumAvroDeserializationSchema(rowTypeDe, InternalTypeInfo.of(rowType), deserializer);
+		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
+			InternalTypeInfo.of(rowType),
+			getDeserializationSchema(rowTypeDe));
+		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
 
-		deserializer.open(null);
 		SimpleCollector collector = new SimpleCollector();
-
-		debeziumAvroDeserializationSchema.deserialize(serialize, collector);
+		dbzDeserializer.deserialize(serialize, collector);
 
 		List<String> actual = collector.list.stream()
 			.map(Object::toString)
 			.collect(Collectors.toList());
 
-		List<String> expected = Arrays.asList(
+		List<String> expected = Collections.singletonList(
 			"+I(107,rocks,box of assorted rocks,5.3)");
 		assertEquals(expected, actual);
 	}
 
 	@Test
 	public void testInsertDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization(getPath("debezium-avro-insert.txt"));
+		List<String> actual = testDeserialization("debezium-avro-insert.avro");
 
-		List<String> expected = Arrays.asList(
+		List<String> expected = Collections.singletonList(
 			"+I(1,lisi,test debezium avro data,21.799999237060547)");
 		assertEquals(expected, actual);
 	}
 
 	@Test
 	public void testUpdateDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization(getPath("debezium-avro-update.txt"));
+		List<String> actual = testDeserialization("debezium-avro-update.avro");
 
 		List<String> expected = Arrays.asList(
 			"-U(1,lisi,test debezium avro data,21.799999237060547)",
@@ -107,43 +131,35 @@ public class DebeziumAvroSerDeSchemaTest {
 
 	@Test
 	public void testDeleteDataDeserialization() throws Exception {
-		List<String> actual = testDeserialization(getPath("debezium-avro-delete.txt"));
+		List<String> actual = testDeserialization("debezium-avro-delete.avro");
 
-		List<String> expected = Arrays.asList(
+		List<String> expected = Collections.singletonList(
 			"-D(1,zhangsan,test debezium avro data,21.799999237060547)");
 		assertEquals(expected, actual);
 	}
 
-	public List<String> testDeserialization(Path path) throws Exception {
+	public List<String> testDeserialization(String dataPath) throws Exception {
 		RowType rowTypeDe = DebeziumAvroDeserializationSchema
 			.createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
 		client.register(SUBJECT, DEBEZIUM_SCHEMA_COMPATIBLE_TEST, 1, 81);
 
-		AvroRowDataDeserializationSchema deserializer = getDeserializationSchema(rowTypeDe, DEBEZIUM_SCHEMA_COMPATIBLE_TEST);
-		DebeziumAvroDeserializationSchema debeziumAvroDeserializationSchema = new DebeziumAvroDeserializationSchema(rowTypeDe, InternalTypeInfo.of(rowType), deserializer);
+		DebeziumAvroDeserializationSchema dbzDeserializer = new DebeziumAvroDeserializationSchema(
+			InternalTypeInfo.of(rowType),
+			getDeserializationSchema(rowTypeDe));
+		dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
 
-		deserializer.open(null);
 		SimpleCollector collector = new SimpleCollector();
-		byte[] bytes = FileUtils.readAllBytes(path);
+		dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
 
-		debeziumAvroDeserializationSchema.deserialize(bytes, collector);
-
-		List<String> actual = collector.list.stream()
+		return collector.list.stream()
 			.map(Object::toString)
 			.collect(Collectors.toList());
-
-		return actual;
 	}
 
-	private Path getPath(String filePath) {
-		URL url = DebeziumAvroSerDeSchemaTest.class.getClassLoader().getResource(filePath);
-		return new File(url.getFile()).toPath();
-	}
+	private AvroRowDataDeserializationSchema getDeserializationSchema(RowType rowType) {
 
-	private static AvroRowDataDeserializationSchema getDeserializationSchema(RowType rowType, Schema schema) {
-
-		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
+		final ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
 
 		return new AvroRowDataDeserializationSchema(
 			new RegistryAvroDeserializationSchema<>(
@@ -155,7 +171,7 @@ public class DebeziumAvroSerDeSchemaTest {
 			InternalTypeInfo.of(rowType));
 	}
 
-	private static AvroRowDataSerializationSchema getSerializationSchema(RowType rowType, Schema schema) {
+	private AvroRowDataSerializationSchema getSerializationSchema(RowType rowType) {
 
 		ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(SUBJECT, client);
 		return new AvroRowDataSerializationSchema(
@@ -164,16 +180,27 @@ public class DebeziumAvroSerDeSchemaTest {
 				GenericRecord.class,
 				AvroSchemaConverter.convertToSchema(rowType),
 				() -> registryCoder),
-			RowDataToAvroConverters.createRowConverter(rowType));
+			RowDataToAvroConverters.createConverter(rowType));
 	}
 
 	private static RowData debeziumRow2RowData() {
 		GenericRowData rowData = new GenericRowData(4);
 		rowData.setField(0, 107L);
-		rowData.setField(1, new BinaryStringData("rocks"));
-		rowData.setField(2, new BinaryStringData("box of assorted rocks"));
+		rowData.setField(1, StringData.fromString("rocks"));
+		rowData.setField(2, StringData.fromString("box of assorted rocks"));
 		rowData.setField(3, 5.3D);
 		return rowData;
+	}
+
+	private static byte[] readBytesFromFile(String filePath) {
+		try {
+			URL url = DebeziumAvroSerDeSchemaTest.class.getClassLoader().getResource(filePath);
+			assert url != null;
+			Path path = new File(url.getFile()).toPath();
+			return FileUtils.readAllBytes(path);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private static class SimpleCollector implements Collector<RowData> {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
@@ -29,10 +30,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.RowKind;
 
 import java.util.Objects;
 
+import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
@@ -44,7 +45,7 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
 	/**
 	 * insert operation.
 	 */
-	private static final StringData OP_CREATE = StringData.fromString("c");
+	private static final StringData OP_INSERT = StringData.fromString("c");
 	/**
 	 * delete operation.
 	 */
@@ -54,6 +55,8 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
 	 * The deserializer to deserialize Debezium Avro data.
 	 */
 	private final AvroRowDataSerializationSchema avroSerializer;
+
+	private transient GenericRowData outputReuse;
 
 	public DebeziumAvroSerializationSchema(
 			RowType rowType,
@@ -67,44 +70,41 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
 				schemaRegistrySubject,
 				AvroSchemaConverter.convertToSchema(debeziumAvroRowType),
 				schemaRegistryUrl),
-			RowDataToAvroConverters.createRowConverter(debeziumAvroRowType));
+			RowDataToAvroConverters.createConverter(debeziumAvroRowType));
 	}
 
-	public DebeziumAvroSerializationSchema(AvroRowDataSerializationSchema avroSerializer) {
+	@VisibleForTesting
+	DebeziumAvroSerializationSchema(AvroRowDataSerializationSchema avroSerializer) {
 		this.avroSerializer = avroSerializer;
 	}
 
 	@Override
 	public void open(InitializationContext context) throws Exception {
+		avroSerializer.open(context);
+		outputReuse = new GenericRowData(3);
 	}
 
 	@Override
-	public byte[] serialize(RowData element) {
-		GenericRowData reuse = new GenericRowData(3);
-		switch (element.getRowKind()) {
-			case INSERT:
-				reuse.setField(1, element);
-				break;
-			case DELETE:
-				reuse.setField(0, element);
-				break;
-			default:
-				throw new UnsupportedOperationException("Unsupported operation '" + element.getRowKind() + "' for row kind.");
-		}
-		reuse.setField(2, rowKind2String(element.getRowKind()));
-		return avroSerializer.serialize(reuse);
-	}
-
-	private StringData rowKind2String(RowKind rowKind) {
-		switch (rowKind) {
-			case INSERT:
-			case UPDATE_AFTER:
-				return OP_CREATE;
-			case UPDATE_BEFORE:
-			case DELETE:
-				return OP_DELETE;
-			default:
-				throw new UnsupportedOperationException("Unsupported operation '" + rowKind + "' for row kind.");
+	public byte[] serialize(RowData rowData) {
+		try {
+			switch (rowData.getRowKind()) {
+				case INSERT:
+				case UPDATE_AFTER:
+					outputReuse.setField(0,  null);
+					outputReuse.setField(1, rowData);
+					outputReuse.setField(2,  OP_INSERT);
+					return avroSerializer.serialize(outputReuse);
+				case UPDATE_BEFORE:
+				case DELETE:
+					outputReuse.setField(0,  rowData);
+					outputReuse.setField(1, null);
+					outputReuse.setField(2,  OP_DELETE);
+					return avroSerializer.serialize(outputReuse);
+				default:
+					throw new UnsupportedOperationException(format("Unsupported operation '%s' for row kind.", rowData.getRowKind()));
+			}
+		} catch (Throwable t) {
+			throw new RuntimeException(format("Could not serialize row '%s'.", rowData), t);
 		}
 	}
 

@@ -66,7 +66,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		this(
 				rowType,
 				AvroSerializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
-				RowDataToAvroConverters.createRowConverter(rowType));
+				RowDataToAvroConverters.createConverter(rowType));
 	}
 
 	/**

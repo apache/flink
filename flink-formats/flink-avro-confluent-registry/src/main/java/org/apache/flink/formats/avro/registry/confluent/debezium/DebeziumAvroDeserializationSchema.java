@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.AvroRowDataDeserializationSchema;
@@ -82,36 +83,35 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 	/**
 	 * TypeInformation of the produced {@link RowData}.
 	 **/
-	private final TypeInformation<RowData> resultTypeInfo;
-
-	/**
-	 * Debezium Avro data rowType.
-	 */
-	private final RowType rowType;
+	private final TypeInformation<RowData> producedTypeInfo;
 
 	public DebeziumAvroDeserializationSchema(
 			RowType rowType,
-			TypeInformation<RowData> resultTypeInfo,
+			TypeInformation<RowData> producedTypeInfo,
 			String schemaRegistryUrl) {
-		this.resultTypeInfo = resultTypeInfo;
-		this.rowType = rowType;
-		RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));
+		this.producedTypeInfo = producedTypeInfo;
+		RowType debeziumAvroRowType = createDebeziumAvroRowType(
+			fromLogicalToDataType(rowType));
 
 		this.avroDeserializer = new AvroRowDataDeserializationSchema(
 			ConfluentRegistryAvroDeserializationSchema.forGeneric(
 				AvroSchemaConverter.convertToSchema(debeziumAvroRowType),
 				schemaRegistryUrl),
 			AvroToRowDataConverters.createRowConverter(debeziumAvroRowType),
-			resultTypeInfo);
+			producedTypeInfo);
 	}
 
-	public DebeziumAvroDeserializationSchema(
-			RowType rowType,
-			TypeInformation<RowData> resultTypeInfo,
+	@VisibleForTesting
+	DebeziumAvroDeserializationSchema(
+			TypeInformation<RowData> producedTypeInfo,
 			AvroRowDataDeserializationSchema avroDeserializer) {
-		this.rowType = rowType;
-		this.resultTypeInfo = resultTypeInfo;
+		this.producedTypeInfo = producedTypeInfo;
 		this.avroDeserializer = avroDeserializer;
+	}
+
+	@Override
+	public void open(InitializationContext context) throws Exception {
+		avroDeserializer.open(context);
 	}
 
 	@Override
@@ -156,8 +156,7 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 			}
 		} catch (Throwable t) {
 			// a big try catch to protect the processing.
-			throw new IOException(format(
-				"Corrupt Debezium Avro message '%s'.", new String(message)), t);
+			throw new IOException("Can't deserialize Debezium Avro message.", t);
 		}
 	}
 
@@ -168,7 +167,7 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
 	@Override
 	public TypeInformation<RowData> getProducedType() {
-		return resultTypeInfo;
+		return producedTypeInfo;
 	}
 
 	@Override
@@ -181,20 +180,20 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 		}
 		DebeziumAvroDeserializationSchema that = (DebeziumAvroDeserializationSchema) o;
 		return Objects.equals(avroDeserializer, that.avroDeserializer) &&
-			Objects.equals(resultTypeInfo, that.resultTypeInfo);
+			Objects.equals(producedTypeInfo, that.producedTypeInfo);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(avroDeserializer, resultTypeInfo);
+		return Objects.hash(avroDeserializer, producedTypeInfo);
 	}
 
-	public static RowType createDebeziumAvroRowType(DataType dataType) {
+	public static RowType createDebeziumAvroRowType(DataType databaseSchema) {
 		// Debezium Avro contains other information, e.g. "source", "ts_ms"
 		// but we don't need them
 		return (RowType) DataTypes.ROW(
-			DataTypes.FIELD("before", dataType.nullable()),
-			DataTypes.FIELD("after", dataType.nullable()),
+			DataTypes.FIELD("before", databaseSchema.nullable()),
+			DataTypes.FIELD("after", databaseSchema.nullable()),
 			DataTypes.FIELD("op", DataTypes.STRING())).getLogicalType();
 	}
 }

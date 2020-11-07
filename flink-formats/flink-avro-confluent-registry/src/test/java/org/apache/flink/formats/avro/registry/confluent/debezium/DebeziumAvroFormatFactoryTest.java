@@ -45,6 +45,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link DebeziumAvroFormatFactory}.
@@ -68,35 +70,19 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 	public void testSeDeSchema() {
 		final Map<String, String> options = getAllOptions();
 
-		final DebeziumAvroDeserializationSchema expectedDeser = new DebeziumAvroDeserializationSchema(
+		DebeziumAvroDeserializationSchema expectedDeser = new DebeziumAvroDeserializationSchema(
 			ROW_TYPE,
 			InternalTypeInfo.of(ROW_TYPE),
 			REGISTRY_URL);
-
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock = (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
-
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
-			.createRuntimeDecoder(
-				ScanRuntimeProviderContext.INSTANCE,
-				SCHEMA.toRowDataType());
-
+		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
 		assertEquals(expectedDeser, actualDeser);
-		final DebeziumAvroSerializationSchema expectedSer = new DebeziumAvroSerializationSchema(
+
+		DebeziumAvroSerializationSchema expectedSer = new DebeziumAvroSerializationSchema(
 			ROW_TYPE,
 			REGISTRY_URL,
 			SUBJECT
 		);
-		final DynamicTableSink actualSink = createTableSink(options);
-		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock = (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
-
-		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
-			.createRuntimeEncoder(
-				new SinkRuntimeProviderContext(false),
-				SCHEMA.toRowDataType());
-
+		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 		Assert.assertEquals(expectedSer, actualSer);
 	}
 
@@ -110,6 +96,30 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 		options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
 		options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
 		return options;
+	}
+
+	private static DeserializationSchema<RowData> createDeserializationSchema(Map<String, String> options) {
+		final DynamicTableSource actualSource = createTableSource(options);
+		assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
+		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+		return scanSourceMock.valueFormat
+			.createRuntimeDecoder(
+				ScanRuntimeProviderContext.INSTANCE,
+				SCHEMA.toRowDataType());
+	}
+
+	private static SerializationSchema<RowData> createSerializationSchema(Map<String, String> options) {
+		final DynamicTableSink actualSink = createTableSink(options);
+		assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
+		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+		return sinkMock.valueFormat
+			.createRuntimeEncoder(
+				new SinkRuntimeProviderContext(false),
+				SCHEMA.toRowDataType());
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {

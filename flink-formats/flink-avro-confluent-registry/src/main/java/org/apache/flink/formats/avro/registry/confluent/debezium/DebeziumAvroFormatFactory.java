@@ -52,7 +52,6 @@ public class DebeziumAvroFormatFactory implements DeserializationFormatFactory, 
 
 	public static final String IDENTIFIER = "debezium-avro-confluent";
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
@@ -67,11 +66,11 @@ public class DebeziumAvroFormatFactory implements DeserializationFormatFactory, 
 					DynamicTableSource.Context context,
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
+				final TypeInformation<RowData> producedTypeInfo =
 					context.createTypeInformation(producedDataType);
 				return new DebeziumAvroDeserializationSchema(
 					rowType,
-					rowDataTypeInfo,
+					producedTypeInfo,
 					schemaRegistryURL);
 			}
 
@@ -89,16 +88,19 @@ public class DebeziumAvroFormatFactory implements DeserializationFormatFactory, 
 
 	@Override
 	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-		DynamicTableFactory.Context context,
-		ReadableConfig formatOptions) {
+			DynamicTableFactory.Context context,
+			ReadableConfig formatOptions) {
 
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
 		Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
 		if (!subject.isPresent()) {
-			throw new ValidationException(String.format("Option %s.%s is required for serialization",
-				IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
+			throw new ValidationException(String.format(
+				"Option '%s.%s' is required for serialization",
+				IDENTIFIER,
+				SCHEMA_REGISTRY_SUBJECT.key()));
 		}
+
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
 			public ChangelogMode getChangelogMode() {
@@ -115,7 +117,10 @@ public class DebeziumAvroFormatFactory implements DeserializationFormatFactory, 
 					DynamicTableSink.Context context,
 					DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new DebeziumAvroSerializationSchema(rowType, schemaRegistryURL, subject.get());
+				return new DebeziumAvroSerializationSchema(
+					rowType,
+					schemaRegistryURL,
+					subject.get());
 			}
 		};
 	}
