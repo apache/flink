@@ -77,9 +77,10 @@ public class FileSystemTableFactory implements
 		return new FileSystemTableSink(
 				context,
 				discoverOptionalDecodingFormat(helper, BulkReaderFormatFactory.class).orElse(null),
+				discoverOptionalDecodingFormat(helper, DeserializationFormatFactory.class).orElse(null),
+				discoverOptionalFormatFactory(helper).orElse(null),
 				discoverOptionalEncodingFormat(helper, BulkWriterFormatFactory.class).orElse(null),
-				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null),
-				discoverOptionalFormatFactory(helper).orElse(null));
+				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null));
 	}
 
 	@Override

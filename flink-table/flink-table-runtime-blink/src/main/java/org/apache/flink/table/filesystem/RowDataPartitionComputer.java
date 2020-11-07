@@ -113,6 +113,7 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 		for (int i = 0; i < nonPartitionIndexes.length; i++) {
 			reuseRow.setField(i, nonPartitionFieldGetters[i].getFieldOrNull(in));
 		}
+		reuseRow.setRowKind(in.getRowKind());
 		return reuseRow;
 	}
 }

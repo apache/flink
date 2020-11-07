@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * ITCase to test json format for {@link JsonFileSystemFormatFactory}.
+ * ITCase to test json format for {@link JsonFormatFactory}.
  */
 public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 

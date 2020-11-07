@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.List;
@@ -58,5 +59,15 @@ abstract class AbstractFileSystemTable {
 
 	ReadableConfig formatOptions(String identifier) {
 		return new DelegatingConfiguration(tableOptions, identifier + ".");
+	}
+
+	DataType getFormatDataType() {
+		TableSchema.Builder builder = TableSchema.builder();
+		schema.getTableColumns().forEach(column -> {
+			if (!partitionKeys.contains(column.getName())) {
+				builder.add(column);
+			}
+		});
+		return builder.build().toRowDataType();
 	}
 }

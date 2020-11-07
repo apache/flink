@@ -19,8 +19,6 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -44,7 +42,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -156,47 +153,6 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			.ifPresent(csvBuilder::setNullValue);
 
 		return csvBuilder.build();
-	}
-
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		ReadableConfig options = context.getFormatOptions();
-		validateFormatOptions(options);
-
-		CsvRowDataSerializationSchema.Builder builder = new CsvRowDataSerializationSchema.Builder(
-			context.getFormatRowType());
-
-		options.getOptional(FIELD_DELIMITER).map(s -> s.charAt(0))
-			.ifPresent(builder::setFieldDelimiter);
-
-		if (options.get(DISABLE_QUOTE_CHARACTER)) {
-			builder.disableQuoteCharacter();
-		} else {
-			options.getOptional(QUOTE_CHARACTER).map(s -> s.charAt(0)).ifPresent(builder::setQuoteCharacter);
-		}
-
-		options.getOptional(ARRAY_ELEMENT_DELIMITER)
-			.ifPresent(builder::setArrayElementDelimiter);
-
-		options.getOptional(ESCAPE_CHARACTER).map(s -> s.charAt(0))
-			.ifPresent(builder::setEscapeCharacter);
-
-		options.getOptional(NULL_LITERAL)
-			.ifPresent(builder::setNullLiteral);
-
-		final CsvRowDataSerializationSchema serializationSchema = builder.build();
-
-		return Optional.of((record, stream) -> {
-			StringBuilder sb = new StringBuilder();
-			sb.append(new String(serializationSchema.serialize(record)));
-			sb.append("\n");
-			stream.write(sb.toString().getBytes());
-		});
-	}
-
-	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		return Optional.empty();
 	}
 
 	/**
