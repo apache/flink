@@ -124,7 +124,7 @@ public class AvroFileFormatFactory implements BulkWriterFormatFactory {
 		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
 			BulkWriter<GenericRecord> writer = factory.create(out);
 			RowDataToAvroConverters.RowDataToAvroConverter converter =
-					RowDataToAvroConverters.createRowConverter(rowType);
+					RowDataToAvroConverters.createConverter(rowType);
 			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 			return new BulkWriter<RowData>() {
 
