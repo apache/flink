@@ -33,7 +33,7 @@ public class CompactBulkReader<T> implements CompactReader<T> {
 	private final BulkFormat.Reader<T> reader;
 	private BulkFormat.RecordIterator<T> iterator;
 
-	private CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
+	public CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
 		this.reader = reader;
 		this.iterator = reader.readBatch();
 	}

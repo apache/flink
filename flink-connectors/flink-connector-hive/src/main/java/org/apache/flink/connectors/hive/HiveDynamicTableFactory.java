@@ -83,8 +83,7 @@ public class HiveDynamicTableFactory implements
 		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
 		if (!isGeneric && !context.isTemporary()) {
 			return new HiveTableSink(
-					context.getConfiguration().get(
-							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+					context.getConfiguration(),
 					new JobConf(hiveConf),
 					context.getObjectIdentifier(),
 					context.getCatalogTable());
