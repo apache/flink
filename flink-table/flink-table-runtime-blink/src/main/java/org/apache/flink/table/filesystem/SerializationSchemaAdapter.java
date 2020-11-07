@@ -21,7 +21,9 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -39,13 +41,37 @@ public class SerializationSchemaAdapter implements Encoder<RowData> {
 
 	private final SerializationSchema<RowData> serializationSchema;
 
+	private transient boolean open;
+
 	public SerializationSchemaAdapter(SerializationSchema<RowData> serializationSchema) {
 		this.serializationSchema = serializationSchema;
 	}
 
 	@Override
 	public void encode(RowData element, OutputStream stream) throws IOException {
+		checkOpened();
 		stream.write(serializationSchema.serialize(element));
 		stream.write(LINE_DELIMITER);
+	}
+
+	private void checkOpened() throws IOException {
+		if (!open) {
+			try {
+				serializationSchema.open(new SerializationSchema.InitializationContext() {
+					@Override
+					public MetricGroup getMetricGroup() {
+						throw new UnsupportedOperationException("MetricGroup is unsupported in BulkFormat.");
+					}
+
+					@Override
+					public UserCodeClassLoader getUserCodeClassLoader() {
+						return (UserCodeClassLoader) Thread.currentThread().getContextClassLoader();
+					}
+				});
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+			open = true;
+		}
 	}
 }

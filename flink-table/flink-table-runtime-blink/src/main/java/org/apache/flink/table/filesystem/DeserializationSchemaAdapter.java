@@ -242,7 +242,7 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 					currentSplit.getPath(),
 					defaultPartValue);
 		}
-		
+
 		private GenericRowData newOutputRow() {
 			GenericRowData row = new GenericRowData(rowData.getArity());
 			for (int i = 0; i < row.getArity(); i++) {
@@ -273,15 +273,12 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 			GenericRowData outputRow = newOutputRow();
 
 			for (int i = 0; i < toProjectedField.length; i++) {
-				try {
-					outputRow.setField(
-							toProjectedField[i],
-							formatFieldGetters[i].getFieldOrNull(record));
-				} catch (Exception e) {
-					throw e;
-				}
+				outputRow.setField(
+						toProjectedField[i],
+						formatFieldGetters[i].getFieldOrNull(record));
 			}
 
+			outputRow.setRowKind(record.getRowKind());
 			return outputRow;
 		}
 
