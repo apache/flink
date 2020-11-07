@@ -145,7 +145,7 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 	public Reader restoreReader(Configuration config, FileSourceSplit split) throws IOException {
 		Reader reader = new Reader(config, split);
 		reader.seek(split.getReaderPosition().get().getRecordsAfterOffset());
-		return null;
+		return reader;
 	}
 
 	@Override

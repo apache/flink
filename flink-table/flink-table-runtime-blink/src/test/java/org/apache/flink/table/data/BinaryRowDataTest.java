@@ -94,10 +94,6 @@ import static org.junit.Assert.assertTrue;
  */
 public class BinaryRowDataTest {
 
-	public static void main(String[] args) {
-		System.out.println(Arrays.toString("\n".getBytes(StandardCharsets.UTF_8)));
-	}
-
 	@Test
 	public void testBasic() {
 		// consider header 1 byte.

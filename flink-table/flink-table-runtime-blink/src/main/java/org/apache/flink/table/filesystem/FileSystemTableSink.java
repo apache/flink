@@ -262,7 +262,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 			// NOTE, we need pass full format types to deserializationFormat
 			DeserializationSchema<RowData> decoder = deserializationFormat.createRuntimeDecoder(
 					createSourceContext(context), getFormatDataType());
-			int[] projectedFields = IntStream.of(0, schema.getFieldCount()).toArray();
+			int[] projectedFields = IntStream.range(0, schema.getFieldCount()).toArray();
 			DeserializationSchemaAdapter format = new DeserializationSchemaAdapter(
 					decoder, schema, projectedFields, partitionKeys, defaultPartName);
 			return Optional.of(CompactBulkReader.factory(format));

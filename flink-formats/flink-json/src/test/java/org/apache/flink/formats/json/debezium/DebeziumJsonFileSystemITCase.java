@@ -43,26 +43,26 @@ import static java.lang.String.format;
 public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 
 	private static final List<String> EXPECTED = Arrays.asList(
-			"+I(101,scooter,Small 2-wheel scooter,3.14)",
-			"+I(102,car battery,12V car battery,8.1)",
-			"+I(103,12-pack drill bits,12-pack of drill bits with sizes ranging from #40 to #3,0.8)",
-			"+I(104,hammer,12oz carpenter's hammer,0.75)",
-			"+I(105,hammer,14oz carpenter's hammer,0.875)",
-			"+I(106,hammer,16oz carpenter's hammer,1.0)",
-			"+I(107,rocks,box of assorted rocks,5.3)",
-			"+I(108,jacket,water resistent black wind breaker,0.1)",
-			"+I(109,spare tire,24 inch spare tire,22.2)",
-			"-D(106,hammer,16oz carpenter's hammer,1.0)", // -U
-			"+I(106,hammer,18oz carpenter hammer,1.0)", // +U
-			"-D(107,rocks,box of assorted rocks,5.3)", // -U
-			"+I(107,rocks,box of assorted rocks,5.1)", // +U
-			"+I(110,jacket,water resistent white wind breaker,0.2)",
-			"+I(111,scooter,Big 2-wheel scooter ,5.18)",
-			"-D(110,jacket,water resistent white wind breaker,0.2)", // -U
-			"+I(110,jacket,new water resistent white wind breaker,0.5)", // +U
-			"-D(111,scooter,Big 2-wheel scooter ,5.18)", // -U
-			"+I(111,scooter,Big 2-wheel scooter ,5.17)", // +U
-			"-D(111,scooter,Big 2-wheel scooter ,5.17)"
+			"+I(101,SCOOTER,Small 2-wheel scooter,3.14)",
+			"+I(102,CAR BATTERY,12V car battery,8.1)",
+			"+I(103,12-PACK DRILL BITS,12-pack of drill bits with sizes ranging from #40 to #3,0.8)",
+			"+I(104,HAMMER,12oz carpenter's hammer,0.75)",
+			"+I(105,HAMMER,14oz carpenter's hammer,0.875)",
+			"+I(106,HAMMER,16oz carpenter's hammer,1.0)",
+			"+I(107,ROCKS,box of assorted rocks,5.3)",
+			"+I(108,JACKET,water resistent black wind breaker,0.1)",
+			"+I(109,SPARE TIRE,24 inch spare tire,22.2)",
+			"-D(106,HAMMER,16oz carpenter's hammer,1.0)", // -U
+			"+I(106,HAMMER,18oz carpenter hammer,1.0)", // +U
+			"-D(107,ROCKS,box of assorted rocks,5.3)", // -U
+			"+I(107,ROCKS,box of assorted rocks,5.1)", // +U
+			"+I(110,JACKET,water resistent white wind breaker,0.2)",
+			"+I(111,SCOOTER,Big 2-wheel scooter ,5.18)",
+			"-D(110,JACKET,water resistent white wind breaker,0.2)", // -U
+			"+I(110,JACKET,new water resistent white wind breaker,0.5)", // +U
+			"-D(111,SCOOTER,Big 2-wheel scooter ,5.18)", // -U
+			"+I(111,SCOOTER,Big 2-wheel scooter ,5.17)", // +U
+			"-D(111,SCOOTER,Big 2-wheel scooter ,5.17)"
 	);
 
 	private File source;
@@ -87,9 +87,11 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 		env().setParallelism(1);
 	}
 
-	private void createTable(String name, String path, boolean isPartition) {
-		tEnv().executeSql(format("create table %s (", name) +
-				"id int, name string, description string, weight float" +
+	private void createTable(boolean isSink, String path, boolean isPartition) {
+		tEnv().executeSql(format("create table %s (", isSink ? "sink" : "source") +
+				"id int, name string," +
+				(isSink ? "upper_name string," : "") +
+				" description string, weight float" +
 				(isPartition ? ", p int) partitioned by (p) " : ")") +
 				" with (" +
 				"'connector'='filesystem'," +
@@ -101,11 +103,12 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 	@Test
 	public void testNonPartition() throws Exception {
 		prepareTables(false);
-		createTable("source", source.toURI().toString(), false);
-		createTable("sink", sink.toURI().toString(), false);
+		createTable(false, source.toURI().toString(), false);
+		createTable(true, sink.toURI().toString(), false);
 
-		tEnv().executeSql("insert into sink select * from source").await();
-		CloseableIterator<Row> iter = tEnv().executeSql("select * from sink").collect();
+		tEnv().executeSql("insert into sink select id,name,UPPER(name),description,weight from source").await();
+		CloseableIterator<Row> iter = tEnv()
+				.executeSql("select id,upper_name,description,weight from sink").collect();
 
 		List<String> results = CollectionUtil.iteratorToList(iter).stream()
 				.map(row -> row.getKind().shortString() + "(" + row.toString() + ")")
@@ -118,11 +121,12 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
 	@Test
 	public void testPartition() throws Exception {
 		prepareTables(true);
-		createTable("source", source.toURI().toString(), true);
-		createTable("sink", sink.toURI().toString(), true);
+		createTable(false, source.toURI().toString(), true);
+		createTable(true, sink.toURI().toString(), true);
 
-		tEnv().executeSql("insert into sink select * from source").await();
-		CloseableIterator<Row> iter = tEnv().executeSql("select * from sink").collect();
+		tEnv().executeSql("insert into sink select id,name,UPPER(name),description,weight,p from source").await();
+		CloseableIterator<Row> iter = tEnv()
+				.executeSql("select id,upper_name,description,weight,p from sink").collect();
 		List<Row> list = CollectionUtil.iteratorToList(iter);
 		iter.close();
 
