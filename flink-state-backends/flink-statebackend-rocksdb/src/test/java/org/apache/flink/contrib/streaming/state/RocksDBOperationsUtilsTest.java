@@ -84,10 +84,10 @@ public class RocksDBOperationsUtilsTest {
 		long testWriteBufferSize = 56 * 1024 * 1024L;
 		long testDefaultArenaSize = RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(testWriteBufferSize);
 		long testWriteBufferCapacityBoundary = testDefaultArenaSize * 8 / 7;
-		assertThat("The sanity check result is incorrect with default arena block size",
+		assertThat("The sanity check should pass with default arena block size",
 				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, 0, testWriteBufferCapacityBoundary),
 				is(true));
-		assertThat("The sanity check result is incorrect with default arena block size given as argument",
+		assertThat("The sanity check should pass with default arena block size given as argument",
 				RocksDBOperationUtils.sanityCheckArenaBlockSize(testWriteBufferSize, testDefaultArenaSize, testWriteBufferCapacityBoundary),
 				is(true));
 		assertThat("The sanity check should pass when the configured arena block size is smaller than the boundary.",

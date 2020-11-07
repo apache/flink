@@ -98,7 +98,7 @@ public class RocksDBMemoryControllerUtils {
 
 	/**
 	 * Calculate the default arena block size as RocksDB calculates it in
-	 * <a href="https://github.com/ververica/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/db/column_family.cc#L196-L201">
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/db/column_family.cc#L196-L201">
 	 * here</a>.
 	 *
 	 * @return the default arena block size
