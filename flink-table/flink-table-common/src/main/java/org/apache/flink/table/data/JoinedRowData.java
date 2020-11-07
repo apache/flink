@@ -21,6 +21,8 @@ package org.apache.flink.table.data;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.RowKind;
 
+import java.util.Objects;
+
 /**
  * An implementation of {@link RowData} which is backed by two concatenated {@link RowData}.
  */
@@ -205,14 +207,21 @@ public class JoinedRowData implements RowData {
 
 	@Override
 	public boolean equals(Object o) {
-		throw new UnsupportedOperationException(
-			"JoinedRowData do not support equals, please compare fields one by one!");
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JoinedRowData that = (JoinedRowData) o;
+		return Objects.equals(rowKind, that.rowKind) &&
+			Objects.equals(this.row1, that.row1) &&
+			Objects.equals(this.row2, that.row2);
 	}
 
 	@Override
 	public int hashCode() {
-		throw new UnsupportedOperationException(
-			"JoinedRowData do not support hashCode, please hash fields one by one!");
+		return Objects.hash(rowKind, row1, row2);
 	}
 
 	@Override
