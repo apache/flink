@@ -127,17 +127,18 @@ public class DataStreamBatchExecutionITCase {
 	}
 
 	private StreamExecutionEnvironment getExecutionEnvironment() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		Configuration config = new Configuration();
 		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, DataStreamBatchExecutionITCase.class.getClassLoader());
 
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
+			config);
 		env.setParallelism(1);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
 
 		// trick the collecting sink into working even in the face of failures 🙏
 		env.enableCheckpointing(42);
+
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, Time.milliseconds(1)));
 
 		return env;
 	}

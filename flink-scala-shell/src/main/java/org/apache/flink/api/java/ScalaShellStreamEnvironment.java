@@ -95,7 +95,7 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {
-		initializeContextEnvironment(() -> {
+		initializeContextEnvironment(configuration -> {
 			throw new UnsupportedOperationException("Execution Environment is already defined for this shell.");
 		});
 	}

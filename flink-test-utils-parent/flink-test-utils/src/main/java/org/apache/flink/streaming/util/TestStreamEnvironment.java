@@ -68,11 +68,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			final Collection<Path> jarFiles,
 			final Collection<URL> classpaths) {
 
-		StreamExecutionEnvironmentFactory factory = () -> new TestStreamEnvironment(
+		StreamExecutionEnvironmentFactory factory = conf -> {
+			TestStreamEnvironment env = new TestStreamEnvironment(
 				miniCluster,
 				parallelism,
 				jarFiles,
 				classpaths);
+			env.configure(conf, env.getUserClassloader());
+			return env;
+		};
 
 		initializeContextEnvironment(factory);
 	}

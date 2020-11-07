@@ -23,7 +23,9 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
@@ -34,6 +36,7 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -121,6 +124,37 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
 		assertEquals(envFromConfiguration.getJobListeners().size(), 2);
 		assertThat(envFromConfiguration.getJobListeners().get(0), instanceOf(BasicJobSubmittedCounter.class));
 		assertThat(envFromConfiguration.getJobListeners().get(1), instanceOf(BasicJobExecutedCounter.class));
+	}
+
+	@Test
+	public void testGettingEnvironmentWithConfiguration() {
+		Configuration configuration = new Configuration();
+		configuration.setString("state.backend", "jobmanager");
+		configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
+		configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
+			configuration);
+
+		assertThat(env.getParallelism(), equalTo(10));
+		assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
+		assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
+	}
+
+	@Test
+	public void testLocalEnvironmentExplicitParallelism() {
+		Configuration configuration = new Configuration();
+		configuration.setString("state.backend", "jobmanager");
+		configuration.set(CoreOptions.DEFAULT_PARALLELISM, 10);
+		configuration.set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(100));
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
+			2,
+			configuration);
+
+		assertThat(env.getParallelism(), equalTo(2));
+		assertThat(env.getConfig().getAutoWatermarkInterval(), equalTo(100L));
+		assertThat(env.getStateBackend(), instanceOf(MemoryStateBackend.class));
 	}
 
 	/**

@@ -54,7 +54,10 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	}
 
 	public void setAsContext() {
-		StreamExecutionEnvironmentFactory factory = () -> this;
+		StreamExecutionEnvironmentFactory factory = conf -> {
+			this.configure(conf, getUserClassloader());
+			return this;
+		};
 		initializeContextEnvironment(factory);
 	}
 

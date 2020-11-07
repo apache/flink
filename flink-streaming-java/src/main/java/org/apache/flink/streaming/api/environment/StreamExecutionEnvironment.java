@@ -49,6 +49,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -2043,9 +2044,27 @@ public class StreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		return getExecutionEnvironment(new Configuration());
+	}
+
+	/**
+	 * Creates an execution environment that represents the context in which the
+	 * program is currently executed. If the program is invoked standalone, this
+	 * method returns a local execution environment, as returned by
+	 * {@link #createLocalEnvironment(Configuration)}.
+	 *
+	 * <p>When executed from the command line the given configuration is stacked on top of the
+	 * global configuration which comes from the {@code flink-conf.yaml}, potentially overriding
+	 * duplicated options.
+	 *
+	 * @param configuration The configuration to instantiate the environment with.
+	 * @return The execution environment of the context in which the program is
+	 * executed.
+	 */
+	public static StreamExecutionEnvironment getExecutionEnvironment(Configuration configuration) {
 		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
-			.map(StreamExecutionEnvironmentFactory::createExecutionEnvironment)
-			.orElseGet(StreamExecutionEnvironment::createLocalEnvironment);
+			.map(factory -> factory.createExecutionEnvironment(configuration))
+			.orElseGet(() -> StreamExecutionEnvironment.createLocalEnvironment(configuration));
 	}
 
 	/**
@@ -2088,12 +2107,30 @@ public class StreamExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
-		final LocalStreamEnvironment currentEnvironment;
+		Configuration copyOfConfiguration = new Configuration();
+		copyOfConfiguration.addAll(configuration);
+		copyOfConfiguration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+		return createLocalEnvironment(copyOfConfiguration);
+	}
 
-		currentEnvironment = new LocalStreamEnvironment(configuration);
-		currentEnvironment.setParallelism(parallelism);
-
-		return currentEnvironment;
+	/**
+	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
+	 * will run the program in a multi-threaded fashion in the same JVM as the
+	 * environment was created in.
+	 *
+	 * 	@param configuration
+	 * 		Pass a custom configuration into the cluster
+	 * @return A local execution environment with the specified parallelism.
+	 */
+	public static LocalStreamEnvironment createLocalEnvironment(Configuration configuration) {
+		if (configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM).isPresent()) {
+			return new LocalStreamEnvironment(configuration);
+		} else {
+			Configuration copyOfConfiguration = new Configuration();
+			copyOfConfiguration.addAll(configuration);
+			copyOfConfiguration.set(CoreOptions.DEFAULT_PARALLELISM, defaultLocalParallelism);
+			return new LocalStreamEnvironment(copyOfConfiguration);
+		}
 	}
 
 	/**
@@ -2116,7 +2153,7 @@ public class StreamExecutionEnvironment {
 			conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
 		}
 
-		return createLocalEnvironment(defaultLocalParallelism, conf);
+		return createLocalEnvironment(conf);
 	}
 
 	/**
