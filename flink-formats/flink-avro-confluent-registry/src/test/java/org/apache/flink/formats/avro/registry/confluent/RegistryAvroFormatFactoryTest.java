@@ -101,7 +101,7 @@ public class RegistryAvroFormatFactoryTest {
 								SUBJECT,
 								AvroSchemaConverter.convertToSchema(ROW_TYPE),
 								REGISTRY_URL),
-						RowDataToAvroConverters.createRowConverter(ROW_TYPE));
+						RowDataToAvroConverters.createConverter(ROW_TYPE));
 
 		final DynamicTableSink actualSink = createTableSink(getDefaultOptions());
 		assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));

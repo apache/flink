@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -82,8 +83,16 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
+
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
+		if (formatOptions.get(SCHEMA_INCLUDE)) {
+			throw new ValidationException(String.format(
+				"Debezium JSON serialization doesn't support '%s.%s' option been set to true.",
+				IDENTIFIER,
+				SCHEMA_INCLUDE.key()
+			));
+		}
 
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 
