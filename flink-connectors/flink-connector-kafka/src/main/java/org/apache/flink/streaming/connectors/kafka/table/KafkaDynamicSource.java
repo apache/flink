@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
@@ -33,6 +34,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -61,7 +63,7 @@ import java.util.stream.Stream;
  * A version-agnostic Kafka {@link ScanTableSource}.
  */
 @Internal
-public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetadata {
+public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
 
 	// --------------------------------------------------------------------------------------------
 	// Mutable attributes
@@ -72,6 +74,9 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 
 	/** Metadata that is appended at the end of a physical source row. */
 	protected List<String> metadataKeys;
+
+	/** Watermark strategy that is used to generate per-partition watermark. */
+	protected WatermarkStrategy<RowData> watermarkStrategy;
 
 	// --------------------------------------------------------------------------------------------
 	// Format attributes
@@ -145,6 +150,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 		// Mutable attributes
 		this.producedDataType = physicalDataType;
 		this.metadataKeys = Collections.emptyList();
+		this.watermarkStrategy = null;
 		// Kafka-specific attributes
 		Preconditions.checkArgument((topics != null && topicPattern == null) ||
 				(topics == null && topicPattern != null),
@@ -195,6 +201,11 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	}
 
 	@Override
+	public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
+		this.watermarkStrategy = watermarkStrategy;
+	}
+
+	@Override
 	public DynamicTableSource copy() {
 		final KafkaDynamicSource copy = new KafkaDynamicSource(
 				physicalDataType,
@@ -212,6 +223,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				upsertMode);
 		copy.producedDataType = producedDataType;
 		copy.metadataKeys = metadataKeys;
+		copy.watermarkStrategy = watermarkStrategy;
 		return copy;
 	}
 
@@ -243,7 +255,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			startupMode == that.startupMode &&
 			Objects.equals(specificStartupOffsets, that.specificStartupOffsets) &&
 			startupTimestampMillis == that.startupTimestampMillis &&
-			Objects.equals(upsertMode, that.upsertMode);
+			Objects.equals(upsertMode, that.upsertMode) &&
+			Objects.equals(watermarkStrategy, that.watermarkStrategy);
 	}
 
 	@Override
@@ -263,7 +276,8 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			startupMode,
 			specificStartupOffsets,
 			startupTimestampMillis,
-			upsertMode);
+			upsertMode,
+			watermarkStrategy);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -323,6 +337,9 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 
 		kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
 
+		if (watermarkStrategy != null) {
+			kafkaConsumer.assignTimestampsAndWatermarks(watermarkStrategy);
+		}
 		return kafkaConsumer;
 	}
 

@@ -291,6 +291,14 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			"Optional map of 'metadata_key:data_type'. The order will be alphabetically. " +
 			"The metadata is part of the data when enabled.");
 
+	private static final ConfigOption<Integer> SINK_DROP_LATE_DATA = ConfigOptions
+		.key("sink-drop-late-data")
+		.intType()
+		.defaultValue(-1)
+		.withDeprecatedKeys(
+			"Option index of the rowtime field. The default value -1 indicate that don't drop " +
+			"the late data.");
+
 	/**
 	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
 	 */
@@ -426,6 +434,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
+		int dropLateData = helper.getOptions().get(SINK_DROP_LATE_DATA);
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
@@ -446,7 +455,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogMode);
+				changelogMode,
+				dropLateData);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -487,7 +497,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_PARALLELISM,
 			SINK_CHANGELOG_MODE_ENFORCED,
 			WRITABLE_METADATA,
-			ENABLE_WATERMARK_PUSH_DOWN));
+			ENABLE_WATERMARK_PUSH_DOWN,
+			SINK_DROP_LATE_DATA));
 	}
 
 	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
@@ -1071,6 +1082,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final Map<String, DataType> writableMetadata;
 		private final Integer parallelism;
 		private final ChangelogMode changelogModeEnforced;
+		private final int dropLateData;
 
 		private TestValuesTableSink(
 				DataType consumedDataType,
@@ -1081,7 +1093,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				int expectedNum,
 				Map<String, DataType> writableMetadata,
 				@Nullable Integer parallelism,
-				@Nullable ChangelogMode changelogModeEnforced) {
+				@Nullable ChangelogMode changelogModeEnforced,
+				int dropLateData) {
 			this.consumedDataType = consumedDataType;
 			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
@@ -1091,6 +1104,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.writableMetadata = writableMetadata;
 			this.parallelism = parallelism;
 			this.changelogModeEnforced = changelogModeEnforced;
+			this.dropLateData = dropLateData;
 		}
 
 		@Override
@@ -1139,9 +1153,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 								@Override
 								public SinkFunction<RowData> createSinkFunction() {
-									return new AppendingSinkFunction(
-										tableName,
-										converter);
+									if (dropLateData != -1) {
+										return new TestValuesRuntimeFunctions.WatermarkSinkFunction(
+											tableName,
+											converter,
+											dropLateData);
+									} else {
+										return new AppendingSinkFunction(
+											tableName,
+											converter);
+									}
 								}
 							};
 					case "OutputFormat":
@@ -1198,7 +1219,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogModeEnforced);
+				changelogModeEnforced,
+				dropLateData);
 		}
 
 		@Override
