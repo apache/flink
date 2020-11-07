@@ -238,6 +238,9 @@ object FlinkStreamRuleSets {
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 
+    // reorder the projecct and watermark assigner
+    ProjectWatermarkAssignerTransposeRule.INSTANCE,
+
     // reorder sort and projection
     CoreRules.SORT_PROJECT_TRANSPOSE,
     // remove unnecessary sort rule
@@ -338,6 +341,9 @@ object FlinkStreamRuleSets {
     * RuleSet to do rewrite on FlinkLogicalRel for Stream
     */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
+    // watermark push down
+    PushWatermarkIntoTableSourceScanAcrossCalcRule.INSTANCE,
+    PushWatermarkIntoTableSourceScanRule.INSTANCE,
     // transform over window to topn node
     FlinkLogicalRankRule.INSTANCE,
     // transpose calc past rank to reduce rank input fields

@@ -70,7 +70,7 @@ class NestedColumn(
     children.clear()
   }
 
-  def setIndex(index: Int): Unit = {
+  def setIndexOfLeafInNewSchema(index: Int): Unit = {
     indexOfLeafInNewSchema = index
   }
 }
@@ -80,11 +80,11 @@ class NestedColumn(
  * a table's structure with field names and data types. It uses a
  * LinkedHashMap to store the pairs of name: String and column: RexNodeNestedField.
  *
- * @param originRowType  The data type of the origin schema.
+ * @param inputRowType  The data type of the origin schema.
  * @param columns        Fields in the origin schema are used by the query.
  */
 class NestedSchema(
-    val originRowType: RelDataType,
+    val inputRowType: RelDataType,
     val columns: JLinkedHashMap[String, NestedColumn] = new JLinkedHashMap[String, NestedColumn]) {
 
 }
@@ -105,8 +105,8 @@ object NestedProjectionUtil {
    * rather than the child "child" only. In this situation, it will mark
    * the node "$0" as a leaf node and delete its children.
    * */
-  def build(exprs: JList[RexNode], rowType: RelDataType): NestedSchema = {
-    val schema = new NestedSchema(rowType)
+  def build(exprs: JList[RexNode], inputRowType: RelDataType): NestedSchema = {
+    val schema = new NestedSchema(inputRowType)
     val visitor = new NestedSchemaExtractor(schema)
     for(expr <- exprs) {
       expr.accept(visitor)
@@ -148,6 +148,11 @@ object NestedProjectionUtil {
         traverse(column, newIndex, path, allPaths)
     }
     allPaths.toArray(new Array[Array[Int]](0))
+  }
+
+  def createNestedColumnLeaf(
+      name: String, indexInOriginSchema: Int, originFieldType: RelDataType): NestedColumn = {
+    new NestedColumn(name, indexInOriginSchema, originFieldType, isLeaf = true)
   }
 
   private def traverse(
@@ -200,7 +205,7 @@ object NestedProjectionUtil {
  */
 private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) extends RexShuttle {
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
-    val name = schema.originRowType.getFieldNames.get(inputRef.getIndex)
+    val name = schema.inputRowType.getFieldNames.get(inputRef.getIndex)
     if (!schema.columns.containsKey(name)) {
       throw new TableException(
         "Illegal input field access" + name)
@@ -223,7 +228,7 @@ private class NestedSchemaRewriter(schema: NestedSchema, builder: RexBuilder) ex
   private def traverse(fieldAccess: RexFieldAccess): (Option[RexNode], NestedColumn) = {
     fieldAccess.getReferenceExpr match {
       case ref: RexInputRef =>
-        val name = schema.originRowType.getFieldNames.get(ref.getIndex)
+        val name = schema.inputRowType.getFieldNames.get(ref.getIndex)
         val parent = schema.columns.get(name)
         if (parent.isLeaf) {
           (
@@ -277,9 +282,9 @@ private class NestedSchemaExtractor(schema: NestedSchema) extends RexVisitorImpl
     // extract the info
     val (index, names) = internalVisit(fieldAccess)
 
-    val topLevelNodeName = schema.originRowType.getFieldNames.get(index)
+    val topLevelNodeName = schema.inputRowType.getFieldNames.get(index)
     val topLevelNode = if (!schema.columns.contains(topLevelNodeName)) {
-      val fieldType = schema.originRowType.getFieldList.get(index).getType
+      val fieldType = schema.inputRowType.getFieldList.get(index).getType
       val node = new NestedColumn(topLevelNodeName, index, fieldType)
       schema.columns.put(topLevelNodeName, node)
       node
@@ -307,14 +312,14 @@ private class NestedSchemaExtractor(schema: NestedSchema) extends RexVisitorImpl
   }
 
   override def visitInputRef(inputRef: RexInputRef): Unit = {
-    val name = schema.originRowType.getFieldNames.get(inputRef.getIndex)
+    val name = schema.inputRowType.getFieldNames.get(inputRef.getIndex)
     if (schema.columns.containsKey(name)) {
       // mark the node as top level node
       val leaf = schema.columns.get(name)
       leaf.markLeaf()
     } else {
       val index = inputRef.getIndex
-      val fieldType = schema.originRowType.getFieldList.get(index).getType
+      val fieldType = schema.inputRowType.getFieldList.get(index).getType
       val leaf = new NestedColumn(name, index, fieldType)
       schema.columns.put(leaf.name, leaf)
       leaf.markLeaf()

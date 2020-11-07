@@ -854,7 +854,11 @@ object ScalarOperatorGens {
       }
 
     case (from, to) =>
-      throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      if (from == to) {
+        operand
+      } else {
+        throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      }
   }
 
   def generateCast(
@@ -1051,9 +1055,9 @@ object ScalarOperatorGens {
     // String -> Time
     case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
@@ -1062,9 +1066,9 @@ object ScalarOperatorGens {
     // String -> Timestamp
     case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"""
@@ -2224,7 +2228,7 @@ object ScalarOperatorGens {
              """.stripMargin
         (stmt, resultTerm)
     }
-  
+
   // ------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(

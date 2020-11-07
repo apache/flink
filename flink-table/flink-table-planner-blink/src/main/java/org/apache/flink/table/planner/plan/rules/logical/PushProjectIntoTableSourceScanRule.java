@@ -210,7 +210,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		int newIndex = projectedPhysicalFields.length;
 		List<String> usedMetadataNames = new LinkedList<>();
 		for (NestedColumn metadata: usedMetaDataFields) {
-			metadata.setIndex(newIndex++);
+			metadata.setIndexOfLeafInNewSchema(newIndex++);
 			nestedSchema.columns().put(metadata.name(), metadata);
 			usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
 		}
