@@ -59,7 +59,12 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 	@Before
 	public void setup() {
 		this.latchId = UUID.randomUUID().toString();
-		LATCH_MAP.put(latchId, new CountDownLatch(NUM_SOURCES));
+		// We wait for two successful checkpoints in sources before shutting down. This ensures that
+		// the sink can commit its data.
+		// We need to keep a "static" latch here because all sources need to be kept running
+		// while we're waiting for the required number of checkpoints. Otherwise, we would lock up
+		// because we can only do checkpoints while all operators are running.
+		LATCH_MAP.put(latchId, new CountDownLatch(NUM_SOURCES * 2));
 	}
 
 	@After
