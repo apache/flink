@@ -25,6 +25,9 @@ import org.apache.flink.connector.file.src.util.ArrayResultIterator;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
+import org.apache.flink.orc.OrcColumnarRowFileInputFormat;
+import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
+import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -45,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +68,9 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 	// schema evolution configs are not available in older versions of IOConstants, let's define them ourselves
 	private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
 	private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
+
+	private static final PartitionFieldExtractor<HiveSourceSplit> PARTITION_FIELD_EXTRACTOR =
+			(split, fieldName, fieldType) -> split.getHiveTablePartition().getPartitionSpec().get(fieldName);
 
 	private final JobConfWrapper jobConfWrapper;
 	private final List<String> partitionKeys;
@@ -107,22 +114,66 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 		return InternalTypeInfo.of(producedRowType);
 	}
 
+	private RowType tableRowType() {
+		LogicalType[] types = Arrays.stream(fieldTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new);
+		return RowType.of(types, fieldNames);
+	}
+
 	private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(HiveSourceSplit split) {
 		if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
-			PartitionFieldExtractor<HiveSourceSplit> extractor = (PartitionFieldExtractor<HiveSourceSplit>)
-					(split1, fieldName, fieldType) -> split1.getHiveTablePartition().getPartitionSpec().get(fieldName);
 			return ParquetColumnarRowInputFormat.createPartitionedFormat(
 					jobConfWrapper.conf(),
 					producedRowType,
 					partitionKeys,
-					extractor,
+					PARTITION_FIELD_EXTRACTOR,
 					DEFAULT_SIZE,
 					hiveVersion.startsWith("3"),
 					false
 			);
+		} else if (!useMapRedReader && useOrcVectorizedRead(split.getHiveTablePartition())) {
+			return createOrcFormat();
 		} else {
 			return new HiveMapRedBulkFormat();
 		}
+	}
+
+	private OrcColumnarRowFileInputFormat<?, HiveSourceSplit> createOrcFormat() {
+		return hiveVersion.startsWith("1.") ?
+				OrcNoHiveColumnarRowInputFormat.createPartitionedFormat(
+						jobConfWrapper.conf(),
+						tableRowType(),
+						partitionKeys,
+						PARTITION_FIELD_EXTRACTOR,
+						computeSelectedFields(),
+						Collections.emptyList(),
+						DEFAULT_SIZE) :
+				OrcColumnarRowFileInputFormat.createPartitionedFormat(
+						OrcShim.createShim(hiveVersion),
+						jobConfWrapper.conf(),
+						tableRowType(),
+						partitionKeys,
+						PARTITION_FIELD_EXTRACTOR,
+						computeSelectedFields(),
+						Collections.emptyList(),
+						DEFAULT_SIZE);
+	}
+
+	private boolean useOrcVectorizedRead(HiveTablePartition partition) {
+		boolean isOrc = partition.getStorageDescriptor().getSerdeInfo().getSerializationLib()
+				.toLowerCase().contains("orc");
+		if (!isOrc) {
+			return false;
+		}
+
+		for (RowType.RowField field : producedRowType.getFields()) {
+			if (isVectorizationUnsupported(field.getType())) {
+				LOG.info("Fallback to hadoop mapred reader, unsupported field type: " + field.getType());
+				return false;
+			}
+		}
+
+		LOG.info("Use flink orc ColumnarRowData reader.");
+		return true;
 	}
 
 	private boolean useParquetVectorizedRead(HiveTablePartition partition) {
@@ -278,18 +329,18 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 					.collect(Collectors.joining(","));
 			jobConf.set(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR, readColIDs);
 		}
+	}
 
-		// compute indices of selected fields according to the produced type
-		private int[] computeSelectedFields() {
-			int[] selectedFields = new int[producedRowType.getFieldCount()];
-			for (int i = 0; i < selectedFields.length; i++) {
-				String name = producedRowType.getFieldNames().get(i);
-				int index = Arrays.asList(fieldNames).indexOf(name);
-				Preconditions.checkState(index >= 0,
-						"Produced field name %s not found in table schema fields %s", name, Arrays.toString(fieldNames));
-				selectedFields[i] = index;
-			}
-			return selectedFields;
+	// compute indices of selected fields according to the produced type
+	private int[] computeSelectedFields() {
+		int[] selectedFields = new int[producedRowType.getFieldCount()];
+		for (int i = 0; i < selectedFields.length; i++) {
+			String name = producedRowType.getFieldNames().get(i);
+			int index = Arrays.asList(fieldNames).indexOf(name);
+			Preconditions.checkState(index >= 0,
+					"Produced field name %s not found in table schema fields %s", name, Arrays.toString(fieldNames));
+			selectedFields[i] = index;
 		}
+		return selectedFields;
 	}
 }
