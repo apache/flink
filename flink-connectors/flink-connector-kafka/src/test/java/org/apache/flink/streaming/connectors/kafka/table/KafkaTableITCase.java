@@ -550,8 +550,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 				topic,
 				bootstraps,
 				groupId,
-				format,
-				TestPartitioner.class.getCanonicalName());
+				TestPartitioner.class.getName(),
+				format);
 
 		tEnv.executeSql(createTable);
 
@@ -569,13 +569,14 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
 		// ---------- Consume stream from Kafka -------------------
 		String createSink =
-				"CREATE TABLE MySink("
-						+ "  id INT,"
-						+ "  name STRING,"
-						+ "  ts TIMESTAMP(3)"
-						+ ") WITH ("
-						+ "  'connector' = 'values',"
-						+ "  'sink-index-of-rowtime' = '2'"
+				"CREATE TABLE MySink(\n"
+						+ "  id INT,\n"
+						+ "  name STRING,\n"
+						+ "  ts TIMESTAMP(3),\n"
+						+ "  WATERMARK FOR ts as ts\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'values',\n"
+						+ "  'sink.drop-late-event' = 'true'\n"
 						+ ")";
 		tEnv.executeSql(createSink);
 		tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
