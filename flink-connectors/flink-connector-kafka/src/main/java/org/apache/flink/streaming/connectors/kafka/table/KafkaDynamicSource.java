@@ -76,7 +76,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	protected List<String> metadataKeys;
 
 	/** Watermark strategy that is used to generate per-partition watermark. */
-	protected WatermarkStrategy<RowData> watermarkStrategy;
+	protected @Nullable WatermarkStrategy<RowData> watermarkStrategy;
 
 	// --------------------------------------------------------------------------------------------
 	// Format attributes

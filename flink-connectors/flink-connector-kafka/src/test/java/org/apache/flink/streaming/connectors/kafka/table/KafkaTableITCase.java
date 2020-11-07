@@ -544,13 +544,14 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						+ "  'properties.bootstrap.servers' = '%s',\n"
 						+ "  'properties.group.id' = '%s',\n"
 						+ "  'scan.startup.mode' = 'earliest-offset',\n"
-						+ "  'sink.partitioner' = 'org.apache.flink.streaming.connectors.kafka.table.KafkaTableITCase$TestPartitioner',\n"
+						+ "  'sink.partitioner' = '%s',\n"
 						+ "  'format' = '%s'\n"
 						+ ")",
 				topic,
 				bootstraps,
 				groupId,
-				format);
+				format,
+				TestPartitioner.class.getCanonicalName());
 
 		tEnv.executeSql(createTable);
 
@@ -611,7 +612,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
 		@Override
 		public int partition(RowData record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-			return record.getInt(PARTITION_ID_FIELD_IN_SCHEMA) % partitions.length;
+			return partitions[record.getInt(PARTITION_ID_FIELD_IN_SCHEMA) % partitions.length];
 		}
 	}
 
