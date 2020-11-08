@@ -33,7 +33,7 @@ import java.util.List;
  * A {@link ContinuousPartitionFetcher} for hive table.
  */
 @Internal
-public class HiveContinuousPartitionFetcher<T extends Comparable> implements ContinuousPartitionFetcher<Partition, T> {
+public class HiveContinuousPartitionFetcher<T extends Comparable<T>> implements ContinuousPartitionFetcher<Partition, T> {
 
 	private static final long serialVersionUID = 1L;
 

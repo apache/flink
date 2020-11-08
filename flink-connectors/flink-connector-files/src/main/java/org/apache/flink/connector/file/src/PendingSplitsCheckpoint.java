@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A checkpoint of the current state of the containing the currently pending splits that are not yet assigned.
  */
 @PublicEvolving
-public final class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
+public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
 
 	/** The splits in the checkpoint. */
 	private final Collection<SplitT> splits;
@@ -48,7 +48,7 @@ public final class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
 	@Nullable
 	byte[] serializedFormCache;
 
-	private PendingSplitsCheckpoint(Collection<SplitT> splits, Collection<Path> alreadyProcessedPaths) {
+	protected PendingSplitsCheckpoint(Collection<SplitT> splits, Collection<Path> alreadyProcessedPaths) {
 		this.splits = Collections.unmodifiableCollection(splits);
 		this.alreadyProcessedPaths = Collections.unmodifiableCollection(alreadyProcessedPaths);
 	}

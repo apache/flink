@@ -33,7 +33,7 @@ import java.util.List;
  *          or create-time order, be String when fetches in partition-name order.
  */
 @Internal
-public interface ContinuousPartitionFetcher<P, T extends Comparable> extends PartitionFetcher<P> {
+public interface ContinuousPartitionFetcher<P, T extends Comparable<T>> extends PartitionFetcher<P> {
 
 	/**
 	 * Fetch partitions by previous partition offset (Including).
@@ -47,7 +47,7 @@ public interface ContinuousPartitionFetcher<P, T extends Comparable> extends Par
 	 * @param <T> The type of partition offset, the type could be Long when fetches in partition-time
 	 *          or create-time order, be String when fetches in partition-name order.
 	 */
-	interface Context<P, T extends Comparable> extends PartitionFetcher.Context<P>  {
+	interface Context<P, T extends Comparable<T>> extends PartitionFetcher.Context<P>  {
 		/**
 		 * The table full path.
 		 */
