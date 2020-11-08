@@ -42,6 +42,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -122,6 +123,40 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		reader.pollNext(new TestingReaderOutput<>());
 
 		assertTrue(records.isRecycled());
+	}
+
+	@Test
+	public void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+			new FutureCompletingBlockingQueue<>();
+		MockSplitReader mockSplitReader = MockSplitReader.newBuilder()
+			.setNumRecordsPerSplitPerFetch(2)
+			.setSeparatedFinishedRecord(true)
+			.setBlockingFetch(false)
+			.build();
+		MockSourceReader reader = new MockSourceReader(
+			elementsQueue,
+			() -> mockSplitReader,
+			getConfig(),
+			null);
+
+		reader.start();
+
+		List<MockSourceSplit> splits = Arrays.asList(
+			getSplit(0, 10, Boundedness.BOUNDED),
+			getSplit(1, 10, Boundedness.BOUNDED)
+		);
+		reader.addSplits(splits);
+		reader.handleSourceEvents(new NoMoreSplitsEvent());
+
+		while (true) {
+			InputStatus status = reader.pollNext(new TestingReaderOutput<>());
+			if (status == InputStatus.END_OF_INPUT) {
+				break;
+			} if (status == InputStatus.NOTHING_AVAILABLE) {
+				reader.isAvailable().get();
+			}
+		}
 	}
 
 	// ---------------- helper methods -----------------
