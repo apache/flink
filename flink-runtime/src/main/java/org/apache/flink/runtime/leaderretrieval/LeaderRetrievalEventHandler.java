@@ -34,6 +34,9 @@ public interface LeaderRetrievalEventHandler {
 	/**
 	 * Called by specific {@link LeaderRetrievalDriver} to notify leader address.
 	 *
+	 * <p>Duplicated leader change events could happen, so the implementation should check whether
+	 * the passed leader information is truly changed with last stored leader information.
+	 *
 	 * @param leaderInformation the new leader information to notify {@link LeaderRetrievalService}. It could be
 	 * {@link LeaderInformation#empty()} if the leader address does not exist in the external storage.
 	 */

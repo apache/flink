@@ -136,9 +136,10 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 
 					lastLeaderAddress = newLeaderAddress;
 					lastLeaderSessionID = newLeaderSessionID;
-				}
 
-				leaderListener.notifyLeaderAddress(newLeaderAddress, newLeaderSessionID);
+					// Notify the listener only when the leader is truly changed.
+					leaderListener.notifyLeaderAddress(newLeaderAddress, newLeaderSessionID);
+				}
 			} else {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Ignoring notification since the {} has already been closed.", leaderRetrievalDriver);
