@@ -206,6 +206,9 @@ public class FileSourceHeavyThroughputTest {
 		}
 
 		@Override
+		public void sendSplitRequest() {}
+
+		@Override
 		public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
 	}
 

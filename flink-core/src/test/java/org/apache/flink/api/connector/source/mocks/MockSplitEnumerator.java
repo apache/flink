@@ -23,6 +23,8 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +71,9 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
 	public void start() {
 		this.started = true;
 	}
+
+	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 	@Override
 	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {

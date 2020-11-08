@@ -30,7 +30,9 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,10 +134,14 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		coordinatorExecutor.execute(() -> {
 			try {
 				LOG.debug("Handling event from subtask {} of source {}: {}", subtask, operatorName, event);
-				if (event instanceof SourceEventWrapper) {
+				if (event instanceof RequestSplitEvent) {
+					enumerator.handleSplitRequest(subtask, ((RequestSplitEvent) event).hostName());
+				} else if (event instanceof SourceEventWrapper) {
 					enumerator.handleSourceEvent(subtask, ((SourceEventWrapper) event).getSourceEvent());
 				} else if (event instanceof ReaderRegistrationEvent) {
 					handleReaderRegistrationEvent((ReaderRegistrationEvent) event);
+				} else {
+					throw new FlinkException("Unrecognized Operator Event: " + event);
 				}
 			} catch (Exception e) {
 				LOG.error("Failing the job due to exception when handling operator event {} from subtask {} " +

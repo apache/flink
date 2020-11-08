@@ -35,7 +35,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -71,6 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -367,8 +367,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-			}
+			public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 			@Override
 			public void addSplitsBack(List<LongSplit> splits, int subtaskId) {

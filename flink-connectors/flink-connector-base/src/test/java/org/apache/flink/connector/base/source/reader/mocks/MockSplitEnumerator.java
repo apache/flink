@@ -24,6 +24,8 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,14 +47,13 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 	}
 
 	@Override
-	public void start() {
-
-	}
+	public void start() {}
 
 	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {}
 
-	}
+	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 	@Override
 	public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {

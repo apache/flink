@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
@@ -34,6 +33,8 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -111,13 +112,14 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 	}
 
 	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String hostName) {
+		readersAwaitingSplit.put(subtaskId, hostName);
+		assignSplits();
+	}
+
+	@Override
 	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (sourceEvent instanceof RequestSplitEvent) {
-			readersAwaitingSplit.put(subtaskId, ((RequestSplitEvent) sourceEvent).hostName());
-			assignSplits();
-		} else {
-			LOG.error("Received unrecognized event: {}", sourceEvent);
-		}
+		LOG.error("Received unrecognized event: {}", sourceEvent);
 	}
 
 	@Override

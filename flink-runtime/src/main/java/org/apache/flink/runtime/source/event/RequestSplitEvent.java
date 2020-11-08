@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.source.event;
+package org.apache.flink.runtime.source.event;
 
-import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
 import javax.annotation.Nullable;
 
@@ -30,7 +30,7 @@ import java.util.Objects;
  * <p>This event optionally carries the hostname of the location where the reader runs, to support
  * locality-aware work assignment.
  */
-public final class RequestSplitEvent implements SourceEvent {
+public final class RequestSplitEvent implements OperatorEvent {
 
 	private static final long serialVersionUID = 1L;
 

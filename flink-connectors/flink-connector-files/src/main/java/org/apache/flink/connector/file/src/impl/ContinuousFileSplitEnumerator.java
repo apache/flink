@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
@@ -31,6 +30,8 @@ import org.apache.flink.core.fs.Path;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -106,14 +107,14 @@ public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSource
 	}
 
 	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
+		readersAwaitingSplit.put(subtaskId, requesterHostname);
+		assignSplits();
+	}
+
+	@Override
 	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (sourceEvent instanceof RequestSplitEvent) {
-			readersAwaitingSplit.put(subtaskId, ((RequestSplitEvent) sourceEvent).hostName());
-			assignSplits();
-		}
-		else {
-			LOG.error("Received unrecognized event: {}", sourceEvent);
-		}
+		LOG.error("Received unrecognized event: {}", sourceEvent);
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.connector.kafka.source.enumerator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
@@ -39,6 +38,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -136,8 +137,8 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 	}
 
 	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
+		// the kafka source pushes splits eagerly, rather than act upon split requests
 	}
 
 	@Override
