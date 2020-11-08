@@ -108,6 +108,10 @@ public class TestingRetrievalBase {
 		this.leader = leaderInformation;
 	}
 
+	public int getLeaderEventQueueSize() {
+		return leaderEventQueue.size();
+	}
+
 	/**
 	 * Please use {@link #waitForError} before get the error.
 	 *

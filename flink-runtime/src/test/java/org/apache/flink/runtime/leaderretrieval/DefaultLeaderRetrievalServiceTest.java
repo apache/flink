@@ -107,6 +107,25 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 		}};
 	}
 
+	@Test
+	public void testNotifyLeaderAddressOnlyWhenLeaderTrulyChanged() throws Exception {
+		new Context() {{
+			runTest(() -> {
+				final LeaderInformation newLeader = LeaderInformation.known(UUID.randomUUID(), TEST_URL);
+				testingLeaderRetrievalDriver.onUpdate(newLeader);
+				assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+
+				// Same leader information should not be notified twice.
+				testingLeaderRetrievalDriver.onUpdate(newLeader);
+				assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+
+				// Leader truly changed.
+				testingLeaderRetrievalDriver.onUpdate(LeaderInformation.known(UUID.randomUUID(), TEST_URL + 1));
+				assertThat(testingListener.getLeaderEventQueueSize(), is(2));
+			});
+		}};
+	}
+
 	private class Context {
 		private final TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory leaderRetrievalDriverFactory =
 			new TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory();
