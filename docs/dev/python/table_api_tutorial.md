@@ -73,9 +73,9 @@ my_source_ddl = """
     create table mySource (
         word VARCHAR
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/input'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/input'
     )
 """
 
@@ -84,9 +84,9 @@ my_sink_ddl = """
         word VARCHAR,
         `count` BIGINT
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/output'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/output'
     )
 """
 
