@@ -21,7 +21,6 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -48,12 +47,12 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
 
 	@Override
 	public void start() {
-		requestSplit();
+		context.sendSplitRequest();
 	}
 
 	@Override
 	protected void onSplitFinished(Collection<String> finishedSplitIds) {
-		requestSplit();
+		context.sendSplitRequest();
 	}
 
 	@Override
@@ -64,10 +63,6 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
 	@Override
 	protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
 		return splitState.toFileSourceSplit();
-	}
-
-	private void requestSplit() {
-		context.sendSourceEventToCoordinator(new RequestSplitEvent(context.getLocalHostName()));
 	}
 
 	@Override

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
@@ -84,30 +83,7 @@ public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSpli
 	}
 
 	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (sourceEvent instanceof RequestSplitEvent) {
-			final RequestSplitEvent requestSplitEvent = (RequestSplitEvent) sourceEvent;
-			assignNextEvents(subtaskId, requestSplitEvent.hostName());
-		}
-		else {
-			LOG.error("Received unrecognized event: {}", sourceEvent);
-		}
-	}
-
-	@Override
-	public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
-		LOG.debug("File Source Enumerator adds splits back: {}", splits);
-		splitAssigner.addSplits(splits);
-	}
-
-	@Override
-	public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() {
-		return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
-	}
-
-	// ------------------------------------------------------------------------
-
-	private void assignNextEvents(int subtask, @Nullable String hostname) {
+	public void handleSplitRequest(int subtask, @Nullable String hostname) {
 		if (LOG.isInfoEnabled()) {
 			final String hostInfo = hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
 			LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
@@ -123,5 +99,21 @@ public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSpli
 			context.signalNoMoreSplits(subtask);
 			LOG.info("No more splits available for subtask {}", subtask);
 		}
+	}
+
+	@Override
+	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+		LOG.error("Received unrecognized event: {}", sourceEvent);
+	}
+
+	@Override
+	public void addSplitsBack(List<FileSourceSplit> splits, int subtaskId) {
+		LOG.debug("File Source Enumerator adds splits back: {}", splits);
+		splitAssigner.addSplits(splits);
+	}
+
+	@Override
+	public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() {
+		return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
 	}
 }

@@ -50,6 +50,13 @@ public interface SourceReaderContext {
 	int getIndexOfSubtask();
 
 	/**
+	 * Sends a split request to the source's {@link SplitEnumerator}.
+	 * This will result in a call to the {@link SplitEnumerator#handleSplitRequest(int, String)} method,
+	 * with this reader's parallel subtask id and the hostname where this reader runs.
+	 */
+	void sendSplitRequest();
+
+	/**
 	 * Send a source event to the source coordinator.
 	 *
 	 * @param sourceEvent the source event to coordinator.
