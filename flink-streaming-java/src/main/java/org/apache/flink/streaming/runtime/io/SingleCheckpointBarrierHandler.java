@@ -148,14 +148,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processBarrierAnnouncement(
-			CheckpointBarrier announcedBarrier,
-			int sequenceNumber,
-			InputChannelInfo channelInfo) throws IOException {
-		// TODO: FLINK-19681
-	}
-
-	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long cancelledId = cancelBarrier.getCheckpointId();
 		if (currentCheckpointId > cancelledId || (currentCheckpointId == cancelledId && numBarriersReceived == 0)) {

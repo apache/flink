@@ -21,15 +21,12 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.api.EventAnnouncement;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -440,18 +437,19 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 
 				wasEmpty = receivedBuffers.isEmpty();
 
-				SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, sequenceNumber);
-				DataType dataType = buffer.getDataType();
-				if (dataType.hasPriority()) {
-					firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
-				}
-				else {
-					receivedBuffers.add(sequenceBuffer);
-					channelStatePersister.maybePersist(buffer);
-					if (dataType.requiresAnnouncement()) {
-						firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
+				if (buffer.getDataType().hasPriority()) {
+					receivedBuffers.addPriorityElement(new SequenceBuffer(buffer, sequenceNumber));
+					if (channelStatePersister.checkForBarrier(buffer)) {
+						// checkpoint was not yet started by task thread,
+						// so remember the numbers of buffers to spill for the time when it will be started
+						numBuffersOvertaken = receivedBuffers.getNumUnprioritizedElements();
 					}
+					firstPriorityEvent = receivedBuffers.getNumPriorityElements() == 1;
+				} else {
+					receivedBuffers.add(new SequenceBuffer(buffer, sequenceNumber));
+					channelStatePersister.maybePersist(buffer);
 				}
+
 				++expectedSequenceNumber;
 			}
 			recycleBuffer = false;
@@ -471,31 +469,6 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 				buffer.recycleBuffer();
 			}
 		}
-	}
-
-	/**
-	 * @return {@code true} if this was first priority buffer added.
-	 */
-	private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) throws IOException {
-		receivedBuffers.addPriorityElement(sequenceBuffer);
-		if (channelStatePersister.checkForBarrier(sequenceBuffer.buffer)) {
-			// checkpoint was not yet started by task thread,
-			// so remember the numbers of buffers to spill for the time when it will be started
-			numBuffersOvertaken = receivedBuffers.getNumUnprioritizedElements();
-		}
-		return receivedBuffers.getNumPriorityElements() == 1;
-	}
-
-	private SequenceBuffer announce(SequenceBuffer sequenceBuffer) throws IOException {
-		checkState(!sequenceBuffer.buffer.isBuffer(), "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
-		AbstractEvent event = EventSerializer.fromBuffer(
-				sequenceBuffer.buffer,
-				getClass().getClassLoader());
-		checkState(event instanceof CheckpointBarrier, "Only a CheckpointBarrier can be announced but found %s", sequenceBuffer.buffer);
-		CheckpointBarrier barrier = (CheckpointBarrier) event;
-		return new SequenceBuffer(
-				EventSerializer.toBuffer(new EventAnnouncement(barrier, sequenceBuffer.sequenceNumber), true),
-				sequenceBuffer.sequenceNumber);
 	}
 
 	/**

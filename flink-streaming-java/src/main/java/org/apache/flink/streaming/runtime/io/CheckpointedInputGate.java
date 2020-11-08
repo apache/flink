@@ -20,12 +20,10 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
-import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -168,26 +166,15 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	}
 
 	private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent) throws IOException, InterruptedException {
-		Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
-		if (eventClass == CheckpointBarrier.class) {
+		if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
 			CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
 			barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
 		}
-		else if (eventClass == CancelCheckpointMarker.class) {
+		else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
 			barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent());
 		}
-		else if (eventClass == EndOfPartitionEvent.class) {
+		else if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
 			barrierHandler.processEndOfPartition();
-		}
-		else if (eventClass == EventAnnouncement.class) {
-			EventAnnouncement eventAnnouncement = (EventAnnouncement) bufferOrEvent.getEvent();
-			AbstractEvent announcedEvent = eventAnnouncement.getAnnouncedEvent();
-			checkState(
-				announcedEvent instanceof CheckpointBarrier,
-				"Only CheckpointBarrier announcement are currently supported, but found [%s]",
-				announcedEvent);
-			CheckpointBarrier announcedBarrier = (CheckpointBarrier) announcedEvent;
-			barrierHandler.processBarrierAnnouncement(announcedBarrier, eventAnnouncement.getSequenceNumber(), bufferOrEvent.getChannelInfo());
 		}
 		else if (bufferOrEvent.getEvent().getClass() == EndOfChannelStateEvent.class) {
 			upstreamRecoveryTracker.handleEndOfRecovery(bufferOrEvent.getChannelInfo());
