@@ -45,6 +45,8 @@ import org.apache.flink.util.clock.SystemClock;
 
 import java.util.function.Consumer;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Components to create a {@link DefaultScheduler} which depends on the
  * configured {@link JobManagerOptions#SCHEDULING_STRATEGY}.
@@ -82,6 +84,7 @@ public class DefaultSchedulerComponents {
 
 	static DefaultSchedulerComponents createSchedulerComponents(
 			final ScheduleMode scheduleMode,
+			final boolean isApproximateLocalRecoveryEnabled,
 			final Configuration jobMasterConfiguration,
 			final SlotPool slotPool,
 			final Time slotRequestTimeout) {
@@ -89,12 +92,18 @@ public class DefaultSchedulerComponents {
 		final String schedulingStrategy = jobMasterConfiguration.getString(JobManagerOptions.SCHEDULING_STRATEGY);
 		switch (schedulingStrategy) {
 			case PIPELINED_REGION_SCHEDULING:
+				checkArgument(
+					!isApproximateLocalRecoveryEnabled,
+					"Approximate local recovery can not be used together with PipelinedRegionScheduler for now! " +
+						"Please set %s to legacy.", JobManagerOptions.SCHEDULING_STRATEGY.key());
 				return createPipelinedRegionSchedulerComponents(
 					scheduleMode,
 					jobMasterConfiguration,
 					slotPool,
 					slotRequestTimeout);
 			case LEGACY_SCHEDULING:
+				checkArgument(!isApproximateLocalRecoveryEnabled || !scheduleMode.allowLazyDeployment(),
+					"Approximate local recovery can only be used together with EAGER schedule mode!");
 				return createLegacySchedulerComponents(
 					scheduleMode,
 					jobMasterConfiguration,

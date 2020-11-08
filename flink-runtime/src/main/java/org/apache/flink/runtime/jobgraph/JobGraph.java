@@ -82,6 +82,9 @@ public class JobGraph implements Serializable {
 	/** The mode in which the job is scheduled. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
+	/** Whether approximate local recovery is enabled. This flag will be removed together with legacy scheduling strategies. */
+	private boolean approximateLocalRecovery = false;
+
 	// --- checkpointing ---
 
 	/** Job specific execution config. */
@@ -229,6 +232,14 @@ public class JobGraph implements Serializable {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
+	}
+
+	public void enableApproximateLocalRecovery(boolean enabled) {
+		this.approximateLocalRecovery = enabled;
+	}
+
+	public boolean isApproximateLocalRecoveryEnabled() {
+		return approximateLocalRecovery;
 	}
 
 	/**

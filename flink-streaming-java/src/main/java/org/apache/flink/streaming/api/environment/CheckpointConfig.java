@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
@@ -84,6 +85,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	private long alignmentTimeout = ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis();
 
+	/** Flag to enable approximate local recovery. */
+	private boolean approximateLocalRecovery;
+
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
@@ -122,6 +126,7 @@ public class CheckpointConfig implements java.io.Serializable {
 		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
 		this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
 		this.alignmentTimeout = checkpointConfig.alignmentTimeout;
+		this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
 		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
 		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
 		this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
@@ -502,6 +507,35 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public long getAlignmentTimeout() {
 		return alignmentTimeout;
+	}
+
+	/**
+	 * Returns whether approximate local recovery is enabled.
+	 *
+	 * @return <code>true</code> if approximate local recovery is enabled.
+	 */
+	@Experimental
+	public boolean isApproximateLocalRecoveryEnabled() {
+		return approximateLocalRecovery;
+	}
+
+	/**
+	 * Enables the approximate local recovery mode.
+	 *
+	 * <p>In this recovery mode, when a task fails, the entire downstream of the tasks (including the failed task) restart.
+	 *
+	 * <p>Notice that
+	 * 1. Approximate recovery may lead to data loss. The amount of data which leads the failed task
+	 * from the state of the last completed checkpoint to the state when the task fails is lost.
+	 * 2. In the next version, we will support restarting the set of failed set of tasks only.
+	 * In this version, we only support downstream restarts when a task fails.
+	 * 3. It is only an internal feature for now.
+	 *
+	 * @param enabled Flag to indicate whether approximate local recovery is enabled .
+	 */
+	@Experimental
+	public void enableApproximateLocalRecovery(boolean enabled) {
+		approximateLocalRecovery = enabled;
 	}
 
 	/**
