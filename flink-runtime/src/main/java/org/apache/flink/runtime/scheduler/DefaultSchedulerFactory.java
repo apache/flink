@@ -69,6 +69,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 
 		final DefaultSchedulerComponents schedulerComponents = createSchedulerComponents(
 			jobGraph.getScheduleMode(),
+			jobGraph.isApproximateLocalRecoveryEnabled(),
 			jobMasterConfiguration,
 			slotPool,
 			slotRequestTimeout);
