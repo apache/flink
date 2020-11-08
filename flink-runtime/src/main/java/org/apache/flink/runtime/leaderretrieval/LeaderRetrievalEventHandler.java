@@ -36,6 +36,8 @@ public interface LeaderRetrievalEventHandler {
 	 *
 	 * @param leaderInformation the new leader information to notify {@link LeaderRetrievalService}. It could be
 	 * {@link LeaderInformation#empty()} if the leader address does not exist in the external storage.
+	 * Duplicated leader change events could happen, so the implementation should check whether the passed leader
+	 * information is truly changed with last stored leader information.
 	 */
 	void notifyLeaderAddress(LeaderInformation leaderInformation);
 }
