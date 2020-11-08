@@ -69,6 +69,9 @@ public class TestingReaderContext implements SourceReaderContext {
 	}
 
 	@Override
+	public void sendSplitRequest() {}
+
+	@Override
 	public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
 		sentEvents.add(sourceEvent);
 	}

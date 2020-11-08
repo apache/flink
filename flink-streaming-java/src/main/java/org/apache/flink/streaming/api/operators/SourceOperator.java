@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -162,6 +163,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			@Override
 			public int getIndexOfSubtask() {
 				return getRuntimeContext().getIndexOfThisSubtask();
+			}
+
+			@Override
+			public void sendSplitRequest() {
+				operatorEventGateway.sendEventToCoordinator(new RequestSplitEvent(getLocalHostName()));
 			}
 
 			@Override

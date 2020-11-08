@@ -172,9 +172,10 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 			}
 
 			@Override
-			public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
+			public void sendSplitRequest() {}
 
-			}
+			@Override
+			public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
 		});
 	}
 

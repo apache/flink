@@ -21,7 +21,6 @@ package org.apache.flink.api.connector.source.lib.util;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.core.io.InputStatus;
 
 import javax.annotation.Nullable;
@@ -83,7 +82,7 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 	public void start() {
 		// request a split only if we did not get one during restore
 		if (iterator == null) {
-			context.sendSourceEventToCoordinator(new RequestSplitEvent());
+			context.sendSplitRequest();
 		}
 	}
 
