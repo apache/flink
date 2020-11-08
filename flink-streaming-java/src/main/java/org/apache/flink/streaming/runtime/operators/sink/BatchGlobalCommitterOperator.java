@@ -22,7 +22,9 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.operators.util.SinkUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,9 +48,13 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStr
 	/** Record all the committables until the end of the input. */
 	private final List<CommT> allCommittables;
 
+	/** Re-commit interval at the end of input. */
+	private final long retryInterval;
+
 	BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
 		this.globalCommitter = checkNotNull(globalCommitter);
 		this.allCommittables = new ArrayList<>();
+		this.retryInterval = 10_000;
 	}
 
 	@Override
@@ -60,11 +66,12 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStr
 	public void endInput() throws Exception {
 		if (!allCommittables.isEmpty()) {
 			final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
-			final List<GlobalCommT> neededRetryCommittables = globalCommitter.commit(
-					Collections.singletonList(globalCommittable));
-			if (!neededRetryCommittables.isEmpty()) {
-				throw new UnsupportedOperationException("Currently does not support the re-commit!");
-			}
+
+			SinkUtils.commit(
+					Collections.singletonList(globalCommittable),
+					FunctionUtils.uncheckedFunction(globalCommitter::commit),
+					output,
+					retryInterval);
 		}
 		globalCommitter.endOfInput();
 	}

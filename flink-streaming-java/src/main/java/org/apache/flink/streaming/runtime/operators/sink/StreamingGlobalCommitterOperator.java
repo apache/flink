@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,16 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
 @Internal
-public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamingCommitterOperator<CommT, GlobalCommT>
-		implements BoundedOneInput {
+public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamingCommitterOperator<CommT, GlobalCommT> {
 
 	/** Aggregate committables to global committables and commit the global committables to the external system. */
 	private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
 	/** The global committables that might need to be committed again after recovering from a failover. */
 	private final List<GlobalCommT> recoveredGlobalCommittables;
-
-	private boolean endOfInput;
 
 	StreamingGlobalCommitterOperator(
 			GlobalCommitter<CommT, GlobalCommT> globalCommitter,
@@ -55,7 +51,6 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends 
 		this.globalCommitter = checkNotNull(globalCommitter);
 
 		this.recoveredGlobalCommittables = new ArrayList<>();
-		this.endOfInput = false;
 	}
 
 	@Override
@@ -84,11 +79,6 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends 
 	}
 
 	@Override
-	public void endInput() {
-		endOfInput = true;
-	}
-
-	@Override
 	public void close() throws Exception {
 		super.close();
 		globalCommitter.close();
@@ -97,7 +87,7 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT> extends 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		super.notifyCheckpointComplete(checkpointId);
-		if (endOfInput) {
+		if (isEndOfInput()) {
 			globalCommitter.endOfInput();
 		}
 	}

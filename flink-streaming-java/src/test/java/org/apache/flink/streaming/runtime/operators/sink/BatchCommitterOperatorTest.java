@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -46,15 +48,28 @@ public class BatchCommitterOperatorTest extends TestLogger {
 		testHarness.initializeEmptyState();
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void doNotSupportRetry() throws Exception {
+	@Test
+	public void commitRetry() throws Exception {
+		final List<String> input = Arrays.asList("nv50", "stuff");
+		final TestSink.RetryCommitter retryCommitter = new TestSink.RetryCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.AlwaysRetryCommitter());
+				createTestHarness(retryCommitter);
 
 		testHarness.initializeEmptyState();
 		testHarness.open();
-		testHarness.processElement(new StreamRecord<>("those"));
+		Executors
+				.newScheduledThreadPool(1)
+				.schedule(() -> retryCommitter.setRetry(false), 5, TimeUnit.SECONDS);
+		testHarness.processElements(input
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
 		testHarness.endInput();
+		assertThat(
+				testHarness.getOutput(),
+				containsInAnyOrder(input.stream().map(StreamRecord::new).toArray()));
+
+		assertThat(retryCommitter.getCommittedData(), containsInAnyOrder(input.toArray()));
 		testHarness.close();
 	}
 

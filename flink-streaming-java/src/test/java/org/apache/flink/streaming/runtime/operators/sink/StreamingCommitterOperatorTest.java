@@ -31,6 +31,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.buildSubtaskState;
@@ -64,20 +66,71 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 		testHarness.open();
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void doNotSupportRetry() throws Exception {
-		final List<String> input = Arrays.asList("lazy", "leaf");
+	@Test
+	public void commitRetry() throws Exception {
+		final List<String> input1 = Arrays.asList("lazy", "leaf");
+		final List<String> input2 = Arrays.asList("almost", "dirt", "position");
+		final List<String> expectedOutput = new ArrayList<>();
+		expectedOutput.addAll(input1);
+		expectedOutput.addAll(input2);
+
+		final TestSink.RetryCommitter retryCommitter = new TestSink.RetryCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.AlwaysRetryCommitter());
+				createTestHarness(retryCommitter);
 
 		testHarness.initializeEmptyState();
 		testHarness.open();
-		testHarness.processElements(input
+		testHarness.processElements(input1
 				.stream()
 				.map(StreamRecord::new)
 				.collect(Collectors.toList()));
 		testHarness.snapshot(1L, 1L);
 		testHarness.notifyOfCompletedCheckpoint(1L);
+
+		assertThat(testHarness.getOutput().size(), equalTo(0));
+		assertThat(retryCommitter.getCommittedData().size(), equalTo(0));
+
+		testHarness.processElements(input2
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		testHarness.snapshot(2L, 2L);
+		retryCommitter.setRetry(false);
+		testHarness.notifyOfCompletedCheckpoint(2L);
+
+		assertThat(
+				testHarness.getOutput(),
+				containsInAnyOrder(expectedOutput.stream().map(StreamRecord::new).toArray()));
+		assertThat(retryCommitter.getCommittedData(), containsInAnyOrder(expectedOutput.toArray()));
+
+		testHarness.close();
+	}
+
+	@Test
+	public void commitRetryAtEndOfInput() throws Exception {
+		final List<String> input1 = Arrays.asList("lazy", "leaf");
+		final TestSink.RetryCommitter retryCommitter = new TestSink.RetryCommitter();
+		final OneInputStreamOperatorTestHarness<String, String> testHarness =
+				createTestHarness(retryCommitter);
+
+		testHarness.initializeEmptyState();
+		testHarness.open();
+		testHarness.processElements(input1
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		testHarness.endInput();
+
+		Executors
+				.newScheduledThreadPool(1)
+				.schedule(() -> retryCommitter.setRetry(false), 5, TimeUnit.SECONDS);
+		testHarness.snapshot(1L, 1L);
+		testHarness.notifyOfCompletedCheckpoint(1L);
+
+		assertThat(
+				testHarness.getOutput(),
+				containsInAnyOrder(input1.stream().map(StreamRecord::new).toArray()));
+		assertThat(retryCommitter.getCommittedData(), containsInAnyOrder(input1.toArray()));
 
 		testHarness.close();
 	}

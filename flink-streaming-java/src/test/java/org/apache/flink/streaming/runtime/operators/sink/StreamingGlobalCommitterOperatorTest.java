@@ -31,12 +31,15 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.buildSubtaskState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
 
@@ -61,12 +64,50 @@ public class StreamingGlobalCommitterOperatorTest extends TestLogger {
 		testHarness.open();
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void doNotSupportRetry() throws Exception {
-		final List<String> input = Arrays.asList("lazy", "leaf");
+	@Test
+	public void commitRetry() throws Exception {
+		final List<String> input1 = Arrays.asList("lazy", "leaf");
+		final List<String> input2 = Arrays.asList("almost", "dirt", "position");
+		final List<String> expectedOutput = new ArrayList<>();
+		expectedOutput.add(TestSink.RetryGlobalCommitter.COMBINER.apply(input1));
+		expectedOutput.add(TestSink.RetryGlobalCommitter.COMBINER.apply(input2));
 
+		final TestSink.RetryGlobalCommitter retryGlobalCommitter = new TestSink.RetryGlobalCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+				createTestHarness(retryGlobalCommitter);
+
+		testHarness.initializeEmptyState();
+		testHarness.open();
+		testHarness.processElements(input1
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		testHarness.snapshot(1L, 1L);
+		testHarness.notifyOfCompletedCheckpoint(1L);
+		assertThat(testHarness.getOutput().size(), equalTo(0));
+
+		testHarness.processElements(input2
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		testHarness.snapshot(2L, 2L);
+		retryGlobalCommitter.setRetry(false);
+		testHarness.notifyOfCompletedCheckpoint(2L);
+
+		assertThat(retryGlobalCommitter.getCommittedData(), containsInAnyOrder(expectedOutput.toArray()));
+
+		testHarness.close();
+	}
+
+	@Test
+	public void commitRetryAtEndOfInput() throws Exception {
+		final List<String> input = Arrays.asList("lazy", "leaf");
+		final List<String> expectedOutput = new ArrayList<>();
+		expectedOutput.add(TestSink.RetryGlobalCommitter.COMBINER.apply(input));
+		expectedOutput.add("end of input");
+		final TestSink.RetryGlobalCommitter retryGlobalCommitter = new TestSink.RetryGlobalCommitter();
+		final OneInputStreamOperatorTestHarness<String, String> testHarness =
+				createTestHarness(retryGlobalCommitter);
 
 		testHarness.initializeEmptyState();
 		testHarness.open();
@@ -74,8 +115,17 @@ public class StreamingGlobalCommitterOperatorTest extends TestLogger {
 				.stream()
 				.map(StreamRecord::new)
 				.collect(Collectors.toList()));
+		testHarness.endInput();
+
+		Executors
+				.newScheduledThreadPool(1)
+				.schedule(() -> retryGlobalCommitter.setRetry(false), 5, TimeUnit.SECONDS);
 		testHarness.snapshot(1L, 1L);
 		testHarness.notifyOfCompletedCheckpoint(1L);
+
+		assertThat(
+				retryGlobalCommitter.getCommittedData(),
+				containsInAnyOrder(expectedOutput.toArray()));
 
 		testHarness.close();
 	}

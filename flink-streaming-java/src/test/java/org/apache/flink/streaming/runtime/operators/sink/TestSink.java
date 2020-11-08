@@ -302,13 +302,22 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	}
 
 	/**
-	 * A {@link Committer} that always re-commits the committables data it received.
+	 * A {@link Committer} that re-commits the committables if the variable 'retry' is true.
 	 */
-	static class AlwaysRetryCommitter extends DefaultCommitter implements Committer<String> {
+	static class RetryCommitter extends DefaultCommitter implements Committer<String> {
 
-		@Override
+		private boolean retry = true;
+
 		public List<String> commit(List<String> committables) {
-			return committables;
+			if (retry) {
+				return committables;
+			} else {
+				return super.commit(committables);
+			}
+		}
+
+		public void setRetry(boolean retry) {
+			this.retry = retry;
 		}
 	}
 
@@ -363,28 +372,22 @@ public class TestSink implements Sink<Integer, String, String, String> {
 	}
 
 	/**
-	 * A {@link GlobalCommitter} that always re-commits global committables it received.
+	 * A {@link GlobalCommitter} that re-commits the committables if the variable 'retry' is true.
 	 */
-	static class AlwaysRetryGlobalCommitter extends DefaultGlobalCommitter {
+	static class RetryGlobalCommitter extends DefaultGlobalCommitter {
 
-		@Override
-		public List<String> filterRecoveredCommittables(List<String> globalCommittables) {
-			return Collections.emptyList();
-		}
+		private boolean retry = true;
 
-		@Override
-		public String combine(List<String> committables) {
-			return String.join("|", committables);
-		}
-
-		@Override
-		public void endOfInput() {
-
-		}
-
-		@Override
 		public List<String> commit(List<String> committables) {
-			return committables;
+			if (retry) {
+				return committables;
+			} else {
+				return super.commit(committables);
+			}
+		}
+
+		public void setRetry(boolean retry) {
+			this.retry = retry;
 		}
 	}
 

@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -47,16 +49,37 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 		testHarness.initializeEmptyState();
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void doNotSupportRetry() throws Exception {
-		final OneInputStreamOperatorTestHarness<String, String> testHarness =
-				createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+	@Test
+	public void commitRetry() throws Exception {
+
+		final TestSink.RetryGlobalCommitter retryGlobalCommitter = new TestSink.RetryGlobalCommitter();
+		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
+				retryGlobalCommitter);
+
+		final List<String> inputs = Arrays.asList("youth", "laugh", "nothing");
+
+		final List<String> expectedCommittedData = Arrays.asList(
+				retryGlobalCommitter.combine(inputs),
+				"end of input");
 
 		testHarness.initializeEmptyState();
 		testHarness.open();
-		testHarness.processElement(new StreamRecord<>("hotel"));
+
+		testHarness.processElements(inputs.stream().map(StreamRecord::new).collect(
+				Collectors.toList()));
+
+		Executors
+				.newScheduledThreadPool(1)
+				.schedule(() -> retryGlobalCommitter.setRetry(false), 5, TimeUnit.SECONDS);
+
 		testHarness.endInput();
+
+		assertThat(
+				retryGlobalCommitter.getCommittedData(),
+				containsInAnyOrder(expectedCommittedData.toArray()));
+
 		testHarness.close();
+
 	}
 
 	@Test

@@ -26,9 +26,12 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.runtime.operators.util.SinkUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,7 +53,7 @@ import java.util.TreeMap;
  * @param <CommT> The committable type of the {@link Committer}.
  */
 abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
-		implements OneInputStreamOperator<InputT, CommT> {
+		implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
 
@@ -66,11 +69,19 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	/** The committable's serializer. */
 	private final StreamingCommitterStateSerializer<CommT> streamingCommitterStateSerializer;
 
+	/** The committables needed to re-commit at some time. */
+	private final List<CommT> neededToRetryCommittables;
+
+	/** Re-commit interval at the end of input. */
+	private final long retryInterval;
+
 	/** The operator's state. */
 	private ListState<StreamingCommitterState<CommT>> streamingCommitterState;
 
 	/** Inputs collected between every pre-commit. */
 	private List<InputT> currentInputs;
+
+	private boolean endOfInput;
 
 	/**
 	 * Notifies a list of committables that might need to be committed again after recovering from a failover.
@@ -102,6 +113,9 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 				committableSerializer);
 		this.committablesPerCheckpoint = new TreeMap<>();
 		this.currentInputs = new ArrayList<>();
+		this.neededToRetryCommittables = new ArrayList<>();
+		this.endOfInput = false;
+		this.retryInterval = 10_000;
 	}
 
 	@Override
@@ -131,6 +145,15 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	}
 
 	@Override
+	public void endInput() {
+		endOfInput = true;
+	}
+
+	protected boolean isEndOfInput() {
+		return endOfInput;
+	}
+
+	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		super.notifyCheckpointComplete(checkpointId);
 		commitUpTo(checkpointId);
@@ -151,14 +174,16 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 		}
 
 		LOG.info("Committing the state for checkpoint {}", checkpointId);
-		final List<CommT> neededToRetryCommittables = commit(readyCommittables);
-		if (!neededToRetryCommittables.isEmpty()) {
-			throw new UnsupportedOperationException("Currently does not support the re-commit!");
-		}
 
-		// TODO fix :: send only for the committer, not for the global COMMITTER
-		for (CommT committable : readyCommittables) {
-			output.collect(new StreamRecord<>(committable));
-		}
+		readyCommittables.addAll(neededToRetryCommittables);
+		neededToRetryCommittables.clear();
+
+		neededToRetryCommittables.addAll(
+				SinkUtils.commit(
+						readyCommittables,
+						FunctionUtils.uncheckedFunction(this::commit),
+						output,
+						endOfInput ? retryInterval : -1));
+
 	}
 }
