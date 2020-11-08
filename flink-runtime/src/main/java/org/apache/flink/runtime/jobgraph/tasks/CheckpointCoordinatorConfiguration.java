@@ -63,8 +63,6 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
 	private final boolean isUnalignedCheckpointsEnabled;
 
-	private final long alignmentTimeout;
-
 	/**
 	 * @deprecated use {@link #builder()}.
 	 */
@@ -89,8 +87,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			isExactlyOnce,
 			isPreferCheckpointForRecovery,
 			tolerableCpFailureNumber,
-			isUnalignedCheckpoint,
-			0);
+			isUnalignedCheckpoint);
 	}
 
 	private CheckpointCoordinatorConfiguration(
@@ -102,8 +99,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			boolean isExactlyOnce,
 			boolean isPreferCheckpointForRecovery,
 			int tolerableCpFailureNumber,
-			boolean isUnalignedCheckpointsEnabled,
-			long alignmentTimeout) {
+			boolean isUnalignedCheckpointsEnabled) {
 
 		// sanity checks
 		if (checkpointInterval < MINIMAL_CHECKPOINT_TIME || checkpointTimeout < MINIMAL_CHECKPOINT_TIME ||
@@ -123,7 +119,6 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		this.isPreferCheckpointForRecovery = isPreferCheckpointForRecovery;
 		this.tolerableCheckpointFailureNumber = tolerableCpFailureNumber;
 		this.isUnalignedCheckpointsEnabled = isUnalignedCheckpointsEnabled;
-		this.alignmentTimeout = alignmentTimeout;
 	}
 
 	public long getCheckpointInterval() {
@@ -160,10 +155,6 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
 	public boolean isUnalignedCheckpointsEnabled() {
 		return isUnalignedCheckpointsEnabled;
-	}
-
-	public long getAlignmentTimeout() {
-		return alignmentTimeout;
 	}
 
 	@Override
@@ -232,7 +223,6 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		private boolean isPreferCheckpointForRecovery = true;
 		private int tolerableCheckpointFailureNumber;
 		private boolean isUnalignedCheckpointsEnabled;
-		private long alignmentTimeout = 0;
 
 		public CheckpointCoordinatorConfiguration build() {
 			return new CheckpointCoordinatorConfiguration(
@@ -244,8 +234,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 				isExactlyOnce,
 				isPreferCheckpointForRecovery,
 				tolerableCheckpointFailureNumber,
-				isUnalignedCheckpointsEnabled,
-				alignmentTimeout
+				isUnalignedCheckpointsEnabled
 			);
 		}
 
@@ -291,11 +280,6 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
 		public CheckpointCoordinatorConfigurationBuilder setUnalignedCheckpointsEnabled(boolean unalignedCheckpointsEnabled) {
 			isUnalignedCheckpointsEnabled = unalignedCheckpointsEnabled;
-			return this;
-		}
-
-		public CheckpointCoordinatorConfigurationBuilder setAlignmentTimeout(long alignmentTimeout) {
-			this.alignmentTimeout = alignmentTimeout;
 			return this;
 		}
 	}

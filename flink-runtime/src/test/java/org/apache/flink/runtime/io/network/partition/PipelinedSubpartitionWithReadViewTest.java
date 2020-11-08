@@ -342,8 +342,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 			CheckpointType.CHECKPOINT,
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
-			true,
-			0);
+			true);
 		channelStateWriter.start(0, options);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer);
@@ -370,8 +369,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 			CheckpointType.CHECKPOINT,
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
-			true,
-			0);
+			true);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer);
 		assertEquals(1, availablityListener.getNumNotifications());
