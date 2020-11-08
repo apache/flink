@@ -274,7 +274,7 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
 The partition commit policy defines what action is taken when partitions are committed. 
 
 - The first is metastore, only hive table supports metastore policy, file system manages partitions through directory structure.
-- The second is the success file, which will write an empty file in the directory corresponding to the partition.
+- The second is the success file, which will write an empty file in the directory corresponding to the partition. 
 
 <table class="table table-bordered">
   <thead>
@@ -334,6 +334,35 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
 }
 
 {% endhighlight %}
+</div>
+</div>
+
+### Sink Parallelism
+
+The parallelism of writing files into external file system can be configured by corresponding table option. By default, the parallelism is configured to being the same as the parallelism of its last upstream chained operator.
+
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>sink.parallelism</h5></td>
+        <td style="word-wrap: break-word;">(none)</td>
+        <td>Integer</td>
+        <td>Parallelism of writing files into external file system. The value should greater than zero otherwise exception will be thrown.</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+
 </div>
 </div>
 

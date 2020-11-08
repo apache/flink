@@ -262,6 +262,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 		}
 
 		long bucketCheckInterval = conf.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis();
+		//todo HIVE sink parallelism support
+		int parallelism = dataStream.getParallelism();
 
 		DataStream<PartitionCommitInfo> writerStream;
 		if (autoCompaction) {
@@ -277,10 +279,11 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 					fsFactory(),
 					path,
 					createCompactReaderFactory(sd, tableProps),
-					compactionSize);
+					compactionSize,
+					parallelism);
 		} else {
 			writerStream = StreamingSink.writer(
-					dataStream, bucketCheckInterval, builder);
+					dataStream, bucketCheckInterval, builder, parallelism);
 		}
 
 		return StreamingSink.sink(
