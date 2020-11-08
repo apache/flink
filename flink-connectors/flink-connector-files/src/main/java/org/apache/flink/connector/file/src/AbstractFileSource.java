@@ -100,6 +100,20 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
 	}
 
 	// ------------------------------------------------------------------------
+	//  Getters
+	// ------------------------------------------------------------------------
+
+	public FileSplitAssigner.Provider getAssignerFactory() {
+		return assignerFactory;
+	}
+
+	@Nullable
+	public ContinuousEnumerationSettings getContinuousEnumerationSettings() {
+		return continuousEnumerationSettings;
+	}
+
+
+	// ------------------------------------------------------------------------
 	//  Source API Methods
 	// ------------------------------------------------------------------------
 
