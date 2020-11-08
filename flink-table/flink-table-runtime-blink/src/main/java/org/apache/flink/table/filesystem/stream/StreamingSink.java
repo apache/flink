@@ -63,14 +63,15 @@ public class StreamingSink {
 			DataStream<T> inputStream,
 			long bucketCheckInterval,
 			StreamingFileSink.BucketsBuilder<T, String, ? extends
-					StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder) {
+					StreamingFileSink.BucketsBuilder<T, String, ?>> bucketsBuilder,
+			int parallelism) {
 		StreamingFileWriter<T> fileWriter = new StreamingFileWriter<>(
 				bucketCheckInterval,
 				bucketsBuilder);
 		return inputStream.transform(
 				StreamingFileWriter.class.getSimpleName(),
 				TypeInformation.of(PartitionCommitInfo.class),
-				fileWriter).setParallelism(inputStream.getParallelism());
+				fileWriter).setParallelism(parallelism);
 	}
 
 	/**
@@ -85,7 +86,8 @@ public class StreamingSink {
 			FileSystemFactory fsFactory,
 			Path path,
 			CompactReader.Factory<T> readFactory,
-			long targetFileSize) {
+			long targetFileSize,
+			int parallelism) {
 		CompactFileWriter<T> writer = new CompactFileWriter<>(bucketCheckInterval, bucketsBuilder);
 
 		SupplierWithException<FileSystem, IOException> fsSupplier =
@@ -99,7 +101,7 @@ public class StreamingSink {
 						"streaming-writer",
 						TypeInformation.of(CoordinatorInput.class),
 						writer)
-				.setParallelism(inputStream.getParallelism())
+				.setParallelism(parallelism)
 				.transform(
 						"compact-coordinator",
 						TypeInformation.of(CoordinatorOutput.class),

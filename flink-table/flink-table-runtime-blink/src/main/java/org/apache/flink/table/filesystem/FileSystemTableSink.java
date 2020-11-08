@@ -167,8 +167,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		builder.setOutputFileConfig(OutputFileConfig.builder()
 				.withPartPrefix("part-" + UUID.randomUUID().toString())
 				.build());
+		int parallelism = Optional.ofNullable(tableOptions.get(FileSystemOptions
+			.SINK_PARALLELISM)).orElse(inputStream.getParallelism());
 		return inputStream.writeUsingOutputFormat(builder.build())
-				.setParallelism(inputStream.getParallelism());
+				.setParallelism(parallelism);
 	}
 
 	private DataStreamSink<?> createStreamingSink(
@@ -210,7 +212,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		}
 
 		long bucketCheckInterval = tableOptions.get(SINK_ROLLING_POLICY_CHECK_INTERVAL).toMillis();
-
+		int parallelism = Optional.ofNullable(tableOptions.get(FileSystemOptions
+			.SINK_PARALLELISM)).orElse(dataStream.getParallelism());
 		DataStream<PartitionCommitInfo> writerStream;
 		if (autoCompaction) {
 			long compactionSize = tableOptions
@@ -229,10 +232,11 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 					fsFactory,
 					path,
 					reader,
-					compactionSize);
+					compactionSize,
+					parallelism);
 		} else {
 			writerStream = StreamingSink.writer(
-					dataStream, bucketCheckInterval, bucketsBuilder);
+					dataStream, bucketCheckInterval, bucketsBuilder, parallelism);
 		}
 
 		return StreamingSink.sink(
