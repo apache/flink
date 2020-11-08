@@ -270,7 +270,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			splitFetcherManager.checkErrors();
 			return InputStatus.END_OF_INPUT;
 		} else {
-			throw new IllegalStateException("Called 'finishedOrAvailableLater()' with shut-down fetchers but non-empty queue");
+			// We may fall in this method because of purely finished splits record. If all splits
+			// were finished meanwhile, we may end up here with no empty elementsQueue.
+			return InputStatus.MORE_AVAILABLE;
 		}
 	}
 
