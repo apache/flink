@@ -183,7 +183,7 @@ public interface TableEnvironment {
 	 * <pre>{@code
 	 *  root
 	 *  |-- id: DECIMAL(10, 2)
-	 *  |-- f1: STRING
+	 *  |-- name: STRING
 	 * }</pre>
 	 *
 	 * <p>For more examples see {@link #fromValues(Object...)}.
