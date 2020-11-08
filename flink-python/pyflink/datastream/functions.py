@@ -613,6 +613,16 @@ class ProcessFunction(Function):
             """
             pass
 
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
     class OnTimerContext(Context):
         """
         Information available in an invocation of on_timer(long, OnTimerContext, Collector)

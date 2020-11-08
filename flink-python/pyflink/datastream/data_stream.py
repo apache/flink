@@ -20,6 +20,7 @@ from typing import Callable, Union, List
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, WrapperTypeInfo
 from pyflink.common.typeinfo import TypeInformation
+from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
@@ -466,6 +467,51 @@ class DataStream(object):
             j_output_type_info,
             j_python_data_stream_function_operator
         ))
+
+    def assign_timestamps_and_watermarks(self, watermark_strategy: WatermarkStrategy) -> \
+            'DataStream':
+        """
+        Assigns timestamps to the elements in the data stream and generates watermarks to signal
+        event time progress. The given {@link WatermarkStrategy} is used to create a
+        TimestampAssigner and WatermarkGenerator.
+
+        :param watermark_strategy: The strategy to generate watermarks based on event timestamps.
+        :return: The stream after the transformation, with assigned timestamps and watermarks.
+        """
+        if watermark_strategy._timestamp_assigner is not None:
+            # user implement a TimestampAssigner, we need to extracted and generate watermarks with
+            # a custom Operator.
+            from pyflink.fn_execution import flink_fn_execution_pb2 as ffpb2
+            gateway = get_gateway()
+            import cloudpickle
+            serialized_func = cloudpickle.dumps(watermark_strategy._timestamp_assigner)
+            JDataStreamPythonFunction = gateway.jvm.DataStreamPythonFunction
+            j_data_stream_python_function = JDataStreamPythonFunction(
+                bytearray(serialized_func),
+                _get_python_env())
+
+            JDataStreamPythonFunctionInfo = gateway.jvm.DataStreamPythonFunctionInfo
+            j_data_stream_python_function_info = JDataStreamPythonFunctionInfo(
+                j_data_stream_python_function,
+                ffpb2.UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER)  # type: ignore
+            j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+            j_output_type = self._j_data_stream.getType()
+            j_operator = gateway.jvm\
+                .org.apache.flink.streaming.api.operators.python\
+                .PythonTimestampsAndWatermarksOperator(
+                    j_conf,
+                    j_output_type,
+                    j_data_stream_python_function_info,
+                    watermark_strategy._j_watermark_strategy)
+            return DataStream(self._j_data_stream.transform(
+                "TIMESTAMP_AND_WATERMARK",
+                j_output_type,
+                j_operator))
+        else:
+            # if user not specify a TimestampAssigner, then return directly assign the Java
+            # watermark strategy.
+            return DataStream(self._j_data_stream.assignTimestampsAndWatermarks(
+                watermark_strategy._j_watermark_strategy))
 
     def partition_custom(self, partitioner: Union[Callable, Partitioner],
                          key_selector: Union[Callable, KeySelector]) -> 'DataStream':

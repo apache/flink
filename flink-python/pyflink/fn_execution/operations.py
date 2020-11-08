@@ -348,15 +348,17 @@ class DataStreamStatelessFunctionOperation(Operation):
 
     def open(self):
         for user_defined_func in self.user_defined_funcs:
-            runtime_context = RuntimeContext(
-                self.spec.serialized_fn.runtime_context.task_name,
-                self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
-                self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
-                self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
-                self.spec.serialized_fn.runtime_context.index_of_this_subtask,
-                self.spec.serialized_fn.runtime_context.attempt_number,
-                {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters})
-            user_defined_func.open(runtime_context)
+            if hasattr(user_defined_func, 'open'):
+                runtime_context = RuntimeContext(
+                    self.spec.serialized_fn.runtime_context.task_name,
+                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                    self.spec.serialized_fn.runtime_context.attempt_number,
+                    {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters}
+                )
+                user_defined_func.open(runtime_context)
 
     def generate_func(self, serialized_fn):
         func, user_defined_func = operation_utils.extract_data_stream_stateless_function(
@@ -439,9 +441,13 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def __init__(self, timer_service: 'TimerService'):
             self._timer_service = timer_service
+            self._timestamp = None
 
         def timer_service(self):
             return self._timer_service
+
+        def timestamp(self) -> int:
+            return self._timestamp
 
     class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
         """
@@ -451,9 +457,13 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
         def __init__(self, timer_service: 'TimerService'):
             self._timer_service = timer_service
             self._time_domain = None
+            self._timestamp = None
 
         def timer_service(self):
             return self._timer_service
 
         def time_domain(self) -> TimeDomain:
             return self._time_domain
+
+        def timestamp(self) -> int:
+            return self._timestamp
