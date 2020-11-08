@@ -287,9 +287,21 @@ public class StreamGraphGenerator {
 			setBatchStateBackendAndTimerService(graph);
 		} else {
 			graph.setStateBackend(stateBackend);
-			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.EAGER);
+
+			if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
+				checkApproximateLocalRecoveryCompatibility();
+				graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE);
+			} else {
+				graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
+			}
 		}
+	}
+
+	private void checkApproximateLocalRecoveryCompatibility() {
+		checkState(
+			!checkpointConfig.isUnalignedCheckpointsEnabled(),
+			"Approximate Local Recovery and Unaligned Checkpoint can not be used together yet");
 	}
 
 	private void setBatchStateBackendAndTimerService(StreamGraph graph) {
