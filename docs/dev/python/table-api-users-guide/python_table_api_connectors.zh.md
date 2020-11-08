@@ -51,7 +51,7 @@ source_ddl = """
             a VARCHAR,
             b INT
         ) WITH (
-          'type' = 'kafka',
+          'connector' =' = 'kafka',
           'topic' = 'source_topic',
           'properties.bootstrap.servers' = 'kafka:9092',
           'properties.group.id' = 'test_3',
@@ -64,7 +64,7 @@ sink_ddl = """
         CREATE TABLE sink_table(
             a VARCHAR
         ) WITH (
-          'type' = 'kafka',
+          'connector' = 'kafka',
           'topic' = 'sink_topic',
           'properties.bootstrap.servers' = 'kafka:9092',
           'format' = 'json'
@@ -98,7 +98,7 @@ def log_processing():
                 a VARCHAR,
                 b INT
             ) WITH (
-              'type' = 'kafka',
+              'connector' = 'kafka',
               'topic' = 'source_topic',
               'properties.bootstrap.servers' = 'kafka:9092',
               'properties.group.id' = 'test_3',
@@ -111,7 +111,7 @@ def log_processing():
             CREATE TABLE sink_table(
                 a VARCHAR
             ) WITH (
-              'type' = 'kafka',
+              'connector' = 'kafka',
               'topic' = 'sink_topic',
               'properties.bootstrap.servers' = 'kafka:9092',
               'format' = 'json'
