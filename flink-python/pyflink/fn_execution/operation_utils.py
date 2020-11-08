@@ -229,6 +229,17 @@ def extract_data_stream_stateless_function(udf_proto):
             return co_flat_map_func.flat_map1(value[1]) if value[0] else \
                 co_flat_map_func.flat_map2(value[2])
         func = wrap_func
+
+    elif func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
+        extract_timestamp = user_defined_func.extract_timestamp
+
+        def wrap_func(value):
+            pre_timestamp = value[0]
+            real_data = value[1]
+            new_timestamp = extract_timestamp(real_data, pre_timestamp)
+            return Row(new_timestamp, real_data)
+        func = wrap_func
+
     return func, user_defined_func
 
 
@@ -245,6 +256,7 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
         on_timer_ctx.timer_service()._current_watermark = current_watermark
         # it is timer data
         if value[0] is not None:
+            on_timer_ctx._timestamp = value[1]
             timer_key = value[3]
             keyed_state_backend.set_current_key(timer_key)
             if value[0] == 0:
@@ -257,8 +269,9 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
             on_timer_func(value[1], on_timer_ctx, collector)
         else:
             # it is normal data
-            # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
+            # VALUE[TIMER_FLAG, CURRENT_TIMESTAMP, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
             # NORMAL_DATA[CURRENT_KEY, DATA]
+            ctx._timestamp = value[1]
             current_key = Row(value[4][0])
             keyed_state_backend.set_current_key(current_key)
 

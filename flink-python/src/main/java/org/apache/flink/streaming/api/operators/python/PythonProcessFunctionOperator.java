@@ -246,6 +246,9 @@ public class PythonProcessFunctionOperator<OUT> extends AbstractOneInputPythonFu
 
 	@Override
 	public void processElement(StreamRecord<Row> element) throws Exception {
+		if (element.hasTimestamp()) {
+			reusableInput.setField(1, element.getTimestamp());
+		}
 		reusableInput.setField(2, timerservice.currentWatermark());
 		reusableInput.setField(4, element.getValue());
 		runnerInputSerializer.serialize(reusableInput, baosWrapper);
