@@ -144,6 +144,11 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit> implements S
 				})));
 	}
 
+	@Override
+	public void runInCoordinatorThread(Runnable runnable) {
+		mainExecutor.execute(runnable);
+	}
+
 	public void close() {
 		stoppedAcceptAsyncCalls.set(true);
 	}
