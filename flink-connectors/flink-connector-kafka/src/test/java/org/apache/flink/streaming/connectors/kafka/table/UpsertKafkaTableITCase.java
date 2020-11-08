@@ -471,8 +471,6 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 	}
 
 	private void temporalJoinUpsertKafka(String userTable) throws Exception {
-		// disable watermark interval to have more fine-grained watermark progress, see WatermarkAssignerOperator
-		env.getConfig().setAutoWatermarkInterval(0);
 
 		// ------------- test data ---------------
 		List<Row> input = Arrays.asList(

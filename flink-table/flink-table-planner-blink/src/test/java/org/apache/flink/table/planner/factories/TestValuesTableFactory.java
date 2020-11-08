@@ -32,6 +32,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
@@ -291,6 +295,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			"Optional map of 'metadata_key:data_type'. The order will be alphabetically. " +
 			"The metadata is part of the data when enabled.");
 
+	private static final ConfigOption<Boolean> SINK_DROP_LATE_EVENT = ConfigOptions
+		.key("sink.drop-late-event")
+		.booleanType()
+		.defaultValue(false)
+		.withDeprecatedKeys("Option to determine whether to discard the late event.");
+
 	/**
 	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
 	 */
@@ -426,6 +436,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
+		boolean dropLateEvent = helper.getOptions().get(SINK_DROP_LATE_EVENT);
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
@@ -437,6 +448,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		final int[] primaryKeyIndices = TableSchemaUtils.getPrimaryKeyIndices(context.getCatalogTable().getSchema());
 
 		if (sinkClass.equals("DEFAULT")) {
+			int rowTimeIndex = validateAndExtractRowtimeIndex(context.getCatalogTable(), dropLateEvent, isInsertOnly);
 			return new TestValuesTableSink(
 				consumedType,
 				primaryKeyIndices,
@@ -446,7 +458,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogMode);
+				changelogMode,
+				rowTimeIndex);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -487,7 +500,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_PARALLELISM,
 			SINK_CHANGELOG_MODE_ENFORCED,
 			WRITABLE_METADATA,
-			ENABLE_WATERMARK_PUSH_DOWN));
+			ENABLE_WATERMARK_PUSH_DOWN,
+			SINK_DROP_LATE_EVENT));
+	}
+
+	private static int validateAndExtractRowtimeIndex(
+			CatalogTable sinkTable,
+			boolean dropLateEvent,
+			boolean isInsertOnly) {
+		if (!dropLateEvent) {
+			return -1;
+		} else if (!isInsertOnly) {
+			throw new ValidationException("Option 'sink.drop-late-event' only works for insert-only sink now.");
+		}
+		TableSchema schema =  sinkTable.getSchema();
+		List<WatermarkSpec> watermarkSpecs = schema.getWatermarkSpecs();
+		if (watermarkSpecs.size() == 0) {
+			throw new ValidationException(
+				"Please define the watermark in the schema that is used to indicate the rowtime column. " +
+				"The sink function will compare the rowtime and the current watermark to determine whether the event is late.");
+		}
+		String rowtimeName = watermarkSpecs.get(0).getRowtimeAttribute();
+		return Arrays.asList(schema.getFieldNames()).indexOf(rowtimeName);
 	}
 
 	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
@@ -1071,6 +1105,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final Map<String, DataType> writableMetadata;
 		private final Integer parallelism;
 		private final ChangelogMode changelogModeEnforced;
+		private final int rowtimeIndex;
 
 		private TestValuesTableSink(
 				DataType consumedDataType,
@@ -1081,7 +1116,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				int expectedNum,
 				Map<String, DataType> writableMetadata,
 				@Nullable Integer parallelism,
-				@Nullable ChangelogMode changelogModeEnforced) {
+				@Nullable ChangelogMode changelogModeEnforced,
+				int rowtimeIndex) {
 			this.consumedDataType = consumedDataType;
 			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
@@ -1091,6 +1127,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.writableMetadata = writableMetadata;
 			this.parallelism = parallelism;
 			this.changelogModeEnforced = changelogModeEnforced;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
 		@Override
@@ -1141,7 +1178,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 								public SinkFunction<RowData> createSinkFunction() {
 									return new AppendingSinkFunction(
 										tableName,
-										converter);
+										converter,
+										rowtimeIndex);
 								}
 							};
 					case "OutputFormat":
@@ -1160,7 +1198,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 							};
 					case "DataStream":
 						return (DataStreamSinkProvider) dataStream ->
-								dataStream.addSink(new AppendingSinkFunction(tableName, converter));
+								dataStream.addSink(new AppendingSinkFunction(tableName, converter, rowtimeIndex));
 					case "DataStreamWithParallelism":
 						return new TestValuesRuntimeFunctions.InternalDataStreamSinkProviderWithParallelism(1);
 					default:
@@ -1198,7 +1236,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogModeEnforced);
+				changelogModeEnforced,
+				rowtimeIndex);
 		}
 
 		@Override

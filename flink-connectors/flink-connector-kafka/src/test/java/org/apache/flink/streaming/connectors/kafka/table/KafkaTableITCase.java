@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -516,9 +518,104 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		deleteTestTopic(topic);
 	}
 
+	@Test
+	public void testPerPartitionWatermarkKafka() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "per_partition_watermark_topic_" + format;
+		createTestTopic(topic, 4, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `partition_id` INT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3),\n"
+						+ "  WATERMARK FOR `timestamp` AS `timestamp`\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'sink.partitioner' = '%s',\n"
+						+ "  'format' = '%s'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				TestPartitioner.class.getName(),
+				format);
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (0, 'partition-0-name-0', TIMESTAMP '2020-03-08 13:12:11.123'),\n"
+				+ " (0, 'partition-0-name-1', TIMESTAMP '2020-03-08 14:12:12.223'),\n"
+				+ " (0, 'partition-0-name-2', TIMESTAMP '2020-03-08 15:12:13.323'),\n"
+				+ " (1, 'partition-1-name-0', TIMESTAMP '2020-03-09 13:13:11.123'),\n"
+				+ " (1, 'partition-1-name-1', TIMESTAMP '2020-03-09 15:13:11.133'),\n"
+				+ " (1, 'partition-1-name-2', TIMESTAMP '2020-03-09 16:13:11.143'),\n"
+				+ " (2, 'partition-2-name-0', TIMESTAMP '2020-03-10 13:12:14.123'),\n"
+				+ " (3, 'partition-3-name-0', TIMESTAMP '2020-03-11 17:12:11.123')\n";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+		String createSink =
+				"CREATE TABLE MySink(\n"
+						+ "  id INT,\n"
+						+ "  name STRING,\n"
+						+ "  ts TIMESTAMP(3),\n"
+						+ "  WATERMARK FOR ts as ts\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'values',\n"
+						+ "  'sink.drop-late-event' = 'true'\n"
+						+ ")";
+		tEnv.executeSql(createSink);
+		tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
+		final List<String> expected = Arrays.asList(
+			"0,partition-0-name-0,2020-03-08T13:12:11.123",
+			"0,partition-0-name-1,2020-03-08T14:12:12.223",
+			"0,partition-0-name-2,2020-03-08T15:12:13.323",
+			"1,partition-1-name-0,2020-03-09T13:13:11.123",
+			"1,partition-1-name-1,2020-03-09T15:13:11.133",
+			"1,partition-1-name-2,2020-03-09T16:13:11.143",
+			"2,partition-2-name-0,2020-03-10T13:12:14.123",
+			"3,partition-3-name-0,2020-03-11T17:12:11.123"
+		);
+		KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+
+
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Extract the partition id from the row and set it on the record.
+	 */
+	public static class TestPartitioner extends FlinkKafkaPartitioner<RowData> {
+
+		private static final long serialVersionUID = 1L;
+		private static final int PARTITION_ID_FIELD_IN_SCHEMA = 0;
+
+		@Override
+		public int partition(RowData record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+			return partitions[record.getInt(PARTITION_ID_FIELD_IN_SCHEMA) % partitions.length];
+		}
+	}
 
 	private String formatOptions() {
 		if (!isLegacyConnector) {
