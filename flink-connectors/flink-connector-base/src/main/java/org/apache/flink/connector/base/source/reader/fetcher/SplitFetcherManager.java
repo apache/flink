@@ -133,7 +133,13 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			elementsQueue,
 			splitReader,
 			errorHandler,
-			() -> fetchers.remove(fetcherId));
+			() -> {
+				fetchers.remove(fetcherId);
+				// We need this to synchronize status of fetchers to concurrent partners as
+				// ConcurrentHashMap's aggregate status methods including size, isEmpty, and
+				// containsValue are not designed for program control.
+				elementsQueue.notifyAvailable();
+			});
 		fetchers.put(fetcherId, splitFetcher);
 		return splitFetcher;
 	}

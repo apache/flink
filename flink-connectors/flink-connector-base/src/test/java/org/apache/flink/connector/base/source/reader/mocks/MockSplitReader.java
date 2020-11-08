@@ -25,6 +25,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -40,6 +41,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	// Use LinkedHashMap for determinism.
 	private final Map<String, MockSourceSplit> splits = new LinkedHashMap<>();
 	private final int numRecordsPerSplitPerFetch;
+	private final boolean separatedFinishedRecord;
 	private final boolean blockingFetch;
 
 	private final Object wakeupLock = new Object();
@@ -49,7 +51,15 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	public MockSplitReader(
 			int numRecordsPerSplitPerFetch,
 			boolean blockingFetch) {
+		this(numRecordsPerSplitPerFetch, false, blockingFetch);
+	}
+
+	private MockSplitReader(
+		int numRecordsPerSplitPerFetch,
+		boolean separatedFinishedRecord,
+		boolean blockingFetch) {
 		this.numRecordsPerSplitPerFetch = numRecordsPerSplitPerFetch;
+		this.separatedFinishedRecord = separatedFinishedRecord;
 		this.blockingFetch = blockingFetch;
 	}
 
@@ -93,17 +103,28 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 		}
 
 		try {
-			for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
+			Iterator<Map.Entry<String, MockSourceSplit>> iterator = splits.entrySet().iterator();
+			while (iterator.hasNext()) {
+				Map.Entry<String, MockSourceSplit> entry = iterator.next();
 				MockSourceSplit split = entry.getValue();
+				boolean hasRecords = false;
 				for (int i = 0; i < numRecordsPerSplitPerFetch && !split.isFinished(); i++) {
 					// This call may throw InterruptedException.
 					int[] record = split.getNext(blockingFetch);
 					if (record != null) {
 						records.add(entry.getKey(), record);
+						hasRecords = true;
 					}
 				}
 				if (split.isFinished()) {
-					records.addFinishedSplit(entry.getKey());
+					if (!separatedFinishedRecord) {
+						records.addFinishedSplit(entry.getKey());
+						iterator.remove();
+					} else if (!hasRecords) {
+						records.addFinishedSplit(entry.getKey());
+						iterator.remove();
+						break;
+					}
 				}
 			}
 		} catch (InterruptedException ie) {
@@ -122,5 +143,37 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 		}
 
 		return records.build();
+	}
+
+	/**
+	 * Builder for {@link MockSplitReader}.
+	 */
+	public static class Builder {
+		private int numRecordsPerSplitPerFetch = 2;
+		private boolean separatedFinishedRecord = false;
+		private boolean blockingFetch = false;
+
+		public Builder setNumRecordsPerSplitPerFetch(int numRecordsPerSplitPerFetch) {
+			this.numRecordsPerSplitPerFetch = numRecordsPerSplitPerFetch;
+			return this;
+		}
+
+		public Builder setSeparatedFinishedRecord(boolean separatedFinishedRecord) {
+			this.separatedFinishedRecord = separatedFinishedRecord;
+			return this;
+		}
+
+		public Builder setBlockingFetch(boolean blockingFetch) {
+			this.blockingFetch = blockingFetch;
+			return this;
+		}
+
+		public MockSplitReader build() {
+			return new MockSplitReader(numRecordsPerSplitPerFetch, blockingFetch, separatedFinishedRecord);
+		}
+	}
+
+	public static Builder newBuilder() {
+		return new Builder();
 	}
 }
