@@ -52,6 +52,8 @@ import org.apache.flink.types.RowKind;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -300,10 +302,12 @@ final class TestValuesRuntimeFunctions {
 
 		private static final long serialVersionUID = 1L;
 		private final DataStructureConverter converter;
+		private final int rowtimeIndex;
 
-		protected AppendingSinkFunction(String tableName, DataStructureConverter converter) {
+		protected AppendingSinkFunction(String tableName, DataStructureConverter converter, int rowtimeIndex) {
 			super(tableName);
 			this.converter = converter;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
 		@SuppressWarnings("rawtypes")
@@ -313,6 +317,14 @@ final class TestValuesRuntimeFunctions {
 			if (value.getRowKind() == RowKind.INSERT) {
 				Row row = (Row) converter.toExternal(value);
 				assert row != null;
+				if (rowtimeIndex >= 0) {
+					LocalDateTime rowtime = (LocalDateTime) row.getField(rowtimeIndex);
+					long mark = context.currentWatermark();
+					if (rowtime == null || mark > rowtime.toEpochSecond(ZoneOffset.UTC)) {
+						// discard the late data
+						return;
+					}
+				}
 				localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
 			} else {
 				throw new RuntimeException(
