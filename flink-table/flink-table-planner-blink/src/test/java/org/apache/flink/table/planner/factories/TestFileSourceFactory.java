@@ -18,15 +18,20 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
@@ -34,12 +39,14 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -48,9 +55,17 @@ import java.util.Set;
  */
 public class TestFileSourceFactory implements DynamicTableSourceFactory {
 
+	private static final ConfigOption<String> RUNTIME_SOURCE = ConfigOptions
+		.key("runtime-source")
+		.stringType()
+		.defaultValue("Source"); // another is "DataStream"
+
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
-		return new TestFileTableSource(new Path(context.getCatalogTable().getOptions().get("path")));
+		Configuration conf = Configuration.fromMap(context.getCatalogTable().getOptions());
+		return new TestFileTableSource(
+			new Path(conf.getString(FileSystemOptions.PATH)),
+			conf.getString(RUNTIME_SOURCE));
 	}
 
 	@Override
@@ -65,15 +80,17 @@ public class TestFileSourceFactory implements DynamicTableSourceFactory {
 
 	@Override
 	public Set<ConfigOption<?>> optionalOptions() {
-		return new HashSet<>();
+		return new HashSet<>(Collections.singletonList(RUNTIME_SOURCE));
 	}
 
 	private static class TestFileTableSource implements ScanTableSource {
 
 		private final Path path;
+		private final String runtimeSource;
 
-		private TestFileTableSource(Path path) {
+		private TestFileTableSource(Path path, String runtimeSource) {
 			this.path = path;
+			this.runtimeSource = runtimeSource;
 		}
 
 		@Override
@@ -83,12 +100,20 @@ public class TestFileSourceFactory implements DynamicTableSourceFactory {
 
 		@Override
 		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-			return SourceProvider.of(FileSource.forRecordStreamFormat(new FileFormat(), path).build());
+			FileSource<RowData> fileSource = FileSource.forRecordStreamFormat(new FileFormat(), path).build();
+			switch (runtimeSource) {
+				case "Source":
+					return SourceProvider.of(fileSource);
+				case "DataStream":
+					return new TestFileSourceDataStreamScanProvider(fileSource, asSummaryString());
+				default:
+					throw new IllegalArgumentException("Unsupported runtime source class: " + runtimeSource);
+			}
 		}
 
 		@Override
 		public DynamicTableSource copy() {
-			return new TestFileTableSource(path);
+			return new TestFileTableSource(path, runtimeSource);
 		}
 
 		@Override
@@ -123,6 +148,26 @@ public class TestFileSourceFactory implements DynamicTableSourceFactory {
 		@Override
 		public TypeInformation<RowData> getProducedType() {
 			return InternalTypeInfo.ofFields(DataTypes.STRING().getLogicalType());
+		}
+	}
+
+	private static class TestFileSourceDataStreamScanProvider implements DataStreamScanProvider {
+		private final FileSource<RowData> fileSource;
+		private final String name;
+
+		private TestFileSourceDataStreamScanProvider(FileSource<RowData> fileSource, String name) {
+			this.fileSource = fileSource;
+			this.name = name;
+		}
+
+		@Override
+		public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+			return execEnv.fromSource(fileSource, WatermarkStrategy.noWatermarks(), name);
+		}
+
+		@Override
+		public boolean isBounded() {
+			return true;
 		}
 	}
 }

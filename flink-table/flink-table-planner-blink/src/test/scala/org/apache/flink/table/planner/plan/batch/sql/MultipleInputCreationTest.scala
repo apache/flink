@@ -22,8 +22,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -326,13 +324,12 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
   }
 
   def createChainableTableSource(): Unit = {
-    val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
-    val dataStream = env.fromSource(
+    val dataStream = util.getStreamEnv.fromSource(
       new MockSource(Boundedness.BOUNDED, 1),
       WatermarkStrategy.noWatermarks[Integer],
-      "chainable").javaStream
-    val tableEnv = util.tableEnv
-    TableTestUtil.createTemporaryView[Integer](tableEnv, "chainable", dataStream, Some(Array('a)))
+      "chainable")
+    TableTestUtil.createTemporaryView[Integer](
+      util.tableEnv, "chainable", dataStream, Some(Array('a)))
   }
 }
 
