@@ -86,7 +86,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 			taskManagerGateway,
 			triggeredRestartStrategy,
 			jobVertices);
-		adapter = new DefaultExecutionTopology(executionGraph);
+		adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
 	}
 
 	@Test
@@ -147,7 +147,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testWithCoLocationConstraints() throws Exception {
 		ExecutionGraph executionGraph = createExecutionGraphWithCoLocationConstraint();
-		adapter = new DefaultExecutionTopology(executionGraph);
+		adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
 		assertTrue(adapter.containsCoLocationConstraints());
 	}
 

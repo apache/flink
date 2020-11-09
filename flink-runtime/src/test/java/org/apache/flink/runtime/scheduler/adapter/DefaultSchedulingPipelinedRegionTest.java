@@ -109,7 +109,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
 		e.connectNewDataSetAsInput(d, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		final ExecutionGraph simpleTestGraph = ExecutionGraphTestUtils.createSimpleTestGraph(a, b, c, d, e);
-		final DefaultExecutionTopology topology = new DefaultExecutionTopology(simpleTestGraph);
+		final DefaultExecutionTopology topology = DefaultExecutionTopology.fromExecutionGraph(simpleTestGraph);
 
 		final DefaultSchedulingPipelinedRegion firstPipelinedRegion = topology.getPipelinedRegionOfVertex(new ExecutionVertexID(a.getID(), 0));
 		final DefaultSchedulingPipelinedRegion secondPipelinedRegion = topology.getPipelinedRegionOfVertex(new ExecutionVertexID(e.getID(), 0));
