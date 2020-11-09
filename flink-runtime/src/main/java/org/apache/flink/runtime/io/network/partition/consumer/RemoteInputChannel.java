@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
@@ -99,13 +100,11 @@ public class RemoteInputChannel extends InputChannel {
 
 	private final BufferManager bufferManager;
 
-	/**
-	 * Indicates the last overtaken sequence number by the most recent {@link CheckpointBarrier}
-	 * before task thread started checkpoint, or {@code null} if {@link CheckpointBarrier} hasn't
-	 * arrived yet.
-	 */
 	@GuardedBy("receivedBuffers")
-	private int lastOvertakenSequenceNumber = NONE;
+	private int lastBarrierSequenceNumber = NONE;
+
+	@GuardedBy("receivedBuffers")
+	private long lastBarrierId = NONE;
 
 	private final ChannelStatePersister channelStatePersister;
 
@@ -482,11 +481,13 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) throws IOException {
 		receivedBuffers.addPriorityElement(sequenceBuffer);
-		if (channelStatePersister.checkForBarrier(sequenceBuffer.buffer)) {
-			// checkpoint was not yet started by task thread,
-			// so remember the numbers of buffers to spill for the time when it will be started
-			lastOvertakenSequenceNumber = sequenceBuffer.sequenceNumber;
-		}
+		channelStatePersister
+			.checkForBarrier(sequenceBuffer.buffer)
+			.filter(id -> id > lastBarrierId)
+			.ifPresent(id -> {
+				lastBarrierId = id;
+				lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
+			});
 		return receivedBuffers.getNumPriorityElements() == 1;
 	}
 
@@ -510,31 +511,37 @@ public class RemoteInputChannel extends InputChannel {
 		synchronized (receivedBuffers) {
 			channelStatePersister.startPersisting(
 				barrier.getId(),
-				getInflightBuffers());
+				getInflightBuffersUnsafe(barrier.getId()));
 		}
 	}
 
 	public void checkpointStopped(long checkpointId) {
 		synchronized (receivedBuffers) {
 			channelStatePersister.stopPersisting(checkpointId);
-			lastOvertakenSequenceNumber = NONE;
+			if (lastBarrierId == checkpointId) {
+				lastBarrierId = NONE;
+				lastBarrierSequenceNumber = NONE;
+			}
 		}
 	}
 
 	@VisibleForTesting
-	List<Buffer> getInflightBuffers() {
+	List<Buffer> getInflightBuffers(long checkpointId) {
 		synchronized (receivedBuffers) {
-			return getInflightBuffersUnsafe();
+			return getInflightBuffersUnsafe(checkpointId);
 		}
 	}
 
 	/**
 	 * Returns a list of buffers, checking the first n non-priority buffers, and skipping all events.
 	 */
-	private List<Buffer> getInflightBuffersUnsafe() {
+	private List<Buffer> getInflightBuffersUnsafe(long checkpointId) {
 		assert Thread.holdsLock(receivedBuffers);
 
 		final List<Buffer> inflightBuffers = new ArrayList<>();
+		Preconditions.checkState(
+			checkpointId >= lastBarrierId,
+			"Sequence number for checkpoint %s is not known (it was likely been overwritten by a newer checkpoint %s)", checkpointId, lastBarrierId);
 		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
 		// skip all priority events (only buffers are stored anyways)
 		Iterators.advance(iterator, receivedBuffers.getNumPriorityElements());
@@ -550,36 +557,34 @@ public class RemoteInputChannel extends InputChannel {
 			}
 		}
 
-		lastOvertakenSequenceNumber = NONE;
-
 		return inflightBuffers;
 	}
 
 	/**
-	 * @return if given {@param sequenceNumber} should be spilled given {@link #lastOvertakenSequenceNumber}.
+	 * @return if given {@param sequenceNumber} should be spilled given {@link #lastBarrierSequenceNumber}.
 	 * We might not have yet received {@link CheckpointBarrier} and we might need to spill everything.
 	 * If we have already received it, there is a bit nasty corner case of {@link SequenceBuffer#sequenceNumber}
 	 * overflowing that needs to be handled as well.
 	 */
 	private boolean shouldBeSpilled(int sequenceNumber) {
-		if (lastOvertakenSequenceNumber == NONE) {
+		if (lastBarrierSequenceNumber == NONE) {
 			return true;
 		}
 		checkState(
 			receivedBuffers.size() < Integer.MAX_VALUE / 2,
 			"Too many buffers for sequenceNumber overflow detection code to work correctly");
 
-		boolean possibleOverflowAfterOvertaking = Integer.MAX_VALUE / 2 < lastOvertakenSequenceNumber;
-		boolean possibleOverflowBeforeOvertaking = lastOvertakenSequenceNumber < -Integer.MAX_VALUE / 2;
+		boolean possibleOverflowAfterOvertaking = Integer.MAX_VALUE / 2 < lastBarrierSequenceNumber;
+		boolean possibleOverflowBeforeOvertaking = lastBarrierSequenceNumber < -Integer.MAX_VALUE / 2;
 
 		if (possibleOverflowAfterOvertaking) {
-			return sequenceNumber < lastOvertakenSequenceNumber && sequenceNumber > 0;
+			return sequenceNumber < lastBarrierSequenceNumber && sequenceNumber > 0;
 		}
 		else if (possibleOverflowBeforeOvertaking) {
-			return sequenceNumber < lastOvertakenSequenceNumber || sequenceNumber > 0;
+			return sequenceNumber < lastBarrierSequenceNumber || sequenceNumber > 0;
 		}
 		else {
-			return sequenceNumber < lastOvertakenSequenceNumber;
+			return sequenceNumber < lastBarrierSequenceNumber;
 		}
 	}
 
