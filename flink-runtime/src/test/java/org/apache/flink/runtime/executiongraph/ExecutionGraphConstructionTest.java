@@ -461,7 +461,7 @@ public class ExecutionGraphConstructionTest {
 			// simple group of two, cyclic
 			JobVertex v1 = new JobVertex("vertex1");
 			JobVertex v2 = new JobVertex("vertex2");
-			v1.setParallelism(6);
+			v1.setParallelism(4);
 			v2.setParallelism(4);
 			v1.setInvokableClass(AbstractInvokable.class);
 			v2.setInvokableClass(AbstractInvokable.class);
@@ -469,8 +469,10 @@ public class ExecutionGraphConstructionTest {
 			SlotSharingGroup sl1 = new SlotSharingGroup();
 			v1.setSlotSharingGroup(sl1);
 			v2.setSlotSharingGroup(sl1);
-			v2.setStrictlyCoLocatedWith(v1);
+
 			v1.setStrictlyCoLocatedWith(v2);
+			v2.setStrictlyCoLocatedWith(v1);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 			
 			// complex forked dependency pattern
 			JobVertex v3 = new JobVertex("vertex3");
@@ -498,9 +500,16 @@ public class ExecutionGraphConstructionTest {
 			v7.setSlotSharingGroup(sl2);
 			
 			v4.setStrictlyCoLocatedWith(v3);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
 			v5.setStrictlyCoLocatedWith(v4);
+			v5.connectNewDataSetAsInput(v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
 			v6.setStrictlyCoLocatedWith(v3);
+			v6.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
 			v3.setStrictlyCoLocatedWith(v7);
+			v3.connectNewDataSetAsInput(v7, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 			
 			// isolated vertex
 			JobVertex v8 = new JobVertex("vertex8");
