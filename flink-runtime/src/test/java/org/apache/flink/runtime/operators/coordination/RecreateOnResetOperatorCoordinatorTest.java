@@ -239,7 +239,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		return (RecreateOnResetOperatorCoordinator) provider.create(context);
 	}
 
-	private TestingOperatorCoordinator getInternalCoordinator(RecreateOnResetOperatorCoordinator coordinator) {
+	private TestingOperatorCoordinator getInternalCoordinator(RecreateOnResetOperatorCoordinator coordinator) throws Exception {
 		return (TestingOperatorCoordinator) coordinator.getInternalCoordinator();
 	}
 
