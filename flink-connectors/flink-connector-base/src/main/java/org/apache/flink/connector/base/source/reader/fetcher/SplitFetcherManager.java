@@ -23,7 +23,6 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.util.ThrowableCatchingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +111,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	public abstract void addSplits(List<SplitT> splitsToAdd);
 
 	protected void startFetcher(SplitFetcher<E, SplitT> fetcher) {
-		executors.submit(new ThrowableCatchingRunnable(errorHandler, fetcher));
+		executors.submit(fetcher);
 	}
 
 	/**
@@ -133,6 +132,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			fetcherId,
 			elementsQueue,
 			splitReader,
+			errorHandler,
 			() -> fetchers.remove(fetcherId));
 		fetchers.put(fetcherId, splitFetcher);
 		return splitFetcher;

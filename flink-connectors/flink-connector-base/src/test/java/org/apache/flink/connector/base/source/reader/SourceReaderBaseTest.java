@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.TestingReaderContext;
 import org.apache.flink.api.connector.source.mocks.TestingReaderOutput;
@@ -34,6 +35,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
+import org.apache.flink.core.io.InputStatus;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +47,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -87,9 +90,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			reader.addSplits(Collections.singletonList(getSplit(0,
 				NUM_RECORDS_PER_SPLIT,
 				Boundedness.CONTINUOUS_UNBOUNDED)));
+			reader.handleSourceEvents(new NoMoreSplitsEvent());
 			// This is not a real infinite loop, it is supposed to throw exception after two polls.
 			while (true) {
-				reader.pollNext(output);
+				InputStatus inputStatus = reader.pollNext(output);
+				assertNotEquals(InputStatus.END_OF_INPUT, inputStatus);
 				// Add a sleep to avoid tight loop.
 				Thread.sleep(1);
 			}
