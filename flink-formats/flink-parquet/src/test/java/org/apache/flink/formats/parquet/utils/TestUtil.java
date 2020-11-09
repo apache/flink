@@ -36,10 +36,14 @@ import org.apache.flink.types.Row;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -47,6 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +61,12 @@ import java.util.UUID;
  * Utilities for testing schema conversion and test parquet file creation.
  */
 public class TestUtil {
+	public static final Configuration OLD_BEHAVIOR_CONF = new Configuration();
+	public static final Configuration NEW_BEHAVIOR_CONF = new Configuration();
+	private static AvroSchemaConverter schemaConverter;
+	private static AvroSchemaConverter legacySchemaConverter;
+	protected boolean useLegacyMode;
+
 	private static final TypeInformation<Row[]> nestedArray = Types.OBJECT_ARRAY(Types.ROW_NAMED(
 		new String[] {"type", "value"}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO));
 
@@ -83,10 +94,51 @@ public class TestUtil {
 		nestedMap,
 		nestedArray);
 
-	public static Path createTempParquetFile(File folder, Schema schema, List<IndexedRecord> records) throws IOException {
+	@BeforeClass
+	public static void setupNewBehaviorConfiguration() {
+		OLD_BEHAVIOR_CONF.setBoolean(
+			"parquet.avro.write-old-list-structure", true);
+		NEW_BEHAVIOR_CONF.setBoolean(
+			"parquet.avro.write-old-list-structure", false);
+		schemaConverter = new AvroSchemaConverter(NEW_BEHAVIOR_CONF);
+		legacySchemaConverter = new AvroSchemaConverter(OLD_BEHAVIOR_CONF);
+	}
+
+	public TestUtil(boolean useLegacyMode) {
+		this.useLegacyMode = useLegacyMode;
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Boolean> primeNumbers() {
+		return Arrays.asList(new Boolean[] {true, false});
+	}
+
+	protected AvroSchemaConverter getSchemaConverter() {
+		if (useLegacyMode) {
+			return legacySchemaConverter;
+		}
+
+		return schemaConverter;
+	}
+
+	protected Configuration getConfiguration() {
+		if (useLegacyMode) {
+			return OLD_BEHAVIOR_CONF;
+		}
+
+		return NEW_BEHAVIOR_CONF;
+	}
+
+	public static Path createTempParquetFile(
+		File folder,
+		Schema schema,
+		List<IndexedRecord> records,
+		Configuration configuration) throws IOException {
 		Path path = new Path(folder.getPath(), UUID.randomUUID().toString());
 		ParquetWriter<IndexedRecord> writer = AvroParquetWriter.<IndexedRecord>builder(
-			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).withRowGroupSize(10).build();
+			new org.apache.hadoop.fs.Path(path.toUri()))
+			.withConf(configuration)
+			.withSchema(schema).withRowGroupSize(10).build();
 
 		for (IndexedRecord record : records) {
 			writer.write(record);

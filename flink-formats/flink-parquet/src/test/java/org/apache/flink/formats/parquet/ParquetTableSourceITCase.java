@@ -29,6 +29,7 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
 import org.junit.BeforeClass;
@@ -111,7 +112,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 	 */
 	private static Path createTestParquetFile(int numberOfRows) throws Exception {
 		List<IndexedRecord> records = TestUtil.createRecordList(numberOfRows);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records);
+		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records, new Configuration());
 		return path;
 	}
 }

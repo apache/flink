@@ -48,6 +48,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
+
 /**
  * Extends from {@link GroupConverter} to convert an nested Parquet Record into Row.
  */
@@ -90,6 +92,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 		} else if (typeInformation instanceof BasicArrayTypeInfo) {
 			Type elementType = field.asGroupType().getFields().get(0);
 			Class typeClass = ((BasicArrayTypeInfo) typeInformation).getComponentInfo().getTypeClass();
+
 			if (typeClass.equals(Character.class)) {
 				return new RowConverter.ArrayConverter<Character>(elementType,
 					Character.class, BasicTypeInfo.CHAR_TYPE_INFO, parentDataHolder, fieldPos);
@@ -131,7 +134,6 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 		} else if (typeInformation instanceof ObjectArrayTypeInfo) {
 			GroupType parquetGroupType = field.asGroupType();
 			Type elementType = parquetGroupType.getType(0);
-
 			return new RowConverter.ArrayConverter<Row>(elementType, Row.class,
 				((ObjectArrayTypeInfo) typeInformation).getComponentInfo(), parentDataHolder, fieldPos);
 		} else if (typeInformation instanceof RowTypeInfo) {
@@ -302,11 +304,13 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 			this.elementClass = elementClass;
 			this.parentDataHolder = parentDataHolder;
 			this.pos = pos;
-
-			if (elementClass.equals(Row.class)) {
-				this.elementConverter = createConverter(elementType, 0, elementTypeInfo, this);
+			if (isElementType(elementType, elementTypeInfo)) {
+				elementConverter = createArrayElementConverter(elementType, elementClass,
+					elementTypeInfo, this);
 			} else {
-				this.elementConverter = new RowConverter.RowPrimitiveConverter(elementType, this, 0);
+				GroupType groupType = elementType.asGroupType();
+				elementConverter = new ArrayElementConverter(groupType, elementClass,
+					elementTypeInfo, this);
 			}
 		}
 
@@ -328,6 +332,46 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 		@Override
 		public void add(int fieldIndex, Object object) {
 			list.add((T) object);
+		}
+
+		/**
+		 * Converter for list elements.
+		 *
+		 * <pre>
+		 *   optional group the_list (LIST) {
+		 *     repeated group array { <-- this layer
+		 *       optional (type) element;
+		 *     }
+		 *   }
+		 * </pre>
+		 */
+		static class ArrayElementConverter extends GroupConverter {
+			private final Converter elementConverter;
+
+			public ArrayElementConverter(
+				GroupType repeatedTye,
+				Class elementClass,
+				TypeInformation elementTypeInfo,
+				ParentDataHolder holder) {
+				Type elementType = repeatedTye.getType(0);
+				this.elementConverter = createArrayElementConverter(elementType, elementClass,
+					elementTypeInfo, holder);
+			}
+
+			@Override
+			public Converter getConverter(int i) {
+				return elementConverter;
+			}
+
+			@Override
+			public void start() {
+
+			}
+
+			@Override
+			public void end() {
+
+			}
 		}
 	}
 
@@ -394,5 +438,39 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 				map.put(this.key, this.value);
 			}
 		}
+	}
+
+	static Converter createArrayElementConverter(
+		Type elementType,
+		Class elementClass,
+		TypeInformation elementTypeInfo,
+		ParentDataHolder holder) {
+		if (elementClass.equals(Row.class)) {
+			return createConverter(elementType, 0, elementTypeInfo, holder);
+		} else {
+			return new RowConverter.RowPrimitiveConverter(elementType, holder, 0);
+		}
+	}
+
+	/**
+	 * Returns whether the given type is the element type of a list or is a
+	 * synthetic group with one field that is the element type. This is
+	 * determined by checking whether the type can be a synthetic group and by
+	 * checking whether a potential synthetic group matches the expected schema.
+	 *
+	 * @param repeatedType a type that may be the element type
+	 * @param typeInformation the expected flink type for list elements
+	 * @return {@code true} if the repeatedType is the element schema
+	 */
+	static boolean isElementType(Type repeatedType, TypeInformation typeInformation) {
+		if (repeatedType.isPrimitive() ||
+			repeatedType.asGroupType().getFieldCount() > 1 ||
+			repeatedType.asGroupType().getType(0).isRepetition(REPEATED)) {
+			// The repeated type must be the element type because it is an invalid
+			// synthetic wrapper. Must be a group with one optional or required field
+			return true;
+		}
+
+		return false;
 	}
 }

@@ -32,12 +32,13 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.ParquetReadOptions;
-import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.schema.MessageType;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,9 +55,14 @@ import static org.junit.Assert.assertTrue;
 /**
  * Simple test case for reading parquet records.
  */
+@RunWith(Parameterized.class)
 public class ParquetRecordReaderTest extends TestUtil {
 
 	private final Configuration testConfig = new Configuration();
+
+	public ParquetRecordReaderTest(boolean useLegacyMode) {
+		super(useLegacyMode);
+	}
 
 	@Test
 	public void testReadSimpleGroup() throws IOException {
@@ -66,8 +72,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("foo", 32L)
 			.set("arr", array).build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), SIMPLE_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(SIMPLE_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), SIMPLE_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(SIMPLE_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -99,8 +106,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			records.add(record);
 		}
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), SIMPLE_SCHEMA, records);
-		MessageType readSchema = (new AvroSchemaConverter()).convert(SIMPLE_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(),
+			SIMPLE_SCHEMA, records, getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(SIMPLE_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -134,8 +142,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("bar", barRecord)
 			.build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -165,8 +174,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("spamMap", map.build())
 			.build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -207,8 +217,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("strArray", arrayString)
 			.build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -248,8 +259,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("nestedMap", map.build())
 			.set("foo", 34L).build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
@@ -288,8 +300,9 @@ public class ParquetRecordReaderTest extends TestUtil {
 			.set("nestedArray", list.build())
 			.set("foo", 34L).build();
 
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA, Collections.singletonList(record));
-		MessageType readSchema = (new AvroSchemaConverter()).convert(NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(record), getConfiguration());
+		MessageType readSchema = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetRecordReader<Row> rowReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 
 		InputFile inputFile =
