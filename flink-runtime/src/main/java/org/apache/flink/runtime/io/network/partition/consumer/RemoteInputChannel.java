@@ -451,11 +451,20 @@ public class RemoteInputChannel extends InputChannel {
 				}
 				else {
 					receivedBuffers.add(sequenceBuffer);
-					channelStatePersister.maybePersist(buffer);
 					if (dataType.requiresAnnouncement()) {
 						firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
 					}
 				}
+				channelStatePersister
+					.checkForBarrier(sequenceBuffer.buffer)
+					.filter(id -> id > lastBarrierId)
+					.ifPresent(id -> {
+						// checkpoint was not yet started by task thread,
+						// so remember the numbers of buffers to spill for the time when it will be started
+						lastBarrierId = id;
+						lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
+					});
+				channelStatePersister.maybePersist(buffer);
 				++expectedSequenceNumber;
 			}
 			recycleBuffer = false;
@@ -480,15 +489,8 @@ public class RemoteInputChannel extends InputChannel {
 	/**
 	 * @return {@code true} if this was first priority buffer added.
 	 */
-	private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) throws IOException {
+	private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) {
 		receivedBuffers.addPriorityElement(sequenceBuffer);
-		channelStatePersister
-			.checkForBarrier(sequenceBuffer.buffer)
-			.filter(id -> id > lastBarrierId)
-			.ifPresent(id -> {
-				lastBarrierId = id;
-				lastBarrierSequenceNumber = sequenceBuffer.sequenceNumber;
-			});
 		return receivedBuffers.getNumPriorityElements() == 1;
 	}
 
@@ -552,7 +554,7 @@ public class RemoteInputChannel extends InputChannel {
 	public void convertToPriorityEvent(int sequenceNumber) throws IOException {
 		boolean firstPriorityEvent;
 		synchronized (receivedBuffers) {
-			checkState(!channelStatePersister.hasBarrierReceived());
+			checkState(channelStatePersister.hasBarrierReceived());
 			int numPriorityElementsBeforeRemoval = receivedBuffers.getNumPriorityElements();
 			SequenceBuffer toPrioritize = receivedBuffers.getAndRemove(
 				sequenceBuffer -> sequenceBuffer.sequenceNumber == sequenceNumber);
