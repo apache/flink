@@ -27,12 +27,12 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.12-SNAPSHOT"
+version: "1.12.0"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.12-SNAPSHOT"
+version_title: 1.12
 # Branch on Github for this version
-github_branch: "master"
+github_branch: release-1.12
 
 # Plain Scala version is needed for e.g. the Gradle quickstart.
 scala_version: "2.11"
@@ -47,17 +47,17 @@ github_url: "https://github.com/apache/flink"
 download_url: "https://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-master
+baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.12
 stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 
-javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
-pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
+javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.12
+pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.12
 
 statefundocs_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-master
 statefundocs_stable_baseurl: //ci.apache.org/projects/flink/flink-statefun-docs-stable
 
 # Flag whether this is a stable version or not. Used for the quickstart page.
-is_stable: false
+is_stable: true
 
 # Flag to indicate whether an outdated warning should be shown.
 show_outdated_warning: false
