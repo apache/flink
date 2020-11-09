@@ -168,34 +168,32 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
   @Test
   def testKeepProcessTimeAttrAfterSubGraphOptimize(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
-    val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable2")
-    util.tableEnv.createTemporaryView("TempTable", table)
     val sql =
       """
         |SELECT
         |    long,
         |    SUM(`int`)
-        |FROM TempTable
+        |FROM MyTable2
         |    GROUP BY TUMBLE(proctime, INTERVAL '10' SECOND), long
       """.stripMargin
 
-    val table1 = util.tableEnv.sqlQuery(sql)
+    val table = util.tableEnv.sqlQuery(sql)
+
     val appendSink1 = util.createAppendTableSink(
       Array("long", "sum"),
       Array(new BigIntType(), new BigIntType()))
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink1", appendSink1)
-    stmtSet.addInsert("appendSink1", table1)
+    stmtSet.addInsert("appendSink1", table)
 
-    val table2 = util.tableEnv.sqlQuery(sql)
     val appendSink2 = util.createAppendTableSink(
       Array("long", "sum"),
       Array(new BigIntType(), new BigIntType()))
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink2", appendSink2)
-    stmtSet.addInsert("appendSink2", table2)
+    stmtSet.addInsert("appendSink2", table)
 
-    util.verifyPlan(stmtSet, Array.empty[ExplainDetail]: _*)
+    util.verifyPlan(stmtSet)
   }
 
   // TODO add temporal table join case
