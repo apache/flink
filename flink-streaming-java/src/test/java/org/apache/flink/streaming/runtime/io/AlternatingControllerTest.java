@@ -68,6 +68,22 @@ import static org.junit.Assert.assertFalse;
  */
 public class AlternatingControllerTest {
 
+	/**
+	 * Upon subsuming (or canceling) a checkpoint, channels should be notified regardless of whether UC controller is
+	 * currently being used or not. Otherwise, channels may not capture in-flight buffers.
+	 */
+	@Test
+	public void testChannelResetOnNewBarrier() throws Exception {
+		RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+		CheckpointedInputGate gate = buildRemoteInputGate(new ValidatingCheckpointHandler(), 2, stateWriter);
+
+		sendBarrier(0, System.currentTimeMillis(), SAVEPOINT, gate, 0); // using AC because UC would require ordering in gate while polling
+		((RemoteInputChannel) gate.getChannel(0)).onBuffer(createBuffer(1024), 1, 0); // to be captured
+		send(toBuffer(new CheckpointBarrier(1, System.currentTimeMillis(), unaligned(getDefault())), true), 1, gate);
+
+		assertFalse(stateWriter.getAddedInput().isEmpty());
+	}
+
 	@Test
 	public void testCheckpointHandling() throws Exception {
 		testBarrierHandling(CHECKPOINT);
