@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * The policy based on which a {@link Bucket} in the {@link StreamingFileSink}
+ * The policy based on which a {@code Bucket} in the {@code Filesystem Sink}
  * rolls its currently open part file and opens a new one.
  */
 @PublicEvolving

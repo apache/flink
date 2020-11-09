@@ -160,8 +160,7 @@ class FileWriterBucket<IN> {
 		}
 	}
 
-	void write(IN element) throws IOException {
-		long now = System.currentTimeMillis();
+	void write(IN element, long currentTime) throws IOException {
 		if (inProgressPart == null || rollingPolicy.shouldRollOnEvent(inProgressPart, element)) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(
@@ -169,10 +168,10 @@ class FileWriterBucket<IN> {
 						bucketId,
 						element);
 			}
-			inProgressPart = rollPartFile(now);
+			inProgressPart = rollPartFile(currentTime);
 		}
 
-		inProgressPart.write(element, now);
+		inProgressPart.write(element, currentTime);
 	}
 
 	List<FileSinkCommittable> prepareCommit(boolean flush) throws IOException {
@@ -213,6 +212,22 @@ class FileWriterBucket<IN> {
 				bucketPath,
 				inProgressFileCreationTime,
 				inProgressFileRecoverable);
+	}
+
+	void onProcessingTime(long timestamp) throws IOException {
+		if (inProgressPart != null && rollingPolicy.shouldRollOnProcessingTime(inProgressPart, timestamp)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Bucket {} closing in-progress part file for part file id={} due to processing time rolling policy " +
+								"(in-progress file created @ {}, last updated @ {} and current time is {}).",
+						bucketId,
+						uniqueId,
+						inProgressPart.getCreationTime(),
+						inProgressPart.getLastUpdateTime(),
+						timestamp);
+			}
+
+			closePartFile();
+		}
 	}
 
 	private InProgressFileWriter<IN, String> rollPartFile(long currentTime) throws IOException {

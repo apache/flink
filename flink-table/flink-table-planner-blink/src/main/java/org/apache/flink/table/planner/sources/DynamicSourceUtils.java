@@ -31,7 +31,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
-import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -54,10 +53,6 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
  */
 @Internal
 public final class DynamicSourceUtils {
-
-	private static final List<Class<?>> UNSUPPORTED_ABILITIES = Collections.singletonList(
-		SupportsWatermarkPushDown.class);
-
 	/**
 	 * Prepares the given {@link DynamicTableSource}. It check whether the source is compatible with the
 	 * given schema and applies initial parameters.
@@ -70,8 +65,6 @@ public final class DynamicSourceUtils {
 		final TableSchema schema = table.getSchema();
 
 		validateAndApplyMetadata(sourceIdentifier, schema, source);
-
-		validateAbilities(source);
 
 		if (source instanceof ScanTableSource) {
 			validateScanSource(sourceIdentifier, schema, (ScanTableSource) source, isStreamingMode);
@@ -329,19 +322,6 @@ public final class DynamicSourceUtils {
 				)
 			);
 		}
-	}
-
-	private static void validateAbilities(DynamicTableSource source) {
-		UNSUPPORTED_ABILITIES.forEach(ability -> {
-			if (ability.isAssignableFrom(source.getClass())) {
-				throw new UnsupportedOperationException(
-					String.format(
-						"Currently, a %s with %s ability is not supported.",
-						DynamicTableSource.class,
-						ability.getSimpleName())
-				);
-			}
-		});
 	}
 
 	private DynamicSourceUtils() {

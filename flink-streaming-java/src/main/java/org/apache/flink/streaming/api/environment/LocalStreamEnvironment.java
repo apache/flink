@@ -33,9 +33,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
  * multi-threaded, in the JVM where the environment is instantiated. It spawns an embedded
  * Flink cluster in the background and executes the program on that cluster.
- *
- * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. The default
- * parallelism can be set via {@link #setParallelism(int)}.
  */
 @Public
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
@@ -54,7 +51,6 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	public LocalStreamEnvironment(@Nonnull Configuration configuration) {
 		super(validateAndGetConfiguration(configuration));
-		setParallelism(1);
 	}
 
 	private static Configuration validateAndGetConfiguration(final Configuration configuration) {

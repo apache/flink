@@ -81,6 +81,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   var input2FieldMapping: Option[Array[Int]] = None
 
   /**
+   * information of the user-defined constructor
+   * */
+  var functionContextTerm: Option[String] = None
+
+  /**
     * Bind the input information, should be called before generating expression.
     */
   def bindInput(
@@ -107,6 +112,17 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     this
   }
 
+  /**
+   * In some cases, we should use user-defined input for constructor. For example,
+   * ScalaFunctionCodeGen allows to use user-defined context term rather than get
+   * from invoking getRuntimeContext() method.
+   * */
+  def bindConstructorTerm(
+      inputFunctionContextTerm: String): ExprCodeGenerator = {
+    functionContextTerm = Some(inputFunctionContextTerm)
+    this
+  }
+
   private lazy val input1Mapping: Array[Int] = input1FieldMapping match {
     case Some(mapping) => mapping
     case _ => fieldIndices(input1Type)
@@ -127,7 +143,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       Array(0)
     }
   }
- 
+
   /**
     * Generates an expression from a RexNode. If objects or variables can be reused, they will be
     * added to reusable code sections internally.

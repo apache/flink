@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.plan.processors;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
-import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -34,7 +35,6 @@ import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
 import org.apache.flink.table.planner.plan.processors.utils.InputOrderCalculator;
 import org.apache.flink.table.planner.plan.processors.utils.InputPriorityConflictResolver;
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelDistribution;
@@ -87,7 +87,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		// group nodes into multiple input groups
 		createMultipleInputGroups(orderedWrappers);
 		// apply optimizations to remove unnecessary nodes out of multiple input groups
-		optimizeMultipleInputGroups(orderedWrappers);
+		optimizeMultipleInputGroups(orderedWrappers, context);
 
 		// create the real multiple input nodes
 		return createMultipleInputNodes(rootWrappers);
@@ -218,7 +218,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 	// Multiple Input Groups Optimizing
 	// --------------------------------------------------------------------------------
 
-	private void optimizeMultipleInputGroups(List<ExecNodeWrapper> orderedWrappers) {
+	private void optimizeMultipleInputGroups(List<ExecNodeWrapper> orderedWrappers, DAGProcessContext context) {
 		// wrappers are checked in topological order from sources to sinks
 		for (int i = orderedWrappers.size() - 1; i >= 0; i--) {
 			ExecNodeWrapper wrapper = orderedWrappers.get(i);
@@ -238,7 +238,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// as we're paying extra function calls for this, unless one of the united
 				// input is a FLIP-27 source
 				shouldRemove = wrapper.inputs.stream().noneMatch(
-					inputWrapper -> isChainableSource(inputWrapper.execNode));
+					inputWrapper -> isChainableSource(inputWrapper.execNode, context));
 			} else if (wrapper.inputs.size() == 1) {
 				// optimization 2. for one-input operators we'll remove it unless its input
 				// is an exchange or a FLIP-27 source, this is mainly to avoid the following
@@ -250,7 +250,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// directly shuffling large amount of records from the source without filtering
 				// by the calc
 				ExecNode<?, ?> input = wrapper.inputs.get(0).execNode;
-				shouldRemove = !(input instanceof Exchange) && !isChainableSource(input);
+				shouldRemove = !(input instanceof Exchange) && !isChainableSource(input, context);
 			}
 
 			// optimization 3. for singleton operations (for example singleton global agg)
@@ -286,7 +286,7 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				// unless one of its input is a FLIP-27 source (for maximizing source chaining),
 				// however unions do not apply to this optimization because they're not real operators
 				if (isUnion || wrapper.inputs.stream().noneMatch(
-					inputWrapper -> isChainableSource(inputWrapper.execNode))) {
+					inputWrapper -> isChainableSource(inputWrapper.execNode, context))) {
 					wrapper.group.removeRoot();
 				}
 				continue;
@@ -391,7 +391,8 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		return true;
 	}
 
-	private boolean isChainableSource(ExecNode<?, ?> node) {
+	@VisibleForTesting
+	static boolean isChainableSource(ExecNode<?, ?> node, DAGProcessContext context) {
 		if (node instanceof BatchExecBoundedStreamScan) {
 			BatchExecBoundedStreamScan scan = (BatchExecBoundedStreamScan) node;
 			return scan.boundedStreamTable().dataStream().getTransformation() instanceof SourceTransformation;
@@ -399,9 +400,11 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			StreamExecDataStreamScan scan = (StreamExecDataStreamScan) node;
 			return scan.dataStreamTable().dataStream().getTransformation() instanceof SourceTransformation;
 		} else if (node instanceof CommonPhysicalTableSourceScan) {
-			CommonPhysicalTableSourceScan scan = (CommonPhysicalTableSourceScan) node;
-			return scan.tableSource().getScanRuntimeProvider(
-				ScanRuntimeProviderContext.INSTANCE) instanceof SourceProvider;
+			// translateToPlan will cache the transformation,
+			// this is OK because sources do not have any input so the transformation will never change.
+			Transformation<?> transformation = ((ExecNode) node).translateToPlan(
+				Preconditions.checkNotNull(context).getPlanner());
+			return transformation instanceof SourceTransformation;
 		}
 		return false;
 	}

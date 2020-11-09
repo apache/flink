@@ -174,7 +174,7 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 						GenericRecord.class,
 						avroSchema,
 						() -> registryCoder),
-				RowDataToAvroConverters.createRowConverter(rowType));
+				RowDataToAvroConverters.createConverter(rowType));
 	}
 
 	private static AvroRowDataDeserializationSchema getDeserializationSchema(

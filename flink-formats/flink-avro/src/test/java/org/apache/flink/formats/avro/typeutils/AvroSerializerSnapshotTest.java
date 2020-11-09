@@ -20,19 +20,25 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Random;
 
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAfterMigration;
@@ -45,6 +51,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
  * Test {@link AvroSerializerSnapshot}.
  */
 public class AvroSerializerSnapshotTest {
+
+	private static final int[] PAST_VERSIONS = new int[] {2};
 
 	private static final Schema FIRST_NAME = SchemaBuilder.record("name")
 		.namespace("org.apache.flink")
@@ -129,6 +137,26 @@ public class AvroSerializerSnapshotTest {
 	}
 
 	@Test
+	public void aLargeSchemaAvroSnapshotIsCompatibleAfterARoundTrip() throws IOException {
+		// construct the large schema up to a size of 65535 bytes.
+		int thresholdSize = 65535;
+		StringBuilder schemaField = new StringBuilder(thresholdSize);
+		for (int i = 0; i <= thresholdSize; i++) {
+			schemaField.append('a');
+		}
+		Schema largeSchema = SchemaBuilder.record("name")
+				.namespace("org.apache.flink")
+				.fields()
+				.requiredString(schemaField.toString())
+				.endRecord();
+
+		AvroSerializer<GenericRecord> serializer = new AvroSerializer<>(GenericRecord.class, largeSchema);
+		AvroSerializerSnapshot<GenericRecord> restored = roundTrip(serializer.snapshotConfiguration());
+
+		assertThat(restored.resolveSchemaCompatibility(serializer), isCompatibleAsIs());
+	}
+
+	@Test
 	public void recordSerializedShouldBeDeserializeWithTheResortedSerializer() throws IOException {
 		// user is an avro generated test object.
 		final User user = TestDataGenerator.generateRandomUser(new Random());
@@ -181,6 +209,48 @@ public class AvroSerializerSnapshotTest {
 		specificSerializer.snapshotConfiguration();
 
 		assertThat(genericSnapshot.resolveSchemaCompatibility(specificSerializer), isCompatibleAsIs());
+	}
+
+	@Test
+	public void restorePastSnapshots() throws IOException {
+		for (int pastVersion : PAST_VERSIONS) {
+			AvroSerializer<GenericRecord> currentSerializer =
+					new AvroSerializer<>(GenericRecord.class, Address.getClassSchema());
+
+			DataInputView in = new DataInputDeserializer(Files.readAllBytes(
+					getSerializerSnapshotFilePath(pastVersion)));
+
+			TypeSerializerSnapshot<GenericRecord> restored = TypeSerializerSnapshotSerializationUtil
+					.readSerializerSnapshot(
+							in, AvroSerializer.class.getClassLoader(), null);
+
+			assertThat(restored.resolveSchemaCompatibility(currentSerializer), isCompatibleAsIs());
+		}
+	}
+
+	/**
+	 * Creates a new serializer snapshot for the current version. Use this before bumping the
+	 * snapshot version and also add the version (before bumping) to {@link #PAST_VERSIONS}.
+	 */
+	@Ignore
+	@Test
+	public void writeCurrentVersionSnapshot() throws IOException {
+		AvroSerializer<GenericRecord> serializer =
+				new AvroSerializer<>(GenericRecord.class, Address.getClassSchema());
+
+		DataOutputSerializer out = new DataOutputSerializer(1024);
+
+		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+				out, serializer.snapshotConfiguration(), serializer);
+
+		Path snapshotPath =
+				getSerializerSnapshotFilePath(new AvroSerializerSnapshot<>().getCurrentVersion());
+
+		Files.write(snapshotPath, out.getCopyOfBuffer());
+	}
+
+	private Path getSerializerSnapshotFilePath(int version) {
+		return Paths.get(System.getProperty("user.dir") + "/src/test/resources/serializer-snapshot-v" + version);
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------

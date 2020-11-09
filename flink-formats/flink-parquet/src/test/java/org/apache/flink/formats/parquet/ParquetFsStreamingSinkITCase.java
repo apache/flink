@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Checkpoint ITCase for {@link ParquetFileSystemFormatFactory}.
+ * Checkpoint ITCase for {@link ParquetFileFormatFactory}.
  */
 public class ParquetFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 

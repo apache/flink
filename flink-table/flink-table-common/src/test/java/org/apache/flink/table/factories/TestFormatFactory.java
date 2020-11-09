@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -31,12 +32,21 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.RowKind;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Tests implementations for {@link DeserializationFormatFactory} and {@link SerializationFormatFactory}.
@@ -61,22 +71,45 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 			.asList()
 			.noDefaultValue();
 
+	private static final ConfigOption<Map<String, String>> READABLE_METADATA = ConfigOptions
+		.key("readable-metadata")
+		.mapType()
+		.defaultValue(Collections.emptyMap())
+		.withDescription(
+			"Optional map of 'metadata_key:data_type,...'. The order will be alphabetically.");
+
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatConfig) {
+
 		FactoryUtil.validateFactoryOptions(this, formatConfig);
+
+		final Map<String, DataType> readableMetadata = convertToMetadataMap(
+			formatConfig.get(READABLE_METADATA),
+			context.getClassLoader());
+
+		final ChangelogMode changelogMode = parseChangelogMode(formatConfig);
+
 		return new DecodingFormatMock(
-				formatConfig.get(DELIMITER), formatConfig.get(FAIL_ON_MISSING), parseChangelogMode(formatConfig));
+				formatConfig.get(DELIMITER),
+				formatConfig.get(FAIL_ON_MISSING),
+				changelogMode,
+				readableMetadata);
 	}
 
 	@Override
 	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatConfig) {
+
 		FactoryUtil.validateFactoryOptions(this, formatConfig);
+
+		final ChangelogMode changelogMode = parseChangelogMode(formatConfig);
+
 		return new EncodingFormatMock(
-				formatConfig.get(DELIMITER), parseChangelogMode(formatConfig));
+				formatConfig.get(DELIMITER),
+				changelogMode);
 	}
 
 	@Override
@@ -96,11 +129,34 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(FAIL_ON_MISSING);
 		options.add(CHANGELOG_MODE);
+		options.add(READABLE_METADATA);
 		return options;
 	}
 
+	private static Map<String, DataType> convertToMetadataMap(
+			Map<String, String> metadataOption,
+			ClassLoader classLoader) {
+		return metadataOption.keySet()
+			.stream()
+			.sorted()
+			.collect(
+				Collectors.toMap(
+					Function.identity(),
+					key -> {
+						final String typeString = metadataOption.get(key);
+						final LogicalType type = LogicalTypeParser.parse(typeString, classLoader);
+						return TypeConversions.fromLogicalToDataType(type);
+					},
+					(u, v) -> {
+						throw new IllegalStateException();
+					},
+					LinkedHashMap::new
+				)
+			);
+	}
+
 	// --------------------------------------------------------------------------------------------
-	// Table source format
+	// Table source format & deserialization schema
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -111,41 +167,50 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		public final String delimiter;
 		public final Boolean failOnMissing;
 		private final ChangelogMode changelogMode;
+		public final Map<String, DataType> readableMetadata;
 
 		// we make the format stateful for capturing parameterization during testing
 		public DataType producedDataType;
+		public List<String> metadataKeys;
 
-		public DecodingFormatMock(String delimiter, Boolean failOnMissing) {
-			this(delimiter, failOnMissing, ChangelogMode.insertOnly());
-		}
-
-		public DecodingFormatMock(String delimiter, Boolean failOnMissing, ChangelogMode changelogMode) {
+		public DecodingFormatMock(
+				String delimiter,
+				Boolean failOnMissing,
+				ChangelogMode changelogMode,
+				Map<String, DataType> readableMetadata) {
 			this.delimiter = delimiter;
 			this.failOnMissing = failOnMissing;
 			this.changelogMode = changelogMode;
+			this.readableMetadata = readableMetadata;
+			this.metadataKeys = Collections.emptyList();
+		}
+
+		public DecodingFormatMock(String delimiter, Boolean failOnMissing) {
+			this(delimiter, failOnMissing, ChangelogMode.insertOnly(), Collections.emptyMap());
 		}
 
 		@Override
 		public DeserializationSchema<RowData> createRuntimeDecoder(
 				DynamicTableSource.Context context,
-				DataType producedDataType) {
-			this.producedDataType = producedDataType;
-			return new DeserializationSchema<RowData>() {
-				@Override
-				public RowData deserialize(byte[] message) {
-					throw new UnsupportedOperationException("Test deserialization schema doesn't support deserialize.");
-				}
+				DataType physicalDataType) {
 
-				@Override
-				public boolean isEndOfStream(RowData nextElement) {
-					return false;
-				}
+			final List<DataTypes.Field> metadataFields = metadataKeys.stream()
+				.map(k -> DataTypes.FIELD(k, readableMetadata.get(k)))
+				.collect(Collectors.toList());
 
-				@Override
-				public TypeInformation<RowData> getProducedType() {
-					return context.createTypeInformation(producedDataType);
-				}
-			};
+			this.producedDataType = DataTypeUtils.appendRowFields(physicalDataType, metadataFields);
+
+			return new DeserializationSchemaMock(context.createTypeInformation(producedDataType));
+		}
+
+		@Override
+		public Map<String, DataType> listReadableMetadata() {
+			return readableMetadata;
+		}
+
+		@Override
+		public void applyReadableMetadata(List<String> metadataKeys) {
+			this.metadataKeys = metadataKeys;
 		}
 
 		@Override
@@ -164,17 +229,54 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 			DecodingFormatMock that = (DecodingFormatMock) o;
 			return delimiter.equals(that.delimiter)
 					&& failOnMissing.equals(that.failOnMissing)
-					&& Objects.equals(producedDataType, that.producedDataType);
+					&& changelogMode.equals(that.changelogMode)
+					&& readableMetadata.equals(that.readableMetadata)
+					&& Objects.equals(producedDataType, that.producedDataType)
+					&& Objects.equals(metadataKeys, that.metadataKeys);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(delimiter, failOnMissing, producedDataType);
+			return Objects.hash(
+				delimiter,
+				failOnMissing,
+				changelogMode,
+				readableMetadata,
+				producedDataType,
+				metadataKeys);
+		}
+	}
+
+	/**
+	 * {@link DeserializationSchema} for testing.
+	 */
+	private static class DeserializationSchemaMock implements DeserializationSchema<RowData> {
+
+		private final TypeInformation<RowData> producedTypeInfo;
+
+		private DeserializationSchemaMock(TypeInformation<RowData> producedTypeInfo) {
+			this.producedTypeInfo = producedTypeInfo;
+		}
+
+		@Override
+		public RowData deserialize(byte[] message) {
+			String msg = "Test deserialization schema doesn't support deserialize.";
+			throw new UnsupportedOperationException(msg);
+		}
+
+		@Override
+		public boolean isEndOfStream(RowData nextElement) {
+			return false;
+		}
+
+		@Override
+		public TypeInformation<RowData> getProducedType() {
+			return producedTypeInfo;
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Table sink format
+	// Table sink format & serialization schema
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -189,26 +291,21 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 		private ChangelogMode changelogMode;
 
-		public EncodingFormatMock(String delimiter) {
-			this(delimiter, ChangelogMode.insertOnly());
-		}
-
 		public EncodingFormatMock(String delimiter, ChangelogMode changelogMode) {
 			this.delimiter = delimiter;
 			this.changelogMode = changelogMode;
 		}
 
+		public EncodingFormatMock(String delimiter) {
+			this(delimiter, ChangelogMode.insertOnly());
+		}
+
 		@Override
 		public SerializationSchema<RowData> createRuntimeEncoder(
 				DynamicTableSink.Context context,
-				DataType consumedDataType) {
-			this.consumedDataType = consumedDataType;
-			return new SerializationSchema<RowData>() {
-				@Override
-				public byte[] serialize(RowData element) {
-					throw new UnsupportedOperationException("Test serialization schema doesn't support serialize.");
-				}
-			};
+				DataType physicalDataType) {
+			this.consumedDataType = physicalDataType;
+			return new SerializationSchemaMock();
 		}
 
 		@Override
@@ -226,12 +323,24 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 			}
 			EncodingFormatMock that = (EncodingFormatMock) o;
 			return delimiter.equals(that.delimiter)
+					&& changelogMode.equals(that.changelogMode)
 					&& Objects.equals(consumedDataType, that.consumedDataType);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(delimiter, consumedDataType);
+			return Objects.hash(delimiter, changelogMode, consumedDataType);
+		}
+	}
+
+	/**
+	 * {@link SerializationSchema} for testing.
+	 */
+	private static class SerializationSchemaMock implements SerializationSchema<RowData> {
+		@Override
+		public byte[] serialize(RowData element) {
+			String msg = "Test serialization schema doesn't support serialize.";
+			throw new UnsupportedOperationException(msg);
 		}
 	}
 
@@ -239,10 +348,10 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 	// Utils
 	// --------------------------------------------------------------------------------------------
 
-	private ChangelogMode parseChangelogMode(ReadableConfig config) {
+	private static ChangelogMode parseChangelogMode(ReadableConfig config) {
 		if (config.getOptional(CHANGELOG_MODE).isPresent()) {
 			ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-			for (String mode: config.get(CHANGELOG_MODE)) {
+			for (String mode : config.get(CHANGELOG_MODE)) {
 				switch (mode) {
 					case "I":
 						builder.addContainedKind(RowKind.INSERT);
@@ -266,5 +375,4 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 			return ChangelogMode.insertOnly();
 		}
 	}
-
 }

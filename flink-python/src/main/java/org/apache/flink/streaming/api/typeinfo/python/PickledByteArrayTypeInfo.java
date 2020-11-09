@@ -30,6 +30,8 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 @Internal
 public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO = new PickledByteArrayTypeInfo();
 
 	protected PickledByteArrayTypeInfo() {

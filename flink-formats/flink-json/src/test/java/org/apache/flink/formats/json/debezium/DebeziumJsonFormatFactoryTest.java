@@ -34,6 +34,7 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -41,12 +42,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DebeziumJsonFormatFactory}.
@@ -61,14 +64,15 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 			.field("c", DataTypes.BOOLEAN())
 			.build();
 
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+	private static final DataType PHYSICAL_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
 	@Test
 	public void testSeDeSchema() {
 		final DebeziumJsonDeserializationSchema expectedDeser = new DebeziumJsonDeserializationSchema(
-			ROW_TYPE,
-			InternalTypeInfo.of(ROW_TYPE),
-			true,
+			PHYSICAL_DATA_TYPE,
+			Collections.emptyList(),
+			InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+			false,
 			true,
 			TimestampFormat.ISO_8601);
 
@@ -81,14 +85,13 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 
 		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
 				.createRuntimeDecoder(
-						ScanRuntimeProviderContext.INSTANCE,
-						SCHEMA.toRowDataType());
+						ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
 
 		assertEquals(expectedDeser, actualDeser);
 
 		final DebeziumJsonSerializationSchema expectedSer = new DebeziumJsonSerializationSchema(
-			ROW_TYPE,
-			TimestampFormat.ISO_8601);
+				(RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
+				TimestampFormat.ISO_8601);
 
 		final DynamicTableSink actualSink = createTableSink(options);
 		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -98,7 +101,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
 			.createRuntimeEncoder(
 				new SinkRuntimeProviderContext(false),
-				SCHEMA.toRowDataType());
+				PHYSICAL_DATA_TYPE);
 
 		assertEquals(expectedSer, actualSer);
 	}
@@ -112,6 +115,43 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 				getModifiedOptions(opts -> opts.put("debezium-json.ignore-parse-errors", "abc"));
 
 		createTableSource(options);
+	}
+
+	@Test
+	public void testSchemaIncludeOption() {
+		Map<String, String> options = getAllOptions();
+		options.put("debezium-json.schema-include", "true");
+
+		final DebeziumJsonDeserializationSchema expectedDeser = new DebeziumJsonDeserializationSchema(
+			PHYSICAL_DATA_TYPE,
+			Collections.emptyList(),
+			InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+			true,
+			true,
+			TimestampFormat.ISO_8601);
+		final DynamicTableSource actualSource = createTableSource(options);
+		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
+			.createRuntimeDecoder(
+				ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
+		assertEquals(expectedDeser, actualDeser);
+
+		try {
+			final DynamicTableSink actualSink = createTableSink(options);
+			TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+				(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+			// should fail
+			sinkMock.valueFormat.createRuntimeEncoder(
+					new SinkRuntimeProviderContext(false),
+					PHYSICAL_DATA_TYPE);
+			fail();
+		} catch (Exception e) {
+			assertEquals(
+				e.getCause().getCause().getMessage(),
+				"Debezium JSON serialization doesn't support " +
+					"'debezium-json.schema-include' option been set to true.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -137,7 +177,6 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 
 		options.put("format", "debezium-json");
 		options.put("debezium-json.ignore-parse-errors", "true");
-		options.put("debezium-json.schema-include", "true");
 		options.put("debezium-json.timestamp-format.standard", "ISO-8601");
 		return options;
 	}

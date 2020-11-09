@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,6 +32,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
@@ -50,6 +56,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -151,6 +158,10 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	 */
 	public static List<String> getResults(String tableName) {
 		return TestValuesRuntimeFunctions.getResults(tableName);
+	}
+
+	public static List<Watermark> getWatermarkOutput(String tableName) {
+		return TestValuesRuntimeFunctions.getWatermarks(tableName);
 	}
 
 	/**
@@ -263,6 +274,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
+	private static final ConfigOption<Boolean> ENABLE_WATERMARK_PUSH_DOWN = ConfigOptions
+			.key("enable-watermark-push-down")
+			.booleanType()
+			.defaultValue(false);
+
 	private static final ConfigOption<Map<String, String>> READABLE_METADATA = ConfigOptions
 		.key("readable-metadata")
 		.mapType()
@@ -278,6 +294,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.withDescription(
 			"Optional map of 'metadata_key:data_type'. The order will be alphabetically. " +
 			"The metadata is part of the data when enabled.");
+
+	private static final ConfigOption<Boolean> SINK_DROP_LATE_EVENT = ConfigOptions
+		.key("sink.drop-late-event")
+		.booleanType()
+		.defaultValue(false)
+		.withDeprecatedKeys("Option to determine whether to discard the late event.");
 
 	/**
 	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
@@ -315,6 +337,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
+		boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
+
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
 		Set<String> filterableFieldsSet = new HashSet<>();
 		filterableFields.ifPresent(filterableFieldsSet::addAll);
@@ -339,20 +363,38 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 
 			if (disableLookup) {
-				return new TestValuesScanTableSource(
-					producedDataType,
-					changelogMode,
-					isBounded,
-					runtimeSource,
-					partition2Rows,
-					nestedProjectionSupported,
-					null,
-					Collections.emptyList(),
-					filterableFieldsSet,
-					Long.MAX_VALUE,
-					partitions,
-					readableMetadata,
-					null);
+				if (enableWatermarkPushDown) {
+					return new TestValuesScanTableSourceWithWatermarkPushDown(
+							producedDataType,
+							changelogMode,
+							runtimeSource,
+							partition2Rows,
+							context.getObjectIdentifier().getObjectName(),
+							nestedProjectionSupported,
+							null,
+							Collections.emptyList(),
+							filterableFieldsSet,
+							Long.MAX_VALUE,
+							partitions,
+							readableMetadata,
+							null
+					);
+				} else {
+					return new TestValuesScanTableSource(
+							producedDataType,
+							changelogMode,
+							isBounded,
+							runtimeSource,
+							partition2Rows,
+							nestedProjectionSupported,
+							null,
+							Collections.emptyList(),
+							filterableFieldsSet,
+							Long.MAX_VALUE,
+							partitions,
+							readableMetadata,
+							null);
+				}
 			} else {
 				return new TestValuesScanLookupTableSource(
 					producedDataType,
@@ -394,6 +436,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		Integer parallelism = helper.getOptions().get(SINK_PARALLELISM);
+		boolean dropLateEvent = helper.getOptions().get(SINK_DROP_LATE_EVENT);
 		final Map<String, DataType> writableMetadata = convertToMetadataMap(
 			helper.getOptions().get(WRITABLE_METADATA),
 			context.getClassLoader());
@@ -405,6 +448,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		final int[] primaryKeyIndices = TableSchemaUtils.getPrimaryKeyIndices(context.getCatalogTable().getSchema());
 
 		if (sinkClass.equals("DEFAULT")) {
+			int rowTimeIndex = validateAndExtractRowtimeIndex(context.getCatalogTable(), dropLateEvent, isInsertOnly);
 			return new TestValuesTableSink(
 				consumedType,
 				primaryKeyIndices,
@@ -414,7 +458,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogMode);
+				changelogMode,
+				rowTimeIndex);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -454,7 +499,29 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			READABLE_METADATA,
 			SINK_PARALLELISM,
 			SINK_CHANGELOG_MODE_ENFORCED,
-			WRITABLE_METADATA));
+			WRITABLE_METADATA,
+			ENABLE_WATERMARK_PUSH_DOWN,
+			SINK_DROP_LATE_EVENT));
+	}
+
+	private static int validateAndExtractRowtimeIndex(
+			CatalogTable sinkTable,
+			boolean dropLateEvent,
+			boolean isInsertOnly) {
+		if (!dropLateEvent) {
+			return -1;
+		} else if (!isInsertOnly) {
+			throw new ValidationException("Option 'sink.drop-late-event' only works for insert-only sink now.");
+		}
+		TableSchema schema =  sinkTable.getSchema();
+		List<WatermarkSpec> watermarkSpecs = schema.getWatermarkSpecs();
+		if (watermarkSpecs.size() == 0) {
+			throw new ValidationException(
+				"Please define the watermark in the schema that is used to indicate the rowtime column. " +
+				"The sink function will compare the rowtime and the current watermark to determine whether the event is late.");
+		}
+		String rowtimeName = watermarkSpecs.get(0).getRowtimeAttribute();
+		return Arrays.asList(schema.getFieldNames()).indexOf(rowtimeName);
 	}
 
 	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
@@ -569,20 +636,20 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SupportsPartitionPushDown,
 			SupportsReadingMetadata {
 
-		private DataType producedDataType;
-		private final ChangelogMode changelogMode;
-		private final boolean bounded;
-		private final String runtimeSource;
+		protected DataType producedDataType;
+		protected final ChangelogMode changelogMode;
+		protected final boolean bounded;
+		protected final String runtimeSource;
 		protected Map<Map<String, String>, Collection<Row>> data;
 
-		private final boolean nestedProjectionSupported;
-		private @Nullable int[][] projectedPhysicalFields;
-		private List<ResolvedExpression> filterPredicates;
-		private final Set<String> filterableFields;
-		private long limit;
+		protected final boolean nestedProjectionSupported;
+		protected  @Nullable int[][] projectedPhysicalFields;
+		protected List<ResolvedExpression> filterPredicates;
+		protected final Set<String> filterableFields;
+		protected long limit;
 		protected List<Map<String, String>> allPartitions;
-		private final Map<String, DataType> readableMetadata;
-		private @Nullable int[] projectedMetadataFields;
+		protected final Map<String, DataType> readableMetadata;
+		protected  @Nullable int[] projectedMetadataFields;
 
 		private TestValuesScanTableSource(
 				DataType producedDataType,
@@ -718,7 +785,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 
-		private Collection<RowData> convertToRowData(DataStructureConverter converter) {
+		protected Collection<RowData> convertToRowData(DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			List<Map<String, String>> keys = allPartitions.isEmpty() ?
 				Collections.singletonList(Collections.emptyMap()) :
@@ -812,6 +879,91 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			projectedMetadataFields = remainingMetadataKeys.stream()
 					.mapToInt(allMetadataKeys::indexOf)
 					.toArray();
+		}
+	}
+
+	/**
+	 * Values {@link ScanTableSource} for testing that supports watermark push down.
+	 */
+	private static class TestValuesScanTableSourceWithWatermarkPushDown
+			extends TestValuesScanTableSource
+			implements SupportsWatermarkPushDown {
+		private final String tableName;
+
+		private WatermarkStrategy<RowData> watermarkStrategy;
+
+		private TestValuesScanTableSourceWithWatermarkPushDown(
+				DataType producedDataType,
+				ChangelogMode changelogMode,
+				String runtimeSource,
+				Map<Map<String, String>, Collection<Row>> data,
+				String tableName,
+				boolean nestedProjectionSupported,
+				@Nullable int[][] projectedPhysicalFields,
+				List<ResolvedExpression> filterPredicates,
+				Set<String> filterableFields,
+				long limit,
+				List<Map<String, String>> allPartitions,
+				Map<String, DataType> readableMetadata,
+				@Nullable int[] projectedMetadataFields) {
+			super(
+					producedDataType,
+					changelogMode,
+					false,
+					runtimeSource,
+					data,
+					nestedProjectionSupported,
+					projectedPhysicalFields,
+					filterPredicates,
+					filterableFields,
+					limit,
+					allPartitions,
+					readableMetadata,
+					projectedMetadataFields);
+			this.tableName = tableName;
+		}
+
+		@Override
+		public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
+			this.watermarkStrategy = watermarkStrategy;
+
+		}
+
+		@Override
+		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+			TypeInformation<RowData> type = runtimeProviderContext.createTypeInformation(producedDataType);
+			TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(producedDataType);
+			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
+			Collection<RowData> values = convertToRowData(converter);
+			try {
+				return SourceFunctionProvider.of(
+						new TestValuesRuntimeFunctions.FromElementSourceFunctionWithWatermark(
+								tableName, serializer, values, watermarkStrategy),
+						false);
+			} catch (IOException e) {
+				throw new TableException("Fail to init source function", e);
+			}
+		}
+
+		@Override
+		public DynamicTableSource copy() {
+			final TestValuesScanTableSourceWithWatermarkPushDown newSource = new TestValuesScanTableSourceWithWatermarkPushDown(
+					producedDataType,
+					changelogMode,
+					runtimeSource,
+					data,
+					tableName,
+					nestedProjectionSupported,
+					projectedPhysicalFields,
+					filterPredicates,
+					filterableFields,
+					limit,
+					allPartitions,
+					readableMetadata,
+					projectedMetadataFields);
+			newSource.watermarkStrategy = watermarkStrategy;
+			return newSource;
 		}
 	}
 
@@ -953,6 +1105,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final Map<String, DataType> writableMetadata;
 		private final Integer parallelism;
 		private final ChangelogMode changelogModeEnforced;
+		private final int rowtimeIndex;
 
 		private TestValuesTableSink(
 				DataType consumedDataType,
@@ -963,7 +1116,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				int expectedNum,
 				Map<String, DataType> writableMetadata,
 				@Nullable Integer parallelism,
-				@Nullable ChangelogMode changelogModeEnforced) {
+				@Nullable ChangelogMode changelogModeEnforced,
+				int rowtimeIndex) {
 			this.consumedDataType = consumedDataType;
 			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
@@ -973,6 +1127,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.writableMetadata = writableMetadata;
 			this.parallelism = parallelism;
 			this.changelogModeEnforced = changelogModeEnforced;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
 		@Override
@@ -1023,7 +1178,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 								public SinkFunction<RowData> createSinkFunction() {
 									return new AppendingSinkFunction(
 										tableName,
-										converter);
+										converter,
+										rowtimeIndex);
 								}
 							};
 					case "OutputFormat":
@@ -1042,7 +1198,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 							};
 					case "DataStream":
 						return (DataStreamSinkProvider) dataStream ->
-								dataStream.addSink(new AppendingSinkFunction(tableName, converter));
+								dataStream.addSink(new AppendingSinkFunction(tableName, converter, rowtimeIndex));
 					case "DataStreamWithParallelism":
 						return new TestValuesRuntimeFunctions.InternalDataStreamSinkProviderWithParallelism(1);
 					default:
@@ -1080,7 +1236,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				expectedNum,
 				writableMetadata,
 				parallelism,
-				changelogModeEnforced);
+				changelogModeEnforced,
+				rowtimeIndex);
 		}
 
 		@Override

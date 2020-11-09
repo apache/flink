@@ -60,7 +60,6 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 	/** Listener which will be notified about leader changes. */
 	private volatile LeaderRetrievalListener leaderListener;
 
-	@GuardedBy("lock")
 	private LeaderRetrievalDriver leaderRetrievalDriver;
 
 	/**
@@ -74,6 +73,8 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 
 		this.lastLeaderAddress = null;
 		this.lastLeaderSessionID = null;
+
+		this.leaderRetrievalDriver = null;
 
 		running = false;
 	}
@@ -96,15 +97,16 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 
 	@Override
 	public void stop() throws Exception {
+		LOG.info("Stopping DefaultLeaderRetrievalService.");
+
 		synchronized (lock) {
 			if (!running) {
 				return;
 			}
 			running = false;
-
-			LOG.info("Stopping DefaultLeaderRetrievalService.");
-			leaderRetrievalDriver.close();
 		}
+
+		leaderRetrievalDriver.close();
 	}
 
 	/**
@@ -134,6 +136,9 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 
 					lastLeaderAddress = newLeaderAddress;
 					lastLeaderSessionID = newLeaderSessionID;
+
+					// Notify the listener only when the leader is truly changed.
+					leaderListener.notifyLeaderAddress(newLeaderAddress, newLeaderSessionID);
 				}
 			} else {
 				if (LOG.isDebugEnabled()) {
@@ -141,9 +146,6 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 				}
 			}
 		}
-
-		// The listener callback should be executed out of lock to avoid potential deadlock.
-		leaderListener.notifyLeaderAddress(newLeaderAddress, newLeaderSessionID);
 	}
 
 	private class LeaderRetrievalFatalErrorHandler implements FatalErrorHandler {
@@ -158,7 +160,6 @@ public class DefaultLeaderRetrievalService implements LeaderRetrievalService, Le
 					return;
 				}
 
-				// The listener callback should be executed out of lock to avoid potential deadlock.
 				if (throwable instanceof LeaderRetrievalException) {
 					leaderListener.handleError((LeaderRetrievalException) throwable);
 				} else {

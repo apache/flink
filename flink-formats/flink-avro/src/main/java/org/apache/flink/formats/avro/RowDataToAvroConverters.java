@@ -59,35 +59,11 @@ public class RowDataToAvroConverters {
 		Object convert(Schema schema, Object object);
 	}
 
-	public static RowDataToAvroConverter createRowConverter(RowType rowType) {
-		final RowDataToAvroConverter[] fieldConverters = rowType.getChildren().stream()
-				.map(RowDataToAvroConverters::createConverter)
-				.toArray(RowDataToAvroConverter[]::new);
-		final LogicalType[] fieldTypes = rowType.getFields().stream()
-				.map(RowType.RowField::getType)
-				.toArray(LogicalType[]::new);
-		final RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			fieldGetters[i] = RowData.createFieldGetter(fieldTypes[i], i);
-		}
-		final int length = rowType.getFieldCount();
-
-		return (schema, object) -> {
-			final RowData row = (RowData) object;
-			final List<Schema.Field> fields = schema.getFields();
-			final GenericRecord record = new GenericData.Record(schema);
-			for (int i = 0; i < length; ++i) {
-				final Schema.Field schemaField = fields.get(i);
-				Object avroObject = fieldConverters[i].convert(
-						schemaField.schema(),
-						fieldGetters[i].getFieldOrNull(row));
-				record.put(i, avroObject);
-			}
-			return record;
-		};
-	}
-
-	private static RowDataToAvroConverter createConverter(LogicalType type) {
+	/**
+	 * Creates a runtime converter accroding to the given logical type that converts objects
+	 * of Flink Table & SQL internal data structures to corresponding Avro data structures.
+	 */
+	public static RowDataToAvroConverter createConverter(LogicalType type) {
 		final RowDataToAvroConverter converter;
 		switch (type.getTypeRoot()) {
 		case NULL:
@@ -162,6 +138,34 @@ public class RowDataToAvroConverters {
 				actualSchema = schema;
 			}
 			return converter.convert(actualSchema, object);
+		};
+	}
+
+	private static RowDataToAvroConverter createRowConverter(RowType rowType) {
+		final RowDataToAvroConverter[] fieldConverters = rowType.getChildren().stream()
+			.map(RowDataToAvroConverters::createConverter)
+			.toArray(RowDataToAvroConverter[]::new);
+		final LogicalType[] fieldTypes = rowType.getFields().stream()
+			.map(RowType.RowField::getType)
+			.toArray(LogicalType[]::new);
+		final RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			fieldGetters[i] = RowData.createFieldGetter(fieldTypes[i], i);
+		}
+		final int length = rowType.getFieldCount();
+
+		return (schema, object) -> {
+			final RowData row = (RowData) object;
+			final List<Schema.Field> fields = schema.getFields();
+			final GenericRecord record = new GenericData.Record(schema);
+			for (int i = 0; i < length; ++i) {
+				final Schema.Field schemaField = fields.get(i);
+				Object avroObject = fieldConverters[i].convert(
+					schemaField.schema(),
+					fieldGetters[i].getFieldOrNull(row));
+				record.put(i, avroObject);
+			}
+			return record;
 		};
 	}
 

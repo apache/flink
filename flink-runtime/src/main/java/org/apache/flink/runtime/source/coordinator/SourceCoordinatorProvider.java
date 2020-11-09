@@ -64,7 +64,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	}
 
 	@Override
-	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
+	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) throws Exception  {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new CoordinatorExecutorThreadFactory(coordinatorThreadName);

@@ -325,6 +325,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 		private final Map<String, String> data;
 		private final Map<String, String> labels;
 		private final Map<String, String> annotations;
+		private final String resourceVersion = "1";
 
 		public MockKubernetesConfigMap(String name) {
 			super(null);
@@ -352,6 +353,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 		@Override
 		public Map<String, String> getLabels() {
 			return this.labels;
+		}
+
+		@Override
+		public String getResourceVersion() {
+			return this.resourceVersion;
 		}
 	}
 

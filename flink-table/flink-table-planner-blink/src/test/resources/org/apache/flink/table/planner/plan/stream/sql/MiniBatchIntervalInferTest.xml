@@ -52,17 +52,13 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS EXPR$1])
       +- Calc(select=[b, a])
          +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
-            :  +- Calc(select=[a, b, rowtime])
-            :     +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-            :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            :           +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-            :              +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+            :  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+            :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[a, b, rowtime]]], fields=[a, b, rowtime])
             +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, rowtime])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                        +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, wmTable2]], fields=[a, b, c, rowtime])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, wmTable2, project=[a, rowtime]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -177,15 +173,11 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2, w$end AS EXPR$3])
       +- Calc(select=[b, rowtime, a])
          +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-5000, leftUpperBound=10000, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 5000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)))], select=[a, b, rowtime, a0, rowtime0])
             :- Exchange(distribution=[hash[a]])
-            :  +- Calc(select=[a, b, rowtime])
-            :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            :        +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-            :           +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+            :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[a, b, rowtime]]], fields=[a, b, rowtime])
             +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                     +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, wmTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, wmTable2, project=[a, rowtime]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -247,18 +239,14 @@ Calc(select=[b, w0$o0 AS $1])
             :  +- Calc(select=[b, a, w$rowtime AS rt])
             :     +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             :        +- Exchange(distribution=[hash[b]])
-            :           +- Calc(select=[b, rowtime, a])
-            :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            :                 +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-            :                    +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+            :           +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            :              +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[b, rowtime, a]]], fields=[b, rowtime, a])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[b, a, w$rowtime AS rt])
                   +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
                      +- Exchange(distribution=[hash[b]])
-                        +- Calc(select=[b, rowtime, a])
-                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                              +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, wmTable2]], fields=[a, b, c, rowtime])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, wmTable2, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 ]]>
     </Resource>
   </TestCase>
@@ -316,10 +304,8 @@ Calc(select=[a, b])
             +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(*) AS count1$0])
                +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], select=[b])
                   +- Exchange(distribution=[hash[b]])
-                     +- Calc(select=[b, rowtime, a])
-                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                           +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 ]]>
     </Resource>
   </TestCase>
@@ -543,11 +529,9 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
       +- Calc(select=[w0$o0 AS cnt, c])
          +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
             +- Exchange(distribution=[hash[c]])
-               +- Calc(select=[a, c, rowtime])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                        +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -572,7 +556,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
       +- Calc(select=[b, a, c])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-               +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
+               +- Calc(select=[b, a, c, rowtime])
                   +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
@@ -655,10 +639,8 @@ GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, $f1, 5000)], 
    +- Calc(select=[b, w$rowtime AS $f1, cnt])
       +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 10000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(a) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
          +- Exchange(distribution=[hash[b]])
-            +- Calc(select=[b, rowtime, a])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 ]]>
     </Resource>
   </TestCase>
@@ -695,10 +677,8 @@ GlobalGroupAggregate(groupBy=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS EX
    +- LocalGroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(cnt) AS (sum$0, count$1), COUNT_RETRACT(*) AS count1$2])
       +- GroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, rowtime, 6000, 5000)], select=[b, COUNT(a) AS cnt], emit=[early delay 500 millisecond])
          +- Exchange(distribution=[hash[b]])
-            +- Calc(select=[b, rowtime, a])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- Calc(select=[a, b, c, PROCTIME() AS proctime, rowtime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 ]]>
     </Resource>
   </TestCase>

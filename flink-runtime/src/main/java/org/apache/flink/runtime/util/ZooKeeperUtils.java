@@ -25,13 +25,17 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
@@ -40,9 +44,9 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFactory;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
-import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -294,14 +298,15 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperJobGraphStore} instance.
+	 * Creates a {@link DefaultJobGraphStore} instance with {@link ZooKeeperStateHandleStore},
+	 * {@link ZooKeeperJobGraphStoreWatcher} and {@link ZooKeeperJobGraphStoreUtil}.
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
-	 * @return {@link ZooKeeperJobGraphStore} instance
+	 * @return {@link DefaultJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
-	public static ZooKeeperJobGraphStore createJobGraphs(
+	public static JobGraphStore createJobGraphs(
 			CuratorFramework client,
 			Configuration configuration) throws Exception {
 
@@ -326,21 +331,21 @@ public class ZooKeeperUtils {
 
 		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-		return new ZooKeeperJobGraphStore(
-			zooKeeperFullJobsPath,
+		return new DefaultJobGraphStore<>(
 			zooKeeperStateHandleStore,
-			pathCache);
+			new ZooKeeperJobGraphStoreWatcher(pathCache),
+			ZooKeeperJobGraphStoreUtil.INSTANCE);
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperCompletedCheckpointStore} instance.
+	 * Creates a {@link DefaultCompletedCheckpointStore} instance with {@link ZooKeeperStateHandleStore}.
 	 *
 	 * @param client                         The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration                  {@link Configuration} object
 	 * @param jobId                          ID of job to create the instance for
 	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
 	 * @param executor to run ZooKeeper callbacks
-	 * @return {@link ZooKeeperCompletedCheckpointStore} instance
+	 * @return {@link DefaultCompletedCheckpointStore} instance
 	 * @throws Exception if the completed checkpoint store cannot be created
 	 */
 	public static CompletedCheckpointStore createCompletedCheckpoints(
@@ -359,15 +364,31 @@ public class ZooKeeperUtils {
 			configuration,
 			HA_STORAGE_COMPLETED_CHECKPOINT);
 
-		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
+		checkpointsPath += getPathForJob(jobId);
 
-		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		final ZooKeeperStateHandleStore<CompletedCheckpoint> completedCheckpointStateHandleStore =
+			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage);
+		final CompletedCheckpointStore zooKeeperCompletedCheckpointStore = new DefaultCompletedCheckpointStore<>(
 			maxNumberOfCheckpointsToRetain,
-			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage),
+			completedCheckpointStateHandleStore,
+			ZooKeeperCheckpointStoreUtil.INSTANCE,
 			executor);
 
-		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
+		LOG.info(
+			"Initialized {} in '{}' with {}.",
+			DefaultCompletedCheckpointStore.class.getSimpleName(),
+			completedCheckpointStateHandleStore,
+			checkpointsPath);
 		return zooKeeperCompletedCheckpointStore;
+	}
+
+
+	/**
+	 * Returns the JobID as a String (with leading slash).
+	 */
+	public static String getPathForJob(JobID jobId) {
+		checkNotNull(jobId, "Job ID");
+		return String.format("/%s", jobId);
 	}
 
 	/**
@@ -404,7 +425,7 @@ public class ZooKeeperUtils {
 		String checkpointIdCounterPath = configuration.getString(
 				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
-		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
+		checkpointIdCounterPath += getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath, new DefaultLastStateConnectionStateListener());
 	}

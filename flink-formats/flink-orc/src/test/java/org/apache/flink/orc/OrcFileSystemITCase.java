@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
- * ITCase for {@link OrcFileSystemFormatFactory}.
+ * ITCase for {@link OrcFileFormatFactory}.
  */
 @RunWith(Parameterized.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {

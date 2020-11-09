@@ -141,7 +141,7 @@ public class TimestampsAndWatermarksOperator<T>
 	 * Implementation of the {@code WatermarkEmitter}, based on the components
 	 * that are available inside a stream operator.
 	 */
-	private static final class WatermarkEmitter implements WatermarkOutput {
+	public static final class WatermarkEmitter implements WatermarkOutput {
 
 		private final Output<?> output;
 
@@ -151,7 +151,7 @@ public class TimestampsAndWatermarksOperator<T>
 
 		private boolean idle;
 
-		WatermarkEmitter(Output<?> output, StreamStatusMaintainer statusMaintainer) {
+		public WatermarkEmitter(Output<?> output, StreamStatusMaintainer statusMaintainer) {
 			this.output = output;
 			this.statusMaintainer = statusMaintainer;
 			this.currentWatermark = Long.MIN_VALUE;

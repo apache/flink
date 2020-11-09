@@ -184,7 +184,8 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 				operator.getKeyType().createSerializer(environment.getExecutionConfig()),
 				registry,
 				getRuntimeContext().getMetricGroup(),
-				1.0);
+				1.0,
+				false);
 		} catch (Exception e) {
 			throw new IOException("Failed to restore state backend", e);
 		}

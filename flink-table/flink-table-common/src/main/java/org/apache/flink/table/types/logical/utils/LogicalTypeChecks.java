@@ -225,6 +225,34 @@ public final class LogicalTypeChecks {
 		return logicalType.getChildren();
 	}
 
+	/**
+	 * Checks whether the given {@link LogicalType} has a well-defined string representation when
+	 * calling {@link Object#toString()} on the internal data structure. The string representation
+	 * would be similar in SQL or in a programming language.
+	 *
+	 * <p>Note: This method might not be necessary anymore, once we have implemented a utility that
+	 * can convert any internal data structure to a well-defined string representation.
+	 */
+	public static boolean hasWellDefinedString(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return hasWellDefinedString(((DistinctType) logicalType).getSourceType());
+		}
+		switch (logicalType.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+			case BOOLEAN:
+			case TINYINT:
+			case SMALLINT:
+			case INTEGER:
+			case BIGINT:
+			case FLOAT:
+			case DOUBLE:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	private LogicalTypeChecks() {
 		// no instantiation
 	}

@@ -26,12 +26,9 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
@@ -110,17 +107,19 @@ public class KubernetesHaServices extends AbstractHaServices {
 
 	@Override
 	public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-		return new StandaloneCheckpointRecoveryFactory();
+		return new KubernetesCheckpointRecoveryFactory(
+			kubeClient, configuration, ioExecutor, this::getLeaderNameForJobManager, lockIdentity);
 	}
 
 	@Override
-	public JobGraphStore createJobGraphStore() {
-		return new StandaloneJobGraphStore();
+	public JobGraphStore createJobGraphStore() throws Exception {
+		return KubernetesUtils.createJobGraphStore(
+			configuration, kubeClient, getLeaderNameForDispatcher(), lockIdentity);
 	}
 
 	@Override
 	public RunningJobsRegistry createRunningJobsRegistry() {
-		return new StandaloneRunningJobsRegistry();
+		return new KubernetesRunningJobsRegistry(kubeClient, getLeaderNameForDispatcher(), lockIdentity);
 	}
 
 	@Override

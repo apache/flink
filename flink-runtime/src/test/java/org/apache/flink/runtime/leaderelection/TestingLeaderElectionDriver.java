@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
+	private final Object lock = new Object();
+
 	private final AtomicBoolean isLeader = new AtomicBoolean(false);
 	private final LeaderElectionEventHandler leaderElectionEventHandler;
 	private final FatalErrorHandler fatalErrorHandler;
@@ -56,7 +58,9 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 
 	@Override
 	public void close() throws Exception {
-		// noop
+		synchronized (lock) {
+			// noop
+		}
 	}
 
 	public LeaderInformation getLeaderInformation() {
@@ -64,13 +68,17 @@ public class TestingLeaderElectionDriver implements LeaderElectionDriver {
 	}
 
 	public void isLeader() {
-		isLeader.set(true);
-		leaderElectionEventHandler.onGrantLeadership();
+		synchronized (lock) {
+			isLeader.set(true);
+			leaderElectionEventHandler.onGrantLeadership();
+		}
 	}
 
 	public void notLeader() {
-		isLeader.set(false);
-		leaderElectionEventHandler.onRevokeLeadership();
+		synchronized (lock) {
+			isLeader.set(false);
+			leaderElectionEventHandler.onRevokeLeadership();
+		}
 	}
 
 	public void leaderInformationChanged(LeaderInformation newLeader) {

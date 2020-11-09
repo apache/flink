@@ -24,9 +24,9 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
-import static org.apache.flink.types.RowUtils.deepEqualsInternal;
+import static org.apache.flink.types.RowUtils.deepEqualsRow;
+import static org.apache.flink.types.RowUtils.deepHashCodeRow;
 
 /**
  * A row is a fixed-length, null-aware composite type for storing multiple values in a deterministic
@@ -45,6 +45,9 @@ import static org.apache.flink.types.RowUtils.deepEqualsInternal;
  *
  * <p>A row instance is in principle {@link Serializable}. However, it may contain non-serializable fields
  * in which case serialization will fail if the row is not serialized with Flink's serialization stack.
+ *
+ * <p>The {@link #equals(Object)} and {@link #hashCode()} methods of this class support all external
+ * conversion classes of the table ecosystem.
  */
 @PublicEvolving
 public final class Row implements Serializable {
@@ -155,16 +158,13 @@ public final class Row implements Serializable {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		Row row = (Row) o;
-		return kind == row.kind &&
-			Arrays.deepEquals(fields, row.fields);
+		final Row row = (Row) o;
+		return deepEqualsRow(this, row);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = kind.toByteValue(); // for stable hash across JVM instances
-		result = 31 * result + Arrays.deepHashCode(fields);
-		return result;
+		return deepHashCodeRow(this);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -275,18 +275,5 @@ public final class Row implements Serializable {
 		}
 
 		return joinedRow;
-	}
-
-	/**
-	 * Compares two {@link Row}s for deep equality. This method supports all conversion classes of the
-	 * table ecosystem.
-	 *
-	 * <p>The current implementation of {@link Row#equals(Object)} is not able to compare all deeply
-	 * nested row structures that might be created in the table ecosystem. For example, it does not
-	 * support comparing arrays stored in the values of a map. We might update the {@link #equals(Object)}
-	 * with this implementation in future versions.
-	 */
-	public static boolean deepEquals(Row row1, Row row2) {
-		return deepEqualsInternal(row1, row2);
 	}
 }

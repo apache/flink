@@ -52,7 +52,7 @@ public abstract class SourceCoordinatorTestBase {
 	protected MockSplitEnumerator enumerator;
 
 	@Before
-	public void setup() {
+	public void setup() throws Exception {
 		operatorCoordinatorContext = new MockOperatorCoordinatorContext(TEST_OPERATOR_ID, NUM_SUBTASKS);
 		splitSplitAssignmentTracker = new SplitAssignmentTracker<>();
 		String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
@@ -80,9 +80,10 @@ public abstract class SourceCoordinatorTestBase {
 
 	// --------------------------
 
-	protected SourceCoordinator getNewSourceCoordinator() {
+	protected SourceCoordinator getNewSourceCoordinator() throws Exception {
 		Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
 				new MockSource(Boundedness.BOUNDED, NUM_SUBTASKS * 2);
+
 		return new SourceCoordinator<>(OPERATOR_NAME, coordinatorExecutor, mockSource, context);
 	}
 }

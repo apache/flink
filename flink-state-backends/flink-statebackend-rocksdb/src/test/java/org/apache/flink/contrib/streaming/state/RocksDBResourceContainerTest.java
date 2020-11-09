@@ -151,7 +151,7 @@ public class RocksDBResourceContainerTest {
 		final long cacheSize = 1024L, writeBufferSize = 512L;
 		final LRUCache cache = new LRUCache(cacheSize, -1, false, 0.1);
 		final WriteBufferManager wbm = new WriteBufferManager(writeBufferSize, cache);
-		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm);
+		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm, writeBufferSize);
 		return new OpaqueMemoryResource<>(rocksDBSharedResources, cacheSize, rocksDBSharedResources::close);
 	}
 
@@ -237,7 +237,7 @@ public class RocksDBResourceContainerTest {
 	public void testFreeSharedResourcesAfterClose() throws Exception {
 		LRUCache cache = new LRUCache(1024L);
 		WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
-		RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm);
+		RocksDBSharedResources sharedResources = new RocksDBSharedResources(cache, wbm, 1024L);
 		final ThrowingRunnable<Exception> disposer = sharedResources::close;
 		OpaqueMemoryResource<RocksDBSharedResources> opaqueResource =
 			new OpaqueMemoryResource<>(sharedResources, 1024L, disposer);

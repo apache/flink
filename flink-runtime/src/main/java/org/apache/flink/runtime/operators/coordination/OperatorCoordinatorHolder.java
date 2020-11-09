@@ -302,7 +302,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	public static OperatorCoordinatorHolder create(
 			SerializedValue<OperatorCoordinator.Provider> serializedProvider,
 			ExecutionJobVertex jobVertex,
-			ClassLoader classLoader) throws IOException, ClassNotFoundException {
+			ClassLoader classLoader) throws Exception {
 
 		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 			final OperatorCoordinator.Provider provider = serializedProvider.deserializeValue(classLoader);
@@ -331,7 +331,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
 			final String operatorName,
 			final int operatorParallelism,
-			final int operatorMaxParallelism) {
+			final int operatorMaxParallelism) throws Exception {
 
 		final OperatorEventValve valve = new OperatorEventValve(eventSender);
 
