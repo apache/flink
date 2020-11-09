@@ -51,20 +51,9 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
 	private Map<ExecutionVertexID, TestingSchedulingPipelinedRegion> vertexRegions;
 
-	private boolean containsCoLocationConstraints;
-
 	@Override
 	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
 		return Collections.unmodifiableCollection(schedulingExecutionVertices.values());
-	}
-
-	@Override
-	public boolean containsCoLocationConstraints() {
-		return containsCoLocationConstraints;
-	}
-
-	public void setContainsCoLocationConstraints(final boolean containsCoLocationConstraints) {
-		this.containsCoLocationConstraints = containsCoLocationConstraints;
 	}
 
 	@Override
