@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 
@@ -48,6 +49,11 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, kerberosDir.toString() + "/" + KEYTAB_FILE);
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test");
 		flinkConfig.set(SecurityOptions.KERBEROS_KRB5_PATH, kerberosDir.toString() + "/" + KRB5_CONF_FILE);
+
+		// Additional parameters for resource mount
+		flinkConfig.set(KubernetesConfigOptions.TASKMANAGER_PVC_MOUNT, "pvc-mount:testclaim:/opt/pvc");
+		flinkConfig.set(KubernetesConfigOptions.TASKMANAGER_SECRET_MOUNT, "secret-mount1:testsecret1:/opt/secret/1,secret-mount2:testsecret2:/opt/secret/2");
+		flinkConfig.set(KubernetesConfigOptions.JOBMANAGER_CONFIGMAP_MOUNT, "configmap-mount:testconfigmap:/opt/configmap");
 	}
 
 	@Override
@@ -70,7 +76,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 	public void testPod() {
 		assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
 		assertEquals(5, this.resultPod.getMetadata().getLabels().size());
-		assertEquals(4, this.resultPod.getSpec().getVolumes().size());
+		assertEquals(7, this.resultPod.getSpec().getVolumes().size());
 	}
 
 	@Test
@@ -93,6 +99,6 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		assertEquals(1, resultMainContainer.getPorts().size());
 		assertEquals(1, resultMainContainer.getCommand().size());
 		assertEquals(2, resultMainContainer.getArgs().size());
-		assertEquals(4, resultMainContainer.getVolumeMounts().size());
+		assertEquals(7, resultMainContainer.getVolumeMounts().size());
 	}
 }

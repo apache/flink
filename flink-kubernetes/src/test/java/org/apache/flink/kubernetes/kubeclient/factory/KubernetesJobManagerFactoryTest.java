@@ -82,6 +82,11 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, kerberosDir.toString() + "/" + KEYTAB_FILE);
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test");
 		flinkConfig.set(SecurityOptions.KERBEROS_KRB5_PATH, kerberosDir.toString() + "/" + KRB5_CONF_FILE);
+
+		// Additional parameters for resource mount
+		flinkConfig.set(KubernetesConfigOptions.TASKMANAGER_PVC_MOUNT, "pvc-mount:testclaim:/opt/pvc");
+		flinkConfig.set(KubernetesConfigOptions.JOBMANAGER_SECRET_MOUNT, "secret-mount1:testsecret1:/opt/secret/1,secret-mount2:testsecret2:/opt/secret/2");
+		flinkConfig.set(KubernetesConfigOptions.JOBMANAGER_CONFIGMAP_MOUNT, "configmap-mount:testconfigmap:/opt/configmap");
 	}
 
 	@Override
@@ -132,7 +137,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		assertEquals(1, resultPodSpec.getContainers().size());
 		assertEquals(SERVICE_ACCOUNT_NAME, resultPodSpec.getServiceAccountName());
-		assertEquals(3, resultPodSpec.getVolumes().size());
+		assertEquals(6, resultPodSpec.getVolumes().size());
 
 		final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
 		assertEquals(KubernetesJobManagerParameters.JOB_MANAGER_MAIN_CONTAINER_NAME, resultedMainContainer.getName());
@@ -153,7 +158,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		assertEquals(1, resultedMainContainer.getCommand().size());
 		assertEquals(2, resultedMainContainer.getArgs().size());
 
-		assertEquals(3, resultedMainContainer.getVolumeMounts().size());
+		assertEquals(6, resultedMainContainer.getVolumeMounts().size());
 	}
 
 	@Test

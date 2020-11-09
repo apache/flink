@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkTaskManagerResourceMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdTaskManagerDecorator;
@@ -48,7 +49,8 @@ public class KubernetesTaskManagerFactory {
 			new JavaCmdTaskManagerDecorator(kubernetesTaskManagerParameters),
 			new HadoopConfMountDecorator(kubernetesTaskManagerParameters),
 			new KerberosMountDecorator(kubernetesTaskManagerParameters),
-			new FlinkConfMountDecorator(kubernetesTaskManagerParameters)};
+			new FlinkConfMountDecorator(kubernetesTaskManagerParameters),
+			new FlinkTaskManagerResourceMountDecorator(kubernetesTaskManagerParameters)};
 
 		for (KubernetesStepDecorator stepDecorator: stepDecorators) {
 			flinkPod = stepDecorator.decorateFlinkPod(flinkPod);

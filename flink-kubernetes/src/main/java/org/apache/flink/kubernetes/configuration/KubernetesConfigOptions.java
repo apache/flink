@@ -151,6 +151,54 @@ public class KubernetesConfigOptions {
 			"The specified image must be based upon the same Apache Flink and Scala versions as used by the application. " +
 			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
+	public static final ConfigOption<String> JOBMANAGER_PVC_MOUNT =
+		key("jobmanagerpvcmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("PVC mount information for the Job manager. " +
+				"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the claim, mounting path");
+
+	public static final ConfigOption<String> JOBMANAGER_SECRET_MOUNT =
+		key("jobmanagersecretmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Secret mount information for the Job manager. " +
+				"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the secret, mounting path");
+
+	public static final ConfigOption<String> JOBMANAGER_CONFIGMAP_MOUNT =
+		key("jobmanagerconfigmapmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Config map mount information for the Job manager. " +
+				"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the config map, mounting path");
+
+	public static final ConfigOption<String> TASKMANAGER_PVC_MOUNT =
+		key("taskmanagerpvcmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("PVC mount information for the Task manager. " +
+				"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the claim, mounting path");
+
+	public static final ConfigOption<String> TASKMANAGER_SECRET_MOUNT =
+		key("taskmanagersecretmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Secret mount information for the Task manager. " +
+				"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the secret, mounting path");
+
+	public static final ConfigOption<String> TASKMANAGER_CONFIGMAP_MOUNT =
+		key("taskmanagerconfigmapmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Config map mount information for the Task manager. " +
+				"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
+				"parameters - name used for mount, name of the config map, mounting path");
+
 	/**
 	 * The following config options need to be set according to the image.
 	 */
