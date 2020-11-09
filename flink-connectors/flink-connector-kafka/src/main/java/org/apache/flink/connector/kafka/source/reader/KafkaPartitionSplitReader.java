@@ -96,6 +96,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 		try {
 			consumerRecords = consumer.poll(Duration.ofMillis(POLL_TIMEOUT));
 		} catch (WakeupException we) {
+			recordsBySplits.prepareForRead();
 			return recordsBySplits;
 		}
 
