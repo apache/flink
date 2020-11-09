@@ -974,10 +974,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 	}
 
-	private void jobStatusChanged(
-			final JobStatus newJobStatus,
-			long timestamp,
-			@Nullable final Throwable error) {
+	private void jobStatusChanged(final JobStatus newJobStatus) {
 		validateRunsInMainThread();
 
 		if (newJobStatus.isGloballyTerminalState()) {
@@ -1214,7 +1211,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				final JobStatus newJobStatus,
 				final long timestamp,
 				final Throwable error) {
-			jobStatusChanged(newJobStatus, timestamp, error);
+			jobStatusChanged(newJobStatus);
 		}
 	}
 
