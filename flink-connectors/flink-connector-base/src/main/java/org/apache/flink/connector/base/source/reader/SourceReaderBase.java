@@ -270,8 +270,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			splitFetcherManager.checkErrors();
 			return InputStatus.END_OF_INPUT;
 		} else {
-			// We may fall in this method because of purely finished splits record. If all splits
-			// were finished meanwhile, we may end up here with no empty elementsQueue.
+			// We can reach this case if we just processed all data from the queue and finished a split,
+			// and concurrently the fetcher finished another split, whose data is then in the queue.
 			return InputStatus.MORE_AVAILABLE;
 		}
 	}
