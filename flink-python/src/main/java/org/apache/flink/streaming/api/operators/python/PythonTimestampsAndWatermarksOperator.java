@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -29,14 +30,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.types.Row;
 
@@ -53,7 +51,7 @@ import java.util.Collections;
  *
  * @param <IN> The type of the input elements
  */
-public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPythonFunctionOperator<IN, IN>
+public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInputPythonFunctionOperator<IN, IN>
 	implements ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
@@ -83,33 +81,45 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 	 */
 	private transient TypeSerializer runnerOutputSerializer;
 
-	/** The watermark generator, initialized during runtime. */
+	/**
+	 * The watermark generator, initialized during runtime.
+	 */
 	private transient WatermarkGenerator<IN> watermarkGenerator;
 
-	/** The watermark output gateway, initialized during runtime. */
+	/**
+	 * The watermark output gateway, initialized during runtime.
+	 */
 	private transient WatermarkOutput watermarkOutput;
 
-	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
+	/**
+	 * The interval (in milliseconds) for periodic watermark probes. Initialized during runtime.
+	 */
 	private transient long watermarkInterval;
 
 	/**
 	 * Reusable row for normal data runner inputs.
 	 */
-	private transient Row resuableInput;
+	private transient Row reusableInput;
 
 	/**
 	 * Reusable StreamRecord for data with new timestamp calculated in TimestampAssigner.
 	 */
 	private transient StreamRecord<IN> reusableStreamRecord;
 
-	public TimestampsAndWatermarksOperator(
+	/**
+	 * Whether to emit intermediate watermarks or only one final watermark at the end of
+	 * input.
+	 */
+	private boolean emitProgressiveWatermarks = true;
+
+	public PythonTimestampsAndWatermarksOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo,
 		WatermarkStrategy<IN> watermarkStrategy) {
 		super(config, inputTypeInfo, inputTypeInfo, pythonFunctionInfo);
+
 		this.watermarkStrategy = watermarkStrategy;
-		this.chainingStrategy = ChainingStrategy.ALWAYS;
 		this.runnerInputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
 		this.runnerOutputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
 	}
@@ -121,15 +131,16 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 		runnerOutputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerOutputTypeInfo);
-		resuableInput = new Row(2);
-		this.reusableStreamRecord = new StreamRecord<>(null);
-
-		watermarkGenerator = watermarkStrategy.createWatermarkGenerator(this::getMetricGroup);
-		watermarkOutput = new WatermarkEmitter(output,
+		reusableInput = new Row(2);
+		reusableStreamRecord = new StreamRecord<>(null);
+		watermarkGenerator = emitProgressiveWatermarks ?
+			watermarkStrategy.createWatermarkGenerator(this::getMetricGroup) :
+			new NoWatermarksGenerator<>();
+		watermarkOutput = new TimestampsAndWatermarksOperator.WatermarkEmitter(output,
 			getContainingTask().getStreamStatusMaintainer());
 
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
+		if (watermarkInterval > 0 && emitProgressiveWatermarks) {
 			final long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
@@ -141,10 +152,10 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 		final long previousTimestamp = element.hasTimestamp() ?
 			element.getTimestamp() : Long.MIN_VALUE;
 
-		resuableInput.setField(0, previousTimestamp);
-		resuableInput.setField(1, value);
+		reusableInput.setField(0, previousTimestamp);
+		reusableInput.setField(1, value);
 
-		runnerInputSerializer.serialize(resuableInput, baosWrapper);
+		runnerInputSerializer.serialize(reusableInput, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
 		elementCount++;
@@ -163,7 +174,6 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 		reusableStreamRecord.replace(originalData, newTimestamp);
 		output.collect(reusableStreamRecord);
 		watermarkGenerator.onEvent(originalData, newTimestamp, watermarkOutput);
-
 	}
 
 	@Override
@@ -173,9 +183,9 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
 			runnerOutputTypeInfo,
-			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
+			DATA_STREAM_STATELESS_FUNCTION_URN,
 			PythonOperatorUtils.getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			DATA_STREAM_MAP_FUNCTION_CODER_URN,
+			MAP_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
 			null,
@@ -186,6 +196,10 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
 		);
+	}
+
+	public void configureEmitProgressiveWatermarks(boolean emitProgressiveWatermarks) {
+		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
 	}
 
 	@Override
@@ -206,46 +220,5 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 	public void close() throws Exception {
 		super.close();
 		watermarkGenerator.onPeriodicEmit(watermarkOutput);
-	}
-
-	private static final class WatermarkEmitter implements WatermarkOutput {
-
-		private final Output<?> output;
-
-		private final StreamStatusMaintainer streamStatusMaintainer;
-
-		private long currentWatermark;
-
-		private boolean idle;
-
-		WatermarkEmitter(Output<?> output, StreamStatusMaintainer streamStatusMaintainer) {
-			this.output = output;
-			this.streamStatusMaintainer = streamStatusMaintainer;
-			this.currentWatermark = Long.MIN_VALUE;
-		}
-
-		@Override
-		public void emitWatermark(Watermark watermark) {
-			final long ts = watermark.getTimestamp();
-
-			if (ts <= currentWatermark) {
-				return;
-			}
-
-			currentWatermark = ts;
-
-			if (idle) {
-				idle = false;
-				streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-			}
-
-			output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(ts));
-		}
-
-		@Override
-		public void markIdle() {
-			idle = true;
-			streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
-		}
 	}
 }

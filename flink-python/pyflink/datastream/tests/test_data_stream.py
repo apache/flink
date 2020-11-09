@@ -613,7 +613,7 @@ class DataStreamTests(PyFlinkTestCase):
 
         class MyTimestampAssigner(TimestampAssigner):
 
-            def extract_timestamp(self, value, previous) -> int:
+            def extract_timestamp(self, value, record_timestamp) -> int:
                 return int(value[1])
 
         class MyProcessFunction(ProcessFunction):
@@ -634,17 +634,17 @@ class DataStreamTests(PyFlinkTestCase):
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner')
         result = self.test_sink.get_results()
-        expeected_result = ["current timestamp: None, current watermark: 9223372036854775807, "
-                            "current_value: <Row(1, '1603708211000')>",
-                            "current timestamp: None, current watermark: 9223372036854775807, "
-                            "current_value: <Row(2, '1603708224000')>",
-                            "current timestamp: None, current watermark: 9223372036854775807, "
-                            "current_value: <Row(3, '1603708226000')>",
-                            "current timestamp: None, current watermark: 9223372036854775807, "
-                            "current_value: <Row(4, '1603708289000')>"]
+        expected_result = ["current timestamp: None, current watermark: 9223372036854775807, "
+                           "current_value: <Row(1, '1603708211000')>",
+                           "current timestamp: None, current watermark: 9223372036854775807, "
+                           "current_value: <Row(2, '1603708224000')>",
+                           "current timestamp: None, current watermark: 9223372036854775807, "
+                           "current_value: <Row(3, '1603708226000')>",
+                           "current timestamp: None, current watermark: 9223372036854775807, "
+                           "current_value: <Row(4, '1603708289000')>"]
         result.sort()
-        expeected_result.sort()
-        self.assertEqual(expeected_result, result)
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
 
     def tearDown(self) -> None:
         self.test_sink.clear()

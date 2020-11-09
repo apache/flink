@@ -497,7 +497,8 @@ class DataStream(object):
             j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
             j_output_type = self._j_data_stream.getType()
             j_operator = gateway.jvm\
-                .org.apache.flink.streaming.api.operators.python.TimestampsAndWatermarksOperator(
+                .org.apache.flink.streaming.api.operators.python\
+                .PythonTimestampsAndWatermarksOperator(
                     j_conf,
                     j_output_type,
                     j_data_stream_python_function_info,

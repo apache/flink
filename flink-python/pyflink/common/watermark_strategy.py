@@ -17,6 +17,8 @@
 ################################################################################
 import abc
 
+from typing import Any
+
 from pyflink.common.time import Duration
 from pyflink.java_gateway import get_gateway
 
@@ -34,10 +36,12 @@ class WatermarkStrategy(object):
         self._j_watermark_strategy = j_watermark_strategy
         self._timestamp_assigner = None
 
-    def with_timestamp_assigner(self, timestamp_assigner: 'TimestampAssigner'):
+    def with_timestamp_assigner(self, timestamp_assigner: 'TimestampAssigner') -> \
+            'WatermarkStrategy':
         """
         Creates a new WatermarkStrategy that wraps this strategy but instead uses the given a
         TimestampAssigner by implementing TimestampAssigner interface.
+
         ::
             >>> watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()
             >>>   .with_timestamp_assigner(MyTimestampAssigner())
@@ -56,7 +60,9 @@ class WatermarkStrategy(object):
         :param idle_timeout: The idle timeout.
         :return: A new WatermarkStrategy with idle detection configured.
         """
-        return WatermarkStrategy(self._j_watermark_strategy.withIdleness(idle_timeout._j_duration))
+        self._j_watermark_strategy = self._j_watermark_strategy\
+            .withIdleness(idle_timeout._j_duration)
+        return self
 
     @staticmethod
     def for_monotonous_timestamps():
@@ -95,7 +101,7 @@ class TimestampAssigner(abc.ABC):
     it.
     """
     @abc.abstractmethod
-    def extract_timestamp(self, value, previous) -> int:
+    def extract_timestamp(self, value: Any, record_timestamp: int) -> int:
         """
         Assigns a timestamp to an element, in milliseconds since the Epoch. This is independent of
         any particular time zone or calendar.
@@ -105,8 +111,8 @@ class TimestampAssigner(abc.ABC):
         not carry a timestamp before, this value is the minimum value of int type.
 
         :param value: The element that the timestamp will be assigned to.
-        :param previous: The current internal timestamp of the element, or a negative value, if no
-                         timestamp has been assigned yet.
+        :param record_timestamp: The current internal timestamp of the element, or a negative value,
+                                 if no timestamp has been assigned yet.
         :return: The new timestamp.
         """
         pass
