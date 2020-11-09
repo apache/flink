@@ -33,6 +33,8 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,11 +60,13 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
 	private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById;
 
-	private final Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex;
+	@Nullable
+	private Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex;
 
-	private final List<DefaultSchedulingPipelinedRegion> pipelinedRegions;
+	@Nullable
+	private List<DefaultSchedulingPipelinedRegion> pipelinedRegions;
 
-	public DefaultExecutionTopology(ExecutionGraph graph) {
+	private DefaultExecutionTopology(ExecutionGraph graph) {
 		checkNotNull(graph, "execution graph can not be null");
 
 		this.containsCoLocationConstraints = graph.getAllVertices().values().stream()
@@ -87,28 +91,17 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 		this.resultPartitionsById = tmpResultPartitionsById;
 
 		connectVerticesToConsumedPartitions(executionVertexMap, tmpResultPartitionsById);
-
-		this.pipelinedRegionsByVertex = new HashMap<>();
-		this.pipelinedRegions = new ArrayList<>();
-		initializePipelinedRegions();
 	}
 
-	private void initializePipelinedRegions() {
-		final long buildRegionsStartTime = System.nanoTime();
+	private void setPipelinedRegions(List<DefaultSchedulingPipelinedRegion> pipelinedRegions) {
+		this.pipelinedRegions = checkNotNull(pipelinedRegions);
 
-		final Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions = PipelinedRegionComputeUtil.computePipelinedRegions(this);
-		for (Set<? extends SchedulingExecutionVertex> rawPipelinedRegion : rawPipelinedRegions) {
-			//noinspection unchecked
-			final DefaultSchedulingPipelinedRegion pipelinedRegion = new DefaultSchedulingPipelinedRegion((Set<DefaultExecutionVertex>) rawPipelinedRegion);
-			pipelinedRegions.add(pipelinedRegion);
-
-			for (SchedulingExecutionVertex executionVertex : rawPipelinedRegion) {
+		this.pipelinedRegionsByVertex = new HashMap<>();
+		for (DefaultSchedulingPipelinedRegion pipelinedRegion : pipelinedRegions) {
+			for (SchedulingExecutionVertex executionVertex : pipelinedRegion.getVertices()) {
 				pipelinedRegionsByVertex.put(executionVertex.getId(), pipelinedRegion);
 			}
 		}
-
-		final long buildRegionsDuration = (System.nanoTime() - buildRegionsStartTime) / 1_000_000;
-		LOG.info("Built {} pipelined regions in {} ms", pipelinedRegions.size(), buildRegionsDuration);
 	}
 
 	@Override
@@ -141,11 +134,15 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
 	@Override
 	public Iterable<DefaultSchedulingPipelinedRegion> getAllPipelinedRegions() {
+		checkNotNull(pipelinedRegions);
+
 		return Collections.unmodifiableCollection(pipelinedRegions);
 	}
 
 	@Override
 	public DefaultSchedulingPipelinedRegion getPipelinedRegionOfVertex(final ExecutionVertexID vertexId) {
+		checkNotNull(pipelinedRegionsByVertex);
+
 		final DefaultSchedulingPipelinedRegion pipelinedRegion = pipelinedRegionsByVertex.get(vertexId);
 		if (pipelinedRegion == null) {
 			throw new IllegalArgumentException("Unknown execution vertex " + vertexId);
@@ -200,5 +197,34 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 				}
 			}
 		}
+	}
+
+	public static DefaultExecutionTopology fromExecutionGraph(ExecutionGraph executionGraph) {
+		final DefaultExecutionTopology topology = new DefaultExecutionTopology(executionGraph);
+
+		final List<DefaultSchedulingPipelinedRegion> pipelinedRegions = generatePipelinedRegions(topology);
+		topology.setPipelinedRegions(pipelinedRegions);
+
+		return topology;
+	}
+
+	private static List<DefaultSchedulingPipelinedRegion> generatePipelinedRegions(DefaultExecutionTopology topology) {
+		final long buildRegionsStartTime = System.nanoTime();
+
+		final Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions = PipelinedRegionComputeUtil
+			.computePipelinedRegions(topology);
+
+		final List<DefaultSchedulingPipelinedRegion> pipelinedRegions = new ArrayList<>();
+		for (Set<? extends SchedulingExecutionVertex> rawPipelinedRegion : rawPipelinedRegions) {
+			//noinspection unchecked
+			final DefaultSchedulingPipelinedRegion pipelinedRegion = new DefaultSchedulingPipelinedRegion(
+				(Set<DefaultExecutionVertex>) rawPipelinedRegion);
+			pipelinedRegions.add(pipelinedRegion);
+		}
+
+		final long buildRegionsDuration = (System.nanoTime() - buildRegionsStartTime) / 1_000_000;
+		LOG.info("Built {} pipelined regions in {} ms", pipelinedRegions.size(), buildRegionsDuration);
+
+		return pipelinedRegions;
 	}
 }

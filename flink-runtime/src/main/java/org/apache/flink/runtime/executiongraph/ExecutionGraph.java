@@ -855,7 +855,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 
 		// the topology assigning should happen before notifying new vertices to failoverStrategy
-		executionTopology = new DefaultExecutionTopology(this);
+		executionTopology = DefaultExecutionTopology.fromExecutionGraph(this);
 
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
