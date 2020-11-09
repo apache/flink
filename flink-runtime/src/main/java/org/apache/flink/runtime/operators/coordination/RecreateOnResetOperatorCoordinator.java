@@ -131,12 +131,14 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	// ---------------------
 
 	@VisibleForTesting
-	public OperatorCoordinator getInternalCoordinator() {
+	public OperatorCoordinator getInternalCoordinator() throws Exception {
+		waitForAllAsyncCallsFinish();
 		return coordinator.internalCoordinator;
 	}
 
 	@VisibleForTesting
-	QuiesceableContext getQuiesceableContext() {
+	QuiesceableContext getQuiesceableContext() throws Exception {
+		waitForAllAsyncCallsFinish();
 		return coordinator.internalQuiesceableContext;
 	}
 
