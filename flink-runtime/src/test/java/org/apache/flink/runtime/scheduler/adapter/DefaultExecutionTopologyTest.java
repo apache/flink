@@ -170,6 +170,21 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		}
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
+		int parallelism = 3;
+		final JobVertex v1 = createNoOpVertex(parallelism);
+		final JobVertex v2 = createNoOpVertex(parallelism);
+
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		v1.setSlotSharingGroup(slotSharingGroup);
+		v2.setSlotSharingGroup(slotSharingGroup);
+		v1.setStrictlyCoLocatedWith(v2);
+
+		final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+		DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+	}
+
 	private void assertRegionContainsAllVertices(final DefaultSchedulingPipelinedRegion pipelinedRegionOfVertex) {
 		final Set<DefaultExecutionVertex> allVertices = Sets.newHashSet(pipelinedRegionOfVertex.getVertices());
 		assertEquals(Sets.newHashSet(adapter.getVertices()), allVertices);
