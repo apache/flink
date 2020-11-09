@@ -58,24 +58,48 @@ public class TimestampsAndWatermarksOperator<IN> extends StatelessOneInputPython
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * A user specified watermarkStrategy.
+	 */
 	private final WatermarkStrategy<IN> watermarkStrategy;
 
+	/**
+	 * The TypeInformation of python worker input data.
+	 */
 	private final TypeInformation runnerInputTypeInfo;
 
+	/**
+	 * The TypeInformation of python worker output data.
+	 */
 	private final TypeInformation runnerOutputTypeInfo;
 
+	/**
+	 * Serializer to serialize input data for python worker.
+	 */
 	private transient TypeSerializer runnerInputSerializer;
 
+	/**
+	 * Serializer to deserialize output data from python worker.
+	 */
 	private transient TypeSerializer runnerOutputSerializer;
 
+	/** The watermark generator, initialized during runtime. */
 	private transient WatermarkGenerator<IN> watermarkGenerator;
 
+	/** The watermark output gateway, initialized during runtime. */
 	private transient WatermarkOutput watermarkOutput;
 
+	/** The interval (in milliseconds) for periodic watermark probes. Initialized during runtime. */
 	private transient long watermarkInterval;
 
+	/**
+	 * Reusable row for normal data runner inputs.
+	 */
 	private transient Row resuableInput;
 
+	/**
+	 * Reusable StreamRecord for data with new timestamp calculated in TimestampAssigner.
+	 */
 	private transient StreamRecord<IN> reusableStreamRecord;
 
 	public TimestampsAndWatermarksOperator(
