@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -38,12 +39,14 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
@@ -204,6 +207,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
 		final List<DefaultSchedulingPipelinedRegion> pipelinedRegions = generatePipelinedRegions(topology);
 		topology.setPipelinedRegions(pipelinedRegions);
+		ensureCoLocatedVerticesInSameRegion(pipelinedRegions, executionGraph);
 
 		return topology;
 	}
@@ -226,5 +230,39 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 		LOG.info("Built {} pipelined regions in {} ms", pipelinedRegions.size(), buildRegionsDuration);
 
 		return pipelinedRegions;
+	}
+
+	/**
+	 * Co-location constraints are only used for iteration head and tail.
+	 * A paired head and tail needs to be in the same pipelined region so
+	 * that they can be restarted together.
+	 */
+	private static void ensureCoLocatedVerticesInSameRegion(
+			List<DefaultSchedulingPipelinedRegion> pipelinedRegions,
+			ExecutionGraph executionGraph) {
+
+		final Map<CoLocationConstraint, DefaultSchedulingPipelinedRegion> constraintToRegion = new IdentityHashMap<>();
+		for (DefaultSchedulingPipelinedRegion region : pipelinedRegions) {
+			for (DefaultExecutionVertex vertex : region.getVertices()) {
+				final CoLocationConstraint constraint = getCoLocationConstraint(vertex.getId(), executionGraph);
+				if (constraint != null) {
+					final DefaultSchedulingPipelinedRegion regionOfConstraint = constraintToRegion.get(constraint);
+					checkState(
+						regionOfConstraint == null || regionOfConstraint == region,
+						"co-located tasks must be in the same pipelined region");
+					constraintToRegion.putIfAbsent(constraint, region);
+				}
+			}
+		}
+	}
+
+	private static CoLocationConstraint getCoLocationConstraint(
+			ExecutionVertexID executionVertexId,
+			ExecutionGraph executionGraph) {
+
+		return executionGraph
+			.getJobVertex(executionVertexId.getJobVertexId())
+			.getTaskVertices()[executionVertexId.getSubtaskIndex()]
+			.getLocationConstraint();
 	}
 }
