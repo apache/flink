@@ -48,15 +48,10 @@ function check_logs {
 # This function does a cleanup after the test. The watchdog is terminated and temporary
 # files and folders are deleted.
 function cleanup_after_test {
-    kill ${watchdog_pid} 2> /dev/null
-    wait ${watchdog_pid} 2> /dev/null
+    kill ${watchdog_pid} 2> /dev/null || true
+    wait ${watchdog_pid} 2> /dev/null || true
 }
-
-# Calls the cleanup step for this tests and exits with an error.
-function cleanup_after_test_and_exit_fail {
-    cleanup_after_test
-    exit 1
-}
+on_exit cleanup_after_test
 
 ## This function executes one run for a certain configuration
 function run_local_recovery_test {
@@ -109,7 +104,4 @@ function run_local_recovery_test {
 }
 
 ## MAIN
-trap cleanup_after_test_and_exit_fail EXIT
 run_test_with_timeout 600 run_local_recovery_test "$@"
-trap - EXIT
-exit 0
