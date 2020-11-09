@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.source.mocks;
+package org.apache.flink.connector.testutils.source.reader;
 
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -37,6 +37,8 @@ public class TestingReaderContext implements SourceReaderContext {
 	private final Configuration config;
 
 	private final ArrayList<SourceEvent> sentEvents = new ArrayList<>();
+
+	private int numSplitRequests;
 
 	public TestingReaderContext() {
 		this(new Configuration());
@@ -69,7 +71,9 @@ public class TestingReaderContext implements SourceReaderContext {
 	}
 
 	@Override
-	public void sendSplitRequest() {}
+	public void sendSplitRequest() {
+		numSplitRequests++;
+	}
 
 	@Override
 	public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
@@ -77,6 +81,10 @@ public class TestingReaderContext implements SourceReaderContext {
 	}
 
 	// ------------------------------------------------------------------------
+
+	public int getNumSplitRequests() {
+		return numSplitRequests;
+	}
 
 	public List<SourceEvent> getSentEvents() {
 		return new ArrayList<>(sentEvents);
