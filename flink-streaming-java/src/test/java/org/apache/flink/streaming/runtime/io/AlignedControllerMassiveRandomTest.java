@@ -71,7 +71,11 @@ public class AlignedControllerMassiveRandomTest {
 						"Testing: No task associated",
 						new DummyCheckpointInvokable(),
 						myIG.getNumberOfInputChannels(),
-						new AlignedController(myIG)),
+						new AlignedController(myIG) {
+							@Override
+							protected void resetPendingCheckpoint(long cancelledId) {
+							}
+					}),
 					new SyncMailboxExecutor());
 
 			for (int i = 0; i < 2000000; i++) {

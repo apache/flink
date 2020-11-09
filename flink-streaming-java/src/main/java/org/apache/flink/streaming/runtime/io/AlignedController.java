@@ -102,6 +102,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException {
 		checkState(!barrier.getCheckpointOptions().isUnalignedCheckpoint());
+		resetPendingCheckpoint(barrier.getId());
 		resumeConsumption();
 		return Optional.of(barrier);
 	}
@@ -110,6 +111,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	public void abortPendingCheckpoint(
 			long cancelledId,
 			CheckpointException exception) throws IOException {
+		resetPendingCheckpoint(cancelledId);
 		resumeConsumption();
 	}
 
@@ -118,6 +120,12 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException {
 		resumeConsumption(channelInfo);
+	}
+
+	protected void resetPendingCheckpoint(long cancelledId) {
+		for (final CheckpointableInput input : inputs) {
+			input.checkpointStopped(cancelledId);
+		}
 	}
 
 	public Collection<InputChannelInfo> getBlockedChannels() {

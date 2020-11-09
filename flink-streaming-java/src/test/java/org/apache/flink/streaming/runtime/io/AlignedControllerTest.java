@@ -133,7 +133,11 @@ public class AlignedControllerTest {
 				"Testing",
 				toNotify,
 				gate.getNumberOfInputChannels(),
-				new AlignedController(gate)),
+				new AlignedController(gate) {
+					@Override
+					protected void resetPendingCheckpoint(long cancelledId) {
+					}
+				}),
 			new SyncMailboxExecutor());
 	}
 
