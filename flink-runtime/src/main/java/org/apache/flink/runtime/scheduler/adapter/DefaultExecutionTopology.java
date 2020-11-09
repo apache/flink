@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
@@ -42,7 +41,6 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,8 +52,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class DefaultExecutionTopology implements SchedulingTopology {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionTopology.class);
-
-	private final boolean containsCoLocationConstraints;
 
 	private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
 
@@ -71,10 +67,6 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
 	private DefaultExecutionTopology(ExecutionGraph graph) {
 		checkNotNull(graph, "execution graph can not be null");
-
-		this.containsCoLocationConstraints = graph.getAllVertices().values().stream()
-			.map(ExecutionJobVertex::getCoLocationGroup)
-			.anyMatch(Objects::nonNull);
 
 		this.executionVerticesById = new HashMap<>();
 		this.executionVerticesList = new ArrayList<>(graph.getTotalNumberOfVertices());
@@ -110,11 +102,6 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 	@Override
 	public Iterable<DefaultExecutionVertex> getVertices() {
 		return executionVerticesList;
-	}
-
-	@Override
-	public boolean containsCoLocationConstraints() {
-		return containsCoLocationConstraints;
 	}
 
 	@Override
