@@ -23,72 +23,71 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Docker](https://www.docker.com) is a popular container runtime.
-There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
-You can use the docker images to deploy a *Session* or *Job cluster* in a containerized environment, e.g.,
-[standalone Kubernetes](kubernetes.html) or [native Kubernetes](native_kubernetes.html).
+[Docker](https://www.docker.com) 是一种流行的容器引擎。
+可以在 [Docker Hub](https://hub.docker.com/_/flink) 上获取 Apache Flink 可用的 Docker 镜像。
+你可以使用 docker 镜像在容器环境中，例如 [standalone Kubernetes](kubernetes.html) 或 [native Kubernetes](native_kubernetes.html) 中部署 *Session 集群* 或 *Job 集群*。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Docker Hub Flink images
+## Docker Hub 里的 Flink 镜像
 
-The [Flink Docker repository](https://hub.docker.com/_/flink/) is hosted on
-Docker Hub and serves images of Flink version 1.2.1 and later.
+[Flink Docker](https://hub.docker.com/_/flink/) 仓库托管在 Docker Hub，并提供 Flink 1.2.1 及更高版本的镜像。
 
-### Image tags
+<a name="image-tags"></a>
 
-Images for each supported combination of Flink and Scala versions are available, and
-[tag aliases](https://hub.docker.com/_/flink?tab=tags) are provided for convenience.
+### 镜像标记
 
-For example, you can use the following aliases:
+任意受支持的 Flink 和 Scala 版本组合的镜像均是可用的，并提供 [tag aliases](https://hub.docker.com/_/flink?tab=tags) 以方便使用。
+
+例如，你可以使用以下标记:
 
 * `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
 * `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.11`
 
-<span class="label label-info">Note</span>It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
-versions (for example `flink:1.11-scala_2.12`).
-This will avoid some class conflicts that can occur if the Flink and/or Scala versions used in the application are different
-from the versions provided by the docker image.
+<span class="label label-info">注意</span> 建议始终使用 docker 镜像的显式版本标记，指定所需的 Flink 和 Scala 版本号(例如 `flink:1.11-scala_2.12`)。
+避免当应用程序中使用的 Flink 和(或) Scala 版本与 docker 镜像提供的版本不同时可能引发的类冲突。
 
-<span class="label label-info">Note</span> Prior to Flink 1.5 version, Hadoop dependencies were always bundled with Flink.
-You can see that certain tags include the version of Hadoop, e.g. (e.g. `-hadoop28`).
-Beginning with Flink 1.5, image tags that omit the Hadoop version correspond to Hadoop-free releases of Flink
-that do not include a bundled Hadoop distribution.
+<span class="label label-info">注意</span> 在 Flink 1.5 版本之前，Hadoop 依赖总是和 Flink 捆绑在一起。
+你可以看到某些标签包含了 Hadoop 的版本(例如: `-hadoop28`)。
+从 Flink 1.5 版本开始，省略 Hadoop 版本的镜像标记对应 Flink 的 Hadoop-free 版本，即不包含捆绑的 Hadoop 发行版。
 
-## How to run a Flink image
+<a name="how-to-run-a-flink-image"></a>
 
-The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
-You can run its entry point in the following modes:
-* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Session cluster](#start-a-session-cluster)
-* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Job cluster](#start-a-job-cluster)
-* [TaskManager]({% link concepts/glossary.zh.md %}#flink-taskmanager) for any cluster
+## 如何运行 Flink 镜像
 
-This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
-* manually in a local Docker setup,
-* [in a Kubernetes cluster](kubernetes.html),
-* [with Docker Compose](#flink-with-docker-compose),
-* [with Docker swarm](#flink-with-docker-swarm).
+Flink 镜像包含具有默认配置的常规 Flink 发行版和标准的 entry point 脚本。
+你可以在如下模式下运行它的 entry point:
+* [Session 集群](#start-a-session-cluster) 的 [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager)
+* [Job 集群](#start-a-job-cluster) 的 [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager)
+* 任意集群的 [TaskManager]({% link concepts/glossary.zh.md %}#flink-taskmanager)
 
-<span class="label label-info">Note</span> [The native Kubernetes](native_kubernetes.html) also runs the same image by default
-and deploys *TaskManagers* on demand so that you do not have to do it manually.
+这允许你在任何容器环境中部署一个独立集群 (Session 或 Job)，例如:
+* 本地 Docker 环境中手动部署
+* [Kubernetes cluster](kubernetes.html)
+* [Docker Compose](#flink-with-docker-compose)
+* [Docker swarm](#flink-with-docker-swarm)
 
-The next chapters describe how to start a single Flink Docker container for various purposes.
+<span class="label label-info">注意</span> [The native Kubernetes](native_kubernetes.html) 默认情况下也运行相同的镜像，并按需部署 *TaskManagers* ，因此你不必手动执行。
 
-Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar`.
+接下来的章节将描述如何启动一个用于多种目的的 Flink Docker 容器。
 
-We recommend using [Docker Compose](docker.html#session-cluster-with-docker-compose) or [Docker Swarm](docker.html#session-cluster-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
+一旦你在 Docker 上启动了 Flink，你可以通过访问 Flink 的前端页面 [localhost:8081](http://localhost:8081/#/overview)，或者通过 `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar` 命令来提交作业。
 
-### Start a Session Cluster
+我们建议使用 [Docker Compose](docker.html#session-cluster-with-docker-compose) 或 [Docker Swarm](docker.html#session-cluster-with-docker-swarm) 将 Flink 部署为 Session 集群，以简化系统配置。
 
-A *Flink Session cluster* can be used to run multiple jobs. Each job needs to be submitted to the cluster after it has been deployed.
-To deploy a *Flink Session cluster* with Docker, you need to start a *JobManager* container. To enable communication between the containers, we first set a required Flink configuration property and create a network:
+<a name="start-a-session-cluster"></a>
+
+### 启动 Session 集群
+
+*Flink Session 集群* 可用于运行多个作业。每个作业都必须在集群部署之后才可以提交。
+要使用 Docker 部署 *Flink Session 集群*，你需要启动 *JobManager* 容器，并确保容器间可通信，首先，设置必需的 Flink 配置属性，并创建一个网络：
 ```sh
 FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
 docker network create flink-network
 ```
 
-Then we launch the JobManager:
+然后启动 JobManager:
 
 ```sh
 docker run \
@@ -100,7 +99,7 @@ docker run \
     flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} jobmanager
 ```
 
-and one or more *TaskManager* containers:
+和一个或多个 *TaskManager* 容器:
 
 ```sh
 docker run \
@@ -111,25 +110,25 @@ docker run \
     flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
 ```
 
+<a name="start-a-job-cluster"></a>
 
-### Start a Job Cluster
+### 启动 Job 集群
 
-A *Flink Job cluster* is a dedicated cluster which runs a single job.
-In this case, you deploy the cluster with the job as one step, thus, there is no extra job submission needed.
+*Flink Job 集群*是运行单个作业的专用集群。
+这种情况下，包含作业的集群部署将在一个步骤中完成，因此不需要额外的作业提交过程。
 
-The *job artifacts* are included into the class path of Flink's JVM process within the container and consist of:
-* your job jar, which you would normally submit to a *Session cluster* and
-* all other necessary dependencies or resources, not included into Flink.
+*job artifacts* 包含在容器内 Flink 的 JVM 进程的类路径中，包括：
+* 你的作业 jar 包，该 jar 包通常会提交给 *Session 集群*
+* 所有未包含在 Flink 中的必要依赖和资源。
 
-To deploy a cluster for a single job with Docker, you need to
-* make *job artifacts* available locally *in all containers* under `/opt/flink/usrlib`,
-* start a *JobManager* container in the *Job Cluster* mode
-* start the required number of *TaskManager* containers.
+要使用 Docker 为单个作业部署集群，你需要
+* 将 *job artifacts* 放在所有容器的 `/opt/flink/usrlib` 目录下以保证本地可用,
+* 在 *Job 集群*模式下启动一个 *JobManager* 容器
+* 启动所需数量的 *TaskManager* 容器。
 
-To make the **job artifacts available** locally in the container, you can
+要使 **job artifacts** 在容器中本地可用，你可以
 
-* **either mount a volume** (or multiple volumes) with the artifacts to `/opt/flink/usrlib` when you start
-the *JobManager* and *TaskManagers*:
+* 当你启动 *JobManager* 和 *TaskManagers* 时，可以将**包含依赖的一个卷**(或多个卷)挂载到 `/opt/flink/usrlib` 目录下。
 
     ```sh
     FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
@@ -155,7 +154,7 @@ the *JobManager* and *TaskManagers*:
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} taskmanager
     ```
 
-* **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the *JobManager* and *TaskManagers*:
+* 或者通过编写自定义的 `Dockerfile` 文件来**扩展 Flink 镜像**，构建并使用它来启动 *JobManager* 和 *TaskManagers*:
 
     *Dockerfile*:
 
@@ -177,40 +176,40 @@ the *JobManager* and *TaskManagers*:
     docker run flink_with_job_artifacts taskmanager
     ```
 
-The `standalone-job` argument starts a *JobManager* container in the *Job Cluster* mode.
+`standalone-job` 参数会在 *Job 集群* 模式下启动一个 *JobManager* 容器。
 
-#### JobManager additional command line arguments
+<a name="jobmanager-additional-command-line-arguments"></a>
 
-You can provide the following additional command line arguments to the cluster entrypoint:
+#### JobManager 的附加命令行参数
 
-* `--job-classname <job class name>`: Class name of the job to run.
+你可以在集群 entrypoint 处提供以下附加命令行参数：
 
-  By default, Flink scans its class path for a JAR with a Main-Class or program-class manifest entry and chooses it as the job class.
-  Use this command line argument to manually set the job class.
-  This argument is required in case that no or more than one JAR with such a manifest entry is available on the class path.
+* `--job-classname <job class name>`: 将运行的作业类名。
 
-* `--job-id <job id>` (optional): Manually set a Flink job ID for the job (default: 00000000000000000000000000000000)
+  默认情况下，Flink 在其类路径中扫描含有 Main-Class 或 program-class 清单条目的 JAR 包，并选择它作为作业类。
+  使用该命令行可以手动设置作业类。
+  若类路径中没有或不止一个带有此类清单条目的 Jar 包可用，则需要该参数。
 
-* `--fromSavepoint /path/to/savepoint` (optional): Restore from a savepoint
+* `--job-id <job id>` (可选)：手动设置 Flink 作业 ID (默认值：00000000000000000000000000000000)
 
-  In order to resume from a savepoint, you also need to pass the savepoint path.
-  Note that `/path/to/savepoint` needs to be accessible in all Docker containers of the cluster
-  (e.g., storing it on a DFS or from the mounted volume or adding it to the image).
+* `--fromSavepoint /path/to/savepoint` (可选)： 从保存点还原
 
-* `--allowNonRestoredState` (optional): Skip broken savepoint state
+  为了从保存点恢复，还需要传递保存点路径。
+  请注意，需要保证集群中的所有 Docker 容器均可以访问 `/path/to/savepoint` 路径(例如，将其存储在 DFS 或挂载卷中或将其添加到镜像中)。
 
-  Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
+* `--allowNonRestoredState` (可选)： 跳过损坏的保存点状态
 
-If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
+  你可以指定该参数以允许跳过无法恢复的保存点状态。
 
-## Customize Flink image
+如果用户作业主类的主函数需要传递参数，你也可以追加在 `docker run` 命令后面。
 
-When you run the Flink containers, there may be a need to customize them.
-The next chapters describe some how-tos of what you can usually customize.
+## 自定义 Flink 镜像
 
-### Configure options
+运行 Flink 容器时，可能需要自定义它们。下一章将介绍一些可以自定义的方法。
 
-When you run Flink image, you can also change its configuration options by setting the environment variable `FLINK_PROPERTIES`:
+### 配置选项
+
+运行 Flink 镜像时，还可以通过设置环境变量 `FLINK_PROPERTIES` 来更改其配置选项:
 
 ```sh
 FLINK_PROPERTIES="jobmanager.rpc.address: host
@@ -220,17 +219,16 @@ blob.server.port: 6124
 docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
 
-The [`jobmanager.rpc.address`](../config.html#jobmanager-rpc-address) option must be configured, others are optional to set.
+必须配置 [`jobmanager.rpc.address`](../config.html#jobmanager-rpc-address) 选项，其他为可选配置。
 
-The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
-the same way as in the `flink-conf.yaml`. `FLINK_PROPERTIES` takes precedence over configurations in `flink-conf.yaml`.
+和 `flink-conf.yaml` 类似，环境变量 `FLINK_PROPERTIES` 需要包含 Flink 集群的配置选项列表，并以换行符分隔。`FLINK_PROPERTIES` 中的配置优先于 `flink-conf.yaml`。
 
-### Provide custom configuration
+### 提供自定义配置
 
-The configuration files (`flink-conf.yaml`, logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
-To provide a custom location for the Flink configuration files, you can
+配置文件(`flink-conf.yaml`、logging、hosts 等)位于 Flink 镜像的 `/opt/flink/conf` 目录下。
+若要为 Flink 配置文件提供自定义的位置，则可以
 
-* **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
+* 运行 Flink 镜像时，将含有自定义配置文件的**卷挂载**到 `/opt/flink/conf` 目录下:
 
     ```sh
     docker run \
@@ -238,7 +236,7 @@ To provide a custom location for the Flink configuration files, you can
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
     ```
 
-* or add them to your **custom Flink image**, build and run it:
+* 或者将它们添加到你的**自定义 Flink 镜像**中，构建并运行它:
 
     *Dockerfile*:
 
@@ -248,16 +246,15 @@ To provide a custom location for the Flink configuration files, you can
     ADD /host/path/to/log4j.properties /opt/flink/conf/log4j.properties
     ```
 
-<span class="label label-warning">Warning!</span> The mounted volume must contain all necessary configuration files.
-The `flink-conf.yaml` file must have write permission so that the Docker entry point script can modify it in certain cases.
+<span class="label label-warning">警告!</span> 挂载卷需要包含所有必需的配置文件。
+`flink-conf.yaml` 必须具有写权限，以便 Docker entry point 脚本可以在某些情况下对其进行修改。
 
-### Using plugins
+### 使用插件
 
-As described in the [plugins]({{ site.baseurl }}/ops/plugins.html) documentation page: in order to use plugins they must be
-copied to the correct location in the Flink installation in the Docker container for them to work.
+如 [plugins]({{ site.baseurl }}/zh/ops/plugins.html) 文档中所述：为了使用插件，必须将它们复制到 Docker 容器中 Flink 安装目录下的正确位置才能起作用。
 
-If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.
-The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{site.version}}.jar`
+如果要启用 Flink 自带的插件(在 Flink 发行版的 `opt/` 目录下)，则可以在运行 Flink 镜像时传递环境变量 `ENABLE_BUILT_IN_PLUGINS`。
+`ENABLE_BUILT_IN_PLUGINS` 应包含一个以 `;` 分隔的插件列表。举一个有效的插件样例如 `flink-s3-fs-hadoop-{{site.version}}.jar`。
 
 ```sh
     docker run \
@@ -265,28 +262,29 @@ The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names sep
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
 
-There are also more [advanced ways](#advanced-customization) for customizing the Flink image.
+还有更多更[高级的方法](#advanced-customization)来定制 Flink 镜像。
 
-### Advanced customization
+<a name="advanced-customization"></a>
 
-There are several ways in which you can further customize the Flink image:
+### 高级定制
 
-* install custom software (e.g. python)
-* enable (symlink) optional libraries or plugins from `/opt/flink/opt` into `/opt/flink/lib` or `/opt/flink/plugins`
-* add other libraries to `/opt/flink/lib` (e.g. Hadoop)
-* add other plugins to `/opt/flink/plugins`
+你可以通过下述方法进一步自定义 Flink 图像:
 
-See also: [How to provide dependencies in the classpath]({% link index.zh.md %}#how-to-provide-dependencies-in-the-classpath).
+* 安装自定义软件(例如 python)
+* 从 `/opt/flink/opt` 启用(符号链接)可选库或插件到 `/opt/flink/lib` 或 `/opt/flink/plugins`
+* 将其他库添加到 `/opt/flink/lib` 目录下(例如 Hadoop)
+* 将其他插件添加到 `/opt/flink/plugins` 目录下
 
-You can customize the Flink image in several ways:
+也可以参阅: [如何在类路径中添加依赖项]({% link index.zh.md %}#how-to-provide-dependencies-in-the-classpath).
 
-* **override the container entry point** with a custom script where you can run any bootstrap actions.
-At the end you can call the standard `/docker-entrypoint.sh` script of the Flink image with the same arguments
-as described in [how to run the Flink image](#how-to-run-flink-image).
+可以通过下述方式自定义 Flink 镜像:
 
-  The following example creates a custom entry point script which enables more libraries and plugins.
-  The custom script, custom library and plugin are provided from a mounted volume.
-  Then it runs the standard entry point script of the Flink image:
+* 你可以使用自定义脚本**覆盖容器的 entry point**，然后在其中运行任何的引导操作。
+最后，使用[如何运行 Flink 镜像](#how-to-run-a-flink-image)中所述的相同的参数，调用 Flink 镜像标准的 `/docker-entrypoint.sh` 脚本。
+
+  以下示例创建了一个自定义 entry point 脚本，该脚本启用了更多的库和插件。
+  自定义脚本、自定义库和自定义插件均是已挂载的卷提供的。
+  然后该自定义脚本会运行 Flink 镜像的标准 entry point 脚本:
 
     ```sh
     # create custom_lib.jar
@@ -312,7 +310,7 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
         flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} /mnt/custom_entry_point_script.sh
     ```
 
-* **extend the Flink image** by writing a custom `Dockerfile` and build a custom image:
+* 通过编写自定义 `Dockerfile` 文件来**扩展 Flink 镜像**，并构建自定义镜像:
 
     *Dockerfile*:
 
@@ -332,7 +330,7 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
     ENV VAR_NAME value
     ```
 
-    **Commands for building**:
+    **打包命令**:
 
     ```sh
     docker build -t custom_flink_image .
@@ -343,64 +341,65 @@ as described in [how to run the Flink image](#how-to-run-flink-image).
 
 {% top %}
 
-## Flink with Docker Compose
+<a name="flink-with-docker-compose"></a>
 
-[Docker Compose](https://docs.docker.com/compose/) is a way to run a group of Docker containers locally.
-The next chapters show examples of configuration files to run Flink.
+## Flink 和 Docker Compose
 
-### Usage
+[Docker Compose](https://docs.docker.com/compose/) 是一种在本地运行一组 Docker 容器的方法。
+下一章将展示用于运行 Flink 的配置文件示例。
 
-* Create the `yaml` files with the container configuration, check examples for:
-    * [Session cluster](#session-cluster-with-docker-compose)
-    * [Job cluster](#job-cluster-with-docker-compose)
+### 用法
 
-    See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization)
-    for usage in the configuration files.
+* 使用容器配置创建 `yaml` 文件，请查看以下示例:
+    * [Session 集群](#session-cluster-with-docker-compose)
+    * [Job 集群](#job-cluster-with-docker-compose)
 
-* Launch a cluster in the foreground
+    也可以参阅 [Flink Docker 镜像标记](#image-tags) 和 [如何自定义 Flink Docker 镜像](#advanced-customization)获取在配置文件中的用法。
+
+* 在前台启动集群
 
     ```sh
     docker-compose up
     ```
 
-* Launch a cluster in the background
+* 在后台启动集群
 
     ```sh
     docker-compose up -d
     ```
 
-* Scale the cluster up or down to *N TaskManagers*
+* 将集群向上或向下扩展到 *N TaskManagers*
 
     ```sh
     docker-compose scale taskmanager=<N>
     ```
 
-* Access the *JobManager* container
+* 访问 *JobManager* 容器
 
     ```sh
     docker exec -it $(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}) /bin/sh
     ```
 
-* Kill the cluster
+* 杀掉集群
 
     ```sh
     docker-compose kill
     ```
 
-* Access Web UI
+* 访问 Web UI
 
-    When the cluster is running, you can visit the web UI at [http://localhost:8081](http://localhost:8081).
-    You can also use the web UI to submit a job to a *Session cluster*.
+    当集群运行时，你可以访问 [http://localhost:8081](http://localhost:8081) 上的 Web UI。
+    还可以使用 Web UI 提交一个作业到 *Session 集群*。
 
-* To submit a job to a *Session cluster* via the command line, you can either
+* 要通过命令行提交作业到 *Session 集群*，你可以
 
-  * use [Flink CLI](..//cli.html) on the host if it is installed:
+  * 若主机上已安装 [Flink CLI](..//cli.html)，则通过:
 
     ```sh
     flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-  * or copy the JAR to the *JobManager* container and submit the job using the [CLI](..//cli.html) from there, for example:
+  * 或者将 JAR 复制到 *JobManager* 容器，然后使用 [CLI](..//cli.html) 从此处提交作业，例如:
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"
@@ -409,7 +408,9 @@ The next chapters show examples of configuration files to run Flink.
     docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-### Session Cluster with Docker Compose
+<a name="session-cluster-with-docker-compose"></a>
+
+### Session 集群和 Docker Compose
 
 **docker-compose.yml:**
 
@@ -439,11 +440,12 @@ services:
         taskmanager.numberOfTaskSlots: 2
 ```
 
-### Job Cluster with Docker Compose
+<a name="job-cluster-with-docker-compose"></a>
 
-The artifacts must be available in the Flink containers, check details [here](#start-a-job-cluster).
-See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
-in the `command` for the `jobmanager` service.
+### Job 集群和 Docker Compose
+
+插件必须在 Flink 容器中可用，在[此处](#start-a-job-cluster)查看详细消息。
+也可以参阅[如何指定 JobManager 参数](#jobmanager-additional-command-line-arguments)获取如何配置 `jobmanager` 服务的`命令行`。
 
 **docker-compose.yml:**
 
@@ -481,19 +483,22 @@ services:
 
 {% top %}
 
-## Flink with Docker Swarm
+<a name="flink-with-docker-swarm"></a>
 
-The [Docker swarm](https://docs.docker.com/engine/swarm) is a container orchestration tool, that
-allows you to manage multiple containers deployed across multiple host machines.
+## Flink 和 Docker Swarm
 
-The following chapters contain examples of how to configure and start *JobManager* and *TaskManager* containers.
-You can adjust them accordingly to start a cluster.
-See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization) for usage in the provided scripts.
+[Docker swarm](https://docs.docker.com/engine/swarm) 是一个容器编排工具，允许你跨多个主机部署并管理多个容器。
 
-The port `8081` is exposed for the Flink Web UI access.
-If you run the swarm locally, you can visit the web UI at [http://localhost:8081](http://localhost:8081) after starting the cluster.
+下面章节包含有关如何配置和启动 *JobManager* 和 *TaskManager* 的示例。
+你可以相应的调整它们来启动集群。
+也可以参阅[Flink Docker 镜像标记](#image-tags) 和 [如何自定义 Flink Docker 镜像](#advanced-customization)获取在配置文件中的用法。
 
-### Session Cluster with Docker Swarm
+`8081` 端口被暴露出来以供 Flink Web UI 访问。
+如果你在本地运行 swarm，你可以在启动集群后，在 [http://localhost:8081](http://localhost:8081) 上访问 Web UI。
+
+<a name="session-cluster-with-docker-swarm"></a>
+
+### Session 集群和 Docker Swarm
 
 ```sh
 FLINK_PROPERTIES="jobmanager.rpc.address: flink-session-jobmanager
@@ -522,7 +527,7 @@ docker service create \
     taskmanager
 ```
 
-### Job Cluster with Docker Swarm
+### Job 集群和 Docker Swarm
 
 ```sh
 FLINK_PROPERTIES="jobmanager.rpc.address: flink-jobmanager
@@ -557,11 +562,10 @@ docker service create \
     taskmanager
 ```
 
-The *job artifacts* must be available in the *JobManager* container, as outlined [here](#start-a-job-cluster).
-See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments) to pass them
-to the `flink-jobmanager` container.
+如[此处](#start-a-job-cluster)所述，*作业插件*必须在 *JobManager* 容器中可用。
+也可以参阅[如何指定 JobManager 参数](#jobmanager-additional-command-line-arguments)，并将其传递给 `flink-jobmanager` 容器。
 
-The example assumes that you run the swarm locally and expects the *job artifacts* to be in `/host/path/to/job/artifacts`.
-It also mounts the host path with the artifacts as a volume to the container's path `/opt/flink/usrlib`.
+该示例假定你在本地运行 swarm，且*作业插件*位于 `/host/path/to/job/artifacts` 目录下。
+同时将带有插件的主机路径作为卷挂载到容器的 `/opt/flink/usrlib` 目录下。
 
 {% top %}
