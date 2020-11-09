@@ -236,6 +236,17 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		splitFetcherManager.close(options.sourceReaderCloseTimeout);
 	}
 
+	/**
+	 * Gets the number of splits the reads has currently assigned.
+	 *
+	 * <p>These are the splits that have been added via {@link #addSplits(List)} and have not
+	 * yet been finished by returning them from the {@link SplitReader#fetch()} as part of
+	 * {@link RecordsWithSplitIds#finishedSplits()}.
+	 */
+	public int getNumberOfCurrentlyAssignedSplits() {
+		return splitStates.size();
+	}
+
 	// -------------------- Abstract method to allow different implementations ------------------
 	/**
 	 * Handles the finished splits to clean the state if needed.

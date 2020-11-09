@@ -47,7 +47,10 @@ public final class FileSourceReader<T, SplitT extends FileSourceSplit>
 
 	@Override
 	public void start() {
-		context.sendSplitRequest();
+		// we request a split only if we did not get splits during the checkpoint restore
+		if (getNumberOfCurrentlyAssignedSplits() == 0) {
+			context.sendSplitRequest();
+		}
 	}
 
 	@Override
