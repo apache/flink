@@ -106,6 +106,8 @@ import static org.mockito.Mockito.when;
  */
 public class RemoteInputChannelTest {
 
+	public static final long CHECKPOINT_ID = 1L;
+
 	@Test
 	public void testExceptionOnReordering() throws Exception {
 		// Setup
@@ -1178,7 +1180,7 @@ public class RemoteInputChannelTest {
 			sendBuffer(channel, sequenceNumber++, bufferSize++);
 			assertThat(
 				"For starting sequence " + startingSequence,
-				toBufferSizes(channel.getInflightBuffers()),
+				toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)),
 				contains(1, 2));
 		}
 	}
@@ -1253,7 +1255,7 @@ public class RemoteInputChannelTest {
 	}
 
 	private void assertInflightBufferSizes(RemoteInputChannel channel, Integer ...bufferSizes) {
-		assertEquals(Arrays.asList(bufferSizes), toBufferSizes(channel.getInflightBuffers()));
+		assertEquals(Arrays.asList(bufferSizes), toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)));
 	}
 
 	private void assertGetNextBufferSequenceNumbers(RemoteInputChannel channel, Integer ...sequenceNumbers) throws IOException {

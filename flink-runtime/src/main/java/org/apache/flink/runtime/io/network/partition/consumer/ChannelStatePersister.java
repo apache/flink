@@ -30,6 +30,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -87,16 +88,16 @@ final class ChannelStatePersister {
 		}
 	}
 
-	protected boolean checkForBarrier(Buffer buffer) throws IOException {
+	protected Optional<Long> checkForBarrier(Buffer buffer) throws IOException {
 		final AbstractEvent priorityEvent = parsePriorityEvent(buffer);
 		if (priorityEvent instanceof CheckpointBarrier) {
 			if (((CheckpointBarrier) priorityEvent).getId() >= lastSeenBarrier) {
 				checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
 				lastSeenBarrier = ((CheckpointBarrier) priorityEvent).getId();
-				return true;
+				return Optional.of(lastSeenBarrier);
 			}
 		}
-		return false;
+		return Optional.empty();
 	}
 
 	/**
