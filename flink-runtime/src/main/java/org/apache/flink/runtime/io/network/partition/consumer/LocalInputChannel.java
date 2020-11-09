@@ -229,11 +229,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();
-		if (buffer.getDataType().hasPriority()) {
-			channelStatePersister.checkForBarrier(buffer);
-		} else {
-			channelStatePersister.maybePersist(buffer);
-		}
+		channelStatePersister.checkForBarrier(buffer);
+		channelStatePersister.maybePersist(buffer);
 		return Optional.of(new BufferAndAvailability(
 			buffer,
 			next.getNextDataType(),
