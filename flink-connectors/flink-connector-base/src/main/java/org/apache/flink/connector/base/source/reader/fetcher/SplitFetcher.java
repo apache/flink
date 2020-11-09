@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * The internal fetcher runnable responsible for polling message from the external system.
@@ -47,6 +47,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final Map<String, SplitT> assignedSplits;
 	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 	private final SplitReader<E, SplitT> splitReader;
+	private final Consumer<Throwable> errorHandler;
 	private final Runnable shutdownHook;
 	private final AtomicBoolean wakeUp;
 	private final AtomicBoolean closed;
@@ -62,6 +63,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 			int id,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			SplitReader<E, SplitT> splitReader,
+			Consumer<Throwable> errorHandler,
 			Runnable shutdownHook) {
 
 		this.id = id;
@@ -69,6 +71,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 		this.elementsQueue = elementsQueue;
 		this.assignedSplits = new HashMap<>();
 		this.splitReader = splitReader;
+		this.errorHandler = errorHandler;
 		this.shutdownHook = shutdownHook;
 		this.isIdle = true;
 		this.wakeUp = new AtomicBoolean(false);
@@ -91,14 +94,19 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 			while (!closed.get()) {
 				runOnce();
 			}
+		} catch (Throwable t) {
+			errorHandler.accept(t);
 		} finally {
-			LOG.info("Split fetcher {} exited.", id);
-			shutdownHook.run();
 			try {
 				splitReader.close();
 			} catch (Exception e) {
-				ExceptionUtils.rethrow(e);
+				errorHandler.accept(e);
 			}
+			LOG.info("Split fetcher {} exited.", id);
+			// This executes after possible errorHandler.accept(t). If these operations bear
+			// a happens-before relation, then we can checking side effect of errorHandler.accept(t)
+			// to know whether it happened after observing side effect of shutdownHook.run().
+			shutdownHook.run();
 		}
 	}
 
