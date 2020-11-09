@@ -228,16 +228,7 @@ public class ParquetSchemaConverter {
 							// If the repeated field is a group with multiple fields, then its type is the element
 							// type and elements are required.
 							if (elementType.getFieldCount() > 1) {
-
-								for (Type type : elementType.getFields()) {
-									if (!type.isRepetition(Type.Repetition.REQUIRED)) {
-										throw new UnsupportedOperationException(
-											String.format("List field [%s] in List [%s] has to be required. ",
-												type.toString(), fieldType.getName()));
-									}
-								}
-								typeInfo = ObjectArrayTypeInfo.getInfoFor(
-									convertParquetTypeToTypeInfo(elementType));
+								typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, elementType);
 							} else {
 								Type internalType = elementType.getType(0);
 								if (internalType.isPrimitive()) {
@@ -250,9 +241,7 @@ public class ParquetSchemaConverter {
 										typeInfo = ObjectArrayTypeInfo.getInfoFor(
 											convertParquetTypeToTypeInfo(internalType));
 									} else {
-										throw new UnsupportedOperationException(
-											String.format("Unrecgonized List schema [%s] according to Parquet"
-												+ " standard", parquetGroupType.toString()));
+										typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, tupleGroup);
 									}
 								}
 							}
@@ -304,6 +293,18 @@ public class ParquetSchemaConverter {
 		}
 
 		return typeInfo;
+	}
+
+	private static ObjectArrayTypeInfo convertGroupElementToArrayTypeInfo(GroupType arrayFieldType, GroupType elementType) {
+		for (Type type : elementType.getFields()) {
+			if (!type.isRepetition(Type.Repetition.REQUIRED)) {
+				throw new UnsupportedOperationException(
+					String.format("List field [%s] in List [%s] has to be required. ",
+						type.toString(), arrayFieldType.getName()));
+			}
+		}
+		return ObjectArrayTypeInfo.getInfoFor(
+			convertParquetTypeToTypeInfo(elementType));
 	}
 
 	private static TypeInformation<?> convertParquetPrimitiveListToFlinkArray(Type type) {
