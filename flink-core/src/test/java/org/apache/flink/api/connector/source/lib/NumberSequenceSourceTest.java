@@ -18,13 +18,20 @@
 
 package org.apache.flink.api.connector.source.lib;
 
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.mocks.TestingReaderContext;
-import org.apache.flink.api.connector.source.mocks.TestingReaderOutput;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -86,6 +93,79 @@ public class NumberSequenceSourceTest {
 
 	private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {
 		// the arguments passed in the source constructor matter only to the enumerator
-		return new NumberSequenceSource(0L, 0L).createReader(new TestingReaderContext());
+		return new NumberSequenceSource(0L, 0L).createReader(new DummyReaderContext());
+	}
+
+	// ------------------------------------------------------------------------
+	//  test utils / mocks
+	//
+	//  the "flink-connector-test-utils module has proper mocks and utils,
+	//  but cannot be used here, because it would create a cyclic dependency.
+	// ------------------------------------------------------------------------
+
+	private static final class DummyReaderContext implements SourceReaderContext {
+
+		@Override
+		public MetricGroup metricGroup() {
+			return new UnregisteredMetricsGroup();
+		}
+
+		@Override
+		public Configuration getConfiguration() {
+			return new Configuration();
+		}
+
+		@Override
+		public String getLocalHostName() {
+			return "localhost";
+		}
+
+		@Override
+		public int getIndexOfSubtask() {
+			return 0;
+		}
+
+		@Override
+		public void sendSplitRequest() {}
+
+		@Override
+		public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
+	}
+
+	private static final class TestingReaderOutput<E> implements ReaderOutput<E> {
+
+		private final ArrayList<E> emittedRecords = new ArrayList<>();
+
+		@Override
+		public void collect(E record) {
+			emittedRecords.add(record);
+		}
+
+		@Override
+		public void collect(E record, long timestamp) {
+			collect(record);
+		}
+
+		@Override
+		public void emitWatermark(Watermark watermark) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void markIdle() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public SourceOutput<E> createOutputForSplit(String splitId) {
+			return this;
+		}
+
+		@Override
+		public void releaseOutputForSplit(String splitId) {}
+
+		public ArrayList<E> getEmittedRecords() {
+			return emittedRecords;
+		}
 	}
 }

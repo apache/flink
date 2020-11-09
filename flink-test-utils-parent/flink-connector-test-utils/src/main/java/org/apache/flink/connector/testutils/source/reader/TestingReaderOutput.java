@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.source.mocks;
+package org.apache.flink.connector.testutils.source.reader;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
