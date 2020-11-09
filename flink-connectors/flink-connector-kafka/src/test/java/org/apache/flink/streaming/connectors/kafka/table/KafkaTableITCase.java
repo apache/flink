@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
@@ -555,6 +557,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
 		tEnv.executeSql(createTable);
 
+		// make every partition have more than one record
 		String initialValues = "INSERT INTO kafka\n"
 				+ "VALUES\n"
 				+ " (0, 'partition-0-name-0', TIMESTAMP '2020-03-08 13:12:11.123'),\n"
@@ -564,10 +567,18 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 				+ " (1, 'partition-1-name-1', TIMESTAMP '2020-03-09 15:13:11.133'),\n"
 				+ " (1, 'partition-1-name-2', TIMESTAMP '2020-03-09 16:13:11.143'),\n"
 				+ " (2, 'partition-2-name-0', TIMESTAMP '2020-03-10 13:12:14.123'),\n"
-				+ " (3, 'partition-3-name-0', TIMESTAMP '2020-03-11 17:12:11.123')\n";
+				+ " (2, 'partition-2-name-1', TIMESTAMP '2020-03-10 14:12:14.123'),\n"
+				+ " (2, 'partition-2-name-2', TIMESTAMP '2020-03-10 14:13:14.123'),\n"
+				+ " (2, 'partition-2-name-3', TIMESTAMP '2020-03-10 14:14:14.123'),\n"
+				+ " (2, 'partition-2-name-4', TIMESTAMP '2020-03-10 14:15:14.123'),\n"
+				+ " (2, 'partition-2-name-5', TIMESTAMP '2020-03-10 14:16:14.123'),\n"
+				+ " (3, 'partition-3-name-0', TIMESTAMP '2020-03-11 17:12:11.123'),\n"
+				+ " (3, 'partition-3-name-1', TIMESTAMP '2020-03-11 18:12:11.123')";
 		tEnv.executeSql(initialValues).await();
 
 		// ---------- Consume stream from Kafka -------------------
+
+		env.setParallelism(1);
 		String createSink =
 				"CREATE TABLE MySink(\n"
 						+ "  id INT,\n"
@@ -579,7 +590,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						+ "  'sink.drop-late-event' = 'true'\n"
 						+ ")";
 		tEnv.executeSql(createSink);
-		tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
+		TableResult tableResult = tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
 		final List<String> expected = Arrays.asList(
 			"0,partition-0-name-0,2020-03-08T13:12:11.123",
 			"0,partition-0-name-1,2020-03-08T14:12:12.223",
@@ -588,12 +599,19 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 			"1,partition-1-name-1,2020-03-09T15:13:11.133",
 			"1,partition-1-name-2,2020-03-09T16:13:11.143",
 			"2,partition-2-name-0,2020-03-10T13:12:14.123",
-			"3,partition-3-name-0,2020-03-11T17:12:11.123"
+			"2,partition-2-name-1,2020-03-10T14:12:14.123",
+			"2,partition-2-name-2,2020-03-10T14:13:14.123",
+			"2,partition-2-name-3,2020-03-10T14:14:14.123",
+			"2,partition-2-name-4,2020-03-10T14:15:14.123",
+			"2,partition-2-name-5,2020-03-10T14:16:14.123",
+			"3,partition-3-name-0,2020-03-11T17:12:11.123",
+			"3,partition-3-name-1,2020-03-11T18:12:11.123"
 		);
 		KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
 
 		// ------------- cleanup -------------------
 
+		tableResult.getJobClient().ifPresent(JobClient::cancel);
 		deleteTestTopic(topic);
 	}
 

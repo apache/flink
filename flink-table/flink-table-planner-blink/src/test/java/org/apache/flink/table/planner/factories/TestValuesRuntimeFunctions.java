@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
@@ -53,7 +54,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -318,9 +318,9 @@ final class TestValuesRuntimeFunctions {
 				Row row = (Row) converter.toExternal(value);
 				assert row != null;
 				if (rowtimeIndex >= 0) {
-					LocalDateTime rowtime = (LocalDateTime) row.getField(rowtimeIndex);
+					TimestampData rowtime = TimestampData.fromLocalDateTime((LocalDateTime) row.getField(rowtimeIndex));
 					long mark = context.currentWatermark();
-					if (rowtime == null || mark > rowtime.toEpochSecond(ZoneOffset.UTC)) {
+					if (mark > rowtime.getMillisecond()) {
 						// discard the late data
 						return;
 					}
