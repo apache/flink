@@ -86,7 +86,11 @@ final class FileSourceSplitReader<T, SplitT extends FileSourceSplit> implements 
 	public void wakeUp() {}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() throws Exception {
+		if (currentReader != null) {
+			currentReader.close();
+		}
+	}
 
 	private void checkSplitOrStartNext() throws IOException {
 		if (currentReader != null) {
