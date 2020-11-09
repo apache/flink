@@ -44,7 +44,8 @@ public final class GlobalConfiguration {
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
 	// the keys whose values should be hidden
-	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret", "fs.azure.account.key"};
+	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret", 
+		"fs.azure.account.key", "metrics.reporter.dghttp.apikey"};
 
 	// the hidden content to be displayed
 	public static final String HIDDEN_CONTENT = "******";
