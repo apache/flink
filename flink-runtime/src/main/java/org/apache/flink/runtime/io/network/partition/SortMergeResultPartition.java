@@ -317,7 +317,6 @@ public class SortMergeResultPartition extends ResultPartition {
 				availabilityListener,
 				resultFile);
 			readers.add(reader);
-			availabilityListener.notifyDataAvailable();
 
 			return reader;
 		}
