@@ -973,13 +973,20 @@ object ScalarOperatorGens {
     case (ARRAY, VARCHAR | CHAR) =>
       generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
 
+    // Array -> Array
+    case (ARRAY, ARRAY) =>
+      generateCastArrayToArray(
+        ctx,
+        operand,
+        operand.resultType.asInstanceOf[ArrayType],
+        targetType.asInstanceOf[ArrayType])
+
     // Byte array -> String UTF-8
     case (BINARY | VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
       }
-
 
     // Map -> String
     case (MAP, VARCHAR | CHAR) =>
@@ -1983,6 +1990,59 @@ object ScalarOperatorGens {
              |$builderTerm.append("]");
              """.stripMargin
         (stmt, s"$builderTerm.toString()")
+    }
+
+  private def generateCastArrayToArray(
+      ctx: CodeGeneratorContext,
+      operand: GeneratedExpression,
+      sourceType: ArrayType,
+      targetType: ArrayType): GeneratedExpression =
+    generateCallWithStmtIfArgsNotNull(ctx, targetType, Seq(operand)) {
+      args =>
+        val sourceArrayTerm = args(0)
+        val sourceElementType = sourceType.getElementType
+        val targetElementType = targetType.getElementType
+        if (isInteroperable(sourceType, targetType)) {
+          (operand.code, sourceArrayTerm)
+        } else {
+
+          val sourceElementClass = boxedTypeTermForType(sourceElementType)
+          val targetElementClass = boxedTypeTermForType(targetElementType)
+
+          val resultTerm = newName("castResult")
+          val resultElementTerm = newName("castElementTerm")
+          val arrayLength = newName("arrayLength")
+          val indexTerm = newName("i")
+
+          val sourceElement = newName("sourceElement")
+          val sourceElementNullTerm = newName("sourceElementIsNull")
+          val sourceElementCode =
+            s"""
+               |$sourceElementClass $sourceElement =  ${primitiveDefaultValue(sourceElementType)};
+               |boolean $sourceElementNullTerm = $sourceArrayTerm.isNullAt($indexTerm);
+               |if (!$sourceElementNullTerm) {
+               |   $sourceElement =
+               |   ${rowFieldReadAccess(ctx, indexTerm, sourceArrayTerm, sourceElementType)};
+               |}
+             """.stripMargin
+          val sourceElementExpr =
+            GeneratedExpression(sourceElement, sourceElementNullTerm, sourceElementCode, sourceElementType)
+          val elementCastExpr = generateCast(ctx, sourceElementExpr, targetElementType)
+
+          val stmt =
+            s"""
+               |final int $arrayLength = $sourceArrayTerm.size();
+               |$targetElementClass[] $resultElementTerm = new $targetElementClass[$arrayLength];
+               |for (int $indexTerm = 0; $indexTerm < $arrayLength; $indexTerm++) {
+               |   ${elementCastExpr.code};
+               |   if (!${elementCastExpr.nullTerm}) {
+               |     $resultElementTerm[$indexTerm] = ${elementCastExpr.resultTerm};
+               |   }
+               |}
+               |$GENERIC_ARRAY $resultTerm = new $GENERIC_ARRAY($resultElementTerm);
+             """.stripMargin
+          (stmt, resultTerm)
+        }
     }
 
   private def generateCastMapToString(

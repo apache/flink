@@ -29,6 +29,7 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 
@@ -40,6 +41,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 	@Parameterized.Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
+			// Row -> Row
 			TestSpec
 				.forFunction(BuiltInFunctionDefinitions.CAST, "implicit with different field names")
 				.onFieldsWithData(Row.of(12, "Hello"))
@@ -113,7 +115,39 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 						)
 					),
 					Row.of(Row.of("12", true, null), "Hello"),
-					DataTypes.of("ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>"))
+					DataTypes.of("ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
+
+			// array -> array
+			TestSpec
+				.forFunction(BuiltInFunctionDefinitions.CAST, "implicit with nested type widening")
+				.onFieldsWithData(Arrays.asList(new Integer[]{1, 2, 3}, new Integer[]{4, 5, 6}))
+				.andDataTypes(ARRAY(ARRAY(DataTypes.INT())))
+				.withFunction(NestedArrayToFirstField.class)
+				.testResult(
+					call("NestedArrayToFirstField", $("f0")),
+					"NestedArrayToFirstField(f0)",
+					new Double[]{1.0, 2.0, 3.0},
+					ARRAY(DataTypes.DOUBLE())),
+
+			TestSpec
+				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with array")
+				.onFieldsWithData(Arrays.asList(1, 2, null, 3))
+				.andDataTypes(ARRAY(DataTypes.BIGINT()))
+				.testResult(
+					$("f0").cast(ARRAY(DataTypes.INT())),
+					"CAST(f0 AS ARRAY<INT>)",
+					new Integer[]{1, 2, null, 3},
+					ARRAY(DataTypes.INT())),
+
+			TestSpec
+				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with nested array")
+				.onFieldsWithData(Arrays.asList(new Integer[]{1, 2, 3}, new Integer[]{4, null, 6}))
+				.andDataTypes(ARRAY(ARRAY(DataTypes.BIGINT())))
+				.testResult(
+					$("f0").cast(ARRAY(ARRAY(DataTypes.TINYINT()))),
+					"CAST(f0 AS ARRAY<ARRAY<TINYINT>>)",
+					new Byte[][]{new Byte[]{1, 2, 3}, new Byte[]{4, null, 6}},
+					ARRAY(ARRAY(DataTypes.TINYINT())))
 		);
 	}
 
@@ -139,6 +173,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 			assert row.getField(0) instanceof Row;
 			assert row.getField(1) instanceof String;
 			return (Row) row.getField(0);
+		}
+	}
+
+	/**
+	 * Function that return the first field of the nested input array.
+	 */
+	public static class NestedArrayToFirstField extends ScalarFunction {
+		public @DataTypeHint("ARRAY<DOUBLE>") Double[] eval(
+			@DataTypeHint("ARRAY<ARRAY<DOUBLE>>") Double[][] array) {
+			assert array[0][0] instanceof Double;
+			return array[0];
 		}
 	}
 }

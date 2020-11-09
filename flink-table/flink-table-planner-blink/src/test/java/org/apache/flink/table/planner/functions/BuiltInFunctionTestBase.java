@@ -181,7 +181,7 @@ public abstract class BuiltInFunctionTestBase {
 			expectedDataType.getLogicalType(),
 			result.getTableSchema().getFieldDataTypes()[0].getLogicalType());
 
-		assertEquals("Result doesn't match.", testItem.result, row.getField(0));
+		assertEquals("Result doesn't match.", Row.of(testItem.result), row);
 	}
 
 	/**
