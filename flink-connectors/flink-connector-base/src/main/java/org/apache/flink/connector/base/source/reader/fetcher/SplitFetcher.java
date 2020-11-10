@@ -26,6 +26,8 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +56,12 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final FetchTask<E, SplitT> fetchTask;
 	private volatile SplitFetcherTask runningTask = null;
 
+	private final Object lock = new Object();
+
 	/** Flag whether this fetcher has no work assigned at the moment.
 	 * Fetcher that have work (a split) assigned but are currently blocked (for example enqueueing
 	 * a fetch and hitting the element queue limit) are NOT considered idle. */
+	@GuardedBy("lock")
 	private volatile boolean isIdle;
 
 	SplitFetcher(
@@ -157,14 +162,15 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * @param splitsToAdd the splits to add.
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
-		isIdle = false; // in case we were idle before
 		enqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		wakeUp(true);
 	}
 
 	public void enqueueTask(SplitFetcherTask task) {
-		isIdle = false;
-		taskQueue.offer(task);
+		synchronized (lock) {
+			taskQueue.offer(task);
+			isIdle = false;
+		}
 	}
 
 	public SplitReader<E, SplitT> getSplitReader() {
@@ -286,14 +292,21 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	}
 
 	private void checkAndSetIdle() {
-		final boolean nowIdle = assignedSplits.isEmpty() && taskQueue.isEmpty();
-		if (nowIdle) {
-			isIdle = true;
+		if (shouldIdle()) {
+			synchronized (lock) {
+				if (shouldIdle()) {
+					isIdle = true;
+				}
+			}
 
 			// because the method might get invoked past the point when the source reader last checked
 			// the elements queue, we need to notify availability in the case when we become idle
 			elementsQueue.notifyAvailable();
 		}
+	}
+
+	private boolean shouldIdle() {
+		return assignedSplits.isEmpty() && taskQueue.isEmpty();
 	}
 
 	//--------------------- Helper class ------------------
