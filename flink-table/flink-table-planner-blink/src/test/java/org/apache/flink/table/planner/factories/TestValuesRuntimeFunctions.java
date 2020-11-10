@@ -53,7 +53,6 @@ import org.apache.flink.types.RowKind;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -310,7 +309,6 @@ final class TestValuesRuntimeFunctions {
 			this.rowtimeIndex = rowtimeIndex;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
 		public void invoke(RowData value, Context context) throws Exception {
 			RowKind kind = value.getRowKind();
@@ -318,7 +316,8 @@ final class TestValuesRuntimeFunctions {
 				Row row = (Row) converter.toExternal(value);
 				assert row != null;
 				if (rowtimeIndex >= 0) {
-					TimestampData rowtime = TimestampData.fromLocalDateTime((LocalDateTime) row.getField(rowtimeIndex));
+					// currently, rowtime attribute always uses 3 precision
+					TimestampData rowtime = value.getTimestamp(rowtimeIndex, 3);
 					long mark = context.currentWatermark();
 					if (mark > rowtime.getMillisecond()) {
 						// discard the late data
