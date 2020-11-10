@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.topology.BaseTopology;
 import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Vertex;
 
@@ -45,20 +44,18 @@ public final class PipelinedRegionComputeUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
 	public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Set<Set<V>> computePipelinedRegions(
-			final BaseTopology<?, ?, V, R> topology) {
-
-		final Map<V, Set<V>> vertexToRegion = buildRawRegions(topology);
-
+			final Iterable<? extends V> topologicallySortedVertexes) {
+		final Map<V, Set<V>> vertexToRegion = buildRawRegions(topologicallySortedVertexes);
 		return mergeRegionsOnCycles(vertexToRegion);
 	}
 
 	private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Map<V, Set<V>> buildRawRegions(
-			final BaseTopology<?, ?, V, R> topology) {
+			final Iterable<? extends V> topologicallySortedVertexes) {
 
 		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
-		for (V vertex : topology.getVertices()) {
+		for (V vertex : topologicallySortedVertexes) {
 			Set<V> currentRegion = new HashSet<>();
 			currentRegion.add(vertex);
 			vertexToRegion.put(vertex, currentRegion);
