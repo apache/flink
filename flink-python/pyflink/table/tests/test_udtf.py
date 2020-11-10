@@ -114,7 +114,6 @@ class MultiEmit(TableFunction, unittest.TestCase):
     def eval(self, x, y):
         self.counter.inc(y)
         self.counter_sum += y
-        self.assertEqual(self.counter_sum, self.counter.get_count())
         for i in range(y):
             yield x, i
 

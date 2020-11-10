@@ -781,7 +781,6 @@ class Subtract(ScalarFunction, unittest.TestCase):
         # counter
         self.counter.inc(i)
         self.counter_sum += i
-        self.assertEqual(self.counter_sum, self.counter.get_count())
         return i - self.subtracted_value
 
 
