@@ -92,6 +92,8 @@ class TableConversions(table: Table) {
     */
   def toRetractStream[T: TypeInformation]: DataStream[(Boolean, T)] = {
 
+    println(table.explain())
+
     internalTable.getTableEnvironment match {
       case tEnv: StreamTableEnvironment =>
         tEnv.toRetractStream(table)
