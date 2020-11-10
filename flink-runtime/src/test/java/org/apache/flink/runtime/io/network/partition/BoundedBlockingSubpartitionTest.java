@@ -140,10 +140,14 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 				// expected
 			}
 
+			assertFalse(consumer.isRecycled());
+
 			assertNotNull(subpartition.getCurrentBuffer());
 			assertFalse(subpartition.getCurrentBuffer().isRecycled());
 		} finally {
 			subpartition.release();
+
+			assertTrue(consumer.isRecycled());
 
 			assertNull(subpartition.getCurrentBuffer());
 		}
