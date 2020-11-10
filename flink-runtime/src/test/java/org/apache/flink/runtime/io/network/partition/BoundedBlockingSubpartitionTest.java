@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.junit.AfterClass;
@@ -43,6 +44,9 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -115,6 +119,38 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 		bbspr.releaseAllResources();
 
 		assertTrue(reader.closed);
+	}
+
+	@Test
+	public void testRecycleCurrentBufferOnFailure() throws Exception {
+		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
+		final BoundedBlockingSubpartition subpartition = new BoundedBlockingSubpartition(
+				0,
+				resultPartition,
+				new FailingBoundedData(),
+				!sslEnabled && type == BoundedBlockingSubpartitionType.FILE);
+		final BufferConsumer consumer = BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
+
+		try {
+			try {
+				subpartition.add(consumer);
+				subpartition.createReadView(new NoOpBufferAvailablityListener());
+				fail("should fail with an exception");
+			} catch (Exception ignored) {
+				// expected
+			}
+
+			assertFalse(consumer.isRecycled());
+
+			assertNotNull(subpartition.getCurrentBuffer());
+			assertFalse(subpartition.getCurrentBuffer().isRecycled());
+		} finally {
+			subpartition.release();
+
+			assertTrue(consumer.isRecycled());
+
+			assertNull(subpartition.getCurrentBuffer());
+		}
 	}
 
 	// ------------------------------------------------------------------------
