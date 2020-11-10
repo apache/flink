@@ -186,6 +186,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
 			NewTopic topicObj = new NewTopic(topic, numberOfPartitions, (short) replicationFactor);
 			adminClient.createTopics(Collections.singleton(topicObj)).all().get();
+			for (KafkaServer kafkaServer : brokers) {
+				long start = System.currentTimeMillis();
+				while (!kafkaServer.metadataCache().contains(topic)) {
+					if (System.currentTimeMillis() - start > 10000L) {
+						throw new Exception("Failed to create topic before timeout.");
+					}
+					Thread.sleep(1);
+				}
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Create test topic : " + topic + " failed, " + e.getMessage());
