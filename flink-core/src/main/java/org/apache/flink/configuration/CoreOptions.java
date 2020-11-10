@@ -220,7 +220,7 @@ public class CoreOptions {
 
 	/**
 	 * This options is here only for documentation generation, it is only
-	 * evalu
+	 * evaluated in the shell scripts.
 	 */
 	public static final ConfigOption<String> FLINK_APP_PID_DIR = ConfigOptions
 		.key("env.pid.dir")
