@@ -43,7 +43,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 	Boundedness getBoundedness();
 
 	/**
-	 * Creates a new reader to read data from the spits it gets assigned.
+	 * Creates a new reader to read data from the splits it gets assigned.
 	 * The reader starts fresh and does not have any state to resume.
 	 *
 	 * @param readerContext The {@link SourceReaderContext context} for the source reader.
