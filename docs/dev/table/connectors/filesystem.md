@@ -152,8 +152,7 @@ if you don't want to wait a long period before observe the data exists in file s
 
 ### File Compaction
 
-If you want a smaller checkpoint interval and do not want to generate a large number of small files,
-it is recommended that you open file compaction:
+The file sink supports file compactions, which allows applications to have smaller checkpoint intervals without generating a large number of files.
 
 <table class="table table-bordered">
   <thead>
