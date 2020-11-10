@@ -435,6 +435,8 @@ function check_logs_for_non_empty_out_files {
 
 function shutdown_all {
   stop_cluster
+  # stop TMs which started by command: bin/taskmanager.sh start
+  "$FLINK_DIR"/bin/taskmanager.sh stop-all
   tm_kill_all
   jm_kill_all
 }
