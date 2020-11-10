@@ -69,7 +69,7 @@ Four possible format options:
     </tbody>
 </table>
 
-The output string format is "$row_kind(f0,f1,f2...)", row_kind is the short string of [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html), example is: "+I(1,1)".
+The output string format is "$row_kind(f0,f1,f2...)", row_kind is the short string of [RowKind]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/types/RowKind.html), example is: "+I(1,1)".
 
 The Print connector is built-in.
 

@@ -69,7 +69,7 @@ Print 连接器允许将每一行写入标准输出流或者标准错误流。
     </tbody>
 </table>
 
-输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
+输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
 
 Print 连接器是内置的。
 
