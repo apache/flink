@@ -137,7 +137,11 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 	@Override
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		super.snapshotState(context);
-		committablesPerCheckpoint.put(context.getCheckpointId(), prepareCommit(currentInputs));
+		final List<CommT> committables = new ArrayList<>();
+		committables.addAll(neededToRetryCommittables);
+		committables.addAll(prepareCommit(currentInputs));
+		neededToRetryCommittables.clear();
+		committablesPerCheckpoint.put(context.getCheckpointId(), committables);
 		currentInputs = new ArrayList<>();
 
 		streamingCommitterState.update(
@@ -174,16 +178,11 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT> extends Abstrac
 		}
 
 		LOG.info("Committing the state for checkpoint {}", checkpointId);
-
-		readyCommittables.addAll(neededToRetryCommittables);
-		neededToRetryCommittables.clear();
-
 		neededToRetryCommittables.addAll(
 				SinkUtils.commit(
 						readyCommittables,
 						FunctionUtils.uncheckedFunction(this::commit),
 						output,
 						endOfInput ? retryInterval : -1));
-
 	}
 }

@@ -136,6 +136,54 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void snapshotNeededRetryCommittables() throws Exception {
+		final List<String> input1 = Arrays.asList("win", "touch", "earn");
+		final List<String> input2 = Arrays.asList("loan", "rich");
+
+		final List<String> expectedOutput = new ArrayList<>();
+		expectedOutput.addAll(input1);
+		expectedOutput.addAll(input2);
+
+		final TestSink.RetryCommitter retryCommitter = new TestSink.RetryCommitter();
+
+		final OneInputStreamOperatorTestHarness<String, String> testHarness =
+				createTestHarness(retryCommitter);
+
+		testHarness.initializeEmptyState();
+		testHarness.open();
+		testHarness.processElements(input1
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		testHarness.snapshot(1L, 1L);
+		testHarness.notifyOfCompletedCheckpoint(1L);
+
+		assertThat(testHarness.getOutput().size(), equalTo(0));
+		assertThat(retryCommitter.getCommittedData().size(), equalTo(0));
+
+		testHarness.processElements(input2
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		OperatorSubtaskState operatorSubtaskState = testHarness.snapshot(2L, 2L);
+		testHarness.close();
+
+		final OneInputStreamOperatorTestHarness<String, String> restoredTestHarness =
+				createTestHarness(retryCommitter);
+		retryCommitter.setRetry(false);
+		restoredTestHarness.initializeState(operatorSubtaskState);
+		restoredTestHarness.open();
+		restoredTestHarness.snapshot(1L, 1L);
+		restoredTestHarness.notifyOfCompletedCheckpoint(1L);
+
+		assertThat(
+				restoredTestHarness.getOutput(),
+				containsInAnyOrder(expectedOutput.stream().map(StreamRecord::new).toArray()));
+		assertThat(retryCommitter.getCommittedData(), containsInAnyOrder(expectedOutput.toArray()));
+		restoredTestHarness.close();
+	}
+
+	@Test
 	public void closeCommitter() throws Exception {
 		final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
 		final OneInputStreamOperatorTestHarness<String, String> testHarness = createTestHarness(
