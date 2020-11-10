@@ -220,6 +220,17 @@ public class CoreOptions {
 
 	/**
 	 * This options is here only for documentation generation, it is only
+	 * evalu
+	 */
+	public static final ConfigOption<String> FLINK_APP_PID_DIR = ConfigOptions
+		.key("env.pid.dir")
+		.noDefaultValue()
+		.withDescription(
+			"Defines the directory where the flink-<host>-<process>.pid files are saved."
+				+ "(Defaults to the system tmp directory)");
+
+	/**
+	 * This options is here only for documentation generation, it is only
 	 * evaluated in the shell scripts.
 	 */
 	@SuppressWarnings("unused")
