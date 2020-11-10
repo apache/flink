@@ -179,8 +179,8 @@ The file sink supports file compactions, which allows applications to have small
   </tbody>
 </table>
 
-After you open file compaction, small files that are not large enough will be merged into large files,
-It is worth noting that:
+If enabled, file compaction will merge multiple small files into larger files based on the target file size.
+When running file compaction in production, please be aware that:
 - Only files in a single checkpoint are compacted, that is, at least the same number of files as the number of checkpoints is generated.
 - The file before merging is invisible, so the visibility of the file may be: checkpoint interval + compaction time.
 
