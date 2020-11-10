@@ -706,7 +706,6 @@ class MaxAdd(AggregateFunction, unittest.TestCase):
         # counter
         self.counter.inc(10)
         self.counter_sum += 10
-        self.assertEqual(self.counter_sum, self.counter.get_count())
         return accumulator[0]
 
     def create_accumulator(self):
