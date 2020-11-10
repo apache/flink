@@ -395,7 +395,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
-		// regiter HBase table testTable1 which contains test data
+		// register HBase table testTable1 which contains test data
 		String table1DDL = createHBaseTableDDL(TEST_TABLE_1, true);
 		tEnv.executeSql(table1DDL);
 
