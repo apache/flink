@@ -88,7 +88,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 		if (maybeTimedOut.isPresent()) {
 			if (activeController == alignedController) {
-				switchToUnaligned(channelInfo, barrier);
+				switchToUnaligned(channelInfo, maybeTimedOut.get());
 				return maybeTimedOut;
 			}
 			else {
