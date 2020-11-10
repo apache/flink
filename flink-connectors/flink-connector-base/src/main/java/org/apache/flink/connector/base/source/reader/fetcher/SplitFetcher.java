@@ -157,7 +157,6 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * @param splitsToAdd the splits to add.
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
-		isIdle = false; // in case we were idle before
 		enqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		wakeUp(true);
 	}
