@@ -365,6 +365,8 @@ class LocalBufferPool implements BufferPool {
 			return false;
 		}
 
+		checkState(!isDestroyed, "Destroyed buffer pools should never acquire segments - this will lead to buffer leaks.");
+
 		MemorySegment segment = networkBufferPool.requestMemorySegment();
 		if (segment != null) {
 			availableMemorySegments.add(segment);
@@ -546,6 +548,12 @@ class LocalBufferPool implements BufferPool {
 			currentPoolSize = Math.min(numBuffers, maxNumberOfMemorySegments);
 
 			returnExcessMemorySegments();
+
+			if (isDestroyed) {
+				// FLINK-19964: when two local buffer pools are released concurrently, one of them gets buffers assigned
+				// make sure that checkAvailability is not called as it would pro-actively acquire one buffer from NetworkBufferPool
+				return;
+			}
 
 			if (checkAvailability()) {
 				toNotify = availabilityHelper.getUnavailableToResetAvailable();

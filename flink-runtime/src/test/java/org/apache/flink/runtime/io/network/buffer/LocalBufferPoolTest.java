@@ -141,6 +141,18 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
+	public void testSetNumAfterDestroyDoesNotProactivelyFetchSegments() {
+		localBufferPool.setNumBuffers(2);
+		assertEquals(2L, localBufferPool.getNumBuffers());
+		assertEquals(1L, localBufferPool.getNumberOfAvailableMemorySegments());
+
+		localBufferPool.lazyDestroy();
+		localBufferPool.setNumBuffers(3);
+		assertEquals(3L, localBufferPool.getNumBuffers());
+		assertEquals(0L, localBufferPool.getNumberOfAvailableMemorySegments());
+	}
+
+	@Test
 	public void testRecycleAfterDestroy() {
 		localBufferPool.setNumBuffers(numBuffers);
 
