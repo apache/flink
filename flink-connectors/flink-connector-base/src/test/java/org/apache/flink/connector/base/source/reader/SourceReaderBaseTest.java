@@ -126,6 +126,40 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	}
 
 	@Test
+	public void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+			new FutureCompletingBlockingQueue<>();
+		MockSplitReader mockSplitReader = MockSplitReader.newBuilder()
+			.setNumRecordsPerSplitPerFetch(2)
+			.setSeparatedFinishedRecord(false)
+			.setBlockingFetch(false)
+			.build();
+		MockSourceReader reader = new MockSourceReader(
+			elementsQueue,
+			() -> mockSplitReader,
+			getConfig(),
+			null);
+
+		reader.start();
+
+		List<MockSourceSplit> splits = Arrays.asList(
+			getSplit(0, 10, Boundedness.BOUNDED),
+			getSplit(1, 12, Boundedness.BOUNDED)
+		);
+		reader.addSplits(splits);
+		reader.handleSourceEvents(new NoMoreSplitsEvent());
+
+		while (true) {
+			InputStatus status = reader.pollNext(new TestingReaderOutput<>());
+			if (status == InputStatus.END_OF_INPUT) {
+				break;
+			} if (status == InputStatus.NOTHING_AVAILABLE) {
+				reader.isAvailable().get();
+			}
+		}
+	}
+
+	@Test
 	public void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
 			new FutureCompletingBlockingQueue<>();
