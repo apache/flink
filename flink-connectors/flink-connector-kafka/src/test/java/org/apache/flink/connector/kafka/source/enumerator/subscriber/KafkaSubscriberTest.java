@@ -83,7 +83,7 @@ public class KafkaSubscriberTest {
 				subscriber.getPartitionChanges(adminClient, currentAssignment);
 
 		Set<TopicPartition> expectedNewPartitions = new HashSet<>();
-		for (int i = 0; i < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION; i++) {
+		for (int i = 0; i < KafkaSourceTestEnv.NUM_PARTITIONS; i++) {
 			if (i != assignedPartition2.partition()) {
 				expectedNewPartitions.add(new TopicPartition(TOPIC2, i));
 			}

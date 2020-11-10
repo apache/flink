@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -186,6 +187,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
 			NewTopic topicObj = new NewTopic(topic, numberOfPartitions, (short) replicationFactor);
 			adminClient.createTopics(Collections.singleton(topicObj)).all().get();
+			for (KafkaServer kafkaServer : brokers) {
+				CommonTestUtils.waitUtil(
+					() -> kafkaServer.metadataCache().contains(topic),
+					Duration.ofSeconds(10),
+					"The topic metadata failed to propagate to Kafka broker.");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Create test topic : " + topic + " failed, " + e.getMessage());
