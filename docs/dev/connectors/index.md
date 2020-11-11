@@ -44,6 +44,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Amazon Kinesis Streams](kinesis.html) (source/sink)
  * [Elasticsearch](elasticsearch.html) (sink)
  * [Hadoop FileSystem](streamfile_sink.html) (sink)
+ * [FileSystem (Hadoop included)](file_sink.html) (sink)
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
