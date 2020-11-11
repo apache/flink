@@ -34,11 +34,10 @@ The [JSON](https://www.json.org/json-en.html) format allows to read and write JS
 Dependencies
 ------------
 
-In order to setup the JSON format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with JSON format
 ----------------

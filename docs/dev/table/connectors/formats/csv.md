@@ -34,11 +34,10 @@ The [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) format allows to
 Dependencies
 ------------
 
-In order to setup the CSV format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-csv`        | Built-in               |
+{% assign connector = site.data.sql-connectors['csv'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with CSV format
 ----------------
