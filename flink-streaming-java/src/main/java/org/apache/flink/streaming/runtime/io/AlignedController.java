@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -92,6 +93,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	public Optional<CheckpointBarrier> preProcessFirstBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) {
+		checkArgument(!barrier.getCheckpointOptions().isUnalignedCheckpoint(), "Unaligned barrier is not expected");
 		return Optional.empty();
 	}
 
@@ -99,6 +101,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 	public Optional<CheckpointBarrier> postProcessLastBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException {
+		checkState(!barrier.getCheckpointOptions().isUnalignedCheckpoint());
 		resumeConsumption();
 		return Optional.of(barrier);
 	}

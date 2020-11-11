@@ -145,7 +145,7 @@ public class StreamTaskNetworkInputTest {
 			deserializers);
 
 		inputGate.sendEvent(
-			new CheckpointBarrier(checkpointId, 0L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			new CheckpointBarrier(checkpointId, 0L, CheckpointOptions.forCheckpointWithDefaultLocation().toTimeouted()),
 			channelId);
 		inputGate.sendElement(new StreamRecord<>(42L), channelId);
 
