@@ -23,9 +23,11 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -100,6 +102,32 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 				return null;
 			}
 			throw new IOException(format("Failed to deserialize JSON '%s'.", new String(message)), t);
+		}
+	}
+
+	@Override
+	public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+		try {
+			final JsonNode root = objectMapper.readTree(message);
+
+			if (root != null && root.isArray()) {
+				ArrayNode arrayNode = (ArrayNode) root;
+				for (int i = 0; i < arrayNode.size(); ++i) {
+					RowData result = (RowData) runtimeConverter.convert(arrayNode.get(i));
+					if (result != null) {
+						out.collect(result);
+					}
+				}
+			} else {
+				RowData result = (RowData) runtimeConverter.convert(root);
+				if (result != null) {
+					out.collect(result);
+				}
+			}
+		} catch (Throwable t) {
+			if (!ignoreParseErrors) {
+				throw new IOException(format("Failed to deserialize JSON '%s'.", new String(message)), t);
+			}
 		}
 	}
 
