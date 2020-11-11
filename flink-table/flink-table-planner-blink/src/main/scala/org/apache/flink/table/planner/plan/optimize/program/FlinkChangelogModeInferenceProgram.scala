@@ -57,15 +57,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     // step2: satisfy UpdateKind trait
     val rootModifyKindSet = getModifyKindSet(rootWithModifyKindSet)
     // use the required UpdateKindTrait from parent blocks
-    val requiredUpdateKindTraits = if (context.isUpdateBeforeRequired) {
-      Seq(UpdateKindTrait.BEFORE_AND_AFTER)
-    } else if (rootModifyKindSet.isInsertOnly) {
-      Seq(UpdateKindTrait.NONE)
+    val requiredUpdateKindTraits = if (rootModifyKindSet.contains(ModifyKind.UPDATE)) {
+      if (context.isUpdateBeforeRequired) {
+        Seq(UpdateKindTrait.BEFORE_AND_AFTER)
+      } else {
+        // update_before is not required, and input contains updates
+        // try ONLY_UPDATE_AFTER first, and then BEFORE_AND_AFTER
+        Seq(UpdateKindTrait.ONLY_UPDATE_AFTER, UpdateKindTrait.BEFORE_AND_AFTER)
+      }
     } else {
-      // update_before is not required, and input contains updates
-      // try ONLY_UPDATE_AFTER first, and then BEFORE_AND_AFTER
-      Seq(UpdateKindTrait.ONLY_UPDATE_AFTER, UpdateKindTrait.BEFORE_AND_AFTER)
+      // there is no updates
+      Seq(UpdateKindTrait.NONE)
     }
+
     val finalRoot = requiredUpdateKindTraits.flatMap { requiredUpdateKindTrait =>
       SATISFY_UPDATE_KIND_TRAIT_VISITOR.visit(rootWithModifyKindSet, requiredUpdateKindTrait)
     }
