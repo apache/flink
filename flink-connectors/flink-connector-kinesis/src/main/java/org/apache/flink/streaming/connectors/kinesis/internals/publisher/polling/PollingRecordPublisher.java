@@ -34,8 +34,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 
 /**
  * A {@link RecordPublisher} that will read records from Kinesis and forward them to the subscriber.
@@ -106,11 +108,24 @@ public class PollingRecordPublisher implements RecordPublisher {
 		GetRecordsResult result = getRecords(nextShardItr, maxNumberOfRecords);
 
 		RecordBatch recordBatch = new RecordBatch(result.getRecords(), subscribedShard, result.getMillisBehindLatest());
-		SequenceNumber latestSeequenceNumber = consumer.accept(recordBatch);
+		SequenceNumber latestSequenceNumber = consumer.accept(recordBatch);
 
-		nextStartingPosition = StartingPosition.continueFromSequenceNumber(latestSeequenceNumber);
+		nextStartingPosition = getNextStartingPosition(latestSequenceNumber);
 		nextShardItr = result.getNextShardIterator();
 		return nextShardItr == null ? COMPLETE : INCOMPLETE;
+	}
+
+	private StartingPosition getNextStartingPosition(final SequenceNumber latestSequenceNumber) {
+		// When consuming from a timestamp sentinel/AT_TIMESTAMP ShardIteratorType.
+		// If the first RecordBatch is empty, then the latestSequenceNumber would be the timestamp sentinel.
+		// This is because we have not yet received any real sequence numbers on this shard.
+		// In this condition we should retry from the previous starting position (AT_TIMESTAMP).
+		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(latestSequenceNumber)) {
+			Preconditions.checkState(nextStartingPosition.getShardIteratorType() == AT_TIMESTAMP);
+			return nextStartingPosition;
+		} else {
+			return StartingPosition.continueFromSequenceNumber(latestSequenceNumber);
+		}
 	}
 
 	/**

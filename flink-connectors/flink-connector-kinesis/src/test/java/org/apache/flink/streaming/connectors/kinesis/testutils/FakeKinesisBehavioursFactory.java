@@ -85,6 +85,10 @@ public class FakeKinesisBehavioursFactory {
 	//  Behaviours related to fetching records, used mainly in ShardConsumerTest
 	// ------------------------------------------------------------------------
 
+	public static KinesisProxyInterface emptyShard(final int numberOfIterations) {
+		return new SingleShardEmittingZeroRecords(numberOfIterations);
+	}
+
 	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(
 			final int numOfRecords,
 			final int numOfGetRecordsCalls,
@@ -130,6 +134,32 @@ public class FakeKinesisBehavioursFactory {
 
 	public static KinesisProxyInterface blockingQueueGetRecords(Map<String, List<BlockingQueue<String>>> streamsToShardQueues) {
 		return new BlockingQueueKinesis(streamsToShardQueues);
+	}
+
+	private static class SingleShardEmittingZeroRecords implements KinesisProxyInterface {
+
+		private int remainingIterators;
+
+		private SingleShardEmittingZeroRecords(int remainingIterators) {
+			this.remainingIterators = remainingIterators;
+		}
+
+		@Override
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) throws InterruptedException {
+			return String.valueOf(remainingIterators--);
+		}
+
+		@Override
+		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) throws InterruptedException {
+			return new GetRecordsResult()
+				.withMillisBehindLatest(0L)
+				.withNextShardIterator(remainingIterators == 0 ? null : String.valueOf(remainingIterators--));
+		}
+
+		@Override
+		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException {
+			return null;
+		}
 	}
 
 	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
