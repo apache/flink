@@ -182,7 +182,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
 				try {
 					Long watermark = innerWatermarkGenerator.currentWatermark(event);
 					if (watermark != null) {
-						currentWatermark = innerWatermarkGenerator.currentWatermark(event);
+						currentWatermark = watermark;
 					}
 				} catch (Exception e) {
 					throw new RuntimeException(
