@@ -60,7 +60,7 @@ Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并
 
 ## Flink 设置
 
-前往 [下载页面]({{ site.zh_download_url }}) 获取可运行的软件包。请确保选择的 Flink 软件包**与你的 Hadoop 版本匹配**。如果你不准备使用 Hadoop，可以选择任意版本。
+前往 [下载页面]({{ site.zh_download_url }}) 获取可运行的软件包。
 
 在下载完最新的发布版本后，复制压缩文件到 master 节点并解压：
 
