@@ -24,7 +24,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -67,7 +66,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) throws Exception  {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
+				new CoordinatorExecutorThreadFactory(coordinatorThreadName, context);
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
@@ -81,10 +80,14 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	 */
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
 		private final String coordinatorThreadName;
+		private final OperatorCoordinator.Context context;
 		private Thread t;
 
-		CoordinatorExecutorThreadFactory(String coordinatorThreadName) {
+		CoordinatorExecutorThreadFactory(
+				String coordinatorThreadName,
+				OperatorCoordinator.Context context) {
 			this.coordinatorThreadName = coordinatorThreadName;
+			this.context = context;
 			this.t = null;
 		}
 
@@ -95,7 +98,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 						"SingleThreadExecutor.");
 			}
 			t = new Thread(r, coordinatorThreadName);
-			t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+			t.setUncaughtExceptionHandler((thread, throwable) -> context.failJob(throwable));
 			return t;
 		}
 
