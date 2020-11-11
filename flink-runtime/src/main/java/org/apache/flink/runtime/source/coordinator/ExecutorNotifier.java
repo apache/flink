@@ -83,8 +83,7 @@ public class ExecutorNotifier implements AutoCloseable {
 				T result = callable.call();
 				executorToNotify.execute(() -> handler.accept(result, null));
 			} catch (Throwable t) {
-				LOG.error("Unexpected exception {}", t);
-				handler.accept(null, t);
+				executorToNotify.execute(() -> handler.accept(null, t));
 			}
 		});
 	}
@@ -133,7 +132,7 @@ public class ExecutorNotifier implements AutoCloseable {
 				T result = callable.call();
 				executorToNotify.execute(() -> handler.accept(result, null));
 			} catch (Throwable t) {
-				handler.accept(null, t);
+				executorToNotify.execute(() -> handler.accept(null, t));
 			}
 		}, initialDelayMs, periodMs, TimeUnit.MILLISECONDS);
 	}
