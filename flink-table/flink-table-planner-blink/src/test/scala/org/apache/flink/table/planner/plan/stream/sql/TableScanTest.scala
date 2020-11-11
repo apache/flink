@@ -282,32 +282,49 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testJoinOnChangelogSource(): Unit = {
+    verifyJoinOnSource("I,UB,UA")
+  }
+
+  @Test
+  def testJoinOnNoUpdateSource(): Unit = {
+    verifyJoinOnSource("I,D")
+  }
+
+  @Test
+  def testJoinOnUpsertSource(): Unit = {
+    verifyJoinOnSource("UA,D")
+  }
+
+  private def verifyJoinOnSource(changelogMode: String): Unit = {
     util.addTable(
       """
-         |CREATE TABLE orders (
-         |  amount BIGINT,
-         |  currency STRING
-         |) WITH (
-         | 'connector' = 'values',
-         | 'changelog-mode' = 'I'
-         |)
-         |""".stripMargin)
+        |CREATE TABLE orders (
+        |  amount BIGINT,
+        |  currency_id BIGINT,
+        |  currency_name STRING
+        |) WITH (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I'
+        |)
+        |""".stripMargin)
     util.addTable(
-      """
-         |CREATE TABLE rates_history (
-         |  currency STRING,
-         |  rate BIGINT
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'I,UB,UA'
-         |)
+      s"""
+        |CREATE TABLE rates_history (
+        |  currency_id BIGINT,
+        |  currency_name STRING,
+        |  rate BIGINT,
+        |  PRIMARY KEY (currency_id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = '$changelogMode'
+        |)
       """.stripMargin)
 
     val sql =
       """
-        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |SELECT o.currency_name, o.amount, r.rate, o.amount * r.rate
         |FROM orders AS o JOIN rates_history AS r
-        |ON o.currency = r.currency
+        |ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
         |""".stripMargin
     util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
@@ -448,38 +465,6 @@ class TableScanTest extends TableTestBase {
     util.verifyPlan(
       "SELECT a, COUNT(*), MAX(ts), MIN(ts) FROM src GROUP BY a",
       ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
-  def testJoinOnUpsertSource(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE orders (
-        |  amount BIGINT,
-        |  currency STRING
-        |) WITH (
-        | 'connector' = 'values',
-        | 'changelog-mode' = 'I'
-        |)
-        |""".stripMargin)
-    util.addTable(
-      """
-        |CREATE TABLE rates_history (
-        |  currency STRING PRIMARY KEY NOT ENFORCED,
-        |  rate BIGINT
-        |) WITH (
-        |  'connector' = 'values',
-        |  'changelog-mode' = 'UA,D'
-        |)
-      """.stripMargin)
-
-    val sql =
-      """
-        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
-        |FROM orders AS o JOIN rates_history AS r
-        |ON o.currency = r.currency
-        |""".stripMargin
-    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
