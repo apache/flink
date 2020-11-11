@@ -955,6 +955,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		if (jobManagerJobMetricGroup != null) {
 			jobManagerJobMetricGroup.close();
 		}
+
+		if (jobStatusListener != null) {
+			jobStatusListener.stop();
+		}
 	}
 
 	private void clearSchedulerFields() {
@@ -1205,13 +1209,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private class JobManagerJobStatusListener implements JobStatusListener {
 
+		private volatile boolean running = true;
+
 		@Override
 		public void jobStatusChanges(
 				final JobID jobId,
 				final JobStatus newJobStatus,
 				final long timestamp,
 				final Throwable error) {
-			jobStatusChanged(newJobStatus);
+
+			if (running) {
+				// run in rpc thread to avoid concurrency
+				runAsync(() -> jobStatusChanged(newJobStatus));
+			}
+		}
+
+		private void stop() {
+			running = false;
 		}
 	}
 
