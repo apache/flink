@@ -1969,58 +1969,6 @@ public class JobMasterTest extends TestLogger {
 		);
 	}
 
-	/**
-	 * Tests that the job gets suspended when the JobMaster stops. See FLINK-20033.
-	 */
-	@Test
-	public void testJobSuspensionWhenJobMasterStops() throws Exception {
-		final JobMasterBuilder.TestingOnCompletionActions onCompletionActions = new JobMasterBuilder.TestingOnCompletionActions();
-
-		final JobMaster jobMaster = createJobMaster(
-			configuration,
-			JobGraphTestUtils.createSingleVertexJobGraph(),
-			haServices,
-			new TestingJobManagerSharedServicesBuilder().build(),
-			heartbeatServices,
-			onCompletionActions);
-
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
-
-		try {
-			// wait for the start of the JobMaster
-			startFuture.get();
-
-			final CompletableFuture<TaskDeploymentDescriptor> tddFuture = new CompletableFuture<>();
-			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-				.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
-					tddFuture.complete(taskDeploymentDescriptor);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				})
-				.createTestingTaskExecutorGateway();
-			final LocalUnresolvedTaskManagerLocation taskManagerLocation = new LocalUnresolvedTaskManagerLocation();
-			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
-
-			registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
-
-			// wait for deployment
-			tddFuture.get();
-
-			// trigger termination of JobMaster and also the job
-			jobMaster.close();
-
-			try {
-				final ArchivedExecutionGraph archivedExecutionGraph = onCompletionActions
-					.getJobReachedGloballyTerminalStateFuture()
-					.get(50, TimeUnit.MILLISECONDS);
-				fail(String.format("Job must not reach the globally terminal state %s when stopping the JobMaster.", archivedExecutionGraph.getState()));
-			} catch (TimeoutException expected) {
-				// expected
-			}
-		} finally {
-			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-		}
-	}
-
 	private void runJobFailureWhenTaskExecutorTerminatesTest(
 			HeartbeatServices heartbeatServices,
 			BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
