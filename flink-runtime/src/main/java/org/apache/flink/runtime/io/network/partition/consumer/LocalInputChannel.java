@@ -71,7 +71,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	private volatile boolean isReleased;
 
-	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null);
+	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null, channelInfo);
 
 	public LocalInputChannel(
 		SingleInputGate inputGate,
@@ -108,7 +108,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
 		checkState(!channelStatePersister.isInitialized(), "Already initialized");
-		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter));
+		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter), channelInfo);
 	}
 
 	public void checkpointStarted(CheckpointBarrier barrier) {
