@@ -30,6 +30,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -148,8 +149,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 						return dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED);
 					}
 
-					final Optional<UnsuccessfulExecutionException> exception =
-							ExceptionUtils.findThrowable(t, UnsuccessfulExecutionException.class);
+					final Optional<JobExecutionResultException> exception =
+							ExceptionUtils.findThrowable(t, JobExecutionResultException.class);
 
 					if (exception.isPresent()) {
 						final ApplicationStatus applicationStatus = exception.get().getStatus();
@@ -284,7 +285,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 			}
 
 			throw new CompletionException(
-					UnsuccessfulExecutionException.fromJobResult(
+					JobExecutionResultException.fromJobResult(
 							result, application.getUserCodeClassLoader()));
 		});
 	}

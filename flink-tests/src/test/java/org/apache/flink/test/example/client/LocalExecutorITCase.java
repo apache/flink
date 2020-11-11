@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
@@ -102,7 +103,7 @@ public class LocalExecutorITCase extends TestLogger {
 		JobClient jobClient = executor.execute(runtimeExceptionPlan, config, ClassLoader.getSystemClassLoader()).get();
 
 		assertThrows(
-			"Job execution failed.",
+			String.format("Application Status: %s", ApplicationStatus.FAILED),
 			Exception.class,
 			() -> jobClient.getJobExecutionResult().get());
 

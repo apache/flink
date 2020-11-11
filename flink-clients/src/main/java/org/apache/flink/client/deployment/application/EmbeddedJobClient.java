@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -127,7 +128,7 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 						return jobResult.toJobExecutionResult(classLoader);
 					} catch (Throwable t) {
 						throw new CompletionException(
-								UnsuccessfulExecutionException.fromJobResult(jobResult, classLoader));
+								JobExecutionResultException.fromJobResult(jobResult, classLoader, t));
 					}
 				});
 	}

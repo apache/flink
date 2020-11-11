@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -119,8 +120,7 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 				return result.toJobExecutionResult(classLoader);
 			} catch (Exception e) {
 				throw new CompletionException(
-						"Failed to convert JobResult to JobExecutionResult.",
-						e);
+						JobExecutionResultException.fromJobResult(result, classLoader, e));
 			}
 		});
 	}

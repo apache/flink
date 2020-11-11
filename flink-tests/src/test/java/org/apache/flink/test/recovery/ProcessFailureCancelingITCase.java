@@ -26,7 +26,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -35,6 +34,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -233,7 +233,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			Throwable error = errorRef[0];
 			assertNotNull("The program did not fail properly", error);
 
-			assertTrue(error instanceof ProgramInvocationException);
+			assertTrue(error instanceof JobExecutionResultException);
 			// all seems well :-)
 		}
 		catch (Exception e) {

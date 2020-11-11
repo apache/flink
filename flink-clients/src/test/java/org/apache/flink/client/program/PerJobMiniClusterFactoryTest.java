@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -85,7 +86,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		jobClient.cancel().get();
 
 		assertThrows(
-			"Job was cancelled.",
+			String.format("Application Status: %s", ApplicationStatus.CANCELED),
 			ExecutionException.class,
 			() -> jobClient.getJobExecutionResult().get()
 		);

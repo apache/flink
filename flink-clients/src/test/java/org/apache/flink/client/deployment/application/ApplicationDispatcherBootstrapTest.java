@@ -30,6 +30,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -234,7 +235,7 @@ public class ApplicationDispatcherBootstrapTest {
 				});
 
 		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2);
-		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		final JobExecutionResultException exception = assertException(applicationFuture, JobExecutionResultException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.FAILED);
 	}
 
@@ -408,7 +409,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Void> applicationFuture =
 				bootstrap.getApplicationCompletionFuture();
-		assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		assertException(applicationFuture, JobExecutionResultException.class);
 
 		assertEquals(clusterShutdown.get(), ApplicationStatus.CANCELED);
 	}
@@ -513,7 +514,7 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final CompletableFuture<Acknowledge> applicationFuture = bootstrap.getClusterShutdownFuture();
 
-		final UnsuccessfulExecutionException exception = assertException(applicationFuture, UnsuccessfulExecutionException.class);
+		final JobExecutionResultException exception = assertException(applicationFuture, JobExecutionResultException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
 	}
 
