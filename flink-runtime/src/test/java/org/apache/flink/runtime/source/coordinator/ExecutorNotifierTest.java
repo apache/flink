@@ -94,7 +94,30 @@ public class ExecutorNotifierTest {
 	}
 
 	@Test
-	public void testExceptionInHandler() throws InterruptedException {
+	public void testExceptionInHandlerWhenHandlingException() throws InterruptedException {
+		Exception exception1 = new Exception("Expected exception.");
+		RuntimeException exception2 =  new RuntimeException("Expected exception.");
+		CountDownLatch latch = new CountDownLatch(1);
+		notifier.notifyReadyAsync(
+			() -> {
+				throw exception1;
+			},
+			(v, e) -> {
+				assertEquals(exception1, e);
+				assertNull(v);
+				latch.countDown();
+				throw exception2;
+			});
+		latch.await();
+		closeExecutorToNotify();
+		// The uncaught exception handler may fire after the executor has shutdown.
+		// We need to wait on the countdown latch here.
+		exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
+		assertEquals(exception2, exceptionInHandler);
+	}
+
+	@Test
+	public void testExceptionInHandlerWhenHandlingResult() throws InterruptedException {
 		CountDownLatch latch = new CountDownLatch(1);
 		RuntimeException exception =  new RuntimeException("Expected exception.");
 		notifier.notifyReadyAsync(() -> 1234, (v, e) -> {

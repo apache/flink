@@ -57,7 +57,8 @@ public abstract class SourceCoordinatorTestBase {
 		splitSplitAssignmentTracker = new SplitAssignmentTracker<>();
 		String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(coordinatorThreadName);
+				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+					coordinatorThreadName, operatorCoordinatorContext);
 		coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		context = new SourceCoordinatorContext<>(
 				coordinatorExecutor,
