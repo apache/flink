@@ -512,7 +512,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 
 	public void checkpointStopped(long checkpointId) {
 		synchronized (receivedBuffers) {
-			channelStatePersister.stopPersisting();
+			channelStatePersister.stopPersisting(checkpointId);
 			numBuffersOvertaken = ALL;
 		}
 	}
