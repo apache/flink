@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -37,8 +38,10 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -52,6 +55,21 @@ public class ShardConsumerTest {
 
 		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
 		assertEquals(500, metrics.getMillisBehindLatest());
+	}
+
+	@Test
+	public void testTimestampStartingPositionWithEmptyShard() throws Exception {
+		Properties consumerProperties = new Properties();
+		consumerProperties.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "2020-11-11T09:14");
+		consumerProperties.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "yyyy-MM-dd'T'HH:mm");
+		SequenceNumber sequenceNumber = SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get();
+
+		final int numberOfIterations = 3;
+		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.emptyShard(numberOfIterations));
+
+		assertNumberOfMessagesReceivedFromKinesis(0, kinesis, sequenceNumber, consumerProperties);
+		verify(kinesis).getShardIterator(any(), eq("AT_TIMESTAMP"), any());
+		verify(kinesis, times(numberOfIterations)).getRecords(any(), anyInt());
 	}
 
 	@Test
