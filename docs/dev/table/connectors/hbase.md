@@ -38,12 +38,10 @@ HBase always works in upsert mode for exchange changelog messages with the exter
 Dependencies
 ------------
 
-In order to setup the HBase connector, the following table provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| HBase Version       | Maven dependency                                          | SQL Client JAR         |
-| :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/hbase.html) {% endif %}|
-
+{% assign connector = site.data.sql-connectors['hbase'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to use HBase table
 ----------------
