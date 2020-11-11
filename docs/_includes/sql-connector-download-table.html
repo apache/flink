@@ -1,0 +1,65 @@
+<p>In order to use the {{ include.connector.name }} {{ include.connector.category }} the following
+dependencies are required for both projects using a build automation tool (such as Maven or SBT)
+and SQL Client with SQL JAR bundles.</p>
+
+
+{% comment %}
+	The 'liquify' filter makes it possible to include liquid variables such as e.g. site.version.
+{% endcomment %}
+
+{% if include.connector.versions == nil %}
+<table>
+	<thead>
+	<tr>
+		<th style="text-align: left">Maven dependency</th>
+		<th style="text-align: left">SQL Client JAR</th>
+	</tr>
+	</thead>
+	<tbody>
+	<tr>
+		<td style="text-align: left"><code class="highlighter-rouge">{{ include.connector.maven | liquify }}</code></td>
+		{% if include.connector.built-in %}
+			<td style="text-align: left">Built-in</td>
+		{% elsif site.is_stable %}
+			{% if include.connector.sql-url != nil %}
+				<td style="text-align: left"><a href="{{ include.connector.sql-url | liquify }}">Download</a></td>
+			{% else %}
+				<td style="text-align: left">There is no sql jar available yet.</td>
+			{% endif %}
+		{% else %}
+			<td style="text-align: left">Only available for stable releases.</td>
+		{% endif %}
+	</tr>
+	</tbody>
+</table>
+{% else %}
+<table>
+	<thead>
+	<tr>
+		<th style="text-align: left">{{ include.connector.name }} version</th>
+		<th style="text-align: left">Maven dependency</th>
+		<th style="text-align: left">SQL Client JAR</th>
+	</tr>
+	</thead>
+	<tbody>
+	{% for version in include.connector.versions %}
+	<tr>
+		<td style="text-align: left">{{ version.version | liquify }}</td>
+		<td style="text-align: left"><code class="highlighter-rouge">{{ version.maven | liquify }}</code></td>
+		{% if include.connector.built-in %}
+		<td style="text-align: left">Built-in</td>
+		{% elsif include.connector.no-sql-jar %}
+		{% elsif site.is_stable %}
+			{% if version.sql-url != nil %}
+				<td style="text-align: left"><a href="{{ version.sql-url | liquify }}">Download</a></td>
+			{% else %}
+				<td style="text-align: left">There is no sql jar available yet.</td>
+			{% endif %}
+		{% else %}
+		<td style="text-align: left">Only available for stable releases.</td>
+		{% endif %}
+	</tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endif %}

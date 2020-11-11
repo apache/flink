@@ -46,11 +46,10 @@ However, currently Flink can't combine UPDATE_BEFORE and UPDATE_AFTER into a sin
 Dependencies
 ------------
 
-In order to setup the Canal format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['canal'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 *Note: please refer to [Canal documentation](https://github.com/alibaba/canal/wiki) about how to deploy Canal to synchronize changelog to message queues.*
 
