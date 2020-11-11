@@ -39,14 +39,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 @NotThreadSafe
 final class ChannelStatePersister {
 	protected final InputChannelInfo channelInfo;
-	private static final long CHECKPOINT_COMPLETED = -1;
 
-	private static final long BARRIER_RECEIVED = -2;
+	private enum CheckpointStatus {COMPLETED, BARRIER_PENDING, BARRIER_RECEIVED}
 
-	/**
-	 * All started checkpoints where a barrier has not been received yet.
-	 */
-	private long pendingCheckpointBarrierId = CHECKPOINT_COMPLETED;
+	private CheckpointStatus checkpointStatus = CheckpointStatus.COMPLETED;
+
+	private long lastSeenBarrier = -1L;
 
 	/**
 	 * Writer must be initialized before usage. {@link #startPersisting(long, List)} enforces this invariant.
@@ -62,8 +60,9 @@ final class ChannelStatePersister {
 	protected void startPersisting(long barrierId, List<Buffer> knownBuffers) {
 		checkState(isInitialized(), "Channel state writer not injected");
 
-		if (pendingCheckpointBarrierId != BARRIER_RECEIVED) {
-			pendingCheckpointBarrierId = barrierId;
+		if (checkpointStatus != CheckpointStatus.BARRIER_RECEIVED && lastSeenBarrier < barrierId) {
+			checkpointStatus = CheckpointStatus.BARRIER_PENDING;
+			lastSeenBarrier = barrierId;
 		}
 		if (knownBuffers.size() > 0) {
 			channelStateWriter.addInputData(
@@ -78,14 +77,17 @@ final class ChannelStatePersister {
 		return channelStateWriter != null;
 	}
 
-	protected void stopPersisting() {
-		pendingCheckpointBarrierId = CHECKPOINT_COMPLETED;
+	protected void stopPersisting(long id) {
+		if (id >= lastSeenBarrier) {
+			checkpointStatus = CheckpointStatus.COMPLETED;
+			lastSeenBarrier = id;
+		}
 	}
 
 	protected void maybePersist(Buffer buffer) {
-		if (pendingCheckpointBarrierId >= 0 && buffer.isBuffer()) {
+		if (checkpointStatus == CheckpointStatus.BARRIER_PENDING && buffer.isBuffer()) {
 			channelStateWriter.addInputData(
-				pendingCheckpointBarrierId,
+				lastSeenBarrier,
 				channelInfo,
 				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
 				CloseableIterator.ofElement(buffer.retainBuffer(), Buffer::recycleBuffer));
@@ -95,8 +97,11 @@ final class ChannelStatePersister {
 	protected boolean checkForBarrier(Buffer buffer) throws IOException {
 		final AbstractEvent priorityEvent = parsePriorityEvent(buffer);
 		if (priorityEvent instanceof CheckpointBarrier) {
-			pendingCheckpointBarrierId = BARRIER_RECEIVED;
-			return true;
+			if (((CheckpointBarrier) priorityEvent).getId() >= lastSeenBarrier) {
+				checkpointStatus = CheckpointStatus.BARRIER_RECEIVED;
+				lastSeenBarrier = ((CheckpointBarrier) priorityEvent).getId();
+				return true;
+			}
 		}
 		return false;
 	}
@@ -119,6 +124,6 @@ final class ChannelStatePersister {
 	}
 
 	protected boolean hasBarrierReceived() {
-		return pendingCheckpointBarrierId == BARRIER_RECEIVED;
+		return checkpointStatus == CheckpointStatus.BARRIER_RECEIVED;
 	}
 }
