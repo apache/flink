@@ -80,7 +80,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		extraProperties.put("isolation.level", "read_committed");
 	}
 
-	@Test(timeout = 30000L)
+	@Test(timeout = 60000L)
 	public void testHappyPath() throws Exception {
 		String topicName = "flink-kafka-producer-happy-path";
 
