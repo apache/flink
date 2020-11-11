@@ -337,7 +337,7 @@ The partition commit policy defines what action is taken when partitions are com
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>
-        <td style="word-wrap: break-word;">(none)</td>
+        <td style="word-wrap: break-word;">_SUCCESS</td>
         <td>String</td>
         <td>The file name for success-file partition commit policy, default is '_SUCCESS'.</td>
     </tr>
