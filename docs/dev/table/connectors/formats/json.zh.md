@@ -116,6 +116,26 @@ Format 参数
       </ul>
       </td>
     </tr>
+    <tr>
+       <td><h5>json.map-null-key.mode</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+       <td>String</td>
+       <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
+       <ul>
+         <li>Option <code>'FAIL'</code> 将抛出异常，如果遇到 Map 中 key 值为空的数据。</li>
+         <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li> 
+         <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>'json.map-null-key.literal'</code> 定义。</li>
+       </ul>
+       </td>
+    </tr>
+    <tr>
+      <td><h5>json.map-null-key.literal</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>当 <code>'json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>        
     </tbody>
 </table>
 

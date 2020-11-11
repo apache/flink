@@ -110,6 +110,25 @@ public class JsonFormatFactoryTest extends TestLogger {
 		thrown.expect(containsCause(new ValidationException("Unsupported value 'iso-8601' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
 		testSchemaDeserializationSchema(tableOptions);
 	}
+
+	@Test
+	public void testInvalidOptionForMapNullKeyMode() {
+		final Map<String, String> tableOptions = getModifyOptions(
+			options -> options.put("json.map-null-key.mode", "invalid"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
+		testSchemaSerializationSchema(tableOptions);
+	}
+
+	@Test
+	public void testLowerCaseOptionForMapNullKeyMode() {
+		final Map<String, String> tableOptions = getModifyOptions(
+			options -> options.put("json.map-null-key.mode", "fail"));
+
+		testSchemaDeserializationSchema(tableOptions);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -137,8 +156,11 @@ public class JsonFormatFactoryTest extends TestLogger {
 	}
 
 	private void testSchemaSerializationSchema(Map<String, String> options) {
-		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(ROW_TYPE,
-			TimestampFormat.ISO_8601);
+		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(
+				ROW_TYPE,
+				TimestampFormat.ISO_8601,
+				JsonOptions.MapNullKeyMode.LITERAL,
+				"null");
 
 		final DynamicTableSink actualSink = createTableSink(options);
 		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
@@ -174,6 +196,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 		options.put("json.fail-on-missing-field", "false");
 		options.put("json.ignore-parse-errors", "true");
 		options.put("json.timestamp-format.standard", "ISO-8601");
+		options.put("json.map-null-key.mode", "LITERAL");
+		options.put("json.map-null-key.literal", "null");
 		return options;
 	}
 

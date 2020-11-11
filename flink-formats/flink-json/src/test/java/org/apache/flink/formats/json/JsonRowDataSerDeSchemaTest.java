@@ -19,7 +19,10 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
@@ -42,6 +45,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -182,7 +186,12 @@ public class JsonRowDataSerDeSchemaTest {
 		assertEquals(expected, actual);
 
 		// test serialization
-		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(schema,  TimestampFormat.ISO_8601);
+		JsonRowDataSerializationSchema serializationSchema =
+			new JsonRowDataSerializationSchema(
+				schema,
+				TimestampFormat.ISO_8601,
+				JsonOptions.MapNullKeyMode.LITERAL,
+				"null");
 
 		byte[] actualBytes = serializationSchema.serialize(rowData);
 		assertEquals(new String(serializedJson), new String(actualBytes));
@@ -256,7 +265,9 @@ public class JsonRowDataSerDeSchemaTest {
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			rowType, InternalTypeInfo.of(rowType), false, false,  TimestampFormat.ISO_8601);
-		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.ISO_8601);
+		JsonRowDataSerializationSchema serializationSchema =
+			new JsonRowDataSerializationSchema(
+				rowType, TimestampFormat.ISO_8601, JsonOptions.MapNullKeyMode.LITERAL, "null");
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -326,7 +337,9 @@ public class JsonRowDataSerDeSchemaTest {
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			rowType, InternalTypeInfo.of(rowType), false, true, TimestampFormat.ISO_8601);
-		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.ISO_8601);
+		JsonRowDataSerializationSchema serializationSchema =
+			new JsonRowDataSerializationSchema(
+				rowType, TimestampFormat.ISO_8601, JsonOptions.MapNullKeyMode.LITERAL, "null");
 
 		for (int i = 0; i < jsons.length; i++) {
 			String json = jsons[i];
@@ -386,7 +399,7 @@ public class JsonRowDataSerDeSchemaTest {
 	}
 
 	@Test
-	public void testSerDeSQLTimestampFormat() throws Exception{
+	public void testSerDeSQLTimestampFormat() throws Exception {
 		RowType rowType = (RowType) ROW(
 			FIELD("timestamp3", TIMESTAMP(3)),
 			FIELD("timestamp9", TIMESTAMP(9)),
@@ -396,7 +409,9 @@ public class JsonRowDataSerDeSchemaTest {
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
-		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.SQL);
+		JsonRowDataSerializationSchema serializationSchema =
+			new JsonRowDataSerializationSchema(
+					rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.LITERAL, "null");
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -409,6 +424,64 @@ public class JsonRowDataSerDeSchemaTest {
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		byte[] actual = serializationSchema.serialize(rowData);
 		assertEquals(new String(serializedJson), new String(actual));
+	}
+
+	@Test
+	public void testSerializationMapNullKey() throws Exception {
+		RowType rowType = (RowType) ROW(
+			FIELD("nestedMap", MAP(STRING(), MAP(STRING(), INT())))
+		).getLogicalType();
+
+		// test data
+		// use LinkedHashMap to make sure entries order
+		Map<StringData, Integer> map = new LinkedHashMap<>();
+		map.put(StringData.fromString("no-null key"), 1);
+		map.put(StringData.fromString(null), 2);
+		GenericMapData mapData = new GenericMapData(map);
+
+		Map<StringData, GenericMapData> nestedMap = new LinkedHashMap<>();
+		nestedMap.put(StringData.fromString("no-null key"), mapData);
+		nestedMap.put(StringData.fromString(null), mapData);
+
+		GenericMapData nestedMapData = new GenericMapData(nestedMap);
+		GenericRowData rowData = new GenericRowData(1);
+		rowData.setField(0, nestedMapData);
+
+		JsonRowDataSerializationSchema serializationSchema1 =
+			new JsonRowDataSerializationSchema(
+				rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.FAIL, "null");
+		// expect message for serializationSchema1
+		String errorMessage1 = "JSON format doesn't support to serialize map data with null keys."
+			+ " You can drop null key entries or encode null in literals by specifying map-null-key.mode option.";
+
+		JsonRowDataSerializationSchema serializationSchema2 =
+			new JsonRowDataSerializationSchema(
+				rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.DROP, "null");
+		// expect result for serializationSchema2
+		String expectResult2 = "{\"nestedMap\":{\"no-null key\":{\"no-null key\":1}}}";
+
+		JsonRowDataSerializationSchema serializationSchema3 =
+			new JsonRowDataSerializationSchema(
+				rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.LITERAL, "nullKey");
+		// expect result for serializationSchema3
+		String expectResult3 =
+			"{\"nestedMap\":{\"no-null key\":{\"no-null key\":1,\"nullKey\":2},\"nullKey\":{\"no-null key\":1,\"nullKey\":2}}}";
+
+		try {
+			// throw exception when mapNullKey Mode is fail
+			serializationSchema1.serialize(rowData);
+			Assert.fail("expecting exception message: " + errorMessage1);
+		} catch (Throwable t) {
+			assertEquals(errorMessage1, t.getCause().getMessage());
+		}
+
+		// mapNullKey Mode is drop
+		byte[] actual2 = serializationSchema2.serialize(rowData);
+		assertEquals(expectResult2, new String(actual2));
+
+		// mapNullKey Mode is literal
+		byte[] actual3 = serializationSchema3.serialize(rowData);
+		assertEquals(expectResult3, new String(actual3));
 	}
 
 	@Test

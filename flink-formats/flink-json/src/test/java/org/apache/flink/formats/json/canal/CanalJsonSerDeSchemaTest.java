@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -154,7 +155,9 @@ public class CanalJsonSerDeSchemaTest {
 		// test Serialization
 		CanalJsonSerializationSchema serializationSchema = new CanalJsonSerializationSchema(
 			SCHEMA,
-			TimestampFormat.ISO_8601);
+			TimestampFormat.ISO_8601,
+			JsonOptions.MapNullKeyMode.LITERAL,
+			"null");
 		serializationSchema.open(null);
 
 		List<String> result = new ArrayList<>();

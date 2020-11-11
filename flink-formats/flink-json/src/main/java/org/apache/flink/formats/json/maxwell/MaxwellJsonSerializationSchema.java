@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json.maxwell;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataSerializationSchema;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -51,10 +52,16 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
 
 	private transient GenericRowData reuse;
 
-	public MaxwellJsonSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
+	public MaxwellJsonSerializationSchema(
+			RowType rowType,
+			TimestampFormat timestampFormat,
+			JsonOptions.MapNullKeyMode mapNullKeyMode,
+			String mapNullKeyLiteral) {
 		this.jsonSerializer = new JsonRowDataSerializationSchema(
-			createJsonRowType(fromLogicalToDataType(rowType)),
-			timestampFormat);
+				createJsonRowType(fromLogicalToDataType(rowType)),
+				timestampFormat,
+				mapNullKeyMode,
+				mapNullKeyLiteral);
 		this.timestampFormat = timestampFormat;
 	}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json.debezium;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataSerializationSchema;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -49,10 +50,16 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema<RowD
 
 	private transient GenericRowData genericRowData;
 
-	public DebeziumJsonSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
+	public DebeziumJsonSerializationSchema(
+			RowType rowType,
+			TimestampFormat timestampFormat,
+			JsonOptions.MapNullKeyMode mapNullKeyMode,
+			String mapNullKeyLiteral) {
 		jsonSerializer = new JsonRowDataSerializationSchema(
-			createJsonRowType(fromLogicalToDataType(rowType)),
-			timestampFormat);
+				createJsonRowType(fromLogicalToDataType(rowType)),
+				timestampFormat,
+				mapNullKeyMode,
+				mapNullKeyLiteral);
 	}
 
 	@Override

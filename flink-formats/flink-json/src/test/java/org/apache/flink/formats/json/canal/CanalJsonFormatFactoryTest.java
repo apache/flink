@@ -21,9 +21,11 @@ package org.apache.flink.formats.json.canal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -81,7 +83,9 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		// test Ser
 		CanalJsonSerializationSchema expectedSer = new CanalJsonSerializationSchema(
 			ROW_TYPE,
-			TimestampFormat.SQL);
+			TimestampFormat.SQL,
+			JsonOptions.MapNullKeyMode.FAIL,
+			"null");
 		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 		assertEquals(expectedSer, actualSer);
 	}
@@ -93,6 +97,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		options.put("canal-json.timestamp-format.standard", "ISO-8601");
 		options.put("canal-json.database.include", "mydb");
 		options.put("canal-json.table.include", "mytable");
+		options.put("canal-json.map-null-key.mode", "LITERAL");
+		options.put("canal-json.map-null-key.literal", "nullKey");
 
 		// test Deser
 		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
@@ -108,7 +114,9 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		// test Ser
 		CanalJsonSerializationSchema expectedSer = new CanalJsonSerializationSchema(
 			ROW_TYPE,
-			TimestampFormat.ISO_8601);
+			TimestampFormat.ISO_8601,
+			JsonOptions.MapNullKeyMode.LITERAL,
+			"nullKey");
 		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 		assertEquals(expectedSer, actualSer);
 	}
@@ -122,6 +130,26 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 			getModifiedOptions(opts -> opts.put("canal-json.ignore-parse-errors", "abc"));
 
 		createDeserializationSchema(options);
+	}
+
+	@Test
+	public void testInvalidOptionForTimestampFormat() {
+		final Map<String, String> tableOptions =
+			getModifiedOptions(opts -> opts.put("canal-json.timestamp-format.standard", "test"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
+		createDeserializationSchema(tableOptions);
+	}
+
+	@Test
+	public void testInvalidOptionForMapNullKeyMode() {
+		final Map<String, String> tableOptions =
+			getModifiedOptions(opts -> opts.put("canal-json.map-null-key.mode", "invalid"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
+		createSerializationSchema(tableOptions);
 	}
 
 	// ------------------------------------------------------------------------
