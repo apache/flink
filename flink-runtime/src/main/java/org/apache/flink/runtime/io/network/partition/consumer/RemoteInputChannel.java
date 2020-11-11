@@ -105,7 +105,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 	private int numBuffersOvertaken = ALL;
 
 	@GuardedBy("receivedBuffers")
-	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null);
+	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null, channelInfo);
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -129,7 +129,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 
 	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
 		checkState(!channelStatePersister.isInitialized(), "Already initialized");
-		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter));
+		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter), channelInfo);
 	}
 
 	/**
