@@ -25,8 +25,6 @@ under the License.
 
 Python Table API允许用户使用Python语言开发[Table API]({% link dev/table/tableApi.zh.md %})程序。
 
-自1.9.0起，Apache Flink就提供了Python Table API支持。
-
 ## Where to go next?
 
 - [环境安装]({% link dev/python/installation.zh.md %}): 介绍了如何设置Python Table API的执行环境。

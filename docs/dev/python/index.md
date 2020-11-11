@@ -26,16 +26,15 @@ under the License.
 
 <img src="{% link /fig/pyflink.svg %}" alt="PyFlink" class="offset" width="50%" />
 
-PyFlink is a language for building unified batch and streaming workloads.
-This means real-time streaming pipelines, performing exploratory data
-analysis at scale, building machine learning pipelines, and creating ETLs for a data platform.
-If you're already familiar with Python and libraries such as Pandas, then PyFlink makes it simple
-to leverage the full capabilities of the Apache Flink ecosystem.
+PyFlink is a Python API for Apache Flink that allows you to build scalable batch and streaming 
+workloads, such as real-time data processing pipelines, large-scale exploratory data analysis,
+Machine Learning (ML) pipelines and ETL processes.
+If you're already familiar with Python and libraries such as Pandas, then PyFlink makes it simpler
+to leverage the full capabilities of the Flink ecosystem. Depending on the level of abstraction you
+need, there are two different APIs that can be used in PyFlink:
 
-The PyFlink Table API makes it simple to write powerful relational queries for building reports and
-ETL pipelines.
-At the same time, the PyFlink DataStream API gives developers access to low-level control over
-state and time, unlocking the full power of stream processing.
+* The **PyFlink Table API** allows you to write powerful relational queries in a way that is similar to using SQL or working with tabular data in Python.
+* At the same time, the **PyFlink DataStream API** gives you lower-level control over the core building blocks of Flink, [state]({% link concepts/stateful-stream-processing.md %}) and [time]({% link concepts/timely-stream-processing.md %}), to build more complex stream processing use cases.
 
 <div class="row">
 <div class="col-sm-6" markdown="1">
@@ -44,8 +43,8 @@ state and time, unlocking the full power of stream processing.
 
 If you’re interested in playing around with Flink, try one of our tutorials:
 
-* [Intro to PyFlink Table API]({% link dev/python/table_api_tutorial.md %})
 * [Intro to PyFlink DataStream API]({% link dev/python/datastream_tutorial.md %})
+* [Intro to PyFlink Table API]({% link dev/python/table_api_tutorial.md %})
 
 </div>
 <div class="col-sm-6" markdown="1">
