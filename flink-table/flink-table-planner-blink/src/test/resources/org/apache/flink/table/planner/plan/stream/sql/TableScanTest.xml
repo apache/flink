@@ -265,56 +265,83 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
   <TestCase name="testJoinOnChangelogSource">
     <Resource name="sql">
       <![CDATA[
-SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+SELECT o.currency_name, o.amount, r.rate, o.amount * r.rate
 FROM orders AS o JOIN rates_history AS r
-ON o.currency = r.currency
+ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
 ]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(currency=[$1], amount=[$0], rate=[$3], EXPR$3=[*($0, $3)])
-+- LogicalJoin(condition=[=($1, $2)], joinType=[inner])
+LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
++- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UA])
-+- Join(joinType=[InnerJoin], where=[=(currency, currency0)], select=[amount, currency, currency0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA])
-   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
-   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[I,UB,UA])
+Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UB,UA])
++- Join(joinType=[InnerJoin], where=[AND(=(currency_id, currency_id0), =(currency_name, currency_name0))], select=[amount, currency_id, currency_name, currency_id0, currency_name0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA])
+   :- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency_id, currency_name], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency_id, currency_name, rate], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOnNoUpdateSource">
+    <Resource name="sql">
+      <![CDATA[
+SELECT o.currency_name, o.amount, r.rate, o.amount * r.rate
+FROM orders AS o JOIN rates_history AS r
+ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
++- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,D])
++- Join(joinType=[InnerJoin], where=[AND(=(currency_id, currency_id0), =(currency_name, currency_name0))], select=[amount, currency_id, currency_name, currency_id0, currency_name0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,D])
+   :- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency_id, currency_name], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency_id, currency_name, rate], changelogMode=[I,D])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testJoinOnUpsertSource">
     <Resource name="sql">
       <![CDATA[
-SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+SELECT o.currency_name, o.amount, r.rate, o.amount * r.rate
 FROM orders AS o JOIN rates_history AS r
-ON o.currency = r.currency
+ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
 ]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(currency=[$1], amount=[$0], rate=[$3], EXPR$3=[*($0, $3)])
-+- LogicalJoin(condition=[=($1, $2)], joinType=[inner])
+LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
++- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UA,D])
-+- Join(joinType=[InnerJoin], where=[=(currency, currency0)], select=[amount, currency, currency0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
-   :- Exchange(distribution=[hash[currency]], changelogMode=[I])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency], changelogMode=[I])
-   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
-      +- ChangelogNormalize(key=[currency], changelogMode=[I,UA,D])
-         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate], changelogMode=[UA,D])
+Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[I,UB,UA,D])
++- Join(joinType=[InnerJoin], where=[AND(=(currency_id, currency_id0), =(currency_name, currency_name0))], select=[amount, currency_id, currency_name, currency_id0, currency_name0, rate], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
+   :- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency_id, currency_name], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency_id, currency_name]], changelogMode=[I,UB,UA,D])
+      +- ChangelogNormalize(key=[currency_id], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[currency_id]], changelogMode=[UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency_id, currency_name, rate], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
