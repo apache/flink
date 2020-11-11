@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -53,6 +54,7 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 			InputChannelInfo channelInfo,
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber) throws IOException {
+		Preconditions.checkState(announcedBarrier.isCheckpoint());
 		inputs[channelInfo.getGateIdx()].convertToPriorityEvent(
 			channelInfo.getInputChannelIdx(),
 			sequenceNumber);
@@ -65,6 +67,7 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 
 	@Override
 	public Optional<CheckpointBarrier> preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
+		Preconditions.checkArgument(barrier.getCheckpointOptions().isUnalignedCheckpoint(), "Aligned barrier not expected");
 		checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
 		for (final CheckpointableInput input : inputs) {
 			input.checkpointStarted(barrier);
@@ -74,6 +77,7 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 
 	@Override
 	public Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) {
+		// note that barrier can be aligned if checkpoint timed out in between; event is not converted
 		resetPendingCheckpoint(barrier.getId());
 		return Optional.empty();
 	}
