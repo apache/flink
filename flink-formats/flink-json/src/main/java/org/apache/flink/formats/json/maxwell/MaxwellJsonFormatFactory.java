@@ -43,6 +43,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.JSON_MAP_NULL_KEY_MODE;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateDecodingFormatOptions;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonOptions.validateEncodingFormatOptions;
+
 /**
  * Format factory for providing configured instances of Maxwell JSON to RowData {@link DeserializationSchema}.
  */
@@ -50,15 +57,13 @@ public class MaxwellJsonFormatFactory implements DeserializationFormatFactory, S
 
 	public static final String IDENTIFIER = "maxwell-json";
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
-
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
-
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		validateDecodingFormatOptions(formatOptions);
+
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 
@@ -93,7 +98,11 @@ public class MaxwellJsonFormatFactory implements DeserializationFormatFactory, S
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		validateEncodingFormatOptions(formatOptions);
+
 		TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
+		JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
+		String mapNullKeyLiteral = formatOptions.get(JSON_MAP_NULL_KEY_LITERAL);
 
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 
@@ -112,8 +121,11 @@ public class MaxwellJsonFormatFactory implements DeserializationFormatFactory, S
 					DynamicTableSink.Context context, DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
 				return new MaxwellJsonSerializationSchema(
-					rowType,
-					timestampFormat);
+						rowType,
+						timestampFormat,
+						mapNullKeyMode,
+						mapNullKeyLiteral
+				);
 			}
 		};
 	}
@@ -133,6 +145,8 @@ public class MaxwellJsonFormatFactory implements DeserializationFormatFactory, S
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(IGNORE_PARSE_ERRORS);
 		options.add(TIMESTAMP_FORMAT);
+		options.add(JSON_MAP_NULL_KEY_MODE);
+		options.add(JSON_MAP_NULL_KEY_LITERAL);
 		return options;
 	}
 }

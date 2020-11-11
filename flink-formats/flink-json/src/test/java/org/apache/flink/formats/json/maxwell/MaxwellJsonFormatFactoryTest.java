@@ -21,9 +21,11 @@ package org.apache.flink.formats.json.maxwell;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -73,7 +75,9 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
 
 		final MaxwellJsonSerializationSchema expectedSer = new MaxwellJsonSerializationSchema(
 			ROW_TYPE,
-			TimestampFormat.ISO_8601);
+			TimestampFormat.ISO_8601,
+			JsonOptions.MapNullKeyMode.LITERAL,
+			"null");
 
 		final Map<String, String> options = getAllOptions();
 
@@ -112,6 +116,26 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
 		createTableSource(options);
 	}
 
+	@Test
+	public void testInvalidOptionForTimestampFormat() {
+		final Map<String, String> tableOptions =
+			getModifiedOptions(opts -> opts.put("maxwell-json.timestamp-format.standard", "test"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
+		createTableSource(tableOptions);
+	}
+
+	@Test
+	public void testInvalidOptionForMapNullKeyMode() {
+		final Map<String, String> tableOptions =
+			getModifiedOptions(opts -> opts.put("maxwell-json.map-null-key.mode", "invalid"));
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
+		createTableSink(tableOptions);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -136,6 +160,8 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
 		options.put("format", "maxwell-json");
 		options.put("maxwell-json.ignore-parse-errors", "true");
 		options.put("maxwell-json.timestamp-format.standard", "ISO-8601");
+		options.put("maxwell-json.map-null-key.mode", "LITERAL");
+		options.put("maxwell-json.map-null-key.literal", "null");
 		return options;
 	}
 

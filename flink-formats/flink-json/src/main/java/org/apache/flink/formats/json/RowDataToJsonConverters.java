@@ -62,8 +62,19 @@ public class RowDataToJsonConverters implements Serializable {
 	/** Timestamp format specification which is used to parse timestamp. */
 	private final TimestampFormat timestampFormat;
 
-	public RowDataToJsonConverters(TimestampFormat timestampFormat) {
+	/** The handling mode when serializing null keys for map data. */
+	private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+
+	/** The string literal when handling mode for map null key LITERAL. is  */
+	private final String mapNullKeyLiteral;
+
+	public RowDataToJsonConverters(
+			TimestampFormat timestampFormat,
+			JsonOptions.MapNullKeyMode mapNullKeyMode,
+			String mapNullKeyLiteral) {
 		this.timestampFormat = timestampFormat;
+		this.mapNullKeyMode = mapNullKeyMode;
+		this.mapNullKeyLiteral = mapNullKeyLiteral;
 	}
 
 	/**
@@ -250,7 +261,27 @@ public class RowDataToJsonConverters implements Serializable {
 			ArrayData valueArray = map.valueArray();
 			int numElements = map.size();
 			for (int i = 0; i < numElements; i++) {
-				String fieldName = keyArray.getString(i).toString(); // key must be string
+				String fieldName = null;
+				if (keyArray.isNullAt(i)) {
+					// when map key is null
+					switch (mapNullKeyMode) {
+						case LITERAL:
+							fieldName = mapNullKeyLiteral;
+							break;
+						case DROP:
+							continue;
+						case FAIL:
+							throw new RuntimeException(String.format(
+								"JSON format doesn't support to serialize map data with null keys. "
+									+ "You can drop null key entries or encode null in literals by specifying %s option.",
+								JsonOptions.MAP_NULL_KEY_MODE.key()));
+						default:
+							throw new RuntimeException("Unsupported map null key mode. Validator should have checked that.");
+					}
+				} else {
+					fieldName = keyArray.getString(i).toString();
+				}
+
 				Object value = valueGetter.getElementOrNull(valueArray, i);
 				node.set(fieldName, valueConverter.convert(mapper, node.get(fieldName), value));
 			}
@@ -301,4 +332,5 @@ public class RowDataToJsonConverters implements Serializable {
 			return converter.convert(mapper, reuse, object);
 		};
 	}
+
 }

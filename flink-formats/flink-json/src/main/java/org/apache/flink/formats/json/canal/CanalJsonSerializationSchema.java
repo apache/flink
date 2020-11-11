@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json.canal;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.JsonRowDataSerializationSchema;
 import org.apache.flink.formats.json.TimestampFormat;
 import org.apache.flink.table.api.DataTypes;
@@ -54,10 +55,16 @@ public class CanalJsonSerializationSchema implements SerializationSchema<RowData
 	 */
 	private final JsonRowDataSerializationSchema jsonSerializer;
 
-	public CanalJsonSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
+	public CanalJsonSerializationSchema(
+			RowType rowType,
+			TimestampFormat timestampFormat,
+			JsonOptions.MapNullKeyMode mapNullKeyMode,
+			String mapNullKeyLiteral) {
 		jsonSerializer = new JsonRowDataSerializationSchema(
 			createJsonRowType(fromLogicalToDataType(rowType)),
-			timestampFormat);
+			timestampFormat,
+			mapNullKeyMode,
+			mapNullKeyLiteral);
 	}
 
 	@Override

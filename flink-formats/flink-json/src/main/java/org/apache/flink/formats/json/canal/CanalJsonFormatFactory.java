@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
@@ -44,6 +43,15 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.DATABASE_INCLUDE;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.JSON_MAP_NULL_KEY_LITERAL;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.JSON_MAP_NULL_KEY_MODE;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.TABLE_INCLUDE;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.validateDecodingFormatOptions;
+import static org.apache.flink.formats.json.canal.CanalJsonOptions.validateEncodingFormatOptions;
+
 /**
  * Format factory for providing configured instances of Canal JSON to RowData {@link DeserializationSchema}.
  */
@@ -51,27 +59,13 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 
 	public static final String IDENTIFIER = "canal-json";
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
-
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
-
-	public static final ConfigOption<String> DATABASE_INCLUDE = ConfigOptions
-		.key("database.include")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Only read changelog rows which match the specific database (by comparing the \"database\" meta field in the record).");
-
-	public static final ConfigOption<String> TABLE_INCLUDE = ConfigOptions
-		.key("table.include")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Only read changelog rows which match the specific table (by comparing the \"table\" meta field in the record).");
-
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		validateDecodingFormatOptions(formatOptions);
+
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
 		String database = formatOptions.getOptional(DATABASE_INCLUDE).orElse(null);
@@ -111,7 +105,11 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 			ReadableConfig formatOptions) {
 
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
+		validateEncodingFormatOptions(formatOptions);
+
 		TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
+		JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
+		String mapNullKeyLiteral = formatOptions.get(JSON_MAP_NULL_KEY_LITERAL);
 
 		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
@@ -128,8 +126,11 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 			public SerializationSchema<RowData> createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
 				return new CanalJsonSerializationSchema(
-					rowType,
-					timestampFormat);
+						rowType,
+						timestampFormat,
+						mapNullKeyMode,
+						mapNullKeyLiteral
+				);
 			}
 		};
 
@@ -152,6 +153,8 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 		options.add(TIMESTAMP_FORMAT);
 		options.add(DATABASE_INCLUDE);
 		options.add(TABLE_INCLUDE);
+		options.add(JSON_MAP_NULL_KEY_MODE);
+		options.add(JSON_MAP_NULL_KEY_LITERAL);
 		return options;
 	}
 
