@@ -215,8 +215,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -252,8 +252,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -381,8 +381,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA])
-+- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
++- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -532,8 +532,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -569,8 +569,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -847,8 +847,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
@@ -884,8 +884,8 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a1, a2, b1, b2], changelogMode=[I,UA,D])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UB,UA,D])
    :- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA])
    :  +- Calc(select=[a2, a1], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
