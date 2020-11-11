@@ -497,18 +497,22 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(sort, children, requiredTrait)
 
       case join: StreamExecJoin =>
-        val requiredUpdateBeforeByParent = requiredTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
+        val onlyAfterByParent = requiredTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
         val children = join.getInputs.zipWithIndex.map {
           case (child, childOrdinal) =>
             val physicalChild = child.asInstanceOf[StreamPhysicalRel]
-            val needUpdateBefore = !join.inputUniqueKeyContainsJoinKey(childOrdinal)
+            val supportOnlyAfter = join.inputUniqueKeyContainsJoinKey(childOrdinal)
             val inputModifyKindSet = getModifyKindSet(physicalChild)
-            val childRequiredTrait = if (needUpdateBefore || requiredUpdateBeforeByParent) {
-              beforeAfterOrNone(inputModifyKindSet)
+            if (onlyAfterByParent) {
+              if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
+                // the parent requires only-after, however, the join doesn't support this
+                None
+              } else {
+                this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
+              }
             } else {
-              onlyAfterOrNone(inputModifyKindSet)
+              this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
             }
-            this.visit(physicalChild, childRequiredTrait)
         }
         if (children.exists(_.isEmpty)) {
           None
