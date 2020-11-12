@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

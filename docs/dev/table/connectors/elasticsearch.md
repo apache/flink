@@ -2,7 +2,7 @@
 title: "Elasticsearch SQL Connector"
 nav-title: Elasticsearch
 nav-parent_id: sql-connectors
-nav-pos: 4
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
