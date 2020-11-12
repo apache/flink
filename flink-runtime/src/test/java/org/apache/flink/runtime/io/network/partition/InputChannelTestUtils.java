@@ -37,6 +37,7 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.function.Consumer;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -105,11 +106,22 @@ public class InputChannelTestUtils {
 		int initialBackoff,
 		int maxBackoff) {
 
-		return InputChannelBuilder.newBuilder()
+		return createLocalInputChannel(inputGate, partitionManager, initialBackoff, maxBackoff, unused -> { /* no op */ });
+	}
+
+	public static LocalInputChannel createLocalInputChannel(
+			SingleInputGate inputGate,
+			ResultPartitionManager partitionManager,
+			int initialBackoff,
+			int maxBackoff,
+			Consumer<InputChannelBuilder> setter) {
+
+		InputChannelBuilder inputChannelBuilder = InputChannelBuilder.newBuilder()
 			.setPartitionManager(partitionManager)
 			.setInitialBackoff(initialBackoff)
-			.setMaxBackoff(maxBackoff)
-			.buildLocalChannel(inputGate);
+			.setMaxBackoff(maxBackoff);
+		setter.accept(inputChannelBuilder);
+		return inputChannelBuilder.buildLocalChannel(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(

@@ -71,10 +71,8 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			maxBackoff,
 			networkBuffersPerChannel,
 			numBytesIn,
-			numBuffersIn);
-		if (channelStateWriter != null) {
-			remoteInputChannel.setChannelStateWriter(channelStateWriter);
-		}
+			numBuffersIn,
+			channelStateWriter);
 		remoteInputChannel.setup();
 		return remoteInputChannel;
 	}
