@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
+import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
@@ -41,6 +42,13 @@ public class MockSourceReader
 							Configuration config,
 							SourceReaderContext context) {
 		super(elementsQueue, splitFetcherSupplier, new MockRecordEmitter(), config, context);
+	}
+
+	public MockSourceReader(FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
+							SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
+							Configuration config,
+							SourceReaderContext context) {
+		super(elementsQueue, splitSplitFetcherManager, new MockRecordEmitter(), config, context);
 	}
 
 	@Override
