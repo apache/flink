@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.util.FlinkException;
@@ -31,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assert.assertThat;
@@ -110,9 +112,11 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with an JobCancellationException.");
-		} catch (JobCancellationException expected) {
+		} catch (JobExecutionResultException expected) {
+
+			assertThat(expected.getCause(), is(instanceOf(JobCancellationException.class)));
 			// the failure cause in the execution graph should not be the cause of the canceled job result
-			assertThat(expected.getCause(), is(nullValue()));
+			assertThat(expected.getCause().getCause(), is(nullValue()));
 		}
 	}
 
@@ -129,8 +133,11 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with JobExecutionException.");
-		} catch (JobExecutionException expected) {
-			assertThat(expected.getCause(), is(equalTo(cause)));
+		} catch (JobExecutionResultException expected) {
+
+			assertThat(expected.getCause(), is(instanceOf(JobExecutionException.class)));
+			// the failure cause in the execution graph should not be the cause of the canceled job result
+			assertThat(expected.getCause().getCause(), is(equalTo(cause)));
 		}
 	}
 

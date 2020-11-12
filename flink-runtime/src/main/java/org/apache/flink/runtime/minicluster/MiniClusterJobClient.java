@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -119,8 +118,7 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 			try {
 				return result.toJobExecutionResult(classLoader);
 			} catch (Exception e) {
-				throw new CompletionException(
-						JobExecutionResultException.fromJobResult(result, classLoader, e));
+				throw new CompletionException(e);
 			}
 		});
 	}

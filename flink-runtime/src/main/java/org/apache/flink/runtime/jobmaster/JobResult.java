@@ -25,6 +25,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -119,12 +120,11 @@ public class JobResult implements Serializable {
 	 *
 	 * @param classLoader to use for deserialization
 	 * @return JobExecutionResult
-	 * @throws JobCancellationException if the job was cancelled
-	 * @throws JobExecutionException if the job execution did not succeed
+	 * @throws JobExecutionResultException if the job execution did not succeed
 	 * @throws IOException if the accumulator could not be deserialized
 	 * @throws ClassNotFoundException if the accumulator could not deserialized
 	 */
-	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionException, IOException, ClassNotFoundException {
+	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionResultException, IOException, ClassNotFoundException {
 		if (applicationStatus == ApplicationStatus.SUCCEEDED) {
 			return new JobExecutionResult(
 				jobId,
@@ -133,26 +133,31 @@ public class JobResult implements Serializable {
 					accumulatorResults,
 					classLoader));
 		} else {
-			final Throwable cause;
+			final JobExecutionException exception =
+					getJobExecutionException(serializedThrowable, classLoader);
 
-			if (serializedThrowable == null) {
-				cause = null;
-			} else {
-				cause = serializedThrowable.deserializeError(classLoader);
-			}
-
-			final JobExecutionException exception;
-
-			if (applicationStatus == ApplicationStatus.FAILED) {
-				exception = new JobExecutionException(jobId, "Job execution failed.", cause);
-			} else if (applicationStatus == ApplicationStatus.CANCELED) {
-				exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
-			} else {
-				exception = new JobExecutionException(jobId, "Job completed with illegal application status: " + applicationStatus + '.', cause);
-			}
-
-			throw exception;
+			throw applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED
+					? new JobExecutionResultException(jobId, applicationStatus, "Application Status: " + applicationStatus.name(), exception)
+					: new JobExecutionResultException(jobId, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", exception);
 		}
+	}
+
+	private JobExecutionException getJobExecutionException(final SerializedThrowable throwable, final ClassLoader classLoader) {
+		final Throwable cause = getCause(throwable, classLoader);
+
+		final JobExecutionException exception;
+		if (applicationStatus == ApplicationStatus.FAILED) {
+			exception = new JobExecutionException(jobId, "Job execution failed.", cause);
+		} else if (applicationStatus == ApplicationStatus.CANCELED) {
+			exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
+		} else {
+			exception = new JobExecutionException(jobId, "Job completed with illegal application status: " + applicationStatus + '.', cause);
+		}
+		return exception;
+	}
+
+	private static Throwable getCause(final SerializedThrowable throwable, final ClassLoader classLoader) {
+		return throwable == null ? null : throwable.deserializeError(classLoader);
 	}
 
 	/**

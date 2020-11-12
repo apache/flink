@@ -284,9 +284,13 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 				return result;
 			}
 
-			throw new CompletionException(
-					JobExecutionResultException.fromJobResult(
-							result, application.getUserCodeClassLoader()));
+			final ClassLoader userClassLoader = application.getUserCodeClassLoader();
+			try {
+				result.toJobExecutionResult(userClassLoader);
+				throw new IllegalStateException("No exception thrown although the job execution was not successful.");
+			} catch (Throwable t) {
+				throw new CompletionException(t);
+			}
 		});
 	}
 }

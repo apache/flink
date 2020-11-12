@@ -20,14 +20,14 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.jobmaster.JobResult;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This exception is the base exception for all exceptions that signals the failure of an
  * application with a given {@link ApplicationStatus}.
+ *
+ * @throws JobCancellationException if the job was cancelled
  */
 public class JobExecutionResultException extends JobExecutionException {
 
@@ -44,47 +44,5 @@ public class JobExecutionResultException extends JobExecutionException {
 
 	public ApplicationStatus getStatus() {
 		return status;
-	}
-
-	public static JobExecutionResultException fromJobResult(
-			final JobResult result,
-			final ClassLoader userClassLoader) {
-		return fromJobResult(result, userClassLoader, true, null);
-	}
-
-	public static JobExecutionResultException fromJobResult(
-			final JobResult result,
-			final ClassLoader userClassLoader,
-			final Throwable throwable) {
-		return fromJobResult(result, userClassLoader, false, throwable);
-	}
-
-	private static JobExecutionResultException fromJobResult(
-			final JobResult result,
-			final ClassLoader userClassLoader,
-			final boolean isUnwrapped,
-			Throwable throwable) {
-
-		checkState(result != null && !result.isSuccess());
-		checkNotNull(userClassLoader);
-
-		if (isUnwrapped) {
-			// We do this to uniformize the behavior of the "ATTACHED" and "DETACHED"
-			// in application mode, while maintaining the expected exceptions thrown in case
-			// of a failed job execution.
-			try {
-				result.toJobExecutionResult(userClassLoader);
-				throw new IllegalStateException("No exception thrown although the job execution was not successful.");
-			} catch (Throwable t) {
-				throwable = t;
-			}
-		}
-
-		final JobID jobID = result.getJobId();
-		final ApplicationStatus status = result.getApplicationStatus();
-
-		return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
-				? new JobExecutionResultException(jobID, status, "Application Status: " + status.name(), throwable)
-				: new JobExecutionResultException(jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", throwable);
 	}
 }
