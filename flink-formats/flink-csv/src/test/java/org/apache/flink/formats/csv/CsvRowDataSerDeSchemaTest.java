@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalTime;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -107,6 +108,22 @@ public class CsvRowDataSerDeSchemaTest {
 			BYTES(),
 			"awML",
 			new byte[] {107, 3, 11});
+		testNullableField(
+			TIME(3),
+			"12:12:12.232",
+			LocalTime.parse("12:12:12.232"));
+		testNullableField(
+			TIME(2),
+			"12:12:12.23",
+			LocalTime.parse("12:12:12.23"));
+		testNullableField(
+			TIME(1),
+			"12:12:12.2",
+			LocalTime.parse("12:12:12.2"));
+		testNullableField(
+			TIME(0),
+			"12:12:12",
+			LocalTime.parse("12:12:12"));
 	}
 
 	@Test
@@ -124,13 +141,13 @@ public class CsvRowDataSerDeSchemaTest {
 			.setArrayElementDelimiter(":")
 			.setFieldDelimiter(';');
 
-		testField(STRING(), "123*'4**", "123'4*", deserConfig, ";");
-		testField(STRING(), "'123''4**'", "123'4*", serConfig, deserConfig, ";");
-		testField(STRING(), "'a;b*'c'", "a;b'c", deserConfig, ";");
+		testFieldDeserialization(STRING(), "123*'4**", "123'4*", deserConfig, ";");
+		testField(STRING(), "'123''4**'", "'123''4**'", serConfig, deserConfig, ";");
+		testFieldDeserialization(STRING(), "'a;b*'c'", "a;b'c", deserConfig, ";");
 		testField(STRING(), "'a;b''c'", "a;b'c", serConfig, deserConfig, ";");
-		testField(INT(), "       12          ", 12, deserConfig, ";");
+		testFieldDeserialization(INT(), "       12          ", 12, deserConfig, ";");
 		testField(INT(), "12", 12, serConfig, deserConfig, ";");
-		testField(
+		testFieldDeserialization(
 			ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
 			"1:hello", Row.of("1", "hello"),
 			deserConfig,
@@ -150,6 +167,26 @@ public class CsvRowDataSerDeSchemaTest {
 			deserConfig,
 			";");
 		testField(STRING(), "null", "null", serConfig, deserConfig, ";"); // string because null literal has not been set
+		testFieldDeserialization(TIME(3), "12:12:12.232", LocalTime.parse("12:12:12.232"), deserConfig, ";");
+		testFieldDeserialization(TIME(3), "12:12:12.232342", LocalTime.parse("12:12:12.232"), deserConfig, ";");
+		testFieldDeserialization(TIME(3), "12:12:12.23", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.23", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.232312", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.2", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12.2", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12.2235", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12", LocalTime.parse("12:12:12"), deserConfig, ";");
+		testFieldDeserialization(TIME(0), "12:12:12", LocalTime.parse("12:12:12"), deserConfig, ";");
+		testFieldDeserialization(TIME(0), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
+		int precision = 5;
+		try {
+			testFieldDeserialization(TIME(5), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
+			fail();
+		} catch (Exception e) {
+			assertEquals(
+				"Csv does not support TIME type with precision: 5, it only supports precision 0 ~ 3.",
+				e.getMessage());
+		}
 	}
 
 	@Test
@@ -306,7 +343,7 @@ public class CsvRowDataSerDeSchemaTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void testField(
+	private void testFieldDeserialization(
 			DataType fieldType,
 			String csvValue,
 			Object value,

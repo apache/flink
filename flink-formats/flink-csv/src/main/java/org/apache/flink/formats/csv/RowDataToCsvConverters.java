@@ -244,7 +244,7 @@ public class RowDataToCsvConverters implements Serializable {
 	}
 
 	private static JsonNode convertTime(int millisecond, ContainerNode<?> container) {
-		LocalTime time = LocalTime.ofSecondOfDay(millisecond / 1000L);
+		LocalTime time = LocalTime.ofNanoOfDay(millisecond * 1000_000L);
 		return container.textNode(ISO_LOCAL_TIME.format(time));
 	}
 
