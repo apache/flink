@@ -44,6 +44,11 @@ To use the connector, add the following Maven dependency to your project:
 </dependency>
 {% endhighlight %}
 
+{% assign connector = site.data.sql-connectors['kinesis'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
+
 How to create a Kinesis data stream table
 -----------------------------------------
 
