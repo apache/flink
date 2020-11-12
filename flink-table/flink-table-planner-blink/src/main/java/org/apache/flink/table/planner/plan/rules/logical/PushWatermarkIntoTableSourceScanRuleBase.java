@@ -180,7 +180,10 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
 			@Override
 			public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
 				try {
-					currentWatermark = innerWatermarkGenerator.currentWatermark(event);
+					Long watermark = innerWatermarkGenerator.currentWatermark(event);
+					if (watermark != null) {
+						currentWatermark = watermark;
+					}
 				} catch (Exception e) {
 					throw new RuntimeException(
 							String.format("Generated WatermarkGenerator fails to generate for row: %s.", event), e);

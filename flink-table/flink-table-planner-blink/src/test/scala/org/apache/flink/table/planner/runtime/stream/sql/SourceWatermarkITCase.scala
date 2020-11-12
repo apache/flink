@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import java.sql.Timestamp
-import java.time.LocalDateTime
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit.{Ignore, Test}
+
+import java.sql.Timestamp
+import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 
@@ -38,8 +39,10 @@ class SourceWatermarkITCase extends StreamingTestBase{
   @Test
   def testWatermarkWithNestedRow(): Unit = {
     val data = Seq(
+      row(0, 0L, row("h1", row("h2", null))),
       row(1, 2L, row("i1", row("i2", LocalDateTime.parse("2020-11-21T19:00:05.23")))),
-      row(2, 3L, row("j1", row("j2", LocalDateTime.parse("2020-11-21T21:00:05.23"))))
+      row(2, 3L, row("j1", row("j2", LocalDateTime.parse("2020-11-21T21:00:05.23")))),
+      row(3, 4L, row("k1", row("k2", null)))
     )
 
     val dataId = TestValuesTableFactory.registerData(data)
@@ -64,11 +67,15 @@ class SourceWatermarkITCase extends StreamingTestBase{
     tEnv.executeSql(ddl)
 
     val expectedWatermarkOutput = Seq(
+      TimestampData.fromEpochMillis(Long.MinValue).toString,
       "2020-11-21T19:00:00.230",
+      "2020-11-21T21:00:00.230",
       "2020-11-21T21:00:00.230")
     val expectedData = Seq(
+      "0,0,h2,null",
       "1,2,i2,2020-11-21T19:00:05.230",
-      "2,3,j2,2020-11-21T21:00:05.230"
+      "2,3,j2,2020-11-21T21:00:05.230",
+      "3,4,k2,null"
     )
 
     val query = "SELECT a, b, c.d FROM NestedTable"
