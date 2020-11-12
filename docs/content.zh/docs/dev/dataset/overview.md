@@ -1008,6 +1008,7 @@ The following table lists the currently supported compression methods.
 | GZip | .gz, .gzip | no |
 | Bzip2 | .bz2 | no |
 | XZ | .xz | no |
+| ZStandart | .zst | no |
 
 ## Data Sinks
 
