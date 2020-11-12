@@ -259,7 +259,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 		if (should.getArity() != is.getArity()) {
 			return false;
 		}
-		if (checkClass && should.getClass() != is.getClass()) {
+		if (checkClass && (should.getClass() != is.getClass() || !should.equals(is))) {
 			return false;
 		}
 
