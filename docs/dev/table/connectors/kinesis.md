@@ -39,6 +39,11 @@ Dependencies
     connector=connector
 %}
 
+{% assign connector = site.data.sql-connectors['kinesis'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
+
 How to create a Kinesis data stream table
 -----------------------------------------
 

@@ -312,6 +312,12 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>.gitkeep</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
 									<excludes>
 										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
