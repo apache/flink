@@ -198,7 +198,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	}
 
 	@Test
-	public void pollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
+	public void testPollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
 		throws Exception {
 
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
