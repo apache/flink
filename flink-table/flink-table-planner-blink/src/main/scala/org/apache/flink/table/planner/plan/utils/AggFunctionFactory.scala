@@ -480,7 +480,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (needRetraction(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
           new FirstValueWithRetractAggFunction(valueType)
         case t =>
           throw new TableException(s"FIRST_VALUE with retract aggregate function does not " +
@@ -488,7 +489,8 @@ class AggFunctionFactory(
       }
     } else {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
           new FirstValueAggFunction(valueType)
         case t =>
           throw new TableException(s"FIRST_VALUE aggregate function does not support " +
@@ -504,7 +506,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (needRetraction(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
           new LastValueWithRetractAggFunction(valueType)
         case t =>
           throw new TableException(s"LAST_VALUE with retract aggregate function does not " +
@@ -512,7 +515,8 @@ class AggFunctionFactory(
       }
     } else {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
           new LastValueAggFunction(valueType)
         case t =>
           throw new TableException(s"LAST_VALUE aggregate function does not support " +

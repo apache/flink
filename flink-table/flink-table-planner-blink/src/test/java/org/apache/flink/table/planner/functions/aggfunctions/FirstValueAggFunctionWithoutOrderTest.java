@@ -23,13 +23,17 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.serialization.types.ShortType;
@@ -37,6 +41,9 @@ import org.apache.flink.testutils.serialization.types.ShortType;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -311,6 +318,178 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 		@Override
 		protected AggregateFunction<StringData, RowData> getAggregator() {
 			return new FirstValueAggFunction<>(DataTypes.STRING().getLogicalType());
+		}
+	}
+
+	/**
+	 * Test for {@link DateType}.
+	 */
+	public static final class DateFirstValueAggFunctionWithoutOrderTest
+		extends FirstValueAggFunctionWithoutOrderTestBase<LocalDate> {
+
+		@Override
+		protected List<List<LocalDate>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					LocalDate.parse("2020-11-11"),
+					LocalDate.parse("2020-11-12"),
+					LocalDate.parse("2020-11-13")
+				),
+				Arrays.asList(
+					LocalDate.parse("2020-11-12"),
+					LocalDate.parse("2020-11-13"),
+					LocalDate.parse("2020-11-14")
+				),
+				Arrays.asList(
+					LocalDate.parse("2020-11-12"),
+					LocalDate.parse("2020-11-11"),
+					null,
+					LocalDate.parse("2020-11-15"),
+					LocalDate.parse("2020-11-10"),
+					LocalDate.parse("2020-11-09"),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					LocalDate.parse("2020-11-12")
+				));
+		}
+
+		@Override
+		protected List<LocalDate> getExpectedResults() {
+			return Arrays.asList(
+				LocalDate.parse("2020-11-11"),
+				LocalDate.parse("2020-11-12"),
+				LocalDate.parse("2020-11-12"),
+				null,
+				LocalDate.parse("2020-11-12")
+			);
+		}
+
+		@Override
+		protected AggregateFunction<LocalDate, RowData> getAggregator() {
+			return new FirstValueAggFunction<>(DataTypes.DATE().getLogicalType());
+		}
+	}
+
+	/**
+	 * Test for {@link TimeType}.
+	 */
+	public static final class TimeFirstValueAggFunctionWithoutOrderTest
+		extends FirstValueAggFunctionWithoutOrderTestBase<LocalTime> {
+
+		private int precision = 3;
+
+		@Override
+		protected List<List<LocalTime>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					LocalTime.parse("12:00:00.123"),
+					LocalTime.parse("12:45:00.345"),
+					LocalTime.parse("18:30:15.678")
+				),
+				Arrays.asList(
+					LocalTime.parse("18:00:00.123"),
+					LocalTime.parse("18:45:00.345"),
+					LocalTime.parse("20:30:15.678")
+				),
+				Arrays.asList(
+					LocalTime.parse("12:00:00.123"),
+					LocalTime.parse("12:45:00.345"),
+					null,
+					LocalTime.parse("18:00:00.123"),
+					LocalTime.parse("18:45:00.345"),
+					LocalTime.parse("20:30:15.678"),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					LocalTime.parse("18:00:00.345")
+				));
+		}
+
+		@Override
+		protected List<LocalTime> getExpectedResults() {
+			return Arrays.asList(
+				LocalTime.parse("12:00:00.123"),
+				LocalTime.parse("18:00:00.123"),
+				LocalTime.parse("12:00:00.123"),
+				null,
+				LocalTime.parse("18:00:00.345")
+			);
+		}
+
+		@Override
+		protected AggregateFunction<LocalTime, RowData> getAggregator() {
+			return new FirstValueAggFunction<>(DataTypes.TIME(precision).getLogicalType());
+		}
+	}
+
+	/**
+	 * Test for {@link TimestampType}.
+	 */
+	public static final class TimestampFirstValueAggFunctionWithoutOrderTest
+		extends FirstValueAggFunctionWithoutOrderTestBase<TimestampData> {
+
+		private int precision = 3;
+
+		@Override
+		protected List<List<TimestampData>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T15:30:00.345")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T18:45:00.678"))
+				),
+				Arrays.asList(
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T12:00:00.123")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T15:30:00.345")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-14T18:45:00.678"))
+				),
+				Arrays.asList(
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T15:30:00.345")),
+					null,
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T12:00:00.123")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-13T15:30:00.345")),
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-14T18:45:00.678")),
+					null
+				),
+				Arrays.asList(
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T18:00:00.345"))
+				));
+		}
+
+		@Override
+		protected List<TimestampData> getExpectedResults() {
+			return Arrays.asList(
+				TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+				TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T12:00:00.123")),
+				TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-11T12:00:00.123")),
+				null,
+				TimestampData.fromLocalDateTime(LocalDateTime.parse("2020-11-12T18:00:00.345"))
+			);
+		}
+
+		@Override
+		protected AggregateFunction<TimestampData, RowData> getAggregator() {
+			return new FirstValueAggFunction<>(DataTypes.TIMESTAMP(precision).getLogicalType());
 		}
 	}
 
