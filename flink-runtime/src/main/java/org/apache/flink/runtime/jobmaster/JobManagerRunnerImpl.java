@@ -195,17 +195,14 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 						classLoaderLease.release();
 
+						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
 								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
 						} else {
 							terminationFuture.complete(null);
 						}
-					});
-
-				terminationFuture.whenComplete(
-					(Void ignored, Throwable throwable) -> {
-						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
 					});
 			}
 
