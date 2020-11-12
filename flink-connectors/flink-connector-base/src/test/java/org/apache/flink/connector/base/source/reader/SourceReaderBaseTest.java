@@ -20,8 +20,10 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
 import org.apache.flink.connector.base.source.reader.mocks.PassThroughRecordEmitter;
@@ -45,7 +47,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -82,7 +87,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				public void wakeUp() {}
 
 				@Override
-				public void close() throws Exception {}
+				public void close() {}
 			},
 			getConfig(),
 			null)) {
@@ -192,6 +197,33 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		}
 	}
 
+	@Test
+	public void pollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
+		throws Exception {
+
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
+			new FutureCompletingBlockingQueue<>();
+		MockSplitReader mockSplitReader =
+			new MockSplitReader(1, true);
+		BlockingShutdownSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager =
+			new BlockingShutdownSplitFetcherManager<>(elementsQueue, () -> mockSplitReader);
+		final MockSourceReader sourceReader = new MockSourceReader(
+			elementsQueue,
+			splitFetcherManager,
+			getConfig(),
+			null);
+
+		// Create and add a split that only contains one record
+		final MockSourceSplit split = new MockSourceSplit(0, 0, 1);
+		sourceReader.addSplits(Collections.singletonList(split));
+		sourceReader.notifyNoMoreSplits();
+
+		// Add the last record to the split when the splitFetcherManager shutting down SplitFetchers
+		splitFetcherManager.getInShutdownSplitFetcherFuture().thenRun(() -> split.addRecord(1));
+		assertEquals(InputStatus.MORE_AVAILABLE,
+			sourceReader.pollNext(new TestingReaderOutput<>()));
+	}
+
 	// ---------------- helper methods -----------------
 
 	@Override
@@ -255,13 +287,13 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
 		final SourceReader<E, TestingSourceSplit> reader = new SingleThreadMultiplexSourceReaderBase<E, E, TestingSourceSplit, TestingSourceSplit>(
 			elementsQueue,
-			() -> new TestingSplitReader<E, TestingSourceSplit>(records),
-			new PassThroughRecordEmitter<E, TestingSourceSplit>(),
+			() -> new TestingSplitReader<>(records),
+			new PassThroughRecordEmitter<>(),
 			new Configuration(),
 			new TestingReaderContext()) {
 
 			@Override
-			public void notifyCheckpointComplete(long checkpointId) throws Exception {}
+			public void notifyCheckpointComplete(long checkpointId) {}
 
 			@Override
 			protected void onSplitFinished(Collection<String> finishedSplitIds) {}
@@ -285,5 +317,46 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		reader.isAvailable().get();
 
 		return reader;
+	}
+
+	// ------------------ Test helper classes -------------------
+	/**
+	 * When maybeShutdownFinishedFetchers is invoke, BlockingShutdownSplitFetcherManager
+	 * will complete the inShutdownSplitFetcherFuture and ensures that all the split fetchers
+	 * are shutdown.
+	 */
+	private static class BlockingShutdownSplitFetcherManager<E, SplitT extends SourceSplit>
+		extends SingleThreadFetcherManager<E, SplitT> {
+
+		private final CompletableFuture<Void> inShutdownSplitFetcherFuture;
+
+		public BlockingShutdownSplitFetcherManager(
+			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+			Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
+			super(elementsQueue, splitReaderSupplier);
+			this.inShutdownSplitFetcherFuture = new CompletableFuture<>();
+		}
+
+		@Override
+		public boolean maybeShutdownFinishedFetchers() {
+			shutdownAllSplitFetcher();
+			return true;
+		}
+
+		public CompletableFuture<Void> getInShutdownSplitFetcherFuture() {
+			return inShutdownSplitFetcherFuture;
+		}
+
+		private void shutdownAllSplitFetcher() {
+			inShutdownSplitFetcherFuture.complete(null);
+			while (!super.maybeShutdownFinishedFetchers()) {
+				try {
+					// avoid tight loop
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 }
