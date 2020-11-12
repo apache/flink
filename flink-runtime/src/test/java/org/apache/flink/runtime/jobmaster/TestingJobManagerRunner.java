@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
 	private final CompletableFuture<Void> terminationFuture;
+
+	private final OneShotLatch closeAsyncLatch = new OneShotLatch();
 
 	public TestingJobManagerRunner(JobID jobId) {
 		this(jobId, false);
@@ -72,6 +75,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	@Override
 	public CompletableFuture<Void> closeAsync() {
+		closeAsyncLatch.trigger();
 		if (!blockingTermination) {
 			terminationFuture.complete(null);
 		}
@@ -89,6 +93,10 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
 	public void completeTerminationFuture() {
 		terminationFuture.complete(null);
+	}
+
+	public void waitUntilCloseAsyncIsBeingCalled() throws InterruptedException {
+		closeAsyncLatch.await();
 	}
 
 	public CompletableFuture<Void> getTerminationFuture() {
