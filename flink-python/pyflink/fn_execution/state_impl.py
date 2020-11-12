@@ -345,7 +345,7 @@ class CachingMapStateHandler(object):
                     cached_map_state.put(map_key, (True, map_value))
                 else:
                     raise Exception("Unknown flag: " + str(request_flag))
-        self._append_raw(
+        return self._append_raw(
             state_key,
             items,
             map_key_coder,
