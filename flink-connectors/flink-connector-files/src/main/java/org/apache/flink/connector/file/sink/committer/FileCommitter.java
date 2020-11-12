@@ -32,9 +32,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Committer implementation for {@link FileSink}.
+ *
+ * <p>This committer is responsible for taking staged part-files, i.e. part-files in "pending" state,
+ * created by the {@link org.apache.flink.connector.file.sink.writer.FileWriter FileWriter} and commit
+ * them, or put them in "finished" state and ready to be consumed by downstream applications or systems.
  */
 @Internal
 public class FileCommitter implements Committer<FileSinkCommittable> {
+
 	private final BucketWriter<?, ?> bucketWriter;
 
 	public FileCommitter(BucketWriter<?, ?> bucketWriter) {
