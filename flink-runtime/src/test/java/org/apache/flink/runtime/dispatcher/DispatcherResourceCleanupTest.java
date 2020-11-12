@@ -74,7 +74,11 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -314,6 +318,32 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(deleteAllHABlobsFuture.isDone(), is(false));
 	}
 
+	@Test
+	public void testHACleanupWhenJobFinishedWhileClosingDispatcher() throws Exception {
+		final TestingJobManagerRunner testingJobManagerRunner = new TestingJobManagerRunner(jobId, true);
+
+		final Queue<JobManagerRunner> jobManagerRunners = new ArrayDeque<>(Arrays.asList(testingJobManagerRunner));
+
+		startDispatcher(new QueueJobManagerRunnerFactory(jobManagerRunners));
+		submitJob();
+
+		final CompletableFuture<Void> dispatcherTerminationFuture = dispatcher.closeAsync();
+
+		testingJobManagerRunner.waitUntilCloseAsyncIsBeingCalled();
+		testingJobManagerRunner.completeResultFuture(new ArchivedExecutionGraphBuilder()
+			.setJobID(jobId)
+			.setState(JobStatus.FINISHED)
+			.build());
+
+		testingJobManagerRunner.completeTerminationFuture();
+
+		// check that no exceptions have been thrown
+		dispatcherTerminationFuture.get();
+
+		assertThat(cleanupJobFuture.get(), is(jobId));
+		assertThat(deleteAllHABlobsFuture.get(), is(jobId));
+	}
+
 	/**
 	 * Tests that the {@link RunningJobsRegistry} entries are cleared after the
 	 * job reached a terminal state.
@@ -545,6 +575,28 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			final boolean result = super.cleanupJob(jobId, cleanupBlobStoreFiles);
 			cleanupJobFuture.complete(jobId);
 			return result;
+		}
+	}
+
+	private static final class QueueJobManagerRunnerFactory implements JobManagerRunnerFactory {
+		private final Queue<? extends JobManagerRunner> jobManagerRunners;
+
+		private QueueJobManagerRunnerFactory(Queue<? extends JobManagerRunner> jobManagerRunners) {
+			this.jobManagerRunners = jobManagerRunners;
+		}
+
+		@Override
+		public JobManagerRunner createJobManagerRunner(
+			JobGraph jobGraph,
+			Configuration configuration,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			JobManagerSharedServices jobManagerServices,
+			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+			FatalErrorHandler fatalErrorHandler) {
+			return Optional.ofNullable(jobManagerRunners.poll())
+				.orElseThrow(() -> new IllegalStateException("Cannot create more JobManagerRunners."));
 		}
 	}
 

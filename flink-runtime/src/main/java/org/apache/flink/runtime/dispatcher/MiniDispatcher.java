@@ -112,20 +112,24 @@ public class MiniDispatcher extends Dispatcher {
 	}
 
 	@Override
-	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
-		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+	protected CleanupJobState jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
+		final CleanupJobState cleanupHAState = super.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
 		if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
 			// shut down if job is cancelled or we don't have to wait for the execution result retrieval
 			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
+
+		return cleanupHAState;
 	}
 
 	@Override
-	protected void jobNotFinished(JobID jobId) {
-		super.jobNotFinished(jobId);
+	protected CleanupJobState jobNotFinished(JobID jobId) {
+		final CleanupJobState cleanupJobState = super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
 		shutDownFuture.complete(ApplicationStatus.UNKNOWN);
+
+		return cleanupJobState;
 	}
 }
