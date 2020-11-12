@@ -153,9 +153,8 @@ public class SingleInputGateBuilder {
 			bufferSize);
 		if (channelFactory != null) {
 			gate.setInputChannels(IntStream.range(0, numberOfChannels)
-				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setChannelIndex(index), gate))
+				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setStateWriter(channelStateWriter).setChannelIndex(index), gate))
 				.toArray(InputChannel[]::new));
-			gate.setChannelStateWriter(channelStateWriter);
 		}
 		return gate;
 	}

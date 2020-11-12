@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -474,6 +475,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 				gateDesc,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+		gate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
 		gate.finishReadRecoveredState();
 		while (!gate.getStateConsumedFuture().isDone()) {
@@ -490,6 +492,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 			Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
 
 			assertEquals(3, channelMap.size());
+			channelMap.values().forEach(channel -> {
+				try {
+					channel.checkError();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			});
 			InputChannel localChannel = channelMap.get(partitionIds[0]);
 			assertEquals(LocalInputChannel.class, localChannel.getClass());
 

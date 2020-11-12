@@ -31,14 +31,14 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.io.IOException;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Helper class for persisting channel state via {@link ChannelStateWriter}.
  */
 @NotThreadSafe
 final class ChannelStatePersister {
-	protected final InputChannelInfo channelInfo;
+	private final InputChannelInfo channelInfo;
 
 	private enum CheckpointStatus {COMPLETED, BARRIER_PENDING, BARRIER_RECEIVED}
 
@@ -49,17 +49,14 @@ final class ChannelStatePersister {
 	/**
 	 * Writer must be initialized before usage. {@link #startPersisting(long, List)} enforces this invariant.
 	 */
-	@Nullable
 	private final ChannelStateWriter channelStateWriter;
 
-	ChannelStatePersister(@Nullable ChannelStateWriter channelStateWriter, InputChannelInfo channelInfo) {
-		this.channelStateWriter = channelStateWriter;
-		this.channelInfo = channelInfo;
+	ChannelStatePersister(ChannelStateWriter channelStateWriter, InputChannelInfo channelInfo) {
+		this.channelStateWriter = checkNotNull(channelStateWriter);
+		this.channelInfo = checkNotNull(channelInfo);
 	}
 
 	protected void startPersisting(long barrierId, List<Buffer> knownBuffers) {
-		checkState(isInitialized(), "Channel state writer not injected");
-
 		if (checkpointStatus != CheckpointStatus.BARRIER_RECEIVED && lastSeenBarrier < barrierId) {
 			checkpointStatus = CheckpointStatus.BARRIER_PENDING;
 			lastSeenBarrier = barrierId;
@@ -71,10 +68,6 @@ final class ChannelStatePersister {
 				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
 				CloseableIterator.fromList(knownBuffers, Buffer::recycleBuffer));
 		}
-	}
-
-	protected boolean isInitialized() {
-		return channelStateWriter != null;
 	}
 
 	protected void stopPersisting(long id) {

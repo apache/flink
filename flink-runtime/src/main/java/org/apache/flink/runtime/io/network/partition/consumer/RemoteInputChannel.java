@@ -33,7 +33,6 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -60,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An input channel, which requests a remote partition queue.
  */
-public class RemoteInputChannel extends InputChannel implements ChannelStateHolder {
+public class RemoteInputChannel extends InputChannel {
 
 	public static final int ALL = -1;
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
@@ -104,8 +103,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 	@GuardedBy("receivedBuffers")
 	private int numBuffersOvertaken = ALL;
 
-	@GuardedBy("receivedBuffers")
-	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null, channelInfo);
+	private final ChannelStatePersister channelStatePersister;
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -117,7 +115,8 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		int maxBackoff,
 		int networkBuffersPerChannel,
 		Counter numBytesIn,
-		Counter numBuffersIn) {
+		Counter numBuffersIn,
+		ChannelStateWriter stateWriter) {
 
 		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, numBytesIn, numBuffersIn);
 
@@ -125,11 +124,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
 		this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
-	}
-
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-		checkState(!channelStatePersister.isInitialized(), "Already initialized");
-		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter), channelInfo);
+		this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 	}
 
 	/**
