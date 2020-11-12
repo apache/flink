@@ -467,12 +467,10 @@ public class LocalInputChannelTest {
 		ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
 
 		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(subpartitionView);
-		LocalInputChannel channel = createLocalInputChannel(inputGate, partitionManager);
+		final RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+		LocalInputChannel channel = createLocalInputChannel(inputGate, partitionManager, 0, 0, b -> b.setStateWriter(stateWriter));
 		inputGate.setInputChannels(channel);
 		channel.requestSubpartition(0);
-
-		final RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
-		inputGate.setChannelStateWriter(stateWriter);
 
 		final CheckpointStorageLocationReference location = CheckpointStorageLocationReference.getDefault();
 		CheckpointOptions options = new CheckpointOptions(CheckpointType.CHECKPOINT, location, true, true, 0);

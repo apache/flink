@@ -650,11 +650,11 @@ public class UnalignedControllerTest {
 			.mapToObj(channelIndex ->
 				InputChannelBuilder.newBuilder()
 					.setChannelIndex(channelIndex)
+					.setStateWriter(channelStateWriter)
 					.setupFromNettyShuffleEnvironment(environment)
 					.setConnectionManager(new TestingConnectionManager())
 					.buildRemoteChannel(gate))
 			.toArray(RemoteInputChannel[]::new));
-		gate.setChannelStateWriter(channelStateWriter);
 		sequenceNumbers = new int[numberOfChannels];
 
 		gate.setup();
@@ -704,8 +704,9 @@ public class UnalignedControllerTest {
 	}
 
 	private void assertInflightData(BufferOrEvent... expected) {
-		assertEquals("Unexpected in-flight sequence", getIds(Arrays.asList(expected)),
-			getIds(getAndResetInflightData()));
+		Collection<BufferOrEvent> andResetInflightData = getAndResetInflightData();
+		assertEquals("Unexpected in-flight sequence: " + andResetInflightData, getIds(Arrays.asList(expected)),
+			getIds(andResetInflightData));
 	}
 
 	private Collection<BufferOrEvent> getAndResetInflightData() {

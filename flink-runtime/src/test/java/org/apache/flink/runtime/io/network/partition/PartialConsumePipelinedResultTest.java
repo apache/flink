@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -141,6 +142,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			while (!gate.getStateConsumedFuture().isDone()) {
 				gate.pollNext();
 			}
+			gate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 			gate.requestPartitions();
 			Buffer buffer = gate.getNext().orElseThrow(IllegalStateException::new).getBuffer();
 			if (buffer != null) {

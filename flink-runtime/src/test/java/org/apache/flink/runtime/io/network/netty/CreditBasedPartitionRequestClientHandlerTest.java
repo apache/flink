@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
@@ -637,7 +638,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 				100,
 				2,
 				new SimpleCounter(),
-				new SimpleCounter());
+				new SimpleCounter(),
+				ChannelStateWriter.NO_OP);
 			this.expectedMessage = expectedMessage;
 		}
 
