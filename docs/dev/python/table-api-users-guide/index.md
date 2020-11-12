@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Python Table API allows users to develop [Table API]({% link dev/table/tableApi.md %}) programs using the Python language.
+The Python Table API allows users to develop [Table API]({% link dev/table/tableApi.md %}) programs using the Python language.
 
 ## Where to go next?
 
