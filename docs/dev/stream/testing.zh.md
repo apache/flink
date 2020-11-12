@@ -501,10 +501,10 @@ public class ExampleIntegrationTest {
     private static class CollectSink implements SinkFunction<Long> {
 
         // must be static
-        public static final List<Long> values = new ArrayList<>();
+        public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public synchronized void invoke(Long value) throws Exception {
+        public void invoke(Long value) throws Exception {
             values.add(value);
         }
     }
@@ -556,15 +556,13 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
 class CollectSink extends SinkFunction[Long] {
 
   override def invoke(value: Long): Unit = {
-    synchronized {
-      CollectSink.values.add(value)
-    }
+    CollectSink.values.add(value)
   }
 }
 
 object CollectSink {
     // must be static
-    val values: util.List[Long] = new util.ArrayList()
+    val values: util.List[Long] = Collections.synchronizedList(new util.ArrayList())
 }
 {% endhighlight %}
 </div>
