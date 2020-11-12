@@ -108,10 +108,8 @@ class SourceWatermarkTest extends TableTestBase {
     util.verifyPlan("SELECT a - b FROM UdfTable")
   }
 
-  @Ignore
   @Test
   def testWatermarkWithMetadata(): Unit = {
-    // TODO(FLINK-20029): define computed column on the metadata
     val ddl =
       """
         | CREATE TABLE MyTable(

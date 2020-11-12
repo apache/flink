@@ -209,7 +209,7 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testNestProjectWithMetadata(): Unit = {
+  def testNestedProjectWithMetadata(): Unit = {
     val ddl =
       s"""
          |CREATE TABLE T (

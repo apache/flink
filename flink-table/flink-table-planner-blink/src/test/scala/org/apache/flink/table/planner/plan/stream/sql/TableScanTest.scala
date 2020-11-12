@@ -86,7 +86,8 @@ class TableScanTest extends TableTestBase {
          |  `other_metadata` INT METADATA FROM 'metadata_3' VIRTUAL,
          |  `b` BIGINT,
          |  `c` INT,
-         |  `metadata_1` STRING METADATA
+         |  `metadata_1` STRING METADATA,
+         |  `computed` AS UPPER(`metadata_1`)
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
