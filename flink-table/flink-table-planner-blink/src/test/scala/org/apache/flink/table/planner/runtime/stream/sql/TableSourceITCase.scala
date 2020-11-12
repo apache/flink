@@ -72,6 +72,7 @@ class TableSourceITCase extends StreamingTestBase {
          |  `other_metadata` INT METADATA FROM 'metadata_3',
          |  `b` BIGINT,
          |  `metadata_1` INT METADATA,
+         |  `computed` AS `metadata_1` * 2,
          |  `metadata_2` STRING METADATA
          |) WITH (
          |  'connector' = 'values',
@@ -96,24 +97,6 @@ class TableSourceITCase extends StreamingTestBase {
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
          |  'data-id' = '$nestedTableDataId'
-         |)
-         |""".stripMargin
-    )
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE NestedTableWithMetadata (
-         |  id BIGINT,
-         |  deepNested ROW<
-         |     nested1 ROW<name STRING, `value.` INT>,
-         |     `nested2.` ROW<num INT, flag BOOLEAN>
-         |   >,
-         |   nested ROW<name STRING, `value` INT>,
-         |   name STRING METADATA
-         |) WITH (
-         |  'connector' = 'values',
-         |  'nested-projection-supported' = 'true',
-         |  'data-id' = '$nestedTableDataId',
-         |  'readable-metadata' = 'name:string'
          |)
          |""".stripMargin
     )
@@ -290,19 +273,20 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testComplexMetadataAccess(): Unit = {
-    val result = tEnv.sqlQuery("SELECT `a`, `other_metadata`, `b`, `metadata_2` FROM MetadataTable")
+    val result = tEnv.sqlQuery(
+        "SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
       .toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
-    // (a, b, metadata_1, metadata_2, other_metadata)
-    // (1, 1L, 0, "Hallo", 1L)
-    // (2, 2L, 1, "Hallo Welt", 2L)
-    // (2, 3L, 2, "Hallo Welt wie", 1L)
+    // (a, b, metadata_1, computed, metadata_2, other_metadata)
+    // (1, 1L, 0, 0, "Hallo", 1L)
+    // (2, 2L, 1, 2, "Hallo Welt", 2L)
+    // (2, 3L, 2, 4, "Hallo Welt wie", 1L)
     val expected = Seq(
-      "1,1,1,Hallo",
-      "2,2,2,Hallo Welt",
-      "2,1,3,Hallo Welt wie")
+      "1,1,1,Hallo,0",
+      "2,2,2,Hallo Welt,2",
+      "2,1,3,Hallo Welt wie,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

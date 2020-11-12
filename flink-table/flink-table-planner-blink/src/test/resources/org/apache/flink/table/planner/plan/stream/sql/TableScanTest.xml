@@ -196,13 +196,13 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[>(a, 1
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
+LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, CAST(metadata_3) AS other_metadata, b, c, metadata_1])
+Calc(select=[a, CAST(metadata_3) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
 +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, metadata_3])
 ]]>
     </Resource>

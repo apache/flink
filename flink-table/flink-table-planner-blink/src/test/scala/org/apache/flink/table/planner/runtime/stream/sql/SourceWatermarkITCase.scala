@@ -146,10 +146,8 @@ class SourceWatermarkITCase extends StreamingTestBase{
     assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore
   @Test
   def testWatermarkWithMetadata(): Unit = {
-    // TODO(FLINK-20029): define computed column on the metadata
     val data = Seq(
       row(1, 2L, Timestamp.valueOf("2020-11-21 19:00:05.23").toInstant.toEpochMilli),
       row(1, 3L, Timestamp.valueOf("2020-11-21 21:00:05.23").toInstant.toEpochMilli)

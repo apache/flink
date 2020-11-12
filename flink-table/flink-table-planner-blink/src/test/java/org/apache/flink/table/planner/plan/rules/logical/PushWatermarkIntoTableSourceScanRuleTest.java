@@ -198,9 +198,30 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 						"  b BIGINT,\n" +
 						"  c TIMESTAMP(3),\n" +
 						"  d AS func(c, a),\n" +
-						"WATERMARK FOR d AS func(func(d, a), a)\n" +
+						"  WATERMARK FOR d AS func(func(d, a), a)\n" +
 						") WITH (\n" +
 						"  'connector' = 'values',\n" +
+						"  'enable-watermark-push-down' = 'true',\n" +
+						"  'bounded' = 'false',\n" +
+						"  'disable-lookup' = 'true'" +
+						")";
+		util.tableEnv().executeSql(ddl);
+		util.verifyPlan("SELECT * FROM MyTable");
+	}
+
+	@Test
+	public void testWatermarkOnMetadata() {
+		String ddl =
+				"CREATE TABLE MyTable(" +
+						"  `a` INT,\n" +
+						"  `b` BIGINT,\n" +
+						"  `c` TIMESTAMP(3),\n" +
+						"  `metadata` BIGINT METADATA FROM 'metadata_2' VIRTUAL,\n" +
+						"  `computed` AS `metadata` + `b`,\n" +
+						"  WATERMARK for `c` as c - CAST(`metadata` + `computed` AS INTERVAL SECOND)\n" +
+						") WITH (\n" +
+						"  'connector' = 'values',\n" +
+						"  'readable-metadata' = 'metadata_1:STRING,metadata_2:INT',\n" +
 						"  'enable-watermark-push-down' = 'true',\n" +
 						"  'bounded' = 'false',\n" +
 						"  'disable-lookup' = 'true'" +

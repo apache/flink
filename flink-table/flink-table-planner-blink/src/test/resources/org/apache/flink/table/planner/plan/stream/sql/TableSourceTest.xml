@@ -40,7 +40,7 @@ Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedVa
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNestProjectWithMetadata">
+  <TestCase name="testNestedProjectWithMetadata">
     <Resource name="sql">
       <![CDATA[
 SELECT id,
