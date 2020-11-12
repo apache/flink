@@ -47,7 +47,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Writer implementation for {@link FileSink}.
+ * A {@link SinkWriter} implementation for {@link FileSink}.
+ *
+ * <p>It writes data to and manages the different active {@link FileWriterBucket buckes}
+ * in the {@link FileSink}.
+ *
+ * @param <IN> The type of input elements.
  */
 @Internal
 public class FileWriter<IN> implements
