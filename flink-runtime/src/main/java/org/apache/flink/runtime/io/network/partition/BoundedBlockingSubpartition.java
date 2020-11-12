@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -194,6 +195,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			isReleased = true;
 			isFinished = true; // for fail fast writes
 
+			if (currentBuffer != null) {
+				currentBuffer.close();
+				currentBuffer = null;
+			}
 			checkReaderReferencesAndDispose();
 		}
 	}
@@ -234,6 +239,11 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		if (readers.isEmpty()) {
 			data.close();
 		}
+	}
+
+	@VisibleForTesting
+	public BufferConsumer getCurrentBuffer() {
+		return currentBuffer;
 	}
 
 	// ------------------------------ legacy ----------------------------------
