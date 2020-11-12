@@ -41,10 +41,11 @@ The page contains links to optional sql-client connectors and formats that are n
     <tbody>
 {% for entry in site.data.sql-connectors %}
     {% for connector in entry %}
-      {% if connector.category == "format" and connector.built-in != true and connector.sql-url != nil %}  
+      {% if connector.category == "format" and connector.built-in != true and connector.sql-url != nil %}
+        {% assign url = connector.sql-url | liquify %}
         <tr>
             <td style="text-align: left">{{connector.name}}</td>
-            <td style="text-align: left"><a href="{{ connector.sql-url | liquify }}">Download</a></td>
+            <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
         </tr>
       {% endif %}
     {% endfor %}
@@ -72,19 +73,22 @@ The page contains links to optional sql-client connectors and formats that are n
             <tr>
                 <td style="text-align: left" rowspan="{{connector.versions | size}}">{{connector.name}}</td>
                 <td style="text-align: left">{{row0.version}}</td>
-                <td style="text-align: left"><a href="{{ row0.sql-url | liquify }}">Download</a></td>
+                {% assign url = row0.sql-url | liquify %}
+                <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
             </tr>
             {% for version in connector.versions offset:1 %}
                 <tr>
                     <td style="text-align: left">{{version.version}}</td>
-                    <td style="text-align: left"><a href="{{ version.sql-url | liquify }}">Download</a></td>
+                    {% assign url = version.sql-url | liquify %}
+                    <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
                 </tr>
             {% endfor %}
         {% elsif connector.sql-url != nil %}
             <tr>
                 <td style="text-align: left">{{connector.name}}</td>
                 <td style="text-align: left"></td>
-                <td style="text-align: left"><a href="{{ connector.sql-url | liquify }}">Download</a></td>
+                {% assign url = connector.sql-url | liquify %}
+                <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
             </tr>
         {% endif %}
       {% endif %}
