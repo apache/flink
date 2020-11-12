@@ -57,7 +57,46 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A unified sink for both streaming and blocking mode, based on the new Sink API.
+ * A unified sink that emits its input elements to {@link FileSystem} files within buckets.
+ * This sink achieves exactly-once semantics for both {@code BATCH} and {@code STREAMING}.
+ *
+ * <p>When creating the sink a {@code basePath} must be specified. The base directory contains
+ * one directory for every bucket. The bucket directories themselves contain several part files,
+ * with at least one for each parallel subtask of the sink which is writing data to that bucket.
+ * These part files contain the actual output data.
+ *
+ * <p>The sink uses a {@link BucketAssigner} to determine in which bucket directory each element should
+ * be written to inside the base directory. The {@code BucketAssigner} can, for example, roll on every checkpoint
+ * or use time or a property of the element to determine the bucket directory. The default {@code BucketAssigner} is a
+ * {@link DateTimeBucketAssigner} which will create one new bucket every hour. You can specify
+ * a custom {@code BucketAssigner} using the {@code setBucketAssigner(bucketAssigner)} method, after calling
+ * {@link FileSink#forRowFormat(Path, Encoder)} or {@link FileSink#forBulkFormat(Path, BulkWriter.Factory)}.
+ *
+ * <p>The names of the part files could be defined using {@link OutputFileConfig}. This configuration contains
+ * a part prefix and a part suffix that will be used with a random uid assigned to each subtask of the sink and
+ * a rolling counter to determine the file names. For example with a prefix "prefix" and a suffix ".ext", a file named
+ * {@code "prefix-81fc4980-a6af-41c8-9937-9939408a734b-17.ext"} contains the data from subtask with uid
+ * {@code 81fc4980-a6af-41c8-9937-9939408a734b} of the sink and is the {@code 17th} part-file created by that subtask.
+ *
+ * <p>Part files roll based on the user-specified {@link RollingPolicy}. By default, a {@link DefaultRollingPolicy}
+ * is used for row-encoded sink output; a {@link OnCheckpointRollingPolicy} is used for bulk-encoded sink output.
+ *
+ * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the user
+ * can specify a {@code bucketCheckInterval} (by default 1m) and the sink will check periodically and roll
+ * the part file if the specified rolling policy says so.
+ *
+ * <p>Part files can be in one of three states: {@code in-progress}, {@code pending} or {@code finished}.
+ * The reason for this is how the sink works to provide exactly-once semantics and fault-tolerance. The part
+ * file that is currently being written to is {@code in-progress}. Once a part file is closed for writing it
+ * becomes {@code pending}. When a checkpoint is successful (for {@code STREAMING}) or at the end of the job
+ * (for {@code BATCH}) the currently pending files will be moved to {@code finished}.
+ *
+ * <p>For {@code STREAMING} in order to guarantee exactly-once semantics in case of a failure, the sink should roll
+ * back to the state it had when that last successful checkpoint occurred. To this end, when restoring, the restored
+ * files in {@code pending} state are transferred into the {@code finished} state while any {@code in-progress} files
+ * are rolled back, so that they do not contain data that arrived after the checkpoint from which we restore.
+ *
+ * @param <IN> Type of the elements in the input of the sink that are also the elements to be written to its output
  */
 @Experimental
 public class FileSink<IN>
