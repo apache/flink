@@ -47,11 +47,13 @@ key will fall into the same partition.
 Dependencies
 ------------
 
-In order to set up the upsert-kafka connector, the following table provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+In order to set up the upsert-kafka connector, the following table provide dependency information for
+both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
 
-| Kafka Version       | Maven dependency                                          | SQL Client JAR         |
-| :------------------ | :-------------------------------------------------------- | :----------------------|
-| universal               | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/upsert-kafka.html) {% endif %}|
+{% assign connector = site.data.sql-connectors['upsert-kafka'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
 
 Full Example
 ----------------
