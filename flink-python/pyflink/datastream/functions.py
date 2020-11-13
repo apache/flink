@@ -17,6 +17,7 @@
 ################################################################################
 
 import abc
+from abc import ABC
 from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
@@ -586,7 +587,6 @@ class ProcessFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
     def on_timer(self, timestamp, ctx: 'OnTimerContext', out: 'Collector'):
         """
         Called when a timer set using TimerService fires.
@@ -634,6 +634,32 @@ class ProcessFunction(Function):
             The TimeDomain of the firing timer.
             :return: The TimeDomain of current fired timer.
             """
+            pass
+
+
+class KeyedProcessFunction(ProcessFunction, ABC):
+    """
+    A keyed function processes elements of a stream.
+
+    For every element in the input stream, process_element() is invoked. This can produce zero or
+    more elements as output. Implementations can also query the time and set timers through the
+    provided Context. For firing timers on_timer() will be invoked. This can again produce zero or
+    more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the KeyedProcessFunction is applied on a KeyedStream.
+    """
+
+    class Context(ProcessFunction.Context):
+
+        @abc.abstractmethod
+        def get_current_key(self):
+            pass
+
+    class OnTimerContext(ProcessFunction.OnTimerContext):
+
+        @abc.abstractmethod
+        def get_current_key(self):
             pass
 
 

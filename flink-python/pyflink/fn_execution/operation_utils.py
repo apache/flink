@@ -203,8 +203,7 @@ def extract_data_stream_stateless_function(udf_proto):
     func_type = udf_proto.function_type
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
     func = None
-    # import pyflink.datastream.tests.test_data_stream
-    # from pyflink.datastream.tests.test_data_stream import MyKeySelector
+
     user_defined_func = pickle.loads(udf_proto.payload)
     if func_type == UserDefinedDataStreamFunction.MAP:
         func = user_defined_func.map
@@ -220,14 +219,26 @@ def extract_data_stream_stateless_function(udf_proto):
         co_map_func = user_defined_func
 
         def wrap_func(value):
-            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
+            return Row(1, co_map_func.map1(value[1])) \
+                if value[0] else Row(2, co_map_func.map2(value[2]))
         func = wrap_func
     elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
         co_flat_map_func = user_defined_func
 
         def wrap_func(value):
-            return co_flat_map_func.flat_map1(value[1]) if value[0] else \
-                co_flat_map_func.flat_map2(value[2])
+
+            if value[0]:
+                result = co_flat_map_func.flat_map1(value[1])
+                if result:
+                    for result_val in result:
+                        yield Row(1, result_val)
+                yield Row(3, None)
+            else:
+                result = co_flat_map_func.flat_map2(value[2])
+                if result:
+                    for result_val in result:
+                        yield Row(2, result_val)
+                yield Row(4, None)
         func = wrap_func
 
     elif func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
@@ -236,28 +247,39 @@ def extract_data_stream_stateless_function(udf_proto):
         def wrap_func(value):
             pre_timestamp = value[0]
             real_data = value[1]
-            new_timestamp = extract_timestamp(real_data, pre_timestamp)
-            return Row(new_timestamp, real_data)
+            return extract_timestamp(real_data, pre_timestamp)
         func = wrap_func
 
     return func, user_defined_func
 
 
 def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
-                             collector, keyed_state_backend):
+                             collector, keyed_state_backend, is_keyed_stream):
     process_function = pickle.loads(user_defined_function_proto.payload)
     process_element = process_function.process_element
     on_timer_func = process_function.on_timer
 
-    def wrapped_func(value):
+    def wrapped_func_for_non_keyed_stream(value):
+        # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
+        ctx._timestamp = value[0]
+        ctx._current_watermark = value[1]
+        process_element(value[2], ctx, collector)
+
+        for a in collector.buf:
+            yield a[1]
+        collector.clear()
+
+    def wrapped_func_for_keyed_stream(value):
         # VALUE[TIMER_FLAG, TIMER_VALUE, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
         current_watermark = value[2]
         ctx.timer_service()._current_watermark = current_watermark
         on_timer_ctx.timer_service()._current_watermark = current_watermark
+
         # it is timer data
         if value[0] is not None:
             on_timer_ctx._timestamp = value[1]
             timer_key = value[3]
+            on_timer_ctx._current_key = timer_key
             keyed_state_backend.set_current_key(timer_key)
             if value[0] == 0:
                 time_domain = TimeDomain.EVENT_TIME
@@ -272,8 +294,10 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
             # VALUE[TIMER_FLAG, CURRENT_TIMESTAMP, CURRENT_WATERMARK, TIMER_KEY, NORMAL_DATA]
             # NORMAL_DATA[CURRENT_KEY, DATA]
             ctx._timestamp = value[1]
-            current_key = Row(value[4][0])
-            keyed_state_backend.set_current_key(current_key)
+            current_key = value[4][0]
+            ctx._current_key = current_key
+            on_timer_ctx._current_key = current_key
+            keyed_state_backend.set_current_key(Row(current_key))
 
             real_data = value[4][1]
             process_element(real_data, ctx, collector)
@@ -288,4 +312,10 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
             else:
                 yield Row(a[0], a[1], a[2], None)
         collector.clear()
-    return wrapped_func, process_function
+
+    if is_keyed_stream:
+        func = wrapped_func_for_keyed_stream
+    else:
+        func = wrapped_func_for_non_keyed_stream
+
+    return func, process_function

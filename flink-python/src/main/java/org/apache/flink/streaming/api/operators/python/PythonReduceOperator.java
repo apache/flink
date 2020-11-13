@@ -43,7 +43,7 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
  * will start a python harness to execute user defined python ReduceFunction.
  */
 @Internal
-public class PythonReduceOperator<OUT> extends StatelessOneInputPythonFunctionOperator<Row, OUT> {
+public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Row, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -98,8 +98,10 @@ public class PythonReduceOperator<OUT> extends StatelessOneInputPythonFunctionOp
 		if (currentValue == null) {
 			// emit directly for the first element.
 			valueState.update(inputData);
-			streamRecordCollector.collect(inputData);
+			collector.setAbsoluteTimestamp(element.getTimestamp());
+			collector.collect(inputData);
 		} else {
+			bufferedTimestamp.offer(element.getTimestamp());
 			reuseRow.setField(0, currentValue);
 			reuseRow.setField(1, inputData);
 			runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
@@ -118,7 +120,8 @@ public class PythonReduceOperator<OUT> extends StatelessOneInputPythonFunctionOp
 		bais.setBuffer(rawResult, 0, length);
 		OUT result = outputTypeSerializer.deserialize(baisWrapper);
 		valueState.update(result);
-		streamRecordCollector.collect(result);
+		collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
+		collector.collect(result);
 	}
 
 	@Override

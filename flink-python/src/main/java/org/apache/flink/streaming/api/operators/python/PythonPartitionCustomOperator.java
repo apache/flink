@@ -40,7 +40,7 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
  * number of partitions when executing user defined partitioner function.
  */
 @Internal
-public class PythonPartitionCustomOperator<IN, OUT> extends StatelessOneInputPythonFunctionOperator<IN, OUT> {
+public class PythonPartitionCustomOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -233,7 +233,8 @@ class DataStream(object):
             else:
                 raise TypeError("The input must be a MapFunction or a callable function")
         from pyflink.fn_execution import flink_fn_execution_pb2
-        j_operator, j_output_type_info = self._get_java_python_function_operator(
+        j_operator, j_output_type_info = _get_java_python_function_operator(
+            self,
             func,  # type: ignore
             output_type,
             flink_fn_execution_pb2.UserDefinedDataStreamFunction.MAP)  # type: ignore
@@ -261,7 +262,8 @@ class DataStream(object):
             else:
                 raise TypeError("The input must be a FlatMapFunction or a callable function")
         from pyflink.fn_execution import flink_fn_execution_pb2
-        j_operator, j_output_type_info = self._get_java_python_function_operator(
+        j_operator, j_output_type_info = _get_java_python_function_operator(
+            self,
             func,  # type: ignore
             result_type,
             flink_fn_execution_pb2.UserDefinedDataStreamFunction.FLAT_MAP)  # type: ignore
@@ -459,14 +461,13 @@ class DataStream(object):
 
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_function_operator, j_output_type_info = \
-            self._get_java_python_function_operator(
-                func, output_type,
+            _get_java_python_function_operator(
+                self, func, output_type,
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.PROCESS)  # type: ignore
         return DataStream(self._j_data_stream.transform(
             "PROCESS",
             j_output_type_info,
-            j_python_data_stream_function_operator
-        ))
+            j_python_data_stream_function_operator))
 
     def assign_timestamps_and_watermarks(self, watermark_strategy: WatermarkStrategy) -> \
             'DataStream':
@@ -581,76 +582,6 @@ class DataStream(object):
         values_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
                                .KEYED_STREAM_VALUE_OPERATOR_NAME)
         return DataStream(values_map_stream._j_data_stream)
-
-    def _get_java_python_function_operator(self,
-                                           func: Union[Function, FunctionWrapper],
-                                           type_info: TypeInformation,
-                                           func_type: int):
-        """
-        Create a flink operator according to user provided function object, data types,
-        function name and function type.
-
-        :param func: a function object that implements the Function interface.
-        :param type_info: the data type of the function output data.
-        :param func_type: function type, supports MAP, FLAT_MAP, etc.
-        :return: A flink java operator which is responsible for execution user defined python
-                 function.
-        """
-
-        gateway = get_gateway()
-        import cloudpickle
-        serialized_func = cloudpickle.dumps(func)
-        j_input_types = self._j_data_stream.getTransformation().getOutputType()
-        if type_info is None:
-            output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
-        elif isinstance(type_info, list):
-            output_type_info = RowTypeInfo(type_info)
-        else:
-            output_type_info = type_info
-
-        j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
-            bytearray(serialized_func),
-            _get_python_env())
-        j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
-            j_data_stream_python_function,
-            func_type)
-
-        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
-
-        # set max bundle size to 1 to force synchronize process for reduce function.
-        from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-        if func_type == UserDefinedDataStreamFunction.REDUCE:  # type: ignore
-            j_conf.setInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE, 1)
-
-            j_output_type_info = j_input_types.getTypeAt(1)
-            j_python_reduce_operator = gateway.jvm.PythonReduceOperator(
-                j_conf,
-                j_input_types,
-                j_output_type_info,
-                j_data_stream_python_function_info)
-            return j_python_reduce_operator, j_output_type_info
-        elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
-            j_python_process_function_operator = gateway.jvm.PythonProcessFunctionOperator(
-                j_conf,
-                j_input_types,
-                output_type_info.get_java_type_info(),
-                j_data_stream_python_function_info
-            )
-            return j_python_process_function_operator, output_type_info.get_java_type_info()
-        else:
-            if str(func) == '_Flink_PartitionCustomMapFunction':
-                JDataStreamPythonFunctionOperator = gateway.jvm.PythonPartitionCustomOperator
-            else:
-                JDataStreamPythonFunctionOperator = \
-                    gateway.jvm.StatelessOneInputPythonFunctionOperator
-
-            j_python_function_operator = JDataStreamPythonFunctionOperator(
-                j_conf,
-                j_input_types,
-                output_type_info.get_java_type_info(),
-                j_data_stream_python_function_info)
-
-            return j_python_function_operator, output_type_info.get_java_type_info()
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         """
@@ -855,8 +786,8 @@ class KeyedStream(DataStream):
 
         from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
         j_operator, j_output_type_info = \
-            self._get_java_python_function_operator(
-                func, None, UserDefinedDataStreamFunction.REDUCE)  # type: ignore
+            _get_java_python_function_operator(
+                self, func, None, UserDefinedDataStreamFunction.REDUCE)  # type: ignore
         return DataStream(self._j_data_stream.transform(
             "Keyed Reduce",
             j_output_type_info,
@@ -872,6 +803,29 @@ class KeyedStream(DataStream):
     def key_by(self, key_selector: Union[Callable, KeySelector],
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         return self._origin_stream.key_by(key_selector, key_type_info)
+
+    def process(self, func: ProcessFunction, output_type: TypeInformation = None) -> 'DataStream':
+        """
+        Applies the given ProcessFunction on the input stream, thereby creating a transformed output
+        stream.
+
+        The function will be called for every element in the input streams and can produce zero or
+        more output elements.
+
+        :param func: The ProcessFunction that is called for each element in the stream.
+        :param output_type: TypeInformation for the result type of the function.
+        :return: The transformed DataStream.
+        """
+
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_function_operator, j_output_type_info = \
+            _get_java_python_function_operator(
+                self, func, output_type,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.KEYED_PROCESS)  # type: ignore
+        return DataStream(self._j_data_stream.transform(
+            "KEYED PROCESS",
+            j_output_type_info,
+            j_python_data_stream_function_operator))
 
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
@@ -1044,6 +998,7 @@ class ConnectedStreams(object):
                                        func_type: int):
         gateway = get_gateway()
         import cloudpickle
+        from pyflink.fn_execution import flink_fn_execution_pb2
         serialized_func = cloudpickle.dumps(func)
 
         j_input_types1 = self.stream1._j_data_stream.getTransformation().getOutputType()
@@ -1064,8 +1019,13 @@ class ConnectedStreams(object):
             func_type)
 
         j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
-        JStatelessTwoInputPythonFunctionOperator = \
-            gateway.jvm.StatelessTwoInputPythonFunctionOperator
+        if func_type == \
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP:  # type: ignore
+            JStatelessTwoInputPythonFunctionOperator = \
+                gateway.jvm.PythonCoFlatMapOperator
+        else:
+            JStatelessTwoInputPythonFunctionOperator = \
+                gateway.jvm.TwoInputPythonFunctionOperator
         j_python_data_stream_function_operator = JStatelessTwoInputPythonFunctionOperator(
             j_conf,
             j_input_types1,
@@ -1078,3 +1038,83 @@ class ConnectedStreams(object):
 
     def _is_keyed_stream(self):
         return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)
+
+
+def _get_java_python_function_operator(data_stream: DataStream,
+                                       func: Union[Function, FunctionWrapper],
+                                       type_info: TypeInformation,
+                                       func_type: int):
+    """
+    Create a flink operator according to user provided function object, data types,
+    function name and function type.
+
+    :param func: a function object that implements the Function interface.
+    :param type_info: the data type of the function output data.
+    :param func_type: function type, supports MAP, FLAT_MAP, etc.
+    :return: A flink java operator which is responsible for execution user defined python
+             function.
+    """
+
+    gateway = get_gateway()
+    import cloudpickle
+    serialized_func = cloudpickle.dumps(func)
+    j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
+    if type_info is None:
+        output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+    elif isinstance(type_info, list):
+        output_type_info = RowTypeInfo(type_info)
+    else:
+        output_type_info = type_info
+
+    j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
+        bytearray(serialized_func),
+        _get_python_env())
+    j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
+        j_data_stream_python_function,
+        func_type)
+
+    j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+
+    # set max bundle size to 1 to force synchronize process for reduce function.
+    from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+    if func_type == UserDefinedDataStreamFunction.REDUCE:  # type: ignore
+        j_conf.setInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE, 1)
+
+        j_output_type_info = j_input_types.getTypeAt(1)
+        j_python_reduce_operator = gateway.jvm.PythonReduceOperator(
+            j_conf,
+            j_input_types,
+            j_output_type_info,
+            j_data_stream_python_function_info)
+        return j_python_reduce_operator, j_output_type_info
+    elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
+        j_python_process_function_operator = gateway.jvm.PythonProcessFunctionOperator(
+            j_conf,
+            j_input_types,
+            output_type_info.get_java_type_info(),
+            j_data_stream_python_function_info)
+        return j_python_process_function_operator, output_type_info.get_java_type_info()
+    elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
+        j_python_process_function_operator = gateway.jvm.PythonKeyedProcessFunctionOperator(
+            j_conf,
+            j_input_types,
+            output_type_info.get_java_type_info(),
+            j_data_stream_python_function_info)
+        return j_python_process_function_operator, output_type_info.get_java_type_info()
+    else:
+        if str(func) == '_Flink_PartitionCustomMapFunction':
+            JDataStreamPythonFunctionOperator = gateway.jvm.PythonPartitionCustomOperator
+        elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:  # type: ignore
+            JDataStreamPythonFunctionOperator = \
+                gateway.jvm.PythonFlatMapOperator
+        else:
+            JDataStreamPythonFunctionOperator = \
+                gateway.jvm.OneInputPythonFunctionOperator
+
+        j_python_function_operator = JDataStreamPythonFunctionOperator(
+            j_conf,
+            j_input_types,
+            output_type_info.get_java_type_info(),
+            j_data_stream_python_function_info)
+
+        return j_python_function_operator, output_type_info.get_java_type_info()

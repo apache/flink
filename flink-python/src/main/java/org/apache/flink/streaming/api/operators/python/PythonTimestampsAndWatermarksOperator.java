@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
+import java.util.LinkedList;
 
 /**
  * A stream operator that may do one or both of the following: extract timestamps from
@@ -51,7 +52,7 @@ import java.util.Collections;
  *
  * @param <IN> The type of the input elements
  */
-public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInputPythonFunctionOperator<IN, IN>
+public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFunctionOperator<IN, IN>
 	implements ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
@@ -112,6 +113,8 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 	 */
 	private boolean emitProgressiveWatermarks = true;
 
+	private transient LinkedList<IN> bufferedInputs;
+
 	public PythonTimestampsAndWatermarksOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
@@ -121,12 +124,13 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 
 		this.watermarkStrategy = watermarkStrategy;
 		this.runnerInputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
-		this.runnerOutputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
+		this.runnerOutputTypeInfo = Types.LONG;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
+		bufferedInputs = new LinkedList<>();
 		runnerInputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 		runnerOutputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
@@ -149,6 +153,7 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
+		bufferedInputs.offer(value);
 		final long previousTimestamp = element.hasTimestamp() ?
 			element.getTimestamp() : Long.MIN_VALUE;
 
@@ -168,12 +173,11 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 		byte[] rawResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
-		Row runnerOutput = (Row) runnerOutputSerializer.deserialize(baisWrapper);
-		long newTimestamp = (Long) runnerOutput.getField(0);
-		IN originalData = (IN) runnerOutput.getField(1);
-		reusableStreamRecord.replace(originalData, newTimestamp);
+		long newTimestamp = (Long) runnerOutputSerializer.deserialize(baisWrapper);
+		IN bufferedInput = bufferedInputs.poll();
+		reusableStreamRecord.replace(bufferedInput, newTimestamp);
 		output.collect(reusableStreamRecord);
-		watermarkGenerator.onEvent(originalData, newTimestamp, watermarkOutput);
+		watermarkGenerator.onEvent(bufferedInput, newTimestamp, watermarkOutput);
 	}
 
 	@Override

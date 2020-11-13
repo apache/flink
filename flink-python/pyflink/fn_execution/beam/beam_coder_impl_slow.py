@@ -306,8 +306,11 @@ class DataStreamFlatMapCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, iter_value, stream,
                          nested):  # type: (Any, create_OutputStream, bool) -> None
-        for value in iter_value:
-            self._field_coder.encode_to_stream(value, stream, nested)
+        if iter_value:
+            for value in iter_value:
+                self._field_coder.encode_to_stream(value, stream, nested)
+        stream.write_var_int64(1)
+        stream.write_byte(0x00)
 
     def decode_from_stream(self, stream, nested):
         return self._field_coder.decode_from_stream(stream, nested)

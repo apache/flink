@@ -32,24 +32,25 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 
 /**
- * {@link StatelessTwoInputPythonFunctionOperator} is responsible for launching beam
+ * {@link TwoInputPythonFunctionOperator} is responsible for launching beam
  * runner which will start a python harness to execute two-input user defined python function.
  */
 @Internal
-public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
+public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -92,29 +93,35 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	 */
 	private transient TypeInformation<Row> runnerInputTypeInfo;
 
+	private transient TypeInformation<Row> runnerOutputTypeInfo;
+
 	/**
 	 * The TypeSerializer of python worker input data.
 	 */
 	private transient TypeSerializer<Row> runnerInputTypeSerializer;
 
 	/**
-	 * The TypeSerializer of the output.
+	 * The TypeSerializer of the runner output.
 	 */
-	private transient TypeSerializer<OUT> outputTypeSerializer;
+	protected transient TypeSerializer<Row> runnerOutputTypeSerializer;
 
-	private transient ByteArrayInputStreamWithPos bais;
+	protected transient ByteArrayInputStreamWithPos bais;
 
-	private transient DataInputViewStreamWrapper baisWrapper;
+	protected transient DataInputViewStreamWrapper baisWrapper;
 
 	private transient ByteArrayOutputStreamWithPos baos;
 
 	private transient DataOutputViewStreamWrapper baosWrapper;
 
-	private transient StreamRecordCollector streamRecordCollector;
+	protected transient TimestampedCollector collector;
 
 	private transient Row reuseRow;
 
-	public StatelessTwoInputPythonFunctionOperator(
+	transient LinkedList<Long> bufferedTimestamp1;
+
+	transient LinkedList<Long> bufferedTimestamp2;
+
+	public TwoInputPythonFunctionOperator(
 		Configuration config,
 		TypeInformation<IN1> inputTypeInfo1,
 		TypeInformation<IN2> inputTypeInfo2,
@@ -137,15 +144,19 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 
-		outputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(outputTypeInfo);
+		bufferedTimestamp1 = new LinkedList<>();
+		bufferedTimestamp2 = new LinkedList<>();
 		// The row contains three field. The first field indicate left input or right input
 		// The second field contains left input and the third field contains right input.
 		runnerInputTypeInfo = initRunnerInputTypeInfo();
 		runnerInputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 
-		streamRecordCollector = new StreamRecordCollector(output);
+		runnerOutputTypeInfo = Types.ROW(Types.SHORT, outputTypeInfo);
+		runnerOutputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(runnerOutputTypeInfo);
+
+		collector = new TimestampedCollector(output);
 		reuseRow = new Row(3);
 
 		super.open();
@@ -180,7 +191,7 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,
-			outputTypeInfo,
+			runnerOutputTypeInfo,
 			DATASTREAM_STATELESS_FUNCTION_URN,
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
 			coderUrn,
@@ -203,6 +214,7 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
 	@Override
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
+		bufferedTimestamp1.offer(element.getTimestamp());
 		// construct combined row.
 		reuseRow.setField(0, true);
 		reuseRow.setField(1, getStreamRecordValue(element));
@@ -212,6 +224,7 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
 	@Override
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
+		bufferedTimestamp2.offer(element.getTimestamp());
 		// construct combined row.
 		reuseRow.setField(0, false);
 		reuseRow.setField(1, null); // need to set null since it is a reuse row.
@@ -224,7 +237,13 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		byte[] rawResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
-		streamRecordCollector.collect(outputTypeSerializer.deserialize(baisWrapper));
+		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
+		if ((Short) outputRow.getField(0) == 1) {
+			collector.setAbsoluteTimestamp(bufferedTimestamp1.poll());
+		} else {
+			collector.setAbsoluteTimestamp(bufferedTimestamp2.poll());
+		}
+		collector.collect(outputRow.getField(1));
 	}
 
 	private Object getStreamRecordValue(StreamRecord<?> element) throws Exception {

@@ -24,7 +24,8 @@ from apache_beam.coders import PickleCoder
 from typing import Tuple, Any
 
 from pyflink.datastream import TimeDomain
-from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction
+from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction, \
+    KeyedProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
@@ -45,6 +46,7 @@ PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
 # datastream operations
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
 PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
+KEYED_PROCESS_FUNCTION_URN = "flink:transform:keyed_process_function:v1"
 
 
 class Operation(abc.ABC):
@@ -366,22 +368,103 @@ class DataStreamStatelessFunctionOperation(Operation):
         return func, [user_defined_func]
 
 
-class ProcessFunctionOperation(StatefulFunctionOperation):
+class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
-    def __init__(self, spec, keyed_state_backend):
+    def __init__(self, spec):
         self._collector = ProcessFunctionOperation.InternalCollector()
-        internal_timer_service = ProcessFunctionOperation.InternalTimerService(
-            self._collector, keyed_state_backend)
-        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
-            internal_timer_service)
-        self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext(
-            internal_timer_service)
-        super(ProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
+        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext()
+        self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext()
+        super(ProcessFunctionOperation, self).__init__(spec)
 
     def generate_func(self, serialized_fn) -> tuple:
         func, proc_func = operation_utils.extract_process_function(
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
-            self.keyed_state_backend)
+            None, False)
+        return func, [proc_func]
+
+    class InternalCollector(Collector):
+        """
+        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
+        There will be a header flag for each data type. 0 means it is a proc time timer registering
+        request, while 1 means it is an event time timer and 2 means it is a normal data. When
+        registering a timer, it must take along with the corresponding key for it.
+
+        For a ProcessFunction, it will only collect normal data.
+        """
+
+        def __init__(self):
+            self.buf = []
+
+        def collect_data(self, a: Any):
+            self.buf.append((2, a))
+
+        def collect(self, a: Any):
+            self.collect_data(a)
+
+        def clear(self):
+            self.buf.clear()
+
+    class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
+        """
+        Internal implementation of ProcessFunction.Context.
+        """
+
+        def __init__(self):
+            self._timestamp = None
+            self._current_watermark = None
+
+        def timer_service(self):
+            return self
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
+        def current_processing_time(self) -> int:
+            return int(time.time() * 1000)
+
+        def current_watermark(self):
+            return self._current_watermark
+
+        def register_processing_time_timer(self, time: int):
+            raise Exception("Setting timers is only supported on a keyed streams.")
+
+        def register_event_time_timer(self, time: int):
+            raise Exception("Setting timers is only supported on a keyed streams.")
+
+    class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
+        """
+        Internal implementation of ProcessFunction.OnTimerContext.
+
+        Note that only a KeyedStream can register timers, a ProcessFunction on a non-KeyedStream
+        will never fire a timer. So the OnTimerContext for ProcessFunction has no implementation.
+        """
+
+        def time_domain(self) -> TimeDomain:
+            pass
+
+        def timer_service(self) -> 'TimerService':
+            pass
+
+        def timestamp(self) -> int:
+            pass
+
+
+class KeyedProcessFunctionOperation(StatefulFunctionOperation):
+
+    def __init__(self, spec, keyed_state_backend):
+        self._collector = KeyedProcessFunctionOperation.InternalCollector()
+        internal_timer_service = KeyedProcessFunctionOperation.InternalTimerService(
+            self._collector, keyed_state_backend)
+        self.function_context = KeyedProcessFunctionOperation.InternalKeyedProcessFunctionContext(
+            internal_timer_service)
+        self.on_timer_ctx = KeyedProcessFunctionOperation\
+            .InternalKeyedProcessFunctionOnTimerContext(internal_timer_service)
+        super(KeyedProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
+
+    def generate_func(self, serialized_fn) -> Tuple:
+        func, proc_func = operation_utils.extract_process_function(
+            serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
+            self.keyed_state_backend, True)
         return func, [proc_func]
 
     class InternalCollector(Collector):
@@ -410,6 +493,48 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
         def clear(self):
             self.buf.clear()
 
+    class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext):
+        """
+        Internal implementation of ProcessFunction.OnTimerContext.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+            self._time_domain = None
+            self._timestamp = None
+            self._current_key = None
+
+        def timer_service(self):
+            return self._timer_service
+
+        def time_domain(self) -> TimeDomain:
+            return self._time_domain
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
+        def get_current_key(self):
+            return self._current_key
+
+    class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
+        """
+            Internal implementation of KeyedProcessFunction.Context.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+            self._timestamp = None
+            self._current_key = None
+
+        def get_current_key(self):
+            return self._current_key
+
+        def timer_service(self) -> 'TimerService':
+            return self._timer_service
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
     class InternalTimerService(TimerService):
         """
         Internal implementation of TimerService.
@@ -433,37 +558,3 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def current_watermark(self) -> int:
             return self._current_watermark
-
-    class InternalProcessFunctionContext(ProcessFunction.Context):
-        """
-        Internal implementation of ProcessFunction.Context.
-        """
-
-        def __init__(self, timer_service: 'TimerService'):
-            self._timer_service = timer_service
-            self._timestamp = None
-
-        def timer_service(self):
-            return self._timer_service
-
-        def timestamp(self) -> int:
-            return self._timestamp
-
-    class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
-        """
-        Internal implementation of ProcessFunction.OnTimerContext.
-        """
-
-        def __init__(self, timer_service: 'TimerService'):
-            self._timer_service = timer_service
-            self._time_domain = None
-            self._timestamp = None
-
-        def timer_service(self):
-            return self._timer_service
-
-        def time_domain(self) -> TimeDomain:
-            return self._time_domain
-
-        def timestamp(self) -> int:
-            return self._timestamp

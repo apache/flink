@@ -20,7 +20,7 @@ from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
 from pyflink.datastream.connectors import FlinkKafkaProducer
-from pyflink.datastream.functions import ProcessFunction, Collector
+from pyflink.datastream.functions import Collector, KeyedProcessFunction
 from pyflink.table import StreamTableEnvironment
 
 from functions import MyKeySelector
@@ -73,15 +73,15 @@ def python_data_stream_example():
     env.execute_async("test data stream timer")
 
 
-class MyProcessFunction(ProcessFunction):
+class MyProcessFunction(KeyedProcessFunction):
 
-    def process_element(self, value, ctx: 'ProcessFunction.Context', out: Collector):
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context', out: Collector):
         result = "Current orderId: " + str(value[1]) + " payAmount: " + str(value[2])
         out.collect(result)
         current_watermark = ctx.timer_service().current_watermark()
         ctx.timer_service().register_event_time_timer(current_watermark + 1500)
 
-    def on_timer(self, timestamp, ctx: 'ProcessFunction.OnTimerContext', out: 'Collector'):
+    def on_timer(self, timestamp, ctx: 'KeyedProcessFunction.OnTimerContext', out: 'Collector'):
         out.collect("On timer timestamp: " + str(timestamp))
 
 

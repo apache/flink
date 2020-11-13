@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
 import com.google.protobuf.ByteString;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -38,6 +39,8 @@ import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoTy
  */
 public enum PythonOperatorUtils {
 	;
+
+	private static final byte[] RECORD_SPLITER = new byte[]{0x00};
 
 	public static FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
@@ -148,6 +151,10 @@ public enum PythonOperatorUtils {
 		return userDefinedDataStreamFunction.toBuilder()
 			.setKeyTypeInfo(PythonTypeUtils.TypeInfoToProtoConverter
 				.toTypeInfoProto(builtKeyFieldType)).build();
+	}
+
+	public static boolean endOfLastFlatMap(int length, byte[] rawData){
+		return length == 1 && Arrays.equals(rawData, RECORD_SPLITER);
 	}
 
 }
