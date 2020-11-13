@@ -132,6 +132,8 @@ function ensure_clean_environment {
         echo "FATAL: This test has left ports allocated."
         echo "Allocated ports before the test: $num_ports_before and after: $num_ports_after. Stopping test execution."
         printf "\n==============================================================================\n"
+        echo "Printing pstree for debugging:"
+        sudo pstree -p
         exit 1
     fi
 
