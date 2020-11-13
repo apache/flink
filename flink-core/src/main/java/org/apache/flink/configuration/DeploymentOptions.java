@@ -34,7 +34,13 @@ public class DeploymentOptions {
 			key("execution.target")
 					.stringType()
 					.noDefaultValue()
-					.withDescription("The deployment target for the execution, e.g. \"local\" for local execution.");
+					.withDescription(" The deployment target for the execution. " +
+							"This can take one of the following values:" +
+							"\"remote\", \"local\", \"yarn-per-job\", " +
+							"\"yarn-session\", \"yarn-application\", " +
+							"\"kubernetes-session\" and \"kubernetes-application\". " +
+							"Note that \"yarn-application\" and \"kubernetes-application\" " +
+							"can only be used through the CLI using the \"run-application -t\" command.");
 
 	public static final ConfigOption<Boolean> ATTACHED =
 			key("execution.attached")
