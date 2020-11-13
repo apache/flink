@@ -106,7 +106,7 @@ public interface WatermarkStrategy<T> extends
 	 *
 	 * <pre>
 	 * {@code WatermarkStrategy<CustomObject> wmStrategy = WatermarkStrategy
-	 *   .forMonotonousTimestamps()
+	 *   .<CustomObject>forMonotonousTimestamps()
 	 *   .withTimestampAssigner((event, timestamp) -> event.getTimestamp());
 	 * }</pre>
 	 */
