@@ -106,6 +106,18 @@ public class LogicalTypeCastsTest {
 
 				{new NullType(), new IntType(), true, true},
 
+				{
+					new NullType(),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					true,
+					true
+				},
+
 				{new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
 
 				{new ArrayType(new IntType()), new ArrayType(new VarCharType(Integer.MAX_VALUE)), false, true},
