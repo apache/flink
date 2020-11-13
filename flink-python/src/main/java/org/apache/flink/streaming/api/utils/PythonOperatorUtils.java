@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
 import com.google.protobuf.ByteString;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -38,6 +39,70 @@ import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoTy
  */
 public enum PythonOperatorUtils {
 	;
+
+	private static final byte[] RECORD_SPLITER = new byte[]{0x00};
+
+	/**
+	 * The Flag for PythonKeyedProcessFunction input data.
+	 */
+	public enum KeyedProcessFunctionInputFlag {
+		EVENT_TIME_TIMER((byte) 0),
+		PROC_TIME_TIMER((byte) 1),
+		NORMAL_DATA((byte) 2);
+
+		public final byte value;
+
+		KeyedProcessFunctionInputFlag(byte value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonKeyedProcessFunction output data.
+	 */
+	public enum KeyedProcessFunctionOutputFlag {
+		REGISTER_EVENT_TIMER((byte) 0),
+		REGISTER_PROC_TIMER((byte) 1),
+		NORMAL_DATA((byte) 2),
+		DEL_EVENT_TIMER((byte) 3),
+		DEL_PROC_TIMER((byte) 4);
+
+		public final byte value;
+
+		KeyedProcessFunctionOutputFlag(byte value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonCoFlatMapFunction output data.
+	 */
+	public enum CoFlatMapFunctionOutputFlag {
+		LEFT((byte) 0),
+		RIGHT((byte) 1),
+		LEFT_END((byte) 2),
+		RIGHT_END((byte) 3);
+
+		public final byte value;
+
+		CoFlatMapFunctionOutputFlag(byte value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonCoMapFunction output data.
+	 */
+	public enum CoMapFunctionOutputFlag {
+		LEFT((byte) 0),
+		RIGHT((byte) 1);
+
+		public final int value;
+
+		CoMapFunctionOutputFlag(byte value) {
+			this.value = value;
+		}
+	}
 
 	public static FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
@@ -148,6 +213,10 @@ public enum PythonOperatorUtils {
 		return userDefinedDataStreamFunction.toBuilder()
 			.setKeyTypeInfo(PythonTypeUtils.TypeInfoToProtoConverter
 				.toTypeInfoProto(builtKeyFieldType)).build();
+	}
+
+	public static boolean endOfLastFlatMap(int length, byte[] rawData) {
+		return length == 1 && Arrays.equals(rawData, RECORD_SPLITER);
 	}
 
 }

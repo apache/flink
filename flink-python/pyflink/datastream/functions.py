@@ -17,6 +17,7 @@
 ################################################################################
 
 import abc
+from abc import ABC
 from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
@@ -36,7 +37,9 @@ __all__ = [
     'Partitioner',
     'SourceFunction',
     'SinkFunction',
-    'ProcessFunction']
+    'ProcessFunction',
+    'Collector',
+    'KeyedProcessFunction']
 
 
 class RuntimeContext(object):
@@ -557,86 +560,6 @@ class SinkFunction(JavaFunctionWrapper):
         super(SinkFunction, self).__init__(sink_func)
 
 
-class ProcessFunction(Function):
-    """
-    A function that process elements of a stream.
-
-    For every element in the input stream process_element(value, ctx, out) is invoked. This can
-    produce zero or more elements as output. Implementations can also query the time and set timers
-    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
-    can again produce zero or more elements as output and register further timers.
-
-    Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream.
-    """
-
-    @abc.abstractmethod
-    def process_element(self, value, ctx: 'Context', out: 'Collector'):
-        """
-        Process one element from the input stream.
-
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
-
-        :param value: The input value.
-        :param ctx:  A Context that allows querying the timestamp of the element and getting a
-                     TimerService for registering timers and querying the time. The context is only
-                     valid during the invocation of this method, do not store it.
-        :param out: The collector for returning result values.
-        """
-        pass
-
-    @abc.abstractmethod
-    def on_timer(self, timestamp, ctx: 'OnTimerContext', out: 'Collector'):
-        """
-        Called when a timer set using TimerService fires.
-
-        :param timestamp: The timestamp of the firing timer.
-        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
-                    querying the TimeDomain of the firing timer and getting a TimerService for
-                    registering timers and querying the time. The context is only valid during the
-                    invocation of this method, do not store it.
-        :param out: The collector for returning result values.
-        """
-        pass
-
-    class Context(abc.ABC):
-        """
-        Information available in an invocation of process_element(value, ctx, out) or
-        on_timer(value, ctx, out).
-        """
-
-        @abc.abstractmethod
-        def timer_service(self) -> 'TimerService':
-            """
-            A Timer service for querying time and registering timers.
-            """
-            pass
-
-        @abc.abstractmethod
-        def timestamp(self) -> int:
-            """
-            Timestamp of the element currently being processed or timestamp of a firing timer.
-
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
-            """
-            pass
-
-    class OnTimerContext(Context):
-        """
-        Information available in an invocation of on_timer(long, OnTimerContext, Collector)
-        """
-
-        @abc.abstractmethod
-        def time_domain(self) -> TimeDomain:
-            """
-            The TimeDomain of the firing timer.
-            :return: The TimeDomain of current fired timer.
-            """
-            pass
-
-
 class Collector(abc.ABC):
     """
     Collects a record and forwards it.
@@ -693,5 +616,170 @@ class TimerService(abc.ABC):
         receive the timer notification.
 
         :param time: The event time of the timer to be registered.
+        """
+        pass
+
+    def delete_processing_time_timer(self, time: int):
+        """
+        Deletes the processing-time timer with the given trigger time. This method has only an
+        effect if such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
+        """
+        pass
+
+    def delete_event_time_timer(self, time: int):
+        """
+        Deletes the event-time timer with the given trigger time. This method has only an effect if
+        such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
+        """
+        pass
+
+
+class ProcessFunction(Function):
+    """
+    A function that process elements of a stream.
+
+    For every element in the input stream process_element(value, ctx, out) is invoked. This can
+    produce zero or more elements as output. Implementations can also query the time and set timers
+    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
+    can again produce zero or more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the ProcessFunction is applied on a KeyedStream.
+    """
+
+    class Context(abc.ABC):
+        """
+        Information available in an invocation of process_element(value, ctx, out) or
+        on_timer(value, ctx, out).
+        """
+
+        @abc.abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    @abc.abstractmethod
+    def process_element(self, value, ctx: 'ProcessFunction.Context', out: Collector):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        :param out: The collector for returning result values.
+        """
+        pass
+
+
+class KeyedProcessFunction(Function, ABC):
+    """
+    A keyed function processes elements of a stream.
+
+    For every element in the input stream, process_element() is invoked. This can produce zero or
+    more elements as output. Implementations can also query the time and set timers through the
+    provided Context. For firing timers on_timer() will be invoked. This can again produce zero or
+    more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the KeyedProcessFunction is applied on a KeyedStream.
+    """
+
+    """
+    A function that process elements of a stream.
+
+    For every element in the input stream process_element(value, ctx, out) is invoked. This can
+    produce zero or more elements as output. Implementations can also query the time and set timers
+    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
+    can again produce zero or more elements as output and register further timers.
+
+    Note that access to keyed state and timers (which are also scoped to a key) is only available if
+    the ProcessFunction is applied on a KeyedStream.
+    """
+
+    class Context(ABC):
+
+        @abc.abstractmethod
+        def get_current_key(self):
+            pass
+
+        @abc.abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    class OnTimerContext(Context):
+
+        @abc.abstractmethod
+        def time_domain(self) -> TimeDomain:
+            """
+            The TimeDomain of the firing timer.
+            :return: The TimeDomain of current fired timer.
+            """
+            pass
+
+    @abc.abstractmethod
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context', out: Collector):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        :param out: The collector for returning result values.
+        """
+        pass
+
+    def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext', out: Collector):
+        """
+        Called when a timer set using TimerService fires.
+
+        :param timestamp: The timestamp of the firing timer.
+        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
+                    querying the TimeDomain of the firing timer and getting a TimerService for
+                    registering timers and querying the time. The context is only valid during the
+                    invocation of this method, do not store it.
+        :param out: The collector for returning result values.
         """
         pass

@@ -23,7 +23,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import FilterFunction, ProcessFunction
+from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
@@ -604,6 +604,54 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_timestamp_assigner_and_watermark_strategy(self):
         self.env.set_parallelism(1)
+        self.env.get_config().set_auto_watermark_interval(2000)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        data_stream = self.env.from_collection([(1, '1603708211000'),
+                                                (2, '1603708224000'),
+                                                (3, '1603708226000'),
+                                                (4, '1603708289000')],
+                                               type_info=Types.ROW([Types.INT(), Types.STRING()]))
+
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[1])
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def process_element(self, value, ctx, out):
+                current_timestamp = ctx.timestamp()
+                current_watermark = ctx.timer_service().current_watermark()
+                current_key = ctx.get_current_key()
+                out.collect("current key: {}, current timestamp: {}, current watermark: {}, "
+                            "current_value: {}".format(str(current_key), str(current_timestamp),
+                                                       str(current_watermark), str(value)))
+
+            def on_timer(self, timestamp, ctx, out):
+                pass
+
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
+            .with_timestamp_assigner(MyTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
+            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('test time stamp assigner with keyed process function')
+        result = self.test_sink.get_results()
+        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
+                           "9223372036854775807, current_value: <Row(1, '1603708211000')>",
+                           "current key: 2, current timestamp: 1603708224000, current watermark: "
+                           "9223372036854775807, current_value: <Row(2, '1603708224000')>",
+                           "current key: 3, current timestamp: 1603708226000, current watermark: "
+                           "9223372036854775807, current_value: <Row(3, '1603708226000')>",
+                           "current key: 4, current timestamp: 1603708289000, current watermark: "
+                           "9223372036854775807, current_value: <Row(4, '1603708289000')>"]
+        result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, result)
+
+    def test_process_function(self):
+        self.env.set_parallelism(1)
+        self.env.get_config().set_auto_watermark_interval(2000)
         self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
         data_stream = self.env.from_collection([(1, '1603708211000'),
                                                 (2, '1603708224000'),
@@ -630,18 +678,17 @@ class DataStreamTests(PyFlinkTestCase):
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
-            .key_by(lambda x: x[0], key_type_info=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('test time stamp assigner')
+        self.env.execute('test process function')
         result = self.test_sink.get_results()
-        expected_result = ["current timestamp: None, current watermark: 9223372036854775807, "
-                           "current_value: <Row(1, '1603708211000')>",
-                           "current timestamp: None, current watermark: 9223372036854775807, "
-                           "current_value: <Row(2, '1603708224000')>",
-                           "current timestamp: None, current watermark: 9223372036854775807, "
-                           "current_value: <Row(3, '1603708226000')>",
-                           "current timestamp: None, current watermark: 9223372036854775807, "
-                           "current_value: <Row(4, '1603708289000')>"]
+        expected_result = ["current timestamp: 1603708211000, current watermark: "
+                           "9223372036854775807, current_value: <Row(1, '1603708211000')>",
+                           "current timestamp: 1603708224000, current watermark: "
+                           "9223372036854775807, current_value: <Row(2, '1603708224000')>",
+                           "current timestamp: 1603708226000, current watermark: "
+                           "9223372036854775807, current_value: <Row(3, '1603708226000')>",
+                           "current timestamp: 1603708289000, current watermark: "
+                           "9223372036854775807, current_value: <Row(4, '1603708289000')>"]
         result.sort()
         expected_result.sort()
         self.assertEqual(expected_result, result)

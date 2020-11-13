@@ -221,14 +221,14 @@ start_kafka_cluster
 create_kafka_topic 1 1 timer-stream-source
 create_kafka_topic 1 1 timer-stream-sink
 
-PAYMENT_MSGS='{"createTime": "2020-10-26 10:30:13", "orderId": 1603679414, "payAmount": 83685.44904332698, "payPlatform": 0, "provinceId": 3}
-{"createTime": "2020-10-26 10:30:26", "orderId": 1603679427, "payAmount": 30092.50657757042, "payPlatform": 0, "provinceId": 1}
-{"createTime": "2020-10-26 10:30:27", "orderId": 1603679428, "payAmount": 62644.01719293056, "payPlatform": 0, "provinceId": 6}
-{"createTime": "2020-10-26 10:30:28", "orderId": 1603679429, "payAmount": 6449.806795118451, "payPlatform": 0, "provinceId": 2}
-{"createTime": "2020-10-26 10:31:31", "orderId": 1603679492, "payAmount": 41108.36128417494, "payPlatform": 0, "provinceId": 0}
-{"createTime": "2020-10-26 10:31:32", "orderId": 1603679493, "payAmount": 64882.44233197067, "payPlatform": 0, "provinceId": 4}
-{"createTime": "2020-10-26 10:32:01", "orderId": 1603679522, "payAmount": 81648.80712644062, "payPlatform": 0, "provinceId": 3}
-{"createTime": "2020-10-26 10:32:02", "orderId": 1603679523, "payAmount": 81861.73063103345, "payPlatform": 0, "provinceId": 4}'
+PAYMENT_MSGS='{"createTime": 1603679413000, "orderId": 1603679414, "payAmount": 83685.44904332698, "payPlatform": 0, "provinceId": 3}
+{"createTime": 1603679426000, "orderId": 1603679427, "payAmount": 30092.50657757042, "payPlatform": 0, "provinceId": 1}
+{"createTime": 1603679427000, "orderId": 1603679428, "payAmount": 62644.01719293056, "payPlatform": 0, "provinceId": 6}
+{"createTime": 1603679428000, "orderId": 1603679429, "payAmount": 6449.806795118451, "payPlatform": 0, "provinceId": 2}
+{"createTime": 1603679491000, "orderId": 1603679492, "payAmount": 41108.36128417494, "payPlatform": 0, "provinceId": 0}
+{"createTime": 1603679492000, "orderId": 1603679493, "payAmount": 64882.44233197067, "payPlatform": 0, "provinceId": 4}
+{"createTime": 1603679521000, "orderId": 1603679522, "payAmount": 81648.80712644062, "payPlatform": 0, "provinceId": 3}
+{"createTime": 1603679522000, "orderId": 1603679523, "payAmount": 81861.73063103345, "payPlatform": 0, "provinceId": 4}'
 
 function send_msg_to_kafka {
     while read line
@@ -236,6 +236,23 @@ function send_msg_to_kafka {
 	    send_messages_to_kafka "$line" "timer-stream-source"
         sleep 1
     done <<< "$1"
+}
+
+function read_msg_from_kafka {
+    $KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning \
+    --max-messages $1 \
+    --topic $2 \
+    --consumer-property group.id=$3 --timeout-ms 90000 2> /dev/null
+}
+
+function cat_jm_logs {
+     local log_file_name=${3:-standalonesession}
+     cat $FLINK_DIR/log/*$log_file_name*.log
+}
+
+function cat_tm_logs {
+	local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+	cat ${logfile}
 }
 
 send_msg_to_kafka "${PAYMENT_MSGS[*]}"
@@ -254,19 +271,19 @@ JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 wait_job_running ${JOB_ID}
 
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
+READ_MSG=$(read_msg_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"
 
-EXPECTED_MSG='Current orderId: 1603679414 payAmount: 83685.44904332698
-Current orderId: 1603679427 payAmount: 30092.50657757042
-Current orderId: 1603679428 payAmount: 62644.01719293056
-Current orderId: 1603679429 payAmount: 6449.806795118451
-Current orderId: 1603679492 payAmount: 41108.36128417494
-Current orderId: 1603679493 payAmount: 64882.44233197067
-Current orderId: 1603679522 payAmount: 81648.80712644062
-Current orderId: 1603679523 payAmount: 81861.73063103345
+EXPECTED_MSG='Current key: 1603679414, orderId: 1603679414, payAmount: 83685.44904332698, timestamp: 1603679413000
+Current key: 1603679427, orderId: 1603679427, payAmount: 30092.50657757042, timestamp: 1603679426000
+Current key: 1603679428, orderId: 1603679428, payAmount: 62644.01719293056, timestamp: 1603679427000
+Current key: 1603679429, orderId: 1603679429, payAmount: 6449.806795118451, timestamp: 1603679428000
+Current key: 1603679492, orderId: 1603679492, payAmount: 41108.36128417494, timestamp: 1603679491000
+Current key: 1603679493, orderId: 1603679493, payAmount: 64882.44233197067, timestamp: 1603679492000
+Current key: 1603679522, orderId: 1603679522, payAmount: 81648.80712644062, timestamp: 1603679521000
+Current key: 1603679523, orderId: 1603679523, payAmount: 81861.73063103345, timestamp: 1603679522000
 On timer timestamp: -9223372036854774308
 On timer timestamp: -9223372036854774308
 On timer timestamp: -9223372036854774308
@@ -283,5 +300,9 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
     echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
+    jm_log=$(cat_jm_logs)
+    echo "JobManager logs: " ${jm_log}
+    tm_log=$(cat_tm_logs)
+    echo "TaskManager logs: " ${tm_log}
     exit 1
 fi

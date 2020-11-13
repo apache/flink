@@ -22,35 +22,32 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * The {@link PythonPartitionCustomOperator} enables us to set the number of partitions for current
- * operator dynamically when generating the {@link org.apache.flink.streaming.api.graph.StreamGraph} before executing
- * the job. The number of partitions will be set in environment variables for python Worker, so that we can obtain the
- * number of partitions when executing user defined partitioner function.
+ * The {@link PythonMapOperator} is responsible for executing Python functions that gets one
+ * input and produces zero/one or more outputs.
+ *
+ * @param <IN>  The type of the input elements
+ * @param <OUT> The type of the output elements
  */
 @Internal
-public class PythonPartitionCustomOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
-
+public class PythonMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
 	private static final long serialVersionUID = 1L;
-
-	private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
 	private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
-	private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
-
-	public PythonPartitionCustomOperator(
+	public PythonMapOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
 		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+	}
+
+	@Override
+	public String getCoderUrn() {
+		return MAP_CODER_URN;
 	}
 
 	@Override
@@ -60,21 +57,5 @@ public class PythonPartitionCustomOperator<IN, OUT> extends OneInputPythonFuncti
 		bais.setBuffer(rawResult, 0, length);
 		collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
 		collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
-	}
-
-	@Override
-	public Map<String, String> getInternalParameters() {
-		Map<String, String> internalParameters = new HashMap<>();
-		internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
-		return internalParameters;
-	}
-
-	@Override
-	public String getCoderUrn() {
-		return MAP_CODER_URN;
-	}
-
-	public void setNumPartitions(int numPartitions) {
-		this.numPartitions = numPartitions;
 	}
 }
