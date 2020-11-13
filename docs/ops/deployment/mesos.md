@@ -225,7 +225,7 @@ For example:
 ### High Availability
 
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
-In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
+In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({% link ops/jobmanager_high_availability.md %}).
 
 #### Marathon
 
@@ -245,7 +245,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 ### Configuration parameters
 
-For a list of Mesos specific configuration, refer to the [Mesos section]({{ site.baseurl }}/ops/config.html#mesos)
+For a list of Mesos specific configuration, refer to the [Mesos section]({% link ops/config.md %}#mesos)
 of the configuration documentation.
 
 {% top %}

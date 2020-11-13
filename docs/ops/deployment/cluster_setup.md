@@ -80,7 +80,7 @@ configuration files (which need to be accessible at the same path on all machine
 
 <div class="row">
   <div class="col-md-6 text-center">
-    <img src="{{ site.baseurl }}/page/img/quickstart_cluster.png" style="width: 60%">
+    <img src="{% link /page/img/quickstart_cluster.png %}" style="width: 60%">
   </div>
 <div class="col-md-6">
   <div class="row">
@@ -102,12 +102,12 @@ configuration files (which need to be accessible at the same path on all machine
 
 The Flink directory must be available on every worker under the same path. You can use a shared NFS directory, or copy the entire Flink directory to every worker node.
 
-Please see the [configuration page](../config.html) for details and additional configuration options.
+Please see the [configuration page]({% link ops/config.md %}) for details and additional configuration options.
 
 In particular,
 
  * the amount of available memory per JobManager (`jobmanager.memory.process.size`),
- * the amount of available memory per TaskManager (`taskmanager.memory.process.size` and check [memory setup guide](../memory/mem_tuning.html#configure-memory-for-standalone-deployment)),
+ * the amount of available memory per TaskManager (`taskmanager.memory.process.size` and check [memory setup guide]({% link ops/memory/mem_tuning.md %}#configure-memory-for-standalone-deployment)),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`io.tmp.dirs`)

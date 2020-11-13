@@ -28,8 +28,8 @@ This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubern
 * This will be replaced by the TOC
 {:toc}
 
-{% info %} This page describes deploying a [standalone](#cluster_setup.html) Flink cluster on top of Kubernetes.
-You can find more information on native Kubernetes deployments [here]({{ site.baseurl }}/zh/ops/deployment/native_kubernetes.html).
+{% info %} This page describes deploying a [standalone]({% link ops/deployment/cluster_setup.zh.md %}) Flink cluster on top of Kubernetes.
+You can find more information on native Kubernetes deployments [here]({% link ops/deployment/native_kubernetes.zh.md %}).
 
 ## Setup Kubernetes
 
@@ -43,9 +43,9 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://kub
 
 ## Flink Docker image
 
-Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation](docker.html),
-[its tags](docker.html#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and
-[enable plugins](docker.html#using-plugins) to use the image in the Kubernetes definition files.
+Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation]({% link ops/deployment/docker.zh.md %}),
+[its tags]({% link ops/deployment/docker.zh.md %}#image-tags), [how to customize the Flink Docker image]({% link ops/deployment/docker.zh.md %}#customize-flink-image) and
+[enable plugins]({% link ops/deployment/docker.zh.md %}#using-plugins) to use the image in the Kubernetes definition files.
 
 ## Deploy Flink cluster on Kubernetes
 
@@ -105,8 +105,8 @@ Each job needs to be submitted to the cluster after the cluster has been deploye
 
 A *Flink Session cluster* deployment in Kubernetes has at least three components:
 
-* a *Deployment* which runs a [JobManager]({{ site.baseurl }}/concepts/glossary.html#flink-jobmanager)
-* a *Deployment* for a pool of [TaskManagers]({{ site.baseurl }}/concepts/glossary.html#flink-taskmanager)
+* a *Deployment* which runs a [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager)
+* a *Deployment* for a pool of [TaskManagers]({% link concepts/glossary.zh.md %}#flink-taskmanager)
 * a *Service* exposing the *JobManager's* REST and UI ports
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Session specific resource definitions](#session-cluster-resource-definitions)
@@ -138,13 +138,13 @@ A basic *Flink Job cluster* deployment in Kubernetes has three components:
 Check [the Job cluster specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
-See also [how to specify the JobManager arguments](docker.html#jobmanager-additional-command-line-arguments) to understand
+See also [how to specify the JobManager arguments]({% link ops/deployment/docker.zh.md %}#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
 The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
 The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
 If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image](docker.html#start-a-job-cluster) which already contains the artifacts instead.
+Alternatively, you can build [a custom image]({% link ops/deployment/docker.zh.md %}#start-a-job-cluster) which already contains the artifacts instead.
 
 After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)
 to launch the cluster with the `kubectl` command:

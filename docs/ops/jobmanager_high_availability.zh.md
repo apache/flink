@@ -42,7 +42,7 @@ The general idea of JobManager high availability for standalone clusters is that
 
 As an example, consider the following setup with three JobManager instances:
 
-<img src="{{ site.baseurl }}/fig/jobmanager_ha_overview.png" class="center" />
+<img src="{% link /fig/jobmanager_ha_overview.png %}" class="center" />
 
 ### Configuration
 
@@ -301,8 +301,8 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
                                            # configured in "security.kerberos.login.contexts".
 </pre>
 
-For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
-You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+For more information on Flink configuration for Kerberos security, please see [here]({% link ops/config.zh.md %}).
+You can also find [here]({% link ops/security-kerberos.zh.md %}) further details on how Flink internally setups Kerberos-based security.
 
 ## Zookeeper Versions
 

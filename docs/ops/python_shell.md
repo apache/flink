@@ -24,8 +24,8 @@ under the License.
 
 Flink comes with an integrated interactive Python Shell.
 It can be used in a local setup as well as in a cluster setup.
-See the [local setup page](deployment/local.html) for more information about how to setup a local Flink.
-You can also [build a local setup from source](../flinkDev/building.html).
+See the [local setup page]({% link ops/deployment/local.md %}) for more information about how to setup a local Flink.
+You can also [build a local setup from source]({% link flinkDev/building.md %}).
 
 <span class="label label-info">Note</span> The Python Shell will run the command “python”. Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
 

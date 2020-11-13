@@ -110,7 +110,7 @@ Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` en
 ./bin/yarn-session.sh -tm 8192 -s 32
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if you want to change something.
+The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({% link ops/config.md %}) if you want to change something.
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `io.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
@@ -125,7 +125,7 @@ Once Flink is deployed in your YARN cluster, it will show you the connection det
 Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
 
 Flink on YARN will only start if enough resources are available for the ApplicationMaster on the cluster. Most YARN schedulers account for the requested memory of the containers,
-some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The [`yarn.containers.vcores`]({{ site.baseurl }}/ops/config.html#yarn-containers-vcores) allows overwriting the
+some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The [`yarn.containers.vcores`]({% link ops/config.md %}#yarn-containers-vcores) allows overwriting the
 number of vcores with a custom value. In order for this parameter to work you should enable CPU scheduling in your cluster.
 
 #### Detached YARN Session
@@ -176,7 +176,7 @@ Use the following command to submit a Flink program to the YARN cluster:
 ./bin/flink
 {% endhighlight %}
 
-Please refer to the documentation of the [command-line client]({{ site.baseurl }}/ops/cli.html).
+Please refer to the documentation of the [command-line client]({% link ops/cli.md %}).
 
 The command will show you a help menu like this:
 
@@ -333,7 +333,7 @@ It allows to access log files for running YARN applications and shows diagnostic
 
 ## Build YARN client for a specific Hadoop version
 
-Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions]({{ site.baseurl }}/flinkDev/building.html) for more details.
+Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions]({% link flinkDev/building.md %}) for more details.
 
 ## Running Flink on YARN behind Firewalls
 
@@ -357,7 +357,7 @@ Please make sure that the configuration option `rest.port` has not been specifie
 
 This section briefly describes how Flink and YARN interact.
 
-<img src="{{ site.baseurl }}/fig/FlinkOnYarn.svg" class="img-responsive">
+<img src="{% link /fig/FlinkOnYarn.svg %}" class="img-responsive">
 
 The YARN client needs to access the Hadoop configuration to connect to the YARN resource manager and HDFS. It determines the Hadoop configuration using the following strategy:
 

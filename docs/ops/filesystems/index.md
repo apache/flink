@@ -44,7 +44,7 @@ It can be used by default without additional configuration. Local files are refe
 
 The Apache Flink project supports the following file systems:
 
-  - [**Amazon S3**](./s3.html) object storage is supported by two alternative implementations: `flink-s3-fs-presto` and `flink-s3-fs-hadoop`.
+  - [**Amazon S3**]({% link ops/filesystems/s3.md %}) object storage is supported by two alternative implementations: `flink-s3-fs-presto` and `flink-s3-fs-hadoop`.
   Both implementations are self-contained with no dependency footprint.
 
   - **MapR FS** file system adapter is already supported in the main Flink distribution under the *maprfs://* URI scheme.
@@ -54,13 +54,13 @@ The Apache Flink project supports the following file systems:
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
   To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{ site.version }}`).
   
-  - **[Aliyun Object Storage Service](./oss.html)** is supported by `flink-oss-fs-hadoop` and registered under the *oss://* URI scheme.
+  - **[Aliyun Object Storage Service]({% link ops/filesystems/oss.md %})** is supported by `flink-oss-fs-hadoop` and registered under the *oss://* URI scheme.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
-  - **[Azure Blob Storage](./azure.html)** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
+  - **[Azure Blob Storage]({% link ops/filesystems/azure.md %})** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
-Except **MapR FS**, you can and should use any of them as [plugins](../plugins.html). 
+Except **MapR FS**, you can and should use any of them as [plugins]({% link ops/plugins.md %}). 
 
 To use a pluggable file systems, copy the corresponding JAR file from the `opt` directory to a directory under `plugins` directory
 of your Flink distribution before starting Flink, e.g.
@@ -70,13 +70,13 @@ mkdir ./plugins/s3-fs-hadoop
 cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The [plugin](../plugins.html) mechanism for file systems was introduced in Flink version `1.9` to
+<span class="label label-danger">Attention</span> The [plugin]({% link ops/plugins.md %}) mechanism for file systems was introduced in Flink version `1.9` to
 support dedicated Java class loaders per plugin and to move away from the class shading mechanism.
 You can still use the provided file systems (or your own implementations) via the old mechanism by copying the corresponding
 JAR file into `lib` directory. However, **since 1.10, s3 plugins must be loaded through the plugin mechanism**; the old
 way no longer works as these plugins are not shaded anymore (or more specifically the classes are not relocated since 1.10).
 
-It's encouraged to use the [plugins](../plugins.html)-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
+It's encouraged to use the [plugins]({% link ops/plugins.md %})-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
 directory will not supported in future Flink versions.
 
 ## Adding a new pluggable File System implementation
@@ -100,7 +100,7 @@ in your implementation.
 
 For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
 All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
-See also **[Hadoop Integration]({{ site.baseurl }}/ops/deployment/hadoop.html)**.
+See also **[Hadoop Integration]({% link ops/deployment/hadoop.md %})**.
 
 This way, Flink seamlessly supports all of Hadoop file systems implementing the `org.apache.hadoop.fs.FileSystem` interface,
 and all Hadoop-compatible file systems (HCFS).
@@ -114,7 +114,7 @@ and all Hadoop-compatible file systems (HCFS).
   - ...
 
 The Hadoop configuration has to have an entry for the required file system implementation in the `core-site.xml` file.
-See example for **[Alluxio]({{ site.baseurl }}/ops/filesystems/#alluxio)**.
+See example for **[Alluxio](#alluxio)**.
 
 We recommend using Flink's built-in file systems unless required otherwise. Using a Hadoop File System directly may be required,
 for example, when using that file system for YARN's resource storage, via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.

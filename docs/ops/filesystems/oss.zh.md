@@ -25,7 +25,7 @@ under the License.
 
 ## OSS：对象存储服务
 
-[阿里云对象存储服务](https://www.aliyun.com/product/oss) (Aliyun OSS) 使用广泛，尤其在中国云用户中十分流行，能提供多种应用场景下的云对象存储。OSS 可与 Flink 一起使用以读取与存储数据，以及与[流 State Backend]({{ site.baseurl }}/zh/ops/state/state_backends.html) 结合使用。
+[阿里云对象存储服务](https://www.aliyun.com/product/oss) (Aliyun OSS) 使用广泛，尤其在中国云用户中十分流行，能提供多种应用场景下的云对象存储。OSS 可与 Flink 一起使用以读取与存储数据，以及与[流 State Backend]({% link ops/state/state_backends.zh.md %}) 结合使用。
 
 * This will be replaced by the TOC
 {:toc}
