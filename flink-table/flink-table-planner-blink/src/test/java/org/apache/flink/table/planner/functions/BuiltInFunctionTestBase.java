@@ -188,19 +188,26 @@ public abstract class BuiltInFunctionTestBase {
 
 		private final BuiltInFunctionDefinition definition;
 
+		private final @Nullable String description;
+
 		private Object[] fieldData;
 
 		private @Nullable AbstractDataType<?>[] fieldDataTypes;
 
 		private List<TestItem> testItems;
 
-		private TestSpec(BuiltInFunctionDefinition definition) {
+		private TestSpec(BuiltInFunctionDefinition definition, @Nullable String description) {
 			this.definition = definition;
+			this.description = description;
 			this.testItems = new ArrayList<>();
 		}
 
 		static TestSpec forFunction(BuiltInFunctionDefinition definition) {
-			return new TestSpec(definition);
+			return new TestSpec(definition, null);
+		}
+
+		static TestSpec forFunction(BuiltInFunctionDefinition definition, String description) {
+			return new TestSpec(definition, description);
 		}
 
 		TestSpec onFieldsWithData(Object... fieldData) {
@@ -241,7 +248,7 @@ public abstract class BuiltInFunctionTestBase {
 
 		@Override
 		public String toString() {
-			return definition.getName();
+			return definition.getName() + (description != null ? " : " + description : "");
 		}
 	}
 
