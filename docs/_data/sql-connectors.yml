@@ -100,8 +100,11 @@ hbase:
     category: connector
     versions:
         - version: 1.4.x
-          maven: flink-connector-hbase{{site.scala_version_suffix}}
-          sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar
+          maven: flink-connector-hbase-1.4{{site.scala_version_suffix}}
+          sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-1.4{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase-1.4{{site.scala_version_suffix}}-{{site.version}}.jar
+        - version: 2.2.x
+          maven: flink-connector-hbase-2.2{{site.scala_version_suffix}}
+          sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-2.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase-2.2{{site.scala_version_suffix}}-{{site.version}}.jar
 
 jdbc:
     name: JDBC

@@ -38,12 +38,10 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 依赖
 ------------
 
-安装 HBase 连接器的依赖条件如下表，包括自动构建工具（比如 Maven 或者 SBT）和 SQL 客户端：
-
-| HBase 版本          | Maven 依赖                                          | SQL 客户端 JAR        |
-| :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
-
+{% assign connector = site.data.sql-connectors['hbase'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何使用 HBase 表
 ----------------
@@ -101,7 +99,12 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>指定使用的连接器，这里写“hbase-1.4”。</td>
+      <td>指定使用的连接器, 支持的值如下 :
+        <ul>
+            <li><code>hbase-1.4</code>: 连接 HBase 1.4.x 集群</li>
+            <li><code>hbase-2.2</code>: 连接 HBase 2.2.x 集群</li>
+        </ul>
+      </td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
