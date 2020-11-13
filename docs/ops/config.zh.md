@@ -39,13 +39,13 @@ The options in this section are the ones most commonly needed for a basic distri
 
 **Hostnames / Ports**
 
-These options are only necessary for *standalone* application- or session deployments ([simple standalone]({{site.baseurl}}/ops/deployment/cluster_setup.html) or [Kubernetes]({{site.baseurl}}/ops/deployment/kubernetes.html)).
+These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link ops/deployment/cluster_setup.zh.md %}) or [Kubernetes]({% link ops/deployment/kubernetes.zh.md %})).
 
-If you use Flink with [Yarn]({{site.baseurl}}/ops/deployment/yarn_setup.html), [Mesos]({{site.baseurl}}/ops/deployment/mesos.html), or the [*active* Kubernetes integration]({{site.baseurl}}/ops/deployment/native_kubernetes.html), the hostnames and ports are automatically discovered.
+If you use Flink with [Yarn]({% link ops/deployment/yarn_setup.zh.md %}), [Mesos]({% link ops/deployment/mesos.zh.md %}), or the [*active* Kubernetes integration]({% link ops/deployment/native_kubernetes.zh.md %}), the hostnames and ports are automatically discovered.
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
-  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({{site.baseurl}}/ops/jobmanager_high_availability.html) where the leader election mechanism is used to discover this automatically.
+  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({% link ops/jobmanager_high_availability.zh.md %}) where the leader election mechanism is used to discover this automatically.
 
 **Memory Sizes** 
 
@@ -61,7 +61,7 @@ These value are configured as memory sizes, for example *1536m* or *2g*.
 **Parallelism**
 
   - `taskmanager.numberOfTaskSlots`: The number of slots that a TaskManager offers *(default: 1)*. Each slot can take one task or pipeline.
-    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({{site.baseurl}}/concepts/flink-architecture.html#task-slots-and-resources) concepts section for details.
+    Having multiple slots in a TaskManager can help amortize certain constant overheads (of the JVM, application libraries, or network connections) across parallel tasks or pipelines. See the [Task Slots and Resources]({% link concepts/flink-architecture.zh.md %}#task-slots-and-resources) concepts section for details.
 
      Running more smaller TaskManagers with one slot each is a good starting point and leads to the best isolation between tasks. Dedicating the same resources to fewer larger TaskManagers with more slots can help to increase resource utilization, at the cost of weaker isolation between the tasks (more tasks share the same JVM).
 
@@ -175,7 +175,7 @@ Options for configuring Flink's security and secure interaction with external sy
 
 ### SSL
 
-Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({{site.baseurl}}/ops/security-ssl.html) for detailed setup guide and background.
+Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({% link ops/security-ssl.zh.md %}) for detailed setup guide and background.
 
 {% include generated/security_ssl_section.html %}
 
@@ -190,7 +190,7 @@ These options are necessary when connecting to a secured ZooKeeper quorum.
 
 **Kerberos-based Authentication / Authorization**
 
-Please refer to the [Flink and Kerberos Docs]({{site.baseurl}}/ops/security-kerberos.html) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
+Please refer to the [Flink and Kerberos Docs]({% link ops/security-kerberos.zh.md %}) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
 
 {% include generated/security_auth_kerberos_section.html %}
 
@@ -202,7 +202,7 @@ Please refer to the [Flink and Kerberos Docs]({{site.baseurl}}/ops/security-kerb
 This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
 
 Note that is not always necessary to integrate Flink with the resource orchestration framework.
-For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({{site.baseurl}}/ops/deployment/kubernetes.html) for an example.
+For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({% link ops/deployment/kubernetes.zh.md %}) for an example.
 
 The options in this section are necessary for setups where Flink itself actively requests and releases resources from the orchestrators.
 
@@ -227,7 +227,7 @@ The options in this section are necessary for setups where Flink itself actively
 
 # State Backends
 
-Please refer to the [State Backend Documentation]({{site.baseurl}}/ops/state/state_backends.html) for background on State Backends.
+Please refer to the [State Backend Documentation]({% link ops/state/state_backends.zh.md %}) for background on State Backends.
 
 ### RocksDB State Backend
 
@@ -240,7 +240,7 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 # Metrics
 
-Please refer to the [metrics system documentation]({{site.baseurl}}/monitoring/metrics.html) for background on Flink's metrics infrastructure.
+Please refer to the [metrics system documentation]({% link monitoring/metrics.zh.md %}) for background on Flink's metrics infrastructure.
 
 {% include generated/metric_configuration.html %}
 
@@ -262,7 +262,7 @@ The metrics here are scoped to the operators and then further broken down by col
 
 The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).
 
-See the [History Server Docs]({{site.baseurl}}/monitoring/historyserver.html) for details.
+See the [History Server Docs]({% link monitoring/historyserver.zh.md %}) for details.
 
 {% include generated/history_server_configuration.html %}
 
@@ -276,7 +276,7 @@ See the [History Server Docs]({{site.baseurl}}/monitoring/historyserver.html) fo
 ### Queryable State
 
 *Queryable State* is an experimental features that gives lets you access Flink's internal state like a key/value store.
-See the [Queryable State Docs]({{site.baseurl}}/dev/stream/state/queryable_state.html) for details.
+See the [Queryable State Docs]({% link dev/stream/state/queryable_state.zh.md %}) for details.
 
 {% include generated/queryable_state_configuration.html %}
 
@@ -293,7 +293,7 @@ See the [Queryable State Docs]({{site.baseurl}}/dev/stream/state/queryable_state
 
 Flink dynamically loads the code for jobs submitted to a session cluster. In addition, Flink tries to hide many dependencies in the classpath from the application. This helps to reduce dependency conflicts between the application code and the dependencies in the classpath.
 
-Please refer to the [Debugging Classloading Docs]({{site.baseurl}}/monitoring/debugging_classloading.html) for details.
+Please refer to the [Debugging Classloading Docs]({% link monitoring/debugging_classloading.zh.md %}) for details.
 
 {% include generated/expert_class_loading_section.html %}
 
