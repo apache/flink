@@ -51,7 +51,7 @@ Time types are always the local machines current system time.
 CREATE TABLE Orders (
     order_number BIGINT,
     price        DECIMAL(32,2),
-    buyer        ROW<first_name STRING, last_name STRING>
+    buyer        ROW<first_name STRING, last_name STRING>,
     order_time   TIMESTAMP(3)
 ) WITH (
   'connector' = 'datagen'
@@ -64,7 +64,7 @@ Often, the data generator connector is used in conjuction with the ``LIKE`` clau
 CREATE TABLE Orders (
     order_number BIGINT,
     price        DECIMAL(32,2),
-    buyer        ROW<first_name STRING, last_name STRING>
+    buyer        ROW<first_name STRING, last_name STRING>,
     order_time   TIMESTAMP(3)
 ) WITH (...)
 
