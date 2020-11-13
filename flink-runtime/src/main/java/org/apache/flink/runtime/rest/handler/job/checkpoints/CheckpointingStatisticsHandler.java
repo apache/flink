@@ -91,7 +91,7 @@ public class CheckpointingStatisticsHandler extends AbstractExecutionGraphHandle
 		final CheckpointStatsSnapshot checkpointStatsSnapshot = executionGraph.getCheckpointStatsSnapshot();
 
 		if (checkpointStatsSnapshot == null) {
-			throw new RestHandlerException("Checkpointing has not been enabled.", HttpResponseStatus.NOT_FOUND);
+			throw new RestHandlerException("Checkpointing has not been enabled.", HttpResponseStatus.NOT_FOUND, RestHandlerException.LoggingBehavior.IGNORE);
 		} else {
 			final CheckpointStatsCounts checkpointStatsCounts = checkpointStatsSnapshot.getCounts();
 
