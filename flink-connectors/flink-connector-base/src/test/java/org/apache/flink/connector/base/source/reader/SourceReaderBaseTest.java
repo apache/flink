@@ -19,7 +19,9 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
@@ -90,7 +92,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				public void close() {}
 			},
 			getConfig(),
-			null)) {
+			new TestingReaderContext())) {
 			ValidatingSourceOutput output = new ValidatingSourceOutput();
 			reader.addSplits(Collections.singletonList(getSplit(0,
 				NUM_RECORDS_PER_SPLIT,
@@ -130,6 +132,25 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	}
 
 	@Test
+	public void testMetrics() throws Exception {
+		final TestingRecordsWithSplitIds<String> records = new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
+		final SourceReaderContext context = new TestingReaderContext();
+		final SourceReader<String, ?> reader = createReaderAndAwaitAvailable(
+			"test-split",
+			records,
+			new PassThroughRecordEmitter<>(),
+			context);
+
+		ReaderOutput<String> readerOutput = new TestingReaderOutput<>();
+		assertEquals(0, context.metricGroup().getNumRecordsInCounter().getCount());
+		reader.pollNext(readerOutput);
+		assertEquals(1, context.metricGroup().getNumRecordsInCounter().getCount());
+		reader.pollNext(readerOutput);
+		assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(readerOutput));
+		assertEquals(2, context.metricGroup().getNumRecordsInCounter().getCount());
+	}
+
+	@Test
 	public void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
 			new FutureCompletingBlockingQueue<>();
@@ -142,7 +163,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			elementsQueue,
 			() -> mockSplitReader,
 			getConfig(),
-			null);
+			new TestingReaderContext());
 
 		reader.start();
 
@@ -176,7 +197,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			elementsQueue,
 			() -> mockSplitReader,
 			getConfig(),
-			null);
+			new TestingReaderContext());
 
 		reader.start();
 
@@ -211,7 +232,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			elementsQueue,
 			splitFetcherManager,
 			getConfig(),
-			null);
+			new TestingReaderContext());
 
 		// Create and add a split that only contains one record
 		final MockSourceSplit split = new MockSourceSplit(0, 0, 1);
@@ -236,7 +257,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			elementsQueue,
 			() -> mockSplitReader,
 			getConfig(),
-			null);
+			new TestingReaderContext());
 	}
 
 	@Override
@@ -281,16 +302,27 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
 		final String splitId,
 		final RecordsWithSplitIds<E> records) throws Exception {
+		return createReaderAndAwaitAvailable(
+			splitId, records, new PassThroughRecordEmitter<>(), new TestingReaderContext());
+	}
+
+	private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
+		final String splitId,
+		final RecordsWithSplitIds<E> records,
+		final RecordEmitter<E, E, TestingSourceSplit> recordEmitter,
+		final SourceReaderContext context) throws Exception {
 
 		final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue =
 			new FutureCompletingBlockingQueue<>();
 
 		final SourceReader<E, TestingSourceSplit> reader = new SingleThreadMultiplexSourceReaderBase<E, E, TestingSourceSplit, TestingSourceSplit>(
 			elementsQueue,
-			() -> new TestingSplitReader<>(records),
-			new PassThroughRecordEmitter<>(),
+			new SingleThreadFetcherManager<>(
+				elementsQueue,
+				() -> new TestingSplitReader<>(records)),
+			recordEmitter,
 			new Configuration(),
-			new TestingReaderContext()) {
+			context) {
 
 			@Override
 			public void notifyCheckpointComplete(long checkpointId) {}
