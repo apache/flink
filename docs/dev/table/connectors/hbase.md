@@ -99,7 +99,12 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be <code>'hbase-1.4'</code>.</td>
+      <td>Specify what connector to use, valid values are:
+        <ul>
+            <li><code>hbase-1.4</code>: connect to HBase 1.4.x cluster</li>
+            <li><code>hbase-2.2</code>: connect to HBase 2.2.x cluster</li>
+        </ul>
+      </td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
