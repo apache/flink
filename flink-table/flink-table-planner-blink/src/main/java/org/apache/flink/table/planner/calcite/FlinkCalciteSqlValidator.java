@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DecimalType;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -39,6 +41,7 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Static;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 
@@ -95,5 +98,12 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 			}
 		}
 		super.validateJoin(join, scope);
+	}
+
+	@Override
+	public void validateColumnListParams(SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
+		// we don't support column lists and translate them into the unknown type in the type factory,
+		// this makes it possible to ignore them in the validator and fall back to regular row types
+		// see also SqlFunction#deriveType
 	}
 }

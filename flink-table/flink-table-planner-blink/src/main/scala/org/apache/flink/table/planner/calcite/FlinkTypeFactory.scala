@@ -330,6 +330,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       // keep precision/scale in sync with our type system's default value,
       // see DecimalType.USER_DEFAULT.
       createSqlType(typeName, DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE)
+    } else if (typeName == COLUMN_LIST) {
+      // we don't support column lists and translate them into the unknown type,
+      // this makes it possible to ignore them in the validator and fall back to regular row types
+      // see also SqlFunction#deriveType
+      createUnknownType()
     } else {
       super.createSqlType(typeName)
     }
