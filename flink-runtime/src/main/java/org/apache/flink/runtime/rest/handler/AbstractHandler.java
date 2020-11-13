@@ -223,7 +223,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 			String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
 			if (log.isDebugEnabled()) {
 				log.error("Exception occurred in REST handler.", rhe);
-			} else {
+			} else if (rhe.logException()) {
 				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
 			}
 			return HandlerUtils.sendErrorResponse(

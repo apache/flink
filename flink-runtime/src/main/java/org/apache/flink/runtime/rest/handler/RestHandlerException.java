@@ -30,17 +30,39 @@ public class RestHandlerException extends FlinkException {
 
 	private final int responseCode;
 
+	// This flag indicates whether the AbstractHandler should log about this exception on INFO level or not.
+	private final LoggingBehavior loggingBehavior;
+
 	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus) {
 		super(errorMessage);
 		this.responseCode = httpResponseStatus.code();
+		this.loggingBehavior = LoggingBehavior.LOG;
+	}
+
+	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus, LoggingBehavior loggingBehavior) {
+		super(errorMessage);
+		this.responseCode = httpResponseStatus.code();
+		this.loggingBehavior = loggingBehavior;
 	}
 
 	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus, Throwable cause) {
 		super(errorMessage, cause);
 		this.responseCode = httpResponseStatus.code();
+		this.loggingBehavior = LoggingBehavior.LOG;
 	}
 
 	public HttpResponseStatus getHttpResponseStatus() {
 		return HttpResponseStatus.valueOf(responseCode);
+	}
+
+	public boolean logException() {
+		return LoggingBehavior.LOG == loggingBehavior;
+	}
+
+	/**
+	 * Enum to control logging behavior of RestHandlerExceptions.
+	 */
+	public enum LoggingBehavior {
+		LOG, IGNORE
 	}
 }
