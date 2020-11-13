@@ -33,11 +33,11 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
-import org.apache.flink.streaming.api.operators.python.PythonProcessFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.PythonTimestampsAndWatermarksOperator;
-import org.apache.flink.streaming.api.operators.python.StatelessOneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.StatelessTwoInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.TwoInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -59,6 +59,7 @@ public class PythonConfigUtil {
 	public static final String KEYED_STREAM_VALUE_OPERATOR_NAME = "_keyed_stream_values_operator";
 	public static final String STREAM_KEY_BY_MAP_OPERATOR_NAME = "_stream_key_by_map_operator";
 	public static final String STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME = "_partition_custom_map_operator";
+	public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME = "_timestamp_and_watermark_operator";
 
 	/**
 	 * A static method to get the {@link StreamExecutionEnvironment} configuration merged with python dependency
@@ -98,7 +99,7 @@ public class PythonConfigUtil {
 	}
 
 	/**
-	 * Configure the {@link StatelessOneInputPythonFunctionOperator} to be chained with the upstream/downstream
+	 * Configure the {@link OneInputPythonFunctionOperator} to be chained with the upstream/downstream
 	 * operator by setting their parallelism, slot sharing group, co-location group to be the same, and applying a
 	 * {@link ForwardPartitioner}.
 	 * 1. operator with name "_keyed_stream_values_operator" should align with its downstream operator.
@@ -129,7 +130,7 @@ public class PythonConfigUtil {
 
 	/**
 	 * Generate a {@link StreamGraph} for transformations maintained by current {@link StreamExecutionEnvironment}, and
-	 * reset the merged env configurations with dependencies to every {@link StatelessOneInputPythonFunctionOperator}.
+	 * reset the merged env configurations with dependencies to every {@link OneInputPythonFunctionOperator}.
 	 * It is an idempotent operation that can be call multiple times. Remember that only when need to execute the
 	 * StreamGraph can we set the clearTransformations to be True.
 	 */
@@ -163,9 +164,9 @@ public class PythonConfigUtil {
 			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
-				if ((streamOperator instanceof StatelessOneInputPythonFunctionOperator) ||
-					(streamOperator instanceof StatelessTwoInputPythonFunctionOperator) ||
-					(streamOperator instanceof PythonProcessFunctionOperator)) {
+				if ((streamOperator instanceof OneInputPythonFunctionOperator) ||
+					(streamOperator instanceof TwoInputPythonFunctionOperator) ||
+					(streamOperator instanceof PythonKeyedProcessFunctionOperator)) {
 					AbstractPythonFunctionOperator abstractPythonFunctionOperator =
 						(AbstractPythonFunctionOperator) streamOperator;
 
@@ -177,7 +178,7 @@ public class PythonConfigUtil {
 					if (streamOperator instanceof PythonTimestampsAndWatermarksOperator) {
 						((PythonTimestampsAndWatermarksOperator) streamOperator)
 							.configureEmitProgressiveWatermarks(
-								isExecuteInBatchMode(mergedConfig) || existsUnboundedSource);
+								!isExecuteInBatchMode(mergedConfig) || existsUnboundedSource);
 					}
 				}
 			}

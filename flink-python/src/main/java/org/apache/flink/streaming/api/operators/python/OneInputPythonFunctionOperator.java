@@ -20,41 +20,40 @@ package org.apache.flink.streaming.api.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 
 /**
- * {@link StatelessOneInputPythonFunctionOperator} is responsible for launching beam runner which will start a python
- * harness to execute user defined python function.
+ * {@link OneInputPythonFunctionOperator} is responsible for launching beam runner which will start
+ * a python harness to execute user defined python function.
+ *
+ * <p>The operator will buffer the timestamp of input elements in a queue, and set into the produced
+ * output element.
  */
 @Internal
-public class StatelessOneInputPythonFunctionOperator<IN, OUT>
-	extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
+public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT> extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	protected static final String DATA_STREAM_STATELESS_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	static final String MAP_CODER_URN = "flink:coder:map:v1";
-	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
 	/**
 	 * The options used to configure the Python worker process.
@@ -62,49 +61,63 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 	protected final Map<String, String> jobOptions;
 
 	/**
-	 * The TypeInformation of input data.
+	 * The TypeInformation of runner input data.
 	 */
-	final TypeInformation<IN> inputTypeInfo;
+	private final TypeInformation<UDFIN> runnerInputTypeInfo;
 
 	/**
-	 * The TypeInformation of output data.
+	 * The TypeInformation of runner output data.
 	 */
-	final TypeInformation<OUT> outputTypeInfo;
+	final TypeInformation<UDFOUT> runnerOutputTypeInfo;
 
 	/**
 	 * The serialized python function to be executed.
 	 */
-	final DataStreamPythonFunctionInfo pythonFunctionInfo;
+	private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
 	/**
 	 * The TypeSerializer of python worker input data.
 	 */
-	private transient TypeSerializer<IN> inputTypeSerializer;
+	transient TypeSerializer<UDFIN> runnerInputTypeSerializer;
 
 	/**
 	 * The TypeSerializer of python worker output data.
 	 */
-	transient TypeSerializer<OUT> outputTypeSerializer;
+	transient TypeSerializer<UDFOUT> runnerOutputTypeSerializer;
 
+	/**
+	 * Reusable InputStream used to holding the execution results to be deserialized.
+	 */
 	protected transient ByteArrayInputStreamWithPos bais;
 
+	/**
+	 * InputStream Wrapper.
+	 */
 	protected transient DataInputViewStreamWrapper baisWrapper;
 
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
 	protected transient ByteArrayOutputStreamWithPos baos;
 
+	/**
+	 * OutputStream Wrapper.
+	 */
 	protected transient DataOutputViewStreamWrapper baosWrapper;
 
-	transient StreamRecordCollector streamRecordCollector;
+	protected transient TimestampedCollector<OUT> collector;
 
-	public StatelessOneInputPythonFunctionOperator(
+	transient LinkedList<Long> bufferedTimestamp;
+
+	public OneInputPythonFunctionOperator(
 		Configuration config,
-		TypeInformation<IN> inputTypeInfo,
-		TypeInformation<OUT> outputTypeInfo,
+		TypeInformation<UDFIN> runnerInputTypeInfo,
+		TypeInformation<UDFOUT> runnerOutputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
 		super(config);
 		this.jobOptions = config.toMap();
-		this.inputTypeInfo = inputTypeInfo;
-		this.outputTypeInfo = outputTypeInfo;
+		this.runnerInputTypeInfo = runnerInputTypeInfo;
+		this.runnerOutputTypeInfo = runnerOutputTypeInfo;
 		this.pythonFunctionInfo = pythonFunctionInfo;
 	}
 
@@ -116,32 +129,25 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 
-		this.inputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(inputTypeInfo);
-		this.outputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(outputTypeInfo);
+		this.bufferedTimestamp = new LinkedList<>();
+		this.runnerInputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(runnerInputTypeInfo);
+		this.runnerOutputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(runnerOutputTypeInfo);
 
-		this.streamRecordCollector = new StreamRecordCollector(output);
+		this.collector = new TimestampedCollector<>(output);
 	}
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		String coderUrn = null;
-		int functionType = this.pythonFunctionInfo.getFunctionType();
-		if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.MAP.getNumber()) {
-			coderUrn = MAP_CODER_URN;
-		} else if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.FLAT_MAP.getNumber()) {
-			coderUrn = FLAT_MAP_CODER_URN;
-		}
-
 		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
-			inputTypeInfo,
-			outputTypeInfo,
-			DATA_STREAM_STATELESS_FUNCTION_URN,
-			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			coderUrn,
+			runnerInputTypeInfo,
+			runnerOutputTypeInfo,
+			getFunctionUrn(),
+			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), getInternalParameters()),
+			getCoderUrn(),
 			jobOptions,
 			getFlinkMetricContainer(),
 			null,
@@ -160,20 +166,23 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 	}
 
 	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(rawResult, 0, length);
-		streamRecordCollector.collect(outputTypeSerializer.deserialize(baisWrapper));
-	}
-
-	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		inputTypeSerializer.serialize(element.getValue(), baosWrapper);
+		bufferedTimestamp.offer(element.getTimestamp());
+		runnerInputTypeSerializer.serialize((UDFIN) element.getValue(), baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
 		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
+
+	public String getFunctionUrn() {
+		return DATA_STREAM_STATELESS_FUNCTION_URN;
+	}
+
+	public Map<String, String> getInternalParameters() {
+		return Collections.EMPTY_MAP;
+	}
+
+	public abstract String getCoderUrn();
 }
