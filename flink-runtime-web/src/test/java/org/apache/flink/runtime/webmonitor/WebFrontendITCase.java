@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -54,7 +55,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -270,12 +270,12 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// cancel the job
-			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -374,13 +374,13 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
 
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -401,10 +401,6 @@ public class WebFrontendITCase extends TestLogger {
 			.filter(status -> !status.getJobState().isGloballyTerminalState())
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
-	}
-
-	private static Duration getTimeLeft(LocalTime deadline) {
-		return Duration.between(LocalTime.now(), deadline);
 	}
 
 	/**
