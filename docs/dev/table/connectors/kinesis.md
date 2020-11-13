@@ -39,9 +39,10 @@ Dependencies
     connector=connector
 %}
 
-| Maven dependency                                          | SQL Client JAR         |
-| :-------------------------------------------------------- | :----------------------|
-| `flink-connector-kinesis{{site.scala_version_suffix}}`    | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kinesis{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kinesis.html) {% endif %} |
+{% assign connector = site.data.sql-connectors['kinesis'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a Kinesis data stream table
 -----------------------------------------

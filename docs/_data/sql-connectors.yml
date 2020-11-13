@@ -121,4 +121,5 @@ kinesis:
     name: Kinesis
     category: connector
     maven: flink-connector-kinesis{{ site.scala_version_suffix }}
+    sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kinesis{{site.scala_version_suffix}}-{{site.version}}.jar
 
