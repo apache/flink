@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.expressions;
+package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
@@ -62,11 +62,11 @@ import static org.junit.Assert.assertThat;
 @RunWith(Suite.class)
 @Suite.SuiteClasses(
 	{
-		CompositeTypeAccessExpressionITCase.FieldAccessFromTable.class,
-		CompositeTypeAccessExpressionITCase.FieldAccessAfterCall.class
+		ConstructedAccessFunctionsITCase.FieldAccessFromTable.class,
+		ConstructedAccessFunctionsITCase.FieldAccessAfterCall.class
 	}
 )
-public class CompositeTypeAccessExpressionITCase {
+public class ConstructedAccessFunctionsITCase {
 
 	/**
 	 * Regular tests. See also {@link FieldAccessAfterCall} for tests that access a nested field of an expression or
