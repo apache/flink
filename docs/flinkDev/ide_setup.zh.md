@@ -25,105 +25,82 @@ under the License.
 * Replaced by the TOC
 {:toc}
 
-The sections below describe how to import the Flink project into an IDE
-for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({% link dev/project-configuration.zh.md %})
-and the [Scala API]({% link dev/project-configuration.zh.md %})
-quickstart guides.
+以下章节描述了如何在 IDE 中导入 Flink 项目以此进行 Flink 本身的源码开发。若需要开发 Flink 应用程序，请参考 [Java API]({% link dev/project-configuration.zh.md %}) 
+和 [Scala API]({% link dev/project-configuration.zh.md %})的快速入门指南。
 
-**NOTE:** Whenever something is not working in your IDE, try with the Maven
-command line first (`mvn clean package -DskipTests`) as it might be your IDE
-that has a bug or is not properly set up.
+**注意：** 当你的 IDE 无法正常运行时，请优先尝试使用 Maven 命令 (`mvn clean package -DskipTests`) 因为这可能是你的 IDE 存在问题或设置不正确.
 
-## Preparation
+## 准备工作
 
-To get started, please first checkout the Flink sources from one of our
-[repositories](https://flink.apache.org/community.html#source-code),
-e.g.
+首先，请先从[仓库](https://flink.apache.org/zh/community.html#source-code)中拉取 Flink 源码，例如
 {% highlight bash %}
 git clone https://github.com/apache/flink.git
 {% endhighlight %}
 
 ## IntelliJ IDEA
 
-A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
-As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributors are migrating to IntelliJ IDEA.
+该指南介绍了如何设置 IntelliJ IDEA IDE 以便进行 Flink 内核开发。
+由于 Eclipse 在 Scala 和 Java 混合项目中存在问题，因此越来越多的贡献者倾向于使用 IntelliJ IDEA。
 
-The following documentation describes the steps to setup IntelliJ IDEA 2019.1.3
-([https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/))
-with the Flink sources.
+以下文档描述了 IntelliJ IDEA 2019.1.3 的设置步骤 ([https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/))
 
-### Installing the Scala plugin
 
-The IntelliJ installation setup offers to install the Scala plugin.
-If it is not installed, follow these instructions before importing Flink
-to enable support for Scala projects and files:
+### 安装 Scala 插件
 
-1. Go to IntelliJ plugins settings (IntelliJ IDEA -> Preferences -> Plugins) and
-   click on "Install Jetbrains plugin...".
-2. Select and install the "Scala" plugin.
-3. Restart IntelliJ
+IntelliJ 的安装设置中支持安装 Scala 插件。如果尚未安装，请在导入 Flink 之前按照以下说明进行操作以便启用 IntelliJ 对 Scala 项目和文件的支持：
 
-### Importing Flink
+1. 进入 IntelliJ 插件设置后 (IntelliJ IDEA -> Preferences -> Plugins) 点击 "Install Jetbrains plugin..."。
+2. 选择并安装 "Scala" 插件。
+3. 重启 IntelliJ。
 
-1. Start IntelliJ IDEA and choose "New -> Project from Existing Sources"
-2. Select the root folder of the cloned Flink repository
-3. Choose "Import project from external model" and select "Maven"
-4. Leave the default options and successively click "Next" until you reach the SDK section.
-5. If there is no SDK listed, create one using the "+" sign on the top left.
-   Select "JDK", choose the JDK home directory and click "OK".
-   Select the most suiting JDK version. NOTE: A good rule of thumb is to select
-   the JDK version matching the active Maven profile.
-6. Continue by clicking "Next" until finishing the import.
-7. Right-click on the imported Flink project -> Maven -> Generate Sources and Update Folders.
-   Note that this will install Flink libraries in your local Maven repository,
-   located by default at "/home/$USER/.m2/repository/org/apache/flink/".
-   Alternatively, `mvn clean package -DskipTests` also creates the files necessary
-   for the IDE to work but without installing the libraries.
-8. Build the Project (Build -> Make Project)
+### 导入 Flink
 
-### Checkstyle For Java
-IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
+1. 启动 IntelliJ IDEA 并选择 "New -> Project from Existing Sources"
+2. 选择目录用于存放克隆的 Flink 仓库 
+3. 选择 "Import project from external model" 后再选择 "Maven"
+4. 使用默认配置并连续点击 "Next" 一直到达设置 SDK 的部分
+5. 如果没有可选的 SDK 列表，请使用左上方的 "+" 号进行创建。
+   选择 "JDK"，再选择 JDK 主目录并点击 "OK"。
+   此处应选择最合适的 JDK 版本。注意：较好选择 JDK 版本的经验是选择与当前 Maven 的配置文件相匹配的版本
+6. 连续点击 "Next" 直到完成导入
+7. 在导入的 Flink 项目上单击右键，点击 "Maven -> Generate Sources and Update Folders"。
+   请注意这会在你本地的 Maven 仓库中安装 Flink 的依赖库，默认的位置为 "/home/$USER/.m2/repository/org/apache/flink/"。
+   或者 `mvn clean package -DskipTests` 也会创建 IDE 运行所需的文件但是不会安装依赖库。
+8. 编译项目 (Build -> Make Project)
 
-1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
-2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
-3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.14_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
-   don't skip it!**
-5. In the "Configuration File" pane, add a new configuration using the plus icon:
-    1. Set the "Description" to "Flink".
-    2. Select "Use a local Checkstyle file", and point it to
-      `"tools/maven/checkstyle.xml"` within
-      your repository.
-    3. Check the box for "Store relative to project location", and click
-      "Next".
-    4. Configure the "checkstyle.suppressions.file" property value to
-      `"suppressions.xml"`, and click "Next", then "Finish".
-6. Select "Flink" as the only active configuration file, and click "Apply" and
-   "OK".
-7. Checkstyle will now give warnings in the editor for any Checkstyle
-   violations.
+### Java Checkstyle
+IntelliJ 可以使用 Checkstyle-IDEA 插件进行代码风格检查。
 
-Once the plugin is installed you can directly import `"tools/maven/checkstyle.xml"` by going to Settings -> Editor -> Code Style -> Java -> Gear Icon next to Scheme dropbox. This will for example automatically adjust the imports layout.
+1. 从 IntelliJ 插件库中选择安装 "Checkstyle-IDEA" 插件。
+2. 可通过 "Settings -> Other Settings -> Checkstyle" 对插件进行配置。
+3. 在 "Scan Scope" 中选择 "Only Java sources (including tests)"。
+4. 在 "Checkstyle Version" 下拉框中选择 _8.14_ 版本。 **这一步设置很重要，请不要忽略！**
+5. 在 "Configuration File" 面板，使用 "+" 图标添加新配置：
+    1. 在 "Description" 中填写 "Flink"。
+    2. 选中 "Use a local Checkstyle file"， 然后在你的仓库中选择 `"tools/maven/checkstyle.xml"`。
+    3. 勾选 "Store relative to project location"，然后点击 "Next"。
+    4. 赋值 "checkstyle.suppressions.file" 项为 `"suppressions.xml"`，然后点击 "Next", 接着点击 "Finish"。
+6. 选择 "Flink" 作为唯一有效的配置文件，然后点击 "Apply" 和 "OK"。
+7. 至此 Checkstyle 将在编辑器中对于任何违反 Checkstyle 规范的行为发出警告。
 
-You can scan an entire module by opening the Checkstyle tools window and
-clicking the "Check Module" button. The scan should report no errors.
+安装插件后你可以直接导入 `"tools/maven/checkstyle.xml"` 文件，导入入口在 Settings -> Editor -> Code Style -> Java -> 点击齿轮按钮出现 Scheme 下拉框。这将自动调整导入布局。
 
-<span class="label label-info">Note</span> Some modules are not fully covered by checkstyle,
-which include `flink-core`, `flink-optimizer`, and `flink-runtime`.
-Nevertheless please make sure that code you add/modify in these modules still conforms to the checkstyle rules.
+你可以通过打开 Checkstyle 工具窗口并单击 "Check Module" 按钮来扫描整个模块。扫描结果不应报告任何错误。
 
-### Checkstyle For Scala
+<span class="label label-info">注意</span> 某些模块未被 checkstyle 完全覆盖，包括 `flink-core`，`flink-optimizer` 和 `flink-runtime`。
+然而请确保你在这些模块中添加/修改的代码仍然符合 checkstyle 规则。
 
-Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+### Scala Checkstyle
 
-### Copyright Profile
+在 Intellij 中启用 scalastyle 可通过选择 Settings -> Editor -> Inspections，然后搜索 "Scala style inspections"。 也可以直接在 `"<root>/.idea"` 或 `"<root>/project"` 目录中替换 `"tools/maven/scalastyle-config.xml"` 文件。
 
-Each file needs to include the Apache license as a header. This can be automated in IntelliJ by adding a Copyright profile:
-1. Open settings
-2. Go to Editor -> Copyright -> Copyright Profiles
-3. Add a new profile naming it `Apache`
-4. Add the following text as the license text:
+### 版权信息
+
+每个文件的开头都需要申明 Apache 许可证。这可通过在 IntelliJ 中添加 Copyright Profile 进行自动配置：
+1. 打开 IntelliJ 配置
+2. 点击 Editor -> Copyright -> Copyright Profiles
+3. 新增名为 `Apache` 的概述
+4. 使用以下文本作为许可证的内容：
     
    ```
    Licensed to the Apache Software Foundation (ASF) under one
@@ -142,73 +119,67 @@ Each file needs to include the Apache license as a header. This can be automated
    See the License for the specific language governing permissions and 
    limitations under the License.
    ```
-5. Apply the changes
+5. 点击 Apply 保存变更配置
 
-### FAQ
+### 常见问题
 
-This section lists issues that developers have run into in the past when working with IntelliJ:
+本节列出了开发人员过去使用 IntelliJ 时遇到的问题：
 
-- Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
+- 编译失败并出现 `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
 
-This means that IntelliJ activated the `java11` profile despite an older JDK being used.
-Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.
+这表明 IntelliJ 虽然使用了较旧版本的 JDK，但是同时使用了 `java11` 的配置文件。
+打开 Maven 工具栏 (View -> Tool Windows -> Maven)， 在 Profiles下取消选中 `java11` 并点击 Reimport 重新导入项目。
 
-- Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
+- 编译失败并出现 `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
 
-This means that IntelliJ is using JDK 11 for the project, but you are working on a Flink version which doesn't
-support Java 11.
-This commonly happens when you have setup IntelliJ to use JDK 11 and checkout older versions of Flink (<= 1.9).
-Open the project settings window (File -> Project Structure -> Project Settings: Project) and select JDK 8 as the project
-SDK.
-You may have to revert this after switching back to the new Flink version if you want to use JDK 11.
+这表明 IntelliJ 中项目使用的JDK 版本是 JDK 11，但是你使用的 Flink 版本不支持 Java 11。
+通常会发生这种情况是因为在 IntelliJ 中设置了使用 JDK 11，但是使用的 Flink 版本过低导致的 (<= 1.9)。
+打开项目配置窗口 (File -> Project Structure -> Project Settings: Project) 并选择 JDK 8 作为项目的 SDK。
+当切换到 Flink 新版本并且希望使用 JDK 11 时则可能需要重新设置 SDK。
 
-- Examples fail with a `NoClassDefFoundError` for Flink classes.
+- 运行 Flink Examples 时出现关于 Flink 相关类的 `NoClassDefFoundError`
 
-This is likely due to Flink dependencies being set to provided, resulting in them not being put automatically on the 
-classpath.
-You can either tick the "Include dependencies with 'Provided' scope" box in the run configuration, or create a test
-that calls the `main()` method of the example (`provided` dependencies are available on the test classpath).
+这可能是由于将 Flink 的依赖设置成了 `provided`，导致依赖没有在类路径中被自动加载。
+可以在运行配置中勾选 "Include dependencies with 'Provided' scope"，或新建可以调用 Example 类的 `main()` 方法的测试 (`provided` 相关的依赖存在于测试的类加载路径).
 
 ## Eclipse
 
-**NOTE:** From our experience, this setup does not work with Flink
-due to deficiencies of the old Eclipse version bundled with Scala IDE 3.0.3 or
-due to version incompatibilities with the bundled Scala version in Scala IDE 4.4.1.
+**注意:** 根据我们的经验，由于捆绑 Scala IDE 3.0.3 的旧版本 Eclipse 存在缺陷或由于捆绑 Scala IDE 4.4.1 的 Eclipse 存在版本不兼容问题，
+因此 Eclipse 不适用于 Flink。
 
-**We recommend to use IntelliJ instead (see [above](#intellij-idea))**
+**我们建议使用 IntelliJ 来代替 Eclipse (见 [IntelliJ](#intellij-idea))**
 
 ## PyCharm
 
-A brief guide on how to set up PyCharm for development of the flink-python module.
+该指南介绍了如何设置 PyCharm 以便进行 flink-python 模块的开发。
 
-The following documentation describes the steps to setup PyCharm 2019.1.3
+以下文档介绍了 PyCharm 2019.1.3 的安装步骤
 ([https://www.jetbrains.com/pycharm/download/](https://www.jetbrains.com/pycharm/download/))
-with the Flink Python sources.
 
-### Importing flink-python
-If you are in the PyCharm startup interface:
+### 导入 flink-python
+如果你正位于 PyCharm 的启动界面中：
 
-1. Start PyCharm and choose "Open"
-2. Select the flink-python folder in the cloned Flink repository
+1. 启动 PyCharm 并选择 "Open"
+2. 在克隆的 Flink 源码仓库中选择 flink-python 文件夹
 
-If you have used PyCharm to open a project:
+如果你已经使用 PyCharm 打开了项目：
 
-1. Select "File -> Open"
-2. Select the flink-python folder in the cloned Flink repository
+1. 选择 "File -> Open"
+2. 在克隆的 Flink 源码仓库中选择 flink-python 文件夹
 
 
-### Checkstyle For Python
-The Python code checkstyle of Apache Flink should create a flake8 external tool in the project. 
+### Python Checkstyle 
+Apache Flink 的 Python 代码风格检查需在项目中创建 flake8 外部工具。 
 
-1. Install the flake8 in the used Python interpreter(refer to ([https://pypi.org/project/flake8/](https://pypi.org/project/flake8/)).
-2. Select "PyCharm -> Preferences... -> Tools -> External Tools -> + (The bottom left corner of the page on the right)", next configure the external tool.
-3. Set the "Name" to "flake8".
-4. Set the "Description" to "code style check".
-5. Set the "Program"  to the Python interpreter path(e.g. /usr/bin/python).
-6. Set the "Arguments" to "-m flake8 \-\-config=tox.ini"
-7. Set the "Working directory" to "$ProjectFileDir$"
+1. 在已使用的 Python 解释器中安装 flake8 (参考 ([https://pypi.org/project/flake8/](https://pypi.org/project/flake8/))).
+2. 选择 "PyCharm -> Preferences... -> Tools -> External Tools -> + (位于右侧窗口的左下角)"，然后开始配置外部工具。
+3. 将 "Name" 设置为 "flake8"。
+4. 将 "Description" 设置为 "code style check"。
+5. 将 "Program" 设置为 Python 解释器路径 (如 /usr/bin/python)。
+6. 将 "Arguments" 设置为 "-m flake8 \-\-config=tox.ini"
+7. 将 "Working directory" 设置为 "$ProjectFileDir$"
 
-Now, you can check your Python code style by the operation:
-    "Right click in any file or folder in the flink-python project -> External Tools -> flake8"
+现在，你可以通过以下操作进行 Python 的代码风格检查：
+    "右键单击 flink-python 项目中的任何文件或文件夹 -> External Tools -> flake8"
     
 {% top %}
