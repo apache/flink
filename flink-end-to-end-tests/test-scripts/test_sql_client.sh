@@ -79,7 +79,7 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     exit 1
   fi
 
-  # check for new legacy table factory
+  # check for table factory
   if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.Factory ]; then
     echo "No new table factory found in JAR: $SQL_JAR"
     exit 1
