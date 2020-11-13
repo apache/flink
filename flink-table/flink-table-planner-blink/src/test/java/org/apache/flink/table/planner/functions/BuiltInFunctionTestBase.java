@@ -29,6 +29,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -78,6 +79,9 @@ public abstract class BuiltInFunctionTestBase {
 	@Test
 	public void testFunction() {
 		final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+
+		testSpec.functions.forEach(f -> env.createTemporarySystemFunction(f.getSimpleName(), f));
+
 		final DataTypeFactory dataTypeFactory = ((TableEnvironmentInternal) env)
 			.getCatalogManager()
 			.getDataTypeFactory();
@@ -194,11 +198,14 @@ public abstract class BuiltInFunctionTestBase {
 
 		private @Nullable AbstractDataType<?>[] fieldDataTypes;
 
+		private List<Class<? extends UserDefinedFunction>> functions;
+
 		private List<TestItem> testItems;
 
 		private TestSpec(BuiltInFunctionDefinition definition, @Nullable String description) {
 			this.definition = definition;
 			this.description = description;
+			this.functions = new ArrayList<>();
 			this.testItems = new ArrayList<>();
 		}
 
@@ -217,6 +224,12 @@ public abstract class BuiltInFunctionTestBase {
 
 		TestSpec andDataTypes(AbstractDataType<?>... fieldDataType) {
 			this.fieldDataTypes = fieldDataType;
+			return this;
+		}
+
+		TestSpec withFunction(Class<? extends UserDefinedFunction> functionClass) {
+			// the function will be registered under the class simple name
+			this.functions.add(functionClass);
 			return this;
 		}
 
