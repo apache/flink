@@ -46,11 +46,10 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Deb
 依赖
 ------------
 
-为了设置 Debezium Format，下表提供了使用构建自动化工具（例如 Maven 或 SBT）和带有 SQL JAR 包的 SQL Client 的两个项目的依赖项信息。
-
-| Maven 依赖   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置               |
+{% assign connector = site.data.sql-connectors['debezium'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 *注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.1/index.html)，了解如何设置 Debezium Kafka Connect 用来将变更日志同步到 Kafka 主题。*
 
