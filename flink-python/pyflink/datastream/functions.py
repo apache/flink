@@ -37,7 +37,9 @@ __all__ = [
     'Partitioner',
     'SourceFunction',
     'SinkFunction',
-    'ProcessFunction']
+    'ProcessFunction',
+    'Collector',
+    'KeyedProcessFunction']
 
 
 class RuntimeContext(object):

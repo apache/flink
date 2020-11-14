@@ -92,7 +92,7 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 	/**
 	 * TimerService for current operator to register or fire timer.
 	 */
-	private transient TimerService timerservice;
+	private transient TimerService timerService;
 
 	/**
 	 * Reusable row for normal data runner inputs.
@@ -127,7 +127,7 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 
 		InternalTimerService<VoidNamespace> internalTimerService = getInternalTimerService("user-timers",
 			VoidNamespaceSerializer.INSTANCE, this);
-		timerservice = new SimpleTimerService(internalTimerService);
+		timerService = new SimpleTimerService(internalTimerService);
 		reusableInput = new Row(5);
 		reusableTimerData = new Row(5);
 		super.open();
@@ -140,11 +140,13 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 
 	@Override
 	public void onEventTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
+		bufferedTimestamp.offer(timer.getTimestamp());
 		processTimer(false, timer);
 	}
 
 	@Override
 	public void onProcessingTime(InternalTimer<Row, VoidNamespace> timer) throws Exception {
+		bufferedTimestamp.offer(Long.MIN_VALUE);
 		processTimer(true, timer);
 	}
 
@@ -194,7 +196,7 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 		if (element.hasTimestamp()) {
 			reusableInput.setField(1, element.getTimestamp());
 		}
-		reusableInput.setField(2, timerservice.currentWatermark());
+		reusableInput.setField(2, timerService.currentWatermark());
 		reusableInput.setField(4, element.getValue());
 		runnerInputSerializer.serialize(reusableInput, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
@@ -222,7 +224,7 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 			reusableTimerData.setField(0, 0);
 		}
 		reusableTimerData.setField(1, time);
-		reusableTimerData.setField(2, timerservice.currentWatermark());
+		reusableTimerData.setField(2, timerService.currentWatermark());
 		reusableTimerData.setField(3, timerKey);
 		runnerInputSerializer.serialize(reusableTimerData, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
@@ -246,9 +248,9 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 			Object timerKey = ((Row) (row.getField(2))).getField(0);
 			setCurrentKey(timerKey);
 			if (type == 0) {
-				this.timerservice.registerProcessingTimeTimer(time);
+				this.timerService.registerProcessingTimeTimer(time);
 			} else {
-				this.timerservice.registerEventTimeTimer(time);
+				this.timerService.registerEventTimeTimer(time);
 			}
 		}
 	}

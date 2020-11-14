@@ -61,11 +61,13 @@ class Operation(abc.ABC):
 
     def open(self):
         for user_defined_func in self.user_defined_funcs:
-            user_defined_func.open(FunctionContext(self.base_metric_group))
+            if hasattr(user_defined_func, 'open'):
+                user_defined_func.open(FunctionContext(self.base_metric_group))
 
     def close(self):
         for user_defined_func in self.user_defined_funcs:
-            user_defined_func.close()
+            if hasattr(user_defined_func, 'close'):
+                user_defined_func.close()
 
     def finish(self):
         self._update_gauge(self.base_metric_group)
