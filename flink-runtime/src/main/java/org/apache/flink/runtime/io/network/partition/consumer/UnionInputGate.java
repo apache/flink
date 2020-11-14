@@ -27,7 +27,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -339,9 +338,7 @@ public class UnionInputGate extends InputGate {
 			}
 		}
 
-		Iterator<IndexedInputGate> inputGateIterator = inputGatesWithData.iterator();
-		IndexedInputGate inputGate = inputGateIterator.next();
-		inputGateIterator.remove();
+		IndexedInputGate inputGate = inputGatesWithData.poll();
 
 		if (inputGatesWithData.isEmpty()) {
 			availabilityHelper.resetUnavailable();
