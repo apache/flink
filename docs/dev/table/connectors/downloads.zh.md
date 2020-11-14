@@ -1,6 +1,6 @@
 ---
-title: "SQL Connectors download page"
-nav-title: Download
+title: "SQL Connectors 下载页面"
+nav-title: 下载
 nav-parent_id: sql-connectors
 nav-pos: 99
 ---
@@ -23,19 +23,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The page contains links to optional sql-client connectors and formats that are not part of the
- binary distribution.
+这个页面包含了 sql-client 中可选的连接器 和 formats 链接， 而这些并不会包含在二进制发行版中。
  
 {% if site.is_stable %}
 
-# Optional SQL formats
+# 可选的 SQL formats
 -------------------
 
 <table class="table table-bordered">
     <thead>
     <tr>
-        <th style="text-align: left">Name</th>
-        <th style="text-align: left">Download link</th>
+        <th style="text-align: left">名称</th>
+        <th style="text-align: left">下载链接</th>
     </tr>
     </thead>
     <tbody>
@@ -45,7 +44,7 @@ The page contains links to optional sql-client connectors and formats that are n
         {% assign url = connector.sql-url | liquify %}
         <tr>
             <td style="text-align: left">{{connector.name}}</td>
-            <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
+            <td style="text-align: left"><a href="{{ url }}">下载</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
         </tr>
       {% endif %}
     {% endfor %}
@@ -53,15 +52,15 @@ The page contains links to optional sql-client connectors and formats that are n
     </tbody>
 </table>
 
-# Optional SQL connectors
+# 可选的 SQL 连接器
 -------------------  
 
 <table class="table table-bordered">
     <thead>
     <tr>
-        <th style="text-align: left">Name</th>
-        <th style="text-align: left">Versions</th>
-        <th style="text-align: left">Download link</th>
+        <th style="text-align: left">名称</th>
+        <th style="text-align: left">版本</th>
+        <th style="text-align: left">下载链接</th>
     </tr>
     </thead>
     <tbody>
@@ -74,13 +73,13 @@ The page contains links to optional sql-client connectors and formats that are n
                 <td style="text-align: left" rowspan="{{connector.versions | size}}">{{connector.name}}</td>
                 <td style="text-align: left">{{row0.version}}</td>
                 {% assign url = row0.sql-url | liquify %}
-                <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
+                <td style="text-align: left"><a href="{{ url }}">下载</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
             </tr>
             {% for version in connector.versions offset:1 %}
                 <tr>
                     <td style="text-align: left">{{version.version}}</td>
                     {% assign url = version.sql-url | liquify %}
-                    <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
+                    <td style="text-align: left"><a href="{{ url }}">下载</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
                 </tr>
             {% endfor %}
         {% elsif connector.sql-url != nil %}
@@ -88,7 +87,7 @@ The page contains links to optional sql-client connectors and formats that are n
                 <td style="text-align: left">{{connector.name}}</td>
                 <td style="text-align: left"></td>
                 {% assign url = connector.sql-url | liquify %}
-                <td style="text-align: left"><a href="{{ url }}">Download</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
+                <td style="text-align: left"><a href="{{ url }}">下载</a> (<a href="{{ url }}.asc">asc</a>, <a href="{{ url }}.sha1">sha1</a>) </td>
             </tr>
         {% endif %}
       {% endif %}
@@ -99,6 +98,6 @@ The page contains links to optional sql-client connectors and formats that are n
 
 {% else %}
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
-  <b>Note</b>: The links are available only for stable releases.
+  <b>注意</b>: 这些链接仅在稳定版本中有效。
 </p>
 {% endif %}
