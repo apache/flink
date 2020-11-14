@@ -27,6 +27,7 @@ import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -164,6 +165,7 @@ public class SplitFetcherTest {
 						0,
 						elementQueue,
 						new MockSplitReader(2, true),
+						ExceptionUtils::rethrow,
 						() -> {});
 
 		// Prepare the splits.
@@ -227,6 +229,15 @@ public class SplitFetcherTest {
 		}
 	}
 
+	@Test
+	public void testClose() {
+		TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
+		final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader);
+		fetcher.shutdown();
+		fetcher.run();
+		assertTrue(splitReader.isClosed());
+	}
+
 	// ------------------------------------------------------------------------
 	//  testing utils
 	// ------------------------------------------------------------------------
@@ -243,7 +254,7 @@ public class SplitFetcherTest {
 	private static <E> SplitFetcher<E, TestingSourceSplit> createFetcher(
 			final SplitReader<E, TestingSourceSplit> reader,
 			final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue) {
-		return new SplitFetcher<>(0, queue, reader, () -> {});
+		return new SplitFetcher<>(0, queue, reader, ExceptionUtils::rethrow, () -> {});
 	}
 
 	private static <E> SplitFetcher<E, TestingSourceSplit> createFetcherWithSplit(

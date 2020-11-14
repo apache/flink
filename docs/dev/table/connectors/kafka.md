@@ -34,17 +34,10 @@ The Kafka connector allows for reading data from and writing data into Kafka top
 Dependencies
 ------------
 
-Apache Flink ships with multiple Kafka connectors: universal, 0.10, and 0.11.
-This universal Kafka connector attempts to track the latest version of the Kafka client.
-The version of the client it uses may change between Flink releases.
-Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
-For most users the universal Kafka connector is the most appropriate.
-However, for Kafka versions 0.11.x and 0.10.x, we recommend using the dedicated ``0.11`` and ``0.10`` connectors, respectively.
-For details on Kafka compatibility, please refer to the official [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
-
-| Kafka Version       | Maven dependency                                          | SQL Client JAR         |
-| :------------------ | :-------------------------------------------------------- | :----------------------|
-| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
+{% assign connector = site.data.sql-connectors['kafka'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 The Kafka connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
@@ -183,6 +176,13 @@ Connector Options
       <td style="word-wrap: break-word;">at-least-once</td>
       <td>String</td>
       <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+    </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the Kafka sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
     </tbody>
 </table>

@@ -95,6 +95,13 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 		.setManagedMemoryMB(10000)
 		.build();
 
+	@Test
+	public void testCloseAfterSuspendDoesNotThrowException() throws Exception {
+		try (DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder().buildAndStartWithDirectExec()) {
+			slotManager.suspend();
+		}
+	}
+
 	/**
 	 * Tests that we can register task manager and their slots at the slot manager.
 	 */
@@ -915,6 +922,15 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
 	@Test
 	public void testNotificationAboutNotEnoughResources() throws Exception {
+		testNotificationAboutNotEnoughResources(false);
+	}
+
+	@Test
+	public void testGracePeriodForNotificationAboutNotEnoughResources() throws Exception {
+		testNotificationAboutNotEnoughResources(true);
+	}
+
+	private static void testNotificationAboutNotEnoughResources(boolean withNotificationGracePeriod) throws Exception {
 		final JobID jobId = new JobID();
 		final int numRequiredSlots = 3;
 		final int numExistingSlots = 1;
@@ -928,6 +944,11 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 		try (DeclarativeSlotManager slotManager = createDeclarativeSlotManagerBuilder()
 			.buildAndStart(ResourceManagerId.generate(), new ManuallyTriggeredScheduledExecutor(), resourceManagerActions)) {
 
+			if (withNotificationGracePeriod) {
+				// this should disable notifications
+				slotManager.setFailUnfulfillableRequest(false);
+			}
+
 			final ResourceID taskExecutorResourceId = ResourceID.generate();
 			final TaskExecutorConnection taskExecutionConnection = new TaskExecutorConnection(taskExecutorResourceId, new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 			final SlotReport slotReport = createSlotReport(taskExecutorResourceId, numExistingSlots);
@@ -936,6 +957,13 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 			ResourceRequirements resourceRequirements = createResourceRequirements(jobId, numRequiredSlots);
 			slotManager.processResourceRequirements(resourceRequirements);
 
+			if (withNotificationGracePeriod) {
+				assertThat(notEnoughResourceNotifications, empty());
+
+				// re-enable notifications which should also trigger another resource check
+				slotManager.setFailUnfulfillableRequest(true);
+			}
+
 			assertThat(notEnoughResourceNotifications, hasSize(1));
 			Tuple2<JobID, Collection<ResourceRequirement>> notification = notEnoughResourceNotifications.get(0);
 			assertThat(notification.f0, is(jobId));
@@ -943,7 +971,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 		}
 	}
 
-	private SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {
+	private static SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {
 		final Set<SlotStatus> slotStatusSet = new HashSet<>(numberSlots);
 		for (int i = 0; i < numberSlots; i++) {
 			slotStatusSet.add(createFreeSlotStatus(new SlotID(taskExecutorResourceId, i)));
@@ -971,7 +999,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions);
 	}
 
-	private DeclarativeSlotManagerBuilder createDeclarativeSlotManagerBuilder() {
+	private static DeclarativeSlotManagerBuilder createDeclarativeSlotManagerBuilder() {
 		return DeclarativeSlotManagerBuilder.newBuilder().setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC);
 	}
 

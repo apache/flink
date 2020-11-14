@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.Pool;
@@ -69,14 +70,14 @@ import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
  * Parquet {@link BulkFormat} that reads data from the file to {@link VectorizedColumnBatch} in
  * vectorized mode.
  */
-public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
+public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceSplit> implements BulkFormat<T, SplitT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final SerializableConfiguration hadoopConfig;
 	private final String[] projectedFields;
 	private final LogicalType[] projectedTypes;
-	private final ColumnBatchFactory batchFactory;
+	private final ColumnBatchFactory<SplitT> batchFactory;
 	private final int batchSize;
 	private final boolean isUtcTimestamp;
 	private final boolean isCaseSensitive;
@@ -84,7 +85,7 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 	public ParquetVectorizedInputFormat(
 			SerializableConfiguration hadoopConfig,
 			RowType projectedType,
-			ColumnBatchFactory batchFactory,
+			ColumnBatchFactory<SplitT> batchFactory,
 			int batchSize,
 			boolean isUtcTimestamp,
 			boolean isCaseSensitive) {
@@ -99,10 +100,13 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 
 	@Override
 	public ParquetReader createReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength) throws IOException {
+			final Configuration config,
+			final SplitT split) throws IOException {
+
+		final Path filePath = split.path();
+		final long splitOffset = split.offset();
+		final long splitLength = split.length();
+
 		org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
 		ParquetMetadata footer = readFooter(
 				hadoopConfig.conf(), hadoopPath, range(splitOffset, splitOffset + splitLength));
@@ -127,22 +131,23 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 
 		final int numBatchesToCirculate = config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
 		final Pool<ParquetReaderBatch<T>> poolOfBatches =
-				createPoolOfBatches(filePath, requestedSchema, numBatchesToCirculate);
+				createPoolOfBatches(split, requestedSchema, numBatchesToCirculate);
 
 		return new ParquetReader(reader, requestedSchema, totalRowCount, poolOfBatches);
 	}
 
 	@Override
 	public ParquetReader restoreReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength,
-			CheckpointedPosition checkpointedPosition) throws IOException {
+			final Configuration config,
+			final SplitT split) throws IOException {
+
+		assert split.getReaderPosition().isPresent();
+		final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
+
 		Preconditions.checkArgument(
 				checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET,
 				"The offset of CheckpointedPosition should always be NO_OFFSET");
-		ParquetReader reader = createReader(config, filePath, splitOffset, splitLength);
+		ParquetReader reader = createReader(config, split);
 		reader.seek(checkpointedPosition.getRecordsAfterOffset());
 		return reader;
 	}
@@ -222,23 +227,23 @@ public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
 	}
 
 	private Pool<ParquetReaderBatch<T>> createPoolOfBatches(
-			Path filePath, MessageType requestedSchema, int numBatches) {
+			SplitT split, MessageType requestedSchema, int numBatches) {
 		final Pool<ParquetReaderBatch<T>> pool = new Pool<>(numBatches);
 
 		for (int i = 0; i < numBatches; i++) {
-			pool.add(createReaderBatch(filePath, requestedSchema, pool.recycler()));
+			pool.add(createReaderBatch(split, requestedSchema, pool.recycler()));
 		}
 
 		return pool;
 	}
 
 	private ParquetReaderBatch<T> createReaderBatch(
-			Path filePath,
+			SplitT split,
 			MessageType requestedSchema,
 			Pool.Recycler<ParquetReaderBatch<T>> recycler) {
 		WritableColumnVector[] writableVectors = createWritableVectors(requestedSchema);
 		VectorizedColumnBatch columnarBatch =
-				batchFactory.create(filePath, createReadableVectors(writableVectors));
+				batchFactory.create(split, createReadableVectors(writableVectors));
 		return createReaderBatch(writableVectors, columnarBatch, recycler);
 	}
 

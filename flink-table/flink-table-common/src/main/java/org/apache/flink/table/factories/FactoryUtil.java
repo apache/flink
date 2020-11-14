@@ -45,7 +45,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -73,6 +72,13 @@ public final class FactoryUtil {
 			"Uniquely identifies the connector of a dynamic table that is used for accessing data in " +
 			"an external system. Its value is used during table source and table sink discovery.");
 
+	public static final ConfigOption<String> FORMAT = ConfigOptions
+		.key("format")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding data. " +
+			"The identifier is used to discover a suitable format factory.");
+
 	public static final ConfigOption<Integer> SINK_PARALLELISM = ConfigOptions
 			.key("sink.parallelism")
 			.intType()
@@ -81,30 +87,14 @@ public final class FactoryUtil {
 					+ "By default, if this option is not defined, the planner will derive the parallelism "
 					+ "for each statement individually by also considering the global configuration.");
 
-	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
-		.key("key.format")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Defines the format identifier for encoding key data. " +
-			"The identifier is used to discover a suitable format factory.");
-
-	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
-		.key("value.format")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Defines the format identifier for encoding value data. " +
-			"The identifier is used to discover a suitable format factory.");
-
-	public static final ConfigOption<String> FORMAT = ConfigOptions
-		.key("format")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Defines the format identifier for encoding data. " +
-			"The identifier is used to discover a suitable format factory.");
-
-	private static final String FORMAT_KEY = "format";
-
-	private static final String FORMAT_SUFFIX = ".format";
+	/**
+	 * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
+	 * for both key and value).
+	 *
+	 * <p>See {@link #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)} for
+	 * more information.
+	 */
+	public static final String FORMAT_SUFFIX = ".format";
 
 	/**
 	 * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -193,21 +183,24 @@ public final class FactoryUtil {
 	 *
 	 * <p>The following example sketches the usage:
 	 * <pre>{@code
-	 * // in createDynamicTableSource()
-	 * helper = FactoryUtil.createTableFactoryHelper(this, context);
-	 * keyFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, KEY_FORMAT);
-	 * valueFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
-	 * helper.validate();
-	 * ... // construct connector with discovered formats
+	 *     // in createDynamicTableSource()
+	 *     helper = FactoryUtil.createTableFactoryHelper(this, context);
+	 *
+	 *     keyFormat = helper.discoverEncodingFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+	 *     valueFormat = helper.discoverEncodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
+	 *
+	 *     helper.validate();
+	 *
+	 *     ... // construct connector with discovered formats
 	 * }</pre>
 	 *
-	 * <p>Note: The format option parameter of {@code helper.discoverScanFormat(formatFactoryClass, formatOption)}
-	 * and {@code helper.discoverSinkFormat(formatFactoryClass, formatOption)} must be 'format' or
-	 * with '.format' suffix (e.g. {@link #FORMAT}, {@link #KEY_FORMAT} and {@link #VALUE_FORMAT}).
-	 * The discovery logic will replace 'format' with the factory identifier value as the format
-	 * prefix. For example, assuming the identifier is 'json', if format option key is 'format',
-	 * then format prefix is 'json.'. If format option key is 'value.format', then format prefix
-	 * is 'value.json'. The format prefix is used to project the options for the format factory.
+	 * <p>Note: The format option parameter of {@link TableFactoryHelper#discoverEncodingFormat(Class, ConfigOption)}
+	 * and {@link TableFactoryHelper#discoverDecodingFormat(Class, ConfigOption)} must be {@link #FORMAT}
+	 * or end with {@link #FORMAT_SUFFIX}. The discovery logic will replace 'format' with the factory
+	 * identifier value as the format prefix. For example, assuming the identifier is 'json', if the
+	 * format option key is 'format', then the format prefix is 'json.'. If the format option key is
+	 * 'value.format', then the format prefix is 'value.json'. The format prefix is used to project
+	 * the options for the format factory.
 	 *
 	 * <p>Note: This utility checks for left-over options in the final step.
 	 */
@@ -372,14 +365,40 @@ public final class FactoryUtil {
 					"Table options do not contain an option key '%s' for discovering a connector.",
 					CONNECTOR.key()));
 		}
+		final DynamicTableFactory factory;
 		try {
-			return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
+			factory = discoverFactory(context.getClassLoader(), DynamicTableFactory.class, connectorOption);
 		} catch (ValidationException e) {
 			throw new ValidationException(
 				String.format(
 					"Cannot discover a connector using option '%s'.",
 					stringifyOption(CONNECTOR.key(), connectorOption)),
 				e);
+		}
+
+		if (factoryClass.isAssignableFrom(factory.getClass())) {
+			return (T) factory;
+		} else {
+			final Class<?> sourceFactoryClass = DynamicTableSourceFactory.class;
+			final Class<?> sinkFactoryClass = DynamicTableSinkFactory.class;
+			// for a better exception message
+			if (sourceFactoryClass.equals(factoryClass) && sinkFactoryClass.isAssignableFrom(factory.getClass())) {
+				// discovering source, but not found, and this is a sink connector.
+				throw new ValidationException(String.format(
+					"Connector '%s' only supports to be used as sink, can't be used as source.",
+					connectorOption));
+			} else if (sinkFactoryClass.equals(factoryClass) && sourceFactoryClass.isAssignableFrom(factory.getClass())) {
+				// discovering sink, but not found, and this is a a source connector.
+				throw new ValidationException(String.format(
+					"Connector '%s' only supports to be used as source, can't be used as sink.",
+					connectorOption));
+			} else {
+				throw new ValidationException(String.format(
+					"Connector '%s' should at least implements '%s' or '%s' interface.",
+					connectorOption,
+					sourceFactoryClass.getName(),
+					sinkFactoryClass.getName()));
+			}
 		}
 	}
 
@@ -402,12 +421,6 @@ public final class FactoryUtil {
 			"'%s'='%s'",
 			EncodingUtils.escapeSingleQuotes(key),
 			EncodingUtils.escapeSingleQuotes(value));
-	}
-
-	private static Configuration asConfiguration(Map<String, String> options) {
-		final Configuration configuration = new Configuration();
-		options.forEach(configuration::setString);
-		return configuration;
 	}
 
 	private static <T> T readOption(ReadableConfig options, ConfigOption<T> option) {
@@ -440,7 +453,7 @@ public final class FactoryUtil {
 		private TableFactoryHelper(DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
 			this.tableFactory = tableFactory;
 			this.context = context;
-			this.allOptions = asConfiguration(context.getCatalogTable().getOptions());
+			this.allOptions = Configuration.fromMap(context.getCatalogTable().getOptions());
 			this.consumedOptionKeys = new HashSet<>();
 			this.consumedOptionKeys.add(PROPERTY_VERSION.key());
 			this.consumedOptionKeys.add(CONNECTOR.key());
@@ -589,7 +602,7 @@ public final class FactoryUtil {
 
 		private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
 			String identifier = formatFactory.factoryIdentifier();
-			if (formatOption.key().equals(FORMAT_KEY)) {
+			if (formatOption.key().equals(FORMAT.key())) {
 				return identifier + ".";
 			} else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
 				// extract the key prefix, e.g. extract 'key' from 'key.format'

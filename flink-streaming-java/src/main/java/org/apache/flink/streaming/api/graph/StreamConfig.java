@@ -90,6 +90,7 @@ public class StreamConfig implements Serializable {
 	private static final String OPERATOR_NAME = "operatorName";
 	private static final String OPERATOR_ID = "operatorID";
 	private static final String CHAIN_END = "chainEnd";
+	private static final String GRAPH_CONTAINING_LOOPS = "graphContainingLoops";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
@@ -661,6 +662,14 @@ public class StreamConfig implements Serializable {
 
 	public boolean shouldSortInputs() {
 		return config.get(SORTED_INPUTS);
+	}
+
+	public void setGraphContainingLoops(boolean graphContainingLoops) {
+		config.setBoolean(GRAPH_CONTAINING_LOOPS, graphContainingLoops);
+	}
+
+	public boolean isGraphContainingLoops() {
+		return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
 	}
 
 	/**

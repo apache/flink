@@ -21,9 +21,9 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 
@@ -66,6 +66,9 @@ import static org.mockito.Mockito.when;
  * Mockito based tests for the {@link ZooKeeperStateHandleStore}.
  */
 public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
+
+	private static final ZooKeeperCheckpointStoreUtil zooKeeperCheckpointStoreUtil =
+		ZooKeeperCheckpointStoreUtil.INSTANCE;
 
 	/**
 	 * Tests that the completed checkpoint store can retrieve all checkpoints stored in ZooKeeper
@@ -160,9 +163,10 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 			}
 		});
 
-		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		CompletedCheckpointStore zooKeeperCompletedCheckpointStore = new DefaultCompletedCheckpointStore<>(
 			numCheckpointsToRetain,
 			zooKeeperStateHandleStoreMock,
+			zooKeeperCheckpointStoreUtil,
 			Executors.directExecutor());
 
 		zooKeeperCompletedCheckpointStore.recover();
@@ -286,9 +290,10 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 			}
 		});
 
-		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		CompletedCheckpointStore zooKeeperCompletedCheckpointStore = new DefaultCompletedCheckpointStore<>(
 			numCheckpointsToRetain,
 			zooKeeperStateHandleStoreMock,
+			zooKeeperCheckpointStoreUtil,
 			Executors.directExecutor());
 
 		zooKeeperCompletedCheckpointStore.recover();
@@ -347,9 +352,10 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
 
 		final int numCheckpointsToRetain = 1;
 
-		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		CompletedCheckpointStore zooKeeperCompletedCheckpointStore = new DefaultCompletedCheckpointStore<>(
 			numCheckpointsToRetain,
 			zookeeperStateHandleStoreMock,
+			zooKeeperCheckpointStoreUtil,
 			Executors.directExecutor());
 
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {

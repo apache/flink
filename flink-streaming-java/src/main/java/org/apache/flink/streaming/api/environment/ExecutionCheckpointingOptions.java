@@ -159,4 +159,12 @@ public class ExecutionCheckpointingOptions {
 					"If during checkpointing, checkpoint start delay exceeds this timeout, alignment " +
 					"will timeout and checkpoint barrier will start working as unaligned checkpoint.")
 				.build());
+
+	public static final ConfigOption<Boolean> FORCE_UNALIGNED =
+		ConfigOptions.key("execution.checkpointing.unaligned.forced")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(Description.builder()
+				.text("Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
+				.build());
 }

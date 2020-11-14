@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.src.impl;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -85,7 +84,7 @@ public abstract class AdapterTestBase<FormatT> {
 
 	protected abstract FormatT createFormatFailingInInstantiation();
 
-	protected abstract BulkFormat<Integer> wrapWithAdapter(FormatT format);
+	protected abstract BulkFormat<Integer, FileSourceSplit> wrapWithAdapter(FormatT format);
 
 	// ------------------------------------------------------------------------
 	//  shared tests
@@ -115,7 +114,7 @@ public abstract class AdapterTestBase<FormatT> {
 		final Configuration config = new Configuration();
 		config.set(StreamFormat.FETCH_IO_SIZE, new MemorySize(10));
 
-		final BulkFormat<Integer> adapter = wrapWithAdapter(format);
+		final BulkFormat<Integer, FileSourceSplit> adapter = wrapWithAdapter(format);
 		final Queue<FileSourceSplit> splits = buildSplits(numSplits);
 		final List<Integer> result = new ArrayList<>();
 
@@ -123,14 +122,14 @@ public abstract class AdapterTestBase<FormatT> {
 		BulkFormat.Reader<Integer> currentReader = null;
 
 		for (int nextRecordToRecover : boundaries) {
-			final Tuple2<FileSourceSplit, CheckpointedPosition> toRecoverFrom = readNumbers(
+			final FileSourceSplit toRecoverFrom = readNumbers(
 				currentReader, currentSplit,
 				adapter, splits, config,
 				result,
 				nextRecordToRecover - result.size());
 
-			currentSplit = toRecoverFrom.f0;
-			currentReader = adapter.restoreReader(config, currentSplit.path(), currentSplit.offset(), currentSplit.length(), toRecoverFrom.f1);
+			currentSplit = toRecoverFrom;
+			currentReader = toRecoverFrom == null ? null : adapter.restoreReader(config, toRecoverFrom);
 		}
 
 		verifyIntListResult(result);
@@ -148,9 +147,9 @@ public abstract class AdapterTestBase<FormatT> {
 		testFs.register();
 
 		// test
-		final BulkFormat<Integer> adapter = wrapWithAdapter(createFormatFailingInInstantiation());
+		final BulkFormat<Integer, FileSourceSplit> adapter = wrapWithAdapter(createFormatFailingInInstantiation());
 		try {
-			adapter.createReader(new Configuration(), testPath, 0, 1024);
+			adapter.createReader(new Configuration(), new FileSourceSplit("id", testPath, 0, 1024));
 		} catch (IOException ignored) {}
 
 		// assertions
@@ -170,11 +169,16 @@ public abstract class AdapterTestBase<FormatT> {
 		testFs.register();
 
 		// test
-		final BulkFormat<Integer> adapter = wrapWithAdapter(createFormatFailingInInstantiation());
+		final BulkFormat<Integer, FileSourceSplit> adapter = wrapWithAdapter(createFormatFailingInInstantiation());
+		final FileSourceSplit split = new FileSourceSplit(
+				"id",
+				testPath,
+				0, 1024,
+				new String[0],
+				new CheckpointedPosition(0L, 5L));
+
 		try {
-			adapter.restoreReader(
-					new Configuration(), testPath, 0, 1024,
-					new CheckpointedPosition(0L, 5L));
+			adapter.restoreReader(new Configuration(), split);
 		} catch (IOException ignored) {}
 
 		// assertions
@@ -202,10 +206,10 @@ public abstract class AdapterTestBase<FormatT> {
 		readNumbers(reader, null, null, null, null, result, num);
 	}
 
-	protected static Tuple2<FileSourceSplit, CheckpointedPosition> readNumbers(
+	protected static FileSourceSplit readNumbers(
 			BulkFormat.Reader<Integer> currentReader,
 			FileSourceSplit currentSplit,
-			BulkFormat<Integer> format,
+			BulkFormat<Integer, FileSourceSplit> format,
 			Queue<FileSourceSplit> moreSplits,
 			Configuration config,
 			List<Integer> result,
@@ -219,7 +223,7 @@ public abstract class AdapterTestBase<FormatT> {
 			if (currentReader == null) {
 				currentSplit = moreSplits.poll();
 				assertNotNull(currentSplit);
-				currentReader = format.createReader(config, currentSplit.path(), currentSplit.offset(), currentSplit.length());
+				currentReader = format.createReader(config, currentSplit);
 			}
 
 			// loop across batches
@@ -240,7 +244,9 @@ public abstract class AdapterTestBase<FormatT> {
 			currentReader = null;
 		}
 
-		return new Tuple2<>(currentSplit, new CheckpointedPosition(offset, skip));
+		return currentSplit != null
+				? currentSplit.updateWithCheckpointedPosition(new CheckpointedPosition(offset, skip))
+				: null;
 	}
 
 	static Queue<FileSourceSplit> buildSplits(int numSplits) {

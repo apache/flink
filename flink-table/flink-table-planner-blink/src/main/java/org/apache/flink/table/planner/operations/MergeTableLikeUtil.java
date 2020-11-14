@@ -43,6 +43,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -212,7 +213,8 @@ class MergeTableLikeUtil {
 
 			// Intermediate state
 			Map<String, RelDataType> physicalFieldNamesToTypes = new LinkedHashMap<>();
-			Map<String, RelDataType> nonPhysicalFieldNamesToTypes = new LinkedHashMap<>();
+			Map<String, RelDataType> metadataFieldNamesToTypes = new LinkedHashMap<>();
+			Map<String, RelDataType> computedFieldNamesToTypes = new LinkedHashMap<>();
 
 			Function<SqlNode, String> escapeExpressions;
 			FlinkTypeFactory typeFactory;
@@ -309,8 +311,11 @@ class MergeTableLikeUtil {
 			for (SqlWatermark derivedWatermarkSpec : derivedWatermarkSpecs) {
 				SqlIdentifier eventTimeColumnName = derivedWatermarkSpec.getEventTimeColumnName();
 
-				HashMap<String, RelDataType> nameToTypeMap = new LinkedHashMap<>(physicalFieldNamesToTypes);
-				nameToTypeMap.putAll(nonPhysicalFieldNamesToTypes);
+				HashMap<String, RelDataType> nameToTypeMap = new LinkedHashMap<>();
+				nameToTypeMap.putAll(physicalFieldNamesToTypes);
+				nameToTypeMap.putAll(metadataFieldNamesToTypes);
+				nameToTypeMap.putAll(computedFieldNamesToTypes);
+
 				verifyRowtimeAttribute(mergingStrategies, eventTimeColumnName, nameToTypeMap);
 				String rowtimeAttribute = eventTimeColumnName.toString();
 
@@ -405,15 +410,19 @@ class MergeTableLikeUtil {
 						}
 					}
 
+					final Map<String, RelDataType> accessibleFieldNamesToTypes = new HashMap<>();
+					accessibleFieldNamesToTypes.putAll(physicalFieldNamesToTypes);
+					accessibleFieldNamesToTypes.putAll(metadataFieldNamesToTypes);
+
 					final SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
 						computedColumn.getExpr(),
-						physicalFieldNamesToTypes);
+						accessibleFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.computed(
 						name,
 						fromLogicalToDataType(toLogicalType(validatedType)),
 						escapeExpressions.apply(validatedExpr));
-					nonPhysicalFieldNamesToTypes.put(name, validatedType);
+					computedFieldNamesToTypes.put(name, validatedType);
 				} else if (derivedColumn instanceof SqlMetadataColumn) {
 					final SqlMetadataColumn metadataColumn = (SqlMetadataColumn) derivedColumn;
 					if (columns.containsKey(name)) {
@@ -432,14 +441,15 @@ class MergeTableLikeUtil {
 						}
 					}
 
-					final RelDataType relType = metadataColumn.getType()
-						.deriveType(sqlValidator, metadataColumn.getType().getNullable());
+					SqlDataTypeSpec type = metadataColumn.getType();
+					boolean nullable = type.getNullable() == null ? true : type.getNullable();
+					RelDataType relType = type.deriveType(sqlValidator, nullable);
 					column = TableColumn.metadata(
 						name,
 						fromLogicalToDataType(toLogicalType(relType)),
 						metadataColumn.getMetadataAlias().orElse(null),
 						metadataColumn.isVirtual());
-					nonPhysicalFieldNamesToTypes.put(name, relType);
+					metadataFieldNamesToTypes.put(name, relType);
 				} else {
 					throw new ValidationException("Unsupported column type: " + derivedColumn);
 				}
@@ -457,8 +467,9 @@ class MergeTableLikeUtil {
 							"A column named '%s' already exists in the base table.",
 							name));
 					}
-					RelDataType relType = regularColumn.getType()
-						.deriveType(sqlValidator, regularColumn.getType().getNullable());
+					SqlDataTypeSpec type = regularColumn.getType();
+					boolean nullable = type.getNullable() == null ? true : type.getNullable();
+					RelDataType relType = type.deriveType(sqlValidator, nullable);
 					// add field name and field type to physical field list
 					physicalFieldNamesToTypes.put(name, relType);
 				}

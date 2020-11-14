@@ -48,11 +48,11 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
@@ -734,8 +734,18 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<>(
-				clean(reducer), getType().createSerializer(getExecutionConfig())));
+		ReduceTransformation<T, KEY> reduce = new ReduceTransformation<>(
+			"Keyed Reduce",
+			environment.getParallelism(),
+			transformation,
+			clean(reducer),
+			keySelector,
+			getKeyType()
+		);
+
+		getExecutionEnvironment().addOperator(reduce);
+
+		return new SingleOutputStreamOperator<>(getExecutionEnvironment(), reduce);
 	}
 
 	/**
@@ -1011,9 +1021,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<>(
-				clean(aggregate), getType().createSerializer(getExecutionConfig()));
-		return transform("Keyed Aggregation", getType(), operator);
+		return reduce(aggregate).name("Keyed Aggregation");
 	}
 
 	/**

@@ -25,105 +25,125 @@ under the License.
 * ToC
 {:toc}
 
-## Overview
+<a name="overview"></a>
 
-Flink's web interface provides a tab to monitor the checkpoints of jobs. These stats are also available after the job has terminated. There are four different tabs to display information about your checkpoints: Overview, History, Summary, and Configuration. The following sections will cover all of these in turn.
+## 概览（Overview）
 
-## Monitoring
+Flink 的 Web 界面提供了`选项卡/标签（tab）`来监视作业的 checkpoint 信息。作业终止后，这些统计信息仍然可用。有四个不同的选项卡可显示有关 checkpoint 的信息：概览（Overview），历史记录（History），摘要信息（Summary）和配置信息（Configuration）。以下各节将依次介绍这些内容。
 
-### Overview Tab
+<a name="monitoring"></a>
 
-The overview tabs lists the following statistics. Note that these statistics don't survive a JobManager loss and are reset to if your JobManager fails over.
+## 监控（Monitoring）
+
+<a name="overview-tab"></a>
+
+### 概览（Overview）选项卡
+
+概览选项卡列出了以下统计信息。请注意，这些统计信息在 JobManager 丢失时无法保存，如果 JobManager 发生故障转移，这些统计信息将重置。
 
 - **Checkpoint Counts**
-	- Triggered: The total number of checkpoints that have been triggered since the job started.
-	- In Progress: The current number of checkpoints that are in progress.
-	- Completed: The total number of successfully completed checkpoints since the job started.
-	- Failed: The total number of failed checkpoints since the job started.
-	- Restored: The number of restore operations since the job started. This also tells you how many times the job has restarted since submission. Note that the initial submission with a savepoint also counts as a restore and the count is reset if the JobManager was lost during operation.
-- **Latest Completed Checkpoint**: The latest successfully completed checkpoints. Clicking on `More details` gives you detailed statistics down to the subtask level.
-- **Latest Failed Checkpoint**: The latest failed checkpoint. Clicking on `More details` gives you detailed statistics down to the subtask level.
-- **Latest Savepoint**: The latest triggered savepoint with its external path. Clicking on `More details` gives you detailed statistics down to the subtask level.
-- **Latest Restore**: There are two types of restore operations.
-	- Restore from Checkpoint: We restored from a regular periodic checkpoint.
-	- Restore from Savepoint: We restored from a savepoint.
+	- Triggered：自作业开始以来触发的 checkpoint 总数。
+	- In Progress：当前正在进行的 checkpoint 数量。
+	- Completed：自作业开始以来成功完成的 checkpoint 总数。
+	- Failed：自作业开始以来失败的 checkpoint 总数。
+	- Restored：自作业开始以来进行的恢复操作的次数。这还表示自  提交以来已重新启动多少次。请注意，带有 savepoint 的初始提交也算作一次恢复，如果 JobManager 在此操作过程中丢失，则该统计将重新计数。
+- **Latest Completed Checkpoint**：最新（最近）成功完成的 checkpoint。点击 `More details` 可以得到 subtask 级别的详细统计信息。
+- **Latest Failed Checkpoint**：最新失败的 checkpoint。点击 `More details` 可以得到 subtask 级别的详细统计信息。
+- **Latest Savepoint**：最新触发的 savepoint 及其外部路径。点击 `More details` 可以得到 subtask 级别的详细统计信息。
+- **Latest Restore**：有两种类型的恢复操作。
+	- Restore from Checkpoint：从 checkpoint 恢复。
+	- Restore from Savepoint：从 savepoint 恢复。
 
-### History Tab
+<a name="history-tab"></a>
 
-The checkpoint history keeps statistics about recently triggered checkpoints, including those that are currently in progress.
+### 历史记录（History）选项卡
 
-<center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-history.png" width="700px" alt="Checkpoint Monitoring: History">
-</center>
-
-- **ID**: The ID of the triggered checkpoint. The IDs are incremented for each checkpoint, starting at 1.
-- **Status**: The current status of the checkpoint, which is either *In Progress* (<i aria-hidden="true" class="fa fa-circle-o-notch fa-spin fa-fw"/>), *Completed* (<i aria-hidden="true" class="fa fa-check"/>), or *Failed* (<i aria-hidden="true" class="fa fa-remove"/>). If the triggered checkpoint is a savepoint, you will see a <i aria-hidden="true" class="fa fa-floppy-o"/> symbol.
-- **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
-- **Latest Acknowledgement**: The time when the latest acknowledgement for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
-- **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
-- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. If incremental checkpointing is enabled this value is the checkpointed data size delta.
-- **Processed in-flight data**: The approximate number of bytes processed during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks.
-- **Persisted in-flight data**: The number of bytes persisted during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks. This is > 0 only if the unaligned checkpoints are enabled.
-
-For subtasks there are a couple of more detailed stats available.
+Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，包括当前正在进行的 checkpoint。
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">
+  <img src="{% link /fig/checkpoint_monitoring-history.png %}" width="700px" alt="Checkpoint Monitoring: History">
 </center>
 
-- **Sync Duration**: The duration of the synchronous part of the checkpoint. This includes snapshotting state of the operators and blocks all other activity on the subtask (processing records, firing timers, etc).
-- **Async Duration**: The duration of the asynchronous part of the checkpoint. This includes time it took to write the checkpoint on to the selected filesystem. For unaligned checkpoints this also includes also the time the subtask had to wait for last of the checkpoint barriers to arrive (alignment duration) and the time it took to persist the in-flight data.
-- **Alignment Duration**: The time between processing the first and the last checkpoint barrier. For aligned checkpoints, during the alignment, the channels that have already received checkpoint barrier are blocked from processing more data.
-- **Start Delay**: The time it took for the first checkpoint barrier to reach this subtasks since the checkpoint barrier has been created.
+- **ID**：已触发 checkpoint 的 ID。每个 checkpoint 的 ID 都会递增，从 1 开始。
+- **Status**：Checkpoint 的当前状态，可以是*正在进行（In Progress）*（<i aria-hidden="true" class="fa fa-circle-o-notch fa-spin fa-fw"/>）、*已完成（Completed）*（<i aria-hidden="true" class="fa fa-check"/>）或*失败（Failed）*（<i aria-hidden="true" class="fa fa-remove"/>）。如果触发的检查点是一个保存点，你将看到一个 <i aria-hidden="true" class="fa fa-floppy-o"/> 符号。
+- **Trigger Time**：在 JobManager 上发起 checkpoint 的时间。
+- **Latest Acknowledgement**：JobManager 接收到任何 subtask 的最新确认的时间（如果尚未收到确认，则不适用）。
+- **End to End Duration**：从触发时间戳到最后一次确认的持续时间（如果还没有收到确认，则不适用）。完整 checkpoint 的端到端持续时间由确认 checkpoint 的最后一个 subtask 确定。这个时间通常大于单个 subtask 实际 checkpoint state 所需的时间。
+- **Checkpointed Data Size**：所有已确认的 subtask 的 checkpoint 的数据大小。如果启用了增量 checkpoint，则此值为 checkpoint 数据的增量大小。
+- **Processed in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 处理的大约字节数。
+- **Persisted in-flight data**：在 checkpoint alignment 期间（从接收第一个和最后一个 checkpoint barrier 之间的时间）对所有已确认的 subtask 持久化的字节数。仅当启用 unaligned checkpoint 时，此值大于 0。
 
-#### History Size Configuration
+对于 subtask，有两个更详细的统计信息可用。
 
-You can configure the number of recent checkpoints that are remembered for the history via the following configuration key. The default is `10`.
+<center>
+  <img src="{% link /fig/checkpoint_monitoring-history-subtasks.png %}" width="700px" alt="Checkpoint Monitoring: History">
+</center>
+
+- **Sync Duration**：Checkpoint 同步部分的持续时间。这包括 operator 的快照状态，并阻塞 subtask 上的所有其他活动（处理记录、触发计时器等）。
+- **Async Duration**：Checkpoint 的异步部分的持续时间。这包括将 checkpoint 写入设置的文件系统所需的时间。对于 unaligned checkpoint，这还包括 subtask 必须等待最后一个 checkpoint barrier 到达的时间（checkpoint alignment 持续时间）以及持久化数据所需的时间。
+- **Alignment Duration**：处理第一个和最后一个 checkpoint barrier 之间的时间。对于 checkpoint alignment 机制的 checkpoint，在 checkpoint alignment 过程中，已经接收到 checkpoint barrier 的 channel 将阻塞并停止处理后续的数据。
+- **Start Delay**：从 checkpoint barrier 创建开始到 subtask 收到第一个 checkpoint barrier 所用的时间。
+
+<a name="history-size-configuration"></a>
+
+#### 历史记录数量配置
+
+你可以通过以下配置键配置历史记录所保存的最近检查点的数量。默认值为 `10`。
 
 {% highlight yaml %}
-# Number of recent checkpoints that are remembered
+# 保存最近 checkpoint 的个数
 web.checkpoints.history: 15
 {% endhighlight %}
 
-### Summary Tab
+<a name="summary-tab"></a>
 
-The summary computes a simple min/average/maximum statistics over all completed checkpoints for the End to End Duration, Checkpointed Data Size, and Bytes Buffered During Alignment (see [History](#history) for details about what these mean).
+### 摘要信息（Summary）选项卡
+
+摘要计算了所有已完成 checkpoint 的端到端持续时间、Checkpointed 数据大小和 checkpoint alignment 期间缓冲的字节数的简单 min/average/maximum 统计信息（有关这些内容的详细信息，请参见 [History](#history-tab)）。
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary">
+  <img src="{% link /fig/checkpoint_monitoring-summary.png %}" width="700px" alt="Checkpoint Monitoring: Summary">
 </center>
 
-Note that these statistics don't survive a JobManager loss and are reset to if your JobManager fails over.
+请注意，这些统计信息不会在 JobManager 丢失后无法保存，如果 JobManager 故障转移，这些统计信息将重新计数。
 
-### Configuration Tab
+<a name="configuration-tab"></a>
 
-The configuration list your streaming configuration:
+### 配置信息（Configuration）选项卡
 
-- **Checkpointing Mode**: Either *Exactly Once* or *At least Once*.
-- **Interval**: The configured checkpointing interval. Trigger checkpoints in this interval.
-- **Timeout**: Timeout after which a checkpoint is cancelled by the JobManager and a new checkpoint is triggered.
-- **Minimum Pause Between Checkpoints**: Minimum required pause between checkpoints. After a checkpoint has completed successfully, we wait at least for this amount of time before triggering the next one, potentially delaying the regular interval.
-- **Maximum Concurrent Checkpoints**: The maximum number of checkpoints that can be in progress concurrently.
-- **Persist Checkpoints Externally**: Enabled or Disabled. If enabled, furthermore lists the cleanup config for externalized checkpoints (delete or retain on cancellation).
+该配置选项卡列出了你指定的配置（streaming configuration）：
 
-### Checkpoint Details
+- **Checkpointing Mode**：*恰好一次（Exactly Once）*或者*至少一次（At least Once）*。
+- **Interval**：配置的 checkpoint 触发间隔。在此间隔内触发 checkpoint。
+- **Timeout**：超时之后，JobManager 取消 checkpoint 并触发新的 checkpoint。
+- **Minimum Pause Between Checkpoints**：Checkpoint 之间所需的最小暂停时间。Checkpoint 成功完成后，我们至少要等这段时间再触发下一个，这可能会延迟正常的间隔。
+- **Maximum Concurrent Checkpoints**：可以同时进行的最大 checkpoint 个数。
+- **Persist Checkpoints Externally**：启用或禁用持久化 checkpoint 到外部系统。如果启用，还会列出外部化 checkpoint 的清理配置（取消时删除或保留）。
 
-When you click on a *More details* link for a checkpoint, you get a Minimum/Average/Maximum summary over all its operators and also the detailed numbers per single subtask.
+<a name="checkpoint-details"></a>
+
+### Checkpoint 详细信息
+
+当你点击某个 checkpoint 的 *More details* 链接时，你将获得其所有 operator 的 Minimum/Average/Maximum 摘要信息，以及每个 subtask 单独的详细量化信息。
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details.png" width="700px" alt="Checkpoint Monitoring: Details">
+  <img src="{% link /fig/checkpoint_monitoring-details.png %}" width="700px" alt="Checkpoint Monitoring: Details">
 </center>
 
-#### Summary per Operator
+<a name="summary-per-operator"></a>
+
+#### 每个 Operator 的摘要信息
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_summary.png" width="700px" alt="Checkpoint Monitoring: Details Summary">
+  <img src="{% link /fig/checkpoint_monitoring-details_summary.png %}" width="700px" alt="Checkpoint Monitoring: Details Summary">
 </center>
 
-#### All Subtask Statistics
+<a name="all-subtask-statistics"></a>
+
+#### 所有 Subtask 的统计信息
 
 <center>
-  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_subtasks.png" width="700px" alt="Checkpoint Monitoring: Subtasks">
+  <img src="{% link /fig/checkpoint_monitoring-details_subtasks.png %}" width="700px" alt="Checkpoint Monitoring: Subtasks">
 </center>
 
 {% top %}

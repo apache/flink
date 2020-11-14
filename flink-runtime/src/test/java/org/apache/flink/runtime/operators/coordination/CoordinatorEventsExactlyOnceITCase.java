@@ -299,7 +299,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		}
 
 		@Override
-		public void checkpointComplete(long checkpointId) {}
+		public void notifyCheckpointComplete(long checkpointId) {}
 
 		@SuppressWarnings("CallToPrintStackTrace")
 		@Override
@@ -480,9 +480,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		final OperatorStateHandle state = new OperatorStreamStateHandle(
 			Collections.singletonMap("état_et_moi_:_ça_fait_deux", metaInfo), handle);
 
-		final OperatorSubtaskState oss = new OperatorSubtaskState(
-			StateObjectCollection.singleton(state), StateObjectCollection.empty(),
-			StateObjectCollection.empty(), StateObjectCollection.empty());
+		final OperatorSubtaskState oss = OperatorSubtaskState.builder().setManagedOperatorState(state).build();
 		return new TaskStateSnapshot(Collections.singletonMap(operatorId, oss));
 	}
 

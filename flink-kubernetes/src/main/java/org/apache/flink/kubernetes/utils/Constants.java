@@ -57,6 +57,8 @@ public class Constants {
 	public static final String LABEL_COMPONENT_KEY = "component";
 	public static final String LABEL_COMPONENT_JOB_MANAGER = "jobmanager";
 	public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
+	public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
+	public static final String LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY = "high-availability";
 
 	// Use fixed port in kubernetes, it needs to be exposed.
 	public static final int REST_PORT = 8081;
@@ -87,4 +89,14 @@ public class Constants {
 	public static final String RESTART_POLICY_OF_NEVER = "Never";
 
 	public static final String NATIVE_KUBERNETES_COMMAND = "native-k8s";
+
+	// Constants for Kubernetes high availability
+	public static final String LEADER_ADDRESS_KEY = "address";
+	public static final String LEADER_SESSION_ID_KEY = "sessionId";
+	public static final String JOB_GRAPH_STORE_KEY_PREFIX = "jobGraph-";
+	public static final String SUBMITTED_JOBGRAPH_FILE_PREFIX = "submittedJobGraph";
+	public static final String RUNNING_JOBS_REGISTRY_KEY_PREFIX = "runningJobsRegistry-";
+	public static final String CHECKPOINT_COUNTER_KEY = "counter";
+	public static final String CHECKPOINT_ID_KEY_PREFIX = "checkpointID-";
+	public static final String COMPLETED_CHECKPOINT_FILE_SUFFIX = "completedCheckpoint";
 }

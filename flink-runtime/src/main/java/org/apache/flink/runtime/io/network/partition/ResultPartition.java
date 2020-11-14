@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -42,7 +43,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -144,11 +144,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
-		BufferPool bufferPool = checkNotNull(bufferPoolFactory.get());
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
-			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
-
-		this.bufferPool = bufferPool;
+		this.bufferPool = checkNotNull(bufferPoolFactory.get());
 		partitionManager.registerResultPartition(this);
 	}
 
@@ -305,5 +301,18 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
 	protected void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
+	}
+
+	@VisibleForTesting
+	public ResultPartitionManager getPartitionManager() {
+		return partitionManager;
+	}
+
+	/**
+	 * Whether the buffer can be compressed or not. Note that event is not compressed because it
+	 * is usually small and the size can become even larger after compression.
+	 */
+	protected boolean canBeCompressed(Buffer buffer) {
+		return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
 	}
 }

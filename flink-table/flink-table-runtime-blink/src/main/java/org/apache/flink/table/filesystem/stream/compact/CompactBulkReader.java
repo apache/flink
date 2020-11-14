@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.filesystem.stream.compact;
 
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /**
  * The {@link CompactReader} to delegate {@link CompactBulkReader}.
@@ -31,7 +33,7 @@ public class CompactBulkReader<T> implements CompactReader<T> {
 	private final BulkFormat.Reader<T> reader;
 	private BulkFormat.RecordIterator<T> iterator;
 
-	private CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
+	public CompactBulkReader(BulkFormat.Reader<T> reader) throws IOException {
 		this.reader = reader;
 		this.iterator = reader.readBatch();
 	}
@@ -57,7 +59,7 @@ public class CompactBulkReader<T> implements CompactReader<T> {
 		reader.close();
 	}
 
-	public static <T> CompactReader.Factory<T> factory(BulkFormat<T> format) {
+	public static <T> CompactReader.Factory<T> factory(BulkFormat<T, FileSourceSplit> format) {
 		return new Factory<>(format);
 	}
 
@@ -66,17 +68,20 @@ public class CompactBulkReader<T> implements CompactReader<T> {
 	 */
 	private static class Factory<T> implements CompactReader.Factory<T> {
 
-		private final BulkFormat<T> format;
+		private static final long serialVersionUID = 1L;
 
-		public Factory(BulkFormat<T> format) {
+		private final BulkFormat<T, FileSourceSplit> format;
+
+		public Factory(BulkFormat<T, FileSourceSplit> format) {
 			this.format = format;
 		}
 
 		@Override
 		public CompactReader<T> create(CompactContext context) throws IOException {
-			long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
+			final String splitId = UUID.randomUUID().toString();
+			final long len = context.getFileSystem().getFileStatus(context.getPath()).getLen();
 			return new CompactBulkReader<>(format.createReader(
-					context.getConfig(), context.getPath(), 0, len));
+					context.getConfig(), new FileSourceSplit(splitId, context.getPath(), 0, len)));
 		}
 	}
 }

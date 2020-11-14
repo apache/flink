@@ -174,10 +174,12 @@ class JobScopedResourceTracker {
 			}
 		}
 
-		LOG.debug("Detected excess resources for job {}: {}", jobId, excessResources);
-		for (ExcessResource excessResource : excessResources) {
-			resourceToRequirementMapping.decrementCount(excessResource.requirementProfile, excessResource.resourceProfile, excessResource.numExcessResources);
-			this.excessResources.incrementCount(excessResource.resourceProfile, excessResource.numExcessResources);
+		if (!excessResources.isEmpty()) {
+			LOG.debug("Detected excess resources for job {}: {}", jobId, excessResources);
+			for (ExcessResource excessResource : excessResources) {
+				resourceToRequirementMapping.decrementCount(excessResource.requirementProfile, excessResource.resourceProfile, excessResource.numExcessResources);
+				this.excessResources.incrementCount(excessResource.resourceProfile, excessResource.numExcessResources);
+			}
 		}
 	}
 

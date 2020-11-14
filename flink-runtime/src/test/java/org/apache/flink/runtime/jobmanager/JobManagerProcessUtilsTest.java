@@ -31,6 +31,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS;
@@ -38,6 +40,8 @@ import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_PROC
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
+import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -54,6 +58,51 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 
 	public JobManagerProcessUtilsTest() {
 		super(JM_PROCESS_MEMORY_OPTIONS, JM_LEGACY_HEAP_OPTIONS, JobManagerOptions.TOTAL_PROCESS_MEMORY);
+	}
+
+	@Test
+	public void testGenerateDynamicConfigurations() {
+		Configuration config = new Configuration();
+		config.set(JobManagerOptions.JVM_HEAP_MEMORY, MemorySize.parse("1m"));
+		config.set(JobManagerOptions.OFF_HEAP_MEMORY, MemorySize.parse("2m"));
+		config.set(JobManagerOptions.JVM_METASPACE, MemorySize.parse("3m"));
+		config.set(JobManagerOptions.JVM_OVERHEAD_MIN, MemorySize.parse("4m"));
+		config.set(JobManagerOptions.JVM_OVERHEAD_MAX, MemorySize.parse("5m"));
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(config);
+
+		String dynamicConfigsStr = JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
+		Map<String, String> configs = parseAndAssertJobManagerResourceDynamicConfig(dynamicConfigsStr);
+
+		assertThat(MemorySize.parse(configs.get(JobManagerOptions.JVM_HEAP_MEMORY.key())), is(jobManagerProcessSpec.getJvmHeapMemorySize()));
+		assertThat(MemorySize.parse(configs.get(JobManagerOptions.OFF_HEAP_MEMORY.key())), is(jobManagerProcessSpec.getJvmDirectMemorySize()));
+		assertThat(MemorySize.parse(configs.get(JobManagerOptions.JVM_METASPACE.key())), is(jobManagerProcessSpec.getJvmMetaspaceSize()));
+		assertThat(MemorySize.parse(configs.get(JobManagerOptions.JVM_OVERHEAD_MIN.key())), is(jobManagerProcessSpec.getJvmOverheadSize()));
+		assertThat(MemorySize.parse(configs.get(JobManagerOptions.JVM_OVERHEAD_MAX.key())), is(jobManagerProcessSpec.getJvmOverheadSize()));
+	}
+
+	private static Map<String, String> parseAndAssertJobManagerResourceDynamicConfig(String dynamicParameterStr) {
+		Map<String, String> config = new HashMap<>();
+		String[] dynamicParameterTokens = dynamicParameterStr.split(" ");
+
+		assertThat(dynamicParameterTokens.length % 2, is(0));
+		for (int i = 0; i < dynamicParameterTokens.length; ++i) {
+			String configStr = dynamicParameterTokens[i];
+			if (i % 2 == 0) {
+				assertThat(configStr, is("-D"));
+			} else {
+				String[] configEntry = configStr.split("=");
+				assertThat(configEntry, arrayWithSize(2));
+				config.put(configEntry[0], configEntry[1]);
+			}
+		}
+
+		assertThat(config, hasKey(JobManagerOptions.JVM_HEAP_MEMORY.key()));
+		assertThat(config, hasKey(JobManagerOptions.OFF_HEAP_MEMORY.key()));
+		assertThat(config, hasKey(JobManagerOptions.JVM_METASPACE.key()));
+		assertThat(config, hasKey(JobManagerOptions.JVM_OVERHEAD_MIN.key()));
+		assertThat(config, hasKey(JobManagerOptions.JVM_OVERHEAD_MAX.key()));
+
+		return config;
 	}
 
 	@Test

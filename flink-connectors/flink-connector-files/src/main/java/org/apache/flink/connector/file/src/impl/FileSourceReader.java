@@ -21,7 +21,6 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -35,10 +34,10 @@ import java.util.Collection;
  * A {@link SourceReader} that read records from {@link FileSourceSplit}.
  */
 @Internal
-public final class FileSourceReader<T>
-		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
+public final class FileSourceReader<T, SplitT extends FileSourceSplit>
+		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, SplitT, FileSourceSplitState<SplitT>> {
 
-	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T> readerFormat, Configuration config) {
+	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T, SplitT> readerFormat, Configuration config) {
 		super(
 			() -> new FileSourceSplitReader<>(config, readerFormat),
 			new FileSourceRecordEmitter<>(),
@@ -48,25 +47,24 @@ public final class FileSourceReader<T>
 
 	@Override
 	public void start() {
-		requestSplit();
+		// we request a split only if we did not get splits during the checkpoint restore
+		if (getNumberOfCurrentlyAssignedSplits() == 0) {
+			context.sendSplitRequest();
+		}
 	}
 
 	@Override
 	protected void onSplitFinished(Collection<String> finishedSplitIds) {
-		requestSplit();
+		context.sendSplitRequest();
 	}
 
 	@Override
-	protected FileSourceSplitState initializedState(FileSourceSplit split) {
-		return new FileSourceSplitState(split);
+	protected FileSourceSplitState<SplitT> initializedState(SplitT split) {
+		return new FileSourceSplitState<>(split);
 	}
 
 	@Override
-	protected FileSourceSplit toSplitType(String splitId, FileSourceSplitState splitState) {
+	protected SplitT toSplitType(String splitId, FileSourceSplitState<SplitT> splitState) {
 		return splitState.toFileSourceSplit();
-	}
-
-	private void requestSplit() {
-		context.sendSourceEventToCoordinator(new RequestSplitEvent(context.getLocalHostName()));
 	}
 }

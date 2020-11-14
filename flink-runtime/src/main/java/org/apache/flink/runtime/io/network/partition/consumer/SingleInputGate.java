@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -188,6 +191,9 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private final MemorySegmentProvider memorySegmentProvider;
 
+	/** The segment to read data from file region of bounded blocking partition by local input channel. */
+	private final MemorySegment unpooledSegment;
+
 	public SingleInputGate(
 		String owningTaskName,
 		int gateIndex,
@@ -198,7 +204,8 @@ public class SingleInputGate extends IndexedInputGate {
 		PartitionProducerStateProvider partitionProducerStateProvider,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory,
 		@Nullable BufferDecompressor bufferDecompressor,
-		MemorySegmentProvider memorySegmentProvider) {
+		MemorySegmentProvider memorySegmentProvider,
+		int segmentSize) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -227,6 +234,8 @@ public class SingleInputGate extends IndexedInputGate {
 		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
 
 		this.closeFuture = new CompletableFuture<>();
+
+		this.unpooledSegment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
 	}
 
 	protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -509,6 +518,10 @@ public class SingleInputGate extends IndexedInputGate {
 		return retriggerLocalRequestTimer;
 	}
 
+	MemorySegment getUnpooledSegment() {
+		return unpooledSegment;
+	}
+
 	@Override
 	public void close() throws IOException {
 		boolean released = false;
@@ -746,13 +759,13 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) throws IOException {
+	public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		checkState(!isFinished(), "InputGate already finished.");
 		// BEWARE: consumption resumption only happens for streaming jobs in which all slots
 		// are allocated together so there should be no UnknownInputChannel. As a result, it
 		// is safe to not synchronize the requestLock here. We will refactor the code to not
 		// rely on this assumption in the future.
-		channels[channelIndex].resumeConsumption();
+		channels[channelInfo.getInputChannelIdx()].resumeConsumption();
 	}
 
 	// ------------------------------------------------------------------------

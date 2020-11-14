@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -73,20 +74,56 @@ public class DataTypeUtilsTest {
 		);
 		final DataType topLevelRow = ROW(
 			FIELD("a0", INT()),
-			FIELD("a1", secondLevelRow)
+			FIELD("a1", secondLevelRow),
+			FIELD("a1_b1_c0", INT())
 		);
 
 		assertThat(
 			DataTypeUtils.projectRow(topLevelRow, new int[][]{{0}, {1, 1, 0}}),
-			equalTo(ROW(FIELD("a0", INT()), FIELD("c0", BOOLEAN()))));
+			equalTo(ROW(FIELD("a0", INT()), FIELD("a1_b1_c0", BOOLEAN()))));
 
 		assertThat(
 			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1}, {0}}),
-			equalTo(ROW(FIELD("b1", thirdLevelRow), FIELD("a0", INT()))));
+			equalTo(ROW(FIELD("a1_b1", thirdLevelRow), FIELD("a0", INT()))));
 
 		assertThat(
 			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 2}, {1, 1, 1}, {1, 1, 0}}),
-			equalTo(ROW(FIELD("c2", INT()), FIELD("c1", DOUBLE()), FIELD("c0", BOOLEAN()))));
+			equalTo(ROW(FIELD("a1_b1_c2", INT()), FIELD("a1_b1_c1", DOUBLE()), FIELD("a1_b1_c0", BOOLEAN()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 0}, {2}}),
+			equalTo(ROW(FIELD("a1_b1_c0", BOOLEAN()), FIELD("a1_b1_c0_$0", INT()))));
+	}
+
+	@Test
+	public void testAppendRowFields() {
+		{
+			final DataType row = ROW(
+					FIELD("a0", BOOLEAN()),
+					FIELD("a1", DOUBLE()),
+					FIELD("a2", INT()));
+
+			final DataType expectedRow = ROW(
+					FIELD("a0", BOOLEAN()),
+					FIELD("a1", DOUBLE()),
+					FIELD("a2", INT()),
+					FIELD("a3", BIGINT()),
+					FIELD("a4", TIMESTAMP(3)));
+
+			assertThat(
+					DataTypeUtils.appendRowFields(row, Arrays.asList(FIELD("a3", BIGINT()), FIELD("a4", TIMESTAMP(3)))),
+					equalTo(expectedRow));
+		}
+
+		{
+			final DataType row = ROW();
+
+			final DataType expectedRow = ROW(FIELD("a", BOOLEAN()), FIELD("b", INT()));
+
+			assertThat(
+					DataTypeUtils.appendRowFields(row, Arrays.asList(FIELD("a", BOOLEAN()), FIELD("b", INT()))),
+					equalTo(expectedRow));
+		}
 	}
 
 	@Test

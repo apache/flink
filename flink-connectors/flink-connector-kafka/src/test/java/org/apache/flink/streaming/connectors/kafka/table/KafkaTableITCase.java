@@ -19,26 +19,27 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,10 +48,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -383,6 +384,257 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		deleteTestTopic(topic);
 	}
 
+	@Test
+	public void testKafkaSourceSinkWithKeyAndPartialValue() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "key_partial_value_topic_" + format;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		// k_user_id and user_id have different data types to verify the correct mapping,
+		// fields are reordered on purpose
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `k_user_id` BIGINT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
+						+ "  `k_event_id` BIGINT,\n"
+						+ "  `user_id` INT,\n"
+						+ "  `payload` STRING\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'key.format' = '%s',\n"
+						+ "  'key.fields' = 'k_event_id; k_user_id',\n"
+						+ "  'key.fields-prefix' = 'k_',\n"
+						+ "  'value.format' = '%s',\n"
+						+ "  'value.fields-include' = 'EXCEPT_KEY'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				format,
+				format);
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3')";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+
+		final List<Row> expected = Arrays.asList(
+				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, 41, "payload 1"),
+				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, 42, "payload 2"),
+				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, 43, "payload 3")
+		);
+
+		assertThat(result, deepEqualTo(expected, true));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "key_full_value_topic_" + format;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		// compared to the partial value test we cannot support both k_user_id and user_id in a full
+		// value due to duplicate names after key prefix stripping,
+		// fields are reordered on purpose,
+		// fields for keys and values are overlapping
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `user_id` BIGINT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
+						+ "  `event_id` BIGINT,\n"
+						+ "  `payload` STRING\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'key.format' = '%s',\n"
+						+ "  'key.fields' = 'event_id; user_id',\n"
+						+ "  'value.format' = '%s',\n"
+						+ "  'value.fields-include' = 'ALL'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				format,
+				format);
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 'payload 1'),\n"
+				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 'payload 2'),\n"
+				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 'payload 3')";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+
+		final List<Row> expected = Arrays.asList(
+				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, "payload 1"),
+				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, "payload 2"),
+				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, "payload 3")
+		);
+
+		assertThat(result, deepEqualTo(expected, true));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testPerPartitionWatermarkKafka() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "per_partition_watermark_topic_" + format;
+		createTestTopic(topic, 4, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `partition_id` INT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3),\n"
+						+ "  WATERMARK FOR `timestamp` AS `timestamp`\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'sink.partitioner' = '%s',\n"
+						+ "  'format' = '%s'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				TestPartitioner.class.getName(),
+				format);
+
+		tEnv.executeSql(createTable);
+
+		// make every partition have more than one record
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (0, 'partition-0-name-0', TIMESTAMP '2020-03-08 13:12:11.123'),\n"
+				+ " (0, 'partition-0-name-1', TIMESTAMP '2020-03-08 14:12:12.223'),\n"
+				+ " (0, 'partition-0-name-2', TIMESTAMP '2020-03-08 15:12:13.323'),\n"
+				+ " (1, 'partition-1-name-0', TIMESTAMP '2020-03-09 13:13:11.123'),\n"
+				+ " (1, 'partition-1-name-1', TIMESTAMP '2020-03-09 15:13:11.133'),\n"
+				+ " (1, 'partition-1-name-2', TIMESTAMP '2020-03-09 16:13:11.143'),\n"
+				+ " (2, 'partition-2-name-0', TIMESTAMP '2020-03-10 13:12:14.123'),\n"
+				+ " (2, 'partition-2-name-1', TIMESTAMP '2020-03-10 14:12:14.123'),\n"
+				+ " (2, 'partition-2-name-2', TIMESTAMP '2020-03-10 14:13:14.123'),\n"
+				+ " (2, 'partition-2-name-3', TIMESTAMP '2020-03-10 14:14:14.123'),\n"
+				+ " (2, 'partition-2-name-4', TIMESTAMP '2020-03-10 14:15:14.123'),\n"
+				+ " (2, 'partition-2-name-5', TIMESTAMP '2020-03-10 14:16:14.123'),\n"
+				+ " (3, 'partition-3-name-0', TIMESTAMP '2020-03-11 17:12:11.123'),\n"
+				+ " (3, 'partition-3-name-1', TIMESTAMP '2020-03-11 18:12:11.123')";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		env.setParallelism(1);
+		String createSink =
+				"CREATE TABLE MySink(\n"
+						+ "  id INT,\n"
+						+ "  name STRING,\n"
+						+ "  ts TIMESTAMP(3),\n"
+						+ "  WATERMARK FOR ts as ts\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'values',\n"
+						+ "  'sink.drop-late-event' = 'true'\n"
+						+ ")";
+		tEnv.executeSql(createSink);
+		TableResult tableResult = tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
+		final List<String> expected = Arrays.asList(
+			"0,partition-0-name-0,2020-03-08T13:12:11.123",
+			"0,partition-0-name-1,2020-03-08T14:12:12.223",
+			"0,partition-0-name-2,2020-03-08T15:12:13.323",
+			"1,partition-1-name-0,2020-03-09T13:13:11.123",
+			"1,partition-1-name-1,2020-03-09T15:13:11.133",
+			"1,partition-1-name-2,2020-03-09T16:13:11.143",
+			"2,partition-2-name-0,2020-03-10T13:12:14.123",
+			"2,partition-2-name-1,2020-03-10T14:12:14.123",
+			"2,partition-2-name-2,2020-03-10T14:13:14.123",
+			"2,partition-2-name-3,2020-03-10T14:14:14.123",
+			"2,partition-2-name-4,2020-03-10T14:15:14.123",
+			"2,partition-2-name-5,2020-03-10T14:16:14.123",
+			"3,partition-3-name-0,2020-03-11T17:12:11.123",
+			"3,partition-3-name-1,2020-03-11T18:12:11.123"
+		);
+		KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
+
+		// ------------- cleanup -------------------
+
+		tableResult.getJobClient().ifPresent(JobClient::cancel);
+		deleteTestTopic(topic);
+	}
+
+
+
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Extract the partition id from the row and set it on the record.
+	 */
+	public static class TestPartitioner extends FlinkKafkaPartitioner<RowData> {
+
+		private static final long serialVersionUID = 1L;
+		private static final int PARTITION_ID_FIELD_IN_SCHEMA = 0;
+
+		@Override
+		public int partition(RowData record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+			return partitions[record.getInt(PARTITION_ID_FIELD_IN_SCHEMA) % partitions.length];
+		}
+	}
+
 	private String formatOptions() {
 		if (!isLegacyConnector) {
 			return String.format("'format' = '%s'", format);
@@ -434,24 +686,5 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		} else {
 			return false;
 		}
-	}
-
-	private static List<Row> collectRows(Table table, int expectedSize) throws Exception {
-		final TableResult result = table.execute();
-		final List<Row> collectedRows = new ArrayList<>();
-		try (CloseableIterator<Row> iterator = result.collect()) {
-			while (collectedRows.size() < expectedSize && iterator.hasNext()) {
-				collectedRows.add(iterator.next());
-			}
-		}
-		result.getJobClient().ifPresent(jc -> {
-			try {
-				jc.cancel().get(5, TimeUnit.SECONDS);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		});
-
-		return collectedRows;
 	}
 }

@@ -327,6 +327,7 @@ public class InputGateFairnessTest {
 	// ------------------------------------------------------------------------
 
 	private static class FairnessVerifyingInputGate extends SingleInputGate {
+		private static final int BUFFER_SIZE = 32 * 1024;
 		private static final SupplierWithException<BufferPool, IOException> STUB_BUFFER_POOL_FACTORY =
 			NoOpBufferPool::new;
 
@@ -351,7 +352,8 @@ public class InputGateFairnessTest {
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				STUB_BUFFER_POOL_FACTORY,
 				null,
-				new UnpooledMemorySegmentProvider(32 * 1024));
+				new UnpooledMemorySegmentProvider(BUFFER_SIZE),
+				BUFFER_SIZE);
 
 			channelsWithData = getInputChannelsWithData();
 

@@ -55,6 +55,10 @@ public class ResultPartitionBuilder {
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int sortShuffleMinBuffers = 100;
+
+	private int sortShuffleMinParallelism = Integer.MAX_VALUE;
+
 	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
 	private int networkBufferSize = 1;
@@ -63,6 +67,8 @@ public class ResultPartitionBuilder {
 	private Optional<SupplierWithException<BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
 	private boolean blockingShuffleCompressionEnabled = false;
+
+	private boolean sslEnabled = false;
 
 	private String compressionCodec = "LZ4";
 
@@ -105,7 +111,9 @@ public class ResultPartitionBuilder {
 		return setNetworkBuffersPerChannel(environment.getConfiguration().networkBuffersPerChannel())
 			.setFloatingNetworkBuffersPerGate(environment.getConfiguration().floatingNetworkBuffersPerGate())
 			.setNetworkBufferSize(environment.getConfiguration().networkBufferSize())
-			.setNetworkBufferPool(environment.getNetworkBufferPool());
+			.setNetworkBufferPool(environment.getNetworkBufferPool())
+			.setSortShuffleMinBuffers(environment.getConfiguration().sortShuffleMinBuffers())
+			.setSortShuffleMinParallelism(environment.getConfiguration().sortShuffleMinParallelism());
 	}
 
 	public ResultPartitionBuilder setNetworkBufferPool(NetworkBufferPool networkBufferPool) {
@@ -139,6 +147,16 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
+	public ResultPartitionBuilder setSortShuffleMinBuffers(int sortShuffleMinBuffers) {
+		this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+		return this;
+	}
+
+	public ResultPartitionBuilder setSortShuffleMinParallelism(int sortShuffleMinParallelism) {
+		this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+		return this;
+	}
+
 	public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
 		this.compressionCodec = compressionCodec;
 		return this;
@@ -147,6 +165,11 @@ public class ResultPartitionBuilder {
 	ResultPartitionBuilder setBoundedBlockingSubpartitionType(
 			@SuppressWarnings("SameParameterValue") BoundedBlockingSubpartitionType blockingSubpartitionType) {
 		this.blockingSubpartitionType = blockingSubpartitionType;
+		return this;
+	}
+
+	public ResultPartitionBuilder setSSLEnabled(boolean sslEnabled) {
+		this.sslEnabled = sslEnabled;
 		return this;
 	}
 
@@ -161,7 +184,10 @@ public class ResultPartitionBuilder {
 			networkBufferSize,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
-			maxBuffersPerChannel);
+			maxBuffersPerChannel,
+			sortShuffleMinBuffers,
+			sortShuffleMinParallelism,
+			sslEnabled);
 
 		SupplierWithException<BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));

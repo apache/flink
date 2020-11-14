@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem.stream;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -51,6 +52,10 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 	@Override
 	protected void partitionInactive(String partition) {
 		inactivePartitions.add(partition);
+	}
+
+	@Override
+	protected void onPartFileOpened(String s, Path newPath) {
 	}
 
 	@Override

@@ -35,6 +35,7 @@ You can use the docker images to deploy a *Session* or *Job cluster* in a contai
 
 The [Flink Docker repository](https://hub.docker.com/_/flink/) is hosted on
 Docker Hub and serves images of Flink version 1.2.1 and later.
+The source for these images can be found in the [Apache flink-docker](https://github.com/apache/flink-docker) repository.
 
 ### Image tags
 

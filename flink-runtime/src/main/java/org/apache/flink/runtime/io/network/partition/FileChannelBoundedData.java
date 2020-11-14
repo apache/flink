@@ -88,6 +88,11 @@ final class FileChannelBoundedData implements BoundedData {
 	}
 
 	@Override
+	public Path getFilePath() {
+		return filePath;
+	}
+
+	@Override
 	public void close() throws IOException {
 		IOUtils.closeQuietly(fileChannel);
 		Files.delete(filePath);

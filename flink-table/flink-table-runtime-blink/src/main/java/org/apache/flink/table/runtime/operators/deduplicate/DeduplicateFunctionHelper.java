@@ -30,23 +30,22 @@ import org.apache.flink.util.Preconditions;
 class DeduplicateFunctionHelper {
 
 	/**
-	 * Processes element to deduplicate on keys, sends current element as last row, retracts previous element if
-	 * needed.
+	 * Processes element to deduplicate on keys with process time semantic, sends current element as last row,
+	 * retracts previous element if needed.
 	 *
 	 * @param currentRow latest row received by deduplicate function
 	 * @param generateUpdateBefore whether need to send UPDATE_BEFORE message for updates
 	 * @param state state of function, null if generateUpdateBefore is false
 	 * @param out underlying collector
 	 */
-	static void processLastRowOnInsertOnly(
+	static void processLastRowOnProcTime(
 			RowData currentRow,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
 			ValueState<RowData> state,
 			Collector<RowData> out) throws Exception {
-		// check message should be insert only.
-		Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
 
+		checkInsertOnly(currentRow);
 		if (generateUpdateBefore || generateInsert) {
 			// use state to keep the previous row content if we need to generate UPDATE_BEFORE
 			// or use to distinguish the first row, if we need to generate INSERT
@@ -126,18 +125,18 @@ class DeduplicateFunctionHelper {
 	}
 
 	/**
-	 * Processes element to deduplicate on keys, sends current element if it is first row.
+	 * Processes element to deduplicate on keys with process time semantic, sends current element if it is first row.
 	 *
 	 * @param currentRow latest row received by deduplicate function
 	 * @param state state of function
 	 * @param out underlying collector
 	 */
-	static void processFirstRow(
+	static void processFirstRowOnProcTime(
 			RowData currentRow,
 			ValueState<Boolean> state,
 			Collector<RowData> out) throws Exception {
-		// check message should be insert only.
-		Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
+
+		checkInsertOnly(currentRow);
 		// ignore record if it is not first row
 		if (state.value() != null) {
 			return;
@@ -145,6 +144,65 @@ class DeduplicateFunctionHelper {
 		state.update(true);
 		// emit the first row which is INSERT message
 		out.collect(currentRow);
+	}
+
+	/**
+	 * Collect the updated result for duplicate row.
+	 *
+	 * @param generateUpdateBefore  flag to generate UPDATE_BEFORE message or not
+	 * @param generateInsert		flag to generate INSERT message or not
+	 * @param preRow			    previous row under the key
+	 * @param currentRow            current row under the key which is the duplicate row
+	 * @param out 					underlying collector
+	 */
+	static void updateDeduplicateResult(
+			boolean generateUpdateBefore,
+			boolean generateInsert,
+			RowData preRow,
+			RowData currentRow,
+			Collector<RowData> out) {
+
+		if (generateUpdateBefore || generateInsert) {
+			if (preRow == null) {
+				// the first row, send INSERT message
+				currentRow.setRowKind(RowKind.INSERT);
+				out.collect(currentRow);
+			} else {
+				if (generateUpdateBefore) {
+					final RowKind preRowKind = preRow.getRowKind();
+					preRow.setRowKind(RowKind.UPDATE_BEFORE);
+					out.collect(preRow);
+					preRow.setRowKind(preRowKind);
+				}
+				currentRow.setRowKind(RowKind.UPDATE_AFTER);
+				out.collect(currentRow);
+			}
+		} else {
+			currentRow.setRowKind(RowKind.UPDATE_AFTER);
+			out.collect(currentRow);
+		}
+	}
+
+	/**
+	 * Returns current row is duplicate row or not compared to previous row.
+	 */
+	static boolean isDuplicate(RowData preRow, RowData currentRow, int rowtimeIndex, boolean keepLastRow) {
+		if (keepLastRow) {
+			return preRow == null || getRowtime(preRow, rowtimeIndex) <= getRowtime(currentRow, rowtimeIndex);
+		} else {
+			return preRow == null || getRowtime(currentRow, rowtimeIndex) < getRowtime(preRow, rowtimeIndex);
+		}
+	}
+
+	private static long getRowtime(RowData input, int rowtimeIndex) {
+		return input.getLong(rowtimeIndex);
+	}
+
+	/**
+	 * check message should be insert only.
+	 */
+	static void checkInsertOnly(RowData currentRow) {
+		Preconditions.checkArgument(currentRow.getRowKind() == RowKind.INSERT);
 	}
 
 	private DeduplicateFunctionHelper() {

@@ -23,9 +23,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -124,7 +124,7 @@ public class StreamingFileSink<IN>
 	// --------------------------- Sink Builders  -----------------------------
 
 	/**
-	 * Creates the builder for a {@code StreamingFileSink} with row-encoding format.
+	 * Creates the builder for a {@link StreamingFileSink} with row-encoding format.
 	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
 	 * @param encoder the {@link Encoder} to be used when writing elements in the buckets.
 	 * @param <IN> the type of incoming elements
@@ -137,12 +137,12 @@ public class StreamingFileSink<IN>
 	}
 
 	/**
-	 * Creates the builder for a {@link StreamingFileSink} with row-encoding format.
+	 * Creates the builder for a {@link StreamingFileSink} with bulk-encoding format.
 	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
 	 * @param writerFactory the {@link BulkWriter.Factory} to be used when writing elements in the buckets.
 	 * @param <IN> the type of incoming elements
 	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
-	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
+	 * In order to instantiate the sink, call {@link BulkFormatBuilder#build()} after specifying the desired parameters.
 	 */
 	public static <IN> StreamingFileSink.DefaultBulkFormatBuilder<IN> forBulkFormat(
 			final Path basePath, final BulkWriter.Factory<IN> writerFactory) {

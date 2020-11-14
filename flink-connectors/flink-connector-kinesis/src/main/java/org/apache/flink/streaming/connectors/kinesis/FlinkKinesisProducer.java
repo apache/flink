@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
@@ -40,6 +41,7 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,7 +214,10 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		schema.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
+				getRuntimeContext(),
+				metricGroup -> metricGroup.addGroup("user")
+		));
 
 		// check and pass the configuration properties
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
@@ -299,7 +304,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		}
 
 		ListenableFuture<UserRecordResult> cb = producer.addUserRecord(stream, partition, explicitHashkey, serialized);
-		Futures.addCallback(cb, callback);
+		Futures.addCallback(cb, callback, MoreExecutors.directExecutor());
 	}
 
 	@Override

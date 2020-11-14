@@ -30,13 +30,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * file source's continuous discovery and streaming mode.
  */
 @Internal
-final class ContinuousEnumerationSettings implements Serializable {
+public final class ContinuousEnumerationSettings implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private final Duration discoveryInterval;
 
-	ContinuousEnumerationSettings(Duration discoveryInterval) {
+	public ContinuousEnumerationSettings(Duration discoveryInterval) {
 		this.discoveryInterval = checkNotNull(discoveryInterval);
 	}
 

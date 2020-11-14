@@ -70,14 +70,16 @@ from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedC
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
-                                          CoFlatMapFunction, ReduceFunction, KeySelector,
-                                          FilterFunction, Partitioner, SourceFunction,
+                                          CoFlatMapFunction, ReduceFunction, RuntimeContext,
+                                          KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction)
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
                                               PredefinedOptions)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
+from pyflink.datastream.time_domain import TimeDomain
+from pyflink.datastream.functions import ProcessFunction, Collector, TimerService
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -91,6 +93,7 @@ __all__ = [
     'KeySelector',
     'Partitioner',
     'ReduceFunction',
+    'RuntimeContext',
     'SinkFunction',
     'SourceFunction',
     'StateBackend',
@@ -101,5 +104,9 @@ __all__ = [
     'CustomStateBackend',
     'PredefinedOptions',
     'ExternalizedCheckpointCleanup',
-    'TimeCharacteristic'
+    'TimeCharacteristic',
+    'TimeDomain',
+    'ProcessFunction',
+    'Collector',
+    'TimerService'
 ]

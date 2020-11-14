@@ -24,7 +24,11 @@ under the License.
 
 User-defined functions (UDFs) are extension points to call frequently used logic or custom logic that cannot be expressed otherwise in queries.
 
-User-defined functions can be implemented in a JVM language (such as Java or Scala) or Python. An implementer can use arbitrary third party libraries within a UDF. This page will focus on JVM-based languages.
+User-defined functions can be implemented in a JVM language (such as Java or Scala) or Python.
+An implementer can use arbitrary third party libraries within a UDF.
+This page will focus on JVM-based languages, please refer to the PyFlink documentation
+for details on writing [general]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) 
+ and [vectorized]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}) UDFs in Python.
 
 * This will be replaced by the TOC
 {:toc}
@@ -1246,6 +1250,8 @@ def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit
 </div>
 
 </div>
+
+If you intend to implement or call functions in Python, please refer to the [Python Aggregate Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#aggregate-functions) documentation for more details.
 
 {% top %}
 

@@ -55,10 +55,23 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	/** Timestamp format specification which is used to parse timestamp. */
 	private final TimestampFormat timestampFormat;
 
-	public JsonRowDataSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
+	/** The handling mode when serializing null keys for map data. */
+	private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+
+	/** The string literal when handling mode for map null key LITERAL. is  */
+	private final String mapNullKeyLiteral;
+
+	public JsonRowDataSerializationSchema(
+			RowType rowType,
+			TimestampFormat timestampFormat,
+			JsonOptions.MapNullKeyMode mapNullKeyMode,
+			String mapNullKeyLiteral) {
 		this.rowType = rowType;
 		this.timestampFormat = timestampFormat;
-		this.runtimeConverter = new RowDataToJsonConverters(timestampFormat).createConverter(rowType);
+		this.mapNullKeyMode = mapNullKeyMode;
+		this.mapNullKeyLiteral = mapNullKeyLiteral;
+		this.runtimeConverter = new RowDataToJsonConverters(
+			timestampFormat, mapNullKeyMode, mapNullKeyLiteral).createConverter(rowType);
 	}
 
 	@Override
@@ -71,8 +84,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 			runtimeConverter.convert(mapper, node, row);
 			return mapper.writeValueAsBytes(node);
 		} catch (Throwable t) {
-			throw new RuntimeException("Could not serialize row '" + row + "'. " +
-				"Make sure that the schema matches the input.", t);
+			throw new RuntimeException("Could not serialize row '" + row + "'. ", t);
 		}
 	}
 
@@ -85,11 +97,14 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 			return false;
 		}
 		JsonRowDataSerializationSchema that = (JsonRowDataSerializationSchema) o;
-		return rowType.equals(that.rowType) && timestampFormat.equals(that.timestampFormat);
+		return rowType.equals(that.rowType) &&
+			timestampFormat.equals(that.timestampFormat) &&
+			mapNullKeyMode.equals(that.mapNullKeyMode) &&
+			mapNullKeyLiteral.equals(that.mapNullKeyLiteral);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(rowType, timestampFormat);
+		return Objects.hash(rowType, timestampFormat, mapNullKeyMode, mapNullKeyLiteral);
 	}
 }

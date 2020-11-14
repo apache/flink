@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
@@ -81,7 +80,7 @@ public class FileSourceHeavyThroughputTest {
 		final FileSource<byte[]> source = FileSource.forRecordStreamFormat(new ArrayReaderFormat(), path).build();
 		final SourceReader<byte[], FileSourceSplit> reader = source.createReader(new NoOpReaderContext());
 		reader.addSplits(Collections.singletonList(split));
-		reader.handleSourceEvents(new NoMoreSplitsEvent());
+		reader.notifyNoMoreSplits();
 
 		final ReaderOutput<byte[]> out = new NoOpReaderOutput<>();
 
@@ -205,6 +204,9 @@ public class FileSourceHeavyThroughputTest {
 		public int getIndexOfSubtask() {
 			return 0;
 		}
+
+		@Override
+		public void sendSplitRequest() {}
 
 		@Override
 		public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}

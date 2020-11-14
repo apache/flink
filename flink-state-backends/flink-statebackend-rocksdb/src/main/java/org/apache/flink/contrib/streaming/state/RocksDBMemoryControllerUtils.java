@@ -25,7 +25,7 @@ import org.rocksdb.LRUCache;
 import org.rocksdb.WriteBufferManager;
 
 /**
- * Utils to crate {@link Cache} and {@link WriteBufferManager} which used to control total memory usage of RocksDB.
+ * Utils to create {@link Cache} and {@link WriteBufferManager} which are used to control total memory usage of RocksDB.
  */
 public class RocksDBMemoryControllerUtils {
 
@@ -44,7 +44,7 @@ public class RocksDBMemoryControllerUtils {
 		long writeBufferManagerCapacity = RocksDBMemoryControllerUtils.calculateWriteBufferManagerCapacity(totalMemorySize, writeBufferRatio);
 		final WriteBufferManager wbm = RocksDBMemoryControllerUtils.createWriteBufferManager(writeBufferManagerCapacity, cache);
 
-		return new RocksDBSharedResources(cache, wbm);
+		return new RocksDBSharedResources(cache, wbm, writeBufferManagerCapacity);
 	}
 
 	/**
@@ -94,5 +94,52 @@ public class RocksDBMemoryControllerUtils {
 	@VisibleForTesting
 	static WriteBufferManager createWriteBufferManager(long writeBufferManagerCapacity, Cache cache) {
 		return new WriteBufferManager(writeBufferManagerCapacity, cache);
+	}
+
+	/**
+	 * Calculate the default arena block size as RocksDB calculates it in
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/49bc897d5d768026f1eb816d960c1f2383396ef4/db/column_family.cc#L196-L201">
+	 * here</a>.
+	 *
+	 * @return the default arena block size
+	 * @param writeBufferSize the write buffer size (bytes)
+	 */
+	static long calculateRocksDBDefaultArenaBlockSize(long writeBufferSize) {
+		long arenaBlockSize = writeBufferSize / 8;
+
+		// Align up to 4k
+		final long align = 4 * 1024;
+		return ((arenaBlockSize + align - 1) / align) * align;
+	}
+
+	/**
+	 * Calculate {@code mutable_limit_} as RocksDB calculates it in
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/FRocksDB-5.17.2/memtable/write_buffer_manager.cc#L54">
+	 * here</a>.
+	 *
+	 * @param bufferSize write buffer size
+	 * @return mutableLimit
+	 */
+	static long calculateRocksDBMutableLimit(long bufferSize) {
+		return bufferSize * 7 / 8;
+	}
+
+	/**
+	 * RocksDB starts flushing the active memtable constantly in the case when the arena block size is greater than
+	 * mutable limit (as calculated in {@link #calculateRocksDBMutableLimit(long)}).
+	 *
+	 * <p>This happens because in such a case the check
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/958f191d3f7276ae59b270f9db8390034d549ee0/include/rocksdb/write_buffer_manager.h#L47">
+	 * here</a> is always true.
+	 *
+	 * <p>This method checks that arena block size is smaller than mutable limit.
+	 *
+	 * @param arenaBlockSize Arena block size
+	 * @param mutableLimit mutable limit
+	 * @return whether arena block size is sensible
+	 */
+	@VisibleForTesting
+	static boolean validateArenaBlockSize(long arenaBlockSize, long mutableLimit) {
+		return arenaBlockSize <= mutableLimit;
 	}
 }

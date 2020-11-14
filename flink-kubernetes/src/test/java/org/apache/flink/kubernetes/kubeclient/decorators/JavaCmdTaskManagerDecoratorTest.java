@@ -87,7 +87,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		super.onSetup();
 
 		this.mainClassArgs = String.format(
-				"%s--configDir %s",
+				"%s --configDir %s",
 				TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec),
 			FLINK_CONF_DIR_IN_POD);
 
@@ -209,7 +209,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 				" " + tmLogfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + mainClassArgs;
 		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	@Test
@@ -236,7 +236,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 				" " + jvmOpts + " " + tmJvmOpts + " " + mainClass +
 				" " + mainClassArgs;
 		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	private String getTaskManagerExpectedCommand(String jvmAllOpts, String logging) {

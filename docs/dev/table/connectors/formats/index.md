@@ -39,17 +39,20 @@ Flink supports the following formats:
         <tr>
           <td><a href="{% link dev/table/connectors/formats/csv.md %}">CSV</a></td>
           <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
         <tr>
          <td><a href="{% link dev/table/connectors/formats/json.md %}">JSON</a></td>
          <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a>,
           <a href="{% link dev/table/connectors/elasticsearch.md %}">Elasticsearch</a></td>
        </tr>
         <tr>
           <td><a href="{% link dev/table/connectors/formats/avro.md %}">Apache Avro</a></td>
           <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a>,
            <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
         <tr>
@@ -67,6 +70,11 @@ Flink supports the following formats:
         <tr>
          <td><a href="{% link dev/table/connectors/formats/orc.md %}">Apache ORC</a></td>
          <td><a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
+        </tr>
+        <tr>
+        <td><a href="{% link dev/table/connectors/formats/raw.md %}">Raw</a></td>
+        <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
     </tbody>
 </table>

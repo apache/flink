@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Optional
 
 from py4j.java_gateway import get_method
 from pyflink.common.types import RowKind
@@ -40,7 +41,7 @@ class TableResult(object):
     def __init__(self, j_table_result):
         self._j_table_result = j_table_result
 
-    def get_job_client(self):
+    def get_job_client(self) -> Optional[JobClient]:
         """
         For DML and DQL statement, return the JobClient which associates the submitted Flink job.
         For other statements (e.g.  DDL, DCL) return empty.
@@ -56,7 +57,7 @@ class TableResult(object):
         else:
             return None
 
-    def wait(self, timeout_ms=None):
+    def wait(self, timeout_ms: int = None):
         """
         Wait if necessary for at most the given time (milliseconds) for the data to be ready.
 
@@ -74,7 +75,7 @@ class TableResult(object):
         else:
             get_method(self._j_table_result, "await")()
 
-    def get_table_schema(self):
+    def get_table_schema(self) -> TableSchema:
         """
         Get the schema of result.
 
@@ -142,7 +143,7 @@ class TableResult(object):
         """
         return TableSchema(j_table_schema=self._j_table_result.getTableSchema())
 
-    def get_result_kind(self):
+    def get_result_kind(self) -> ResultKind:
         """
         Return the ResultKind which represents the result type.
 
@@ -150,7 +151,6 @@ class TableResult(object):
         For other operations, the result kind is always SUCCESS_WITH_CONTENT.
 
         :return: The result kind.
-        :rtype: pyflink.table.ResultKind
 
         .. versionadded:: 1.11.0
         """
@@ -248,7 +248,7 @@ class CloseableIterator(object):
                 fields.append(None)
             else:
                 fields.append(java_to_python_converter(data, field_type))
-        result_row = Row(fields)
+        result_row = Row(*fields)
         result_row.set_row_kind(row_kind)
         return result_row
 

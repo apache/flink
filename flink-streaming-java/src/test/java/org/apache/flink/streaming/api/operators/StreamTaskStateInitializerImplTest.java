@@ -70,6 +70,7 @@ import java.util.Random;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -102,7 +103,8 @@ public class StreamTaskStateInitializerImplTest {
 			typeSerializer,
 			closeableRegistry,
 			new UnregisteredMetricsGroup(),
-			1.0);
+			1.0,
+			false);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -173,25 +175,22 @@ public class StreamTaskStateInitializerImplTest {
 
 		Random random = new Random(0x42);
 
-		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			new OperatorStreamStateHandle(
+		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"a",
-					new OperatorStateHandle.StateMetaInfo(
-						new long[]{0, 10},
-						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random, null)),
-			new OperatorStreamStateHandle(
+					new OperatorStateHandle.StateMetaInfo(new long[]{0, 10}, SPLIT_DISTRIBUTE)),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
+			.setRawOperatorState(new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"_default_",
-					new OperatorStateHandle.StateMetaInfo(
-						new long[]{0, 20, 30},
-						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random, null)),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null),
-			singleton(createNewInputChannelStateHandle(10, random)),
-			singleton(createNewResultSubpartitionStateHandle(10, random)));
+					new OperatorStateHandle.StateMetaInfo(new long[]{0, 20, 30}, SPLIT_DISTRIBUTE)),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
+			.setManagedKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+			.setRawKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+			.setInputChannelState(singleton(createNewInputChannelStateHandle(10, random)))
+			.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, random)))
+			.build();
 
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
@@ -214,7 +213,8 @@ public class StreamTaskStateInitializerImplTest {
 			typeSerializer,
 			closeableRegistry,
 			new UnregisteredMetricsGroup(),
-			1.0);
+			1.0,
+			false);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();

@@ -36,18 +36,13 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
 /**
  * IT cases for Kafka with changelog format for Table API & SQL.
@@ -109,18 +104,26 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
 		String sourceDDL = String.format(
 			"CREATE TABLE debezium_source (" +
+			// test format metadata
+			" origin_ts STRING METADATA FROM 'value.ingestion-timestamp' VIRTUAL," + // unused
+			" origin_table STRING METADATA FROM 'value.source.table' VIRTUAL," +
 			" id INT NOT NULL," +
 			" name STRING," +
 			" description STRING," +
-			" weight DECIMAL(10,3)" +
+			" weight DECIMAL(10,3)," +
+			// test connector metadata
+			" origin_topic STRING METADATA FROM 'topic' VIRTUAL," +
+			" origin_partition STRING METADATA FROM 'partition' VIRTUAL" + // unused
 			") WITH (" +
 			" 'connector' = 'kafka'," +
 			" 'topic' = '%s'," +
 			" 'properties.bootstrap.servers' = '%s'," +
 			" 'scan.startup.mode' = 'earliest-offset'," +
-			" 'format' = 'debezium-json'" +
+			" 'value.format' = 'debezium-json'" +
 			")", topic, bootstraps);
 		String sinkDDL = "CREATE TABLE sink (" +
+			" origin_topic STRING," +
+			" origin_table STRING," +
 			" name STRING," +
 			" weightSum DECIMAL(10,3)," +
 			" PRIMARY KEY (name) NOT ENFORCED" +
@@ -131,7 +134,9 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 		tEnv.executeSql(sourceDDL);
 		tEnv.executeSql(sinkDDL);
 		TableResult tableResult = tEnv.executeSql(
-			"INSERT INTO sink SELECT name, SUM(weight) FROM debezium_source GROUP BY name");
+			"INSERT INTO sink "
+				+ "SELECT FIRST_VALUE(origin_topic), FIRST_VALUE(origin_table), name, SUM(weight) "
+				+ "FROM debezium_source GROUP BY name");
 
 		// Debezium captures change data on the `products` table:
 		//
@@ -178,8 +183,13 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 		// +-----+--------------------+---------------------------------------------------------+--------+
 
 		List<String> expected = Arrays.asList(
-			"scooter,3.140", "car battery,8.100", "12-pack drill bits,0.800",
-			"hammer,2.625", "rocks,5.100", "jacket,0.600", "spare tire,22.200");
+			"changelog_topic,products,scooter,3.140",
+			"changelog_topic,products,car battery,8.100",
+			"changelog_topic,products,12-pack drill bits,0.800",
+			"changelog_topic,products,hammer,2.625",
+			"changelog_topic,products,rocks,5.100",
+			"changelog_topic,products,jacket,0.600",
+			"changelog_topic,products,spare tire,22.200");
 
 		waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
 
@@ -187,35 +197,5 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
 		tableResult.getJobClient().get().cancel().get(); // stop the job
 		deleteTestTopic(topic);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------
-
-	private static List<String> readLines(String resource) throws IOException {
-		final URL url = KafkaChangelogTableITCase.class.getClassLoader().getResource(resource);
-		assert url != null;
-		Path path = new File(url.getFile()).toPath();
-		return Files.readAllLines(path);
-	}
-
-	private static void waitingExpectedResults(String sinkName, List<String> expected, Duration timeout) throws InterruptedException {
-		long now = System.currentTimeMillis();
-		long stop = now + timeout.toMillis();
-		Collections.sort(expected);
-		while (System.currentTimeMillis() < stop) {
-			List<String> actual = TestValuesTableFactory.getResults(sinkName);
-			Collections.sort(actual);
-			if (expected.equals(actual)) {
-				return;
-			}
-			Thread.sleep(100);
-		}
-
-		// timeout, assert again
-		List<String> actual = TestValuesTableFactory.getResults(sinkName);
-		Collections.sort(actual);
-		assertEquals(expected, actual);
 	}
 }

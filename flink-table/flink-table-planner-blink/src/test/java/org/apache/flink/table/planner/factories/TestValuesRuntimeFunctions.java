@@ -18,17 +18,31 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.connector.ParallelismProvider;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
@@ -36,14 +50,18 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,6 +80,8 @@ final class TestValuesRuntimeFunctions {
 	private static final Map<String, Map<Integer, Map<String, String>>> globalUpsertResult = new HashMap<>();
 	// [table_name, [task_id, List[value]]]
 	private static final Map<String, Map<Integer, List<String>>> globalRetractResult = new HashMap<>();
+	// [table_name, [watermark]]
+	private static final Map<String, List<Watermark>> watermarkHistory = new HashMap<>();
 
 	static List<String> getRawResults(String tableName) {
 		List<String> result = new ArrayList<>();
@@ -73,6 +93,10 @@ final class TestValuesRuntimeFunctions {
 			}
 		}
 		return result;
+	}
+
+	static List<Watermark> getWatermarks(String tableName) {
+		return watermarkHistory.getOrDefault(tableName, new ArrayList<>());
 	}
 
 	static List<String> getResults(String tableName) {
@@ -100,6 +124,130 @@ final class TestValuesRuntimeFunctions {
 			globalRawResult.clear();
 			globalUpsertResult.clear();
 			globalRetractResult.clear();
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Specialized test provider implementations
+	// ------------------------------------------------------------------------------------------
+	static class InternalDataStreamSinkProviderWithParallelism implements DataStreamSinkProvider, ParallelismProvider {
+
+		private final Integer parallelism;
+
+		public InternalDataStreamSinkProviderWithParallelism(Integer parallelism) {
+			this.parallelism = parallelism;
+		}
+
+		@Override
+		public DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
+			throw new UnsupportedOperationException("should not be called");
+		}
+
+		@Override
+		public Optional<Integer> getParallelism() {
+			return Optional.ofNullable(parallelism);
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Source Function implementations
+	// ------------------------------------------------------------------------------------------
+
+	public static class FromElementSourceFunctionWithWatermark implements SourceFunction<RowData> {
+
+		/** The (de)serializer to be used for the data elements. */
+		private final TypeSerializer<RowData> serializer;
+
+		/** The actual data elements, in serialized form. */
+		private final byte[] elementsSerialized;
+
+		/** The number of serialized elements. */
+		private final int numElements;
+
+		/** The number of elements emitted already. */
+		private volatile int numElementsEmitted;
+
+		/** WatermarkStrategy to generate watermark generator.*/
+		private final WatermarkStrategy<RowData> watermarkStrategy;
+
+		private volatile boolean isRunning = true;
+
+		private String tableName;
+
+		public FromElementSourceFunctionWithWatermark(
+				String tableName,
+				TypeSerializer<RowData> serializer,
+				Iterable<RowData> elements,
+				WatermarkStrategy<RowData> watermarkStrategy) throws IOException {
+			this.tableName = tableName;
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
+
+			int count = 0;
+			try {
+				for (RowData element : elements) {
+					serializer.serialize(element, wrapper);
+					count++;
+				}
+			} catch (Exception e) {
+				throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
+			}
+
+			this.numElements = count;
+			this.elementsSerialized = baos.toByteArray();
+			this.watermarkStrategy = watermarkStrategy;
+			this.serializer = serializer;
+		}
+
+		@Override
+		public void run(SourceContext<RowData> ctx) throws Exception {
+			ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
+			final DataInputView input = new DataInputViewStreamWrapper(bais);
+			WatermarkGenerator<RowData> generator = watermarkStrategy.createWatermarkGenerator(() -> null);
+			WatermarkOutput output = new TestValuesWatermarkOutput(ctx);
+			final Object lock = ctx.getCheckpointLock();
+
+			while (isRunning && numElementsEmitted < numElements) {
+				RowData next;
+				try {
+					next = serializer.deserialize(input);
+					generator.onEvent(next, Long.MIN_VALUE, output);
+					generator.onPeriodicEmit(output);
+				}
+				catch (Exception e) {
+					throw new IOException("Failed to deserialize an element from the source. " +
+							"If you are using user-defined serialization (Value and Writable types), check the " +
+							"serialization functions.\nSerializer is " + serializer, e);
+				}
+
+				synchronized (lock) {
+					ctx.collect(next);
+					numElementsEmitted++;
+				}
+			}
+		}
+
+		@Override
+		public void cancel() {
+			isRunning = false;
+		}
+
+		private class TestValuesWatermarkOutput implements WatermarkOutput {
+			SourceContext<RowData> ctx;
+
+			public TestValuesWatermarkOutput(SourceContext<RowData> ctx) {
+				this.ctx = ctx;
+			}
+
+			@Override
+			public void emitWatermark(Watermark watermark) {
+				ctx.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(watermark.getTimestamp()));
+				watermarkHistory.computeIfAbsent(tableName, k -> new LinkedList<>()).add(watermark);
+			}
+
+			@Override
+			public void markIdle() {
+			}
 		}
 	}
 
@@ -153,19 +301,29 @@ final class TestValuesRuntimeFunctions {
 
 		private static final long serialVersionUID = 1L;
 		private final DataStructureConverter converter;
+		private final int rowtimeIndex;
 
-		protected AppendingSinkFunction(String tableName, DataStructureConverter converter) {
+		protected AppendingSinkFunction(String tableName, DataStructureConverter converter, int rowtimeIndex) {
 			super(tableName);
 			this.converter = converter;
+			this.rowtimeIndex = rowtimeIndex;
 		}
 
-		@SuppressWarnings("rawtypes")
 		@Override
 		public void invoke(RowData value, Context context) throws Exception {
 			RowKind kind = value.getRowKind();
 			if (value.getRowKind() == RowKind.INSERT) {
 				Row row = (Row) converter.toExternal(value);
 				assert row != null;
+				if (rowtimeIndex >= 0) {
+					// currently, rowtime attribute always uses 3 precision
+					TimestampData rowtime = value.getTimestamp(rowtimeIndex, 3);
+					long mark = context.currentWatermark();
+					if (mark > rowtime.getMillisecond()) {
+						// discard the late data
+						return;
+					}
+				}
 				localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
 			} else {
 				throw new RuntimeException(

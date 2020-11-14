@@ -22,7 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.PodCallbackHandler;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -191,7 +192,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 	private class Context extends ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context {
 		private final KubernetesPod previousAttemptPod = new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1");
 
-		private final CompletableFuture<PodCallbackHandler> setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
+		private final CompletableFuture<WatchCallbackHandler<KubernetesPod>> setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
 		private final CompletableFuture<Void> closeKubernetesWatchFuture = new CompletableFuture<>();
 		private final CompletableFuture<String> stopAndCleanupClusterFuture =  new CompletableFuture<>();
 		private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture = new CompletableFuture<>();
@@ -220,11 +221,11 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 
 		private TestingKubeClientFactory kubeClientFactory;
 
-		PodCallbackHandler getPodCallbackHandler() {
+		FlinkKubeClient.WatchCallbackHandler<KubernetesPod> getPodCallbackHandler() {
 			try {
 				return setWatchPodsAndDoCallbackFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 			} catch (Exception e) {
-				fail("Cannot get PodCallbackHandler, cause: " + e.getMessage());
+				fail("Cannot get WatchCallbackHandler, cause: " + e.getMessage());
 			}
 			return null;
 		}

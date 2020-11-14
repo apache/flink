@@ -57,4 +57,6 @@ public enum ChainingStrategy {
 	 * sources into one task.
 	 */
 	HEAD_WITH_SOURCES;
+
+	public static final ChainingStrategy DEFAULT_CHAINING_STRATEGY = ALWAYS;
 }

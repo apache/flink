@@ -22,10 +22,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.util.MutableRecordAndPosition;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
-import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
 
@@ -39,9 +38,9 @@ import java.io.Serializable;
  *
  * <p>The outer {@code 'BulkFormat'} class acts mainly as a configuration holder and factory for the reader.
  * The actual reading is done by the {@link BulkFormat.Reader}, which is created in the
- * {@link BulkFormat#createReader(Configuration, Path, long, long)} method. If a bulk reader is created
+ * {@link BulkFormat#createReader(Configuration, FileSourceSplit)} method. If a bulk reader is created
  * based on a checkpoint during checkpointed streaming execution, then the reader is re-created in
- * the {@link BulkFormat#restoreReader(Configuration, Path, long, long, CheckpointedPosition)} method.
+ * the {@link BulkFormat#restoreReader(Configuration, FileSourceSplit)} method.
  *
  * <h2>Splitting</h2>
  *
@@ -92,30 +91,22 @@ import java.io.Serializable;
  * handed over as one.
  */
 @PublicEvolving
-public interface BulkFormat<T> extends Serializable, ResultTypeQueryable<T> {
+public interface BulkFormat<T, SplitT extends FileSourceSplit> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Creates a new reader that reads from {@code filePath} starting at {@code offset} and reads
-	 * until {@code length} bytes after the offset.
+	 * Creates a new reader that reads from the {@link FileSourceSplit#path() split's path}
+	 * starting at the {@link FileSourceSplit#offset()} split's offset} and reads
+	 * {@link FileSourceSplit#length() length} bytes after the offset.
 	 */
-	BulkFormat.Reader<T> createReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength) throws IOException;
+	BulkFormat.Reader<T> createReader(Configuration config, SplitT split) throws IOException;
 
 	/**
-	 * Creates a new reader that reads from {@code filePath} starting at {@code offset} and reads
+	 * Creates a new reader that reads from {@code split.path()} starting at {@code offset} and reads
 	 * until {@code length} bytes after the offset. A number of {@code recordsToSkip} records should be
 	 * read and discarded after the offset. This is typically part of restoring a reader to a checkpointed
 	 * position.
 	 */
-	BulkFormat.Reader<T> restoreReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength,
-			CheckpointedPosition checkpointedPosition) throws IOException;
+	BulkFormat.Reader<T> restoreReader(Configuration config, SplitT split) throws IOException;
 
 	/**
 	 * Checks whether this format is splittable. Splittable formats allow Flink to create multiple splits

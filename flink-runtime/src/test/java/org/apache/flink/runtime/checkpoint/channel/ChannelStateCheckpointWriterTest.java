@@ -152,6 +152,7 @@ public class ChannelStateCheckpointWriterTest {
 
 		FlushRecorder dataStream = new FlushRecorder();
 		final ChannelStateCheckpointWriter writer = new ChannelStateCheckpointWriter(
+			0,
 			1L,
 			new ChannelStateWriteResult(),
 			new ChannelStateSerializerImpl(),
@@ -220,7 +221,7 @@ public class ChannelStateCheckpointWriterTest {
 	}
 
 	private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
-		return new ChannelStateCheckpointWriter(1L, result, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
+		return new ChannelStateCheckpointWriter(0, 1L, result, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
 	}
 
 }

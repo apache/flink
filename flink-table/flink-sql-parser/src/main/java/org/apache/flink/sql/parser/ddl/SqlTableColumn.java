@@ -124,7 +124,7 @@ public abstract class SqlTableColumn extends SqlCall {
 		@Override
 		protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
 			type.unparse(writer, leftPrec, rightPrec);
-			if (!type.getNullable()) {
+			if (this.type.getNullable() != null && !this.type.getNullable()) {
 				// Default is nullable.
 				writer.keyword("NOT NULL");
 			}
@@ -179,7 +179,7 @@ public abstract class SqlTableColumn extends SqlCall {
 		@Override
 		protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
 			type.unparse(writer, leftPrec, rightPrec);
-			if (!type.getNullable()) {
+			if (this.type.getNullable() != null && !this.type.getNullable()) {
 				// Default is nullable.
 				writer.keyword("NOT NULL");
 			}

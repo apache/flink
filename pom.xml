@@ -88,6 +88,7 @@ under the License.
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
+		<module>tools/ci/java-ci-tools</module>
 	</modules>
 
 	<properties>
@@ -102,7 +103,6 @@ under the License.
 			 to avoid process kills due to container limits on TravisCI -->
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
-		<log4j.configuration>log4j2-test.properties</log4j.configuration>
 		<flink.shaded.version>12.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
@@ -549,13 +549,6 @@ under the License.
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>${junit.version}</version>
-			</dependency>
-
-			<!-- For dependency convergence -->
-			<dependency>
-				<groupId>org.tukaani</groupId>
-				<artifactId>xz</artifactId>
-				<version>1.5</version>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
@@ -1464,6 +1457,7 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 
 						<!-- snapshots -->
+						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
 						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
 						<exclude>**/src/test/resources/**/test-data</exclude>
 						<exclude>**/src/test/resources/*-snapshot</exclude>
@@ -1477,6 +1471,8 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.json</exclude>
+						<exclude>flink-formats/flink-avro-confluent-registry/src/test/resources/*.avro</exclude>
 						<exclude>flink-formats/flink-json/src/test/resources/*.txt</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
@@ -1545,7 +1541,6 @@ under the License.
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
-						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
 						<project.basedir>${project.basedir}</project.basedir>

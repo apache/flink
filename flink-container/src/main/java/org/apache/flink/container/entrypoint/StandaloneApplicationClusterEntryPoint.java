@@ -28,7 +28,7 @@ import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -40,8 +40,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-
-import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
 /**
  * An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined
@@ -62,16 +60,10 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final CommandLineParser<StandaloneApplicationClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneApplicationClusterConfigurationParserFactory());
-
-		StandaloneApplicationClusterConfiguration clusterConfiguration = null;
-		try {
-			clusterConfiguration = commandLineParser.parse(args);
-		} catch (Exception e) {
-			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp(StandaloneApplicationClusterEntryPoint.class.getSimpleName());
-			System.exit(1);
-		}
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new StandaloneApplicationClusterConfigurationParserFactory(),
+			StandaloneApplicationClusterEntryPoint.class);
 
 		PackagedProgram program = null;
 		try {
@@ -113,7 +105,7 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 	private static PackagedProgramRetriever getPackagedProgramRetriever(
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
-		final File userLibDir = tryFindUserLibDirectory().orElse(null);
+		final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)

@@ -72,7 +72,13 @@ public class ResultPartitionFactoryTest extends TestLogger {
 	}
 
 	@Test
-	public void testConsumptionOnReleaseForPipelined() {
+	public void testSortMergePartitionCreated() {
+		ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
+		assertTrue(resultPartition instanceof SortMergeResultPartition);
+	}
+
+	@Test
+	public void testReleaseOnConsumptionForPipelinedPartition() {
 		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.PIPELINED);
 
 		resultPartition.onConsumedSubpartition(0);
@@ -81,7 +87,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
 	}
 
 	@Test
-	public void testNoConsumptionOnReleaseForBlocking() {
+	public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
 		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
 		resultPartition.onConsumedSubpartition(0);
@@ -89,7 +95,22 @@ public class ResultPartitionFactoryTest extends TestLogger {
 		assertFalse(resultPartition.isReleased());
 	}
 
+	@Test
+	public void testNoReleaseOnConsumptionForSortMergePartition() {
+		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
+
+		resultPartition.onConsumedSubpartition(0);
+
+		assertFalse(resultPartition.isReleased());
+	}
+
 	private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
+		return createResultPartition(partitionType, Integer.MAX_VALUE);
+	}
+
+	private static ResultPartition createResultPartition(
+			ResultPartitionType partitionType,
+			int sortShuffleMinParallelism) {
 		final ResultPartitionManager manager = new ResultPartitionManager();
 
 		final ResultPartitionFactory factory = new ResultPartitionFactory(
@@ -102,7 +123,10 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			SEGMENT_SIZE,
 			false,
 			"LZ4",
-			Integer.MAX_VALUE);
+			Integer.MAX_VALUE,
+			10,
+			sortShuffleMinParallelism,
+			false);
 
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
 			PartitionDescriptorBuilder

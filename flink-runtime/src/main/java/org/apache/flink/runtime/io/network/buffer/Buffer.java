@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
@@ -279,7 +280,13 @@ public interface Buffer {
 		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode, that can be time-out'ed
 		 * to an unaligned checkpoint barrier.
 		 */
-		TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true);
+		TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true),
+
+		/**
+		 * Indicates that this subpartition state is fully recovered (emitted).
+		 * Further data can be consumed after unblocking.
+		 */
+		RECOVERY_COMPLETION(false, true, true, false, false);
 
 		private final boolean isBuffer;
 		private final boolean isEvent;
@@ -336,6 +343,9 @@ public interface Buffer {
 		public static DataType getDataType(AbstractEvent event, boolean hasPriority) {
 			if (hasPriority) {
 				return PRIORITIZED_EVENT_BUFFER;
+			}
+			else if (event instanceof EndOfChannelStateEvent) {
+				return RECOVERY_COMPLETION;
 			}
 			else if (!(event instanceof CheckpointBarrier)) {
 				return EVENT_BUFFER;

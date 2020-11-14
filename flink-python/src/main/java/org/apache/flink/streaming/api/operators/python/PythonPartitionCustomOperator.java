@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,10 +40,11 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
  * number of partitions when executing user defined partitioner function.
  */
 @Internal
-public class PythonPartitionCustomOperator<IN, OUT> extends
-	StatelessOneInputPythonFunctionOperator<IN, OUT> {
+public class PythonPartitionCustomOperator<IN, OUT> extends StatelessOneInputPythonFunctionOperator<IN, OUT> {
 
-	public static final String DATA_STREAM_NUM_PARTITIONS = "DATA_STREAM_NUM_PARTITIONS";
+	private static final long serialVersionUID = 1L;
+
+	private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
 	private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
@@ -59,17 +60,19 @@ public class PythonPartitionCustomOperator<IN, OUT> extends
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
 		PythonEnvironmentManager pythonEnvironmentManager = createPythonEnvironmentManager();
 		Map<String, String> internalParameters = new HashMap<>();
-		internalParameters.put(DATA_STREAM_NUM_PARTITIONS, String.valueOf(this.numPartitions));
-		return new BeamDataStreamStatelessPythonFunctionRunner(
+		internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			pythonEnvironmentManager,
 			inputTypeInfo,
 			outputTypeInfo,
-			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
+			DATA_STREAM_STATELESS_FUNCTION_URN,
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), internalParameters),
-			DATA_STREAM_MAP_FUNCTION_CODER_URN,
+			MAP_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
+			null,
+			null,
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,

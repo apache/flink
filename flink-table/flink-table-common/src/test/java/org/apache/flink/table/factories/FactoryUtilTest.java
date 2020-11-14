@@ -35,6 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,8 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link FactoryUtil}.
@@ -62,9 +65,9 @@ public class FactoryUtilTest {
 	public void testInvalidConnector() {
 		expectError(
 			"Could not find any factory for identifier 'FAIL' that implements '" +
-				DynamicTableSourceFactory.class.getName() + "' in the classpath.\n\n" +
+				DynamicTableFactory.class.getName() + "' in the classpath.\n\n" +
 			"Available factory identifiers are:\n\n" +
-			"test-connector");
+			"sink-only\nsource-only\ntest-connector");
 		testError(options -> options.put("connector", "FAIL"));
 	}
 
@@ -128,13 +131,17 @@ public class FactoryUtilTest {
 			"connector\n" +
 			"format\n" +
 			"key.format\n" +
+			"key.test-format.changelog-mode\n" +
 			"key.test-format.delimiter\n" +
 			"key.test-format.fail-on-missing\n" +
+			"key.test-format.readable-metadata\n" +
 			"property-version\n" +
 			"target\n" +
 			"value.format\n" +
+			"value.test-format.changelog-mode\n" +
 			"value.test-format.delimiter\n" +
-			"value.test-format.fail-on-missing");
+			"value.test-format.fail-on-missing\n" +
+			"value.test-format.readable-metadata");
 		testError(options -> {
 			options.put("this-is-not-consumed", "42");
 			options.put("this-is-also-not-consumed", "true");
@@ -201,6 +208,25 @@ public class FactoryUtilTest {
 			new EncodingFormatMock(","),
 			new EncodingFormatMock(";"));
 		assertEquals(expectedSink, actualSink);
+	}
+
+	@Test
+	public void testAvailableFactoryTipsDependencyJarForConnector() {
+		try {
+			createTableSource(Collections.singletonMap("connector", "sink-only"));
+			fail();
+		} catch (Exception e) {
+			String errorMsg = "Connector 'sink-only' only supports to be used as sink, can't be used as source.";
+			assertThat(e, containsCause(new ValidationException(errorMsg)));
+		}
+
+		try {
+			createTableSink(Collections.singletonMap("connector", "source-only"));
+			fail();
+		} catch (Exception e) {
+			String errorMsg = "Connector 'source-only' only supports to be used as source, can't be used as sink.";
+			assertThat(e, containsCause(new ValidationException(errorMsg)));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -281,6 +307,11 @@ public class FactoryUtilTest {
 
 		@Override
 		public Map<String, String> getProperties() {
+			return options;
+		}
+
+		@Override
+		public Map<String, String> getOptions() {
 			return options;
 		}
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
@@ -230,6 +231,49 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testDeriveNullFilterAfterJoinReorder(): Unit = {
+    val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
+    val builderA = ColumnStats.Builder.builder()
+      .setNdv(200000L)
+      .setNullCount(50000L)
+      .setAvgLen(4.0)
+      .setMaxLen(4)
+    val builderB = ColumnStats.Builder.builder()
+      .setNdv(100000L)
+      .setNullCount(0L)
+      .setAvgLen(8.0)
+      .setMaxLen(8)
+
+    util.addTableSource("T6", types, Array("a6", "b6"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a6" -> builderA.build(),
+        "b6" -> builderB.build()
+      ))).build())
+
+    util.addTableSource("T7", types, Array("a7", "b7"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a7" -> builderA.build(),
+        "b7" -> builderB.build()
+      ))).build())
+
+    util.addTableSource("T8", types, Array("a8", "b8"), FlinkStatistic.builder()
+      .tableStats(new TableStats(500000L, Map(
+        "a8" -> builderA.build(),
+        "b8" -> builderB.build()
+      ))).build())
+
+    util.getTableEnv.getConfig.getConfiguration.setLong(
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 10000L)
+    val sql =
+      s"""
+         |SELECT * FROM T6
+         |   INNER JOIN T7 ON b6 = b7
+         |   INNER JOIN T8 ON a6 = a8
+         |""".stripMargin
     util.verifyPlan(sql)
   }
 }

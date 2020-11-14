@@ -160,6 +160,7 @@ public class MergeTableLikeUtilTest {
 		TableSchema sourceSchema = TableSchema.builder()
 				.add(TableColumn.physical("one", DataTypes.INT()))
 				.add(TableColumn.metadata("two", DataTypes.INT(), false))
+				.add(TableColumn.computed("c", DataTypes.INT(), "ABS(two)"))
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
@@ -176,6 +177,7 @@ public class MergeTableLikeUtilTest {
 		TableSchema expectedSchema = TableSchema.builder()
 				.add(TableColumn.physical("one", DataTypes.INT()))
 				.add(TableColumn.metadata("two", DataTypes.INT(), false))
+				.add(TableColumn.computed("c", DataTypes.INT(), "ABS(two)"))
 				.add(TableColumn.physical("three", DataTypes.INT()))
 				.add(TableColumn.metadata("four", DataTypes.INT(), true))
 				.build();

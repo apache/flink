@@ -2122,7 +2122,7 @@ table_env.register_table_sink(
 )
 
 table = ...
-table.insert_into("csvOutputTable")
+table.execute_insert("csvOutputTable").wait()
 {% endhighlight %}
 </div>
 </div>

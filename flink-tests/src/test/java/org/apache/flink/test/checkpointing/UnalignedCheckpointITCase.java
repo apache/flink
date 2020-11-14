@@ -28,13 +28,13 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -50,7 +50,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -71,6 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -80,6 +80,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -211,7 +212,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 		final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
 		env.enableCheckpointing(100);
-		env.getCheckpointConfig().setAlignmentTimeout(0);
+		env.getCheckpointConfig().setAlignmentTimeout(1);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(EXPECTED_FAILURES, Time.milliseconds(100)));
 		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
@@ -308,7 +309,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public List<LongSplit> snapshotState() {
+			public List<LongSplit> snapshotState(long checkpointId) {
 				if (split == null) {
 					return Collections.emptyList();
 				}
@@ -328,8 +329,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public void handleSourceEvents(SourceEvent sourceEvent) {
-			}
+			public void notifyNoMoreSplits() {}
 
 			@Override
 			public void close() throws Exception {
@@ -368,8 +368,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			}
 
 			@Override
-			public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-			}
+			public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 			@Override
 			public void addSplitsBack(List<LongSplit> splits, int subtaskId) {
@@ -464,6 +463,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		private ListState<State> stateList;
 		private State state;
 		private final long minCheckpoints;
+		private Random random = new Random();
 
 		private VerifyingSink(long minCheckpoints) {
 			this.minCheckpoints = minCheckpoints;
@@ -472,6 +472,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
+			random = new Random();
 			getRuntimeContext().addAccumulator(NUM_OUTPUTS, numOutputCounter);
 			getRuntimeContext().addAccumulator(NUM_OUT_OF_ORDER, outOfOrderCounter);
 			getRuntimeContext().addAccumulator(NUM_DUPLICATES, duplicatesCounter);
@@ -533,8 +534,10 @@ public class UnalignedCheckpointITCase extends TestLogger {
 			state.numOutput++;
 
 			if (state.completedCheckpoints < minCheckpoints) {
-				// induce heavy backpressure until enough checkpoints have been written
-				Thread.sleep(0, 100_000);
+				// induce backpressure until enough checkpoints have been written
+				if (random.nextInt(1000) == 42) {
+					Thread.sleep(1);
+				}
 			}
 			// after all checkpoints have been completed, the remaining data should be flushed out fairly quickly
 		}

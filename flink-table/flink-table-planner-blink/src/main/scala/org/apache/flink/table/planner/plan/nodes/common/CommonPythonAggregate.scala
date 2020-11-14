@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
-import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonAggregateFunctionInfo, PythonFunction, PythonFunctionInfo}
-import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
+import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.python._
+import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
@@ -88,8 +90,20 @@ trait CommonPythonAggregate extends CommonPythonBase {
               i,
               function.asInstanceOf[PythonAggregateFunction].getTypeInference(null)
               .getAccumulatorTypeStrategy.get().inferType(null).get()))
-        case _: Count1AggFunction =>
-          pythonAggregateFunctionInfoList.add(PythonAggregateFunctionInfo.DUMMY_PLACEHOLDER)
+        case function: UserDefinedFunction =>
+          var filterArg = -1
+          var distinct = false
+          if (i < aggCalls.size) {
+            filterArg = aggCalls(i).filterArg
+            distinct = aggCalls(i).isDistinct
+          }
+          pythonAggregateFunctionInfoList.add(new PythonAggregateFunctionInfo(
+            getBuiltInPythonAggregateFunction(function),
+            pythonAggregateInfoList.aggInfos(i).argIndexes.map(_.asInstanceOf[AnyRef]),
+            filterArg,
+            distinct))
+          // The data views of the built in Python Aggregate Function are different from Java side,
+          // we will create the spec at Python side.
           dataViewSpecList.add(Array())
         case _ =>
           throw new TableException(
@@ -156,6 +170,54 @@ trait CommonPythonAggregate extends CommonPythonBase {
       }
     } else {
       Array()
+    }
+  }
+
+  private def getBuiltInPythonAggregateFunction(
+      javaBuiltInAggregateFunction: UserDefinedFunction): BuiltInPythonAggregateFunction = {
+    javaBuiltInAggregateFunction match {
+      case _: AvgAggFunction =>
+        BuiltInPythonAggregateFunction.AVG
+      case _: Count1AggFunction =>
+        BuiltInPythonAggregateFunction.COUNT1
+      case _: CountAggFunction =>
+        BuiltInPythonAggregateFunction.COUNT
+      case _: FirstValueAggFunction[_] =>
+        BuiltInPythonAggregateFunction.FIRST_VALUE
+      case _: FirstValueWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.FIRST_VALUE_RETRACT
+      case _: LastValueAggFunction[_] =>
+        BuiltInPythonAggregateFunction.LAST_VALUE
+      case _: LastValueWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.LAST_VALUE_RETRACT
+      case _: ListAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG
+      case _: ListAggWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG_RETRACT
+      case _: ListAggWsWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.LIST_AGG_WS_RETRACT
+      case _: MaxAggFunction =>
+        BuiltInPythonAggregateFunction.MAX
+      case _: MaxWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.MAX_RETRACT
+      case _: MinAggFunction =>
+        BuiltInPythonAggregateFunction.MIN
+      case _: MinWithRetractAggFunction[_] =>
+        BuiltInPythonAggregateFunction.MIN_RETRACT
+      case _: SumAggFunction =>
+        BuiltInPythonAggregateFunction.SUM
+      case _: IntSum0AggFunction | _: ByteSum0AggFunction | _: ShortSum0AggFunction |
+           _: LongSum0AggFunction =>
+        BuiltInPythonAggregateFunction.INT_SUM0
+      case _: FloatSum0AggFunction | _: DoubleSum0AggFunction =>
+        BuiltInPythonAggregateFunction.FLOAT_SUM0
+      case _: DecimalSum0AggFunction =>
+        BuiltInPythonAggregateFunction.DECIMAL_SUM0
+      case _: SumWithRetractAggFunction =>
+        BuiltInPythonAggregateFunction.SUM_RETRACT
+      case _ =>
+        throw new TableException("Aggregate function " + javaBuiltInAggregateFunction +
+          " is still not supported to be mixed with Python UDAF.")
     }
   }
 }

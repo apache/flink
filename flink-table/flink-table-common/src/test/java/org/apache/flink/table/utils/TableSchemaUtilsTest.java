@@ -75,8 +75,7 @@ public class TableSchemaUtilsTest {
 
 	@Test
 	public void testInvalidProjectSchema() {
-		{
-			TableSchema schema = TableSchema.builder()
+		TableSchema schema = TableSchema.builder()
 				.field("a", DataTypes.INT().notNull())
 				.field("b", DataTypes.STRING())
 				.field("c", DataTypes.INT(), "a + 1")
@@ -84,22 +83,10 @@ public class TableSchemaUtilsTest {
 				.primaryKey("ct1", new String[]{"a"})
 				.watermark("t", "t", DataTypes.TIMESTAMP(3))
 				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("Projection is only supported for physical columns.");
-			int[][] projectedFields = {{1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
-
-		{
-			TableSchema schema = TableSchema.builder()
-				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
-				.field("b", DataTypes.STRING())
-				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("Nested projection push down is not supported yet.");
-			int[][] projectedFields = {{0, 1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
+		exceptionRule.expect(IllegalArgumentException.class);
+		exceptionRule.expectMessage("Projection is only supported for physical columns.");
+		int[][] projectedFields = {{1}};
+		TableSchemaUtils.projectSchema(schema, projectedFields);
 	}
 
 	@Test
@@ -118,6 +105,21 @@ public class TableSchemaUtilsTest {
 			.field("t", DataTypes.TIMESTAMP(3))
 			.field("a", DataTypes.INT().notNull())
 			.build();
+		assertEquals(expected, projected);
+	}
+
+	@Test
+	public void testProjectSchemaWithNameConflict() {
+		TableSchema schema = TableSchema.builder()
+				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
+				.field("f0", DataTypes.STRING())
+				.build();
+		int[][] projectedFields = {{0, 0}, {1}};
+		TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
+		TableSchema expected = TableSchema.builder()
+				.field("a_f0", DataTypes.STRING())
+				.field("f0", DataTypes.STRING())
+				.build();
 		assertEquals(expected, projected);
 	}
 }

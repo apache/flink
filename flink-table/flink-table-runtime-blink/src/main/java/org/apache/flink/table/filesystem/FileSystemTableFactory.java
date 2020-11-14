@@ -76,9 +76,11 @@ public class FileSystemTableFactory implements
 		validate(helper);
 		return new FileSystemTableSink(
 				context,
+				discoverOptionalDecodingFormat(helper, BulkReaderFormatFactory.class).orElse(null),
+				discoverOptionalDecodingFormat(helper, DeserializationFormatFactory.class).orElse(null),
+				discoverOptionalFormatFactory(helper).orElse(null),
 				discoverOptionalEncodingFormat(helper, BulkWriterFormatFactory.class).orElse(null),
-				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null),
-				discoverOptionalFormatFactory(helper).orElse(null));
+				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null));
 	}
 
 	@Override
@@ -105,6 +107,8 @@ public class FileSystemTableFactory implements
 		options.add(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
 		options.add(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_CLASS);
 		options.add(FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+		options.add(FileSystemOptions.AUTO_COMPACTION);
+		options.add(FileSystemOptions.COMPACTION_FILE_SIZE);
 		return options;
 	}
 

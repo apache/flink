@@ -289,7 +289,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
+		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jid);
 
 		this.registeredTaskManagers = new HashMap<>(4);
 		this.partitionTracker = checkNotNull(partitionTrackerFactory)
@@ -978,10 +978,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 	}
 
-	private void jobStatusChanged(
-			final JobStatus newJobStatus,
-			long timestamp,
-			@Nullable final Throwable error) {
+	private void jobStatusChanged(final JobStatus newJobStatus) {
 		validateRunsInMainThread();
 
 		if (newJobStatus.isGloballyTerminalState()) {
@@ -1223,7 +1220,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			if (running) {
 				// run in rpc thread to avoid concurrency
-				runAsync(() -> jobStatusChanged(newJobStatus, timestamp, error));
+				runAsync(() -> jobStatusChanged(newJobStatus));
 			}
 		}
 

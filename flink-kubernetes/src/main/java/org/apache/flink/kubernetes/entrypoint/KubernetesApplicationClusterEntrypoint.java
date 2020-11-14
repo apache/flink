@@ -28,6 +28,8 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -39,8 +41,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
-import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
 
 /**
  * An {@link ApplicationClusterEntryPoint} for Kubernetes.
@@ -60,7 +60,11 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final Configuration configuration = KubernetesEntrypointUtils.loadConfiguration();
+		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new DynamicParametersConfigurationParserFactory(),
+			KubernetesApplicationClusterEntrypoint.class);
+		final Configuration configuration = KubernetesEntrypointUtils.loadConfiguration(dynamicParameters);
 
 		PackagedProgram program = null;
 		try {
@@ -100,7 +104,7 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
 
-		final File userLibDir = tryFindUserLibDirectory().orElse(null);
+		final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 			ClassPathPackagedProgramRetriever
 				.newBuilder(programArguments)

@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.src;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Optional;
 
@@ -34,15 +35,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * need to always point to the record after the last emitted record.
  */
 @PublicEvolving
-public final class FileSourceSplitState {
+public final class FileSourceSplitState<SplitT extends FileSourceSplit> {
 
-	private final FileSourceSplit split;
+	private final SplitT split;
 
 	private long offset;
 
 	private long recordsToSkipAfterOffset;
 
-	public FileSourceSplitState(FileSourceSplit split) {
+	public FileSourceSplitState(SplitT split) {
 		this.split = checkNotNull(split);
 
 		final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
@@ -90,17 +91,25 @@ public final class FileSourceSplitState {
 	/**
 	 * Use the current row count as the starting row count to create a new FileSourceSplit.
 	 */
-	public FileSourceSplit toFileSourceSplit() {
+	@SuppressWarnings("unchecked")
+	public SplitT toFileSourceSplit() {
 		final CheckpointedPosition position =
 				(offset == CheckpointedPosition.NO_OFFSET && recordsToSkipAfterOffset == 0) ?
 						null : new CheckpointedPosition(offset, recordsToSkipAfterOffset);
 
-		return new FileSourceSplit(
-				split.splitId(),
-				split.path(),
-				split.offset(),
-				split.length(),
-				split.hostnames(),
-				position);
+		final FileSourceSplit updatedSplit = split.updateWithCheckpointedPosition(position);
+
+		// some sanity checks to avoid surprises and not accidentally lose split information
+		if (updatedSplit == null) {
+			throw new FlinkRuntimeException("Split returned 'null' in updateWithCheckpointedPosition(): " + split);
+		}
+		if (updatedSplit.getClass() != split.getClass()) {
+			throw new FlinkRuntimeException(String.format(
+					"Split returned different type in updateWithCheckpointedPosition(). " +
+					"Split type is %s, returned type is %s",
+					split.getClass().getName(), updatedSplit.getClass().getName()));
+		}
+
+		return (SplitT) updatedSplit;
 	}
 }

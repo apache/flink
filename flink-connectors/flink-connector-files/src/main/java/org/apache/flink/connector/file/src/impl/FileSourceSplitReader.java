@@ -43,21 +43,21 @@ import java.util.Queue;
  * The {@link SplitReader} implementation for the file source.
  */
 @Internal
-final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>, FileSourceSplit> {
+final class FileSourceSplitReader<T, SplitT extends FileSourceSplit> implements SplitReader<RecordAndPosition<T>, SplitT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSourceSplitReader.class);
 
 	private final Configuration config;
-	private final BulkFormat<T> readerFactory;
+	private final BulkFormat<T, SplitT> readerFactory;
 
-	private final Queue<FileSourceSplit> splits;
+	private final Queue<SplitT> splits;
 
 	@Nullable
 	private BulkFormat.Reader<T> currentReader;
 	@Nullable
 	private String currentSplitId;
 
-	public FileSourceSplitReader(Configuration config, BulkFormat<T> readerFactory) {
+	public FileSourceSplitReader(Configuration config, BulkFormat<T, SplitT> readerFactory) {
 		this.config = config;
 		this.readerFactory = readerFactory;
 		this.splits = new ArrayDeque<>();
@@ -72,7 +72,7 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 	}
 
 	@Override
-	public void handleSplitsChanges(final SplitsChange<FileSourceSplit> splitChange) {
+	public void handleSplitsChanges(final SplitsChange<SplitT> splitChange) {
 		if (!(splitChange instanceof SplitsAddition)) {
 			throw new UnsupportedOperationException(String.format(
 					"The SplitChange type of %s is not supported.", splitChange.getClass()));
@@ -85,12 +85,19 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 	@Override
 	public void wakeUp() {}
 
+	@Override
+	public void close() throws Exception {
+		if (currentReader != null) {
+			currentReader.close();
+		}
+	}
+
 	private void checkSplitOrStartNext() throws IOException {
 		if (currentReader != null) {
 			return;
 		}
 
-		final FileSourceSplit nextSplit = splits.poll();
+		final SplitT nextSplit = splits.poll();
 		if (nextSplit == null) {
 			throw new IOException("Cannot fetch from another split - no split remaining");
 		}
@@ -99,8 +106,8 @@ final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>
 
 		final Optional<CheckpointedPosition> position = nextSplit.getReaderPosition();
 		currentReader = position.isPresent()
-				? readerFactory.restoreReader(config, nextSplit.path(), nextSplit.offset(), nextSplit.length(), position.get())
-				: readerFactory.createReader(config, nextSplit.path(), nextSplit.offset(), nextSplit.length());
+				? readerFactory.restoreReader(config, nextSplit)
+				: readerFactory.createReader(config, nextSplit);
 	}
 
 	private FileRecords<T> finishSplit() throws IOException {

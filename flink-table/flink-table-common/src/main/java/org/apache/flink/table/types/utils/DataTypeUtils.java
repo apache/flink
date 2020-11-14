@@ -21,6 +21,7 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -45,15 +46,19 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
@@ -69,18 +74,44 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 public final class DataTypeUtils {
 
 	/**
-	 * Projects a (possibly nested) row data type by returning a new data type that only includes fields of the given
-	 * index paths.
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes
+	 * fields of the given index paths.
 	 *
 	 * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
 	 * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
+	 * Sometimes, it may get name conflicts when extract fields from the row field. Considering the
+	 * the path is unique to extract fields, it makes sense to use the path to the fields with
+	 * delimiter `_` as the new name of the field. For example, the new name of the field `b` in
+	 * the row `a` is `a_b` rather than `b`. But it may still gets name conflicts in some situation,
+	 * such as the field `a_b` in the top level schema. In such situation, it will use the postfix
+	 * in the format '_$%d' to resolve the name conflicts.
 	 */
 	public static DataType projectRow(DataType dataType, int[][] indexPaths) {
 		final List<RowField> updatedFields = new ArrayList<>();
 		final List<DataType> updatedChildren = new ArrayList<>();
+		Set<String> nameDomain = new HashSet<>();
+		int duplicateCount = 0;
 		for (int[] indexPath : indexPaths) {
-			updatedFields.add(selectChild(dataType.getLogicalType(), indexPath, 0));
-			updatedChildren.add(selectChild(dataType, indexPath, 0));
+			DataType fieldType = dataType.getChildren().get(indexPath[0]);
+			LogicalType fieldLogicalType = fieldType.getLogicalType();
+			StringBuilder builder =
+					new StringBuilder(((RowType) dataType.getLogicalType()).getFieldNames().get(indexPath[0]));
+			for (int index = 1; index < indexPath.length; index++) {
+				Preconditions.checkArgument(
+						hasRoot(fieldLogicalType, LogicalTypeRoot.ROW),
+						"Row data type expected.");
+				RowType rowtype = ((RowType) fieldLogicalType);
+				builder.append("_").append(rowtype.getFieldNames().get(indexPath[index]));
+				fieldLogicalType = rowtype.getFields().get(indexPath[index]).getType();
+				fieldType = fieldType.getChildren().get(indexPath[index]);
+			}
+			String path = builder.toString();
+			while (nameDomain.contains(path)) {
+				path = builder.append("_$").append(duplicateCount++).toString();
+			}
+			updatedFields.add(new RowField(path, fieldLogicalType));
+			updatedChildren.add(fieldType);
+			nameDomain.add(path);
 		}
 		return new FieldsDataType(
 			new RowType(dataType.getLogicalType().isNullable(), updatedFields),
@@ -88,26 +119,69 @@ public final class DataTypeUtils {
 			updatedChildren);
 	}
 
-	private static DataType selectChild(DataType dataType, int[] indexPath, int pos) {
-		final int index = indexPath[pos];
-		final DataType child = dataType.getChildren().get(index);
-		if (pos == indexPath.length - 1) {
-			return child;
-		}
-		return selectChild(child, indexPath, pos + 1);
+	/**
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes
+	 * fields of the given indices.
+	 *
+	 * <p>Note: This method only projects (possibly nested) fields in the top-level row.
+	 */
+	public static DataType projectRow(DataType dataType, int[] indices) {
+		final int[][] indexPaths = IntStream.of(indices)
+				.mapToObj(i -> new int[]{i})
+				.toArray(int[][]::new);
+		return projectRow(dataType, indexPaths);
 	}
 
-	private static RowField selectChild(LogicalType logicalType, int[] indexPath, int pos) {
+	/**
+	 * Removes a string prefix from the fields of the given row data type.
+	 */
+	public static DataType stripRowPrefix(DataType dataType, String prefix) {
 		Preconditions.checkArgument(
-			hasRoot(logicalType, LogicalTypeRoot.ROW),
+			hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
 			"Row data type expected.");
-		final RowType rowType = (RowType) logicalType;
-		final int index = indexPath[pos];
-		final RowField child = rowType.getFields().get(index);
-		if (pos == indexPath.length - 1) {
-			return child;
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final List<String> newFieldNames = rowType.getFieldNames()
+				.stream()
+				.map(s -> {
+					if (s.startsWith(prefix)) {
+						return s.substring(prefix.length());
+					}
+					return s;
+				})
+				.collect(Collectors.toList());
+		final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
+		return new FieldsDataType(newRowType, dataType.getConversionClass(), dataType.getChildren());
+	}
+
+	/**
+	 * Appends the given list of fields to an existing row data type.
+	 */
+	public static DataType appendRowFields(DataType dataType, List<DataTypes.Field> fields) {
+		Preconditions.checkArgument(
+			hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			"Row data type expected.");
+		if (fields.size() == 0) {
+			return dataType;
 		}
-		return selectChild(child.getType(), indexPath, pos + 1);
+
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final List<RowField> newFields = Stream.concat(
+				rowType.getFields().stream(),
+				fields.stream()
+						.map(f ->
+								new RowField(
+										f.getName(),
+										f.getDataType().getLogicalType(),
+										f.getDescription().orElse(null))))
+				.collect(Collectors.toList());
+		final RowType newRowType = new RowType(rowType.isNullable(), newFields);
+
+		final List<DataType> newFieldDataTypes = Stream.concat(
+					dataType.getChildren().stream(),
+					fields.stream().map(DataTypes.Field::getDataType))
+				.collect(Collectors.toList());
+
+		return new FieldsDataType(newRowType, dataType.getConversionClass(), newFieldDataTypes);
 	}
 
 	/**

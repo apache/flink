@@ -199,6 +199,20 @@ public class FileSourceSplit implements SourceSplit, Serializable {
 		return Optional.ofNullable(readerPosition);
 	}
 
+	/**
+	 * Creates a copy of this split where the checkpointed position is replaced by the
+	 * given new position.
+	 *
+	 * <p><b>IMPORTANT:</b> Subclasses that add additional information to the split
+	 * must override this method to return that subclass type. This contract is enforced by
+	 * checks in the file source implementation.
+	 * We did not try to enforce this contract via generics in this split class, because
+	 * it leads to very ugly and verbose use of generics.
+	 */
+	public FileSourceSplit updateWithCheckpointedPosition(@Nullable CheckpointedPosition position) {
+		return new FileSourceSplit(id, filePath, offset, length, hostnames, position);
+	}
+
 	// ------------------------------------------------------------------------
 	//  utils
 	// ------------------------------------------------------------------------

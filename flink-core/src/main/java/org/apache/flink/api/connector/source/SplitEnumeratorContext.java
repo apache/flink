@@ -84,6 +84,14 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	}
 
 	/**
+	 * Signals a subtask that it will not receive any further split.
+	 *
+	 * @param subtask The index of the operator's parallel subtask that shall be
+	 *                signaled it will not receive any further split.
+	 */
+	void signalNoMoreSplits(int subtask);
+
+	/**
 	 * Invoke the callable and handover the return value to the handler which will be executed
 	 * by the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>s
 	 * may be executed in a thread pool concurrently.
@@ -112,4 +120,20 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	 * @param period the period between two invocations of the callable.
 	 */
 	<T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler, long initialDelay, long period);
+
+	/**
+	 * Invoke the given runnable in the source coordinator thread.
+	 *
+	 * <p>This can be useful when the enumerator needs to execute some action (like assignSplits) triggered
+	 * by some external events. E.g., Watermark from another source advanced and this source now be able to
+	 * assign splits to awaiting readers. The trigger can be initiated from the coordinator thread of
+	 * the other source. Instead of using lock for thread safety, this API allows to run such externally
+	 * triggered action in the coordinator thread. Hence, we can ensure all enumerator actions are serialized
+	 * in the single coordinator thread.
+	 *
+	 * <p>It is important that the runnable does not block.
+	 *
+	 * @param runnable a runnable to execute
+	 */
+	void runInCoordinatorThread(Runnable runnable);
 }

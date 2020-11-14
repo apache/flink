@@ -28,6 +28,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -103,6 +104,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirementsMapper.getPhysicalSlotResourceProfile;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
@@ -216,7 +218,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
-		this.attemptId = new ExecutionAttemptID(vertex.getJobId(), vertex.getID(), attemptNumber);
+		this.attemptId = new ExecutionAttemptID();
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 
 		this.globalModVersion = globalModVersion;
@@ -725,6 +727,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			LOG.info("Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}", vertex.getTaskNameWithSubtaskIndex(),
 				attemptNumber, vertex.getCurrentExecutionAttempt().getAttemptId(), getAssignedResourceLocation(), slot.getAllocationId());
 
+			if (taskRestore != null) {
+				checkState(taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream().allMatch(entry ->
+					entry.getValue().getInputRescalingDescriptor().equals(InflightDataRescalingDescriptor.NO_RESCALE) &&
+					entry.getValue().getOutputRescalingDescriptor().equals(InflightDataRescalingDescriptor.NO_RESCALE)),
+					"Rescaling from unaligned checkpoint is not yet supported.");
+			}
+
 			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
 				.fromExecutionVertex(vertex, attemptNumber)
 				.createDeploymentDescriptor(
@@ -947,7 +956,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	@Override
 	public void fail(Throwable t) {
-		processFail(t, false);
+		processFail(t, true);
 	}
 
 	/**
@@ -1079,20 +1088,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param t The exception that caused the task to fail.
 	 */
 	void markFailed(Throwable t) {
-		processFail(t, true);
+		processFail(t, false);
 	}
 
-	/**
-	 * @deprecated Only used in tests.
-	 */
-	@Deprecated
-	@VisibleForTesting
-	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
-		markFailed(t, userAccumulators, metrics, false);
-	}
-
-	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean fromSchedulerNg) {
-		processFail(t, true, userAccumulators, metrics, false, fromSchedulerNg);
+	void markFailed(
+			Throwable t,
+			boolean cancelTask,
+			Map<String, Accumulator<?, ?>> userAccumulators,
+			IOMetrics metrics,
+			boolean releasePartitions,
+			boolean fromSchedulerNg) {
+		processFail(t, cancelTask, userAccumulators, metrics, releasePartitions, fromSchedulerNg);
 	}
 
 	@VisibleForTesting
@@ -1247,76 +1253,92 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return getVertex().isLegacyScheduling();
 	}
 
-	private void processFail(Throwable t, boolean isCallback) {
-		processFail(t, isCallback, null, null, true, false);
+	private void processFail(Throwable t, boolean cancelTask) {
+		processFail(t, cancelTask, null, null, true, false);
 	}
 
-	private void processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions, boolean fromSchedulerNg) {
-		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
-		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
+	/**
+	 * Process a execution failure. The failure can be fired by JobManager or reported by
+	 * TaskManager. If it is fired by JobManager and the execution is already deployed, it
+	 * needs to send a PRC call to remove the task from TaskManager. It also needs to release
+	 * the produced partitions if it fails before deployed (because the partitions are possibly
+	 * already created in external shuffle service) or JobManager proactively fails it (in case
+	 * that it finishes in TaskManager when JobManager tries to fail it). The failure will be
+	 * notified to SchedulerNG if it is from within the ExecutionGraph. This is to trigger the
+	 * failure handling of SchedulerNG to recover this failed execution.
+	 *
+	 * @param t Failure cause
+	 * @param cancelTask Indicating whether to send a PRC call to remove task from TaskManager.
+	 *                   True if the failure is fired by JobManager and the execution is already
+	 *                   deployed. Otherwise it should be false.
+	 * @param userAccumulators User accumulators
+	 * @param metrics IO metrics
+	 * @param releasePartitions Indicating whether to release result partitions produced by this
+	 *                          execution. False if the task is FAILED in TaskManager, otherwise
+	 *                          true.
+	 * @param fromSchedulerNg Indicating whether the failure is from the SchedulerNg. It should
+	 *                        be false if it is from within the ExecutionGraph.
+	 */
+	private void processFail(
+			Throwable t,
+			boolean cancelTask,
+			Map<String, Accumulator<?, ?>> userAccumulators,
+			IOMetrics metrics,
+			boolean releasePartitions,
+			boolean fromSchedulerNg) {
 
-		// we may need to loop multiple times (in the presence of concurrent calls) in order to
-		// atomically switch to failed
 		assertRunningInJobMasterMainThread();
-		while (true) {
-			ExecutionState current = this.state;
 
-			if (current == FAILED) {
-				// already failed. It is enough to remember once that we failed (its sad enough)
-				return;
-			}
+		ExecutionState current = this.state;
 
-			if (current == CANCELED || current == FINISHED) {
-				// we are already aborting or are already aborted or we are already finished
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
-				}
-				return;
-			}
-
-			if (current == CANCELING) {
-				completeCancelling(userAccumulators, metrics, true);
-				return;
-			}
-
-			if (!fromSchedulerNg && !isLegacyScheduling()) {
-				vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
-
-				// HACK: We informed the new generation scheduler about an internally detected task
-				// failure. The scheduler will call processFail() again with releasePartitions
-				// always set to false, isCallback to true and fromSchedulerNg set to true.
-				// Because the original value of releasePartitions and isCallback will be lost,
-				// we may need to invoke partition release and remote canceling here.
-				maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
-
-				return;
-			} else if (transitionState(current, FAILED, t)) {
-				// success (in a manner of speaking)
-				this.failureCause = t;
-
-				updateAccumulatorsAndMetrics(userAccumulators, metrics);
-
-				releaseAssignedResource(t);
-				vertex.getExecutionGraph().deregisterExecution(this);
-
-				if (isLegacyScheduling()) {
-					maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
-				}
-
-				// leave the loop
-				return;
-			}
+		if (current == FAILED) {
+			// already failed. It is enough to remember once that we failed (its sad enough)
+			return;
 		}
+
+		if (current == CANCELED || current == FINISHED) {
+			// we are already aborting or are already aborted or we are already finished
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
+			}
+			return;
+		}
+
+		if (current == CANCELING) {
+			completeCancelling(userAccumulators, metrics, true);
+			return;
+		}
+
+		if (!fromSchedulerNg && !isLegacyScheduling()) {
+			vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(
+				attemptId,
+				t,
+				cancelTask,
+				releasePartitions);
+			return;
+		}
+
+		checkState(transitionState(current, FAILED, t));
+
+		// success (in a manner of speaking)
+		this.failureCause = t;
+
+		updateAccumulatorsAndMetrics(userAccumulators, metrics);
+
+		releaseAssignedResource(t);
+		vertex.getExecutionGraph().deregisterExecution(this);
+
+		maybeReleasePartitionsAndSendCancelRpcCall(current, cancelTask, releasePartitions);
 	}
 
 	private void maybeReleasePartitionsAndSendCancelRpcCall(
 			final ExecutionState stateBeforeFailed,
-			final boolean isCallback,
+			final boolean cancelTask,
 			final boolean releasePartitions) {
 
 		handlePartitionCleanup(releasePartitions, releasePartitions);
 
-		if (!isCallback && (stateBeforeFailed == RUNNING || stateBeforeFailed == DEPLOYING)) {
+		if (cancelTask && (stateBeforeFailed == RUNNING || stateBeforeFailed == DEPLOYING)) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
 			}

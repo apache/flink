@@ -200,7 +200,7 @@ stream.
 
 Flink has several built-in types of window assigners, which are illustrated below:
 
-<img src="{{ site.baseurl }}/fig/window-assigners.svg" alt="Window assigners" class="center" width="80%" />
+<img src="{% link /fig/window-assigners.svg %}" alt="Window assigners" class="center" width="80%" />
 
 Some examples of what these window assigners might be used for, and how to specify them:
 

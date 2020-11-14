@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.connector.source.lib.util;
 
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
-import org.apache.flink.util.FlinkRuntimeException;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -57,16 +55,12 @@ public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>> 
 	public void close() {}
 
 	@Override
-	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-		if (!(sourceEvent instanceof RequestSplitEvent)) {
-			throw new FlinkRuntimeException("Unrecognized event: " + sourceEvent);
-		}
-
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
 		final SplitT nextSplit = remainingSplits.poll();
 		if (nextSplit != null) {
 			context.assignSplit(nextSplit, subtaskId);
 		} else {
-			context.sendEventToSourceReader(subtaskId, new NoMoreSplitsEvent());
+			context.signalNoMoreSplits(subtaskId);
 		}
 	}
 

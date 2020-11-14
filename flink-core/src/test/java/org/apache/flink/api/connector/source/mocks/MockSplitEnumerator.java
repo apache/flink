@@ -23,6 +23,8 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,11 +41,12 @@ import java.util.TreeSet;
  * A mock {@link SplitEnumerator} for unit tests.
  */
 public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> {
-	private SortedSet<MockSourceSplit> unassignedSplits;
-	private SplitEnumeratorContext<MockSourceSplit> enumContext;
-	private List<SourceEvent> handledSourceEvent;
-	private boolean started;
-	private boolean closed;
+	private final SortedSet<MockSourceSplit> unassignedSplits;
+	private final SplitEnumeratorContext<MockSourceSplit> enumContext;
+	private final List<SourceEvent> handledSourceEvent;
+	private final List<Long> successfulCheckpoints;
+	private volatile boolean started;
+	private volatile boolean closed;
 
 	public MockSplitEnumerator(int numSplits, SplitEnumeratorContext<MockSourceSplit> enumContext) {
 		this(new HashSet<>(), enumContext);
@@ -59,6 +62,7 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
 		this.unassignedSplits.addAll(unassignedSplits);
 		this.enumContext = enumContext;
 		this.handledSourceEvent = new ArrayList<>();
+		this.successfulCheckpoints = new ArrayList<>();
 		this.started = false;
 		this.closed = false;
 	}
@@ -67,6 +71,9 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
 	public void start() {
 		this.started = true;
 	}
+
+	@Override
+	public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {}
 
 	@Override
 	public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
@@ -96,6 +103,11 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
 	}
 
 	@Override
+	public void notifyCheckpointComplete(long checkpointId) {
+		successfulCheckpoints.add(checkpointId);
+	}
+
+	@Override
 	public void close() throws IOException {
 		this.closed = true;
 	}
@@ -121,6 +133,10 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
 
 	public List<SourceEvent> getHandledSourceEvent() {
 		return handledSourceEvent;
+	}
+
+	public List<Long> getSuccessfulCheckpoints() {
+		return successfulCheckpoints;
 	}
 
 	// --------------------

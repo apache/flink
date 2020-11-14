@@ -144,10 +144,14 @@ object FlinkBatchRuleSets {
     CoreRules.FILTER_MERGE
   )
 
-  val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
-    JoinDependentConditionDerivationRule.INSTANCE,
+  val JOIN_NULL_FILTER_RULES: RuleSet = RuleSets.ofList(
     JoinDeriveNullFilterRule.INSTANCE
   )
+
+  val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList((
+    RuleSets.ofList(JoinDependentConditionDerivationRule.INSTANCE).asScala ++
+    JOIN_NULL_FILTER_RULES.asScala
+  ).asJava)
 
   /**
     * RuleSet to do predicate pushdown

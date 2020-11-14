@@ -39,6 +39,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.configuration.ConfigurationUtils.assembleDynamicConfigsStr;
+
 /**
  * Utility class for TaskExecutor memory configurations.
  *
@@ -87,14 +89,6 @@ public class TaskExecutorProcessUtils {
 		configs.put(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), taskExecutorProcessSpec.getNetworkMemSize().getBytes() + "b");
 		configs.put(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), taskExecutorProcessSpec.getManagedMemorySize().getBytes() + "b");
 		return assembleDynamicConfigsStr(configs);
-	}
-
-	private static String assembleDynamicConfigsStr(final Map<String, String> configs) {
-		final StringBuilder sb = new StringBuilder();
-		for (Map.Entry<String, String> entry : configs.entrySet()) {
-			sb.append("-D ").append(entry.getKey()).append("=").append(entry.getValue()).append(" ");
-		}
-		return sb.toString();
 	}
 
 	// ------------------------------------------------------------------------

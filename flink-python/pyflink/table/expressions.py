@@ -32,24 +32,24 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW
            'log', 'with_columns', 'without_columns', 'call']
 
 
-def _leaf_op(op_name: str):
+def _leaf_op(op_name: str) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)())
 
 
-def _unary_op(op_name: str, arg):
+def _unary_op(op_name: str, arg) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(_get_java_expression(arg)))
 
 
-def _binary_op(op_name: str, first, second):
+def _binary_op(op_name: str, first, second) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
         _get_java_expression(second)))
 
 
-def _ternary_op(op_name: str, first, second, third):
+def _ternary_op(op_name: str, first, second, third) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
@@ -57,7 +57,7 @@ def _ternary_op(op_name: str, first, second, third):
         _get_java_expression(third)))
 
 
-def _quaternion_op(op_name: str, first, second, third, forth):
+def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
     gateway = get_gateway()
     return Expression(getattr(gateway.jvm.Expressions, op_name)(
         _get_java_expression(first),
@@ -149,7 +149,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")
+UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
 
 
 """
@@ -159,7 +159,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")
+UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
 
 
 """
@@ -168,7 +168,7 @@ Use this for setting the upper bound of the window to the current row.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_ROW = Expression("CURRENT_ROW")
+CURRENT_ROW = Expression("CURRENT_ROW")  # type: Expression
 
 
 """
@@ -178,7 +178,7 @@ all rows with the same sort key as the current row are included in the window.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_RANGE = Expression("CURRENT_RANGE")
+CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 
 def current_date() -> Expression:

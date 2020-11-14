@@ -41,54 +41,54 @@ public class PendingSplitsCheckpointSerializerTest {
 
 	@Test
 	public void serializeEmptyCheckpoint() throws Exception {
-		final PendingSplitsCheckpoint checkpoint =
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
 				PendingSplitsCheckpoint.fromCollectionSnapshot(Collections.emptyList());
 
-		final PendingSplitsCheckpoint deSerialized = serializeAndDeserialize(checkpoint);
+		final PendingSplitsCheckpoint<FileSourceSplit> deSerialized = serializeAndDeserialize(checkpoint);
 
 		assertCheckpointsEqual(checkpoint, deSerialized);
 	}
 
 	@Test
 	public void serializeSomeSplits() throws Exception {
-		final PendingSplitsCheckpoint checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
 				Arrays.asList(testSplit1(), testSplit2(), testSplit3()));
 
-		final PendingSplitsCheckpoint deSerialized = serializeAndDeserialize(checkpoint);
+		final PendingSplitsCheckpoint<FileSourceSplit> deSerialized = serializeAndDeserialize(checkpoint);
 
 		assertCheckpointsEqual(checkpoint, deSerialized);
 	}
 
 	@Test
 	public void serializeSplitsAndProcessedPaths() throws Exception {
-		final PendingSplitsCheckpoint checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
 				Arrays.asList(testSplit1(), testSplit2(), testSplit3()),
 				Arrays.asList(new Path("file:/some/path"), new Path("s3://bucket/key/and/path"), new Path("hdfs://namenode:12345/path")));
 
-		final PendingSplitsCheckpoint deSerialized = serializeAndDeserialize(checkpoint);
+		final PendingSplitsCheckpoint<FileSourceSplit> deSerialized = serializeAndDeserialize(checkpoint);
 
 		assertCheckpointsEqual(checkpoint, deSerialized);
 	}
 
 	@Test
 	public void repeatedSerialization() throws Exception {
-		final PendingSplitsCheckpoint checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
 			Arrays.asList(testSplit3(), testSplit1()));
 
 		serializeAndDeserialize(checkpoint);
 		serializeAndDeserialize(checkpoint);
-		final PendingSplitsCheckpoint deSerialized = serializeAndDeserialize(checkpoint);
+		final PendingSplitsCheckpoint<FileSourceSplit> deSerialized = serializeAndDeserialize(checkpoint);
 
 		assertCheckpointsEqual(checkpoint, deSerialized);
 	}
 
 	@Test
 	public void repeatedSerializationCaches() throws Exception {
-		final PendingSplitsCheckpoint checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = PendingSplitsCheckpoint.fromCollectionSnapshot(
 				Collections.singletonList(testSplit2()));
 
-		final byte[] ser1 = PendingSplitsCheckpointSerializer.INSTANCE.serialize(checkpoint);
-		final byte[] ser2 = PendingSplitsCheckpointSerializer.INSTANCE.serialize(checkpoint);
+		final byte[] ser1 = new PendingSplitsCheckpointSerializer<>(FileSourceSplitSerializer.INSTANCE).serialize(checkpoint);
+		final byte[] ser2 = new PendingSplitsCheckpointSerializer<>(FileSourceSplitSerializer.INSTANCE).serialize(checkpoint);
 
 		assertSame(ser1, ser2);
 	}
@@ -122,13 +122,18 @@ public class PendingSplitsCheckpointSerializerTest {
 				1234567);
 	}
 
-	private static PendingSplitsCheckpoint serializeAndDeserialize(PendingSplitsCheckpoint split) throws IOException {
-		final PendingSplitsCheckpointSerializer serializer = new PendingSplitsCheckpointSerializer();
+	private static PendingSplitsCheckpoint<FileSourceSplit> serializeAndDeserialize(
+			final PendingSplitsCheckpoint<FileSourceSplit> split) throws IOException {
+
+		final PendingSplitsCheckpointSerializer<FileSourceSplit> serializer =
+				new PendingSplitsCheckpointSerializer<>(FileSourceSplitSerializer.INSTANCE);
 		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, split);
 		return SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 	}
 
-	private static void assertCheckpointsEqual(PendingSplitsCheckpoint expected, PendingSplitsCheckpoint actual) {
+	private static void assertCheckpointsEqual(
+			final PendingSplitsCheckpoint<FileSourceSplit> expected,
+			final PendingSplitsCheckpoint<FileSourceSplit> actual) {
 		assertOrderedCollectionEquals(expected.getSplits(), actual.getSplits(), FileSourceSplitSerializerTest::assertSplitsEqual);
 
 		assertOrderedCollectionEquals(

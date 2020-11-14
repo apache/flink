@@ -881,6 +881,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
   }
+
+  /**
+   * Returns whether Unaligned Checkpoints are enabled.
+   */
+  def isUnalignedCheckpointsEnabled: Boolean = javaEnv.isUnalignedCheckpointsEnabled
+
+  /**
+   * Returns whether Unaligned Checkpoints are force-enabled.
+   */
+  def isForceUnalignedCheckpoints: Boolean = javaEnv.isForceUnalignedCheckpoints
 }
 
 object StreamExecutionEnvironment {

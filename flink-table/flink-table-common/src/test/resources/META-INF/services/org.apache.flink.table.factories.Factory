@@ -15,3 +15,5 @@
 
 org.apache.flink.table.factories.TestDynamicTableFactory
 org.apache.flink.table.factories.TestFormatFactory
+org.apache.flink.table.factories.TestDynamicTableSinkOnlyFactory
+org.apache.flink.table.factories.TestDynamicTableSourceOnlyFactory

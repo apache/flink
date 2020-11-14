@@ -19,6 +19,8 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -124,17 +126,38 @@ public class YarnEntrypointUtilsTest extends TestLogger {
 		assertThat(configuration.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL), nullValue());
 	}
 
+	@Test
+	public void testDynamicParameterOverloading() throws IOException {
+		final Configuration initialConfiguration = new Configuration();
+		initialConfiguration.set(JobManagerOptions.JVM_METASPACE, MemorySize.ofMebiBytes(1));
+
+		Configuration dynamicParameters = new Configuration();
+		dynamicParameters.set(JobManagerOptions.JVM_METASPACE, MemorySize.MAX_VALUE);
+		Configuration overloadedConfiguration = loadConfiguration(initialConfiguration, dynamicParameters);
+
+		assertThat(overloadedConfiguration.get(JobManagerOptions.JVM_METASPACE), is(MemorySize.MAX_VALUE));
+	}
+
 	@Nonnull
 	private static Configuration loadConfiguration(Configuration initialConfiguration) throws IOException {
-		final Map<String, String> env = new HashMap<>();
-		return loadConfiguration(initialConfiguration, env);
+		return loadConfiguration(initialConfiguration, new HashMap<>());
+	}
+
+	@Nonnull
+	private static Configuration loadConfiguration(Configuration initialConfiguration, Configuration dynamicParameters) throws IOException {
+		return loadConfiguration(initialConfiguration, dynamicParameters, new HashMap<>());
 	}
 
 	@Nonnull
 	private static Configuration loadConfiguration(Configuration initialConfiguration, Map<String, String> env) throws IOException {
+		return loadConfiguration(initialConfiguration, new Configuration(), env);
+	}
+
+	@Nonnull
+	private static Configuration loadConfiguration(Configuration initialConfiguration, Configuration dynamicParameters, Map<String, String> env) throws IOException {
 		final File workingDirectory = TEMPORARY_FOLDER.newFolder();
 		env.put(ApplicationConstants.Environment.NM_HOST.key(), "foobar");
 		BootstrapTools.writeConfiguration(initialConfiguration, new File(workingDirectory, "flink-conf.yaml"));
-		return YarnEntrypointUtils.loadConfiguration(workingDirectory.getAbsolutePath(), env);
+		return YarnEntrypointUtils.loadConfiguration(workingDirectory.getAbsolutePath(), dynamicParameters, env);
 	}
 }

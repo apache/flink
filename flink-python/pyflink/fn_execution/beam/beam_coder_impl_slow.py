@@ -277,7 +277,7 @@ class PickledBytesCoderImpl(StreamCoderImpl):
         return 'PickledBytesCoderImpl[%s]' % str(self.field_coder)
 
 
-class DataStreamStatelessMapCoderImpl(StreamCoderImpl):
+class DataStreamMapCoderImpl(StreamCoderImpl):
 
     def __init__(self, field_coder):
         self._field_coder = field_coder
@@ -297,10 +297,10 @@ class DataStreamStatelessMapCoderImpl(StreamCoderImpl):
             yield self._field_coder.decode_from_stream(stream, nested)
 
     def __repr__(self):
-        return 'DataStreamStatelessMapCoderImpl[%s]' % repr(self._field_coder)
+        return 'DataStreamMapCoderImpl[%s]' % repr(self._field_coder)
 
 
-class DataStreamStatelessFlatMapCoderImpl(StreamCoderImpl):
+class DataStreamFlatMapCoderImpl(StreamCoderImpl):
     def __init__(self, field_coder):
         self._field_coder = field_coder
 
@@ -313,7 +313,7 @@ class DataStreamStatelessFlatMapCoderImpl(StreamCoderImpl):
         return self._field_coder.decode_from_stream(stream, nested)
 
     def __str__(self) -> str:
-        return 'DataStreamStatelessFlatMapCoderImpl[%s]' % repr(self._field_coder)
+        return 'DataStreamFlatMapCoderImpl[%s]' % repr(self._field_coder)
 
 
 class MapCoderImpl(StreamCoderImpl):

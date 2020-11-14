@@ -26,7 +26,6 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
@@ -46,11 +45,12 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.StateAssignmentOperation.reDistributePartitionableStates;
 
 /**
@@ -121,12 +121,13 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 	}
 
 	private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) {
-		Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = reDistributePartitionableStates(
-			singletonList(operatorState),
+		Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = new HashMap<>();
+		reDistributePartitionableStates(
+			singletonMap(operatorState.getOperatorID(), operatorState),
 			minNumSplits,
-			singletonList(OperatorIDPair.generatedIDOnly(operatorState.getOperatorID())),
 			OperatorSubtaskState::getManagedOperatorState,
-			RoundRobinOperatorStateRepartitioner.INSTANCE);
+			RoundRobinOperatorStateRepartitioner.INSTANCE,
+			newManagedOperatorStates);
 
 		return CollectionUtil.mapWithIndex(
 			newManagedOperatorStates.values(),

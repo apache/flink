@@ -200,6 +200,30 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!--
+			We declare this test-classified dependency here to move it into our
+			"test" scope. Otherwise it would end up in proudction jars.
+			This can probably be fixed once we rely on higher HBase versions which
+			have fixed this problem.
+		-->
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-common</artifactId>
+			<version>${hbase.version}</version>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-minicluster</artifactId>

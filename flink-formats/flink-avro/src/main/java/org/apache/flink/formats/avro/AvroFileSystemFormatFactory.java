@@ -19,11 +19,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
@@ -35,21 +31,18 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.avro.io.DatumWriter;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.formats.avro.AvroFileFormatFactory.AVRO_OUTPUT_CODEC;
 
 /**
  * Avro format factory for file system.
@@ -57,10 +50,6 @@ import java.util.stream.Collectors;
 public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	public static final String IDENTIFIER = "avro";
-	public static final ConfigOption<String> AVRO_OUTPUT_CODEC = ConfigOptions.key("codec")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("The compression codec for avro");
 
 	@Override
 	public String factoryIdentifier() {
@@ -108,18 +97,6 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getPushedDownLimit(),
 				selectFieldToProjectField,
 				selectFieldToFormatField);
-	}
-
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.empty();
-	}
-
-	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		return Optional.of(new RowDataAvroWriterFactory(
-				context.getFormatRowType(),
-				context.getFormatOptions().get(AVRO_OUTPUT_CODEC)));
 	}
 
 	/**
@@ -209,59 +186,6 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 			}
 			emitted++;
 			return rowData;
-		}
-	}
-
-	/**
-	 * A {@link BulkWriter.Factory} to convert {@link RowData} to {@link GenericRecord} and
-	 * wrap {@link AvroWriterFactory}.
-	 */
-	private static class RowDataAvroWriterFactory implements BulkWriter.Factory<RowData> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final AvroWriterFactory<GenericRecord> factory;
-		private final RowType rowType;
-
-		private RowDataAvroWriterFactory(RowType rowType, String codec) {
-			this.rowType = rowType;
-			this.factory = new AvroWriterFactory<>((AvroBuilder<GenericRecord>) out -> {
-				Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-				DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
-				DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
-
-				if (codec != null) {
-					dataFileWriter.setCodec(CodecFactory.fromString(codec));
-				}
-				dataFileWriter.create(schema, out);
-				return dataFileWriter;
-			});
-		}
-
-		@Override
-		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
-			BulkWriter<GenericRecord> writer = factory.create(out);
-			RowDataToAvroConverters.RowDataToAvroConverter converter =
-					RowDataToAvroConverters.createRowConverter(rowType);
-			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-			return new BulkWriter<RowData>() {
-
-				@Override
-				public void addElement(RowData element) throws IOException {
-					GenericRecord record = (GenericRecord) converter.convert(schema, element);
-					writer.addElement(record);
-				}
-
-				@Override
-				public void flush() throws IOException {
-					writer.flush();
-				}
-
-				@Override
-				public void finish() throws IOException {
-					writer.finish();
-				}
-			};
 		}
 	}
 }

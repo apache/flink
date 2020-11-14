@@ -26,12 +26,15 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * The internal fetcher runnable responsible for polling message from the external system.
@@ -46,21 +49,26 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final Map<String, SplitT> assignedSplits;
 	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 	private final SplitReader<E, SplitT> splitReader;
+	private final Consumer<Throwable> errorHandler;
 	private final Runnable shutdownHook;
 	private final AtomicBoolean wakeUp;
 	private final AtomicBoolean closed;
-	private FetchTask<E, SplitT> fetchTask;
+	private final FetchTask<E, SplitT> fetchTask;
 	private volatile SplitFetcherTask runningTask = null;
+
+	private final Object lock = new Object();
 
 	/** Flag whether this fetcher has no work assigned at the moment.
 	 * Fetcher that have work (a split) assigned but are currently blocked (for example enqueueing
 	 * a fetch and hitting the element queue limit) are NOT considered idle. */
+	@GuardedBy("lock")
 	private volatile boolean isIdle;
 
 	SplitFetcher(
 			int id,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			SplitReader<E, SplitT> splitReader,
+			Consumer<Throwable> errorHandler,
 			Runnable shutdownHook) {
 
 		this.id = id;
@@ -68,6 +76,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 		this.elementsQueue = elementsQueue;
 		this.assignedSplits = new HashMap<>();
 		this.splitReader = splitReader;
+		this.errorHandler = errorHandler;
 		this.shutdownHook = shutdownHook;
 		this.isIdle = true;
 		this.wakeUp = new AtomicBoolean(false);
@@ -78,7 +87,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				elementsQueue,
 				ids -> {
 					ids.forEach(assignedSplits::remove);
-					checkAndSetIdle();
+					LOG.info("Finished reading from splits {}", ids);
 				},
 				id);
 	}
@@ -90,9 +99,19 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 			while (!closed.get()) {
 				runOnce();
 			}
+		} catch (Throwable t) {
+			errorHandler.accept(t);
 		} finally {
-			shutdownHook.run();
+			try {
+				splitReader.close();
+			} catch (Exception e) {
+				errorHandler.accept(e);
+			}
 			LOG.info("Split fetcher {} exited.", id);
+			// This executes after possible errorHandler.accept(t). If these operations bear
+			// a happens-before relation, then we can checking side effect of errorHandler.accept(t)
+			// to know whether it happened after observing side effect of shutdownHook.run().
+			shutdownHook.run();
 		}
 	}
 
@@ -118,6 +137,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				LOG.debug("Finished running task {}", runningTask);
 				// the task has finished running. Set it to null so it won't be enqueued.
 				runningTask = null;
+				checkAndSetIdle();
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(String.format(
@@ -142,9 +162,19 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * @param splitsToAdd the splits to add.
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
-		maybeEnqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
-		isIdle = false; // in case we were idle before
+		enqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		wakeUp(true);
+	}
+
+	public void enqueueTask(SplitFetcherTask task) {
+		synchronized (lock) {
+			taskQueue.offer(task);
+			isIdle = false;
+		}
+	}
+
+	public SplitReader<E, SplitT> getSplitReader() {
+		return splitReader;
 	}
 
 	/**
@@ -262,14 +292,21 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	}
 
 	private void checkAndSetIdle() {
-		final boolean nowIdle = assignedSplits.isEmpty() && taskQueue.isEmpty();
-		if (nowIdle) {
-			isIdle = true;
+		if (shouldIdle()) {
+			synchronized (lock) {
+				if (shouldIdle()) {
+					isIdle = true;
+				}
+			}
 
 			// because the method might get invoked past the point when the source reader last checked
 			// the elements queue, we need to notify availability in the case when we become idle
 			elementsQueue.notifyAvailable();
 		}
+	}
+
+	private boolean shouldIdle() {
+		return assignedSplits.isEmpty() && taskQueue.isEmpty();
 	}
 
 	//--------------------- Helper class ------------------

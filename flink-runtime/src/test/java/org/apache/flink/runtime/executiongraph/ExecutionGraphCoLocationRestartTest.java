@@ -22,8 +22,11 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestBase;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -63,6 +66,7 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 		JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
 		JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
+		groupVertex2.connectNewDataSetAsInput(groupVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		groupVertex.setSlotSharingGroup(sharingGroup);
@@ -70,9 +74,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 
 		//initiate and schedule job
+		final JobGraph jobGraph = new JobGraph(groupVertex, groupVertex2);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 		final ExecutionGraph eg = TestingExecutionGraphBuilder
 			.newBuilder()
-			.setJobGraph(new JobGraph(groupVertex, groupVertex2))
+			.setJobGraph(jobGraph)
 			.setSlotProvider(testingSlotProvider)
 			.setRestartStrategy(new TestRestartStrategy(1, false))
 			.build();

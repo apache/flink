@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -74,7 +75,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 	/** All created and not yet released readers. */
 	@GuardedBy("lock")
-	private final Set<BoundedBlockingSubpartitionReader> readers;
+	private final Set<ResultSubpartitionView> readers;
+
+	/** Flag to transfer file via FileRegion way in network stack if partition type is file without SSL enabled. */
+	private final boolean useDirectFileTransfer;
 
 	/** Counter for the number of data buffers (not events!) written. */
 	private int numDataBuffersWritten;
@@ -91,11 +95,13 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	public BoundedBlockingSubpartition(
 			int index,
 			ResultPartition parent,
-			BoundedData data) {
+			BoundedData data,
+			boolean useDirectFileTransfer) {
 
 		super(index, parent);
 
 		this.data = checkNotNull(data);
+		this.useDirectFileTransfer = useDirectFileTransfer;
 		this.readers = new HashSet<>();
 	}
 
@@ -149,7 +155,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		try {
 			final Buffer buffer = bufferConsumer.build();
 			try {
-				if (canBeCompressed(buffer)) {
+				if (parent.canBeCompressed(buffer)) {
 					final Buffer compressedBuffer = parent.bufferCompressor.compressToIntermediateBuffer(buffer);
 					data.writeBuffer(compressedBuffer);
 					if (compressedBuffer != buffer) {
@@ -194,6 +200,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			isReleased = true;
 			isFinished = true; // for fail fast writes
 
+			if (currentBuffer != null) {
+				currentBuffer.close();
+				currentBuffer = null;
+			}
 			checkReaderReferencesAndDispose();
 		}
 	}
@@ -204,14 +214,20 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			checkState(!isReleased, "data partition already released");
 			checkState(isFinished, "writing of blocking partition not yet finished");
 
-			final BoundedBlockingSubpartitionReader reader = new BoundedBlockingSubpartitionReader(
+			final ResultSubpartitionView reader;
+			if (useDirectFileTransfer) {
+				reader = new BoundedBlockingSubpartitionDirectTransferReader(
+					this, data.getFilePath(), numDataBuffersWritten, numBuffersAndEventsWritten);
+			} else {
+				reader = new BoundedBlockingSubpartitionReader(
 					this, data, numDataBuffersWritten, availability);
+			}
 			readers.add(reader);
 			return reader;
 		}
 	}
 
-	void releaseReaderReference(BoundedBlockingSubpartitionReader reader) throws IOException {
+	void releaseReaderReference(ResultSubpartitionView reader) throws IOException {
 		onConsumedSubpartition();
 
 		synchronized (lock) {
@@ -232,6 +248,11 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		if (readers.isEmpty()) {
 			data.close();
 		}
+	}
+
+	@VisibleForTesting
+	public BufferConsumer getCurrentBuffer() {
+		return currentBuffer;
 	}
 
 	// ---------------------------- statistics --------------------------------
@@ -262,10 +283,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	 * Data is eagerly spilled (written to disk) and readers directly read from the file.
 	 */
 	public static BoundedBlockingSubpartition createWithFileChannel(
-			int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+			int index, ResultPartition parent, File tempFile, int readBufferSize, boolean sslEnabled) throws IOException {
 
 		final FileChannelBoundedData bd = FileChannelBoundedData.create(tempFile.toPath(), readBufferSize);
-		return new BoundedBlockingSubpartition(index, parent, bd);
+		return new BoundedBlockingSubpartition(index, parent, bd, !sslEnabled);
 	}
 
 	/**
@@ -277,7 +298,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			int index, ResultPartition parent, File tempFile) throws IOException {
 
 		final MemoryMappedBoundedData bd = MemoryMappedBoundedData.create(tempFile.toPath());
-		return new BoundedBlockingSubpartition(index, parent, bd);
+		return new BoundedBlockingSubpartition(index, parent, bd, false);
 
 	}
 
@@ -292,6 +313,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			int index, ResultPartition parent, File tempFile) throws IOException {
 
 		final FileChannelMemoryMappedBoundedData bd = FileChannelMemoryMappedBoundedData.create(tempFile.toPath());
-		return new BoundedBlockingSubpartition(index, parent, bd);
+		return new BoundedBlockingSubpartition(index, parent, bd, false);
 	}
 }

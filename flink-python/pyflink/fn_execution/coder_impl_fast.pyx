@@ -71,7 +71,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
                     value, output_stream, value.get_row_kind().value)
 
 
-cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
+cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
 
     def __init__(self, field_coder):
         self._single_field_coder = field_coder
@@ -84,10 +84,11 @@ cdef class DataStreamStatelessFlatMapCoderImpl(BaseCoderImpl):
     cpdef object decode_from_stream(self, LengthPrefixInputStream input_stream):
         return self._single_field_coder.decode_from_stream(input_stream)
 
-cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
+
+cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
 
     def __init__(self, field_coder):
-        super(DataStreamStatelessMapCoderImpl, self).__init__([field_coder])
+        super(DataStreamMapCoderImpl, self).__init__([field_coder])
         self._single_field_coder = self._field_coders[0]
 
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):

@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -39,7 +40,6 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalTime;
 
@@ -143,7 +143,7 @@ public class CsvToRowDataConverters implements Serializable {
 			case DATE:
 				return this::convertToDate;
 			case TIME_WITHOUT_TIME_ZONE:
-				return this::convertToTime;
+				return convertToTime((TimeType) type);
 			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return this::convertToTimestamp;
@@ -221,12 +221,28 @@ public class CsvToRowDataConverters implements Serializable {
 		return (int) Date.valueOf(jsonNode.asText()).toLocalDate().toEpochDay();
 	}
 
-	private int convertToTime(JsonNode jsonNode) {
+	private CsvToRowDataConverter convertToTime(TimeType timeType) {
+		final int precision = timeType.getPrecision();
 		// csv currently is using Time.valueOf() to parse time string
-		LocalTime localTime = Time.valueOf(jsonNode.asText()).toLocalTime();
 		// TODO: FLINK-17525 support millisecond and nanosecond
 		// get number of milliseconds of the day
-		return localTime.toSecondOfDay() * 1000;
+		if (precision > 3) {
+			throw new IllegalArgumentException("Csv does not support TIME type " +
+				"with precision: " + precision + ", it only supports precision 0 ~ 3.");
+		}
+		return jsonNode -> {
+			LocalTime localTime = LocalTime.parse(jsonNode.asText());
+			int mills = (int) (localTime.toNanoOfDay() / 1000_000L);
+			// this is for rounding off values out of precision
+			if (precision == 2) {
+				mills = mills / 10 * 10;
+			} else if (precision == 1) {
+				mills = mills / 100 * 100;
+			} else if (precision == 0) {
+				mills = mills / 1000 * 1000;
+			}
+			return mills;
+		};
 	}
 
 	private TimestampData convertToTimestamp(JsonNode jsonNode) {
@@ -284,7 +300,7 @@ public class CsvToRowDataConverters implements Serializable {
 
 	/**
 	 * Exception which refers to parse errors in converters.
-	 * */
+	 */
 	private static final class CsvParseException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
 		public CsvParseException(String message, Throwable cause) {

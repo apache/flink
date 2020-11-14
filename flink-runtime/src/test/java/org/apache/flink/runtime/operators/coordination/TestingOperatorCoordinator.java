@@ -24,9 +24,10 @@ import org.apache.flink.runtime.util.SerializableFunction;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -38,6 +39,8 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	private final ArrayList<Integer> failedTasks = new ArrayList<>();
 
+	private final CountDownLatch blockOnCloseLatch;
+
 	@Nullable
 	private byte[] lastRestoredCheckpointState;
 
@@ -45,13 +48,23 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	private BlockingQueue<Long> lastCheckpointComplete;
 
+	private BlockingQueue<OperatorEvent> receivedOperatorEvents;
+
 	private boolean started;
 	private boolean closed;
 
 	public TestingOperatorCoordinator(OperatorCoordinator.Context context) {
+		this(context, null);
+	}
+
+	public TestingOperatorCoordinator(
+			OperatorCoordinator.Context context,
+			CountDownLatch blockOnCloseLatch) {
 		this.context = context;
 		this.triggeredCheckpoints = new LinkedBlockingQueue<>();
 		this.lastCheckpointComplete = new LinkedBlockingQueue<>();
+		this.receivedOperatorEvents = new LinkedBlockingQueue<>();
+		this.blockOnCloseLatch = blockOnCloseLatch;
 	}
 
 	// ------------------------------------------------------------------------
@@ -62,12 +75,17 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void close() {
+	public void close() throws InterruptedException {
 		closed = true;
+		if (blockOnCloseLatch != null) {
+			blockOnCloseLatch.await();
+		}
 	}
 
 	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) {}
+	public void handleEventFromOperator(int subtask, OperatorEvent event) {
+		receivedOperatorEvents.add(event);
+	}
 
 	@Override
 	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
@@ -81,7 +99,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		lastCheckpointComplete.offer(checkpointId);
 	}
 
@@ -104,7 +122,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 		return closed;
 	}
 
-	public Collection<Integer> getFailedTasks() {
+	public List<Integer> getFailedTasks() {
 		return failedTasks;
 	}
 
@@ -123,6 +141,11 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	public long getLastCheckpointComplete() throws InterruptedException {
 		return lastCheckpointComplete.take();
+	}
+
+	@Nullable
+	public OperatorEvent getNextReceivedOperatorEvent() {
+		return receivedOperatorEvents.poll();
 	}
 
 	public boolean hasCompleteCheckpoint() throws InterruptedException {

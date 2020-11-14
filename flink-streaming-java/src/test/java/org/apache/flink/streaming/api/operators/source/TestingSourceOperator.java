@@ -43,20 +43,24 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 	private final int subtaskIndex;
 	private final int parallelism;
 
+	private volatile boolean readerCreated;
+
 	public TestingSourceOperator(
 			SourceReader<T, MockSourceSplit> reader,
 			WatermarkStrategy<T> watermarkStrategy,
-			ProcessingTimeService timeService) {
+			ProcessingTimeService timeService,
+			boolean emitProgressiveWatermarks) {
 
-		this(reader, watermarkStrategy, timeService, new MockOperatorEventGateway(), 1, 5);
+		this(reader, watermarkStrategy, timeService, new MockOperatorEventGateway(), 1, 5, emitProgressiveWatermarks);
 	}
 
 	public TestingSourceOperator(
 			SourceReader<T, MockSourceSplit> reader,
 			OperatorEventGateway eventGateway,
-			int subtaskIndex) {
+			int subtaskIndex,
+			boolean emitProgressiveWatermarks) {
 
-		this(reader, WatermarkStrategy.noWatermarks(), new TestProcessingTimeService(), eventGateway, subtaskIndex, 5);
+		this(reader, WatermarkStrategy.noWatermarks(), new TestProcessingTimeService(), eventGateway, subtaskIndex, 5, emitProgressiveWatermarks);
 	}
 
 	public TestingSourceOperator(
@@ -65,7 +69,8 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 			ProcessingTimeService timeService,
 			OperatorEventGateway eventGateway,
 			int subtaskIndex,
-			int parallelism) {
+			int parallelism,
+			boolean emitProgressiveWatermarks) {
 
 		super(
 			(context) -> reader,
@@ -74,11 +79,19 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 			watermarkStrategy,
 			timeService,
 			new Configuration(),
-			"localhost");
+			"localhost",
+			emitProgressiveWatermarks);
 
 		this.subtaskIndex = subtaskIndex;
 		this.parallelism = parallelism;
 		this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+		this.readerCreated = false;
+	}
+
+	@Override
+	public void open() throws Exception {
+		super.open();
+		readerCreated = true;
 	}
 
 	@Override
@@ -92,5 +105,9 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 		ExecutionConfig cfg = new ExecutionConfig();
 		cfg.setAutoWatermarkInterval(100);
 		return cfg;
+	}
+
+	public boolean isReaderCreated() {
+		return readerCreated;
 	}
 }

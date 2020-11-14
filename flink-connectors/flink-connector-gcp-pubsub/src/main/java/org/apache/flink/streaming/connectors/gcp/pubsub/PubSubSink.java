@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -97,7 +98,10 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
-		serializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		serializationSchema.open(RuntimeContextInitializationContextAdapters.serializationAdapter(
+				getRuntimeContext(),
+				metricGroup -> metricGroup.addGroup("user")
+		));
 
 		Publisher.Builder builder = Publisher
 			.newBuilder(TopicName.of(projectName, topicName))

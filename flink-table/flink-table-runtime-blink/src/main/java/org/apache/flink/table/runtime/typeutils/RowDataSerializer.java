@@ -33,6 +33,7 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.NestedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -122,6 +123,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 		}
 		if (from instanceof BinaryRowData) {
 			return ((BinaryRowData) from).copy();
+		} else if (from instanceof NestedRowData) {
+			return ((NestedRowData) from).copy();
 		} else {
 			return copyRowData(from, new GenericRowData(from.getArity()));
 		}
@@ -138,6 +141,10 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 			return reuse instanceof BinaryRowData
 				? ((BinaryRowData) from).copy((BinaryRowData) reuse)
 				: ((BinaryRowData) from).copy();
+		} else if (from instanceof NestedRowData) {
+			return reuse instanceof NestedRowData
+				? ((NestedRowData) from).copy(reuse)
+				: ((NestedRowData) from).copy();
 		} else {
 			return copyRowData(from, reuse);
 		}

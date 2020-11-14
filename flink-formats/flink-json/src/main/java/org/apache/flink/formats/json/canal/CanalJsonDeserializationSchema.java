@@ -58,6 +58,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 	private static final String OP_INSERT = "INSERT";
 	private static final String OP_UPDATE = "UPDATE";
 	private static final String OP_DELETE = "DELETE";
+	private static final String OP_CREATE = "CREATE";
 
 	/** The deserializer to deserialize Debezium JSON data. */
 	private final JsonRowDataDeserializationSchema jsonDeserializer;
@@ -223,6 +224,10 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
 					insert.setRowKind(RowKind.DELETE);
 					out.collect(insert);
 				}
+			} else if (OP_CREATE.equals(type)){
+				// "data" field is null and "type" is "CREATE" which means
+				// this is a DDL change event, and we should skip it.
+				return;
 			} else {
 				if (!ignoreParseErrors) {
 					throw new IOException(format(

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -29,7 +30,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -141,7 +141,8 @@ public class StreamOperatorStateHandler {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions,
-			CheckpointStreamFactory factory) throws CheckpointException {
+			CheckpointStreamFactory factory,
+			boolean isUsingCustomRawKeyedState) throws CheckpointException {
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 			keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
@@ -163,7 +164,8 @@ public class StreamOperatorStateHandler {
 			checkpointOptions,
 			factory,
 			snapshotInProgress,
-			snapshotContext);
+			snapshotContext,
+			isUsingCustomRawKeyedState);
 
 		return snapshotInProgress;
 	}
@@ -178,11 +180,19 @@ public class StreamOperatorStateHandler {
 			CheckpointOptions checkpointOptions,
 			CheckpointStreamFactory factory,
 			OperatorSnapshotFutures snapshotInProgress,
-			StateSnapshotContextSynchronousImpl snapshotContext) throws CheckpointException {
+			StateSnapshotContextSynchronousImpl snapshotContext,
+			boolean isUsingCustomRawKeyedState) throws CheckpointException {
 		try {
 			if (timeServiceManager.isPresent()) {
 				checkState(keyedStateBackend != null, "keyedStateBackend should be available with timeServiceManager");
-				timeServiceManager.get().snapshotState(snapshotContext, operatorName);
+				final InternalTimeServiceManager<?> manager = timeServiceManager.get();
+
+				if (manager.isUsingLegacyRawKeyedStateSnapshots()) {
+					checkState(
+						!isUsingCustomRawKeyedState,
+						"Attempting to snapshot timers to raw keyed state, but this operator has custom raw keyed state to write.");
+					manager.snapshotToRawKeyedState(snapshotContext.getRawKeyedOperatorStateOutput(), operatorName);
+				}
 			}
 			streamOperator.snapshotState(snapshotContext);
 

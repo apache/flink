@@ -81,6 +81,8 @@ message UserDefinedDataStreamFunction {
     REDUCE = 2;
     CO_MAP = 3;
     CO_FLAT_MAP = 4;
+    PROCESS = 5;
+    TIMESTAMP_ASSIGNER = 6;
   }
 
   message JobParameter {
@@ -102,6 +104,7 @@ message UserDefinedDataStreamFunction {
   RuntimeContext runtime_context = 2;
   bytes payload = 3;
   bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
 }
 
 message UserDefinedAggregateFunction {
@@ -157,6 +160,8 @@ message UserDefinedAggregateFunctions {
   int32 map_state_read_cache_size = 9;
   // The map_state_write_cache_size.
   int32 map_state_write_cache_size = 10;
+  // True if the count(*) agg is inserted by the planner.
+  bool count_star_inserted = 11;
 }
 
 // A representation of the data schema.

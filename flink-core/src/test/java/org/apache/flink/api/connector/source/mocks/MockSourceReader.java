@@ -35,6 +35,8 @@ import java.util.concurrent.CompletableFuture;
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
 	private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
 	private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
+	private final List<Long> completedCheckpoints = new ArrayList<>();
+	private final List<Long> abortedCheckpoints = new ArrayList<>();
 	private final boolean markIdleOnNoSplits;
 
 	private int currentSplitIndex = 0;
@@ -90,7 +92,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public List<MockSourceSplit> snapshotState() {
+	public List<MockSourceSplit> snapshotState(long checkpointId) {
 		return assignedSplits;
 	}
 
@@ -106,12 +108,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof MockNoMoreSplitsEvent) {
-			waitingForMoreSplits = false;
-			markAvailable();
-		}
-		receivedSourceEvents.add(sourceEvent);
+	public void notifyNoMoreSplits() {
+		waitingForMoreSplits = false;
+		markAvailable();
 	}
 
 	@Override
@@ -119,10 +118,25 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		this.closed = true;
 	}
 
+	@Override
+	public void notifyCheckpointComplete(long checkpointId) {
+		completedCheckpoints.add(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		abortedCheckpoints.add(checkpointId);
+	}
+
 	private synchronized void markUnavailable() {
 		if (availableFuture.isDone()) {
 			availableFuture = new CompletableFuture<>();
 		}
+	}
+
+	@Override
+	public void handleSourceEvents(SourceEvent sourceEvent) {
+		receivedSourceEvents.add(sourceEvent);
 	}
 
 	// --------------- methods for unit tests ---------------
@@ -155,9 +169,11 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		return receivedSourceEvents;
 	}
 
-	/**
-	 * Simple event allowing {@link MockSourceReader} to finish when requested.
-	 */
-	public static class MockNoMoreSplitsEvent implements SourceEvent {
+	public List<Long> getCompletedCheckpoints() {
+		return completedCheckpoints;
+	}
+
+	public List<Long> getAbortedCheckpoints() {
+		return abortedCheckpoints;
 	}
 }

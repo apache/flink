@@ -90,6 +90,7 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 			boolean hasLog4j,
 			String mainClass) {
 		final String jvmMemOpts = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, flinkConfig);
+		final String dynamicParameters = JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
 		return KubernetesUtils.getCommonStartCommand(
 			flinkConfig,
 			KubernetesUtils.ClusterComponent.JOB_MANAGER,
@@ -99,6 +100,6 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 			hasLogback,
 			hasLog4j,
 			mainClass,
-			null);
+			dynamicParameters);
 	}
 }

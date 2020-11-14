@@ -208,12 +208,21 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
 		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
 		// main thread executor
-		mainThreadExecutor.execute(() -> checkpointCompleteInternal(checkpointId));
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointComplete(checkpointId));
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		// unfortunately, this method does not run in the scheduler executor, but in the
+		// checkpoint coordinator time thread.
+		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
+		// main thread executor
+		mainThreadExecutor.execute(() -> coordinator.notifyCheckpointAborted(checkpointId));
 	}
 
 	@Override
@@ -223,11 +232,6 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		eventValve.reset();
 		coordinator.resetToCheckpoint(checkpointData);
-	}
-
-	private void checkpointCompleteInternal(long checkpointId) {
-		mainThreadExecutor.assertRunningInMainThread();
-		coordinator.checkpointComplete(checkpointId);
 	}
 
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {
@@ -298,7 +302,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	public static OperatorCoordinatorHolder create(
 			SerializedValue<OperatorCoordinator.Provider> serializedProvider,
 			ExecutionJobVertex jobVertex,
-			ClassLoader classLoader) throws IOException, ClassNotFoundException {
+			ClassLoader classLoader) throws Exception {
 
 		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 			final OperatorCoordinator.Provider provider = serializedProvider.deserializeValue(classLoader);
@@ -327,7 +331,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
 			final String operatorName,
 			final int operatorParallelism,
-			final int operatorMaxParallelism) {
+			final int operatorMaxParallelism) throws Exception {
 
 		final OperatorEventValve valve = new OperatorEventValve(eventSender);
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.examples.java.connectors;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -63,7 +64,9 @@ public final class SocketSourceFunction extends RichSourceFunction<RowData> impl
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		deserializer.open(() -> getRuntimeContext().getMetricGroup());
+		deserializer.open(
+				RuntimeContextInitializationContextAdapters.deserializationAdapter(getRuntimeContext())
+		);
 	}
 
 	@Override

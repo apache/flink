@@ -21,6 +21,7 @@ package org.apache.flink.api.common.cache;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.Path;
 
 import java.io.File;
@@ -197,15 +198,7 @@ public class DistributedCache {
 	 */
 	public static List<Tuple2<String, DistributedCacheEntry>> parseCachedFilesFromString(List<String> files) {
 		return files.stream()
-			.map(v -> Arrays.stream(v.split(","))
-				.map(p -> p.split(":"))
-				.collect(
-					Collectors.toMap(
-						arr -> arr[0], // key name
-						arr -> arr[1] // value
-					)
-				)
-			)
+			.map(ConfigurationUtils::parseMap)
 			.map(m -> Tuple2.of(
 				m.get("name"),
 				new DistributedCacheEntry(

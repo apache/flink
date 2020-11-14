@@ -42,6 +42,8 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -112,7 +114,7 @@ public class SequentialChannelStateReaderImplTest {
 		SequentialChannelStateReader reader = new SequentialChannelStateReaderImpl(buildSnapshot(writePermuted(inputChannelsData, resultPartitionsData)));
 
 		withResultPartitions(resultPartitions -> {
-			reader.readOutputData(resultPartitions);
+			reader.readOutputData(resultPartitions, false);
 			assertBuffersEquals(resultPartitionsData, collectBuffers(resultPartitions));
 		});
 
@@ -130,7 +132,9 @@ public class SequentialChannelStateReaderImplTest {
 				ResultSubpartitionInfo info = resultPartition.getAllPartitions()[i].getSubpartitionInfo();
 				ResultSubpartitionView view = resultPartition.createSubpartitionView(info.getSubPartitionIdx(), new NoOpBufferAvailablityListener());
 				for (BufferAndBacklog buffer = view.getNextBuffer(); buffer != null; buffer = view.getNextBuffer()) {
-					actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(buffer.buffer());
+					if (buffer.buffer().isBuffer()) {
+						actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(buffer.buffer());
+					}
 				}
 			}
 		}
@@ -160,30 +164,27 @@ public class SequentialChannelStateReaderImplTest {
 		SingleInputGate[] gates = new SingleInputGate[parLevel];
 		final int segmentsToAllocate = parLevel + parLevel * parLevel * buffersPerChannel;
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(segmentsToAllocate, bufferSize);
-		try {
-			for (int i = 0; i < parLevel; i++) {
-				gates[i] = new SingleInputGateBuilder()
-					.setNumberOfChannels(parLevel)
-					.setSingleInputGateIndex(i)
-					.setBufferPoolFactory(networkBufferPool.createBufferPool(1, buffersPerChannel))
-					.setSegmentProvider(networkBufferPool)
-					.setChannelFactory((builder, gate) -> builder
-					.setNetworkBuffersPerChannel(buffersPerChannel)
-					.buildRemoteRecoveredChannel(gate))
-					.build();
-				gates[i].setup();
+		try (Closer poolCloser = Closer.create()) {
+			poolCloser.register(networkBufferPool::destroy);
+			poolCloser.register(networkBufferPool::destroyAllBufferPools);
+
+			try (Closer gateCloser = Closer.create()) {
+				for (int i = 0; i < parLevel; i++) {
+					gates[i] = new SingleInputGateBuilder()
+						.setNumberOfChannels(parLevel)
+						.setSingleInputGateIndex(i)
+						.setBufferPoolFactory(networkBufferPool.createBufferPool(1, buffersPerChannel))
+						.setSegmentProvider(networkBufferPool)
+						.setChannelFactory((builder, gate) -> builder
+							.setNetworkBuffersPerChannel(buffersPerChannel)
+							.buildRemoteRecoveredChannel(gate))
+						.build();
+					gates[i].setup();
+					gateCloser.register(gates[i]::close);
+				}
+				action.accept(gates);
 			}
-			action.accept(gates);
-		} finally {
-			for (InputGate inputGate: gates) {
-				inputGate.close();
-			}
-			try {
-				assertEquals(segmentsToAllocate, networkBufferPool.getNumberOfAvailableMemorySegments());
-			} finally {
-				networkBufferPool.destroyAllBufferPools();
-				networkBufferPool.destroy();
-			}
+			assertEquals(segmentsToAllocate, networkBufferPool.getNumberOfAvailableMemorySegments());
 		}
 	}
 
@@ -212,16 +213,10 @@ public class SequentialChannelStateReaderImplTest {
 	}
 
 	private TaskStateSnapshot buildSnapshot(Tuple2<List<InputChannelStateHandle>, List<ResultSubpartitionStateHandle>> handles) {
-		return new TaskStateSnapshot(
-			Collections.singletonMap(new OperatorID(), new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				new StateObjectCollection<>(handles.f0),
-				new StateObjectCollection<>(handles.f1)
-			))
-		);
+		return new TaskStateSnapshot(Collections.singletonMap(new OperatorID(), OperatorSubtaskState.builder()
+			.setInputChannelState(new StateObjectCollection<>(handles.f0))
+			.setResultSubpartitionState(new StateObjectCollection<>(handles.f1))
+			.build()));
 	}
 
 	private <T> Map<T, List<byte[]>> generateState(BiFunction<Integer, Integer, T> descriptorCreator) {

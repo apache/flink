@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -51,23 +51,40 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	protected static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
+	protected static final String DATA_STREAM_STATELESS_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	protected static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	protected static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	static final String MAP_CODER_URN = "flink:coder:map:v1";
+	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
-
-	protected final DataStreamPythonFunctionInfo pythonFunctionInfo;
-
-	protected final TypeInformation<IN> inputTypeInfo;
-
-	protected final TypeInformation<OUT> outputTypeInfo;
-
+	/**
+	 * The options used to configure the Python worker process.
+	 */
 	protected final Map<String, String> jobOptions;
 
-	protected transient TypeSerializer<IN> inputTypeSerializer;
+	/**
+	 * The TypeInformation of input data.
+	 */
+	final TypeInformation<IN> inputTypeInfo;
 
-	protected transient TypeSerializer<OUT> outputTypeSerializer;
+	/**
+	 * The TypeInformation of output data.
+	 */
+	final TypeInformation<OUT> outputTypeInfo;
+
+	/**
+	 * The serialized python function to be executed.
+	 */
+	final DataStreamPythonFunctionInfo pythonFunctionInfo;
+
+	/**
+	 * The TypeSerializer of python worker input data.
+	 */
+	private transient TypeSerializer<IN> inputTypeSerializer;
+
+	/**
+	 * The TypeSerializer of python worker output data.
+	 */
+	transient TypeSerializer<OUT> outputTypeSerializer;
 
 	protected transient ByteArrayInputStreamWithPos bais;
 
@@ -77,7 +94,7 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 
 	protected transient DataOutputViewStreamWrapper baosWrapper;
 
-	protected transient StreamRecordCollector streamRecordCollector;
+	transient StreamRecordCollector streamRecordCollector;
 
 	public StatelessOneInputPythonFunctionOperator(
 		Configuration config,
@@ -85,10 +102,10 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 		TypeInformation<OUT> outputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
 		super(config);
-		this.pythonFunctionInfo = pythonFunctionInfo;
-		jobOptions = config.toMap();
+		this.jobOptions = config.toMap();
 		this.inputTypeInfo = inputTypeInfo;
 		this.outputTypeInfo = outputTypeInfo;
+		this.pythonFunctionInfo = pythonFunctionInfo;
 	}
 
 	@Override
@@ -96,7 +113,6 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 		super.open();
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
-
 		baos = new ByteArrayOutputStreamWithPos();
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -110,25 +126,26 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-
 		String coderUrn = null;
 		int functionType = this.pythonFunctionInfo.getFunctionType();
 		if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.MAP.getNumber()) {
-			coderUrn = DATA_STREAM_MAP_FUNCTION_CODER_URN;
+			coderUrn = MAP_CODER_URN;
 		} else if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.FLAT_MAP.getNumber()) {
-			coderUrn = DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN;
+			coderUrn = FLAT_MAP_CODER_URN;
 		}
 
-		return new BeamDataStreamStatelessPythonFunctionRunner(
+		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			inputTypeInfo,
 			outputTypeInfo,
-			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
+			DATA_STREAM_STATELESS_FUNCTION_URN,
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
 			coderUrn,
 			jobOptions,
 			getFlinkMetricContainer(),
+			null,
+			null,
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,

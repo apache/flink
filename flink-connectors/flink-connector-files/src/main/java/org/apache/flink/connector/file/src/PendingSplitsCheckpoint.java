@@ -33,10 +33,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A checkpoint of the current state of the containing the currently pending splits that are not yet assigned.
  */
 @PublicEvolving
-public final class PendingSplitsCheckpoint {
+public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
 
 	/** The splits in the checkpoint. */
-	private final Collection<FileSourceSplit> splits;
+	private final Collection<SplitT> splits;
 
 	/** The paths that are no longer in the enumerator checkpoint, but have been processed
 	 * before and should this be ignored. Relevant only for sources in continuous monitoring mode. */
@@ -48,14 +48,14 @@ public final class PendingSplitsCheckpoint {
 	@Nullable
 	byte[] serializedFormCache;
 
-	private PendingSplitsCheckpoint(Collection<FileSourceSplit> splits, Collection<Path> alreadyProcessedPaths) {
+	protected PendingSplitsCheckpoint(Collection<SplitT> splits, Collection<Path> alreadyProcessedPaths) {
 		this.splits = Collections.unmodifiableCollection(splits);
 		this.alreadyProcessedPaths = Collections.unmodifiableCollection(alreadyProcessedPaths);
 	}
 
 	// ------------------------------------------------------------------------
 
-	public Collection<FileSourceSplit> getSplits() {
+	public Collection<SplitT> getSplits() {
 		return splits;
 	}
 
@@ -67,27 +67,30 @@ public final class PendingSplitsCheckpoint {
 	//  factories
 	// ------------------------------------------------------------------------
 
-	public static PendingSplitsCheckpoint fromCollectionSnapshot(Collection<FileSourceSplit> splits) {
+	public static <T extends FileSourceSplit> PendingSplitsCheckpoint<T> fromCollectionSnapshot(
+			final Collection<T> splits) {
 		checkNotNull(splits);
 
 		// create a copy of the collection to make sure this checkpoint is immutable
-		final Collection<FileSourceSplit> copy = new ArrayList<>(splits);
-		return new PendingSplitsCheckpoint(copy, Collections.emptySet());
+		final Collection<T> copy = new ArrayList<>(splits);
+		return new PendingSplitsCheckpoint<>(copy, Collections.emptySet());
 	}
 
-	public static PendingSplitsCheckpoint fromCollectionSnapshot(
-			Collection<FileSourceSplit> splits,
-			Collection<Path> alreadyProcessedPaths) {
+	public static <T extends FileSourceSplit> PendingSplitsCheckpoint<T> fromCollectionSnapshot(
+			final Collection<T> splits,
+			final Collection<Path> alreadyProcessedPaths) {
 		checkNotNull(splits);
 
 		// create a copy of the collection to make sure this checkpoint is immutable
-		final Collection<FileSourceSplit> splitsCopy = new ArrayList<>(splits);
+		final Collection<T> splitsCopy = new ArrayList<>(splits);
 		final Collection<Path> pathsCopy = new ArrayList<>(alreadyProcessedPaths);
 
-		return new PendingSplitsCheckpoint(splitsCopy, pathsCopy);
+		return new PendingSplitsCheckpoint<>(splitsCopy, pathsCopy);
 	}
 
-	static PendingSplitsCheckpoint reusingCollection(Collection<FileSourceSplit> splits, Collection<Path> alreadyProcessedPaths) {
-		return new PendingSplitsCheckpoint(splits, alreadyProcessedPaths);
+	static <T extends FileSourceSplit> PendingSplitsCheckpoint<T> reusingCollection(
+			final Collection<T> splits,
+			final Collection<Path> alreadyProcessedPaths) {
+		return new PendingSplitsCheckpoint<>(splits, alreadyProcessedPaths);
 	}
 }

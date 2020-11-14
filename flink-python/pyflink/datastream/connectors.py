@@ -16,16 +16,29 @@
 # limitations under the License.
 ################################################################################
 import abc
+from enum import Enum
 from typing import Dict, List, Union
 
 from pyflink.common import typeinfo
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
-from pyflink.common.typeinfo import RowTypeInfo
+from pyflink.common.typeinfo import RowTypeInfo, WrapperTypeInfo, TypeInformation
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class, to_jarray
 
 from py4j.java_gateway import java_import
+
+
+__all__ = [
+    'FlinkKafkaConsumer',
+    'FlinkKafkaProducer',
+    'JdbcSink',
+    'JdbcConnectionOptions',
+    'JdbcExecutionOptions',
+    'RollingPolicy',
+    'DefaultRollingPolicy',
+    'StreamingFileSink',
+    'OutputFileConfig']
 
 
 class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
@@ -39,7 +52,8 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
     def __init__(self, j_flink_kafka_consumer):
         super(FlinkKafkaConsumerBase, self).__init__(source_func=j_flink_kafka_consumer)
 
-    def set_commit_offsets_on_checkpoints(self, commit_on_checkpoints: bool):
+    def set_commit_offsets_on_checkpoints(self,
+                                          commit_on_checkpoints: bool) -> 'FlinkKafkaConsumerBase':
         """
         Specifies whether or not the consumer should commit offsets back to kafka on checkpoints.
         This setting will only have effect if checkpointing is enabled for the job. If checkpointing
@@ -50,7 +64,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             .setCommitOffsetsOnCheckpoints(commit_on_checkpoints)
         return self
 
-    def set_start_from_earliest(self):
+    def set_start_from_earliest(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading from the earliest offset for all partitions. This
         lets the consumer ignore any committed group offsets in Zookeeper/ Kafka brokers.
@@ -62,7 +76,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromEarliest()
         return self
 
-    def set_start_from_latest(self):
+    def set_start_from_latest(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consuer to start reading from the latest offset for all partitions. This lets
         the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
@@ -74,7 +88,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromLatest()
         return self
 
-    def set_start_from_timestamp(self, startup_offsets_timestamp: int):
+    def set_start_from_timestamp(self, startup_offsets_timestamp: int) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading partitions from a specified timestamp. The specified
         timestamp must be before the current timestamp. This lets the consumer ignore any committed
@@ -95,7 +109,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             startup_offsets_timestamp)
         return self
 
-    def set_start_from_group_offsets(self):
+    def set_start_from_group_offsets(self) -> 'FlinkKafkaConsumerBase':
         """
         Specifies the consumer to start reading from any committed group offsets found in Zookeeper/
         Kafka brokers. The 'group.id' property must be set in the configuration properties. If no
@@ -109,7 +123,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
         self._j_function = self._j_function.setStartFromGroupOffsets()
         return self
 
-    def disable_filter_restored_partitions_with_subscribed_topics(self):
+    def disable_filter_restored_partitions_with_subscribed_topics(self) -> 'FlinkKafkaConsumerBase':
         """
         By default, when restoring from a checkpoint / savepoint, the consumer always ignores
         restored partitions that are no longer associated with the current specified topics or topic
@@ -123,7 +137,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
             .disableFilterRestoredPartitionsWithSubscribedTopics()
         return self
 
-    def get_produced_type(self):
+    def get_produced_type(self) -> TypeInformation:
         return typeinfo._from_java_type(self._j_function.getProducedType())
 
 
@@ -179,7 +193,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
     def __init__(self, j_flink_kafka_producer):
         super(FlinkKafkaProducerBase, self).__init__(sink_func=j_flink_kafka_producer)
 
-    def set_log_failures_only(self, log_failures_only: bool):
+    def set_log_failures_only(self, log_failures_only: bool) -> 'FlinkKafkaProducerBase':
         """
         Defines whether the producer should fail on errors, or only log them. If this is set to
         true, then exceptions will be only logged, if set to false, exceptions will be eventually
@@ -188,8 +202,9 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
         :param log_failures_only: The flag to indicate logging-only on exceptions.
         """
         self._j_function.setLogFailuresOnly(log_failures_only)
+        return self
 
-    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool):
+    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool) -> 'FlinkKafkaProducerBase':
         """
         If set to true, the Flink producer will wait for all outstanding messages in the Kafka
         buffers to be acknowledged by the Kafka producer on a checkpoint.
@@ -200,8 +215,10 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
         :param flush_on_checkpoint: Flag indicating the flush mode (true = flush on checkpoint)
         """
         self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
+        return self
 
-    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
+    def set_write_timestamp_to_kafka(self,
+                                     write_timestamp_to_kafka: bool) -> 'FlinkKafkaProducerBase':
         """
         If set to true, Flink will write the (event time) timestamp attached to each record into
         Kafka. Timestamps must be positive for Kafka to accept them.
@@ -210,9 +227,10 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
                                          to Kafka.
         """
         self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
+        return self
 
 
-class Semantic(object):
+class Semantic(Enum):
     """
     Semantics that can be chosen.
     :data: `EXACTLY_ONCE`:
@@ -243,18 +261,10 @@ class Semantic(object):
     AT_LEAST_ONCE = 1,
     NONE = 2
 
-    @staticmethod
-    def _to_j_semantic(semantic, j_semantic):
-        if semantic == Semantic.EXACTLY_ONCE:
-            return j_semantic.EXACTLY_ONCE
-        elif semantic == Semantic.AT_LEAST_ONCE:
-            return j_semantic.AT_LEAST_ONCE
-        elif semantic == Semantic.NONE:
-            return j_semantic.NONE
-        else:
-            raise TypeError("Unsupported semantic: %s, supported semantics are: "
-                            "Semantic.EXACTLY_ONCE, Semantic.AT_LEAST_ONCE, Semantic.NONE"
-                            % semantic)
+    def _to_j_semantic(self):
+        JSemantic = get_gateway().jvm \
+            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic
+        return getattr(JSemantic, self.name)
 
 
 class FlinkKafkaProducer(FlinkKafkaProducerBase):
@@ -266,7 +276,7 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
 
     def __init__(self, topic: str, serialization_schema: SerializationSchema,
                  producer_config: Dict, kafka_producer_pool_size: int = 5,
-                 semantic: Semantic = Semantic.AT_LEAST_ONCE):
+                 semantic=Semantic.AT_LEAST_ONCE):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -285,12 +295,10 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
 
         JFlinkKafkaProducer = gateway.jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer
-        JSemantic = get_gateway().jvm \
-            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic
 
         j_flink_kafka_producer = JFlinkKafkaProducer(
             topic, serialization_schema._j_serialization_schema, j_properties, None,
-            Semantic._to_j_semantic(semantic, JSemantic), kafka_producer_pool_size)
+            semantic._to_j_semantic(), kafka_producer_pool_size)
         super(FlinkKafkaProducer, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
 
     def ignore_failures_after_transaction_timeout(self) -> 'FlinkKafkaProducer':
@@ -346,8 +354,11 @@ class JdbcSink(SinkFunction):
         gateway = get_gateway()
         JJdbcTypeUtil = gateway.jvm.org.apache.flink.connector.jdbc.utils.JdbcTypeUtil
         for field_type in type_info.get_field_types():
-            sql_types.append(JJdbcTypeUtil
-                             .typeInformationToSqlType(field_type.get_java_type_info()))
+            if isinstance(field_type, WrapperTypeInfo):
+                sql_types.append(JJdbcTypeUtil
+                                 .typeInformationToSqlType(field_type.get_java_type_info()))
+            else:
+                raise ValueError('field_type must be WrapperTypeInfo')
         j_sql_type = to_jarray(gateway.jvm.int, sql_types)
         output_format_clz = gateway.jvm.Class\
             .forName('org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat', False,

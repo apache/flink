@@ -114,7 +114,7 @@ public class RegistryAvroFormatFactory implements
 								subject.get(),
 								AvroSchemaConverter.convertToSchema(rowType),
 								schemaRegistryURL),
-						RowDataToAvroConverters.createRowConverter(rowType));
+						RowDataToAvroConverters.createConverter(rowType));
 			}
 
 			@Override

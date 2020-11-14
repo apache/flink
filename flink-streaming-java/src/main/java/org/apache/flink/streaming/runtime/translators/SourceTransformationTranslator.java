@@ -20,9 +20,11 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
 import java.util.Collection;
@@ -36,26 +38,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The type of the elements that this source produces.
  */
 @Internal
-public class SourceTransformationTranslator<OUT>
-		extends SimpleTransformationTranslator<OUT, SourceTransformation<OUT>> {
+public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, EnumChkT>
+		extends SimpleTransformationTranslator<OUT, SourceTransformation<OUT, SplitT, EnumChkT>> {
 
 	@Override
 	protected Collection<Integer> translateForBatchInternal(
-			final SourceTransformation<OUT> transformation,
+			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
-		return translateInternal(transformation, context);
+
+		return translateInternal(transformation, context, false /* don't emit progressive watermarks */);
 	}
 
 	@Override
 	protected Collection<Integer> translateForStreamingInternal(
-			final SourceTransformation<OUT> transformation,
+			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
 			final Context context) {
-		return translateInternal(transformation, context);
+
+		return translateInternal(transformation, context, true /* emit progressive watermarks */);
 	}
 
 	private Collection<Integer> translateInternal(
-			final SourceTransformation<OUT> transformation,
-			final Context context) {
+			final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
+			final Context context,
+			boolean emitProgressiveWatermarks) {
 		checkNotNull(transformation);
 		checkNotNull(context);
 
@@ -64,18 +69,25 @@ public class SourceTransformationTranslator<OUT>
 		final int transformationId = transformation.getId();
 		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
+		SourceOperatorFactory<OUT> operatorFactory = new SourceOperatorFactory<>(
+				transformation.getSource(),
+				transformation.getWatermarkStrategy(),
+				emitProgressiveWatermarks);
+
+		operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
+
 		streamGraph.addSource(
 				transformationId,
 				slotSharingGroup,
 				transformation.getCoLocationGroupKey(),
-				transformation.getOperatorFactory(),
+				operatorFactory,
 				null,
 				transformation.getOutputType(),
 				"Source: " + transformation.getName());
 
 		final int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-				? transformation.getParallelism()
-				: executionConfig.getParallelism();
+			? transformation.getParallelism()
+			: executionConfig.getParallelism();
 
 		streamGraph.setParallelism(transformationId, parallelism);
 		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());

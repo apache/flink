@@ -206,6 +206,11 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
 			partitionWriter.close();
 		}
 
+		@Override
+		public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
+			getCheckpointablePartition().finishReadRecoveredState(notifyAndBlockOnCompletion);
+		}
+
 		/**
 		 * Notifies pipelined consumers of this result partition once.
 		 *

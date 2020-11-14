@@ -72,6 +72,7 @@ Vectorized Python aggregate function could be used in `GroupBy Aggregation`(Batc
 to [the relevant documentation]({% link dev/table/tableApi.md %}?code_tab=python#aggregations).
 
 <span class="label label-info">Note</span> Pandas UDAF does not support partial aggregation. Besides, all the data for a group or window will be loaded into memory at the same time during execution and so you must make sure that the data of a group or window could fit into the memory.
+
 <span class="label label-info">Note</span> Pandas UDAF is only supported in Blink Planner.
 
 The following example shows how to define your own vectorized Python aggregate function which computes mean,

@@ -69,7 +69,7 @@ class StreamExecIntervalJoin(
   with StreamPhysicalRel
   with StreamExecNode[RowData] {
 
-  if (containsPythonCall(remainCondition.get)) {
+  if (remainCondition.isDefined && containsPythonCall(remainCondition.get)) {
     throw new TableException("Only inner join condition with equality predicates supports the " +
       "Python UDF taking the inputs from the left table and the right table at the same time, " +
       "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")

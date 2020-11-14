@@ -148,8 +148,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 						return dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED);
 					}
 
-					final Optional<ApplicationFailureException> exception =
-							ExceptionUtils.findThrowable(t, ApplicationFailureException.class);
+					final Optional<UnsuccessfulExecutionException> exception =
+							ExceptionUtils.findThrowable(t, UnsuccessfulExecutionException.class);
 
 					if (exception.isPresent()) {
 						final ApplicationStatus applicationStatus = exception.get().getStatus();
@@ -284,7 +284,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 			}
 
 			throw new CompletionException(
-					ApplicationFailureException.fromJobResult(
+					UnsuccessfulExecutionException.fromJobResult(
 							result, application.getUserCodeClassLoader()));
 		});
 	}

@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockSerializationSchema;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -111,6 +112,7 @@ public class RMQSinkTest {
 			}
 		};
 
+		rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 		rmqSink.open(new Configuration());
 
 		verify(mockConnection, times(1)).createChannel();
@@ -141,6 +143,7 @@ public class RMQSinkTest {
 
 	private RMQSink<String> createRMQSink() throws Exception {
 		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
+		rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
@@ -148,6 +151,7 @@ public class RMQSinkTest {
 	private RMQSink<String> createRMQSinkWithOptions(boolean mandatory, boolean immediate) throws Exception {
 		publishOptions = new DummyPublishOptions(mandatory, immediate);
 		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
+		rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
@@ -156,6 +160,7 @@ public class RMQSinkTest {
 		publishOptions = new DummyPublishOptions(mandatory, immediate);
 		returnListener = new DummyReturnHandler();
 		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
+		rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
