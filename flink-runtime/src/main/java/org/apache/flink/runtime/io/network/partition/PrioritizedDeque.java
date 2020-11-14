@@ -202,8 +202,11 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 		return size() - getNumPriorityElements();
 	}
 
+	/**
+	 * @return read-only iterator
+	 */
 	public Iterator<T> iterator() {
-		return deque.iterator();
+		return Collections.unmodifiableCollection(deque).iterator();
 	}
 
 	/**
