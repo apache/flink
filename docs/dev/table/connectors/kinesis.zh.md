@@ -34,16 +34,6 @@ The Kinesis connector allows for reading data from and writing data into [Amazon
 Dependencies
 ------------
 
-To use the connector, add the following Maven dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kinesis{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
 {% assign connector = site.data.sql-connectors['kinesis'] %} 
 {% include sql-connector-download-table.html 
     connector=connector

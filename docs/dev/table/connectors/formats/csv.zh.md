@@ -34,12 +34,10 @@ under the License.
 依赖
 ------------
 
-
-为了建立CSV格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
-
-| Maven依赖           | SQL 客户端 JAR        |
-| :----------------- | :----------------------|
-| `flink-csv`        | 内置               |
+{% assign connector = site.data.sql-connectors['csv'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何创建使用 CSV 格式的表
 ----------------

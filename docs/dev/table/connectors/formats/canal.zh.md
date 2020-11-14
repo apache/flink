@@ -46,11 +46,10 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Can
 依赖
 ------------
 
-为了设置 Canal 格式，下表提供了使用自动化构建工具（例如：Maven 或 SBT）项目和使用绑定 SQL JAR 包的 SQL Client 所需的依赖信息。
-
-| Maven 依赖   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置               |
+{% assign connector = site.data.sql-connectors['canal'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 *注意：有关如何部署 Canal 以将变更日志同步到消息队列，请参阅 [Canal 文档](https://github.com/alibaba/canal/wiki)。*
 

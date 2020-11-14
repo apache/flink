@@ -36,7 +36,10 @@ Raw format 允许读写原始（基于字节）值作为单个列。
 依赖
 ------------
 
-Raw format 是内置格式, 因此你无需为项目和 SQL Client 添加其他依赖。
+{% assign connector = site.data.sql-connectors['raw'] %}
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 示例
 ----------------

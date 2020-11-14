@@ -34,11 +34,10 @@ under the License.
 依赖
 ------------
 
-为了使用 JSON format，下表列出了利用自动化构建工具（例如，Maven 或者 SBT ）构建项目以及 SQL Client 所需要的依赖。
-
-| Maven 依赖          | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置                    |
+{% assign connector = site.data.sql-connectors['json'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何创建一张基于 JSON Format 的表
 ----------------

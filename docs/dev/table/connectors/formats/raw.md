@@ -36,7 +36,10 @@ Note: this format encodes `null` values as `null` of `byte[]` type. This may hav
 Dependencies
 ------------
 
-The Raw format is a built-in format, so you don't need to add additional dependency for projects and SQL Client.
+{% assign connector = site.data.sql-connectors['raw'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 Example
 ----------------

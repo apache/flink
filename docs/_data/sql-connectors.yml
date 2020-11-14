@@ -84,6 +84,12 @@ json:
     category: format
     built-in: true
 
+raw:
+    name: RAW
+    maven: flink-raw
+    category: format
+    built-in: true
+
 elastic:
     name: Elasticsearch
     category: connector
