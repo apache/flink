@@ -184,6 +184,10 @@ under the License.
 							<!-- leaked constructor in TypeHint -->
 							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
+
+							<!-- additions to Source API context interfaces -->
+							<exclude>org.apache.flink.api.connector.source.SourceReaderContext</exclude>
+							<exclude>org.apache.flink.api.connector.source.SplitEnumeratorContext</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
