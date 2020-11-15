@@ -259,14 +259,14 @@ READ_MSG=$(read_messages_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"
 
-EXPECTED_MSG='Current orderId: 1603679414 payAmount: 83685.44904332698
-Current orderId: 1603679427 payAmount: 30092.50657757042
-Current orderId: 1603679428 payAmount: 62644.01719293056
-Current orderId: 1603679429 payAmount: 6449.806795118451
-Current orderId: 1603679492 payAmount: 41108.36128417494
-Current orderId: 1603679493 payAmount: 64882.44233197067
-Current orderId: 1603679522 payAmount: 81648.80712644062
-Current orderId: 1603679523 payAmount: 81861.73063103345
+EXPECTED_MSG='Current key: 1603679414, orderId: 1603679414, payAmount: 83685.44904332698, timestamp: 1603679413000
+Current key: 1603679427, orderId: 1603679427, payAmount: 30092.50657757042, timestamp: 1603679426000
+Current key: 1603679428, orderId: 1603679428, payAmount: 62644.01719293056, timestamp: 1603679427000
+Current key: 1603679429, orderId: 1603679429, payAmount: 6449.806795118451, timestamp: 1603679428000
+Current key: 1603679492, orderId: 1603679492, payAmount: 41108.36128417494, timestamp: 1603679491000
+Current key: 1603679493, orderId: 1603679493, payAmount: 64882.44233197067, timestamp: 1603679492000
+Current key: 1603679522, orderId: 1603679522, payAmount: 81648.80712644062, timestamp: 1603679521000
+Current key: 1603679523, orderId: 1603679523, payAmount: 81861.73063103345, timestamp: 1603679522000
 On timer timestamp: -9223372036854774308
 On timer timestamp: -9223372036854774308
 On timer timestamp: -9223372036854774308
