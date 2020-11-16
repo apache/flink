@@ -391,10 +391,16 @@ public class AvroSchemaConverter {
 						.fields();
 				for (int i = 0; i < rowType.getFieldCount(); i++) {
 					String fieldName = fieldNames.get(i);
-					builder = builder
+					LogicalType fieldType = rowType.getTypeAt(i);
+					SchemaBuilder.GenericDefault<Schema> fieldBuilder = builder
 						.name(fieldName)
-						.type(convertToSchema(rowType.getTypeAt(i), rowName + "_" + fieldName))
-						.noDefault();
+						.type(convertToSchema(fieldType, rowName + "_" + fieldName));
+
+					if (fieldType.isNullable()) {
+						builder = fieldBuilder.withDefault(null);
+					} else {
+						builder = fieldBuilder.noDefault();
+					}
 				}
 				Schema record = builder.endRecord();
 				return nullable ? nullableSchema(record) : record;
@@ -441,6 +447,6 @@ public class AvroSchemaConverter {
 	private static Schema nullableSchema(Schema schema) {
 		return schema.isNullable()
 				? schema
-				: Schema.createUnion(schema, SchemaBuilder.builder().nullType());
+				: Schema.createUnion(SchemaBuilder.builder().nullType(), schema);
 	}
 }
