@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.util.FlinkException;
@@ -112,7 +111,7 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with an JobCancellationException.");
-		} catch (JobExecutionResultException expected) {
+		} catch (JobExecutionException expected) {
 
 			assertThat(expected.getCause(), is(instanceOf(JobCancellationException.class)));
 			// the failure cause in the execution graph should not be the cause of the canceled job result
@@ -133,7 +132,7 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with JobExecutionException.");
-		} catch (JobExecutionResultException expected) {
+		} catch (JobExecutionException expected) {
 
 			assertThat(expected.getCause(), is(instanceOf(JobExecutionException.class)));
 			// the failure cause in the execution graph should not be the cause of the canceled job result

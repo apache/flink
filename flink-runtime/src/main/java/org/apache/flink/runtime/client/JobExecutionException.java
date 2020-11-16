@@ -19,17 +19,21 @@
 package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.util.FlinkException;
 
 /**
  * This exception is the base exception for all exceptions that denote any failure during
- * the execution of a job.
+ * the execution of a job, some of which signals the failure of an application with a given
+ * {@link ApplicationStatus}.
  */
 public class JobExecutionException extends FlinkException {
 
 	private static final long serialVersionUID = 2818087325120827525L;
 
 	private final JobID jobID;
+
+	private ApplicationStatus status;
 
 	/**
 	 * Constructs a new job execution exception.
@@ -53,7 +57,16 @@ public class JobExecutionException extends FlinkException {
 		this.jobID = jobID;
 	}
 
+	public JobExecutionException(JobID jobID, ApplicationStatus status, String msg, Throwable cause) {
+		this(jobID, msg, cause);
+		this.status = status;
+	}
+
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	public ApplicationStatus getStatus() {
+		return status;
 	}
 }

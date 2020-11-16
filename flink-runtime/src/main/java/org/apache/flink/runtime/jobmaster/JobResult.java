@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobExecutionResultException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -120,11 +119,11 @@ public class JobResult implements Serializable {
 	 *
 	 * @param classLoader to use for deserialization
 	 * @return JobExecutionResult
-	 * @throws JobExecutionResultException if the job execution did not succeed
+	 * @throws JobExecutionException if the job execution did not succeed
 	 * @throws IOException if the accumulator could not be deserialized
 	 * @throws ClassNotFoundException if the accumulator could not deserialized
 	 */
-	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionResultException, IOException, ClassNotFoundException {
+	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionException, IOException, ClassNotFoundException {
 		if (applicationStatus == ApplicationStatus.SUCCEEDED) {
 			return new JobExecutionResult(
 				jobId,
@@ -137,8 +136,8 @@ public class JobResult implements Serializable {
 					getJobExecutionException(serializedThrowable, classLoader);
 
 			throw applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED
-					? new JobExecutionResultException(jobId, applicationStatus, "Application Status: " + applicationStatus.name(), exception)
-					: new JobExecutionResultException(jobId, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", exception);
+					? new JobExecutionException(jobId, applicationStatus, "Application Status: " + applicationStatus.name(), exception)
+					: new JobExecutionException(jobId, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", exception);
 		}
 	}
 

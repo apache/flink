@@ -21,7 +21,7 @@ import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.runtime.client.JobExecutionResultException;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -48,7 +48,7 @@ public class StreamExecutionEnvironmentITCase {
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void executeThrowsJobExecutionResultException() throws Exception {
+	public void executeThrowsJobExecutionException() throws Exception {
 		UnmodifiableConfiguration clientConfiguration = miniClusterResource.getClientConfiguration();
 		Configuration config = new Configuration(clientConfiguration);
 		config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
@@ -69,7 +69,7 @@ public class StreamExecutionEnvironmentITCase {
 				})
 				.print();
 
-		thrown.expect(JobExecutionResultException.class);
+		thrown.expect(JobExecutionException.class);
 		env.execute();
 	}
 }
