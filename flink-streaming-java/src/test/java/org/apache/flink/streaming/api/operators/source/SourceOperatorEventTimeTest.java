@@ -67,9 +67,7 @@ public class SourceOperatorEventTimeTest {
 
 		assertThat(result, contains(
 			new Watermark(100L),
-			new Watermark(120L),
-			Watermark.MAX_WATERMARK
-		));
+			new Watermark(120L)));
 	}
 
 	@Test
@@ -86,9 +84,7 @@ public class SourceOperatorEventTimeTest {
 
 		assertThat(result, contains(
 			new Watermark(100L),
-			new Watermark(120L),
-			Watermark.MAX_WATERMARK
-		));
+			new Watermark(120L)));
 	}
 
 	@Test
@@ -112,9 +108,7 @@ public class SourceOperatorEventTimeTest {
 		assertThat(result, contains(
 			new Watermark(100L),
 			new Watermark(150L),
-			new Watermark(200L),
-			Watermark.MAX_WATERMARK
-		));
+			new Watermark(200L)));
 	}
 
 	@Test
@@ -138,9 +132,7 @@ public class SourceOperatorEventTimeTest {
 		assertThat(result, contains(
 			new Watermark(100L),
 			new Watermark(150L),
-			new Watermark(200L),
-			Watermark.MAX_WATERMARK
-		));
+			new Watermark(200L)));
 	}
 
 	// ------------------------------------------------------------------------
