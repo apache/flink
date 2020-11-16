@@ -144,8 +144,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 
 	private void handleNewSplits(NewSplitsAndState<T> newSplitsAndState, Throwable error) {
 		if (error != null) {
-			LOG.error("Failed to enumerate files", error);
-			return;
+			// we need to failover because the worker thread is stateful
+			throw new FlinkHiveException("Failed to enumerate files", error);
 		}
 		this.currentReadOffset = newSplitsAndState.offset;
 		this.seenPartitionsSinceOffset = newSplitsAndState.seenPartitions;
