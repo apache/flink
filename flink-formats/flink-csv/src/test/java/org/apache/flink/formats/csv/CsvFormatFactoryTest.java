@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
@@ -40,11 +41,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.data.StringData.fromString;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -159,6 +162,44 @@ public class CsvFormatFactoryTest extends TestLogger {
 				getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
 
 		createTableSink(options);
+	}
+
+	@Test
+	public void testSerializeWithEscapedFieldDelimiter() {
+		// test serialization schema
+		final Map<String, String> options =
+			getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\\t"));
+
+		final DynamicTableSink actualSink = createTableSink(options);
+		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+		SerializationSchema<RowData> serializationSchema =
+			sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
+		RowData rowData = GenericRowData.of(fromString("abc"), 123, false);
+		byte[] bytes = serializationSchema.serialize(rowData);
+		String actual = new String(bytes);
+		assertEquals("abc\t123\tfalse", actual);
+	}
+
+	@Test
+	public void testDeserializeWithEscapedFieldDelimiter() throws IOException {
+		// test deserialization schema
+		final Map<String, String> options =
+			getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\\t"));
+
+		final DynamicTableSource actualSource = createTableSource(options);
+		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+		TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+		DeserializationSchema<RowData> deserializationSchema =
+			sourceMock.valueFormat.createRuntimeDecoder(ScanRuntimeProviderContext.INSTANCE,
+				SCHEMA.toRowDataType());
+		RowData expected = GenericRowData.of(fromString("abc"), 123, false);
+		RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
+		assertEquals(expected, actual);
 	}
 
 	@Test
