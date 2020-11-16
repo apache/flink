@@ -30,6 +30,8 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -147,6 +149,7 @@ import java.io.StreamCorruptedException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1001,6 +1004,33 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testAsyncCheckpointException() {
+		final Map<OperatorID, OperatorSnapshotFutures> snapshotsInProgress = new HashMap<>();
+		snapshotsInProgress.put(
+				new OperatorID(),
+				new OperatorSnapshotFutures(
+						ExceptionallyDoneFuture.of(new RuntimeException("Async Checkpoint Exception")),
+						DoneFuture.of(SnapshotResult.empty()),
+						DoneFuture.of(SnapshotResult.empty()),
+						DoneFuture.of(SnapshotResult.empty())));
+
+		final TestEnvironment environment = new TestEnvironment();
+		final StreamTask testStreamTask = new StreamTaskTest.NoOpStreamTask(environment);
+
+		final StreamTask.AsyncCheckpointRunnable runnable = new StreamTask.AsyncCheckpointRunnable(
+				testStreamTask,
+				snapshotsInProgress,
+				new CheckpointMetaData(1, 1L),
+				new CheckpointMetrics(),
+				1L);
+		runnable.run();
+
+		Assert.assertTrue(environment.getCause() instanceof CheckpointException);
+		Assert.assertSame(((CheckpointException) environment.getCause())
+				.getCheckpointFailureReason(), CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
+	}
+
 	private MockEnvironment setupEnvironment(boolean[] outputAvailabilities) {
 		final Configuration configuration = new Configuration();
 		new MockStreamConfig(configuration, outputAvailabilities.length);
@@ -1800,6 +1830,42 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
 			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class TestEnvironment extends StreamMockEnvironment {
+
+		Throwable cause = null;
+
+		TestEnvironment() {
+			this(
+					new Configuration(),
+					new Configuration(),
+					new ExecutionConfig(),
+					1L,
+					new MockInputSplitProvider(),
+					1,
+					new TestTaskStateManager());
+		}
+
+		TestEnvironment(
+				Configuration jobConfig,
+				Configuration taskConfig,
+				ExecutionConfig executionConfig,
+				long memorySize,
+				MockInputSplitProvider inputSplitProvider,
+				int bufferSize,
+				TaskStateManager taskStateManager) {
+			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize, taskStateManager);
+		}
+
+		@Override
+		public void declineCheckpoint(long checkpointId, Throwable cause) {
+			this.cause = cause;
+		}
+
+		Throwable getCause() {
+			return cause;
 		}
 	}
 }

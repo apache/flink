@@ -1250,7 +1250,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					// We only report the exception for the original cause of fail and cleanup.
 					// Otherwise this followup exception could race the original exception in failing the task.
 					try {
-						owner.getEnvironment().declineCheckpoint(checkpointMetaData.getCheckpointId(), checkpointException);
+						owner.getEnvironment().declineCheckpoint(
+								checkpointMetaData.getCheckpointId(),
+								new CheckpointException(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION, checkpointException));
 					} catch (Exception unhandled) {
 						AsynchronousException asyncException = new AsynchronousException(unhandled);
 						owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
