@@ -78,7 +78,7 @@ FROM(
 </div>
 </div>
 
-相反，你也可以将一个 STRING 类型的列作为 UTF-8 编码的匿名字符串值写入 Kafka topic。
+相对应的，你也可以将一个 STRING 类型的列以 UTF-8 编码的匿名字符串值写入 Kafka topic。
 
 Format 参数
 ----------------
@@ -114,7 +114,7 @@ Format 参数
       <td style="word-wrap: break-word;">big-endian</td>
       <td>String</td>
       <td>指定字节序来编码数字值的字节。有效值为'big-endian'和'little-endian'。
-      更多细节可查阅 <a href="https://en.wikipedia.org/wiki/Endianness">endianness</a>。</td>
+      更多细节可查阅 <a href="https://zh.wikipedia.org/wiki/字节序">字节序</a>。</td>
     </tr>
     </tbody>
 </table>
