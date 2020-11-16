@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
@@ -68,8 +69,14 @@ public class JobManagerProcessUtils {
 	public static JobManagerProcessSpec processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			Configuration config,
 			ConfigOption<MemorySize> newOptionToInterpretLegacyHeap) {
-		return processSpecFromConfig(
-			getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(config, newOptionToInterpretLegacyHeap));
+		try {
+			return processSpecFromConfig(
+				getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+					config,
+					newOptionToInterpretLegacyHeap));
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException("JobManager memory configuration failed: " + e.getMessage(), e);
+		}
 	}
 
 	static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
