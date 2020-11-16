@@ -43,8 +43,6 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.util.MockOutput;
@@ -54,7 +52,6 @@ import org.apache.flink.util.CollectionUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,17 +145,6 @@ public class SourceOperatorTest {
 	}
 
 	@Test
-	public void testCloseWillSendMaxWatermark() throws Exception {
-		MockSourceSplit mockSplit = new MockSourceSplit(1, 0, 0);
-		operator.initializeState(getStateContext(mockSplit));
-		PushingAsyncDataInput.DataOutput<Integer> dataOutput =
-			Mockito.mock(PushingAsyncDataInput.DataOutput.class);
-		operator.open();
-		operator.emitNext(dataOutput);
-		Mockito.verify(dataOutput, Mockito.times(1)).emitWatermark(Watermark.MAX_WATERMARK);
-	}
-
-	@Test
 	public void testSnapshotState() throws Exception {
 		StateInitializationContext stateContext = getStateContext();
 		operator.initializeState(stateContext);
@@ -196,13 +182,9 @@ public class SourceOperatorTest {
 	// ---------------- helper methods -------------------------
 
 	private StateInitializationContext getStateContext() throws Exception {
-		return getStateContext(MOCK_SPLIT);
-	}
-
-	private StateInitializationContext getStateContext(MockSourceSplit mockSplit) throws Exception {
 		// Create a mock split.
 		byte[] serializedSplitWithVersion = SimpleVersionedSerialization
-			.writeVersionAndSerialize(new MockSourceSplitSerializer(), mockSplit);
+			.writeVersionAndSerialize(new MockSourceSplitSerializer(), MOCK_SPLIT);
 
 		// Crate the state context.
 		OperatorStateStore operatorStateStore = createOperatorStateStore();

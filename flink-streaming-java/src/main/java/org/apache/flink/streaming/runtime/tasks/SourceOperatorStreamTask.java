@@ -71,6 +71,14 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 		output.emitWatermark(Watermark.MAX_WATERMARK);
 	}
 
+	@Override
+	protected void afterInvoke() throws Exception {
+		if (!isCanceled()) {
+			advanceToEndOfEventTime();
+		}
+		super.afterInvoke();
+	}
+
 	/**
 	 * Implementation of {@link DataOutput} that wraps a specific {@link Output}.
 	 */

@@ -52,7 +52,10 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for verifying that the {@link SourceOperator} as a task input can be integrated
@@ -99,6 +102,29 @@ public class SourceOperatorStreamTaskTest {
 		}
 	}
 
+	@Test
+	public void testEmittingMaxWatermarkAfterReadingAllRecords() throws Exception {
+		try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
+			testHarness.processAll();
+			testHarness.finishProcessing();
+
+			List<Object> expectedOutput = Collections.singletonList(
+				Watermark.MAX_WATERMARK
+			);
+			assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
+		}
+	}
+
+	@Test
+	public void testNotEmittingMaxWatermarkAfterCancelling() throws Exception {
+		try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
+			testHarness.getStreamTask().cancel();
+			testHarness.finishProcessing();
+
+			assertThat(testHarness.getOutput(), hasSize(0));
+		}
+	}
+
 	private TaskStateSnapshot executeAndWaitForCheckpoint(
 			long checkpointId,
 			TaskStateSnapshot initialSnapshot,
@@ -110,7 +136,7 @@ public class SourceOperatorStreamTaskTest {
 			// Add records to the split and update expected output.
 			addRecords(split, NUM_RECORDS);
 			// Process all the records.
-			processUntil(testHarness, () -> !testHarness.getStreamTask().inputProcessor.getAvailableFuture().isDone());
+			testHarness.processAll();
 
 			CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 			triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
@@ -152,6 +178,10 @@ public class SourceOperatorStreamTaskTest {
 		do {
 			testHarness.getStreamTask().runMailboxStep();
 		} while (!condition.get());
+	}
+
+	private StreamTaskMailboxTestHarness<Integer> createTestHarness() throws Exception {
+		return createTestHarness(0, null);
 	}
 
 	private StreamTaskMailboxTestHarness<Integer> createTestHarness(

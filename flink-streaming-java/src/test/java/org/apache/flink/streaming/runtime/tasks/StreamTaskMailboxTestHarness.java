@@ -143,12 +143,17 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 		}
 	}
 
-	@Override
-	public void close() throws Exception {
-		streamTask.cancel();
-
+	public void finishProcessing() throws Exception {
 		streamTask.afterInvoke();
 		streamTask.cleanUpInvoke();
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (streamTask.isRunning()) {
+			streamTask.cancel();
+			finishProcessing();
+		}
 
 		streamMockEnvironment.getIOManager().close();
 		MemoryManager memMan = this.streamMockEnvironment.getMemoryManager();
