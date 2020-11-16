@@ -306,10 +306,13 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	enum WritableMetadata {
 
 		HEADERS(
-				"headers",
-				// key and value of the map are nullable to make handling easier in queries
-				DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.BYTES().nullable()).nullable(),
-				(row, pos) -> {
+			"headers",
+			// key and value of the map are nullable to make handling easier in queries
+			DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.BYTES().nullable()).nullable(),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(RowData row, int pos) {
 					if (row.isNullAt(pos)) {
 						return null;
 					}
@@ -326,17 +329,23 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 					}
 					return headers;
 				}
+			}
 		),
 
 		TIMESTAMP(
-				"timestamp",
-				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-				(row, pos) -> {
+			"timestamp",
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(RowData row, int pos) {
 					if (row.isNullAt(pos)) {
 						return null;
 					}
 					return row.getTimestamp(pos, 3).getMillisecond();
-				});
+				}
+			}
+		);
 
 		final String key;
 
