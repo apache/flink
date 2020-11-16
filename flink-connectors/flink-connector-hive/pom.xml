@@ -173,8 +173,16 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- format dependencies -->
