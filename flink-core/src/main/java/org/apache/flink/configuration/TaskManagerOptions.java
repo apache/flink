@@ -406,8 +406,7 @@ public class TaskManagerOptions {
 	/**
 	 * Weights of managed memory consumers.
 	 */
-	// Do not advertise this option until the feature is completed.
-	@Documentation.ExcludeFromDocumentation
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Map<String, String>> MANAGED_MEMORY_CONSUMER_WEIGHTS =
 		key("taskmanager.memory.managed.consumer-weights")
 			.mapType()
