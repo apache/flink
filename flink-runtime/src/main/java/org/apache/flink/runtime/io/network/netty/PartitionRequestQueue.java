@@ -134,10 +134,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			ctx.channel().close();
 		}
 
-		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			releaseViewReader(reader);
-		}
-		allReaders.clear();
+		releaseAllResources();
 	}
 
 	/**
