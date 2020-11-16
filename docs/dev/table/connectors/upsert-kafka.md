@@ -67,12 +67,12 @@ CREATE TABLE pageviews_per_region (
   region STRING,
   pv BIGINT,
   uv BIGINT,
-  PRIMARY KEY region NOT ENFORCED
+  PRIMARY KEY (region) NOT ENFORCED
 ) WITH (
   'connector' = 'upsert-kafka',
   'topic' = 'pageviews_per_region',
   'properties.bootstrap.servers' = '...',
-  'key.format' = 'csv',
+  'key.format' = 'avro',
   'value.format' = 'avro'
 );
 
