@@ -63,7 +63,6 @@ public final class OneShotLatch {
 					lock.wait();
 				}
 				catch (InterruptedException e) {
-					// Restore the interrupted status
 					Thread.currentThread().interrupt();
 				}
 				finally {
