@@ -90,6 +90,13 @@ public class SQLJobSubmission {
 			return this;
 		}
 
+		public SQLJobSubmissionBuilder addJars(Path... jarFiles) {
+			for (Path jarFile : jarFiles) {
+				addJar(jarFile);
+			}
+			return this;
+		}
+
 		public SQLJobSubmissionBuilder addJars(List<Path> jarFiles) {
 			jarFiles.forEach(this::addJar);
 			return this;
