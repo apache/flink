@@ -504,8 +504,10 @@ class DataStream(object):
                     j_output_type,
                     j_data_stream_python_function_info,
                     watermark_strategy._j_watermark_strategy)
+            operator_name = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil \
+                .STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME
             return DataStream(self._j_data_stream.transform(
-                "TIMESTAMP_AND_WATERMARK",
+                operator_name,
                 j_output_type,
                 j_operator))
         else:

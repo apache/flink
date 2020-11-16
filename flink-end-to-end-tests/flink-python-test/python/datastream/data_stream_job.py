@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import datetime
 from typing import Any
 
 from pyflink.common import Duration
@@ -39,7 +38,7 @@ def python_data_stream_example():
     env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
     type_info = Types.ROW_NAMED(['createTime', 'orderId', 'payAmount', 'payPlatform', 'provinceId'],
-                                [Types.STRING(), Types.LONG(), Types.DOUBLE(), Types.INT(),
+                                [Types.LONG(), Types.LONG(), Types.DOUBLE(), Types.INT(),
                                  Types.INT()])
     json_row_schema = JsonRowDeserializationSchema.builder().type_info(type_info).build()
     kafka_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
@@ -74,10 +73,7 @@ class MyProcessFunction(KeyedProcessFunction):
 class KafkaRowTimestampAssigner(TimestampAssigner):
 
     def extract_timestamp(self, value: Any, record_timestamp: int) -> int:
-        with open("/tmp/ts_debug.txt", 'a') as f:
-            f.write("get value: {} \n".format(str(value)))
-        dt_obj = datetime.datetime.strptime(value[0], '%Y-%m-%d %H:%M:%S')
-        return int(dt_obj.timestamp()*1000)
+        return int(value[0])
 
 
 if __name__ == '__main__':

@@ -58,6 +58,7 @@ public class PythonConfigUtil {
 	public static final String KEYED_STREAM_VALUE_OPERATOR_NAME = "_keyed_stream_values_operator";
 	public static final String STREAM_KEY_BY_MAP_OPERATOR_NAME = "_stream_key_by_map_operator";
 	public static final String STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME = "_partition_custom_map_operator";
+	public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME = "_timestamp_and_watermark_operator";
 
 	/**
 	 * A static method to get the {@link StreamExecutionEnvironment} configuration merged with python dependency
@@ -112,7 +113,8 @@ public class PythonConfigUtil {
 		}
 
 		if (streamNode.getOperatorName().equals(STREAM_KEY_BY_MAP_OPERATOR_NAME) ||
-			streamNode.getOperatorName().equals(STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)) {
+			streamNode.getOperatorName().equals(STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME) ||
+			streamNode.getOperatorName().equals(STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME)) {
 			StreamEdge upStreamEdge = streamNode.getInEdges().get(0);
 			StreamNode upStreamNode = streamGraph.getStreamNode(upStreamEdge.getSourceId());
 			chainStreamNode(upStreamEdge, streamNode, upStreamNode);
