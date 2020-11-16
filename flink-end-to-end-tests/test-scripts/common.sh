@@ -449,6 +449,7 @@ function stop_cluster {
   if [[ ${zookeeper_process_count} -gt 0 ]]; then
     echo "Stopping zookeeper..."
     "$FLINK_DIR"/bin/zookeeper.sh stop
+    kill_all 'QuorumPeer'
   fi
 }
 
@@ -587,9 +588,25 @@ function tm_kill_all {
 
 # Kills all processes that match the given name.
 function kill_all {
-  local pid=`jps | grep -E "${1}" | cut -d " " -f 1 || true`
-  kill ${pid} 2> /dev/null || true
-  wait ${pid} 2> /dev/null || true
+  # using ps instead of jps to identify jvms in shutdown as well, so that we can wait for the shutdown to finish (jps doesn't show killed JVMs while shutting down)
+  # use awk to strip leading and trailing whitespaces
+  # use cut to get the pid
+  for pid in $(ps ax | grep "java" | grep -E "${1}" | awk '{$1=$1;print}' | cut -d " " -f 1)
+  do
+      echo "Waiting till process is stopped: pid = $pid pattern = '${1}'"
+      kill ${pid} 2> /dev/null || true
+      if [[ "$OS_TYPE" == "mac" ]]; then
+          # works on mac, but does seem to return before the process has finished on Linux
+          wait ${pid} 2> /dev/null || true
+      else
+          # use tail to wait for a process to finish: https://stackoverflow.com/questions/1058047/wait-for-a-process-to-finish/11719943
+          timeout 60 tail --pid=${pid} -f /dev/null
+          if [ "$?" -eq 124 ]; then
+            echo "Process (pid = $pid) didn't stop within 60 seconds. Killing it:"
+            kill -9 $pid
+          fi
+      fi
+  done
 }
 
 function kill_random_taskmanager {
@@ -822,11 +839,20 @@ internal_run_with_timeout() {
 
   (
       command_pid=$BASHPID
-      (sleep "${timeout_in_seconds}" # set a timeout for this command
-      echo "${command_label:-"The command '${command}'"} (pid: $command_pid) did not finish after $timeout_in_seconds seconds."
-      eval "${on_failure}"
-      kill "$command_pid") & watchdog_pid=$!
+      (# this subshell contains the watchdog
+        local wakeup_time=$(( ${timeout_in_seconds} + $(date +%s) ))
+        while true; do
+          sleep 1
+          if [ $wakeup_time -le $(date +%s) ]; then
+            echo "${command_label:-"The command '${command}'"} (pid: $command_pid) did not finish after $timeout_in_seconds seconds."
+            eval "${on_failure}"
+            kill "$command_pid"
+            pkill -P "$command_pid"
+          fi
+        done
+      ) & watchdog_pid=$!
       echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+      echo "Started watchdog with pid = $watchdog_pid"
       # invoke
       $command
   )
