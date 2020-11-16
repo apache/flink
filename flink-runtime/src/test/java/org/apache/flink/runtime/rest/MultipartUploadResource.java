@@ -338,7 +338,7 @@ public class MultipartUploadResource extends ExternalResource {
 				}
 			} catch (Exception e) {
 				// return 505 to differentiate from common BAD_REQUEST responses in this test
-				throw new RestHandlerException("Test verification failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+				throw new RestHandlerException("Test verification failed.", HttpResponseStatus.HTTP_VERSION_NOT_SUPPORTED, e);
 			}
 		}
 
