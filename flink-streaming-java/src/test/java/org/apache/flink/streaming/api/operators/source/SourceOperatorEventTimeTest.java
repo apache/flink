@@ -51,6 +51,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -178,10 +179,9 @@ public class SourceOperatorEventTimeTest {
 		// "STREAMING" and "BATCH" mode.
 		if (emitProgressiveWatermarks) {
 			ArrayList<Watermark> watermarks = Lists.newArrayList(expectedWatermarks);
-			watermarks.add(new Watermark(Long.MAX_VALUE));
 			assertThat(actualWatermarks, contains(watermarks.toArray()));
 		} else {
-			assertThat(actualWatermarks, contains(new Watermark(Long.MAX_VALUE)));
+			assertThat(actualWatermarks, hasSize(0));
 		}
 	}
 
