@@ -77,6 +77,7 @@ It will be added to the JVM Heap size and will be dedicated to Flink’s operato
 *Managed memory* is managed by Flink and is allocated as native memory (off-heap). The following workloads use *managed memory*:
 * Streaming jobs can use it for [RocksDB state backend]({% link ops/state/state_backends.md %}#the-rocksdbstatebackend).
 * [Batch jobs]({% link dev/batch/index.md %}) can use it for sorting, hash tables, caching of intermediate results.
+* Both streaming and batch jobs can use it for executing [User Defined Functions in Python processes]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}).
 
 The size of *managed memory* can be
 * either configured explicitly via [`taskmanager.memory.managed.size`]({% link ops/config.md %}#taskmanager-memory-managed-size)
@@ -86,6 +87,26 @@ The size of *managed memory* can be
 If neither *size* nor *fraction* is explicitly configured, the [default fraction]({% link ops/config.md %}#taskmanager-memory-managed-fraction) will be used.
 
 See also [how to configure memory for state backends]({% link ops/memory/mem_tuning.md %}#configure-memory-for-state-backends) and [batch jobs]({% link ops/memory/mem_tuning.md %}#configure-memory-for-batch-jobs).
+
+#### Consumer Weights
+
+If your job contains multiple types of managed memory consumers, you can also control how managed memory should be shared across these types.
+The configuration option [`taskmanager.memory.managed.consumer-weights`]({% link ops/config.md %}#taskmanager-memory-managed-consumer-weights) allows you to set a weight for each type, to which Flink will reserve managed memory proportionally.
+Valid consumer types are:
+* `DATAPROC`: for RocksDB state backend in streaming and built-in algorithms in batch.
+* `PYTHON`: for Python processes.
+
+E.g. if a streaming job uses both RocksDB state backend and Python UDFs, and the consumer weights are configured as `DATAPROC:70,PYTHON:30`, Flink will reserve `70%` of the total managed memory for RocksDB state backend and `30%` for Python processes.
+
+<span class="label label-info">Note</span>
+For each type, Flink reserves managed memory only if the job contains managed memory consumers of that type.
+E.g, if a streaming job uses the heap state backend and Python UDFs, and the consumer weights are configured as `DATAPROC:70,PYTHON:30`, Flink will use all of its managed memory for Python processes, because the heap state backend does not use managed memory.
+
+<span class="label label-info">Note</span>
+Flink will not reserve managed memory for consumer types that are not included in the consumer weights.
+If the missing type is actually needed by the job, it can lead to memory allocation failures.
+By default, all consumer types are included.
+This could only happen when the weights are explicitly configured/overwritten.
 
 ## Configure Off-heap Memory (direct or native)
 

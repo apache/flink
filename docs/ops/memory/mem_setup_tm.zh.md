@@ -83,6 +83,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 以下场景需要使用*托管内存*：
 * 流处理作业中用于 [RocksDB State Backend]({% link ops/state/state_backends.zh.md %}#the-rocksdbstatebackend)。
 * [批处理作业]({% link dev/batch/index.zh.md %})中用于排序、哈希表及缓存中间结果。
+* Both streaming and batch jobs can use it for executing [User Defined Functions in Python processes]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}).
 
 可以通过以下两种范式指定*托管内存*的大小：
 * 通过 [`taskmanager.memory.managed.size`]({% link ops/config.zh.md %}#taskmanager-memory-managed-size) 明确指定其大小。
@@ -92,6 +93,26 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 若二者均未指定，会根据[默认占比]({% link ops/config.zh.md %}#taskmanager-memory-managed-fraction)进行计算。
 
 请同时参考[如何配置 State Backend 内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-state-backends)以及[如何配置批处理作业内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-batch-jobs)。
+
+#### Consumer Weights
+
+If your job contains multiple types of managed memory consumers, you can also control how managed memory should be shared across these types.
+The configuration option [`taskmanager.memory.managed.consumer-weights`]({% link ops/config.md %}#taskmanager-memory-managed-consumer-weights) allows you to set a weight for each type, to which Flink will reserve managed memory proportionally.
+Valid consumer types are:
+* `DATAPROC`: for RocksDB state backend in streaming and built-in algorithms in batch.
+* `PYTHON`: for python processes.
+
+E.g. if a streaming job uses both RocksDB state backend and Python UDFs, and the consumer weights are configured as `DATAPROC:70,PYTHON:30`, Flink will reserve `70%` of the total managed memory for RocksDB state backend and `30%` for Python processes.
+
+<span class="label label-info">Note</span>
+For each type, Flink reserves managed memory only if the job contains managed memory consumer of that type.
+E.g, if a streaming job uses heap state backend and Python UDFs, and the consumer weights are configured as `DATAPROC:70,PYTHON:30`, Flink will use all of its managed memory for Python processes, because heap state backend does not use managed memory.
+
+<span class="label label-info">Note</span>
+Flink will not reserve managed memory for consumer types that are not included in the consumer weights.
+If the missing type is actually needed by the job, it can lead to memory allocation failures.
+By default, all consumer types are included.
+This could only happen when the weights are explicitly configured/overwritten.
 
 <a name="configure-off-heap-memory-direct-or-native" />
 
