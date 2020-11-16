@@ -61,7 +61,12 @@ public final class OneShotLatch {
 				try {
 					waitersSet.add(thread);
 					lock.wait();
-				} finally {
+				}
+				catch (InterruptedException e) {
+					// Restore the interrupted status
+					Thread.currentThread().interrupt();
+				}
+				finally {
 					waitersSet.remove(thread);
 				}
 			}
