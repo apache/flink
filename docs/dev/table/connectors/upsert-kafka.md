@@ -201,4 +201,12 @@ connector is working in the upsert mode, the last record on the same key will ta
 reading back as a source. Therefore, the upsert-kafka connector achieves idempotent writes just like
 the [HBase sink]({{ site.baseurl }}/dev/table/connectors/hbase.html).
 
+Data Type Mapping
+----------------
+
+Upsert Kafka stores message keys and values as bytes, so Upsert Kafka doesn't have schema or data types.
+The messages are deserialized and serialized by formats, e.g. csv, json, avro. Thus, the data type mapping
+is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.md %})
+pages for more details.
+
 {% top %}
