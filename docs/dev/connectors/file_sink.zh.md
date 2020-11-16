@@ -1,6 +1,6 @@
 ---
-title: "Streaming File Sink"
-nav-title: Streaming File Sink
+title: "File Sink"
+nav-title: File Sink
 nav-parent_id: connectors
 nav-pos: 5
 ---
@@ -26,35 +26,35 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中。
+这个连接器提供了一个在流和批模式下统一的 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中，它对于流和批模式可以提供相同的一致性语义保证。
 
-Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
+File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
-桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。
+桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。对于行编码格式（参考 [File Formats](#file-formats) ）默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。对于批量编码格式我们需要在每次 Checkpoint 时切割文件，但是用户也可以指定额外的基于文件大小和超时时间的条件。
 
  <div class="alert alert-info">
-     <b>重要:</b> 使用 StreamingFileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
+     <b>重要:</b> 在流模式下使用 FileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
  </div>
 
  <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
 
 ## 文件格式
 
- `StreamingFileSink` 支持行编码格式和批量编码格式，比如 [Apache Parquet](http://parquet.apache.org) 。
+ `FileSink` 支持行编码格式和批量编码格式，比如 [Apache Parquet](http://parquet.apache.org) 。
 这两种变体随附了各自的构建器，可以使用以下静态方法创建：
 
- - Row-encoded sink: `StreamingFileSink.forRowFormat(basePath, rowEncoder)`
- - Bulk-encoded sink: `StreamingFileSink.forBulkFormat(basePath, bulkWriterFactory)`
+ - Row-encoded sink: `FileSink.forRowFormat(basePath, rowEncoder)`
+ - Bulk-encoded sink: `FileSink.forBulkFormat(basePath, bulkWriterFactory)`
 
 创建行或批量编码的 Sink 时，我们需要指定存储桶的基本路径和数据的编码逻辑。
 
-更多配置操作以及不同数据格式的实现请参考 [StreamingFileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.html) 
+更多配置操作以及不同数据格式的实现请参考 [FileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.html)
 
 ### 行编码格式
 
 行编码格式需要指定一个 [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html) 。Encoder 负责为每个处于 In-progress 状态文件的`OutputStream` 序列化数据。
 
-除了桶分配器之外，[RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html)  还允许用户指定：
+除了桶分配器之外，[RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.RowFormatBuilder.html)  还允许用户指定：
 
  - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) ：自定义滚动策略以覆盖默认的 DefaultRollingPolicy
  - bucketCheckInterval （默认为1分钟）：毫秒间隔，用于基于时间的滚动策略。
@@ -67,12 +67,12 @@ Streaming File Sink 会将数据写入到桶中。由于输入流可能是无界
 {% highlight java %}
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 
 DataStream<String> input = ...;
 
-final StreamingFileSink<String> sink = StreamingFileSink
+final FileSink<String> sink = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
@@ -82,7 +82,7 @@ final StreamingFileSink<String> sink = StreamingFileSink
             .build())
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
@@ -90,12 +90,12 @@ input.addSink(sink);
 {% highlight scala %}
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.core.fs.Path
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 
 val input: DataStream[String] = ...
 
-val sink: StreamingFileSink[String] = StreamingFileSink
+val sink: FileSink[String] = FileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
@@ -105,7 +105,7 @@ val sink: StreamingFileSink[String] = StreamingFileSink
             .build())
     .build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -132,6 +132,7 @@ Flink 有四个内置的 BulkWriter Factory ：
 
 <div class="alert alert-info">
      <b>重要:</b> 批量编码模式仅支持 OnCheckpointRollingPolicy 策略, 在每次 checkpoint 的时候切割文件。
+     <b>重要:</b> 批量编码模式必须使用继承自 CheckpointRollingPolicy 的滚动策略, 这些策略必须在每次 checkpoint 的时候切割文件，但是用户也可以进一步指定额外的基于文件大小和超时时间的条件。
 </div>
 
 #### Parquet 格式
@@ -150,12 +151,12 @@ Flink 包含为不同 Avro 类型，创建 ParquetWriterFactory 的便捷方法�
 </dependency>
 {% endhighlight %}
 
-这个例子使用 StreamingFileSink 将 Avro 数据写入 Parquet 格式：
+这个例子使用 FileSink 将 Avro 数据写入 Parquet 格式：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
 import org.apache.avro.Schema;
 
@@ -163,28 +164,28 @@ import org.apache.avro.Schema;
 Schema schema = ...;
 DataStream<GenericRecord> stream = ...;
 
-final StreamingFileSink<GenericRecord> sink = StreamingFileSink
+final FileSink<GenericRecord> sink = FileSink
 	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
 import org.apache.avro.Schema
 
 val schema: Schema = ...
 val input: DataStream[GenericRecord] = ...
 
-val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
+val sink: FileSink[GenericRecord] = FileSink
     .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
     .build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -195,33 +196,33 @@ input.addSink(sink)
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
 
 // ProtoRecord is a generated protobuf Message class.
 DataStream<ProtoRecord> stream = ...;
 
-final StreamingFileSink<ProtoRecord> sink = StreamingFileSink
+final FileSink<ProtoRecord> sink = FileSink
 	.forBulkFormat(outputBasePath, ParquetProtoWriters.forType(ProtoRecord.class))
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
 
 // ProtoRecord is a generated protobuf Message class.
 val input: DataStream[ProtoRecord] = ...
 
-val sink: StreamingFileSink[ProtoRecord] = StreamingFileSink
+val sink: FileSink[ProtoRecord] = FileSink
     .forBulkFormat(outputBasePath, ParquetProtoWriters.forType(classOf[ProtoRecord]))
     .build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -242,12 +243,12 @@ Flink 也提供了将数据写入 Avro 文件的内置支持。对于创建 Avro
 </dependency>
 {% endhighlight %}
 
-将数据写入 Avro 文件的 StreamingFileSink 算子可以通过如下方式创建：
+将数据写入 Avro 文件的 FileSink 算子可以通过如下方式创建：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.avro.AvroWriters;
 import org.apache.avro.Schema;
 
@@ -255,28 +256,28 @@ import org.apache.avro.Schema;
 Schema schema = ...;
 DataStream<GenericRecord> stream = ...;
 
-final StreamingFileSink<GenericRecord> sink = StreamingFileSink
+final FileSink<GenericRecord> sink = FileSink
 	.forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.avro.AvroWriters
 import org.apache.avro.Schema
 
 val schema: Schema = ...
 val input: DataStream[GenericRecord] = ...
 
-val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
+val sink: FileSink[GenericRecord] = FileSink
     .forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
     .build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -299,7 +300,7 @@ AvroWriterFactory<?> factory = new AvroWriterFactory<>((AvroBuilder<Address>) ou
 });
 
 DataStream<Address> stream = ...
-stream.addSink(StreamingFileSink.forBulkFormat(
+stream.sinkTo(FileSink.forBulkFormat(
 	outputBasePath,
 	factory).build());
 {% endhighlight %}
@@ -319,7 +320,7 @@ val factory = new AvroWriterFactory[Address](new AvroBuilder[Address]() {
 })
 
 val stream: DataStream[Address] = ...
-stream.addSink(StreamingFileSink.forBulkFormat(
+stream.sinkTo(FileSink.forBulkFormat(
     outputBasePath,
     factory).build());
 {% endhighlight %}
@@ -413,12 +414,12 @@ To use the ORC bulk encoder in an application, users need to add the following d
 </dependency>
 {% endhighlight %}
 
-And then a `StreamingFileSink` that writes data in ORC format can be created like this:
+And then a `FileSink` that writes data in ORC format can be created like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 
 String schema = "struct<_col0:string,_col1:int>";
@@ -426,28 +427,28 @@ DataStream<Person> stream = ...;
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(new PersonVectorizer(schema));
 
-final StreamingFileSink<Person> sink = StreamingFileSink
+final FileSink<Person> sink = FileSink
 	.forBulkFormat(outputBasePath, writerFactory)
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory
 
 val schema: String = "struct<_col0:string,_col1:int>"
 val input: DataStream[Person] = ...
 val writerFactory = new OrcBulkWriterFactory(new PersonVectorizer(schema));
 
-val sink: StreamingFileSink[Person] = StreamingFileSink
+val sink: FileSink[Person] = FileSink
     .forBulkFormat(outputBasePath, writerFactory)
     .build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -542,7 +543,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -552,19 +553,19 @@ import org.apache.hadoop.io.Text;
 
 DataStream<Tuple2<LongWritable, Text>> input = ...;
 Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(GlobalConfiguration.loadConfiguration());
-final StreamingFileSink<Tuple2<LongWritable, Text>> sink = StreamingFileSink
+final FileSink<Tuple2<LongWritable, Text>> sink = FileSink
   .forBulkFormat(
     outputBasePath,
     new SequenceFileWriterFactory<>(hadoopConf, LongWritable.class, Text.class))
 	.build();
 
-input.addSink(sink);
+input.sinkTo(sink);
 
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.LongWritable
@@ -573,13 +574,13 @@ import org.apache.hadoop.io.Text;
 
 val input: DataStream[(LongWritable, Text)] = ...
 val hadoopConf: Configuration = HadoopUtils.getHadoopConfiguration(GlobalConfiguration.loadConfiguration())
-val sink: StreamingFileSink[(LongWritable, Text)] = StreamingFileSink
+val sink: FileSink[(LongWritable, Text)] = FileSink
   .forBulkFormat(
     outputBasePath,
     new SequenceFileWriterFactory(hadoopConf, LongWritable.class, Text.class))
 	.build()
 
-input.addSink(sink)
+input.sinkTo(sink)
 
 {% endhighlight %}
 </div>
@@ -603,7 +604,7 @@ Flink 有两个内置的 BucketAssigners ：
 
 ## 滚动策略
 
-滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。处于 Pending 状态的文件会在下一次 Checkpoint 时变为 Finished 状态，通过设置 Checkpoint 间隔时间，可以控制部分文件（part file）对下游读取者可用的速度、大小和数量。
+在流模式下，滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。处于 Pending 状态的文件会在下一次 Checkpoint 时变为 Finished 状态，通过设置 Checkpoint 间隔时间，可以控制部分文件（part file）对下游读取者可用的速度、大小和数量。在批模式下，临时文件只会在作业处理完所有输入数据后提交，此时滚动策略可以用来控制每个文件的大小。
 
 Flink 有两个内置的滚动策略：
 
@@ -612,12 +613,12 @@ Flink 有两个内置的滚动策略：
 
 ## 部分文件（part file） 生命周期
 
-为了在下游系统中使用 StreamingFileSink 的输出，我们需要了解输出文件的命名规则和生命周期。
+为了在下游系统中使用 FileSink 的输出，我们需要了解输出文件的命名规则和生命周期。
 
 部分文件（part file）可以处于以下三种状态之一：
- 1. **In-progress** ：当前文件正在写入中
- 2. **Pending** ：当处于 In-progress 状态的文件关闭（closed）了，就变为 Pending 状态
- 3. **Finished** ：在成功的 Checkpoint 后，Pending 状态将变为 Finished 状态
+ 1. **In-progress** ：当前文件正在写入中。
+ 2. **Pending** ：当处于 In-progress 状态的文件关闭（closed）了，就变为 Pending 状态。
+ 3. **Finished** ：在成功的 Checkpoint 后（流模式）或作业处理完所有输入数据后（批模式），Pending 状态将变为 Finished 状态。
 
 处于 Finished 状态的文件不会再被修改，可以被下游系统安全地读取。
 
@@ -634,37 +635,37 @@ Flink 有两个内置的滚动策略：
 
 ```
 └── 2019-08-25--12
-    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
-    └── part-1-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
+    ├── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    └── part-81fc4980-a6af-41c8-9937-9939408a734b-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
 ```
 
-当部分文件 `part-1-0` 被滚动（假设它变得太大了）时，它将成为 Pending 状态，但是它还没有被重命名。然后 Sink 会创建一个新的部分文件： `part-1-1`：
-
-```
-└── 2019-08-25--12
-    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
-    ├── part-1-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
-    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
-```
-
- `part-1-0` 现在处于 Pending 状态等待完成，在下一次成功的 Checkpoint 后，它会变成 Finished 状态：
+当部分文件 `part-81fc4980-a6af-41c8-9937-9939408a734b-0` 被滚动（假设它变得太大了）时，它将成为 Pending 状态，但是它还没有被重命名。然后 Sink 会创建一个新的部分文件： `part-81fc4980-a6af-41c8-9937-9939408a734b-1`：
 
 ```
 └── 2019-08-25--12
-    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
-    ├── part-1-0
-    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+    ├── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-81fc4980-a6af-41c8-9937-9939408a734b-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
+    └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+```
+
+ `part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在处于 Pending 状态等待完成，在下一次成功的 Checkpoint 后，它会变成 Finished 状态：
+
+```
+└── 2019-08-25--12
+    ├── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-81fc4980-a6af-41c8-9937-9939408a734b-0
+    └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
 根据分桶策略创建新的桶，但是这并不会影响当前处于 In-progress 状态的文件：
 
 ```
 └── 2019-08-25--12
-    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
-    ├── part-1-0
-    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+    ├── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-81fc4980-a6af-41c8-9937-9939408a734b-0
+    └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 └── 2019-08-25--13
-    └── part-0-2.inprogress.2b475fec-1482-4dea-9946-eb4353b475f1
+    └── part-4005733d-a830-4323-8291-8866de98b582-0.inprogress.2b475fec-1482-4dea-9946-eb4353b475f1
 ```
 
 因为分桶策略基于每条记录进行评估，所以旧桶仍然可以接受新的记录。
@@ -674,18 +675,20 @@ Flink 有两个内置的滚动策略：
 已经完成的文件和进行中的文件仅能通过文件名格式进行区分。
 
 默认情况下，文件命名格式如下所示：
- - **In-progress / Pending:** `part-<subtaskIndex>-<partFileIndex>.inprogress.uid`
- - **FINISHED:** `part-<subtaskIndex>-<partFileIndex>`
+ - **In-progress / Pending:** `part-<uid>-<partFileIndex>.inprogress.uid`
+ - **FINISHED:** `part-<uid>-<partFileIndex>`
+ 
+其中 uid 是在 Sink 的各个 task 在启动时随机生成的 id，这些 id 是不支持容错的，在 task 重启后 id 会重新生成。
 
 Flink 允许用户通过 `OutputFileConfig` 指定部分文件名的前缀和后缀。
 举例来说，前缀设置为 "prefix" 以及后缀设置为 ".ext" 之后，Sink 创建的文件名如下所示：
 
 ```
 └── 2019-08-25--12
-    ├── prefix-0-0.ext
-    ├── prefix-0-1.ext.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
-    ├── prefix-1-0.ext
-    └── prefix-1-1.ext.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+    ├── prefix-4005733d-a830-4323-8291-8866de98b582-0.ext
+    ├── prefix-4005733d-a830-4323-8291-8866de98b582-1.ext.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── prefix-81fc4980-a6af-41c8-9937-9939408a734b-0.ext
+    └── prefix-81fc4980-a6af-41c8-9937-9939408a734b-1.ext.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
 用户可以通过如下方式设置 `OutputFileConfig`:
@@ -699,8 +702,8 @@ OutputFileConfig config = OutputFileConfig
  .withPartPrefix("prefix")
  .withPartSuffix(".ext")
  .build();
-
-StreamingFileSink<Tuple2<Integer, Integer>> sink = StreamingFileSink
+            
+FileSink<Tuple2<Integer, Integer>> sink = FileSink
  .forRowFormat((new Path(outputPath), new SimpleStringEncoder<>("UTF-8"))
  .withBucketAssigner(new KeyBucketAssigner())
  .withRollingPolicy(OnCheckpointRollingPolicy.build())
@@ -717,8 +720,8 @@ val config = OutputFileConfig
  .withPartPrefix("prefix")
  .withPartSuffix(".ext")
  .build()
-
-val sink = StreamingFileSink
+            
+val sink = FileSink
  .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
  .withBucketAssigner(new KeyBucketAssigner())
  .withRollingPolicy(OnCheckpointRollingPolicy.build())
@@ -734,24 +737,32 @@ val sink = StreamingFileSink
 ### 通用注意事项
 
 <span class="label label-danger">重要提示 1</span>: 使用 Hadoop < 2.7 时，请使用 `OnCheckpointRollingPolicy` 滚动策略，该策略会在每次检查点时进行文件切割。
-这样做的原因是如果部分文件的生命周期跨多个检查点，当 `StreamingFileSink` 从之前的检查点进行恢复时会调用文件系统的 `truncate()` 方法清理 in-progress 文件中未提交的数据。
+这样做的原因是如果部分文件的生命周期跨多个检查点，当 `FileSink` 从之前的检查点进行恢复时会调用文件系统的 `truncate()` 方法清理 in-progress 文件中未提交的数据。
 Hadoop 2.7 之前的版本不支持这个方法，因此 Flink 会报异常。
 
 <span class="label label-danger">重要提示 2</span>: 鉴于 Flink 的 sink 以及 UDF 通常不会区分作业的正常结束（比如有限流）和异常终止，因此正常结束作业的最后一批 in-progress 文件不会被转换到 "完成" 状态。
 
-<span class="label label-danger">重要提示 3</span>: Flink 以及 `StreamingFileSink` 不会覆盖已经提交的数据。因此如果尝试从一个包含 in-progress 文件的旧 checkpoint/savepoint 恢复，
+<span class="label label-danger">重要提示 3</span>: Flink 以及 `FileSink` 不会覆盖已经提交的数据。因此如果尝试从一个包含 in-progress 文件的旧 checkpoint/savepoint 恢复，
 且这些 in-progress 文件会被接下来的成功 checkpoint 提交，Flink 会因为无法找到 in-progress 文件而抛异常，从而恢复失败。
 
-<span class="label label-danger">重要提示 4</span>: 目前 `StreamingFileSink` 只支持三种文件系统: HDFS、S3和Local。如果配置了不支持的文件系统，在执行的时候 Flink 会抛出异常。
+<span class="label label-danger">重要提示 4</span>: 目前 `FileSink` 只支持三种文件系统: HDFS、S3和Local。如果配置了不支持的文件系统，在执行的时候 Flink 会抛出异常。
+
+### Batch 模式
+
+<span class="label label-danger">重要提示 1</span>: 尽管负责写出数据的 Writer 会使用用户提定的并发，负责提交文件的 Committer 将固定并发度为1。
+
+<span class="label label-danger">Important Note 2</span>: 批模式下只有在所有输入都被处理后 Pending 文件才会被提交，即转为 Finished 状态。
+
+<span class="label label-danger">Important Note 3</span>: 在高可用模式下，如果在 Committer 提交文件时发生了 JobManager 重启，已提交的数据可能会被重复产生。这一问题将在后续版本中修复。
 
 ###  S3 特有的注意事项
 
-<span class="label label-danger">重要提示 1</span>: 对于 S3，`StreamingFileSink`  只支持基于 [Hadoop](https://hadoop.apache.org/) 
-的文件系统实现，不支持基于 [Presto](https://prestodb.io/) 的实现。如果想使用 `StreamingFileSink` 向 S3 写入数据并且将 
+<span class="label label-danger">重要提示 1</span>: 对于 S3，`FileSink`  只支持基于 [Hadoop](https://hadoop.apache.org/) 
+的文件系统实现，不支持基于 [Presto](https://prestodb.io/) 的实现。如果想使用 `FileSink` 向 S3 写入数据并且将 
 checkpoint 放在基于 Presto 的文件系统，建议明确指定 *"s3a://"* （for Hadoop）作为sink的目标路径方案，并且为 checkpoint 路径明确指定 *"s3p://"* （for Presto）。
 如果 Sink 和 checkpoint 都使用 *"s3://"* 路径的话，可能会导致不可预知的行为，因为双方的实现都在“监听”这个路径。
 
-<span class="label label-danger">重要提示 2</span>: `StreamingFileSink` 使用 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
+<span class="label label-danger">重要提示 2</span>: `FileSink` 使用 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html)
 （后续使用MPU代替）特性可以保证精确一次的语义。这个特性支持以独立的块（因此被称为"multi-part"）模式上传文件，当 MPU 的所有部分文件
 成功上传之后，可以合并成原始文件。对于失效的 MPUs，S3 提供了一个基于桶生命周期的规则，用户可以用这个规则来丢弃在指定时间内未完成的MPU。
 如果在一些部分文件还未上传时触发 savepoint，并且这个规则设置的比较严格，这意味着相关的 MPU在作业重启之前可能会超时。后续的部分文件没
