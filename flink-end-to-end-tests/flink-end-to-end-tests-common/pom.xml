@@ -63,6 +63,11 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<version>1.15.0</version>
+		</dependency>
+		<dependency>
 			<!-- To ensure that flink-dist is built beforehand -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-dist_${scala.binary.version}</artifactId>
