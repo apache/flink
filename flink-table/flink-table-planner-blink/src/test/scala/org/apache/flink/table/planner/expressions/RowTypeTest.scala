@@ -142,14 +142,11 @@ class RowTypeTest extends RowTypeTestBase {
 
   @Test
   def testUnsupportedCastSqlApi(): Unit = {
-    expectedException.expect(classOf[CodeGenException])
-    expectedException.expectMessage(
-      "Unsupported cast from 'ROW<`f0` STRING, `f1` BOOLEAN>' to 'ROW<`f0` INT, `f1` STRING>'")
+    expectedException.expect(classOf[ValidationException])
 
     testSqlApi(
-      "CAST(f5 AS ROW<f0 INT, f1 STRING>)",
+      "CAST(f5 AS BIGINT)",
       ""
     )
   }
-
 }
