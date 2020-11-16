@@ -120,7 +120,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
 		ExecutionGraphIndex executionGraphIndex = computeExecutionGraphIndex(
 			executionGraph.getAllExecutionVertices(),
-			executionGraph.getNumberOfExecutionJobVertices());
+			executionGraph.getTotalNumberOfVertices());
 
 		IndexedPipelinedRegions indexedPipelinedRegions =
 			computePipelinedRegions(executionGraphIndex.executionVerticesList);
