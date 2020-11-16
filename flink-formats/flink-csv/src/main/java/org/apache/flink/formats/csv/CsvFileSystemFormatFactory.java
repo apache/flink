@@ -35,6 +35,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MappingIt
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -131,7 +133,8 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		CsvSchema csvSchema = CsvRowSchemaConverter.convert(rowType);
 		CsvSchema.Builder csvBuilder = csvSchema.rebuild();
 		//format properties
-		options.getOptional(FIELD_DELIMITER).map(s -> s.charAt(0))
+		options.getOptional(FIELD_DELIMITER)
+			.map(s -> StringEscapeUtils.unescapeJava(s).charAt(0))
 			.ifPresent(csvBuilder::setColumnSeparator);
 
 		options.getOptional(QUOTE_CHARACTER).map(s -> s.charAt(0))
