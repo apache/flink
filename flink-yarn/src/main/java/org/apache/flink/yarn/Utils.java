@@ -19,10 +19,13 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -560,5 +563,26 @@ public final class Utils {
 		}
 
 		return Resource.newInstance(unitMemMB, unitVcore);
+	}
+
+	public static List<Path> getRemoteSharedPaths(
+			org.apache.flink.configuration.Configuration configuration,
+			YarnConfiguration yarnConfiguration) throws IOException, FlinkException {
+		final List<Path> providedLibDirs = ConfigUtils.decodeListFromConfig(
+			configuration,
+			YarnConfigOptions.PROVIDED_LIB_DIRS,
+			pathStr -> {
+				final Path path = new Path(pathStr);
+				return path.getFileSystem(yarnConfiguration).makeQualified(path);
+			});
+
+		for (Path path : providedLibDirs) {
+			if (!Utils.isRemotePath(path.toString())) {
+				throw new FlinkException(
+					"The \"" + YarnConfigOptions.PROVIDED_LIB_DIRS.key() + "\" should only contain" +
+						" dirs accessible from all worker nodes, while the \"" + path + "\" is local.");
+			}
+		}
+		return providedLibDirs;
 	}
 }
