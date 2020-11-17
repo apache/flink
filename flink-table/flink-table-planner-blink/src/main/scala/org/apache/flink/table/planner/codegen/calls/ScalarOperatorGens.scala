@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.typeutils.TypeCoercion
+import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -562,8 +563,9 @@ object ScalarOperatorGens {
       // both sides are binary type
       else if (isBinaryString(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
+        val utilName = classOf[SqlFunctionUtils].getCanonicalName
         (leftTerm, rightTerm) =>
-          s"java.util.Arrays.equals($leftTerm, $rightTerm)"
+          s"$utilName.byteArrayCompare($leftTerm, $rightTerm) $operator 0"
       }
       // both sides are same comparable type
       else if (isComparable(left.resultType) &&
