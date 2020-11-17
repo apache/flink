@@ -49,6 +49,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.security.FlinkUserSecurityManager;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -561,38 +562,47 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void invoke() throws Exception {
+        // Monitor user codes from exiting JVM. This can be done in a finer-grained way like enclosing user callback
+        // functions individually (open, close, invoke, run, cancel, etc), but as Flink-managed exit is not performed
+        // and expected in this invoke function anyhow, we can monitor exiting JVM for entire scope. Cancel and
+        // checkpoint are handled in their own methods.
+        FlinkUserSecurityManager.monitorSystemExitForCurrentThread();
         try {
-            beforeInvoke();
-
-            // final check to exit early before starting to run
-            if (canceled) {
-                throw new CancelTaskException();
-            }
-
-            // let the task do its work
-            runMailboxLoop();
-
-            // if this left the run() method cleanly despite the fact that this was canceled,
-            // make sure the "clean shutdown" is not attempted
-            if (canceled) {
-                throw new CancelTaskException();
-            }
-
-            afterInvoke();
-        } catch (Throwable invokeException) {
-            failing = !canceled;
             try {
-                cleanUpInvoke();
+                beforeInvoke();
+
+                // final check to exit early before starting to run
+                if (canceled) {
+                    throw new CancelTaskException();
+                }
+
+                // let the task do its work
+                runMailboxLoop();
+
+                // if this left the run() method cleanly despite the fact that this was canceled,
+                // make sure the "clean shutdown" is not attempted
+                if (canceled) {
+                    throw new CancelTaskException();
+                }
+
+                afterInvoke();
+            } catch (Throwable invokeException) {
+                failing = !canceled;
+                try {
+                    cleanUpInvoke();
+                }
+                // TODO: investigate why Throwable instead of Exception is used here.
+                catch (Throwable cleanUpException) {
+                    Throwable throwable =
+                            ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+                    ExceptionUtils.rethrowException(throwable);
+                }
+                ExceptionUtils.rethrowException(invokeException);
             }
-            // TODO: investigate why Throwable instead of Exception is used here.
-            catch (Throwable cleanUpException) {
-                Throwable throwable =
-                        ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
-                ExceptionUtils.rethrowException(throwable);
-            }
-            ExceptionUtils.rethrowException(invokeException);
+            cleanUpInvoke();
+        } finally {
+            FlinkUserSecurityManager.unmonitorSystemExitForCurrentThread();
         }
-        cleanUpInvoke();
     }
 
     @VisibleForTesting
@@ -705,9 +715,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // the "cancel task" call must come first, but the cancelables must be
         // closed no matter what
+        FlinkUserSecurityManager.monitorSystemExitForCurrentThread();
         try {
             cancelTask();
         } finally {
+            FlinkUserSecurityManager.unmonitorSystemExitForCurrentThread();
             getCompletionFuture()
                     .whenComplete(
                             (unusedResult, unusedError) -> {
@@ -898,6 +910,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             CheckpointOptions checkpointOptions,
             boolean advanceToEndOfEventTime)
             throws Exception {
+        FlinkUserSecurityManager.monitorSystemExitForCurrentThread();
         try {
             // No alignment if we inject a checkpoint
             CheckpointMetricsBuilder checkpointMetrics =
@@ -937,6 +950,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         e);
                 return false;
             }
+        } finally {
+            FlinkUserSecurityManager.unmonitorSystemExitForCurrentThread();
         }
     }
 
@@ -947,6 +962,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             CheckpointMetricsBuilder checkpointMetrics)
             throws IOException {
 
+        FlinkUserSecurityManager.monitorSystemExitForCurrentThread();
         try {
             if (performCheckpoint(
                     checkpointMetaData, checkpointOptions, checkpointMetrics, false)) {
@@ -968,6 +984,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             + getName()
                             + '.',
                     e);
+        } finally {
+            FlinkUserSecurityManager.unmonitorSystemExitForCurrentThread();
         }
     }
 

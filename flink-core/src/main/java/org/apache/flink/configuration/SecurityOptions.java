@@ -490,4 +490,25 @@ public class SecurityOptions {
                                     + "channel. If the `close_notify` was not flushed in the given timeout the channel will be closed "
                                     + "forcibly. (-1 = use system default)")
                     .withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
+
+    // ------------------------ security manager --------------------------------
+
+    /** Flag to check the attempt of main or user-defined function to terminate JVM. */
+    @Documentation.Section(Documentation.Sections.EXPERT_DEBUGGING_AND_TUNING)
+    public static final ConfigOption<String> CHECK_SYSTEM_EXIT =
+            key("security.check-system-exit")
+                    .stringType()
+                    .defaultValue("disabled")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Flag to check user code exiting system by terminating JVM (e.g., System.exit())")
+                                    .list(
+                                            text(
+                                                    "\"disabled\" - check is disabled, so allowing exiting system"),
+                                            text(
+                                                    "\"warn\" - warn by logging and allowing exiting system"),
+                                            text(
+                                                    "\"throw\" - throw exception disallowing exiting system"))
+                                    .build());
 }

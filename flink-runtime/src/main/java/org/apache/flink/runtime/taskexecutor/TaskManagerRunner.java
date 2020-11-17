@@ -38,6 +38,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.runtime.security.FlinkUserSecurityManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -486,6 +487,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                         configuration, taskExecutorResourceSpec, externalAddress);
 
         String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
+        FlinkUserSecurityManager.setFromConfiguration(configuration);
 
         return new TaskExecutor(
                 rpcService,
