@@ -75,7 +75,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                请参考新配置参数 <a href="ops/config.zh.md %}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
+                请参考新配置参数 <a href="{%link ops/config.zh.md %}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
                 新的配置参数与被移除的配置参数在语义上有所差别，因此其配置值通常也需要做出适当调整。
                 请参考<a href="#managed-memory">如何升级托管内存</a>。
             </td>
@@ -106,7 +106,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td>
                 <ul>
                   <li><a href="{%link ops/deployment/cluster_setup.zh.md %}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link ops/config.zh.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
-                  <li>容器化部署模式（Containerized Deployement）下：<a href="ops/config.zh.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
+                  <li>容器化部署模式（Containerized Deployement）下：<a href="{%link ops/config.zh.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
             </td>
