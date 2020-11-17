@@ -117,6 +117,14 @@ kafka:
           maven: flink-connector-kafka{{site.scala_version_suffix}}
           sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar
 
+upsert-kafka:
+    name: Upsert Kafka
+    category: connector
+    versions:
+        - version: universal
+          maven: flink-connector-kafka{{site.scala_version_suffix}}
+          sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar
+
 kinesis:
     name: Kinesis
     category: connector

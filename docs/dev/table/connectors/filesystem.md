@@ -2,7 +2,7 @@
 title: "FileSystem SQL Connector"
 nav-title: FileSystem
 nav-parent_id: sql-connectors
-nav-pos: 5
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -51,7 +51,7 @@ CREATE TABLE MyUserTable (
                                         -- section for more details
   'partition.default-name' = '...',     -- optional: default partition name in case the dynamic partition
                                         -- column value is null/empty string
-  
+
   -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
   -- reduce the number of file for filesystem sink but may lead data skew, the default value is false.
   'sink.shuffle-by-partition.enable' = '...',
@@ -65,7 +65,7 @@ CREATE TABLE MyUserTable (
 
 <span class="label label-danger">Attention</span> File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
 
-<span class="label label-danger">Attention</span> The behaviour of file system connector is much different from `previous legacy filesystem connector`: 
+<span class="label label-danger">Attention</span> The behaviour of file system connector is much different from `previous legacy filesystem connector`:
 the path parameter is specified for a directory not for a file and you can't get a human-readable file in the path that you declare.
 
 ## Partition Files
@@ -186,7 +186,7 @@ When running file compaction in production, please be aware that:
 
 ### Partition Commit
 
-After writing a partition, it is often necessary to notify downstream applications. For example, add the partition to a Hive metastore or writing a `_SUCCESS` file in the directory. The file system sink contains a partition commit feature that allows configuring custom policies. Commit actions are based on a combination of `triggers` and `policies`. 
+After writing a partition, it is often necessary to notify downstream applications. For example, add the partition to a Hive metastore or writing a `_SUCCESS` file in the directory. The file system sink contains a partition commit feature that allows configuring custom policies. Commit actions are based on a combination of `triggers` and `policies`.
 
 - Trigger: The timing of the commit of the partition can be determined by the watermark with the time extracted from the partition, or by processing time.
 - Policy: How to commit a partition, built-in policies support for the commit of success files and metastore, you can also implement your own policies, such as triggering hive's analysis to generate statistics, or merging small files, etc.
@@ -284,7 +284,7 @@ Time extractors define extracting time from partition values.
   </tbody>
 </table>
 
-The default extractor is based on a timestamp pattern composed of your partition fields. You can also specify an implementation for fully custom partition extraction based on the `PartitionTimeExtractor` interface. 
+The default extractor is based on a timestamp pattern composed of your partition fields. You can also specify an implementation for fully custom partition extraction based on the `PartitionTimeExtractor` interface.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -305,7 +305,7 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
 
 #### Partition Commit Policy
 
-The partition commit policy defines what action is taken when partitions are committed. 
+The partition commit policy defines what action is taken when partitions are committed.
 
 - The first is metastore, only hive table supports metastore policy, file system manages partitions through directory structure.
 - The second is the success file, which will write an empty file in the directory corresponding to the partition.
@@ -373,7 +373,7 @@ public class AnalysisCommitPolicy implements PartitionCommitPolicy {
 
 ## Full Example
 
-The below shows how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out. 
+The below shows how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out.
 
 {% highlight sql %}
 

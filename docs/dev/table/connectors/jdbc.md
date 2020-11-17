@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -147,7 +147,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The JDBC password.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
       <td>optional</td>
@@ -161,7 +161,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>The number of partitions.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>scan.partition.lower-bound</h5></td>
       <td>optional</td>
@@ -221,7 +221,7 @@ Connector Options
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
       <td>The max size of buffered records before flush. Can be set to zero to disable it.</td>
-    </tr> 
+    </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
@@ -235,7 +235,7 @@ Connector Options
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
       <td>The max retry times if writing records to database failed.</td>
-    </tr>          
+    </tr>
     </tbody>
 </table>
 
@@ -289,7 +289,7 @@ As there is no standard syntax for upsert, the following table describes the dat
         <th class="text-left">Database</th>
         <th class="text-left">Upsert Grammar</th>
        </tr>
-    </thead>    
+    </thead>
     <tbody>
         <tr>
             <td>MySQL</td>
@@ -309,7 +309,7 @@ The `JdbcCatalog` enables users to connect Flink to relational databases over JD
 Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
 
 {% highlight java %}
-// The supported methods by Postgres Catalog. 
+// The supported methods by Postgres Catalog.
 PostgresCatalog.databaseExists(String databaseName)
 PostgresCatalog.listDatabases()
 PostgresCatalog.getDatabase(String databaseName)
@@ -411,7 +411,7 @@ execution:
     ...
     current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
-    
+
 catalogs:
    - name: mypg
      type: jdbc
