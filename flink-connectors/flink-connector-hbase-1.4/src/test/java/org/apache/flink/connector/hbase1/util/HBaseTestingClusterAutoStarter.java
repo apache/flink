@@ -114,9 +114,10 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		}
 	}
 
-	private static Configuration initialize(Configuration conf) {
-		conf = HBaseConfiguration.create(conf);
-		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
+	private static void initialize(Configuration c) {
+		conf = HBaseConfiguration.create(c);
+		// the default retry number is 35 in hbase-1.4, set 5 for test
+		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 5);
 		try {
 			admin = TEST_UTIL.getHBaseAdmin();
 		} catch (MasterNotRunningException e) {
@@ -126,7 +127,6 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		} catch (IOException e) {
 			assertNull("IOException", e);
 		}
-		return conf;
 	}
 
 	@BeforeClass
@@ -147,7 +147,7 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 		LOG.info("Hbase minicluster client port: " + TEST_UTIL.getZkCluster().getClientPort());
 		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
 
-		conf = initialize(TEST_UTIL.getConfiguration());
+		initialize(TEST_UTIL.getConfiguration());
 		LOG.info("HBase minicluster: Running");
 	}
 
