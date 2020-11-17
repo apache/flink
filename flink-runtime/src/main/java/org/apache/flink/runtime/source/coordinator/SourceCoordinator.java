@@ -107,7 +107,14 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		// The start sequence is the first task in the coordinator executor.
 		// We rely on the single-threaded coordinator executor to guarantee
 		// the other methods are invoked after the enumerator has started.
-		coordinatorExecutor.execute(() -> enumerator.start());
+		coordinatorExecutor.execute(() -> {
+			try {
+				enumerator.start();
+			} catch (Exception e) {
+				LOG.error("Failed to start the enumerator of operator {} due to", operatorName, e);
+				context.failJob(e);
+			}
+		});
 		started = true;
 	}
 

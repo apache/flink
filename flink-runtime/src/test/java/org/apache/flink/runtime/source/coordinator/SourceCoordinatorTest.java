@@ -18,10 +18,16 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -35,6 +41,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
@@ -232,6 +239,32 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 			assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
 			assertTrue(splitSplitAssignmentTracker.assignmentsByCheckpointId().isEmpty());
 		});
+	}
+
+	@Test
+	public void testFailJobWhenExceptionThrownFromStart() throws Exception {
+		final RuntimeException failureReason = new RuntimeException("Artificial Exception");
+		Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
+			new MockSource(Boundedness.BOUNDED, 1) {
+				@Override
+				public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> createEnumerator(
+					SplitEnumeratorContext<MockSourceSplit> enumContext) {
+					return new MockSplitEnumerator(1, new MockSplitEnumeratorContext<>(1)) {
+						@Override
+						public void start() {
+							throw failureReason;
+						}
+					};
+				}
+			};
+
+		SourceCoordinator<?, ?> coordinator =
+			new SourceCoordinator<>(OPERATOR_NAME, coordinatorExecutor, mockSource, context);
+
+		coordinator.start();
+		waitUtil(() -> operatorCoordinatorContext.isJobFailed(), Duration.ofSeconds(10),
+			"The job should have failed due to the artificial exception.");
+		assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
 	}
 
 	// -------------------------------
