@@ -62,7 +62,7 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 	}
 
 	private void emitElementsAndWaitForCheckpoints(
-			SourceContext<T> ctx, int checkpointIdToWaitFor) throws InterruptedException {
+			SourceContext<T> ctx, long checkpointIdToWaitFor) throws InterruptedException {
 		final Object lock = ctx.getCheckpointLock();
 
 		synchronized (lock) {
