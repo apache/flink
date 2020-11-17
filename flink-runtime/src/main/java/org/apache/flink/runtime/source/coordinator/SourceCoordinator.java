@@ -32,8 +32,10 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,8 +123,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		// The start sequence is the first task in the coordinator executor.
 		// We rely on the single-threaded coordinator executor to guarantee
 		// the other methods are invoked after the enumerator has started.
-		coordinatorExecutor.execute(() -> enumerator.start());
 		started = true;
+		runInEventLoop(
+			() -> enumerator.start(),
+			"starting the SplitEnumerator."
+		);
 	}
 
 	@Override
@@ -145,10 +150,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+	public void handleEventFromOperator(int subtask, OperatorEvent event) {
+		runInEventLoop(
+			() -> {
 				LOG.debug("Handling event from subtask {} of source {}: {}", subtask, operatorName, event);
 				if (event instanceof RequestSplitEvent) {
 					enumerator.handleSplitRequest(subtask, ((RequestSplitEvent) event).hostName());
@@ -159,76 +163,63 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				} else {
 					throw new FlinkException("Unrecognized Operator Event: " + event);
 				}
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when handling operator event {} from subtask {} " +
-								"of source {}.", event, subtask, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"handling operator event %s from subtask %d", event, subtask
+		);
 	}
 
 	@Override
 	public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Handling subtask {} failure of source {}.", subtaskId, operatorName);
 				List<SplitT> splitsToAddBack = context.getAndRemoveUncheckpointedAssignment(subtaskId);
 				context.unregisterSourceReader(subtaskId);
 				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
 				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when handling subtask {} failure in source {}.",
-						subtaskId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"handling subtask %d failure", subtaskId
+		);
 	}
 
 	@Override
-	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
-		ensureStarted();
-
-		coordinatorExecutor.execute(() -> {
-			try {
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+		runInEventLoop(
+			() -> {
 				LOG.debug("Taking a state snapshot on operator {} for checkpoint {}", operatorName, checkpointId);
-				result.complete(toBytes(checkpointId));
-			} catch (Exception e) {
-				result.completeExceptionally(new CompletionException(
-						String.format("Failed to checkpoint coordinator for source %s due to ", operatorName), e));
-			}
-		});
+				try {
+					result.complete(toBytes(checkpointId));
+				} catch (Throwable e) {
+					ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
+					result.completeExceptionally(new CompletionException(
+						String.format("Failed to checkpoint SplitEnumerator for source %s", operatorName), e));
+				}
+			},
+			"taking checkpoint %d", checkpointId
+		);
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Marking checkpoint {} as completed for source {}.", checkpointId, operatorName);
 				context.onCheckpointComplete(checkpointId);
 				enumerator.notifyCheckpointComplete(checkpointId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when notifying the completion of the "
-					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"notifying the enumerator of completion of checkpoint %d", checkpointId
+		);
 	}
 
 	@Override
 	public void notifyCheckpointAborted(long checkpointId) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Marking checkpoint {} as aborted for source {}.", checkpointId, operatorName);
 				enumerator.notifyCheckpointAborted(checkpointId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when notifying abortion of the "
-					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"calling notifyCheckpointAborted()"
+		);
 	}
 
 	@Override
@@ -243,6 +234,28 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			final EnumChkT enumeratorCheckpoint = deserializeCheckpointAndRestoreContext(checkpointData);
 			enumerator = source.restoreEnumerator(context, enumeratorCheckpoint);
 		}
+	}
+
+	private void runInEventLoop(
+			final ThrowingRunnable<Throwable> action,
+			final String actionName,
+			final Object... actionNameFormatParameters) {
+
+		ensureStarted();
+		coordinatorExecutor.execute(() -> {
+			try {
+				action.run();
+			} catch (Throwable t) {
+				// if we have a JVM critical error, promote it immediately, there is a good chance the
+				// logging or job failing will not succeed any more
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+
+				final String actionString = String.format(actionName, actionNameFormatParameters);
+				LOG.error("Uncaught exception in the SplitEnumerator for Source {} while {}. Triggering job failover.",
+						operatorName, actionString, t);
+				context.failJob(t);
+			}
+		});
 	}
 
 	// ---------------------------------------------------

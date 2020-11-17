@@ -36,6 +36,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 
 	private final Map<Integer, List<OperatorEvent>> eventsToOperator;
 	private boolean jobFailed;
+	private Throwable jobFailureReason;
 
 	public MockOperatorCoordinatorContext(OperatorID operatorID, int numSubtasks) {
 		this(operatorID, numSubtasks, true);
@@ -61,6 +62,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 		this.numSubtasks = numSubtasks;
 		this.eventsToOperator = new HashMap<>();
 		this.jobFailed = false;
+		this.jobFailureReason = null;
 		this.failEventSending = failEventSending;
 		this.userCodeClassLoader = userCodeClassLoader;
 	}
@@ -87,6 +89,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 	@Override
 	public void failJob(Throwable cause) {
 		jobFailed = true;
+		jobFailureReason = cause;
 	}
 
 	@Override
@@ -111,5 +114,9 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 
 	public boolean isJobFailed() {
 		return jobFailed;
+	}
+
+	public Throwable getJobFailureReason() {
+		return jobFailureReason;
 	}
 }
