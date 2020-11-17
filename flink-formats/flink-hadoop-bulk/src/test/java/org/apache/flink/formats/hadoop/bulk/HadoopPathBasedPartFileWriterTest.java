@@ -26,12 +26,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.TestStreamingFil
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -138,56 +135,6 @@ public class HadoopPathBasedPartFileWriterTest extends AbstractTestBase {
 			}
 
 			return lines;
-		}
-	}
-
-	private static class TestHadoopPathBasedBulkWriterFactory implements HadoopPathBasedBulkWriter.Factory<String> {
-
-		@Override
-		public HadoopPathBasedBulkWriter<String> create(Path targetFilePath, Path inProgressFilePath) {
-			try {
-				FileSystem fileSystem = FileSystem.get(inProgressFilePath.toUri(), new Configuration());
-				FSDataOutputStream output = fileSystem.create(inProgressFilePath);
-				return new FSDataOutputStreamBulkWriterHadoop(output);
-			} catch (IOException e) {
-				ExceptionUtils.rethrow(e);
-			}
-
-			return null;
-		}
-	}
-
-	private static class FSDataOutputStreamBulkWriterHadoop implements HadoopPathBasedBulkWriter<String> {
-		private final FSDataOutputStream outputStream;
-
-		public FSDataOutputStreamBulkWriterHadoop(FSDataOutputStream outputStream) {
-			this.outputStream = outputStream;
-		}
-
-		@Override
-		public long getSize() throws IOException {
-			return outputStream.getPos();
-		}
-
-		@Override
-		public void dispose() {
-			IOUtils.closeQuietly(outputStream);
-		}
-
-		@Override
-		public void addElement(String element) throws IOException {
-			outputStream.writeBytes(element + "\n");
-		}
-
-		@Override
-		public void flush() throws IOException {
-			outputStream.flush();
-		}
-
-		@Override
-		public void finish() throws IOException {
-			outputStream.flush();
-			outputStream.close();
 		}
 	}
 }

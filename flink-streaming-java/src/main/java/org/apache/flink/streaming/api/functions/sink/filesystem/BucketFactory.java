@@ -30,7 +30,7 @@ import java.io.Serializable;
  * A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}.
  */
 @Internal
-interface BucketFactory<IN, BucketID> extends Serializable {
+public interface BucketFactory<IN, BucketID> extends Serializable {
 
 	Bucket<IN, BucketID> getNewBucket(
 			final int subtaskIndex,
