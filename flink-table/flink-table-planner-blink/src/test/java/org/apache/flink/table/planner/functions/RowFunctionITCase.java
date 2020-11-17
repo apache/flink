@@ -81,8 +81,7 @@ public class RowFunctionITCase extends BuiltInFunctionTestBase {
 								DataTypes.FIELD("i", DataTypes.INT()),
 								DataTypes.FIELD("s", DataTypes.STRING())).notNull()
 						),
-					// TODO parser has problems with "f0 + 12" see FLINK-18027
-					"CAST(ROW(12 + f0, 'Hello world') AS ROW<i INT, s STRING>)",
+					"CAST((f0 + 12, 'Hello world') AS ROW<i INT, s STRING>)",
 					Row.of(13, "Hello world"),
 					DataTypes.ROW(
 						DataTypes.FIELD("i", DataTypes.INT()),
