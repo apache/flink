@@ -437,6 +437,17 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return executionGraph.getCheckpointCoordinator();
 	}
 
+	/**
+	 * ExecutionGraph is exposed to make it easier to rework tests to be based on the new scheduler.
+	 * ExecutionGraph is expected to be used only for state check. Yet at the moment, before all the
+	 * actions are factored out from ExecutionGraph and its sub-components, some actions may still
+	 * be performed directly on it.
+	 */
+	@VisibleForTesting
+	public ExecutionGraph getExecutionGraph() {
+		return executionGraph;
+	}
+
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------

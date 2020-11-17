@@ -1410,7 +1410,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public void failJob(Throwable cause) {
-		if (state == JobStatus.FAILING || state.isGloballyTerminalState()) {
+		if (state == JobStatus.FAILING || state.isTerminalState()) {
 			return;
 		}
 
@@ -1419,8 +1419,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		FutureUtils.assertNoException(
 			cancelVerticesAsync().whenComplete((aVoid, throwable) -> {
-				transitionState(JobStatus.FAILED, cause);
-				onTerminalState(JobStatus.FAILED);
+				if (transitionState(JobStatus.FAILING, JobStatus.FAILED, cause)) {
+					onTerminalState(JobStatus.FAILED);
+				}
 			}));
 	}
 
