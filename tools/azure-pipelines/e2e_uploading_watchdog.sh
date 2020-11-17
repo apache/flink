@@ -61,27 +61,12 @@ function log_upload_watchdog {
 	done
 }
 
-
-function stop_watchdog {
-  # pkill (the child processes) and the watchdog shell itself. This is necessary to prevent the
-  # sleep inside the watchdog to become a daemon process, which inherits the file descriptors and
-  # potentially prevents parent processes from noticing that this script is done.
-  # Kill silently. If a watchdog has "triggered", it won't exist anymore.
-  ( pkill -P $1 2>&1 ) > /dev/null
-  ( kill $1 2>&1 ) > /dev/null
-}
-
 warning_watchdog &
-warning_wd_pid=$!
 log_upload_watchdog &
-log_upload_wd_pid=$!
 
 # ts from moreutils prepends the time to each line
-eval $COMMAND 2>&1 | ts | tee $OUTPUT_FILE
+( $COMMAND & PID=$! ; wait $PID ) | ts | tee $OUTPUT_FILE
 TEST_EXIT_CODE=${PIPESTATUS[0]}
-
-stop_watchdog $warning_wd_pid
-stop_watchdog $log_upload_wd_pid
 
 # properly forward exit code
 exit $TEST_EXIT_CODE

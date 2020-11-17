@@ -55,8 +55,6 @@ if [ ! -z "$TF_BUILD" ] ; then
 		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
 	}
 	on_exit run_on_exit
-else
-	echo "WARNING: It is not recommended to run this script outside of a CI environment, because some tests may modify system files"
 fi
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
