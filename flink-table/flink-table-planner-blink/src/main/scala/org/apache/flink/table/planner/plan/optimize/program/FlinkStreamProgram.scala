@@ -32,7 +32,6 @@ object FlinkStreamProgram {
 
   val SUBQUERY_REWRITE = "subquery_rewrite"
   val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
-  val PRE_DECORRELATE_REWRITE = "pre_decorrelate_rewrite"
   val DECORRELATE = "decorrelate"
   val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
@@ -92,17 +91,18 @@ object FlinkStreamProgram {
             .build(), "convert enumerable table scan")
         .build())
 
-    // rewrite before decorrelation
-    chainedProgram.addLast(
-      PRE_DECORRELATE_REWRITE,
-      FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
-        .build())
-
     // query decorrelation
-    chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+    chainedProgram.addLast(DECORRELATE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          // rewrite before decorrelation
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
+                .build(), "pre-rewrite before decorrelation")
+          .addProgram(new FlinkDecorrelateProgram)
+          .build())
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
