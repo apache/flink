@@ -104,7 +104,7 @@ def create_data_stream_process_function(factory, transform_id, transform_proto, 
     flink_fn_execution_pb2.UserDefinedDataStreamFunction)
 def create_data_stream_keyed_process_function(factory, transform_id, transform_proto, parameter,
                                               consumers):
-    return _create_user_defined_process_function_operation(
+    return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
         operations.KeyedProcessFunctionOperation)
@@ -139,6 +139,23 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             consumers,
             internal_operation_cls,
             keyed_state_backend)
+    elif internal_operation_cls == operations.KeyedProcessFunctionOperation:
+        key_type_info = spec.serialized_fn.key_type_info
+        key_row_coder = from_type_info_proto(key_type_info.field[0].type)
+        keyed_state_backend = RemoteKeyedStateBackend(
+            factory.state_handler,
+            key_row_coder,
+            1000,
+            1000,
+            1000)
+        return beam_operation_cls(
+            transform_proto.unique_name,
+            spec,
+            factory.counter_factory,
+            factory.state_sampler,
+            consumers,
+            internal_operation_cls,
+            keyed_state_backend)
     else:
         return beam_operation_cls(
             transform_proto.unique_name,
@@ -147,33 +164,3 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_sampler,
             consumers,
             internal_operation_cls)
-
-
-def _create_user_defined_process_function_operation(factory, transform_proto, consumers,
-                                                    udfs_proto, beam_operation_cls,
-                                                    internal_operation_cls):
-    output_tags = list(transform_proto.outputs.keys())
-    output_coders = factory.get_output_coders(transform_proto)
-    spec = operation_specs.WorkerDoFn(
-        serialized_fn=udfs_proto,
-        output_tags=output_tags,
-        input=None,
-        side_inputs=None,
-        output_coders=[output_coders[tag] for tag in output_coders])
-
-    key_type_info = spec.serialized_fn.key_type_info
-    key_row_coder = from_type_info_proto(key_type_info.field[0].type)
-    keyed_state_backend = RemoteKeyedStateBackend(
-        factory.state_handler,
-        key_row_coder,
-        1000,
-        1000,
-        1000)
-    return beam_operation_cls(
-        transform_proto.unique_name,
-        spec,
-        factory.counter_factory,
-        factory.state_sampler,
-        consumers,
-        internal_operation_cls,
-        keyed_state_backend)

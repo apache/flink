@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -52,6 +53,7 @@ import java.util.LinkedList;
  *
  * @param <IN> The type of the input elements
  */
+@Internal
 public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFunctionOperator<IN, IN>
 	implements ProcessingTimeCallback {
 

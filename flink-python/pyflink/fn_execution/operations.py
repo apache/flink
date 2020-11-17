@@ -480,14 +480,25 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         def __init__(self):
             self.buf = []
 
-        def collect_proc_timer(self, a: Any, key: Any):
-            self.buf.append((0, a, key, None))
+        def collect_reg_proc_timer(self, a: Any, key: Any):
+            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
+                             .REGISTER_PROC_TIMER.value, a, key, None))
 
-        def collect_event_timer(self, a: Any, key: Any):
-            self.buf.append((1, a, key, None))
+        def collect_reg_event_timer(self, a: Any, key: Any):
+            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
+                             .REGISTER_EVENT_TIMER.value, a, key, None))
+
+        def collect_del_proc_timer(self, a: Any, key: Any):
+            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
+                             .DEL_PROC_TIMER.value, a, key, None))
+
+        def collect_del_event_timer(self, a: Any, key: Any):
+            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
+                             .DEL_EVENT_TIMER.value, a, key, None))
 
         def collect_data(self, a: Any):
-            self.buf.append((2, a))
+            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag.NORMAL_DATA.value,
+                             a))
 
         def collect(self, a: Any):
             self.collect_data(a)
@@ -552,11 +563,19 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
 
         def register_processing_time_timer(self, t: int):
             current_key = self._keyed_state_backend.get_current_key()
-            self._collector.collect_proc_timer(t, current_key)
+            self._collector.collect_reg_proc_timer(t, current_key)
 
         def register_event_time_timer(self, t: int):
             current_key = self._keyed_state_backend.get_current_key()
-            self._collector.collect_event_timer(t, current_key)
+            self._collector.collect_reg_event_timer(t, current_key)
+
+        def delete_processing_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_del_proc_timer(t, current_key)
+
+        def delete_event_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_del_event_timer(t, current_key)
 
         def current_watermark(self) -> int:
             return self._current_watermark

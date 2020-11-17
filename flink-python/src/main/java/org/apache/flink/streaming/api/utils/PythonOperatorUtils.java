@@ -42,6 +42,68 @@ public enum PythonOperatorUtils {
 
 	private static final byte[] RECORD_SPLITER = new byte[]{0x00};
 
+	/**
+	 * The Flag for PythonKeyedProcessFunction input data.
+	 */
+	public enum PythonKeyedProcessFunctionInputFlag {
+		EVENT_TIME_TIMER(0),
+		PROC_TIME_TIMER(1),
+		NORMAL_DATA(2);
+
+		public final int value;
+
+		PythonKeyedProcessFunctionInputFlag(int value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonKeyedProcessFunction output data.
+	 */
+	public enum PythonKeyedProcessFunctionOutputFlag {
+		REGISTER_EVENT_TIMER(1),
+		REGISTER_PROC_TIMER(2),
+		NORMAL_DATA(3),
+		DEL_EVENT_TIMER(-1),
+		DEL_PROC_TIMER(-2);
+
+		public final int value;
+
+		PythonKeyedProcessFunctionOutputFlag(int value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonCoFlatMapFunction output data.
+	 */
+	public enum PythonCoFlatMapFunctionOutputFlag {
+		LEFT((short) 1),
+		RIGHT((short) 2),
+		LEFT_END((short) 3),
+		RIGHT_END((short) 4);
+
+		public final short value;
+
+		PythonCoFlatMapFunctionOutputFlag(short value) {
+			this.value = value;
+		}
+	}
+
+	/**
+	 * The Flag for PythonCoMapFunction output data.
+	 */
+	public enum PythonCoMapFunctionOutputFlag {
+		LEFT(1),
+		RIGHT(2);
+
+		public final int value;
+
+		PythonCoMapFunctionOutputFlag(int value) {
+			this.value = value;
+		}
+	}
+
 	public static FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
@@ -153,7 +215,7 @@ public enum PythonOperatorUtils {
 				.toTypeInfoProto(builtKeyFieldType)).build();
 	}
 
-	public static boolean endOfLastFlatMap(int length, byte[] rawData){
+	public static boolean endOfLastFlatMap(int length, byte[] rawData) {
 		return length == 1 && Arrays.equals(rawData, RECORD_SPLITER);
 	}
 

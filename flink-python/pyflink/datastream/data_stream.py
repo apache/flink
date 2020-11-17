@@ -25,7 +25,7 @@ from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
     ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
-    PartitionerFunctionWrapper, RuntimeContext, ProcessFunction
+    PartitionerFunctionWrapper, RuntimeContext, ProcessFunction, KeyedProcessFunction
 from pyflink.java_gateway import get_gateway
 
 
@@ -806,7 +806,8 @@ class KeyedStream(DataStream):
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         return self._origin_stream.key_by(key_selector, key_type_info)
 
-    def process(self, func: ProcessFunction, output_type: TypeInformation = None) -> 'DataStream':
+    def process(self, func: ProcessFunction, output_type: TypeInformation = None) \
+            -> 'DataStream':
         """
         Applies the given ProcessFunction on the input stream, thereby creating a transformed output
         stream.
@@ -818,6 +819,8 @@ class KeyedStream(DataStream):
         :param output_type: TypeInformation for the result type of the function.
         :return: The transformed DataStream.
         """
+        if not isinstance(func, KeyedProcessFunction):
+            raise TypeError("Should implement KeyedProcessFunction to process KeyedStreams.")
 
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_function_operator, j_output_type_info = \
@@ -1089,29 +1092,18 @@ def _get_java_python_function_operator(data_stream: DataStream,
             j_output_type_info,
             j_data_stream_python_function_info)
         return j_python_reduce_operator, j_output_type_info
-    elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
-        j_python_process_function_operator = gateway.jvm.PythonProcessFunctionOperator(
-            j_conf,
-            j_input_types,
-            output_type_info.get_java_type_info(),
-            j_data_stream_python_function_info)
-        return j_python_process_function_operator, output_type_info.get_java_type_info()
-    elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
-        j_python_process_function_operator = gateway.jvm.PythonKeyedProcessFunctionOperator(
-            j_conf,
-            j_input_types,
-            output_type_info.get_java_type_info(),
-            j_data_stream_python_function_info)
-        return j_python_process_function_operator, output_type_info.get_java_type_info()
     else:
         if str(func) == '_Flink_PartitionCustomMapFunction':
             JDataStreamPythonFunctionOperator = gateway.jvm.PythonPartitionCustomOperator
         elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:  # type: ignore
             JDataStreamPythonFunctionOperator = \
                 gateway.jvm.PythonFlatMapOperator
+        elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
+            JDataStreamPythonFunctionOperator = gateway.jvm.PythonProcessFunctionOperator
+        elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
+            JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessFunctionOperator
         else:
-            JDataStreamPythonFunctionOperator = \
-                gateway.jvm.OneInputPythonFunctionOperator
+            JDataStreamPythonFunctionOperator = gateway.jvm.OneInputPythonFunctionOperator
 
         j_python_function_operator = JDataStreamPythonFunctionOperator(
             j_conf,

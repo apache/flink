@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
  * @param <IN>     The type of the input elements
  * @param <OUT>The type of the output elements
  */
+@Internal
 public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 

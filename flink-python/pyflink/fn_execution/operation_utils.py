@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import datetime
+from enum import Enum
 
 from typing import Any, Tuple, Dict, List
 
@@ -219,8 +220,11 @@ def extract_data_stream_stateless_function(udf_proto):
         co_map_func = user_defined_func
 
         def wrap_func(value):
-            return Row(1, co_map_func.map1(value[1])) \
-                if value[0] else Row(2, co_map_func.map2(value[2]))
+            # value in format of: [INPUT_FLAG, REAL_VALUE]
+            # INPUT_FLAG value of True for the left stream, while False for the right stream
+            return Row(PythonCoMapFunctionOutputFlag.LEFT.value, co_map_func.map1(value[1])) \
+                if value[0] else Row(PythonCoMapFunctionOutputFlag.RIGHT.value,
+                                     co_map_func.map2(value[2]))
         func = wrap_func
     elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
         co_flat_map_func = user_defined_func
@@ -231,14 +235,14 @@ def extract_data_stream_stateless_function(udf_proto):
                 result = co_flat_map_func.flat_map1(value[1])
                 if result:
                     for result_val in result:
-                        yield Row(1, result_val)
-                yield Row(3, None)
+                        yield Row(PythonCoFlatMapFunctionOutputFlag.LEFT.value, result_val)
+                yield Row(PythonCoFlatMapFunctionOutputFlag.LEFT_END.value, None)
             else:
                 result = co_flat_map_func.flat_map2(value[2])
                 if result:
                     for result_val in result:
-                        yield Row(2, result_val)
-                yield Row(4, None)
+                        yield Row(PythonCoFlatMapFunctionOutputFlag.RIGHT.value, result_val)
+                yield Row(PythonCoFlatMapFunctionOutputFlag.RIGHT_END.value, None)
         func = wrap_func
 
     elif func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
@@ -281,9 +285,9 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
             timer_key = value[3]
             on_timer_ctx._current_key = timer_key
             keyed_state_backend.set_current_key(timer_key)
-            if value[0] == 0:
+            if value[0] == PythonKeyedProcessFunctionInputFlag.EVENT_TIME_TIMER.value:
                 time_domain = TimeDomain.EVENT_TIME
-            elif value[0] == 1:
+            elif value[0] == PythonKeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value:
                 time_domain = TimeDomain.PROCESSING_TIME
             else:
                 raise TypeError("TimeCharacteristic[%s] is not supported." % str(value[0]))
@@ -307,7 +311,7 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
             # 1: event time timer data
             # 2: normal data
             # result_row: [TIMER_FLAG, TIMER TYPE, TIMER_KEY, RESULT_DATA]
-            if a[0] == 2:
+            if a[0] == PythonKeyedProcessFunctionOutputFlag.NORMAL_DATA.value:
                 yield Row(None, None, None, a[1])
             else:
                 yield Row(a[0], a[1], a[2], None)
@@ -319,3 +323,35 @@ def extract_process_function(user_defined_function_proto, ctx, on_timer_ctx,
         func = wrapped_func_for_non_keyed_stream
 
     return func, process_function
+
+
+"""
+All these Enum Classes MUST be in sync with
+org.apache.flink.streaming.api.utils.PythonOperatorUtils if there are any changes.
+"""
+
+
+class PythonKeyedProcessFunctionInputFlag(Enum):
+    EVENT_TIME_TIMER = 0
+    PROC_TIME_TIMER = 1
+    NORMAL_DATA = 2
+
+
+class PythonKeyedProcessFunctionOutputFlag(Enum):
+    REGISTER_EVENT_TIMER = 1
+    REGISTER_PROC_TIMER = 2
+    NORMAL_DATA = 3
+    DEL_EVENT_TIMER = -1
+    DEL_PROC_TIMER = -2
+
+
+class PythonCoFlatMapFunctionOutputFlag(Enum):
+    LEFT = 1
+    RIGHT = 2
+    LEFT_END = 3
+    RIGHT_END = 4
+
+
+class PythonCoMapFunctionOutputFlag(Enum):
+    LEFT = 1
+    RIGHT = 2

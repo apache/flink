@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +32,7 @@ import org.apache.flink.types.Row;
  * @param <IN2> The input type of the second stream
  * @param <OUT> The output type of the CoMap function
  */
+@Internal
 public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -38,7 +40,7 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFuncti
 	/**
 	 * A flag indicating whether it is the end of flatMap1 outputs.
 	 */
-	private boolean endOfFlatMap1;
+	private transient boolean endOfFlatMap1;
 
 	public PythonCoFlatMapOperator(
 		Configuration config,
@@ -68,19 +70,23 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFuncti
 		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
 
 		// The output row is in a form of [Flag, OutputValue]
-		// [0, value]: the output value of the flatMap1
-		// [1, value]: the output value of the flatMap2
+		// [1, value]: the output value of the flatMap1
+		// [2, value]: the output value of the flatMap2
 		// [3, null]: end of the flatMap1
 		// [4, null]: end of the flatMap2
-		if ((Short) outputRow.getField(0) == 1) {
+		if ((Short) outputRow.getField(0) == PythonOperatorUtils
+			.PythonCoFlatMapFunctionOutputFlag.LEFT.value) {
 			collector.setAbsoluteTimestamp(bufferedTimestamp1.peek());
 			collector.collect(outputRow.getField(1));
-		} else if ((Short) outputRow.getField(0) == 2) {
+		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
+			.PythonCoFlatMapFunctionOutputFlag.RIGHT.value) {
 			collector.setAbsoluteTimestamp(bufferedTimestamp2.peek());
 			collector.collect(outputRow.getField(1));
-		} else if ((Short) outputRow.getField(0) == 3) {
+		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
+			.PythonCoFlatMapFunctionOutputFlag.LEFT_END.value) {
 			endOfFlatMap1 = true;
-		} else if ((Short) outputRow.getField(0) == 4) {
+		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
+			.PythonCoFlatMapFunctionOutputFlag.RIGHT_END.value) {
 			endOfFlatMap1 = false;
 		}
 	}

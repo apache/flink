@@ -219,9 +219,11 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 		long time = timer.getTimestamp();
 		Row timerKey = Row.of(timer.getKey());
 		if (procTime) {
-			reusableTimerData.setField(0, 1);
+			reusableTimerData.setField(0, PythonOperatorUtils
+				.PythonKeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value);
 		} else {
-			reusableTimerData.setField(0, 0);
+			reusableTimerData.setField(0, PythonOperatorUtils
+				.PythonKeyedProcessFunctionInputFlag.EVENT_TIME_TIMER.value);
 		}
 		reusableTimerData.setField(1, time);
 		reusableTimerData.setField(2, timerService.currentWatermark());
@@ -247,10 +249,18 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends OneInputPythonFunct
 			long time = (long) row.getField(1);
 			Object timerKey = ((Row) (row.getField(2))).getField(0);
 			setCurrentKey(timerKey);
-			if (type == 0) {
+			if (type == PythonOperatorUtils
+				.PythonKeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER.value) {
 				this.timerService.registerProcessingTimeTimer(time);
-			} else {
+			} else if (type == PythonOperatorUtils
+				.PythonKeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value) {
 				this.timerService.registerEventTimeTimer(time);
+			} else if (type == PythonOperatorUtils
+				.PythonKeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value) {
+				this.timerService.deleteEventTimeTimer(time);
+			} else if (type == PythonOperatorUtils
+				.PythonKeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value) {
+				this.timerService.deleteProcessingTimeTimer(time);
 			}
 		}
 	}

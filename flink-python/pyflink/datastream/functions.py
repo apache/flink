@@ -652,16 +652,41 @@ class KeyedProcessFunction(ProcessFunction, ABC):
     the KeyedProcessFunction is applied on a KeyedStream.
     """
 
-    class Context(ProcessFunction.Context):
+    class Context(ABC):
 
         @abc.abstractmethod
         def get_current_key(self):
             pass
 
-    class OnTimerContext(ProcessFunction.OnTimerContext):
+        @abc.abstractmethod
+        def timer_service(self) -> 'TimerService':
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abc.abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    class OnTimerContext(ABC):
 
         @abc.abstractmethod
         def get_current_key(self):
+            pass
+
+        @abc.abstractmethod
+        def time_domain(self) -> TimeDomain:
+            """
+            The TimeDomain of the firing timer.
+            :return: The TimeDomain of current fired timer.
+            """
             pass
 
 
@@ -721,5 +746,29 @@ class TimerService(abc.ABC):
         receive the timer notification.
 
         :param time: The event time of the timer to be registered.
+        """
+        pass
+
+    def delete_processing_time_timer(self, time: int):
+        """
+        Deletes the processing-time timer with the given trigger time. This method has only an
+        effect if such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
+        """
+        pass
+
+    def delete_event_time_timer(self, time: int):
+        """
+        Deletes the event-time timer with the given trigger time. This method has only an effect if
+        such a timer was previously registered and did not already expire.
+
+        Timers can internally be scoped to keys and/or windows. When you delete a timer, it is
+        removed from the current keyed context.
+
+        :param time: The given trigger time of timer to be deleted.
         """
         pass

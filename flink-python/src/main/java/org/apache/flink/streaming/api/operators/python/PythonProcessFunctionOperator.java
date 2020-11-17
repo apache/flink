@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,6 +41,7 @@ import java.util.Collections;
  * {@link PythonProcessFunctionOperator} is responsible for launching beam runner which will start
  * a python harness to execute user defined python ProcessFunction.
  */
+@Internal
 public class PythonProcessFunctionOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT>{
 
 	private static final long serialVersionUID = 1L;

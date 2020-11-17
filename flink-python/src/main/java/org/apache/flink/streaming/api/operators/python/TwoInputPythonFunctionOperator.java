@@ -34,6 +34,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -238,7 +239,8 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
 		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
-		if ((Short) outputRow.getField(0) == 1) {
+		if ((Short) outputRow.getField(0) == PythonOperatorUtils
+			.PythonCoMapFunctionOutputFlag.LEFT.value) {
 			collector.setAbsoluteTimestamp(bufferedTimestamp1.poll());
 		} else {
 			collector.setAbsoluteTimestamp(bufferedTimestamp2.poll());
