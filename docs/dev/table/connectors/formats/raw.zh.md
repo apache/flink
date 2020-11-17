@@ -29,25 +29,25 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Raw format allows to read and write raw (byte based) values as a single column.
+Raw format 允许读写原始（基于字节）值作为单个列。
 
-Note: this format encodes `null` values as `null` of `byte[]` type. This may have limitation when used in `upsert-kafka`, because `upsert-kafka` treats `null` values as a tombstone message (DELETE on the key). Therefore, we recommend avoiding using `upsert-kafka` connector and the `raw` format as a `value.format` if the field can have a `null` value.
+注意: 这种格式将 `null` 值编码成 `byte[]` 类型的 `null`。这样在 `upsert-kafka` 中使用时可能会有限制，因为 `upsert-kafka` 将 `null` 值视为 墓碑消息（在键上删除）。因此，如果该字段可能具有 `null` 值，我们建议避免使用 `upsert-kafka` 连接器和 `raw` format 作为 `value.format`。
 
-Dependencies
+依赖
 ------------
 
-The Raw format is a built-in format, so you don't need to add additional dependency for projects and SQL Client.
+Raw format 是内置格式, 因此你无需为项目和 SQL Client 添加其他依赖。
 
-Example
+示例
 ----------------
 
-For example, you may have following raw log data in Kafka and want to read and analyse such data using Flink SQL.
+例如，你可能在 Kafka 中具有原始日志数据，并希望使用 Flink SQL 读取和分析此类数据。
 
 ```
 47.29.201.179 - - [28/Feb/2019:13:17:10 +0000] "GET /?p=1 HTTP/2.0" 200 5316 "https://domain.com/?p=1" "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36" "2.75"
 ```
 
-The following creates a table where it reads from (and can writes to) the underlying Kafka topic as an anonymous string value in UTF-8 encoding by using `raw` format:
+下面的代码创建了一张表，使用 `raw` format 以 UTF-8 编码的形式从中读取（也可以写入）底层的 Kafka topic 作为匿名字符串值：
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -65,7 +65,7 @@ CREATE TABLE nginx_log (
 </div>
 </div>
 
-Then you can read out the raw data as a pure string, and split it into multiple fields using an user-defined-function for further analysing, e.g. `my_split` in the example.
+然后，你可以将原始数据读取为纯字符串，之后使用用户自定义函数将其分为多个字段进行进一步分析。例如 示例中的 `my_split`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -78,105 +78,105 @@ FROM(
 </div>
 </div>
 
-In contrast, you can also write a single column of STRING type into this Kafka topic as an anonymous string value in UTF-8 encoding.
+相对应的，你也可以将一个 STRING 类型的列以 UTF-8 编码的匿名字符串值写入 Kafka topic。
 
-Format Options
+Format 参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 8%">是否必选</th>
+        <th class="text-center" style="width: 7%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 50%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be 'raw'.</td>
+      <td>指定要使用的格式, 这里应该是 'raw'。</td>
     </tr>
     <tr>
       <td><h5>raw.charset</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">UTF-8</td>
       <td>String</td>
-      <td>Specify the charset to encode the text string.</td>
+      <td>指定字符集来编码文本字符串。</td>
     </tr>
     <tr>
       <td><h5>raw.endianness</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">big-endian</td>
       <td>String</td>
-      <td>Specify the endianness to encode the bytes of numeric value. Valid values are 'big-endian' and 'little-endian'.
-      See more details of <a href="https://en.wikipedia.org/wiki/Endianness">endianness</a>.</td>
+      <td>指定字节序来编码数字值的字节。有效值为'big-endian'和'little-endian'。
+      更多细节可查阅 <a href="https://zh.wikipedia.org/wiki/字节序">字节序</a>。</td>
     </tr>
     </tbody>
 </table>
 
-Data Type Mapping
+数据类型映射
 ----------------
 
-The table below details the SQL types the format supports, including details of the serializer and deserializer class for encoding and decoding.
+下表详细说明了这种格式支持的 SQL 类型，包括用于编码和解码的序列化类和反序列化类的详细信息。
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink SQL type</th>
-        <th class="text-left">Value</th>
+        <th class="text-left">Flink SQL 类型</th>
+        <th class="text-left">值</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><code>CHAR / VARCHAR / STRING</code></td>
-      <td>A UTF-8 (by default) encoded text string.<br>
-       The encoding charset can be configured by 'raw.charset'.</td>
+      <td>UTF-8（默认）编码的文本字符串。<br>
+       编码字符集可以通过 'raw.charset' 进行配置。</td>
     </tr>
     <tr>
       <td><code>BINARY / VARBINARY / BYTES</code></td>
-      <td>The sequence of bytes itself.</td>
+      <td>字节序列本身。</td>
     </tr>
     <tr>
       <td><code>BOOLEAN</code></td>
-      <td>A single byte to indicate boolean value, 0 means false, 1 means true.</td>
+      <td>表示布尔值的单个字节，0表示 false, 1 表示 true。</td>
     </tr>
     <tr>
       <td><code>TINYINT</code></td>
-      <td>A single byte of the singed number value.</td>
+      <td>有符号数字值的单个字节。</td>
     </tr>
     <tr>
       <td><code>SMALLINT</code></td>
-      <td>Two bytes with big-endian (by default) encoding.<br>
-       The endianness can be configured by 'raw.endianness'.</td>
+      <td>采用big-endian（默认）编码的两个字节。<br>
+       字节序可以通过 'raw.endianness' 配置。</td>
     </tr>
     <tr>
       <td><code>INT</code></td>
-      <td>Four bytes with big-endian (by default) encoding.<br>
-       The endianness can be configured by 'raw.endianness'.</td>
+      <td>采用 big-endian （默认）编码的四个字节。<br>
+       字节序可以通过 'raw.endianness' 配置。</td>
     </tr>
     <tr>
       <td><code>BIGINT</code></td>
-      <td>Eight bytes with big-endian (by default) encoding.<br>
-       The endianness can be configured by 'raw.endianness'.</td>
+      <td>采用 big-endian （默认）编码的八个字节。<br>
+       字节序可以通过 'raw.endianness' 配置。</td>
     </tr>
     <tr>
       <td><code>FLOAT</code></td>
-      <td>Four bytes with IEEE 754 format and big-endian (by default) encoding.<br>
-       The endianness can be configured by 'raw.endianness'.</td>
+      <td>采用 IEEE 754 格式和 big-endian （默认）编码的四个字节。<br>
+       字节序可以通过 'raw.endianness' 配置。</td>
     </tr>
     <tr>
       <td><code>DOUBLE</code></td>
-      <td>Eight bytes with IEEE 754 format and big-endian (by default) encoding.<br>
-       The endianness can be configured by 'raw.endianness'.</td>
+      <td>采用 IEEE 754 格式和 big-endian （默认）编码的八个字节。<br>
+       字节序可以通过 'raw.endianness' 配置。</td>
     </tr>
     <tr>
       <td><code>RAW</code></td>
-      <td>The sequence of bytes serialized by the underlying TypeSerializer of the RAW type.</td>
+      <td>通过 RAW 类型的底层 TypeSerializer 序列化的字节序列。</td>
     </tr>
     </tbody>
 </table>
