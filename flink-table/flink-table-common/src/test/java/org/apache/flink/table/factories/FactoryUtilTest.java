@@ -67,7 +67,7 @@ public class FactoryUtilTest {
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DynamicTableFactory.class.getName() + "' in the classpath.\n\n" +
 			"Available factory identifiers are:\n\n" +
-			"sink-only\nsource-only\ntest-connector");
+			"sink-only\nsource-only\ntest\ntest-connector");
 		testError(options -> options.put("connector", "FAIL"));
 	}
 
@@ -157,6 +157,29 @@ public class FactoryUtilTest {
 			new DecodingFormatMock(",", false),
 			new DecodingFormatMock("|", true));
 		assertEquals(expectedSource, actualSource);
+		final DynamicTableSink actualSink = createTableSink(options);
+		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
+			"MyTarget",
+			1000L,
+			new EncodingFormatMock(","),
+			new EncodingFormatMock("|"));
+		assertEquals(expectedSink, actualSink);
+	}
+
+	@Test
+	public void testDiscoveryForSeparateSourceSinkFactory() {
+		final Map<String, String> options = createAllOptions();
+		// the "test" source and sink factory is not in one factory class
+		// see TestDynamicTableSinkFactory and TestDynamicTableSourceFactory
+		options.put("connector", "test");
+
+		final DynamicTableSource actualSource = createTableSource(options);
+		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
+			"MyTarget",
+			new DecodingFormatMock(",", false),
+			new DecodingFormatMock("|", true));
+		assertEquals(expectedSource, actualSource);
+
 		final DynamicTableSink actualSink = createTableSink(options);
 		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
 			"MyTarget",
