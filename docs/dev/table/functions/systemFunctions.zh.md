@@ -4883,12 +4883,19 @@ MAP.at(ANY)
     <tr>
       <td>
 {% highlight text %}
-ROW(value1, [, value2]*)
-(value1, [, value2]*)
+-- implicit constructor with parenthesis
+(value1 [, value2]*)
+
+-- explicit ROW constructor
+ROW(value1 [, value2]*)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns a row created from a list of values (<i>value1, value2,</i>...).</p>
+        <p>Note: The implicit row constructor supports arbitrary expressions as fields but requires
+        at least two fields. The explicit row constructor can deal with an arbitrary number of fields
+        but does not support all kinds of field expressions well currently.
+        See also <a href="https://issues.apache.org/jira/browse/FLINK-18027">FLINK-18027</a>.</p>
       </td>
     </tr>
 
