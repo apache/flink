@@ -51,6 +51,7 @@ import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
@@ -82,7 +83,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -373,7 +373,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
     }
 
     public static void runTaskManagerSecurely(Configuration configuration) throws Exception {
-        replaceGracefulExitWithHaltIfConfigured(configuration);
+        FlinkSecurityManager.setFromConfiguration(configuration);
         final PluginManager pluginManager =
                 PluginUtils.createPluginManagerFromRootFolder(configuration);
         FileSystem.initialize(configuration, pluginManager);

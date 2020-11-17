@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JarUtils;
 
@@ -210,7 +211,12 @@ public class PackagedProgram {
      * local execution by default.
      */
     public void invokeInteractiveModeForExecution() throws ProgramInvocationException {
-        callMainMethod(mainClass, args);
+        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+        try {
+            callMainMethod(mainClass, args);
+        } finally {
+            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+        }
     }
 
     /**
