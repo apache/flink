@@ -27,7 +27,6 @@ CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
 KAFKA_SQL_VERSION="universal"
 
-ELASTICSEARCH6_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
 ELASTICSEARCH7_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-darwin-x86_64.tar.gz'
 ELASTICSEARCH7_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-linux-x86_64.tar.gz'
 
@@ -112,9 +111,7 @@ function prepare_elasticsearch {
       *)          OS_TYPE="UNKNOWN:${unameOut}"
   esac
 
-  if [[ "$ELASTICSEARCH_VERSION" == 6 ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH6_DOWNLOAD_URL
-  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "mac" ]]; then
+  if [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "mac" ]]; then
     DOWNLOAD_URL=$ELASTICSEARCH7_MAC_DOWNLOAD_URL
   elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "linux" ]]; then
     DOWNLOAD_URL=$ELASTICSEARCH7_LINUX_DOWNLOAD_URL
