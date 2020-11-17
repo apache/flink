@@ -63,6 +63,40 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
+  def testCompareOperator(): Unit= {
+
+    // f18 and f19 have same length.
+    testSqlApi(
+      "f18 > f19",
+      "true")
+    testSqlApi(
+      "f18 >= f19",
+      "true")
+    testSqlApi(
+      "f18 < f19",
+      "false")
+    testSqlApi(
+      "f18 <= f19",
+      "false")
+    testSqlApi(
+      "f18 = f18",
+      "true")
+
+    // f20's length is short than f19's, but great than it.
+    testSqlApi(
+      "f19 < f20",
+      "true")
+
+    testSqlApi(
+      "x'68656C6C6F20636F6465' < x'68656C6C6F2063617374'",
+      "false")
+    testSqlApi(
+      "x'68656C6C6F20636F6465' > x'68656C6C6F2063617374'",
+      "true")
+
+  }
+
+  @Test
   def testCast(): Unit = {
 
     // binary -> varchar
