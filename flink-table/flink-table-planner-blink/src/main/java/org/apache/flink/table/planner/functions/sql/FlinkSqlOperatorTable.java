@@ -634,11 +634,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		public boolean isDeterministic() {
 			return false;
 		}
-
-		@Override
-		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-			return SqlMonotonicity.INCREASING;
-		}
 	};
 
 	public static final SqlFunction SUBSTRING = new SqlFunction(

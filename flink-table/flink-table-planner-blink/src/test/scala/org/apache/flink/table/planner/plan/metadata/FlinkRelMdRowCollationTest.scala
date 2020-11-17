@@ -122,6 +122,15 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
       relBuilder.call(FlinkSqlOperatorTable.UNIX_TIMESTAMP) // UNIX_TIMESTAMP()
     ).build()
     assertEquals(ImmutableList.of(RelCollations.of(1)), mq.collations(project3))
+
+    // SELECT a, UUID() as ts FROM (VALUES (3, '2015-07-24 10:00:00')) T(a, b)
+    relBuilder.clear()
+    relBuilder.values(tupleList, valuesType)
+    val project4 = relBuilder.project(
+      relBuilder.field(0), // a
+      relBuilder.call(FlinkSqlOperatorTable.UUID) // UUID()
+    ).build()
+    assertTrue(mq.collations(project4).isEmpty)
   }
 
   @Test
