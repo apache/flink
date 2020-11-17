@@ -37,8 +37,6 @@ function run_test {
     printf "Running '${description}'\n"
     printf "==============================================================================\n"
 
-    local num_ports_before=$(get_num_ports)
-
     # used to randomize created directories
     export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
@@ -60,7 +58,7 @@ function run_test {
     exit_code="$?"
     # remove trap for test execution
     trap - ERR
-    post_test_validation ${exit_code} "$description" "$skip_check_exceptions" "$num_ports_before"
+    post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
 }
 
 # Validates the test result and exit code after its execution.
@@ -68,7 +66,6 @@ function post_test_validation {
     local exit_code="$1"
     local description="$2"
     local skip_check_exceptions="$3"
-    local num_ports_before="$4"
 
     local time_elapsed=$(end_timer)
 
@@ -100,7 +97,6 @@ function post_test_validation {
     if [[ ${exit_code} == 0 ]]; then
         cleanup
         log_environment_info
-        ensure_clean_environment ${num_ports_before} || exit $?
     else
         log_environment_info
         # make logs available if ARTIFACTS_DIR is set
@@ -114,42 +110,10 @@ function post_test_validation {
     fi
 }
 
-# returns the number of allocated ports
-function get_num_ports {
-    # "ps --ppid 2 -p 2 --deselect" shows all non-kernel processes
-    # "ps --ppid $$" shows all children of this bash process
-    # "ps -o pid= -o comm=" removes the header line
-    echo $(sudo netstat -tulpn | wc -l)
-}
-
-# Ensure that the number of running processes has not increased (no leftover daemons,
-# potentially affecting subsequent tests due to allocated ports etc.)
-function ensure_clean_environment {
-    local num_ports_before=$1
-    local num_ports_after=$(get_num_ports)
-    if [ "$num_ports_before" -ne "$num_ports_after" ]; then
-        printf "\n==============================================================================\n"
-        echo "FATAL: This test has left ports allocated."
-        echo "Allocated ports before the test: $num_ports_before and after: $num_ports_after. Stopping test execution."
-        printf "\n==============================================================================\n"
-        echo "Printing pstree for debugging:"
-        sudo pstree -p
-        exit 1
-    fi
-
-    if [ $(jps | wc -l) -ne 1 ]; then
-        printf "\n==============================================================================\n"
-        echo "FATAL: This test has left JVMs running. Stopping test execution."
-        printf "\n==============================================================================\n"
-        exit 1
-    fi
-}
-
-
 function log_environment_info {
     echo "##[group]Environment Information"
-    echo "Running JVMs"
-    jps -v
+    echo "Jps"
+    jps
 
     echo "Disk information"
     df -hH

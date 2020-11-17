@@ -116,8 +116,19 @@ function stop_kafka_cluster {
   fi
   $KAFKA_DIR/bin/zookeeper-server-stop.sh
 
-  kill_all 'kafka'
-  kill_all 'QuorumPeer'
+  # Terminate Kafka process if it still exists
+  PIDS=$(jps -vl | grep -i 'kafka\.Kafka' | grep java | grep -v grep | awk '{print $1}'|| echo "")
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS || true
+  fi
+
+  # Terminate QuorumPeerMain process if it still exists
+  PIDS=$(jps -vl | grep java | grep -i QuorumPeerMain | grep -v grep | awk '{print $1}'|| echo "")
+
+  if [ ! -z "$PIDS" ]; then
+    kill -s TERM $PIDS || true
+  fi
 }
 
 function create_kafka_topic {
@@ -196,7 +207,6 @@ function get_and_verify_schema_subjects_exist {
 
 function stop_confluent_schema_registry {
     $CONFLUENT_DIR/bin/schema-registry-stop
-    kill_all 'SchemaRegistry'
 }
 
 function debug_error {
