@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonOptions;
@@ -153,7 +154,8 @@ public class PythonConfigUtil {
 			}
 		}
 
-		StreamGraph streamGraph = env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, clearTransformations);
+		String jobName = getEnvironmentConfig(env).getString(PipelineOptions.NAME, StreamExecutionEnvironment.DEFAULT_JOB_NAME);
+		StreamGraph streamGraph = env.getStreamGraph(jobName, clearTransformations);
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
 		for (StreamNode streamNode : streamNodes) {
 			alignStreamNode(streamNode, streamGraph);
