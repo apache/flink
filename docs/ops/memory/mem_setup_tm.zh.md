@@ -83,7 +83,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 以下场景需要使用*托管内存*：
 * 流处理作业中用于 [RocksDB State Backend]({% link ops/state/state_backends.zh.md %}#the-rocksdbstatebackend)。
 * [批处理作业]({% link dev/batch/index.zh.md %})中用于排序、哈希表及缓存中间结果。
-* 流处理和批处理作业中用[在 Python 进程中执行用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
+* 流处理和批处理作业中用于[在 Python 进程中执行用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
 
 可以通过以下两种范式指定*托管内存*的大小：
 * 通过 [`taskmanager.memory.managed.size`]({% link ops/config.zh.md %}#taskmanager-memory-managed-size) 明确指定其大小。
