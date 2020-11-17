@@ -70,7 +70,7 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a></td>
+      <td><a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a></td>
       <td></td>
       <td>Unbounded Scan</td>
       <td>Streaming Sink</td>
