@@ -83,7 +83,7 @@ Flink natively support various connectors. The following tables list all availab
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
-      <td>1.4.x</td>
+      <td>1.4.x & 2.2.x</td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
