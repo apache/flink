@@ -110,7 +110,8 @@ public class HBaseTestingClusterAutoStarter {
 
 	private static void initialize(Configuration c) {
 		conf = HBaseConfiguration.create(c);
-		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
+		// the default retry number is 15 in hbase-2.2, set 5 for test
+		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 5);
 		try {
 			admin = TEST_UTIL.getAdmin();
 		} catch (MasterNotRunningException e) {
@@ -128,6 +129,14 @@ public class HBaseTestingClusterAutoStarter {
 		String hadoopVersion = System.getProperty("hadoop.version");
 		Assume.assumeTrue(HADOOP_VERSION_RANGE.contains(hadoopVersion));
 		TEST_UTIL.startMiniCluster(1);
+
+		// https://issues.apache.org/jira/browse/HBASE-11711
+		TEST_UTIL.getConfiguration().setInt("hbase.master.info.port", -1);
+
+		// Make sure the zookeeper quorum value contains the right port number (varies per run).
+		LOG.info("Hbase minicluster client port: " + TEST_UTIL.getZkCluster().getClientPort());
+		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
+
 		initialize(TEST_UTIL.getConfiguration());
 	}
 
