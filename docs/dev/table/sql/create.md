@@ -170,7 +170,10 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
-  
+
+<source_table>:
+  [catalog_name.][db_name.]table_name
+
 <like_options>:
 {
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
@@ -357,6 +360,8 @@ LIKE Orders_in_file (
 If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used as a default.
 
 **NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
+
+**NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
 
 {% top %}
 
