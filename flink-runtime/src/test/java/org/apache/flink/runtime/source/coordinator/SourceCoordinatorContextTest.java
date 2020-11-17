@@ -151,7 +151,6 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
 						TEST_OPERATOR_ID.toHexString(),
-						operatorCoordinatorContext,
 						getClass().getClassLoader());
 
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);

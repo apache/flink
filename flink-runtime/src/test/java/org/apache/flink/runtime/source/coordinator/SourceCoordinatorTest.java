@@ -29,6 +29,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorCheckpointSerializer;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -252,6 +253,50 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 	}
 
 	@Test
+	public void testFailJobWhenExceptionThrownFromStart() throws Exception {
+		final RuntimeException failureReason = new RuntimeException("Artificial Exception");
+
+		final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
+				new MockSplitEnumerator(1, new MockSplitEnumeratorContext<>(1)) {
+					@Override
+					public void start() {
+						throw failureReason;
+					}
+				};
+
+		final SourceCoordinator<?, ?> coordinator = new SourceCoordinator<>(
+				OPERATOR_NAME, coordinatorExecutor, new EnumeratorCreatingSource<>(() -> splitEnumerator), context);
+
+		coordinator.start();
+		waitUtil(() -> operatorCoordinatorContext.isJobFailed(), Duration.ofSeconds(10),
+			"The job should have failed due to the artificial exception.");
+		assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+	}
+
+	@Test
+	public void testErrorThrownFromSplitEnumerator() throws Exception {
+		final Error error = new Error("Test Error");
+
+		final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
+			new MockSplitEnumerator(1, new MockSplitEnumeratorContext<>(1)) {
+				@Override
+				public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+					throw error;
+				}
+			};
+
+		final SourceCoordinator<?, ?> coordinator = new SourceCoordinator<>(
+			OPERATOR_NAME, coordinatorExecutor, new EnumeratorCreatingSource<>(() -> splitEnumerator), context);
+
+		coordinator.start();
+		coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+
+		waitUtil(() -> operatorCoordinatorContext.isJobFailed(), Duration.ofSeconds(10),
+			"The job should have failed due to the artificial exception.");
+		assertEquals(error, operatorCoordinatorContext.getJobFailureReason());
+	}
+
+	@Test
 	public void testUserClassLoaderWhenCreatingNewEnumerator() throws Exception {
 		final ClassLoader testClassLoader = new URLClassLoader(new URL[0]);
 		final OperatorCoordinator.Context context = new MockOperatorCoordinatorContext(new OperatorID(), testClassLoader);
@@ -308,13 +353,11 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 	}
 
 	private static byte[] createEmptyCheckpoint(long checkpointId) throws Exception {
-		final OperatorCoordinator.Context opContext = new MockOperatorCoordinatorContext(new OperatorID(), 0);
-
 		try (SourceCoordinatorContext<MockSourceSplit> emptyContext = new SourceCoordinatorContext<>(
 				Executors.newDirectExecutorService(),
-				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory("test", opContext, SourceCoordinatorProviderTest.class.getClassLoader()),
+				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory("test", SourceCoordinatorProviderTest.class.getClassLoader()),
 				1,
-				opContext,
+				new MockOperatorCoordinatorContext(new OperatorID(), 0),
 				new MockSourceSplitSerializer())) {
 
 			return SourceCoordinator.writeCheckpointBytes(
