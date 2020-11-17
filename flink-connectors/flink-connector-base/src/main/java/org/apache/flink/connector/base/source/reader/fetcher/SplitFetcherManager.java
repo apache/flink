@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
@@ -184,5 +185,12 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			throw new RuntimeException("One or more fetchers have encountered exception",
 				uncaughtFetcherException.get());
 		}
+	}
+
+	// -----------------------
+
+	@VisibleForTesting
+	public int getNumAliveFetchers() {
+		return fetchers.size();
 	}
 }
