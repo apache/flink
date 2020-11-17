@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -673,7 +674,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	public TableResult executeInternal(List<ModifyOperation> operations) {
 		List<Transformation<?>> transformations = translate(operations);
 		List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
-		String jobName = "insert-into_" + String.join(",", sinkIdentifierNames);
+		String jobName = getJobName("insert-into_" + String.join(",", sinkIdentifierNames));
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
@@ -700,7 +701,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	public TableResult executeInternal(QueryOperation operation) {
 		SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
 		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
-		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
+		String jobName = getJobName("collect");
+		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
 			SelectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
@@ -1168,6 +1170,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					}
 				}
 		).collect(Collectors.toList());
+	}
+
+	private String getJobName(String defaultJobName) {
+		return tableConfig.getConfiguration().getString(PipelineOptions.NAME, defaultJobName);
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
