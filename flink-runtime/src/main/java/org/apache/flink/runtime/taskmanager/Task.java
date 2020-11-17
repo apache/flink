@@ -68,6 +68,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.security.FlinkSecurityManager;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -719,10 +720,17 @@ public class Task
             // so that it is available to the invokable during its entire lifetime.
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // now load and instantiate the task's invokable code
-            invokable =
-                    loadAndInstantiateInvokable(
-                            userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            // When constructing invokable, separate threads can be constructed and thus should be
+            // monitored for system exit (in addition to invoking thread itself monitored below).
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // now load and instantiate the task's invokable code
+                invokable =
+                        loadAndInstantiateInvokable(
+                                userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
 
             // ----------------------------------------------------------------
             //  actual task core work
@@ -745,8 +753,17 @@ public class Task
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // run the invokable
-            invokable.invoke();
+            // Monitor user codes from exiting JVM covering user function invocation. This can be
+            // done in a finer-grained way like enclosing user callback functions individually,
+            // but as exit triggered by framework is not performed and expected in this invoke
+            // function anyhow, we can monitor exiting JVM for entire scope.
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // run the invokable
+                invokable.invoke();
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
