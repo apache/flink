@@ -418,7 +418,7 @@ public class TaskManagerOptions {
 				+ " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
 				+ " of the number of consumers from each kind. Currently supported kinds of consumers are "
 				+ ManagedMemoryConsumerNames.DATAPROC + " (for RocksDB state backend in streaming and built-in"
-				+ " algorithms in batch) and " + ManagedMemoryConsumerNames.PYTHON + " (for python processes).");
+				+ " algorithms in batch) and " + ManagedMemoryConsumerNames.PYTHON + " (for Python processes).");
 	/**
 	 * Min Network Memory size for TaskExecutors.
 	 */
