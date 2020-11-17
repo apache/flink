@@ -171,6 +171,9 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
 
+<source_table>:
+  [catalog_name.][db_name.]table_name
+
 <like_options>:
 {
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
@@ -357,6 +360,8 @@ LIKE Orders_in_file (
 如果未提供 like 配置项（like options），默认将使用 `INCLUDING ALL OVERWRITING OPTIONS` 的合并策略。
 
 **注意：** 您无法选择物理列的合并策略，当物理列进行合并时就如使用了 `INCLUDING` 策略。
+
+**注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
 
 {% top %}
 
