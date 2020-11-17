@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 
 /**
  * An exception which is thrown by the JobClient if a job is aborted as a result of a user
@@ -28,7 +29,7 @@ public class JobCancellationException extends JobExecutionException {
 
 	private static final long serialVersionUID = 2818087325120827526L;
 
-	public JobCancellationException(JobID jobID, String msg, Throwable cause){
-		super(jobID, msg, cause);
+	public JobCancellationException(JobID jobID, String msg, Throwable cause) {
+		super(jobID, ApplicationStatus.CANCELED, msg, cause);
 	}
 }

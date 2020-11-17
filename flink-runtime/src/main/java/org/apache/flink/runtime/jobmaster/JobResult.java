@@ -146,11 +146,12 @@ public class JobResult implements Serializable {
 
 		final JobExecutionException exception;
 		if (applicationStatus == ApplicationStatus.FAILED) {
-			exception = new JobExecutionException(jobId, "Job execution failed.", cause);
+			exception = new JobExecutionException(jobId, applicationStatus, "Job execution failed.", cause);
 		} else if (applicationStatus == ApplicationStatus.CANCELED) {
 			exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
 		} else {
-			exception = new JobExecutionException(jobId, "Job completed with illegal application status: " + applicationStatus + '.', cause);
+			exception = new JobExecutionException(jobId, applicationStatus,
+					"Job completed with illegal application status: " + applicationStatus + '.', cause);
 		}
 		return exception;
 	}
@@ -229,7 +230,7 @@ public class JobResult implements Serializable {
 		final JobResult.Builder builder = new JobResult.Builder();
 		builder.jobId(jobId);
 
-		builder.applicationStatus(ApplicationStatus.fromJobStatus(accessExecutionGraph.getState()));
+		builder.applicationStatus(ApplicationStatus.fromJobStatus(jobStatus));
 
 		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
 		// guard against clock changes
