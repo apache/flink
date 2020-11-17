@@ -24,13 +24,16 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunc
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
 import org.apache.http.HttpHost;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.junit.Before;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,13 +42,26 @@ import java.util.List;
  */
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
 
-	@Before
-	public void ensureClusterIsUp() throws IOException {
-		RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.1:9200"));
-		RestHighLevelClient client = new RestHighLevelClient(builder);
-		if (!client.ping()) {
-			throw new RuntimeException("Cannot ping cluster!");
-		}
+	@ClassRule
+	public static ElasticsearchContainer elasticsearchContainer =
+			new ElasticsearchContainer(
+					DockerImageName
+							.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
+							.withTag("6.3.1"));
+
+	@Override
+	protected String getClusterName() {
+		return "docker-cluster";
+	}
+
+	@Override
+	@SuppressWarnings("deprecation")
+	protected final Client getClient() {
+		TransportAddress transportAddress = new TransportAddress(elasticsearchContainer.getTcpHost());
+		String expectedClusterName = getClusterName();
+		Settings settings = Settings.builder().put("cluster.name", expectedClusterName).build();
+		return new PreBuiltTransportClient(settings)
+				.addTransportAddress(transportAddress);
 	}
 
 	@Test
@@ -59,12 +75,12 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 	}
 
 	@Test
-	public void testNullAddresses() throws Exception {
+	public void testNullAddresses() {
 		runNullAddressesTest();
 	}
 
 	@Test
-	public void testEmptyAddresses() throws Exception {
+	public void testEmptyAddresses() {
 		runEmptyAddressesTest();
 	}
 
@@ -90,10 +106,10 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
 			int bulkFlushMaxActions,
 			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
 		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, elasticsearchContainer.getHttpHostAddress());
 	}
 
 	@Override
@@ -101,10 +117,10 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 			int bulkFlushMaxActions,
 			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+			String hostAddress) {
 
 		ArrayList<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
+		httpHosts.add(HttpHost.create(hostAddress));
 
 		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
 		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
