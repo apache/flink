@@ -35,7 +35,7 @@ function setup_elasticsearch {
 
     # start downloading Elasticsearch
     echo "Downloading Elasticsearch from $downloadUrl ..."
-    curl "$downloadUrl" > $TEST_DATA_DIR/elasticsearch.tar.gz
+    curl "$downloadUrl" --retry 10 --retry-max-time 120 --output $TEST_DATA_DIR/elasticsearch.tar.gz
 
     local elasticsearchDir=$TEST_DATA_DIR/elasticsearch
     mkdir -p $elasticsearchDir
