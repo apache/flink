@@ -131,7 +131,7 @@ public static class SubstringFunction extends ScalarFunction {
   }
 
   public String eval(String s, Integer begin, Integer end) {
-    return s.substring(a, endInclusive ? end + 1 : end);
+    return s.substring(begin, endInclusive ? end + 1 : end);
   }
 }
 
