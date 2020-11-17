@@ -2,7 +2,7 @@
 title: "BlackHole SQL Connector"
 nav-title: BlackHole
 nav-parent_id: sql-connectors
-nav-pos: 12
+nav-pos: 14
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

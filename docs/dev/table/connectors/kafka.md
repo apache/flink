@@ -175,7 +175,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">at-least-once</td>
       <td>String</td>
-      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-least-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
     </tr>
     <tr>
       <td><h5>sink.parallelism</h5></td>

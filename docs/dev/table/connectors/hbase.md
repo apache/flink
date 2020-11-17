@@ -2,7 +2,7 @@
 title: "HBase SQL Connector"
 nav-title: HBase
 nav-parent_id: sql-connectors
-nav-pos: 6
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -2,7 +2,7 @@
 title: "DataGen SQL 连接器"
 nav-title: DataGen
 nav-parent_id: sql-connectors
-nav-pos: 10
+nav-pos: 12
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

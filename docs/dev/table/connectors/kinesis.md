@@ -2,7 +2,7 @@
 title: "Amazon Kinesis Data Streams SQL Connector"
 nav-title: Kinesis
 nav-parent_id: sql-connectors
-nav-pos: 2
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -640,7 +640,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td></td>
       <td>
-        Sink options for the <code>KinesisProducer</code>. 
+        Sink options for the <code>KinesisProducer</code>.
         Suffix names must match the <a href="https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html">KinesisProducerConfiguration</a> setters in lower-case hyphenated style (for example, <code>sink.producer.collection-max-count</code> or <code>sink.producer.aggregation-max-count</code>).
         The transformed action keys are passed to the <code>sink.producer.*</code> to <a href="https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html#fromProperties-java.util.Properties-">KinesisProducerConfigurations#fromProperties</a>.
         Note that some of the defaults are overwritten by <code>KinesisConfigUtil</code>.
@@ -660,18 +660,18 @@ Make sure to [create an appropriate IAM policy](https://docs.aws.amazon.com/stre
 
 Depending on your deployment you would choose a different Credentials Provider to allow access to Kinesis.
 By default, the `AUTO` Credentials Provider is used.
-If the access key ID and secret key are set in the deployment configuration, this results in using the `BASIC` provider.  
+If the access key ID and secret key are set in the deployment configuration, this results in using the `BASIC` provider.
 
 A specific [AWSCredentialsProvider](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/auth/AWSCredentialsProvider.html) can be **optionally** set using the `aws.credentials.provider` setting.
 Supported values are:
 
 * `AUTO` - Use the default AWS Credentials Provider chain that searches for credentials in the following order: `ENV_VARS`, `SYS_PROPS`, `WEB_IDENTITY_TOKEN`, `PROFILE`, and EC2/ECS credentials provider.
-* `BASIC` - Use access key ID and secret key supplied as configuration. 
+* `BASIC` - Use access key ID and secret key supplied as configuration.
 * `ENV_VAR` - Use `AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` environment variables.
 * `SYS_PROP` - Use Java system properties `aws.accessKeyId` and `aws.secretKey`.
 * `PROFILE` - Use an AWS credentials profile to create the AWS credentials.
 * `ASSUME_ROLE` - Create AWS credentials by assuming a role. The credentials for assuming the role must be supplied.
-* `WEB_IDENTITY_TOKEN` - Create AWS credentials by assuming a role using Web Identity Token. 
+* `WEB_IDENTITY_TOKEN` - Create AWS credentials by assuming a role using Web Identity Token.
 
 ### Start Reading Position
 
@@ -702,11 +702,11 @@ You can, however, use the `sink.partitioner-field-delimiter` option to set the d
 ### Enhanced Fan-Out
 
 [Enhanced Fan-Out (EFO)](https://aws.amazon.com/blogs/aws/kds-enhanced-fanout/) increases the maximum number of concurrent consumers per Kinesis data stream.
-Without EFO, all concurrent Kinesis consumers share a single read quota per shard. 
-Using EFO, each consumer gets a distinct dedicated read quota per shard, allowing read throughput to scale with the number of consumers. 
+Without EFO, all concurrent Kinesis consumers share a single read quota per shard.
+Using EFO, each consumer gets a distinct dedicated read quota per shard, allowing read throughput to scale with the number of consumers.
 
 <span class="label label-info">Note</span> Using EFO will [incur additional cost](https://aws.amazon.com/kinesis/data-streams/pricing/).
- 
+
 You can enable and configure EFO with the following properties:
 
 * `scan.stream.recordpublisher`: Determines whether to use `EFO` or `POLLING`.
@@ -720,10 +720,10 @@ You can enable and configure EFO with the following properties:
     The describe operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
     this means application startup time will increase by roughly `parallelism/20 seconds`.
   * `EAGER`: Stream consumers are registered in the `FlinkKinesisConsumer` constructor.
-    If the stream consumer already exists, it will be reused. 
-    This will result in registration occurring when the job is constructed, 
+    If the stream consumer already exists, it will be reused.
+    This will result in registration occurring when the job is constructed,
     either on the Flink Job Manager or client environment submitting the job.
-    Using this strategy results in a single thread registering and retrieving the stream consumer ARN, 
+    Using this strategy results in a single thread registering and retrieving the stream consumer ARN,
     reducing startup time over `LAZY` (with large parallelism).
     However, consider that the client environment will require access to the AWS services.
   * `NONE`: Stream consumer registration is not performed by `FlinkKinesisConsumer`.
@@ -733,21 +733,21 @@ You can enable and configure EFO with the following properties:
 * `scan.stream.efo.consumerarn.<stream-name>`: ARNs identifying externally registered ARN-consumers (substitute `<stream-name>` with the name of your stream in the parameter name).
    Use this if you choose to use `NONE` as a `scan.stream.efo.registration` strategy.
 
-<span class="label label-info">Note</span> For a given Kinesis data stream, each EFO consumer must have a unique name. 
-However, consumer names do not have to be unique across data streams. 
+<span class="label label-info">Note</span> For a given Kinesis data stream, each EFO consumer must have a unique name.
+However, consumer names do not have to be unique across data streams.
 Reusing a consumer name will result in existing subscriptions being terminated.
 
 <span class="label label-info">Note</span> With the `LAZY` and `EAGER` strategies, stream consumers are de-registered when the job is shutdown gracefully.
 In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
-In this situation the stream consumers will be gracefully reused when the application restarts. 
+In this situation the stream consumers will be gracefully reused when the application restarts.
 With the `NONE` strategy, stream consumer de-registration is not performed by `FlinkKinesisConsumer`.
 
 Data Type Mapping
 ----------------
 
-Kinesis stores records as Base64-encoded binary data objects, so it doesn't have a notion of internal record structure. 
+Kinesis stores records as Base64-encoded binary data objects, so it doesn't have a notion of internal record structure.
 Instead, Kinesis records are deserialized and serialized by formats, e.g. 'avro', 'csv', or 'json'.
-To determine the data type of the messages in your Kinesis-backed tables, pick a suitable Flink format with the `format` keyword. 
+To determine the data type of the messages in your Kinesis-backed tables, pick a suitable Flink format with the `format` keyword.
 Please refer to the [Formats]({% link dev/table/connectors/formats/index.md %}) pages for more details.
 
 {% top %}
