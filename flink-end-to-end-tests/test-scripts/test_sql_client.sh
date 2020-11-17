@@ -20,16 +20,14 @@
 set -Eeuo pipefail
 
 PLANNER="${1:-old}"
-ELASTICSEARCH_VERSION=${2:-6}
 
 KAFKA_VERSION="2.2.2"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
 KAFKA_SQL_VERSION="universal"
-
-ELASTICSEARCH6_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
-ELASTICSEARCH7_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-darwin-x86_64.tar.gz'
-ELASTICSEARCH7_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-linux-x86_64.tar.gz'
+ELASTICSEARCH_VERSION=7
+ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.5.1-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
@@ -104,7 +102,7 @@ function sql_cleanup() {
 on_exit sql_cleanup
 
 function prepare_elasticsearch {
-  echo "Preparing Elasticsearch(version=$ELASTICSEARCH_VERSION)..."
+  echo "Preparing Elasticsearch (version=$ELASTICSEARCH_VERSION)..."
   # elastcisearch offers different release binary file for corresponding system since version 7.
   case "$(uname -s)" in
       Linux*)     OS_TYPE=linux;;
@@ -112,14 +110,12 @@ function prepare_elasticsearch {
       *)          OS_TYPE="UNKNOWN:${unameOut}"
   esac
 
-  if [[ "$ELASTICSEARCH_VERSION" == 6 ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH6_DOWNLOAD_URL
-  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "mac" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH7_MAC_DOWNLOAD_URL
-  elif [[ "$ELASTICSEARCH_VERSION" == 7 ]] && [[ "$OS_TYPE" == "linux" ]]; then
-    DOWNLOAD_URL=$ELASTICSEARCH7_LINUX_DOWNLOAD_URL
+  if [[ "$OS_TYPE" == "mac" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_MAC_DOWNLOAD_URL
+  elif [[ "$OS_TYPE" == "linux" ]]; then
+    DOWNLOAD_URL=$ELASTICSEARCH_LINUX_DOWNLOAD_URL
   else
-    echo "[ERROR] Unsupported elasticsearch version($ELASTICSEARCH_VERSION) for OS: $OS_TYPE"
+    echo "[ERROR] Unsupported OS for Elasticsearch: $OS_TYPE"
     exit 1
   fi
 
