@@ -34,7 +34,12 @@ import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.ThrowableCatchingRunnable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -46,6 +51,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -81,6 +87,9 @@ import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerde
 @Internal
 public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorContext.class);
+
 	private final ExecutorService coordinatorExecutor;
 	private final ExecutorNotifier notifier;
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
@@ -115,9 +124,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		this.registeredReaders = new ConcurrentHashMap<>();
 		this.assignmentTracker = splitAssignmentTracker;
 		this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
+
+		final Executor errorHandlingCoordinatorExecutor = (runnable) ->
+				coordinatorExecutor.execute(new ThrowableCatchingRunnable(this::handleUncaughtExceptionFromAsyncCall, runnable));
+
 		this.notifier = new ExecutorNotifier(
 				Executors.newScheduledThreadPool(numWorkerThreads, new ExecutorThreadFactory(coordinatorThreadName + "-worker")),
-				coordinatorExecutor);
+				errorHandlingCoordinatorExecutor);
 	}
 
 	@Override
@@ -225,6 +238,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 */
 	void failJob(Throwable cause) {
 		operatorCoordinatorContext.failJob(cause);
+	}
+
+	void handleUncaughtExceptionFromAsyncCall(Throwable t) {
+		ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+		LOG.error("Exception while handling result from async call in {}. Triggering job failover.",
+				coordinatorThreadName, t);
+		failJob(t);
 	}
 
 	/**

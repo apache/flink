@@ -61,7 +61,6 @@ public abstract class SourceCoordinatorTestBase {
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
 						coordinatorThreadName,
-						operatorCoordinatorContext,
 						getClass().getClassLoader());
 
 		coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
