@@ -839,6 +839,9 @@ public class StreamExecutionEnvironment {
 		configuration.getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND).ifPresent(
 			sortInputs -> this.getConfiguration().set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs)
 		);
+		configuration.getOptional(PipelineOptions.NAME).ifPresent(
+			jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName)
+		);
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
 	}
@@ -1798,7 +1801,7 @@ public class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute() throws Exception {
-		return execute(DEFAULT_JOB_NAME);
+		return execute(getJobName());
 	}
 
 	/**
@@ -1891,7 +1894,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public final JobClient executeAsync() throws Exception {
-		return executeAsync(DEFAULT_JOB_NAME);
+		return executeAsync(getJobName());
 	}
 
 	/**
@@ -1958,7 +1961,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public StreamGraph getStreamGraph() {
-		return getStreamGraph(DEFAULT_JOB_NAME);
+		return getStreamGraph(getJobName());
 	}
 
 	/**
@@ -2018,7 +2021,7 @@ public class StreamExecutionEnvironment {
 	 * @return The execution plan of the program, as a JSON String.
 	 */
 	public String getExecutionPlan() {
-		return getStreamGraph(DEFAULT_JOB_NAME, false).getStreamingPlanAsJSON();
+		return getStreamGraph(getJobName(), false).getStreamingPlanAsJSON();
 	}
 
 	/**
@@ -2349,5 +2352,9 @@ public class StreamExecutionEnvironment {
 			}
 		}
 		return (T) resolvedTypeInfo;
+	}
+
+	private String getJobName() {
+		return configuration.getString(PipelineOptions.NAME, DEFAULT_JOB_NAME);
 	}
 }
