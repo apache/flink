@@ -26,11 +26,11 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-这个连接器提供了一个在流和批模式下统一的 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中，它对于流和批模式可以提供相同的一致性语义保证。
+这个连接器提供了一个在流和批模式下统一的 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中，它对于流和批模式可以提供相同的一致性语义保证。File Sink 是现有的 [Streaming File Sink]({{ site.baseurl }}/zh/dev/connectors/streamfile_sink.html) 的一个升级版本，后者仅在流模式下提供了精确一致性。
 
 File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
-桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。对于行编码格式（参考 [File Formats](#file-formats) ）默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。对于批量编码格式我们需要在每次 Checkpoint 时切割文件，但是用户也可以指定额外的基于文件大小和超时时间的条件。
+桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。对于行编码格式（参考 [File Formats](#file-formats) ）默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。批量编码格式必须在每次 Checkpoint 时切割文件，但是用户也可以指定额外的基于文件大小和超时时间的策略。
 
  <div class="alert alert-info">
      <b>重要:</b> 在流模式下使用 FileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
@@ -48,7 +48,7 @@ File Sink 会将数据写入到桶中。由于输入流可能是无界的，因�
 
 创建行或批量编码的 Sink 时，我们需要指定存储桶的基本路径和数据的编码逻辑。
 
-更多配置操作以及不同数据格式的实现请参考 [FileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.html)
+更多配置操作以及不同数据格式的实现请参考 [FileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.html) 。
 
 ### 行编码格式
 
@@ -56,7 +56,7 @@ File Sink 会将数据写入到桶中。由于输入流可能是无界的，因�
 
 除了桶分配器之外，[RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.RowFormatBuilder.html)  还允许用户指定：
 
- - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) ：自定义滚动策略以覆盖默认的 DefaultRollingPolicy
+ - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) ：自定义滚动策略以覆盖默认的 DefaultRollingPolicy。
  - bucketCheckInterval （默认为1分钟）：毫秒间隔，用于基于时间的滚动策略。
 
 字符串元素写入示例：
@@ -132,7 +132,7 @@ Flink 有四个内置的 BulkWriter Factory ：
 
 <div class="alert alert-info">
      <b>重要:</b> 批量编码模式仅支持 OnCheckpointRollingPolicy 策略, 在每次 checkpoint 的时候切割文件。
-     <b>重要:</b> 批量编码模式必须使用继承自 CheckpointRollingPolicy 的滚动策略, 这些策略必须在每次 checkpoint 的时候切割文件，但是用户也可以进一步指定额外的基于文件大小和超时时间的条件。
+     <b>重要:</b> 批量编码模式必须使用继承自 CheckpointRollingPolicy 的滚动策略, 这些策略必须在每次 checkpoint 的时候切割文件，但是用户也可以进一步指定额外的基于文件大小和超时时间的策略。
 </div>
 
 #### Parquet 格式
@@ -331,9 +331,9 @@ stream.sinkTo(FileSink.forBulkFormat(
 
 为了使用基于批量编码的 ORC 格式，Flink提供了 [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html) ，它需要用户提供一个 [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html) 的具体实现。
 
-和其它基于列式存储的批量编码格式类似，Flink中的 `OrcBulkWriter` 将数据按批写出，它通过 ORC 的 VectorizedRowBatch 来实现这一点。
+和其它基于列式存储的批量编码格式类似，Flink中的 `OrcBulkWriter` 将数据按批写出。它通过 ORC 的 VectorizedRowBatch 来实现这一点。
 
-由于输入数据必须先缓存为一个完整的 `VectorizedRowBatch` ，用户需要继承 `Vectorizer` 抽像类并且覆盖其中的 `vectorize(T element, VectorizedRowBatch batch)` 方法。方法参数中传入的 `VectorizedRowBatch` 使用户只需将输入 `element` 转化为 `ColumnVectors` 并将它存储到所提供的 `VectorizedRowBatch` 实例中。
+由于输入数据必须先缓存为一个完整的 `VectorizedRowBatch` ，用户需要继承 `Vectorizer` 抽像类并且实现其中的 `vectorize(T element, VectorizedRowBatch batch)` 方法。方法参数中传入的 `VectorizedRowBatch` 使用户只需将输入 `element` 转化为 `ColumnVectors` 并将它存储到所提供的 `VectorizedRowBatch` 实例中。
 
 例如，如果输入元素的类型是 `Person` 并且它的定义如下：
 
@@ -399,7 +399,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 </div>
 </div>
 
-为了在应用使用 ORC 批量编码，用户需要添加如下依赖：
+为了在应用中使用 ORC 批量编码，用户需要添加如下依赖：
 
 {% highlight xml %}
 <dependency>
@@ -449,7 +449,7 @@ input.sinkTo(sink)
 </div>
 </div>
 
-用户还可以通过 Hadoop `Configuration` 和 `Properties` 来设置 OrcBulkWriterFactory 中涉及的 Hadoop 属性和 Writer 属性：
+用户还可以通过 Hadoop `Configuration` 和 `Properties` 来设置 OrcBulkWriterFactory 中涉及的 Hadoop 属性和 ORC Writer 属性：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -483,7 +483,7 @@ val writerFactory = new OrcBulkWriterFactory(
 
 完整的 ORC Writer 的属性可以参考 [相关文档](https://orc.apache.org/docs/hive-config.html).
 
-给 ORC 文件添加自定义元数据可以通过在覆盖的 `vectorize(...)` 方法中调用 `addUserMetadata(...)` 实现：
+给 ORC 文件添加自定义元数据可以通过在实现的 `vectorize(...)` 方法中调用 `addUserMetadata(...)` 实现：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -521,7 +521,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 #### Hadoop SequenceFile 格式
 
-在应用中使用 SequenceFile 批量编码器，你需要添加以下依赖：
+在应用中使用 `SequenceFile` 批量编码器，你需要添加以下依赖：
 
 {% highlight xml %}
 <dependency>
@@ -531,7 +531,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 </dependency>
 {% endhighlight %}
 
-简单的 SequenceFile 写入示例：
+简单的 `SequenceFile` 写入示例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -579,7 +579,7 @@ input.sinkTo(sink)
 </div>
 </div>
 
-SequenceFileWriterFactory 支持附加构造函数参数指定压缩设置。
+`SequenceFileWriterFactory` 支持附加构造函数参数指定压缩设置。
 
 ## 桶分配
 
@@ -597,7 +597,7 @@ Flink 有两个内置的 BucketAssigners ：
 
 ## 滚动策略
 
-在流模式下，滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。处于 Pending 状态的文件会在下一次 Checkpoint 时变为 Finished 状态，通过设置 Checkpoint 间隔时间，可以控制部分文件（part file）对下游读取者可用的速度、大小和数量。在批模式下，临时文件只会在作业处理完所有输入数据后提交，此时滚动策略可以用来控制每个文件的大小。
+在流模式下，滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。处于 Pending 状态的文件会在下一次 Checkpoint 时变为 Finished 状态，通过设置 Checkpoint 间隔时间，可以控制部分文件（part file）对下游读取者可用的速度、大小和数量。在批模式下，临时文件只会在作业处理完所有输入数据后才会变成 Finished 状态，此时滚动策略可以用来控制每个文件的大小。
 
 Flink 有两个内置的滚动策略：
 
