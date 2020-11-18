@@ -184,7 +184,8 @@ public class FileWriter<IN> implements
 		// setting the values in the bucketer context
 		bucketerContext.update(
 				context.timestamp(),
-				context.currentWatermark());
+				context.currentWatermark(),
+				processingTimeService.getCurrentProcessingTime());
 
 		final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
 		final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
@@ -281,19 +282,23 @@ public class FileWriter<IN> implements
 
 		private long currentWatermark;
 
+		private long currentProcessingTime;
+
 		private BucketerContext() {
 			this.elementTimestamp = null;
 			this.currentWatermark = Long.MIN_VALUE;
+			this.currentProcessingTime = Long.MIN_VALUE;
 		}
 
-		void update(@Nullable Long elementTimestamp, long watermark) {
+		void update(@Nullable Long elementTimestamp, long watermark, long currentProcessingTime) {
 			this.elementTimestamp = elementTimestamp;
 			this.currentWatermark = watermark;
+			this.currentProcessingTime = currentProcessingTime;
 		}
 
 		@Override
 		public long currentProcessingTime() {
-			throw new UnsupportedOperationException("not supported");
+			return currentProcessingTime;
 		}
 
 		@Override
