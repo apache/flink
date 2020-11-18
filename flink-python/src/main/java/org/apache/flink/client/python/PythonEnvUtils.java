@@ -26,6 +26,8 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.CallbackClient;
@@ -245,7 +247,12 @@ final class PythonEnvUtils {
 		ProcessBuilder pythonProcessBuilder = new ProcessBuilder();
 		Map<String, String> env = pythonProcessBuilder.environment();
 		if (pythonEnv.pythonPath != null) {
-			env.put("PYTHONPATH", pythonEnv.pythonPath);
+			String defaultPythonPath = env.get("PYTHONPATH");
+			if (Strings.isNullOrEmpty(defaultPythonPath)) {
+				env.put("PYTHONPATH", pythonEnv.pythonPath);
+			} else {
+				env.put("PYTHONPATH", String.join(File.pathSeparator, pythonEnv.pythonPath, defaultPythonPath));
+			}
 		}
 		pythonEnv.systemEnv.forEach(env::put);
 		commands.add(0, pythonEnv.pythonExec);
