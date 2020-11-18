@@ -31,6 +31,14 @@ under the License.
 	<name>Flink : E2E Tests : Common Kafka</name>
 
 	<dependencies>
+<!--		&lt;!&ndash; The SQL Client test uses a Table FileSource, which is not included in the normal table-->
+<!--		dependencies &ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>org.apache.flink</groupId>-->
+<!--			<artifactId>flink-connector-files</artifactId>-->
+<!--			<version>${project.version}</version>-->
+<!--		</dependency>-->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-end-to-end-tests-common</artifactId>
