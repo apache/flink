@@ -238,6 +238,23 @@ function send_msg_to_kafka {
     done <<< "$1"
 }
 
+function read_msg_from_kafka {
+    $KAFKA_DIR/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning \
+    --max-messages $1 \
+    --topic $2 \
+    --consumer-property group.id=$3 --timeout-ms 90000 2> /dev/null
+}
+
+function cat_jm_logs {
+     local log_file_name=${3:-standalonesession}
+     cat $FLINK_DIR/log/*$log_file_name*.log
+}
+
+function cat_tm_logs {
+	local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+	cat ${logfile}
+}
+
 send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run \
@@ -254,7 +271,7 @@ JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 wait_job_running ${JOB_ID}
 
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
+READ_MSG=$(read_msg_from_kafka 16 timer-stream-sink pyflink-e2e-test-timer)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"
@@ -283,5 +300,9 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
     echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
+    jm_log=$(cat_jm_logs)
+    echo "JobManager logs: " ${jm_log}
+    tm_log=$(cat_tm_logs)
+    echo "TaskManager logs: " ${tm_log}
     exit 1
 fi

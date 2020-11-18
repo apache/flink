@@ -318,9 +318,9 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends AbstractOneInputPyt
 			Object timerKey = ((Row) (row.getField(2))).getField(0);
 			setCurrentKey(timerKey);
 			if (type == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER.value) {
-				this.timerService.registerProcessingTimeTimer(time);
-			} else if (type == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value) {
 				this.timerService.registerEventTimeTimer(time);
+			} else if (type == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value) {
+				this.timerService.registerProcessingTimeTimer(time);
 			} else if (type == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value) {
 				this.timerService.deleteEventTimeTimer(time);
 			} else if (type == PythonOperatorUtils.KeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value) {
