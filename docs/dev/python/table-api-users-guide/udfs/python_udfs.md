@@ -393,4 +393,4 @@ Please refer to the [documentation of the corresponding classes]({{ site.pythond
 **NOTE:** For reducing the data transmission cost between Python UDF worker and Java process caused by accessing the data in Flink states(e.g. accumulators and data views), 
 there is a cached layer between the raw state handler and the Python state backend. You can adjust the values of these configuration options to change the behavior of the cache layer for best performance:
 `python.state.cache-size`, `python.map-state.read-cache-size`, `python.map-state.write-cache-size`, `python.map-state.iterate-response-batch-size`.
-For more details please refer to the [Python Configuration Documentation]({% link dev/python/table-api-users-guide/python_config.md %}).
+For more details please refer to the [Python Configuration Documentation]({% link dev/python/python_config.md %}).
