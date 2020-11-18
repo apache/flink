@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
@@ -29,12 +28,10 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -51,15 +48,12 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDe
  * runner which will start a python harness to execute two-input user defined python function.
  */
 @Internal
-public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
+public abstract class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATASTREAM_STATELESS_FUNCTION_URN =
-		"flink:transform:datastream_stateless_function:v1";
-	private static final String MAP_CODER_URN = "flink:coder:map:v1";
-	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
+	private static final String DATASTREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1";
 
 	/**
 	 * The options used to configure the Python worker process.
@@ -104,7 +98,7 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	/**
 	 * The TypeSerializer of the runner output.
 	 */
-	protected transient TypeSerializer<Row> runnerOutputTypeSerializer;
+	transient TypeSerializer<Row> runnerOutputTypeSerializer;
 
 	protected transient ByteArrayInputStreamWithPos bais;
 
@@ -149,11 +143,11 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		bufferedTimestamp2 = new LinkedList<>();
 		// The row contains three field. The first field indicate left input or right input
 		// The second field contains left input and the third field contains right input.
-		runnerInputTypeInfo = initRunnerInputTypeInfo();
+		runnerInputTypeInfo = getRunnerInputTypeInfo();
 		runnerInputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerInputTypeInfo);
 
-		runnerOutputTypeInfo = Types.ROW(Types.SHORT, outputTypeInfo);
+		runnerOutputTypeInfo = Types.ROW(Types.BYTE, outputTypeInfo);
 		runnerOutputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(runnerOutputTypeInfo);
 
@@ -163,31 +157,8 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		super.open();
 	}
 
-	private TypeInformation<Row> initRunnerInputTypeInfo() {
-		if (isKeyedStream) {
-			// since we wrap a keyed field for python KeyedStream, we need to extract the
-			// corresponding data input type.
-			return new RowTypeInfo(
-				Types.BOOLEAN,
-				((RowTypeInfo) inputTypeInfo1).getTypeAt(1),
-				((RowTypeInfo) inputTypeInfo2).getTypeAt(1));
-		} else {
-			return new RowTypeInfo(Types.BOOLEAN, inputTypeInfo1, inputTypeInfo2);
-		}
-	}
-
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		String coderUrn;
-		int functionType = this.pythonFunctionInfo.getFunctionType();
-		if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.CO_MAP.getNumber()) {
-			coderUrn = MAP_CODER_URN;
-		} else if (functionType == FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.CO_FLAT_MAP.getNumber()) {
-			coderUrn = FLAT_MAP_CODER_URN;
-		} else {
-			throw new RuntimeException("Function Type for ConnectedStream should be Map or FlatMap");
-		}
-
 		return new BeamDataStreamPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
@@ -195,7 +166,7 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 			runnerOutputTypeInfo,
 			DATASTREAM_STATELESS_FUNCTION_URN,
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			coderUrn,
+			getFunctionUrn(),
 			jobOptions,
 			getFlinkMetricContainer(),
 			null,
@@ -218,9 +189,9 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		bufferedTimestamp1.offer(element.getTimestamp());
 		// construct combined row.
 		reuseRow.setField(0, true);
-		reuseRow.setField(1, getStreamRecordValue(element));
+		reuseRow.setField(1, getValue(element));
 		reuseRow.setField(2, null);  // need to set null since it is a reuse row.
-		processElement();
+		processElementInternal();
 	}
 
 	@Override
@@ -229,26 +200,26 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		// construct combined row.
 		reuseRow.setField(0, false);
 		reuseRow.setField(1, null); // need to set null since it is a reuse row.
-		reuseRow.setField(2, getStreamRecordValue(element));
-		processElement();
+		reuseRow.setField(2, getValue(element));
+		processElementInternal();
 	}
 
-	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] rawResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(rawResult, 0, length);
-		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
-		if ((Short) outputRow.getField(0) == PythonOperatorUtils
-			.PythonCoMapFunctionOutputFlag.LEFT.value) {
-			collector.setAbsoluteTimestamp(bufferedTimestamp1.poll());
+	public abstract String getFunctionUrn();
+
+	private TypeInformation<Row> getRunnerInputTypeInfo() {
+		if (isKeyedStream) {
+			// since we wrap a keyed field for python KeyedStream, we need to extract the
+			// corresponding data input type.
+			return new RowTypeInfo(
+				Types.BOOLEAN,
+				((RowTypeInfo) inputTypeInfo1).getTypeAt(1),
+				((RowTypeInfo) inputTypeInfo2).getTypeAt(1));
 		} else {
-			collector.setAbsoluteTimestamp(bufferedTimestamp2.poll());
+			return new RowTypeInfo(Types.BOOLEAN, inputTypeInfo1, inputTypeInfo2);
 		}
-		collector.collect(outputRow.getField(1));
 	}
 
-	private Object getStreamRecordValue(StreamRecord<?> element) throws Exception {
+	private Object getValue(StreamRecord<?> element) {
 		if (isKeyedStream) {
 			// since we wrap a keyed field for python KeyedStream, we need to extract the
 			// corresponding data input.
@@ -258,7 +229,7 @@ public class TwoInputPythonFunctionOperator<IN1, IN2, OUT>
 		}
 	}
 
-	private void processElement() throws Exception {
+	private void processElementInternal() throws Exception {
 		runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();

@@ -373,15 +373,15 @@ class DataStreamStatelessFunctionOperation(Operation):
 class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
 
     def __init__(self, spec):
-        self._collector = ProcessFunctionOperation.InternalCollector()
-        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext()
-        self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext()
+        self.collector = ProcessFunctionOperation.InternalCollector()
+        self.timer_service = ProcessFunctionOperation.InternalTimerService()
+        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
+            self.timer_service)
         super(ProcessFunctionOperation, self).__init__(spec)
 
     def generate_func(self, serialized_fn) -> tuple:
         func, proc_func = operation_utils.extract_process_function(
-            serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
-            None, False)
+            serialized_fn, self.function_context, self.collector)
         return func, [proc_func]
 
     class InternalCollector(Collector):
@@ -397,29 +397,36 @@ class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
         def __init__(self):
             self.buf = []
 
-        def collect_data(self, a: Any):
-            self.buf.append((2, a))
-
         def collect(self, a: Any):
-            self.collect_data(a)
+            self.buf.append((2, a))
 
         def clear(self):
             self.buf.clear()
 
-    class InternalProcessFunctionContext(ProcessFunction.Context, TimerService):
+    class InternalProcessFunctionContext(ProcessFunction.Context):
         """
         Internal implementation of ProcessFunction.Context.
         """
 
-        def __init__(self):
+        def __init__(self, timer_service: TimerService):
+            self._timer_service = timer_service
             self._timestamp = None
-            self._current_watermark = None
 
         def timer_service(self):
-            return self
+            return self._timer_service
 
         def timestamp(self) -> int:
             return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
+
+    class InternalTimerService(TimerService):
+        """
+        Internal implementation of TimerService.
+        """
+        def __init__(self):
+            self._current_watermark = None
 
         def current_processing_time(self) -> int:
             return int(time.time() * 1000)
@@ -427,28 +434,14 @@ class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
         def current_watermark(self):
             return self._current_watermark
 
-        def register_processing_time_timer(self, time: int):
-            raise Exception("Setting timers is only supported on a keyed streams.")
+        def set_current_watermark(self, wm):
+            self._current_watermark = wm
 
-        def register_event_time_timer(self, time: int):
-            raise Exception("Setting timers is only supported on a keyed streams.")
+        def register_processing_time_timer(self, t: int):
+            raise Exception("Register timers is only supported on a keyed stream.")
 
-    class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
-        """
-        Internal implementation of ProcessFunction.OnTimerContext.
-
-        Note that only a KeyedStream can register timers, a ProcessFunction on a non-KeyedStream
-        will never fire a timer. So the OnTimerContext for ProcessFunction has no implementation.
-        """
-
-        def time_domain(self) -> TimeDomain:
-            pass
-
-        def timer_service(self) -> 'TimerService':
-            pass
-
-        def timestamp(self) -> int:
-            pass
+        def register_event_time_timer(self, t: int):
+            raise Exception("Register timers is only supported on a keyed stream.")
 
 
 class KeyedProcessFunctionOperation(StatefulFunctionOperation):
@@ -464,9 +457,9 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         super(KeyedProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
 
     def generate_func(self, serialized_fn) -> Tuple:
-        func, proc_func = operation_utils.extract_process_function(
+        func, proc_func = operation_utils.extract_keyed_process_function(
             serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
-            self.keyed_state_backend, True)
+            self.keyed_state_backend)
         return func, [proc_func]
 
     class InternalCollector(Collector):
@@ -481,27 +474,27 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
             self.buf = []
 
         def collect_reg_proc_timer(self, a: Any, key: Any):
-            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
-                             .REGISTER_PROC_TIMER.value, a, key, None))
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value,
+                 a, key, None))
 
         def collect_reg_event_timer(self, a: Any, key: Any):
-            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
-                             .REGISTER_EVENT_TIMER.value, a, key, None))
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER.value,
+                 a, key, None))
 
         def collect_del_proc_timer(self, a: Any, key: Any):
-            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
-                             .DEL_PROC_TIMER.value, a, key, None))
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value,
+                 a, key, None))
 
         def collect_del_event_timer(self, a: Any, key: Any):
-            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag
-                             .DEL_EVENT_TIMER.value, a, key, None))
-
-        def collect_data(self, a: Any):
-            self.buf.append((operation_utils.PythonKeyedProcessFunctionOutputFlag.NORMAL_DATA.value,
-                             a))
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value,
+                 a, key, None))
 
         def collect(self, a: Any):
-            self.collect_data(a)
+            self.buf.append((operation_utils.KeyedProcessFunctionOutputFlag.NORMAL_DATA.value, a))
 
         def clear(self):
             self.buf.clear()
@@ -511,30 +504,39 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         Internal implementation of ProcessFunction.OnTimerContext.
         """
 
-        def __init__(self, timer_service: 'TimerService'):
+        def __init__(self, timer_service: TimerService):
             self._timer_service = timer_service
             self._time_domain = None
             self._timestamp = None
             self._current_key = None
 
-        def timer_service(self):
-            return self._timer_service
+        def get_current_key(self):
+            return self._current_key
 
-        def time_domain(self) -> TimeDomain:
-            return self._time_domain
+        def set_current_key(self, current_key):
+            self._current_key = current_key
+
+        def timer_service(self) -> TimerService:
+            return self._timer_service
 
         def timestamp(self) -> int:
             return self._timestamp
 
-        def get_current_key(self):
-            return self._current_key
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
+
+        def time_domain(self) -> TimeDomain:
+            return self._time_domain
+
+        def set_time_domain(self, td: TimeDomain):
+            self._time_domain = td
 
     class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
         """
-            Internal implementation of KeyedProcessFunction.Context.
+        Internal implementation of KeyedProcessFunction.Context.
         """
 
-        def __init__(self, timer_service: 'TimerService'):
+        def __init__(self, timer_service: TimerService):
             self._timer_service = timer_service
             self._timestamp = None
             self._current_key = None
@@ -542,11 +544,17 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         def get_current_key(self):
             return self._current_key
 
-        def timer_service(self) -> 'TimerService':
+        def set_current_key(self, current_key):
+            self._current_key = current_key
+
+        def timer_service(self) -> TimerService:
             return self._timer_service
 
         def timestamp(self) -> int:
             return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
 
     class InternalTimerService(TimerService):
         """
@@ -560,6 +568,12 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
 
         def current_processing_time(self) -> int:
             return int(time.time() * 1000)
+
+        def current_watermark(self) -> int:
+            return self._current_watermark
+
+        def set_current_watermark(self, wm):
+            self._current_watermark = wm
 
         def register_processing_time_timer(self, t: int):
             current_key = self._keyed_state_backend.get_current_key()
@@ -576,6 +590,3 @@ class KeyedProcessFunctionOperation(StatefulFunctionOperation):
         def delete_event_time_timer(self, t: int):
             current_key = self._keyed_state_backend.get_current_key()
             self._collector.collect_del_event_timer(t, current_key)
-
-        def current_watermark(self) -> int:
-            return self._current_watermark

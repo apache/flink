@@ -22,30 +22,23 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
-
-import java.util.Collections;
-
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 
 /**
  * {@link PythonReduceOperator} is responsible for launching beam runner which
  * will start a python harness to execute user defined python ReduceFunction.
  */
 @Internal
-public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Row, OUT> {
+public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Row, OUT, Row, OUT> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
 	private static final String STATE_NAME = "_python_reduce_state";
 
@@ -54,16 +47,6 @@ public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Ro
 	 */
 	private transient ValueState<OUT> valueState;
 
-	/**
-	 * The TypeInformation of python worker input data.
-	 */
-	private transient TypeInformation<Row> runnerInputTypeInfo;
-
-	/**
-	 * The TypeSerializer of python worker input data.
-	 */
-	private transient TypeSerializer<Row> runnerInputTypeSerializer;
-
 	private transient Row reuseRow;
 
 	public PythonReduceOperator(
@@ -71,24 +54,20 @@ public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Ro
 		TypeInformation<Row> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
-		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+		super(config, new RowTypeInfo(outputTypeInfo, outputTypeInfo), outputTypeInfo, pythonFunctionInfo);
 	}
 
 	@Override
 	public void open() throws Exception {
+		super.open();
+
 		// create state
 		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(
 			STATE_NAME,
-			outputTypeInfo);
+			runnerOutputTypeInfo);
 		valueState = getPartitionedState(stateId);
 
-		runnerInputTypeInfo = new RowTypeInfo(outputTypeInfo, outputTypeInfo);
-		runnerInputTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(runnerInputTypeInfo);
-
 		reuseRow = new Row(2);
-
-		super.open();
 	}
 
 	@Override
@@ -101,15 +80,10 @@ public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Ro
 			collector.setAbsoluteTimestamp(element.getTimestamp());
 			collector.collect(inputData);
 		} else {
-			bufferedTimestamp.offer(element.getTimestamp());
 			reuseRow.setField(0, currentValue);
 			reuseRow.setField(1, inputData);
-			runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
-			pythonFunctionRunner.process(baos.toByteArray());
-			baos.reset();
-			elementCount++;
-			checkInvokeFinishBundleByCount();
-			emitResults();
+			element.replace(reuseRow);
+			super.processElement(element);
 		}
 	}
 
@@ -118,31 +92,14 @@ public class PythonReduceOperator<OUT> extends OneInputPythonFunctionOperator<Ro
 		byte[] rawResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
-		OUT result = outputTypeSerializer.deserialize(baisWrapper);
+		OUT result = runnerOutputTypeSerializer.deserialize(baisWrapper);
 		valueState.update(result);
 		collector.setAbsoluteTimestamp(bufferedTimestamp.poll());
 		collector.collect(result);
 	}
 
 	@Override
-	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		return new BeamDataStreamPythonFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			createPythonEnvironmentManager(),
-			runnerInputTypeInfo,
-			outputTypeInfo,
-			DATA_STREAM_STATELESS_FUNCTION_URN,
-			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			MAP_CODER_URN,  // reuse map function coder
-			jobOptions,
-			getFlinkMetricContainer(),
-			null,
-			null,
-			getContainingTask().getEnvironment().getMemoryManager(),
-			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
-				ManagedMemoryUseCase.PYTHON,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
-				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
-		);
+	public String getCoderUrn() {
+		return MAP_CODER_URN;
 	}
 }

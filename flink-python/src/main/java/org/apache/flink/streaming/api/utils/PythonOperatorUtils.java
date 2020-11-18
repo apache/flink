@@ -45,14 +45,14 @@ public enum PythonOperatorUtils {
 	/**
 	 * The Flag for PythonKeyedProcessFunction input data.
 	 */
-	public enum PythonKeyedProcessFunctionInputFlag {
-		EVENT_TIME_TIMER(0),
-		PROC_TIME_TIMER(1),
-		NORMAL_DATA(2);
+	public enum KeyedProcessFunctionInputFlag {
+		EVENT_TIME_TIMER((byte) 0),
+		PROC_TIME_TIMER((byte) 1),
+		NORMAL_DATA((byte) 2);
 
-		public final int value;
+		public final byte value;
 
-		PythonKeyedProcessFunctionInputFlag(int value) {
+		KeyedProcessFunctionInputFlag(byte value) {
 			this.value = value;
 		}
 	}
@@ -60,16 +60,16 @@ public enum PythonOperatorUtils {
 	/**
 	 * The Flag for PythonKeyedProcessFunction output data.
 	 */
-	public enum PythonKeyedProcessFunctionOutputFlag {
-		REGISTER_EVENT_TIMER(1),
-		REGISTER_PROC_TIMER(2),
-		NORMAL_DATA(3),
-		DEL_EVENT_TIMER(-1),
-		DEL_PROC_TIMER(-2);
+	public enum KeyedProcessFunctionOutputFlag {
+		REGISTER_EVENT_TIMER((byte) 0),
+		REGISTER_PROC_TIMER((byte) 1),
+		NORMAL_DATA((byte) 2),
+		DEL_EVENT_TIMER((byte) 3),
+		DEL_PROC_TIMER((byte) 4);
 
-		public final int value;
+		public final byte value;
 
-		PythonKeyedProcessFunctionOutputFlag(int value) {
+		KeyedProcessFunctionOutputFlag(byte value) {
 			this.value = value;
 		}
 	}
@@ -77,15 +77,15 @@ public enum PythonOperatorUtils {
 	/**
 	 * The Flag for PythonCoFlatMapFunction output data.
 	 */
-	public enum PythonCoFlatMapFunctionOutputFlag {
-		LEFT((short) 1),
-		RIGHT((short) 2),
-		LEFT_END((short) 3),
-		RIGHT_END((short) 4);
+	public enum CoFlatMapFunctionOutputFlag {
+		LEFT((byte) 0),
+		RIGHT((byte) 1),
+		LEFT_END((byte) 2),
+		RIGHT_END((byte) 3);
 
-		public final short value;
+		public final byte value;
 
-		PythonCoFlatMapFunctionOutputFlag(short value) {
+		CoFlatMapFunctionOutputFlag(byte value) {
 			this.value = value;
 		}
 	}
@@ -93,13 +93,13 @@ public enum PythonOperatorUtils {
 	/**
 	 * The Flag for PythonCoMapFunction output data.
 	 */
-	public enum PythonCoMapFunctionOutputFlag {
-		LEFT(1),
-		RIGHT(2);
+	public enum CoMapFunctionOutputFlag {
+		LEFT((byte) 0),
+		RIGHT((byte) 1);
 
 		public final int value;
 
-		PythonCoMapFunctionOutputFlag(int value) {
+		CoMapFunctionOutputFlag(byte value) {
 			this.value = value;
 		}
 	}

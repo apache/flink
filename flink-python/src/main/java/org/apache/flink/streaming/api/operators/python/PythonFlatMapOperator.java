@@ -29,12 +29,14 @@ import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
  * The {@link PythonFlatMapOperator} is responsible for executing Python functions that gets one
  * input and produces zero/one or more outputs.
  *
- * @param <IN>     The type of the input elements
- * @param <OUT>The type of the output elements
+ * @param <IN>  The type of the input elements
+ * @param <OUT> The type of the output elements
  */
 @Internal
-public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
+public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
 	private static final long serialVersionUID = 1L;
+
+	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
 	public PythonFlatMapOperator(
 		Configuration config,
@@ -42,6 +44,11 @@ public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperat
 		TypeInformation<OUT> outputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo) {
 		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+	}
+
+	@Override
+	public String getCoderUrn() {
+		return FLAT_MAP_CODER_URN;
 	}
 
 	@Override
@@ -53,7 +60,7 @@ public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperat
 			int length = resultTuple.f1;
 			bais.setBuffer(rawResult, 0, length);
 			collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-			collector.collect(outputTypeSerializer.deserialize(baisWrapper));
+			collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
 		}
 	}
 }

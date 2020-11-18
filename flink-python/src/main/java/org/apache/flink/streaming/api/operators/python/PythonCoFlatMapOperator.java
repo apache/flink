@@ -37,10 +37,7 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFuncti
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * A flag indicating whether it is the end of flatMap1 outputs.
-	 */
-	private transient boolean endOfFlatMap1;
+	private static final String CO_FLAT_MAP_CODER_URN = "flink:coder:co_flat_map:v1";
 
 	public PythonCoFlatMapOperator(
 		Configuration config,
@@ -53,19 +50,14 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFuncti
 	}
 
 	@Override
+	public String getFunctionUrn() {
+		return CO_FLAT_MAP_CODER_URN;
+	}
+
+	@Override
 	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
 		byte[] rawResult = resultTuple.f0;
 		int length = resultTuple.f1;
-		// The output value of flatMap from Python process will always contains an end of current
-		// flatMap message (A byte array of value [0x00]).
-		if (PythonOperatorUtils.endOfLastFlatMap(length, rawResult)) {
-			if (endOfFlatMap1) {
-				bufferedTimestamp1.poll();
-			} else {
-				bufferedTimestamp2.poll();
-			}
-			return;
-		}
 		bais.setBuffer(rawResult, 0, length);
 		Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
 
@@ -74,20 +66,16 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT> extends TwoInputPythonFuncti
 		// [2, value]: the output value of the flatMap2
 		// [3, null]: end of the flatMap1
 		// [4, null]: end of the flatMap2
-		if ((Short) outputRow.getField(0) == PythonOperatorUtils
-			.PythonCoFlatMapFunctionOutputFlag.LEFT.value) {
+		if ((byte) outputRow.getField(0) == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.LEFT.value) {
 			collector.setAbsoluteTimestamp(bufferedTimestamp1.peek());
 			collector.collect(outputRow.getField(1));
-		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
-			.PythonCoFlatMapFunctionOutputFlag.RIGHT.value) {
+		} else if ((byte) outputRow.getField(0) == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.RIGHT.value) {
 			collector.setAbsoluteTimestamp(bufferedTimestamp2.peek());
 			collector.collect(outputRow.getField(1));
-		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
-			.PythonCoFlatMapFunctionOutputFlag.LEFT_END.value) {
-			endOfFlatMap1 = true;
-		} else if ((Short) outputRow.getField(0) == PythonOperatorUtils
-			.PythonCoFlatMapFunctionOutputFlag.RIGHT_END.value) {
-			endOfFlatMap1 = false;
+		} else if ((byte) outputRow.getField(0) == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.LEFT_END.value) {
+			bufferedTimestamp1.poll();
+		} else if ((byte) outputRow.getField(0) == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.RIGHT_END.value) {
+			bufferedTimestamp2.poll();
 		}
 	}
 }
