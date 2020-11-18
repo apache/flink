@@ -81,11 +81,13 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	 */
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
 		private final String coordinatorThreadName;
+		private final ClassLoader cl;
 		private Thread t;
 
 		CoordinatorExecutorThreadFactory(String coordinatorThreadName) {
 			this.coordinatorThreadName = coordinatorThreadName;
 			this.t = null;
+			this.cl = Thread.currentThread().getContextClassLoader();
 		}
 
 		@Override
@@ -95,6 +97,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 						"SingleThreadExecutor.");
 			}
 			t = new Thread(r, coordinatorThreadName);
+			t.setContextClassLoader(cl);
 			t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
 			return t;
 		}

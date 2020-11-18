@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.junit.Test;
 
@@ -103,7 +104,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		TestingCoordinatorProvider provider = new TestingCoordinatorProvider(new CountDownLatch(1));
 		MockOperatorCoordinatorContext context = new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
 		RecreateOnResetOperatorCoordinator coordinator =
-				(RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
+			createCoordinator(provider, context, closingTimeoutMs);
 
 		coordinator.resetToCheckpoint(new byte[0]);
 		CommonTestUtils.waitUtil(
@@ -120,7 +121,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		TestingCoordinatorProvider provider = new TestingCoordinatorProvider(blockOnCloseLatch);
 		MockOperatorCoordinatorContext context = new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
 		RecreateOnResetOperatorCoordinator coordinator =
-				(RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
+			createCoordinator(provider, context, closingTimeoutMs);
 
 		// Set up the testing variables.
 		final byte[] restoredState = new byte[0];
@@ -176,7 +177,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		TestingCoordinatorProvider provider = new TestingCoordinatorProvider();
 		MockOperatorCoordinatorContext context = new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
 		RecreateOnResetOperatorCoordinator coordinator =
-				(RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
+			createCoordinator(provider, context, closingTimeoutMs);
 
 		// Loop to get some interleaved method invocations on multiple instances
 		// of active coordinators.
@@ -234,9 +235,22 @@ public class RecreateOnResetOperatorCoordinatorTest {
 	// ---------------
 
 	private RecreateOnResetOperatorCoordinator createCoordinator(
+		TestingCoordinatorProvider provider,
+		OperatorCoordinator.Context context) throws Exception {
+		try (TemporaryClassLoaderContext ignored =
+				 TemporaryClassLoaderContext.of(TestingCoordinatorProvider.TEST_CLASS_LOADER)) {
+			return (RecreateOnResetOperatorCoordinator) provider.create(context);
+		}
+	}
+
+	private RecreateOnResetOperatorCoordinator createCoordinator(
 			TestingCoordinatorProvider provider,
-			OperatorCoordinator.Context context) throws Exception {
-		return (RecreateOnResetOperatorCoordinator) provider.create(context);
+			OperatorCoordinator.Context context,
+			long timeoutMs) throws Exception {
+		try (TemporaryClassLoaderContext ignored =
+				 TemporaryClassLoaderContext.of(TestingCoordinatorProvider.TEST_CLASS_LOADER)) {
+			return (RecreateOnResetOperatorCoordinator) provider.create(context, timeoutMs);
+		}
 	}
 
 	private TestingOperatorCoordinator getInternalCoordinator(RecreateOnResetOperatorCoordinator coordinator) throws Exception {
@@ -247,6 +261,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 
 	private static class TestingCoordinatorProvider extends RecreateOnResetOperatorCoordinator.Provider {
 		private static final long serialVersionUID = 4184184580789587013L;
+		private static final ClassLoader TEST_CLASS_LOADER = new ClassLoader() {};
 		private final CountDownLatch blockOnCloseLatch;
 		private final List<TestingOperatorCoordinator> createdCoordinators;
 
@@ -263,6 +278,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 
 		@Override
 		protected OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
+			assertEquals(TEST_CLASS_LOADER, Thread.currentThread().getContextClassLoader());
 			TestingOperatorCoordinator testingCoordinator =
 					new TestingOperatorCoordinator(context, blockOnCloseLatch);
 			createdCoordinators.add(testingCoordinator);

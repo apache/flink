@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -45,6 +46,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	private final Provider provider;
 	private final long closingTimeoutMs;
 	private final OperatorCoordinator.Context context;
+	private final ClassLoader userClassLoader;
 	private DeferrableCoordinator coordinator;
 	private volatile boolean started;
 	private volatile boolean closed;
@@ -55,6 +57,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			long closingTimeoutMs) throws Exception {
 		this.context = context;
 		this.provider = provider;
+		this.userClassLoader = Thread.currentThread().getContextClassLoader();
 		this.coordinator = new DeferrableCoordinator(context.getOperatorId());
 		this.coordinator.createNewInternalCoordinator(context, provider);
 		this.coordinator.processPendingCalls();
@@ -120,9 +123,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 		// Create and
 		closingFuture.thenRun(() -> {
 			if (!closed) {
-				// The previous coordinator has closed. Create a new one.
-				newCoordinator.createNewInternalCoordinator(context, provider);
-				newCoordinator.resetAndStart(checkpointData, started);
+				try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(userClassLoader)) {
+					// The previous coordinator has closed. Create a new one.
+					newCoordinator.createNewInternalCoordinator(context, provider);
+					newCoordinator.resetAndStart(checkpointData, started);
+				}
 				newCoordinator.processPendingCalls();
 			}
 		});

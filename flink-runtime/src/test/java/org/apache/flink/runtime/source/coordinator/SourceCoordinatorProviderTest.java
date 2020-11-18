@@ -19,18 +19,26 @@
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -43,6 +51,7 @@ import static org.junit.Assert.assertTrue;
 public class SourceCoordinatorProviderTest {
 	private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
 	private static final int NUM_SPLITS = 10;
+	private static final ClassLoader TEST_CLASS_LOADER = new ClassLoader() {};
 	private SourceCoordinatorProvider<MockSourceSplit> provider;
 
 	@Before
@@ -94,6 +103,42 @@ public class SourceCoordinatorProviderTest {
 				1, restoredSourceCoordinator.getContext().registeredReaders().size());
 		assertNotNull("The only registered reader should be reader 0",
 				restoredSourceCoordinator.getContext().registeredReaders().get(0));
+	}
+
+	@Test
+	public void testUserClassLoaderInCoordinatorExecutor() throws Exception {
+		final AtomicBoolean enumeratorStarted = new AtomicBoolean(false);
+		SourceCoordinatorProvider<MockSourceSplit> testingProvider =
+			new SourceCoordinatorProvider<>(
+				"SourceCoordinatorProviderTest",
+				OPERATOR_ID,
+				new MockSource(Boundedness.BOUNDED, NUM_SPLITS) {
+					@Override
+					public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> createEnumerator(
+						SplitEnumeratorContext<MockSourceSplit> enumContext) {
+						return new MockSplitEnumerator(NUM_SPLITS, enumContext) {
+							@Override
+							public void start() {
+								enumeratorStarted.set(true);
+								assertEquals(
+									"The classloader is not the expected class loader",
+									TEST_CLASS_LOADER,
+									Thread.currentThread().getContextClassLoader());
+							}
+						};
+					}
+				},
+				1);
+		OperatorCoordinator coordinator;
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(TEST_CLASS_LOADER)) {
+			coordinator =
+				testingProvider.getCoordinator(new MockOperatorCoordinatorContext(new OperatorID(), NUM_SPLITS));
+		}
+		coordinator.start();
+		CommonTestUtils.waitUtil(
+			enumeratorStarted::get,
+			Duration.ofSeconds(10),
+			"Enumerator did not start before timeout.");
 	}
 
 }
