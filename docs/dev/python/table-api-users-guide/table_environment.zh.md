@@ -610,7 +610,7 @@ TableEnvironment API
       <td>
         返回 table config，可以通过 table config 来定义 Table API 的运行时行为。
         你可以在 <a href="{{ site.baseurl }}/zh/ops/config.html">配置</a> 和
-        <a href="{{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
+        <a href="{{ site.baseurl }}/zh/dev/python/python_config.html">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
         下面的代码示例展示了如何通过这个 API 来设置配置选项：
 {% highlight python %}
 # set the parallelism to 8

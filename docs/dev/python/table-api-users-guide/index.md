@@ -33,5 +33,4 @@ The Python Table API allows users to develop [Table API]({% link dev/table/table
 - [Vectorized User-defined Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}): Explanation of how to define vectorized Python user-defined functions.
 - [Conversions between PyFlink Table and Pandas DataFrame]({% link dev/python/table-api-users-guide/conversion_of_pandas.md %}): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
 - [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.md %}): Specification of how to use third-part dependencies in a Python Table API program.
-- [Configuration]({% link dev/python/table-api-users-guide/python_config.md %}): Description of the config options available for Python Table API programs.
 - [Common Questions]({% link dev/python/faq.md %})

@@ -1,7 +1,7 @@
 ---
-title: "Environment Variables"
-nav-parent_id: python_tableapi
-nav-pos: 140
+title: "环境变量"
+nav-parent_id: python
+nav-pos: 130
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

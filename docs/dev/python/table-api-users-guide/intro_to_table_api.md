@@ -117,7 +117,7 @@ The `TableEnvironment` is responsible for:
 * Registering `Table`s as a temporary view
 * Executing SQL queries, see [SQL]({% link dev/table/sql/index.md %}) for more details
 * Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) and [Vectorized User-defined Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}) for more details
-* Configuring the job, see [Python Configuration]({% link dev/python/table-api-users-guide/python_config.md %}) for more details
+* Configuring the job, see [Python Configuration]({% link dev/python/python_config.md %}) for more details
 * Managing Python dependencies, see [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.md %}) for more details
 * Submitting the jobs for execution
 

@@ -117,7 +117,7 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 * 将 `Table` 注册成临时表
 * 执行 SQL 查询，更多细节可查阅 [SQL]({% link dev/table/sql/index.zh.md %})
 * 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}) 和 [向量化的用户自定义函数]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.zh.md %})
-* 配置作业，更多细节可查阅 [Python 配置]({% link dev/python/table-api-users-guide/python_config.zh.md %})
+* 配置作业，更多细节可查阅 [Python 配置]({% link dev/python/python_config.zh.md %})
 * 管理 Python 依赖，更多细节可查阅 [依赖管理]({% link dev/python/table-api-users-guide/dependency_management.zh.md %})
 * 提交作业执行
 

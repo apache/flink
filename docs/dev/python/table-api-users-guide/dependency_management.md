@@ -138,5 +138,5 @@ tEnv.executeSql("select add_one(a) as a from source").collect();
 You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sql/create.md %}#create-function) for more details
 on how to create Python user-defined functions using SQL statements.
 
-The Python dependencies could be specified via the Python [config options]({% link  dev/python/table-api-users-guide/python_config.md %}#python-options),
+The Python dependencies could be specified via the Python [config options]({% link  dev/python/python_config.md %}#python-options),
 such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link ops/cli.md %}#usage) when submitting the job.

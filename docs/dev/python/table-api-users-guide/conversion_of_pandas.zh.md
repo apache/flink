@@ -60,7 +60,7 @@ table = t_env.from_pandas(pdf,
 
 除此之外，还支持将PyFlink表转换为Pandas DataFrame。在内部实现上，它将执行表的计算逻辑，得到物化之后的表的执行结果，并
 在客户端将其序列化为Arrow列存格式，最大Arrow批处理大小
-由配置选项[python.fn-execution.arrow.batch.size]({% link dev/python/table-api-users-guide/python_config.zh.md %}#python-fn-execution-arrow-batch-size) 确定。
+由配置选项[python.fn-execution.arrow.batch.size]({% link dev/python/python_config.zh.md %}#python-fn-execution-arrow-batch-size) 确定。
 序列化后的数据将被转换为Pandas DataFrame。这意味着需要把表的内容收集到客户端，因此在调用此函数之前，请确保表的内容可以容纳在内存中。
 可以通过<a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>，设置收集到客户端的数据的条数。
 
