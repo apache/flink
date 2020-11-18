@@ -257,8 +257,85 @@ of the job compared to restarting all tasks from a checkpoint.
 
 ## Important Considerations
 
-What doesn't work:
- - broadcast state/pattern
- - iterations
- - operations that rely on checkpointing
- - this includes most "regular" sinks
+Compared to classic `STREAMING` execution mode, in `BATCH` mode some things
+might not work as expected. Some features will work slightly differently while
+others are not supported.
+
+Behavior Change in BATCH mode:
+
+* "Rolling" operations such as [reduce()]({% link dev/stream/operators/index.md
+  %}#reduce) or [sum()]({% link dev/stream/operators/index.md %}#aggregations)
+  emit an incremental update for every new record that arrives in `STREAMING`
+  mode. In `BATCH` mode, these operations are not "rolling". They emit only the
+  final result.
+
+
+Unsupported in BATCH mode:
+
+* [Checkpointing]({% link concepts/stateful-stream-processing.md
+  %}#stateful-stream-processing) and any operations that depend on
+  checkpointing do not work.
+* [Broadcast State]({% link dev/stream/state/broadcast_state.md %})
+* [Iterations]({% link dev/stream/operators/index.md %}#iterate)
+
+Custom operators should be implemented with care, otherwise they might behave
+improperly. See also additional explanations below for more details.
+
+### Checkpointing
+
+As explained [above](#failure-recovery), failure recovery for batch programs
+does not use checkpointing.
+
+It is important to remember that because there are no checkpoints, certain
+features such as [CheckpointListener]({{ site.javadocs_baseurl
+}}/api/java/org/apache/flink/api/common/state/CheckpointListener.html) and, as
+a result,  Kafka's [EXACTLY_ONCE]({% link dev/connectors/kafka.md %}
+#kafka-producers-and-fault-tolerance) mode or `StreamingFileSink`'s
+[OnCheckpointRollingPolicy]({% link dev/connectors/streamfile_sink.md
+%}#rolling-policy) won't work. If you need a transactional sink that works in
+`BATCH` mode make sure it uses the Unified Sink API as proposed in
+[FLIP-143](https://cwiki.apache.org/confluence/x/KEJ4CQ).
+
+You can still use all the [state primitives]({% link dev/stream/state/state.md
+%}#working-with-state), it's just that the mechanism used for failure recovery
+will be different.
+
+### Broadcast State
+
+This feature was introduced to allow users to implement use-cases where a
+“control” stream needs to be broadcast to all downstream tasks, and the
+broadcast elements, e.g. rules, need to be applied to all incoming elements
+from another stream.
+
+In this pattern, Flink provides no guarantees about the order in which the
+inputs are read.  Use-cases like the one above make sense in the streaming
+world where jobs are expected to run for a long period with input data that are
+not known in advance. In these settings, requirements may change over time
+depending on the incoming data.
+
+In the batch world though, we believe that such use-cases do not make much
+sense, as the input (both the elements and the control stream) are static and
+known in advance.
+
+We plan to support a variation of that pattern for `BATCH` processing where the
+broadcast side is processed first entirely in the future.
+
+### Writing Custom Operators
+
+<div class="alert alert-info">
+Custom operators are an advanced usage pattern of Apache Flink. For most
+use-cases, consider using a (keyed-)process function instead.
+</div>
+
+It is important to remember the assumptions made for `BATCH` execution mode
+when writing a custom operator. Otherwise, an operator that works just fine for
+`STREAMING` mode might produce wrong results in `BATCH` mode. Operators are
+never scoped to a particular key which means they see some properties of
+`BATCH` processing Flink tries to leverage.
+
+First of all you should not cache the last seen watermark within an operator.
+In `BATCH` mode we process records key by key. As a result, the Watermark will
+switch from `MAX_VALUE` to `MIN_VALUE` between each key. You should not assume
+that the Watermark will always be ascending in an operator. For the same
+reasons timers will fire first in key order and then in timestamp order within
+each key. Moreover, operations that change a key manually are not supported.
