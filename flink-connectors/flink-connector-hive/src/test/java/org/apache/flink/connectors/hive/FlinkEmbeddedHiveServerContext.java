@@ -24,13 +24,12 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HADOOPBIN;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVECONVERTJOIN;
@@ -45,6 +44,7 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_INFER_BUCKET_SO
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SERVER2_LOGGING_OPERATION_ENABLED;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.LOCALSCRATCHDIR;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORECONNECTURLKEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREWAREHOUSE;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_VALIDATE_COLUMNS;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_VALIDATE_CONSTRAINTS;
@@ -52,27 +52,19 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_VALIDATE_T
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.SCRATCHDIR;
 
 /**
- * HiveServerContext used by FlinkStandaloneHiveRunner.
+ * HiveServerContext used by FlinkEmbeddedHiveRunner.
  */
-public class FlinkStandaloneHiveServerContext implements HiveServerContext {
+public class FlinkEmbeddedHiveServerContext implements HiveServerContext {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(FlinkStandaloneHiveServerContext.class);
-
-	private HiveConf hiveConf = new HiveConf();
+	private final HiveConf hiveConf = new HiveConf();
 
 	private final TemporaryFolder basedir;
 	private final HiveRunnerConfig hiveRunnerConfig;
 	private boolean inited = false;
-	private final int hmsPort;
 
-	FlinkStandaloneHiveServerContext(TemporaryFolder basedir, HiveRunnerConfig hiveRunnerConfig, int hmsPort) {
+	FlinkEmbeddedHiveServerContext(TemporaryFolder basedir, HiveRunnerConfig hiveRunnerConfig) {
 		this.basedir = basedir;
 		this.hiveRunnerConfig = hiveRunnerConfig;
-		this.hmsPort = hmsPort;
-	}
-
-	private String toHmsURI() {
-		return "thrift://localhost:" + hmsPort;
 	}
 
 	@Override
@@ -179,7 +171,12 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 			throw new RuntimeException(e);
 		}
 
-		hiveConf.set("hive.metastore.uris", toHmsURI());
+		// No pooling needed. This will save us a lot of threads
+		hiveConf.set("datanucleus.connectionPoolingType", "None");
+
+		// set JDO configs
+		String jdoConnectionURL = "jdbc:derby:memory:" + UUID.randomUUID().toString();
+		hiveConf.setVar(METASTORECONNECTURLKEY, jdoConnectionURL + ";create=true");
 
 		hiveConf.setBoolVar(METASTORE_VALIDATE_CONSTRAINTS, true);
 		hiveConf.setBoolVar(METASTORE_VALIDATE_COLUMNS, true);
