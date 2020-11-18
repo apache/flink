@@ -136,7 +136,7 @@ public static class SubstringFunction extends ScalarFunction {
   }
 
   public String eval(String s, Integer begin, Integer end) {
-    return s.substring(a, endInclusive ? end + 1 : end);
+    return s.substring(begin, endInclusive ? end + 1 : end);
   }
 }
 
@@ -1114,9 +1114,9 @@ by Flink's checkpointing mechanism and are restored in case of a failure to ensu
 **The following methods are mandatory for each `AggregateFunction`:**
 
 - `createAccumulator()`
-- `accumulate(...)` 
+- `accumulate(...)`
 - `getValue(...)`
- 
+
 Additionally, there are a few methods that can be optionally implemented. While some of these methods
 allow the system more efficient query execution, others are mandatory for certain use cases. For instance,
 the `merge(...)` method is mandatory if the aggregation function should be applied in the context of a
