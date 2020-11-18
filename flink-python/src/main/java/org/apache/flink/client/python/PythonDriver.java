@@ -27,7 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import py4j.GatewayServer;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -82,8 +84,22 @@ public final class PythonDriver {
 				config,
 				commands,
 				pythonDriverOptions.getEntryPointScript().orElse(null),
-				tmpDir);
+				tmpDir,
+				true);
+			BufferedReader in = new BufferedReader(new InputStreamReader(pythonProcess.getInputStream()));
+			LOG.info("--------------------------- Python Process Started --------------------------");
+			// print the python process output to stdout and log file
+			while (true) {
+				String line = in.readLine();
+				if (line == null) {
+					break;
+				} else {
+					System.out.println(line);
+					LOG.info(line);
+				}
+			}
 			int exitCode = pythonProcess.waitFor();
+			LOG.info("--------------------------- Python Process Exited ---------------------------");
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
 			}

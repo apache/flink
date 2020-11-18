@@ -243,7 +243,10 @@ final class PythonEnvUtils {
 	 * @return the process represent the python process.
 	 * @throws IOException Thrown if an error occurred when python process start.
 	 */
-	static Process startPythonProcess(PythonEnvironment pythonEnv, List<String> commands) throws IOException {
+	static Process startPythonProcess(
+		PythonEnvironment pythonEnv,
+		List<String> commands,
+		boolean redirectToPipe) throws IOException {
 		ProcessBuilder pythonProcessBuilder = new ProcessBuilder();
 		Map<String, String> env = pythonProcessBuilder.environment();
 		if (pythonEnv.pythonPath != null) {
@@ -259,8 +262,12 @@ final class PythonEnvUtils {
 		pythonProcessBuilder.command(commands);
 		// redirect the stderr to stdout
 		pythonProcessBuilder.redirectErrorStream(true);
-		// set the child process the output same as the parent process.
-		pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		if (redirectToPipe) {
+			pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+		} else {
+			// set the child process the output same as the parent process.
+			pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+		}
 		Process process = pythonProcessBuilder.start();
 		if (!process.isAlive()) {
 			throw new RuntimeException("Failed to start Python process. ");
@@ -359,12 +366,13 @@ final class PythonEnvUtils {
 		ReadableConfig config,
 		List<String> commands,
 		String entryPointScript,
-		String tmpDir) throws IOException {
+		String tmpDir,
+		boolean redirectToPipe) throws IOException {
 		PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(
 			config, entryPointScript, tmpDir);
 		// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python process.
 		pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 		// start the python process.
-		return PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+		return PythonEnvUtils.startPythonProcess(pythonEnv, commands, redirectToPipe);
 	}
 }

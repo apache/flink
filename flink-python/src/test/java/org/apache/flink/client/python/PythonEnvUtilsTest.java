@@ -145,7 +145,7 @@ public class PythonEnvUtilsTest {
 			String result = String.join(File.separator, tmpDirPath, "python_working_directory.txt");
 			commands.add(pyPath);
 			commands.add(result);
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands, false);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);
