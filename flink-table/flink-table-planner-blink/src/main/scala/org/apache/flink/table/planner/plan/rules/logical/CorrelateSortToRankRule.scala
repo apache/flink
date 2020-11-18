@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -72,6 +72,7 @@ class CorrelateSortToRankRule extends RelOptRule(
     operand(classOf[Sort],
       operand(classOf[Project],
         operand(classOf[Filter], any())))),
+  FlinkRelFactories.FLINK_REL_BUILDER,
   "CorrelateSortToRankRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -138,8 +139,7 @@ class CorrelateSortToRankRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val oriBuilder = call.builder()
-    val builder = FlinkRelBuilder.of(oriBuilder.getCluster, oriBuilder.getRelOptSchema)
+    val builder = call.builder().asInstanceOf[FlinkRelBuilder]
 
     val sort: Sort = call.rel(3)
     val sortInput: Project = call.rel(4)
@@ -182,5 +182,3 @@ class CorrelateSortToRankRule extends RelOptRule(
 object CorrelateSortToRankRule {
   val INSTANCE = new CorrelateSortToRankRule
 }
-
-
