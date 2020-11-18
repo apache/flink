@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
@@ -1189,6 +1190,36 @@ public class SqlToOperationConverterTest {
 			+ "         this_step AS TRUE,"
 			+ "         next_step AS TRUE"
 			+ ")";
+
+		Operation operation = parse(sql, SqlDialect.DEFAULT);
+		assertThat(operation, instanceOf(CreateViewOperation.class));
+	}
+
+	@Test
+	public void testCreateViewWithDynamicTableOptions() {
+		tableConfig.getConfiguration().setBoolean(
+			TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true);
+		Map<String, String> prop = new HashMap<>();
+		prop.put("connector", "values");
+		prop.put("bounded", "true");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT())
+				.field("f1", DataTypes.VARCHAR(20))
+				.build(),
+			prop,
+			null
+		);
+
+		catalogManager.createTable(
+			catalogTable,
+			ObjectIdentifier.of("builtin", "default", "sourceA"),
+			false);
+
+		final String sql = ""
+			+ "create view test_view as\n"
+			+ "select *\n"
+			+ "from sourceA /*+ OPTIONS('changelog-mode'='I') */";
 
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
 		assertThat(operation, instanceOf(CreateViewOperation.class));
