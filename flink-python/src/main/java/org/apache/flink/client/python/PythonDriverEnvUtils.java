@@ -24,6 +24,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,7 +213,12 @@ public final class PythonDriverEnvUtils {
 	public static Process startPythonProcess(PythonEnvironment pythonEnv, List<String> commands) throws IOException {
 		ProcessBuilder pythonProcessBuilder = new ProcessBuilder();
 		Map<String, String> env = pythonProcessBuilder.environment();
-		env.put("PYTHONPATH", pythonEnv.pythonPath);
+		String defaultPythonPath = env.get("PYTHONPATH");
+		if (Strings.isNullOrEmpty(defaultPythonPath)) {
+			env.put("PYTHONPATH", pythonEnv.pythonPath);
+		} else {
+			env.put("PYTHONPATH", String.join(File.pathSeparator, pythonEnv.pythonPath, defaultPythonPath));
+		}
 		pythonEnv.systemEnv.forEach(env::put);
 		commands.add(0, pythonEnv.pythonExec);
 		pythonProcessBuilder.command(commands);
