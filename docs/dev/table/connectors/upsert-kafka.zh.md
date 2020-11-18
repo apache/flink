@@ -145,7 +145,7 @@ Connector Options
       <td>String</td>
       <td>The format used to deserialize and serialize the key part of the Kafka messages. The key part
       fields are specified by the PRIMARY KEY syntax. The supported formats include <code>'csv'</code>,
-      <code>'json'</code>, <code>'avro'</code>. Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a>
+      <code>'json'</code>, <code>'avro'</code>. Please refer to <a href="{% link dev/table/connectors/formats/index.zh.md %}">Formats</a>
       page for more details and more format options.
       </td>
     </tr>
@@ -156,7 +156,7 @@ Connector Options
       <td>String</td>
       <td>The format used to deserialize and serialize the value part of the Kafka messages.
       The supported formats include <code>'csv'</code>, <code>'json'</code>, <code>'avro'</code>.
-      Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a> page for more details and more format options.
+      Please refer to <a href="{% link dev/table/connectors/formats/index.zh.md %}">Formats</a> page for more details and more format options.
       </td>
     </tr>
     <tr>
@@ -194,7 +194,7 @@ keys. The primary key definition will also control which fields should end up in
 ### Consistency Guarantees
 
 By default, an Upsert Kafka sink ingests data with at-least-once guarantees into a Kafka topic if
-the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
+the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.zh.md %}#enabling-and-configuring-checkpointing).
 
 This means, Flink may write duplicate records with the same key into the Kafka topic. But as the
 connector is working in the upsert mode, the last record on the same key will take effect when
@@ -206,7 +206,7 @@ Data Type Mapping
 
 Upsert Kafka stores message keys and values as bytes, so Upsert Kafka doesn't have schema or data types.
 The messages are deserialized and serialized by formats, e.g. csv, json, avro. Thus, the data type mapping
-is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.md %})
+is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.zh.md %})
 pages for more details.
 
 {% top %}
