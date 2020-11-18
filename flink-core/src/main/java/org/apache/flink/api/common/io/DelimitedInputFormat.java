@@ -32,6 +32,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -482,6 +484,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		} else {
 			fillBuffer(0);
 		}
+		initializeSplit(split, null);
 	}
 
 	private void initBuffers() {
@@ -738,27 +741,44 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		Preconditions.checkArgument(state == -1 || state >= split.getStart(),
 			" Illegal offset "+ state +", smaller than the splits start=" + split.getStart());
 
-		try {
-			this.open(split);
-		} finally {
-			this.offset = state;
-		}
-
-		if (state > this.splitStart + split.getLength()) {
+		// If we are already at the end of the split, just return
+		if (split.getLength() != -1 && state > split.getStart() + split.getLength()) {
 			this.end = true;
-		} else if (state > split.getStart()) {
-			initBuffers();
-
-			this.stream.seek(this.offset);
-			if (split.getLength() == -1) {
-				// this is the case for unsplittable files
-				fillBuffer(0);
-			} else {
-				this.splitLength = this.splitStart + split.getLength() - this.offset;
-				if (splitLength <= 0) {
-					this.end = true;
-				}
-			}
+			return;
 		}
+
+		// If the checkpointed offset is at the beginning of the split we fall back to the regular
+		// open logic
+		if (split.getStart() == state) {
+			this.open(split);
+			return;
+		}
+
+		// Otherwise we have to seek to the checkpointed offset and start reading from there
+		super.open(split);
+		this.offset = state;
+
+		initBuffers();
+
+		this.stream.seek(this.offset);
+		if (split.getLength() == -1) {
+			// this is the case for unsplittable files
+			fillBuffer(0);
+		} else {
+			this.splitLength = this.splitStart + split.getLength() - this.offset;
+		}
+
+		initializeSplit(split, state);
+	}
+
+	/**
+	 * Initialization method that is called after opening or reopening an input split.
+	 *
+	 * @param split Split that was opened or reopened
+	 * @param state Checkpointed state if the split was reopened
+	 * @throws IOException
+	 */
+	protected void initializeSplit(FileInputSplit split, @Nullable Long state) throws IOException {
+
 	}
 }
