@@ -30,7 +30,7 @@ under the License.
 
 File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 
-桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。对于行编码格式（参考 [File Formats](#file-formats) ）默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。批量编码格式必须在每次 Checkpoint 时切割文件，但是用户也可以指定额外的基于文件大小和超时时间的策略。
+桶目录中的实际输出数据会被划分为多个部分文件（part file），每一个接收桶数据的 Sink Subtask ，至少包含一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。对于行编码格式（参考 [File Formats](#file-formats) ）默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。批量编码格式必须在每次 Checkpoint 时滚动文件，但是用户也可以指定额外的基于文件大小和超时时间的策略。
 
  <div class="alert alert-info">
      <b>重要:</b> 在流模式下使用 FileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
@@ -131,8 +131,8 @@ Flink 有四个内置的 BulkWriter Factory ：
  - [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/writer/OrcBulkWriterFactory.html)
 
 <div class="alert alert-info">
-     <b>重要:</b> 批量编码模式仅支持 OnCheckpointRollingPolicy 策略, 在每次 checkpoint 的时候切割文件。
-     <b>重要:</b> 批量编码模式必须使用继承自 CheckpointRollingPolicy 的滚动策略, 这些策略必须在每次 checkpoint 的时候切割文件，但是用户也可以进一步指定额外的基于文件大小和超时时间的策略。
+     <b>重要:</b> 批量编码模式仅支持 OnCheckpointRollingPolicy 策略, 在每次 checkpoint 的时候滚动文件。
+     <b>重要:</b> 批量编码模式必须使用继承自 CheckpointRollingPolicy 的滚动策略, 这些策略必须在每次 checkpoint 的时候滚动文件，但是用户也可以进一步指定额外的基于文件大小和超时时间的策略。
 </div>
 
 #### Parquet 格式
@@ -729,7 +729,7 @@ val sink = FileSink
 
 ### 通用注意事项
 
-<span class="label label-danger">重要提示 1</span>: 使用 Hadoop < 2.7 时，请使用 `OnCheckpointRollingPolicy` 滚动策略，该策略会在每次检查点时进行文件切割。
+<span class="label label-danger">重要提示 1</span>: 使用 Hadoop < 2.7 时，请使用 `OnCheckpointRollingPolicy` 滚动策略，该策略会在每次检查点时进行文件滚动。
 这样做的原因是如果部分文件的生命周期跨多个检查点，当 `FileSink` 从之前的检查点进行恢复时会调用文件系统的 `truncate()` 方法清理 in-progress 文件中未提交的数据。
 Hadoop 2.7 之前的版本不支持这个方法，因此 Flink 会报异常。
 
