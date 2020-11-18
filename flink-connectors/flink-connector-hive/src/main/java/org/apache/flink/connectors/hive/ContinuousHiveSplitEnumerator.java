@@ -68,7 +68,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 	private T currentReadOffset;
 	// the partitions that have been processed for the current read offset
 	private Collection<List<String>> seenPartitionsSinceOffset;
-	private final NewPartitionMonitor<T> monitor;
+	private final PartitionMonitor<T> monitor;
 
 	public ContinuousHiveSplitEnumerator(
 			SplitEnumeratorContext<HiveSourceSplit> enumeratorContext,
@@ -87,7 +87,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 		this.discoveryInterval = discoveryInterval;
 		this.fetcherContext = fetcherContext;
 		readersAwaitingSplit = new LinkedHashMap<>();
-		monitor = new NewPartitionMonitor<>(
+		monitor = new PartitionMonitor<>(
 				currentReadOffset, seenPartitionsSinceOffset, tablePath, jobConf, fetcher, fetcherContext);
 	}
 
@@ -169,7 +169,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 		}
 	}
 
-	private static class NewPartitionMonitor<T extends Comparable<T>> implements Callable<NewSplitsAndState<T>> {
+	private static class PartitionMonitor<T extends Comparable<T>> implements Callable<NewSplitsAndState<T>> {
 
 		// keep these locally so that we don't need to share state with main thread
 		private T currentReadOffset;
@@ -180,7 +180,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 		private final ContinuousPartitionFetcher<Partition, T> fetcher;
 		private final HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext;
 
-		NewPartitionMonitor(
+		private PartitionMonitor(
 				T currentReadOffset,
 				Collection<List<String>> seenPartitionsSinceOffset,
 				ObjectPath tablePath,
