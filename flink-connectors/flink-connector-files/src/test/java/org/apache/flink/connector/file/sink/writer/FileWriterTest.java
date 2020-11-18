@@ -26,13 +26,17 @@ import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -198,6 +202,7 @@ public class FileWriterTest {
 
 		FileWriter<String> fileWriter = createWriter(
 				path,
+				new FileSinkTestUtils.StringIdentityBucketAssigner(),
 				DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
 				new OutputFileConfig("part-", ""),
 				processingTimeService,
@@ -237,17 +242,46 @@ public class FileWriterTest {
 		assertEquals(0, test2Bucket.getPendingFiles().size());
 	}
 
+	@Test
+	public void testContextPassingNormalExecution() throws Exception {
+		testCorrectTimestampPassingInContext(1L, 2L, 3L);
+	}
+
+	@Test
+	public void testContextPassingNullTimestamp() throws Exception {
+		testCorrectTimestampPassingInContext(null, 4L, 5L);
+	}
+
+	private void testCorrectTimestampPassingInContext(Long timestamp, long watermark, long processingTime) throws Exception {
+		final File outDir = TEMP_FOLDER.newFolder();
+		final Path path = new Path(outDir.toURI());
+
+		// Create the processing timer service starts from 10.
+		ManuallyTriggeredProcessingTimeService processingTimeService = new ManuallyTriggeredProcessingTimeService();
+		processingTimeService.advanceTo(processingTime);
+
+		FileWriter<String> fileWriter = createWriter(
+				path,
+				new VerifyingBucketAssigner(timestamp, watermark, processingTime),
+				DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
+				new OutputFileConfig("part-", ""),
+				processingTimeService,
+				5);
+		fileWriter.initializeState(Collections.emptyList());
+		fileWriter.write("test", new ContextImpl(watermark, timestamp));
+	}
+
 	// ------------------------------- Mock Classes --------------------------------
 
 	private static class ContextImpl implements SinkWriter.Context {
 		private final long watermark;
-		private final long timestamp;
+		private final Long timestamp;
 
 		public ContextImpl() {
-			this(0, 0);
+			this(0, 0L);
 		}
 
-		private ContextImpl(long watermark, long timestamp) {
+		private ContextImpl(long watermark, Long timestamp) {
 			this.watermark = watermark;
 			this.timestamp = timestamp;
 		}
@@ -301,6 +335,42 @@ public class FileWriterTest {
 		}
 	}
 
+	private static class VerifyingBucketAssigner implements BucketAssigner<String, String> {
+
+		private static final long serialVersionUID = 7729086510972377578L;
+
+		private final Long expectedTimestamp;
+		private final long expectedWatermark;
+		private final long expectedProcessingTime;
+
+		VerifyingBucketAssigner(
+				Long expectedTimestamp,
+				long expectedWatermark,
+				long expectedProcessingTime) {
+			this.expectedTimestamp = expectedTimestamp;
+			this.expectedWatermark = expectedWatermark;
+			this.expectedProcessingTime = expectedProcessingTime;
+		}
+
+		@Override
+		public String getBucketId(String element, BucketAssigner.Context context) {
+			Long elementTimestamp = context.timestamp();
+			long watermark = context.currentWatermark();
+			long processingTime = context.currentProcessingTime();
+
+			Assert.assertEquals(expectedTimestamp, elementTimestamp);
+			Assert.assertEquals(expectedProcessingTime, processingTime);
+			Assert.assertEquals(expectedWatermark, watermark);
+
+			return element;
+		}
+
+		@Override
+		public SimpleVersionedSerializer<String> getSerializer() {
+			return SimpleVersionedStringSerializer.INSTANCE;
+		}
+	}
+
 	// ------------------------------- Utility Methods --------------------------------
 
 	private static FileWriter<String> createWriter(
@@ -322,13 +392,14 @@ public class FileWriterTest {
 
 	private static FileWriter<String> createWriter(
 			Path basePath,
+			BucketAssigner<String, String> bucketAssigner,
 			RollingPolicy<String, String> rollingPolicy,
 			OutputFileConfig outputFileConfig,
 			Sink.ProcessingTimeService processingTimeService,
 			long bucketCheckInterval) throws IOException {
 		return new FileWriter<>(
 				basePath,
-				new FileSinkTestUtils.StringIdentityBucketAssigner(),
+				bucketAssigner,
 				new DefaultFileWriterBucketFactory<>(),
 				new RowWiseBucketWriter<>(FileSystem
 						.get(basePath.toUri())
