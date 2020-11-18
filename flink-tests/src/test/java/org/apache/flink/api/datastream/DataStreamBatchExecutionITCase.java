@@ -90,6 +90,35 @@ public class DataStreamBatchExecutionITCase {
 		}
 	}
 
+	/**
+	 * We induce a failure in the last mapper. In BATCH execution mode the part of the pipeline
+	 * before the rebalance should not be re-executed. Only the part after that will restart. We
+	 * check that by suffixing the attempt number to records and asserting the correct number.
+	 */
+	@Test
+	public void batchFailoverWithRebalanceBarrier() throws Exception {
+
+		final StreamExecutionEnvironment env = getExecutionEnvironment();
+
+		DataStreamSource<String> source = env.fromElements("foo", "bar");
+
+		SingleOutputStreamOperator<String> mapped = source
+				.map(new SuffixAttemptId("a"))
+				.map(new SuffixAttemptId("b"))
+				.rebalance()
+				.map(new SuffixAttemptId("c"))
+				.map(new OnceFailingMapper("d"));
+
+		try (CloseableIterator<String> result = mapped.executeAndCollect()) {
+
+			// only the operators after the key-by "barrier" are restarted and will have the
+			// "attempt 1" suffix
+			assertThat(
+					iteratorToList(result),
+					containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+		}
+	}
+
 	@Test
 	public void batchReduceSingleResultPerKey() throws Exception {
 		StreamExecutionEnvironment env = getExecutionEnvironment();
