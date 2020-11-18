@@ -65,6 +65,8 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 
 向量化Python聚合函数以一个或多个`pandas.Series`类型的参数作为输入，并返回一个标量值作为输出。
 
+<span class="label label-info">注意</span> 现在返回类型还不支持 `RowType` 和 `MapType`。
+
 向量化Python聚合函数能够用在`GroupBy Aggregation`（Batch），`GroupBy Window Aggregation`(Batch and Stream) 和 
 `Over Window Aggregation`(Batch and Stream bounded over window)。关于聚合的更多使用细节，你可以参考
 [相关文档]({% link dev/table/tableApi.zh.md %}?code_tab=python#aggregations).

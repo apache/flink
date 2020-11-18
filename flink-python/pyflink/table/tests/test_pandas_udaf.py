@@ -27,6 +27,22 @@ from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
 
 
 class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
+
+    def test_check_result_type(self):
+        def pandas_udaf():
+            pass
+
+        with self.assertRaises(
+                TypeError,
+                msg="Invalid returnType: Pandas UDAF doesn't support DataType type ROW currently"):
+            udaf(pandas_udaf, result_type=DataTypes.ROW(), func_type="pandas")
+
+        with self.assertRaises(
+                TypeError,
+                msg="Invalid returnType: Pandas UDAF doesn't support DataType type MAP currently"):
+            udaf(pandas_udaf, result_type=DataTypes.MAP(DataTypes.INT(), DataTypes.INT()),
+                 func_type="pandas")
+
     def test_group_aggregate_function(self):
         t = self.t_env.from_elements(
             [(1, 2, 3), (3, 2, 3), (2, 1, 3), (1, 5, 4), (1, 8, 6), (2, 3, 4)],
