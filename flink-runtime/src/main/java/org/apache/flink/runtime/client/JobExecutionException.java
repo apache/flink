@@ -49,12 +49,26 @@ public class JobExecutionException extends FlinkException {
 		this.status = status;
 	}
 
+	/**
+	 * Constructs a new job execution exception.
+	 *
+	 * @param jobID  The job's ID.
+	 * @param status The application status.
+	 * @param msg    The cause for the execution exception.
+	 */
 	public JobExecutionException(JobID jobID, ApplicationStatus status, String msg) {
 		super(msg);
 		this.jobID = jobID;
 		this.status = status;
 	}
 
+	/**
+	 * Constructs a new job execution exception.
+	 *
+	 * @param jobID  The job's ID.
+	 * @param status The application status.
+	 * @param cause  The cause of the exception
+	 */
 	public JobExecutionException(JobID jobID, ApplicationStatus status, Throwable cause) {
 		super(cause);
 		this.jobID = jobID;

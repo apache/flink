@@ -111,11 +111,10 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with an JobCancellationException.");
-		} catch (JobExecutionException expected) {
-
-			assertThat(expected.getCause(), is(instanceOf(JobCancellationException.class)));
+		} catch (Exception expected) {
+			assertThat(expected, is(instanceOf(JobCancellationException.class)));
 			// the failure cause in the execution graph should not be the cause of the canceled job result
-			assertThat(expected.getCause().getCause(), is(nullValue()));
+			assertThat(expected.getCause(), is(nullValue()));
 		}
 	}
 
@@ -132,11 +131,10 @@ public class JobResultTest extends TestLogger {
 		try {
 			jobResult.toJobExecutionResult(getClass().getClassLoader());
 			fail("Job should fail with JobExecutionException.");
-		} catch (JobExecutionException expected) {
-
-			assertThat(expected.getCause(), is(instanceOf(JobExecutionException.class)));
+		} catch (Exception expected) {
+			assertThat(expected, is(instanceOf(JobExecutionException.class)));
 			// the failure cause in the execution graph should not be the cause of the canceled job result
-			assertThat(expected.getCause().getCause(), is(equalTo(cause)));
+			assertThat(expected.getCause(), is(equalTo(cause)));
 		}
 	}
 

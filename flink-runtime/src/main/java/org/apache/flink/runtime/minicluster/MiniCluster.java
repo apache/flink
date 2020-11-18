@@ -676,7 +676,8 @@ public class MiniCluster implements AutoCloseableAsync {
 		try {
 			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
-			throw new JobExecutionException(job.getJobID(), jobResult.getApplicationStatus(), e);
+			throw new JobExecutionException(job.getJobID(), jobResult.getApplicationStatus(),
+					"Could not deserialize the serialized accumulator results.", e);
 		}
 	}
 

@@ -28,22 +28,25 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.Optional;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.fail;
 
 /**
  * Integration tests for {@link LocalExecutor}.
@@ -86,7 +89,7 @@ public class LocalExecutorITCase extends TestLogger {
 			jobClient.getJobExecutionResult().get();
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			fail(e.getMessage());
 		}
 
 		assertThat(miniCluster.isRunning(), is(false));
@@ -102,10 +105,19 @@ public class LocalExecutorITCase extends TestLogger {
 
 		JobClient jobClient = executor.execute(runtimeExceptionPlan, config, ClassLoader.getSystemClassLoader()).get();
 
-		assertThrows(
-			String.format("Application Status: %s", ApplicationStatus.FAILED),
-			Exception.class,
-			() -> jobClient.getJobExecutionResult().get());
+		try {
+			jobClient.getJobExecutionResult().get();
+			fail("This should have thrown an exception.");
+		} catch (Exception e) {
+			Optional<JobExecutionException> exceptionOptional =
+					ExceptionUtils.findThrowable(e, JobExecutionException.class);
+			if (exceptionOptional.isPresent()) {
+				JobExecutionException t = exceptionOptional.get();
+				assertThat(t.getStatus(), is(equalTo(ApplicationStatus.FAILED)));
+			} else {
+				throw e;
+			}
+		}
 
 		assertThat(miniCluster.isRunning(), is(false));
 	}

@@ -124,21 +124,10 @@ public class JobResult implements Serializable {
 	 * @throws ClassNotFoundException if the accumulator could not deserialized
 	 */
 	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws JobExecutionException, IOException, ClassNotFoundException {
-		if (applicationStatus == ApplicationStatus.SUCCEEDED) {
-			return new JobExecutionResult(
-				jobId,
-				netRuntime,
-				AccumulatorHelper.deserializeAccumulators(
-					accumulatorResults,
-					classLoader));
-		} else {
-			final JobExecutionException exception =
-					getJobExecutionException(serializedThrowable, classLoader);
-
-			throw applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED
-					? new JobExecutionException(jobId, applicationStatus, "Application Status: " + applicationStatus.name(), exception)
-					: new JobExecutionException(jobId, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", exception);
+		if (applicationStatus != ApplicationStatus.SUCCEEDED) {
+			throw getJobExecutionException(serializedThrowable, classLoader);
 		}
+		return new JobExecutionResult(jobId, netRuntime, AccumulatorHelper.deserializeAccumulators(accumulatorResults, classLoader));
 	}
 
 	private JobExecutionException getJobExecutionException(final SerializedThrowable throwable, final ClassLoader classLoader) {
