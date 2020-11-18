@@ -156,8 +156,8 @@ public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
+	public void initializeSplit(FileInputSplit split, Long offset) throws IOException {
+		super.initializeSplit(split, offset);
 
 		pojoFields = new Field[pojoFieldNames.length];
 
