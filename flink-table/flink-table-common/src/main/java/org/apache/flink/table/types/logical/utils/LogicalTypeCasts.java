@@ -287,7 +287,9 @@ public final class LogicalTypeCasts {
 			LogicalType sourceType,
 			LogicalType targetType,
 			boolean allowExplicit) {
-		if (sourceType.isNullable() && !targetType.isNullable()) {
+		// a NOT NULL type cannot store a NULL type
+		// but it might be useful to cast explicitly with knowledge about the data
+		if (sourceType.isNullable() && !targetType.isNullable() && !allowExplicit) {
 			return false;
 		}
 		// ignore nullability during compare

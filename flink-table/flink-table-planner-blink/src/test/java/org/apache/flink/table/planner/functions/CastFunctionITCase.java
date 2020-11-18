@@ -74,7 +74,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 					DataTypes.of("ROW<i INT, d DOUBLE>")),
 
 			TestSpec
-				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with nested rows and valid nullability")
+				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with nested rows and implicit nullability change")
 				.onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
 				.andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
 				.testResult(
@@ -97,10 +97,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 					DataTypes.of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
 
 			TestSpec
-				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with nested rows and invalid nullability")
+				.forFunction(BuiltInFunctionDefinitions.CAST, "explicit with nested rows and explicit nullability change")
 				.onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
 				.andDataTypes(DataTypes.of("ROW<r ROW<i1 INT, i2 INT, i3 INT>, s STRING>"))
-				.testTableApiError(
+				.testTableApiResult(
 					$("f0").cast(
 						DataTypes.ROW(
 							DataTypes.FIELD(
@@ -112,10 +112,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 							DataTypes.FIELD("s", DataTypes.STRING())
 						)
 					),
-					// we are strict when it comes to casting nullability and fail hard in Table API
-					"Unsupported cast from 'ROW<`r` ROW<`i1` INT, `i2` INT, `i3` INT>, `s` STRING>' to "
-						+ "'ROW<`r` ROW<`s` STRING NOT NULL, `b` BOOLEAN, `i` INT>, `s` STRING>'.")
-
+					Row.of(Row.of("12", true, null), "Hello"),
+					DataTypes.of("ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>"))
 		);
 	}
 
