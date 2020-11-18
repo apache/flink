@@ -290,8 +290,8 @@ public class RowCsvInputFormatTest {
 			BasicTypeInfo.STRING_TYPE_INFO};
 
 		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
-		format.configure(new Configuration());
 		format.enableQuotedStringParsing('@');
+		format.configure(new Configuration());
 		format.open(split);
 
 		Row result = new Row(3);

@@ -50,8 +50,8 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
+	protected void initializeSplit(FileInputSplit split, Long offset) throws IOException {
+		super.initializeSplit(split, offset);
 
 		@SuppressWarnings("unchecked")
 		FieldParser<Object>[] fieldParsers = (FieldParser<Object>[]) getFieldParsers();
