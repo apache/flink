@@ -78,13 +78,13 @@ public class RichInputOutputITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void open(FileInputSplit split) throws IOException{
+		public void initializeSplit(FileInputSplit split, Long offset) throws IOException {
 			try {
 				getRuntimeContext().addAccumulator("DATA_SOURCE_ACCUMULATOR", counter);
 			} catch (UnsupportedOperationException e){
 				// the accumulator is already added
 			}
-			super.open(split);
+			super.initializeSplit(split, offset);
 		}
 
 		@Override

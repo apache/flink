@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.ParseException;
+import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -40,9 +41,12 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -67,15 +71,17 @@ public class CsvInputFormatTest {
 
 	@Test
 	public void testSplitCsvInputStreamInLargeBuffer() throws Exception {
-		testSplitCsvInputStream(1024 * 1024, false);
+		testSplitCsvInputStream(1024 * 1024, false, false);
+		testSplitCsvInputStream(1024 * 1024, false, true);
 	}
 
 	@Test
 	public void testSplitCsvInputStreamInSmallBuffer() throws Exception {
-		testSplitCsvInputStream(2, false);
+		testSplitCsvInputStream(2, false, false);
+		testSplitCsvInputStream(1024 * 1024, false, true);
 	}
 
-	private void testSplitCsvInputStream(int bufferSize, boolean failAtStart) throws Exception {
+	private void testSplitCsvInputStream(int bufferSize, boolean failAtStart, boolean compressed) throws Exception {
 		final String fileContent =
 			"this is|1|2.0|\n" +
 			"a test|3|4.0|\n" +
@@ -83,7 +89,26 @@ public class CsvInputFormatTest {
 			"asdadas|5|30.0|\n";
 
 		// create temporary file with 3 blocks
-		final File tempFile = File.createTempFile("input-stream-decoration-test", "tmp");
+		final File tempFile;
+
+		if (compressed) {
+			tempFile = File.createTempFile("TextInputFormatTest", ".compressed");
+			TextInputFormat.registerInflaterInputStreamFactory(
+				"compressed",
+				new InflaterInputStreamFactory<InputStream>() {
+					@Override
+					public InputStream create(InputStream in) {
+						return in;
+					}
+
+					@Override
+					public Collection<String> getCommonFileExtensions() {
+						return Collections.singletonList("compressed");
+					}
+				});
+		} else {
+			tempFile = File.createTempFile("input-stream-decoration-test", ".tmp");
+		}
 		tempFile.deleteOnExit();
 
 		try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
@@ -110,7 +135,9 @@ public class CsvInputFormatTest {
 		Tuple3<String, Integer, Double> result = new Tuple3<>();
 
 		for (FileInputSplit inputSplit : inputSplits) {
-			assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
+			if (!compressed) {
+				assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
+			}
 			splitCounter++;
 
 			format.open(inputSplit);
@@ -369,8 +396,8 @@ public class CsvInputFormatTest {
 			final CsvInputFormat<Tuple3<String, String, String>> format = new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
 
 			final Configuration parameters = new Configuration();
-			format.configure(parameters);
 			format.enableQuotedStringParsing('@');
+			format.configure(parameters);
 			format.open(split);
 
 			Tuple3<String, String, String> result = new Tuple3<String, String, String>();

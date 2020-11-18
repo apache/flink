@@ -300,14 +300,14 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	// --------------------------------------------------------------------------------------------
 	//  Runtime methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
+	protected void initializeSplit(FileInputSplit split, Long offset) throws IOException {
+		super.initializeSplit(split, offset);
 
 		// instantiate the parsers
 		FieldParser<?>[] parsers = new FieldParser<?>[fieldTypes.length];
-		
+
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
 				Class<? extends FieldParser<?>> parserType = FieldParser.getParserForType(fieldTypes[i]);
@@ -330,9 +330,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			}
 		}
 		this.fieldParsers = parsers;
-		
+
 		// skip the first line, if we are at the beginning of a file and have the option set
-		if (this.skipFirstLineAsHeader && this.splitStart == 0) {
+		if (this.skipFirstLineAsHeader && ((offset == null && split.getStart() == 0) || (offset != null && offset == 0))) {
 			readLine(); // read and ignore
 		}
 	}
