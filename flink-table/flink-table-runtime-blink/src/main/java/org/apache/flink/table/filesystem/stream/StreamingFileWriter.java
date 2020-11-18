@@ -36,7 +36,9 @@ import org.apache.flink.table.filesystem.stream.StreamingFileCommitter.CommitMes
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Operator for file system sink. It is a operator version of {@link StreamingFileSink}.
@@ -64,7 +66,9 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 
 	private transient long currentWatermark;
 
-	private transient Set<String> inactivePartitions;
+	private transient Set<String> currentNewPartitions;
+	private transient TreeMap<Long, Set<String>> newPartitions;
+	private transient Set<String> committablePartitions;
 
 	public StreamingFileWriter(
 			long bucketCheckInterval,
@@ -81,15 +85,18 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 		buckets = bucketsBuilder.createBuckets(getRuntimeContext().getIndexOfThisSubtask());
 
 		// Set listener before the initialization of Buckets.
-		inactivePartitions = new HashSet<>();
+		currentNewPartitions = new HashSet<>();
+		newPartitions = new TreeMap<>();
+		committablePartitions = new HashSet<>();
 		buckets.setBucketLifeCycleListener(new BucketLifeCycleListener<RowData, String>() {
 			@Override
 			public void bucketCreated(Bucket<RowData, String> bucket) {
+				currentNewPartitions.add(bucket.getBucketId());
 			}
 
 			@Override
 			public void bucketInactive(Bucket<RowData, String> bucket) {
-				inactivePartitions.add(bucket.getBucketId());
+				committablePartitions.add(bucket.getBucketId());
 			}
 		});
 
@@ -106,6 +113,8 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 	public void snapshotState(StateSnapshotContext context) throws Exception {
 		super.snapshotState(context);
 		helper.snapshotState(context.getCheckpointId());
+		newPartitions.put(context.getCheckpointId(), new HashSet<>(currentNewPartitions));
+		currentNewPartitions.clear();
 	}
 
 	@Override
@@ -134,13 +143,19 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 
 	private void commitUpToCheckpoint(long checkpointId) throws Exception {
 		helper.commitUpToCheckpoint(checkpointId);
+
+		NavigableMap<Long, Set<String>> newPartitions = this.newPartitions.headMap(checkpointId, true);
+		Set<String> partitions = new HashSet<>(committablePartitions);
+		committablePartitions.clear();
+		newPartitions.values().forEach(partitions::addAll);
+		newPartitions.clear();
+
 		CommitMessage message = new CommitMessage(
 				checkpointId,
 				getRuntimeContext().getIndexOfThisSubtask(),
 				getRuntimeContext().getNumberOfParallelSubtasks(),
-				new ArrayList<>(inactivePartitions));
+				new ArrayList<>(partitions));
 		output.collect(new StreamRecord<>(message));
-		inactivePartitions.clear();
 	}
 
 	@Override
