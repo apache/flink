@@ -82,8 +82,7 @@ public class KafkaSourceITCase {
 		DataStream<PartitionAndValue> stream = env.fromSource(
 				source,
 				WatermarkStrategy.noWatermarks(),
-				"testBasicRead",
-				TypeInformation.of(PartitionAndValue.class));
+				"testBasicRead");
 		executeAndVerify(env, stream);
 	}
 
