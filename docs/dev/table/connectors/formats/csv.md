@@ -92,11 +92,8 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>Field delimiter character (<code>','</code> by default). Note the <code>\n</code> and <code>\r</code> are invisible special characters, you have to use unicode to specify them in plain SQL.
-          <ul>
-           <li>e.g. <code>'csv.field-delimiter' = U&'\000D'</code> specifies the to use carriage return <code>\r</code> as field delimiter.</li>
-           <li>e.g. <code>'csv.field-delimiter' = U&'\000A'</code> specifies the to use line feed <code>\n</code> as field delimiter.</li>
-          </ul>
+      <td>Field delimiter character (<code>','</code> by default), must be single character. You can use backslash to specify special characters, e.g. <code>'\t'</code> represents the tab character.
+       You can also use unicode to specify them in plain SQL, e.g. <code>'csv.field-delimiter' = U&'\0001'</code> represents the <code>0x01</code> character.
       </td>
     </tr>
     <tr>
