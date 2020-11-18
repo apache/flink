@@ -34,7 +34,7 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 	private final Iterable<T> elements;
 
 	private transient volatile boolean running;
-	private transient int numCheckpointsComplete;
+	private transient volatile long currentCheckpointId;
 
 	public ParallelFiniteTestSource(Iterable<T> elements) {
 		this.elements = elements;
@@ -44,7 +44,7 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		running = true;
-		numCheckpointsComplete = 0;
+		currentCheckpointId = 0;
 	}
 
 	public boolean isTaskMessage(int id) {
@@ -58,21 +58,17 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 		emitElementsAndWaitForCheckpoints(ctx, 2);
 
 		// second round of the same
-		emitElementsAndWaitForCheckpoints(ctx, 2);
+		emitElementsAndWaitForCheckpoints(ctx, 4);
 	}
 
 	private void emitElementsAndWaitForCheckpoints(
-			SourceContext<T> ctx, int checkpointsToWaitFor) throws InterruptedException {
+			SourceContext<T> ctx, long checkpointIdToWaitFor) throws InterruptedException {
 		final Object lock = ctx.getCheckpointLock();
 
-		final int checkpointToAwait;
 		synchronized (lock) {
-			checkpointToAwait = numCheckpointsComplete + checkpointsToWaitFor;
 			emitRecords(ctx);
-		}
 
-		synchronized (lock) {
-			while (running && numCheckpointsComplete < checkpointToAwait) {
+			while (running && currentCheckpointId < checkpointIdToWaitFor) {
 				lock.wait(1);
 			}
 		}
@@ -97,6 +93,6 @@ public class ParallelFiniteTestSource<T> extends RichSourceFunction<T> implement
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		numCheckpointsComplete++;
+		currentCheckpointId = checkpointId;
 	}
 }
