@@ -66,6 +66,7 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 ## Vectorized Aggregate Functions
 
 Vectorized Python aggregate functions takes one or more `pandas.Series` as the inputs and return one scalar value as output.
+<span class="label label-info">Note</span>Now the return type does not support `RowType` and `MapType`
 
 Vectorized Python aggregate function could be used in `GroupBy Aggregation`(Batch), `GroupBy Window Aggregation`(Batch and Stream) and 
 `Over Window Aggregation`(Batch and Stream bounded over window). For more details on the usage of Aggregations, you can refer
