@@ -34,8 +34,8 @@ The Kafka connector allows for reading data from and writing data into Kafka top
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['kafka'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['kafka'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
@@ -545,6 +545,18 @@ Besides enabling Flink's checkpointing, you can also choose three different mode
  from Kafka.
 
 Please refer to [Kafka documentation]({% link dev/connectors/kafka.md %}#kafka-producers-and-fault-tolerance) for more caveats about delivery guarantees.
+
+### Source Per-Partition Watermarks
+
+Flink supports to emit per-partition watermarks for Kafka. Watermarks are generated inside the Kafka
+consumer. The per-partition watermarks are merged in the same way as watermarks are merged during streaming
+shuffles. The output watermark of the source is determined by the minimum watermark among the partitions
+it reads. If some partitions in the topics are idle, the watermark generator will not advance. You can
+alleviate this problem by setting the [`'table.exec.source.idle-timeout'`]({% link dev/table/config.md %}#table-exec-source-idle-timeout)
+option in the table configuration.
+
+Please refer to [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.md %}#watermark-strategies-and-the-kafka-connector)
+for more details.
 
 Data Type Mapping
 ----------------

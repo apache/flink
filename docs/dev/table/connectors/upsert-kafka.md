@@ -249,6 +249,18 @@ connector is working in the upsert mode, the last record on the same key will ta
 reading back as a source. Therefore, the upsert-kafka connector achieves idempotent writes just like
 the [HBase sink]({% link dev/table/connectors/hbase.md %}).
 
+### Source Per-Partition Watermarks
+
+Flink supports to emit per-partition watermarks for Upsert Kafka. Watermarks are generated inside the Kafka
+consumer. The per-partition watermarks are merged in the same way as watermarks are merged during streaming
+shuffles. The output watermark of the source is determined by the minimum watermark among the partitions
+it reads. If some partitions in the topics are idle, the watermark generator will not advance. You can
+alleviate this problem by setting the [`'table.exec.source.idle-timeout'`]({% link dev/table/config.md %}#table-exec-source-idle-timeout)
+option in the table configuration.
+
+Please refer to [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.md %}#watermark-strategies-and-the-kafka-connector)
+for more details.
+
 Data Type Mapping
 ----------------
 

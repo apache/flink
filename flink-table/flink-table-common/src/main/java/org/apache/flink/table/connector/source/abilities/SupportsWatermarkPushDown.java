@@ -28,7 +28,7 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Enables to push down watermarks into a {@link ScanTableSource}.
+ * Enables to push down a watermark strategy into a {@link ScanTableSource}.
  *
  * <p>The concept of watermarks defines when time operations based on an event time attribute will be
  * triggered. A watermark tells operators that no elements with a timestamp older or equal to the watermark
