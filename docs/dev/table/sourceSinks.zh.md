@@ -31,16 +31,15 @@ of a dynamic table is stored in external systems (such as databases, key-value s
 _Dynamic sources_ and _dynamic sinks_ can be used to read and write data from and to an external system. In
 the documentation, sources and sinks are often summarized under the term _connector_.
 
-Flink provides pre-defined connectors for Kafka, Hive, and different file systems. See the [connector section]({% link dev/table/connectors/index.zh.md %})
+Flink provides pre-defined connectors for Kafka, Hive, and different file systems. See the [connector section]({% link dev/table/connectors/index.md %})
 for more information about built-in table sources and sinks.
 
 This page focuses on how to develop a custom, user-defined connector.
 
 <span class="label label-danger">Attention</span> New table source and table sink interfaces have been
 introduced in Flink 1.11 as part of [FLIP-95](https://cwiki.apache.org/confluence/display/FLINK/FLIP-95%3A+New+TableSource+and+TableSink+interfaces).
-Also the factory interfaces have been reworked. FLIP-95 is not fully implemented yet. Many ability interfaces
-are not supported yet (e.g. for filter or partition push down). If necessary, please also have a look
-at the [old table sources and sinks page]({% link dev/table/legacySourceSinks.zh.md %}). Those interfaces
+Also the factory interfaces have been reworked. Many ability interfaces has been supported (e.g. for filter or partition push down).
+If necessary, take a look at the [old table sources and sinks page]({% link dev/table/legacySourceSinks.md %}). Those interfaces
 are still supported for backwards compatibility.
 
 * This will be replaced by the TOC
@@ -171,8 +170,8 @@ For change data capture (CDC) scenarios, the source can emit bounded or unbounde
 update, and delete rows.
 
 A table source can implement further ability interfaces such as `SupportsProjectionPushDown` that might
-mutate an instance during planning. All abilities are listed in the `org.apache.flink.table.connector.source.abilities`
-package and in the documentation of `org.apache.flink.table.connector.source.ScanTableSource`.
+mutate an instance during planning. All abilities are listed in the <a href='#supported-source-abilities'>
+Supported Source Abilities</a>.
 
 The runtime implementation of a `ScanTableSource` must produce internal data structures. Thus, records
 must be emitted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
@@ -192,6 +191,54 @@ for more information.
 
 The runtime implementation of a `LookupTableSource` is a `TableFunction` or `AsyncTableFunction`. The function
 will be called with values for the given lookup keys during runtime.
+
+#### Supported Source Abilities
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+        <th class="text-left" style="width: 25%">Interface</th>
+        <th class="text-center" style="width: 75%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsFilterPushDown.java'>SupportsFilterPushDown</a></td>
+        <td>Enable to push down the filter into the <code>DynamicTableSource</code>. For efficiency, a source can
+        push filters further down in order to be close to the actual data generation.</td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsLimitPushDown.java'>SupportsLimitPushDown</a></td>
+        <td>Enable to push down a limit (the expected maximum number of produced records) into a <code>DynamicTableSource</code>. </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsPartitionPushDown.java'>SupportsPartitionPushDown</a></td>
+        <td>Enable to pass available partitions to the planner and push down partitions into a <code>DynamicTableSource</code>.
+        During the runtime, the source will only read data from the passed partition list for efficiency. </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsProjectionPushDown.java'>SupportsProjectionPushDown</a> </td>
+        <td>Enable to push down a (possibly nested) projection into a <code>DynamicTableSource</code>. For efficiency,
+        a source can push a projection further down in order to be close to the actual data generation. If the source
+        also implements <code>SupportsReadingMetadata</code>, the source will also read the required metadata only.
+        </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsReadingMetadata.java'>SupportsReadingMetadata</a></td>
+        <td>Enable to read metadata columns from a <code>DynamicTableSource</code>. The source
+        is responsible to add the required metadata at the end of the produced rows. This includes
+        potentially forwarding metadata column from contained formats. </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsWatermarkPushDown.java'>SupportsWatermarkPushDown</a></td>
+        <td>Enable to push down watermark strategy into a <code>DynamicTableSource</code>. The watermark
+        strategy is a builder/factory to build a new watermark generator. During the runtime, the
+        watermark generator is inside the source and able to generate per-partition watermark.</td>
+    </tr>
+    </tbody>
+</table>
+
+<span class="label label-danger">Attention</span> The interfaces are only available for `ScanTableSource` not for `LookupTableSource`.
 
 ### Dynamic Table Sink
 
@@ -215,6 +262,35 @@ package and in the documentation of `org.apache.flink.table.connector.sink.Dynam
 The runtime implementation of a `DynamicTableSink` must consume internal data structures. Thus, records
 must be accepted as `org.apache.flink.table.data.RowData`. The framework provides runtime converters such
 that a sink can still work on common data structures and perform a conversion at the beginning.
+
+#### Supported Sink Abilities
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+        <th class="text-left" style="width: 25%">Interface</th>
+        <th class="text-center" style="width: 75%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsOverwrite.java'>SupportsOverwrite</a></td>
+        <td>Enable to overwrite existing data in a <code>DynamicTableSink</code>. By default, if
+        this interface is not implemented, existing tables or partitions cannot be overwritten using
+        e.g. the SQL <code>INSERT OVERWRITE</code> clause. </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsPartitioning.java'>SupportsPartitioning</a></td>
+        <td>Enable to write partitioned data in a <code>DynamicTableSink</code>. </td>
+    </tr>
+    <tr>
+        <td><a href='https://github.com/apache/flink/blob/master/flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsWritingMetadata.java'>SupportsWritingMetadata</a></td>
+        <td>Enable to write metadata columns into a <code>DynamicTableSource</code>. A table sink is
+        responsible for accepting requested metadata columns at the end of consumed rows and persist
+        them. This includes potentially forwarding metadata columns to contained formats. </td>
+    </tr>
+    </tbody>
+</table>
 
 ### Encoding / Decoding Formats
 
