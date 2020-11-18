@@ -62,7 +62,7 @@ public class LogicalTypeCastsTest {
 				// nullability does not match
 				{new SmallIntType(false), new SmallIntType(), true, true},
 
-				{new SmallIntType(), new SmallIntType(false), false, false},
+				{new SmallIntType(), new SmallIntType(false), false, true},
 
 				{
 					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
