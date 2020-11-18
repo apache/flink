@@ -5768,7 +5768,7 @@ LEAD(expression [, offset] [, default] )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row before the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
