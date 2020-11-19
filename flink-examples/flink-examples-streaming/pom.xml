@@ -314,13 +314,39 @@ under the License.
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.streaming.examples.wordcount.WordCount</program-class>
+									<program-class>org.apache.flink.streaming.examples.wordcount.ApproximateFailover</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/ApproximateFailover.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/ApproximateFailover$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- ApproximateFailover -->
+					<execution>
+						<id>ApproximateFailover</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>ApproximateFailover</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.wordcount.ApproximateFailover</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/wordcount/ApproximateFailover.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/ApproximateFailover$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -546,6 +572,7 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-ApproximateFailover.jar" tofile="${project.basedir}/target/ApproximateFailover.jar" />
 							</target>
 						</configuration>
 					</execution>
