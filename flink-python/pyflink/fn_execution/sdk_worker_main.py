@@ -18,6 +18,9 @@
 
 import sys
 
+# refer to https://issues.apache.org/jira/browse/FLINK-20218
+import urllib.parse # noqa # pylint:  disable=unused-import
+
 # force to register the operations to SDK Harness
 import pyflink.fn_execution.operations # noqa # pylint:  disable=unused-import
 

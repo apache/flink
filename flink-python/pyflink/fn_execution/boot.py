@@ -36,6 +36,7 @@ import grpc
 import logging
 import sys
 
+import urllib.parse # noqa # pylint:  disable=unused-import
 from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
 from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
 from apache_beam.portability.api.beam_artifact_api_pb2_grpc import ArtifactRetrievalServiceStub
