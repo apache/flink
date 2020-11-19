@@ -159,15 +159,23 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public Optional<String> getLocalHadoopConfigurationDirectory() {
-		final String[] possibleHadoopConfPaths = new String[] {
-			System.getenv(Constants.ENV_HADOOP_CONF_DIR),
-			System.getenv(Constants.ENV_HADOOP_HOME) + "/etc/hadoop", // hadoop 2.2
-			System.getenv(Constants.ENV_HADOOP_HOME) + "/conf"
-		};
+		final String hadoopConfDirEnv = System.getenv(Constants.ENV_HADOOP_CONF_DIR);
+		if (StringUtils.isNotBlank(hadoopConfDirEnv)) {
+			return Optional.of(hadoopConfDirEnv);
+		}
 
-		for (String hadoopConfPath: possibleHadoopConfPaths) {
-			if (StringUtils.isNotBlank(hadoopConfPath)) {
-				return Optional.of(hadoopConfPath);
+		final String hadoopHomeEnv = System.getenv(Constants.ENV_HADOOP_HOME);
+		if (StringUtils.isNotBlank(hadoopHomeEnv)) {
+			// Hadoop 2.2+
+			final File hadoop2ConfDir = new File(hadoopHomeEnv, "/etc/hadoop");
+			if (hadoop2ConfDir.exists()) {
+				return Optional.of(hadoop2ConfDir.getAbsolutePath());
+			}
+
+			// Hadoop 1.x
+			final File hadoop1ConfDir = new File(hadoopHomeEnv, "/conf");
+			if (hadoop1ConfDir.exists()) {
+				return Optional.of(hadoop1ConfDir.getAbsolutePath());
 			}
 		}
 
