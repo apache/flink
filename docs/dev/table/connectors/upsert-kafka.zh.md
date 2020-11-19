@@ -38,8 +38,6 @@ Upsert Kafka 连接器支持以 upsert 方式从 Kafka topic 中读取数据并�
 依赖
 ------------
 
-为了设置 upsert-kafka 连接器，下表为项目使用自动化构建工具（例如 Maven 或 SBT ）以及 SQL 客户端使用 SQL JAR 包提供了依赖信息。
-
 {% assign connector = site.data.sql-connectors['upsert-kafka'] %}
 {% include sql-connector-download-table.html
     connector=connector

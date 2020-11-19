@@ -47,9 +47,6 @@ key will fall into the same partition.
 Dependencies
 ------------
 
-In order to set up the upsert-kafka connector, the following table provide dependency information for
-both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
 {% assign connector = site.data.sql-connectors['upsert-kafka'] %}
 {% include sql-connector-download-table.html
     connector=connector
