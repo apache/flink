@@ -54,7 +54,7 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
 
 	@Override
 	public void addSplits(List<SplitT> splitsToAdd) {
-		SplitFetcher<E, SplitT> fetcher = fetchers.get(0);
+		SplitFetcher<E, SplitT> fetcher = getRunningFetcher();
 		if (fetcher == null) {
 			fetcher = createSplitFetcher();
 			// Add the splits to the fetchers.
@@ -63,5 +63,9 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
 		} else {
 			fetcher.addSplits(splitsToAdd);
 		}
+	}
+
+	protected SplitFetcher<E, SplitT> getRunningFetcher() {
+		return fetchers.isEmpty() ? null : fetchers.values().iterator().next();
 	}
 }
