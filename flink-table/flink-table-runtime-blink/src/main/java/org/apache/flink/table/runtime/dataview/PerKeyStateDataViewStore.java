@@ -70,6 +70,9 @@ public final class PerKeyStateDataViewStore implements StateDataViewStore {
 			final ValueStateDescriptor<EV> nullStateDescriptor = new ValueStateDescriptor<>(
 				stateName + NULL_STATE_POSTFIX,
 				valueSerializer);
+			if (stateTtlConfig.isEnabled()) {
+				nullStateDescriptor.enableTimeToLive(stateTtlConfig);
+			}
 			final ValueState<EV> nullState = ctx.getState(nullStateDescriptor);
 			return new StateMapView.KeyedStateMapViewWithKeysNullable<>(mapState, nullState);
 		} else {

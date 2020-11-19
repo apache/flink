@@ -41,10 +41,12 @@ import org.apache.flink.util.Collector;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isRetractMsg;
 import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
@@ -185,6 +187,21 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 			ctx.setCurrentKey(currentKey);
 			RowData acc = accState.value();
 			if (acc == null) {
+				// Don't create a new accumulator for a retraction message. This
+				// might happen if the retraction message is the first message for the
+				// key or after a state clean up.
+				Iterator<RowData> inputIter = inputRows.iterator();
+				while (inputIter.hasNext()) {
+					RowData current = inputIter.next();
+					if (isRetractMsg(current)) {
+						inputIter.remove(); // remove all the beginning retraction messages
+					} else {
+						break;
+					}
+				}
+				if (inputRows.isEmpty()) {
+					return;
+				}
 				acc = function.createAccumulators();
 				firstRow = true;
 			}

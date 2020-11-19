@@ -163,7 +163,7 @@ class StreamExecGlobalGroupAggregate(
         globalAccTypes,
         indexOfCountStar,
         generateUpdateBefore,
-        tableConfig.getMinIdleStateRetentionTime)
+        tableConfig.getIdleStateRetention.toMillis)
 
       new KeyedMapBundleOperator(
         aggFunction,
