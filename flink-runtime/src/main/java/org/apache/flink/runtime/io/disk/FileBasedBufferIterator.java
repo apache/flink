@@ -77,7 +77,7 @@ public class FileBasedBufferIterator implements CloseableIterator<Buffer> {
 	private int read(byte[] buffer) {
 		int limit = Math.min(buffer.length, bytesToRead);
 		try {
-			return stream.read(buffer, offset, limit);
+			return stream.read(buffer, 0, limit);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
