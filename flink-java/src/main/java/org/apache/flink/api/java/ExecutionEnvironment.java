@@ -173,7 +173,7 @@ public class ExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(configuration);
+		this.configuration = new Configuration(checkNotNull(configuration));
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
 		// the configuration of a job or an operator can be specified at the following places:
