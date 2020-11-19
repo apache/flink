@@ -62,7 +62,7 @@ public class KafkaSourceFetcherManager<T>
 	public void commitOffsets(
 			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
 			OffsetCommitCallback callback) {
-		SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher = fetchers.get(0);
+		SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher = getRunningFetcher();
 		KafkaPartitionSplitReader<T> kafkaReader =
 			(KafkaPartitionSplitReader<T>) splitFetcher.getSplitReader();
 
