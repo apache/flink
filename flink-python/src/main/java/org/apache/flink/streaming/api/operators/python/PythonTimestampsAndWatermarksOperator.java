@@ -25,9 +25,11 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
@@ -52,12 +54,17 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFun
 
 	private static final long serialVersionUID = 1L;
 
+	public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME =
+		"_timestamp_and_watermark_operator";
+
 	private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
 	/**
 	 * A user specified watermarkStrategy.
 	 */
 	private final WatermarkStrategy<IN> watermarkStrategy;
+
+	private final TypeInformation<IN> inputTypeInfo;
 
 	/**
 	 * Whether to emit intermediate watermarks or only one final watermark at the end of
@@ -90,6 +97,8 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFun
 	 */
 	private transient StreamRecord<IN> reusableStreamRecord;
 
+	private transient TypeSerializer<IN> inputValueSerializer;
+
 	private transient LinkedList<IN> bufferedInputs;
 
 	public PythonTimestampsAndWatermarksOperator(
@@ -99,11 +108,14 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFun
 		WatermarkStrategy<IN> watermarkStrategy) {
 		super(config, Types.ROW(Types.LONG, inputTypeInfo), Types.LONG, pythonFunctionInfo);
 		this.watermarkStrategy = watermarkStrategy;
+		this.inputTypeInfo = inputTypeInfo;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
+		inputValueSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(inputTypeInfo);
 		bufferedInputs = new LinkedList<>();
 		reusableInput = new Row(2);
 		reusableStreamRecord = new StreamRecord<>(null);
@@ -122,7 +134,12 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFun
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		IN value = element.getValue();
+		final IN value;
+		if (getExecutionConfig().isObjectReuseEnabled()) {
+			value = inputValueSerializer.copy(element.getValue());
+		} else {
+			value = element.getValue();
+		}
 		bufferedInputs.offer(value);
 		final long previousTimestamp = element.hasTimestamp() ?
 			element.getTimestamp() : Long.MIN_VALUE;
