@@ -47,9 +47,6 @@ key will fall into the same partition.
 Dependencies
 ------------
 
-In order to set up the upsert-kafka connector, the following table provide dependency information for
-both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
 {% assign connector = site.data.sql-connectors['upsert-kafka'] %}
 {% include sql-connector-download-table.html
     connector=connector
@@ -143,7 +140,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The format used to deserialize and serialize the key part of the Kafka messages. The key part
+      <td>The format used to serialize and deserialize the key part of the Kafka messages. The key part
       fields are specified by the PRIMARY KEY syntax. The supported formats include <code>'csv'</code>,
       <code>'json'</code>, <code>'avro'</code>. Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a>
       page for more details and more format options.
@@ -154,7 +151,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The format used to deserialize and serialize the value part of the Kafka messages.
+      <td>The format used to serialize and deserialize the value part of the Kafka messages.
       The supported formats include <code>'csv'</code>, <code>'json'</code>, <code>'avro'</code>.
       Please refer to <a href="{% link dev/table/connectors/formats/index.md %}">Formats</a> page for more details and more format options.
       </td>
@@ -205,7 +202,7 @@ Data Type Mapping
 ----------------
 
 Upsert Kafka stores message keys and values as bytes, so Upsert Kafka doesn't have schema or data types.
-The messages are deserialized and serialized by formats, e.g. csv, json, avro. Thus, the data type mapping
+The messages are serialized and deserialized by formats, e.g. csv, json, avro. Thus, the data type mapping
 is determined by specific formats. Please refer to [Formats]({% link dev/table/connectors/formats/index.md %})
 pages for more details.
 
