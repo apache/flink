@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+
 import com.klarna.hiverunner.HiveServerContext;
 import com.klarna.hiverunner.config.HiveRunnerConfig;
 import org.apache.hadoop.fs.FileUtil;
@@ -172,7 +174,10 @@ public class FlinkEmbeddedHiveServerContext implements HiveServerContext {
 		}
 
 		// No pooling needed. This will save us a lot of threads
-		hiveConf.set("datanucleus.connectionPoolingType", "None");
+		// hive-2.1.1 doesn't allow 'none'...
+		if (!HiveShimLoader.getHiveVersion().equals("2.1.1")) {
+			hiveConf.set("datanucleus.connectionPoolingType", "None");
+		}
 
 		// set JDO configs
 		String jdoConnectionURL = "jdbc:derby:memory:" + UUID.randomUUID().toString();
