@@ -77,6 +77,8 @@ public abstract class StateListView<N, EE> extends ListView<EE> implements State
 
 	@Override
 	public boolean remove(EE value) throws Exception {
+		// the getListState().get() not always returns List object
+		// copy values to ArrayList for removing
 		Iterator<EE> iterator = getListState().get().iterator();
 		List<EE> list = new ArrayList<>();
 		while (iterator.hasNext()) {
