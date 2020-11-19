@@ -48,8 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.Callable;
 
 /**
  * A continuously monitoring {@link SplitEnumerator} for hive source.
@@ -63,17 +62,13 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 	private final FileSplitAssigner splitAssigner;
 	private final long discoveryInterval;
 
-	private final JobConf jobConf;
-	private final ObjectPath tablePath;
-
-	private final ContinuousPartitionFetcher<Partition, T> fetcher;
 	private final HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext;
 
-	private final ReadWriteLock stateLock = new ReentrantReadWriteLock();
 	// the maximum partition read offset seen so far
-	private volatile T currentReadOffset;
+	private T currentReadOffset;
 	// the partitions that have been processed for the current read offset
-	private final Set<List<String>> seenPartitionsSinceOffset;
+	private Collection<List<String>> seenPartitionsSinceOffset;
+	private final PartitionMonitor<T> monitor;
 
 	public ContinuousHiveSplitEnumerator(
 			SplitEnumeratorContext<HiveSourceSplit> enumeratorContext,
@@ -87,14 +82,13 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 			HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext) {
 		this.enumeratorContext = enumeratorContext;
 		this.currentReadOffset = currentReadOffset;
-		this.seenPartitionsSinceOffset = new HashSet<>(seenPartitionsSinceOffset);
+		this.seenPartitionsSinceOffset = new ArrayList<>(seenPartitionsSinceOffset);
 		this.splitAssigner = splitAssigner;
 		this.discoveryInterval = discoveryInterval;
-		this.jobConf = jobConf;
-		this.tablePath = tablePath;
-		this.fetcher = fetcher;
 		this.fetcherContext = fetcherContext;
 		readersAwaitingSplit = new LinkedHashMap<>();
+		monitor = new PartitionMonitor<>(
+				currentReadOffset, seenPartitionsSinceOffset, tablePath, jobConf, fetcher, fetcherContext);
 	}
 
 	@Override
@@ -102,7 +96,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 		try {
 			fetcherContext.open();
 			enumeratorContext.callAsync(
-					this::monitorAndGetSplits,
+					monitor,
 					this::handleNewSplits,
 					discoveryInterval,
 					discoveryInterval);
@@ -125,12 +119,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 	@Override
 	public void addSplitsBack(List<HiveSourceSplit> splits, int subtaskId) {
 		LOG.debug("Continuous Hive Source Enumerator adds splits back: {}", splits);
-		stateLock.writeLock().lock();
-		try {
-			splitAssigner.addSplits(new ArrayList<>(splits));
-		} finally {
-			stateLock.writeLock().unlock();
-		}
+		splitAssigner.addSplits(new ArrayList<>(splits));
 	}
 
 	@Override
@@ -140,13 +129,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 
 	@Override
 	public PendingSplitsCheckpoint<HiveSourceSplit> snapshotState() throws Exception {
-		stateLock.readLock().lock();
-		try {
-			Collection<HiveSourceSplit> remainingSplits = (Collection<HiveSourceSplit>) (Collection<?>) splitAssigner.remainingSplits();
-			return new ContinuousHivePendingSplitsCheckpoint(remainingSplits, currentReadOffset, seenPartitionsSinceOffset);
-		} finally {
-			stateLock.readLock().unlock();
-		}
+		Collection<HiveSourceSplit> remainingSplits = (Collection<HiveSourceSplit>) (Collection<?>) splitAssigner.remainingSplits();
+		return new ContinuousHivePendingSplitsCheckpoint(remainingSplits, currentReadOffset, seenPartitionsSinceOffset);
 	}
 
 	@Override
@@ -158,12 +142,64 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 		}
 	}
 
-	private Void monitorAndGetSplits() throws Exception {
-		stateLock.writeLock().lock();
-		try {
+	private void handleNewSplits(NewSplitsAndState<T> newSplitsAndState, Throwable error) {
+		if (error != null) {
+			// we need to failover because the worker thread is stateful
+			throw new FlinkHiveException("Failed to enumerate files", error);
+		}
+		this.currentReadOffset = newSplitsAndState.offset;
+		this.seenPartitionsSinceOffset = newSplitsAndState.seenPartitions;
+		splitAssigner.addSplits(new ArrayList<>(newSplitsAndState.newSplits));
+		assignSplits();
+	}
+
+	private void assignSplits() {
+		final Iterator<Map.Entry<Integer, String>> awaitingReader = readersAwaitingSplit.entrySet().iterator();
+		while (awaitingReader.hasNext()) {
+			final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
+			final String hostname = nextAwaiting.getValue();
+			final int awaitingSubtask = nextAwaiting.getKey();
+			final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+			if (nextSplit.isPresent()) {
+				enumeratorContext.assignSplit((HiveSourceSplit) nextSplit.get(), awaitingSubtask);
+				awaitingReader.remove();
+			} else {
+				break;
+			}
+		}
+	}
+
+	private static class PartitionMonitor<T extends Comparable<T>> implements Callable<NewSplitsAndState<T>> {
+
+		// keep these locally so that we don't need to share state with main thread
+		private T currentReadOffset;
+		private final Set<List<String>> seenPartitionsSinceOffset;
+
+		private final ObjectPath tablePath;
+		private final JobConf jobConf;
+		private final ContinuousPartitionFetcher<Partition, T> fetcher;
+		private final HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext;
+
+		private PartitionMonitor(
+				T currentReadOffset,
+				Collection<List<String>> seenPartitionsSinceOffset,
+				ObjectPath tablePath,
+				JobConf jobConf,
+				ContinuousPartitionFetcher<Partition, T> fetcher,
+				HiveTableSource.HiveContinuousPartitionFetcherContext<T> fetcherContext) {
+			this.currentReadOffset = currentReadOffset;
+			this.seenPartitionsSinceOffset = new HashSet<>(seenPartitionsSinceOffset);
+			this.tablePath = tablePath;
+			this.jobConf = jobConf;
+			this.fetcher = fetcher;
+			this.fetcherContext = fetcherContext;
+		}
+
+		@Override
+		public NewSplitsAndState<T> call() throws Exception {
 			List<Tuple2<Partition, T>> partitions = fetcher.fetchPartitions(fetcherContext, currentReadOffset);
 			if (partitions.isEmpty()) {
-				return null;
+				return new NewSplitsAndState<>(Collections.emptyList(), currentReadOffset, seenPartitionsSinceOffset);
 			}
 
 			partitions.sort(Comparator.comparing(o -> o.f1));
@@ -189,44 +225,26 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>> implements S
 				}
 			}
 			currentReadOffset = maxOffset;
-			splitAssigner.addSplits(new ArrayList<>(newSplits));
 			if (!nextSeen.isEmpty()) {
 				seenPartitionsSinceOffset.clear();
 				seenPartitionsSinceOffset.addAll(nextSeen);
 			}
-			return null;
-		} finally {
-			stateLock.writeLock().unlock();
+			return new NewSplitsAndState<>(newSplits, currentReadOffset, seenPartitionsSinceOffset);
 		}
 	}
 
-	private void handleNewSplits(Void v, Throwable error) {
-		if (error != null) {
-			LOG.error("Failed to enumerate files", error);
-			return;
-		}
-		assignSplits();
-	}
+	/**
+	 * The result passed from monitor thread to main thread.
+	 */
+	private static class NewSplitsAndState<T extends Comparable<T>> {
+		private final T offset;
+		private final Collection<List<String>> seenPartitions;
+		private final Collection<HiveSourceSplit> newSplits;
 
-	private void assignSplits() {
-		final Iterator<Map.Entry<Integer, String>> awaitingReader = readersAwaitingSplit.entrySet().iterator();
-
-		stateLock.writeLock().lock();
-		try {
-			while (awaitingReader.hasNext()) {
-				final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
-				final String hostname = nextAwaiting.getValue();
-				final int awaitingSubtask = nextAwaiting.getKey();
-				final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
-				if (nextSplit.isPresent()) {
-					enumeratorContext.assignSplit((HiveSourceSplit) nextSplit.get(), awaitingSubtask);
-					awaitingReader.remove();
-				} else {
-					break;
-				}
-			}
-		} finally {
-			stateLock.writeLock().unlock();
+		private NewSplitsAndState(Collection<HiveSourceSplit> newSplits, T offset, Collection<List<String>> seenPartitions) {
+			this.newSplits = newSplits;
+			this.offset = offset;
+			this.seenPartitions = new ArrayList<>(seenPartitions);
 		}
 	}
 }
