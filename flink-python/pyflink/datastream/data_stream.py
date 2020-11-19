@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Callable, Union, List
+from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types, WrapperTypeInfo
@@ -380,7 +380,7 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.shuffle())
 
-    def project(self, *field_indexes: List[int]) -> 'DataStream':
+    def project(self, *field_indexes: int) -> 'DataStream':
         """
         Initiates a Project transformation on a Tuple DataStream.
 
@@ -506,8 +506,8 @@ class DataStream(object):
                     j_output_type,
                     j_data_stream_python_function_info,
                     watermark_strategy._j_watermark_strategy)
-            operator_name = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil \
-                .STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME
+            operator_name = gateway.jvm.org.apache.flink.streaming.api.operators.python\
+                .PythonTimestampsAndWatermarksOperator.STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME
             return DataStream(self._j_data_stream.transform(
                 operator_name,
                 j_output_type,
