@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
 @Experimental
 public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implements CheckpointedFunction {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -2838201805198396165L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(DataGeneratorSource.class);
 
