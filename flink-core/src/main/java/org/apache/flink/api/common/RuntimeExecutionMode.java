@@ -17,7 +17,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Runtime execution mode of DataStream programs. Among other things, this controls task scheduling,
@@ -27,7 +27,7 @@ import org.apache.flink.annotation.Internal;
  * @see <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-134%3A+Batch+execution+for+the+DataStream+API">
  *     https://cwiki.apache.org/confluence/display/FLINK/FLIP-134%3A+Batch+execution+for+the+DataStream+API</a>
  */
-@Internal
+@PublicEvolving
 public enum RuntimeExecutionMode {
 
 	/**
