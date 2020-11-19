@@ -501,7 +501,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		actionExecutor.runThrowing(() -> {
 
 			SequentialChannelStateReader reader = getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
-			reader.readOutputData(getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
+			// TODO: for UC rescaling, reenable notifyAndBlockOnCompletion for non-iterative jobs
+			reader.readOutputData(getEnvironment().getAllWriters(), false);
 
 			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
 
