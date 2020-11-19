@@ -22,163 +22,144 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
-Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
-And please also note that Hive connector only works with blink planner.
+Using the HiveCatalog, Apache Flink can be used for unified `BATCH` and STREAM processing of Apache 
+Hive Tables. This means Flink can be used as a more performant alternative to Hive’s batch engine,
+or to continuously read and write data into and out of Hive tables to power real-time data
+warehousing applications. 
+
+<div class="alert alert-info">
+   <b>IMPORTANT:</b> Reading and writing to and from Apache Hive is only supported by the Blink table planner.
+</div>
 
 * This will be replaced by the TOC
 {:toc}
 
-## Reading From Hive
+## Reading
 
-Assume Hive contains a single table in its `default` database, named people that contains several rows.
+Flink supports reading data from Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
+application, Flink will execute its query over the state of the table at the point in time when the
+query is executed. `STREAMING` reads will continuously monitor the table and incrementally fetch
+new data as it is made available. Flink will read tables as bounded by default.
 
-{% highlight bash %}
-hive> show databases;
-OK
-default
-Time taken: 0.841 seconds, Fetched: 1 row(s)
+`STREAMING` reads support consuming both partitioned and non-partitioned tables. 
+For partitioned tables, Flink will monitor the generation of new partitions, and read
+them incrementally when available. For non-partitioned tables, Flink will monitor the generation
+of new files in the folder and read new files incrementally.
 
-hive> show tables;
-OK
-Time taken: 0.087 seconds
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>streaming-source.enable</h5></td>
+        <td style="word-wrap: break-word;">false</td>
+        <td>Boolean</td>
+        <td>Enable streaming source or not. NOTES: Please make sure that each partition/file should be written atomically, otherwise the reader may get incomplete data.</td>
+    </tr>
+    <tr>
+        <td><h5>streaming-source.monitor-interval</h5></td>
+        <td style="word-wrap: break-word;">1 m</td>
+        <td>Duration</td>
+        <td>Time interval for consecutively monitoring partition/file.</td>
+    </tr>
+    <tr>
+        <td><h5>streaming-source.consume-order</h5></td>
+        <td style="word-wrap: break-word;">create-time</td>
+        <td>String</td>
+        <td>The consume order of streaming source, support create-time and partition-time. create-time compare partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem; partition-time compare time represented by partition name, if the partition folder somehow gets updated, e.g. add new file into folder, it can affect how the data is consumed. For non-partition table, this value should always be 'create-time'.</td>
+    </tr>
+    <tr>
+        <td><h5>streaming-source.consume-start-offset</h5></td>
+        <td style="word-wrap: break-word;">1970-00-00</td>
+        <td>String</td>
+        <td>Start offset for streaming consuming. How to parse and compare offsets depends on your order. For create-time and partition-time, should be a timestamp string (yyyy-[m]m-[d]d [hh:mm:ss]). For partition-time, will use partition time extractor to extract time from partition.</td>
+    </tr>
+  </tbody>
+</table>
 
-hive> CREATE TABLE mytable(name string, value double);
-OK
-Time taken: 0.127 seconds
+[SQL Hints]({% link dev/table/sql/hints.md %}) can be used to apply configurations to a Hive table
+without changing its definition in the Hive metastore.
 
-hive> SELECT * FROM mytable;
-OK
-Tom   4.72
-John  8.0
-Tom   24.2
-Bob   3.14
-Bob   4.72
-Tom   34.9
-Mary  4.79
-Tiff  2.72
-Bill  4.33
-Mary  77.7
-Time taken: 0.097 seconds, Fetched: 10 row(s)
-{% endhighlight %}
+{% highlight sql %}
 
-With the data ready your can connect to Hive [connect to an existing Hive installation]({{ site.baseurl }}/dev/table/hive/#connecting-to-hive) and begin querying. 
-
-{% highlight bash %}
-
-Flink SQL> show catalogs;
-myhive
-default_catalog
-
-# ------ Set the current catalog to be 'myhive' catalog if you haven't set it in the yaml file ------
-
-Flink SQL> use catalog myhive;
-
-# ------ See all registered database in catalog 'mytable' ------
-
-Flink SQL> show databases;
-default
-
-# ------ See the previously registered table 'mytable' ------
-
-Flink SQL> show tables;
-mytable
-
-# ------ The table schema that Flink sees is the same that we created in Hive, two columns - name as string and value as double ------ 
-Flink SQL> describe mytable;
-root
- |-- name: name
- |-- type: STRING
- |-- name: value
- |-- type: DOUBLE
-
-# ------ Select from hive table or hive view ------ 
-Flink SQL> SELECT * FROM mytable;
-
-   name      value
-__________ __________
-
-    Tom      4.72
-    John     8.0
-    Tom      24.2
-    Bob      3.14
-    Bob      4.72
-    Tom      34.9
-    Mary     4.79
-    Tiff     2.72
-    Bill     4.33
-    Mary     77.7
+SELECT * 
+FROM hive_table 
+/*+ OPTIONS('streaming-source.enable'='true', 'streaming-source.consume-start-offset'='2020-05-20') */;
 
 {% endhighlight %}
 
-### Querying Hive views
+**Notes**
 
-If you need to query Hive views, please note:
+- Monitor strategy is to scan all directories/files currently in the location path. Many partitions may cause performance degradation.
+- Streaming reads for non-partitioned tables requires that each file be written atomically into the target directory.
+- Streaming reading for partitioned tables requires that each partition should be added atomically in the view of hive metastore. If not, new data added to an existing partition will be consumed.
+- Streaming reads do not support watermark grammar in Flink DDL. These tables cannot be used for window operators.
 
-1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
-2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+## Reading Hive Views
 
-## Writing To Hive
+Flink is able to read from Hive defined views, but some limitations apply:
 
-Similarly, data can be written into hive using an `INSERT` clause.
+1) The Hive catalog must be set as the current catalog before you can query the view. 
+This can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
 
-Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
+2) Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals.
+Make sure the view’s query is compatible with Flink grammar.
 
-{% highlight bash %}
-# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
-Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
+### Temporal Table Join
 
-# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
-Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
-{% endhighlight %}
+You can use a Hive table as a temporal table and join streaming data with it. Please follow
+the [example]({% link dev/table/streaming/temporal_tables.md %}#temporal-table) to find
+out how to join a temporal table.
 
-We support partitioned table too, Consider there is a partitioned table named myparttable with four columns: name, age, my_type and my_date, in types ...... my_type and my_date are the partition keys.
+When performing the join, the Hive table will be cached in Slot memory and each record from
+the stream is joined against the table by key to decide whether a match is found. Using a Hive
+table as a temporal table does not require any additional configuration. Optionally, you can
+configure the TTL of the Hive table cache with the following property. After the cache expires,
+the Hive table will be scanned again to load the latest data.
 
-{% highlight bash %}
-# ------ Insert with static partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>lookup.join.cache.ttl</h5></td>
+        <td style="word-wrap: break-word;">60 min</td>
+        <td>Duration</td>
+        <td>The cache TTL (e.g. 10min) for the build table in lookup join. By default the TTL is 60 minutes.</td>
+    </tr>
+  </tbody>
+</table>
 
-# ------ Insert with dynamic partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
+**Notes**:
 
-# ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
-Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
-{% endhighlight %}
-
-
-## Formats
-
-We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
-
-
-## Optimizations
-
-### Partition Pruning
-
-Flink uses partition pruning as a performance optimization to limits the number of files and partitions
-that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
-a Hive table when a query matches certain filter criteria.
-
-### Projection Pushdown
-
-Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
-unnecessary fields from table scans.
-
-It is especially beneficial when a table contains many columns.
-
-### Limit Pushdown
-
-For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
-amount of data transferred across network.
+-  Each joining subtask needs to keep its own cache of the Hive table. Please ensure the Hive table can fit into
+the memory of a TM task slot.
+- It is encouraged to set a relatively large value for `lookup.join.cache.ttl`. Otherwise, Jobs
+are prone to performance issues as the table needs to be updated and reloaded too frequently. 
+- Currently, Flink simply loads the whole Hive table whenever the cache needs to be refreshed.
+There is no way to differentiate new data from old.
 
 ### Vectorized Optimization upon Read
 
-Optimization is used automatically when the following conditions are met:
+Flink will automatically used vectorized reads of Hive tables when the following conditions are met:
 
 - Format: ORC or Parquet.
 - Columns without complex data type, like hive types: List, Map, Struct, Union.
 
-This feature is turned on by default. If there is a problem, you can use this config option to close Vectorized Optimization:
+This feature is enabled by default. 
+It may be disabled with the following configuration. 
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
@@ -186,8 +167,8 @@ table.exec.hive.fallback-mapred-reader=true
 
 ### Source Parallelism Inference
 
-By default, Flink infers the hive source parallelism based on the number of splits, and the number of
-splits is based on the number of files and the number of blocks in the files.
+By default, Flink will infer the optimal parallelism for its Hive readers 
+based on the number of files, and number of blocks in each file.
 
 Flink allows you to flexibly configure the policy of parallelism inference. You can configure the
 following parameters in `TableConfig` (note that these parameters affect all sources of the job):
@@ -217,12 +198,109 @@ following parameters in `TableConfig` (note that these parameters affect all sou
   </tbody>
 </table>
 
-## Roadmap
+## Writing
 
-We are planning and actively working on supporting features like
+Flink supports writing data from Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
+application, Flink will write to a Hive table only making those records visible when the Job finishes.
+`BATCH` writes support both appending to and overwriting existing tables.
 
-- ACID tables
-- bucketed tables
-- more formats
+{% highlight sql %}
+# ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
+Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 
-Please reach out to the community for more feature request https://flink.apache.org/community.html#mailing-lists
+# ------ INSERT OVERWRITE will overwrite any existing data in the table or partition ------ 
+Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
+{% endhighlight %}
+
+Data can also be inserted into a particular partitions. 
+
+{% highlight sql %}
+# ------ Insert with static partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1', my_date='2019-08-08') SELECT 'Tom', 25;
+
+# ------ Insert with dynamic partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable SELECT 'Tom', 25, 'type_1', '2019-08-08';
+
+# ------ Insert with static(my_type) and dynamic(my_date) partition ------ 
+Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom', 25, '2019-08-08';
+{% endhighlight %}
+
+`STREAMING` writes continuously adding new data to Hive, committing records - making them 
+visible - incrementally. Users control when/how to trigger commits with several properties. Insert
+overwrite is not supported for streaming write.
+
+The below shows how the streaming sink can be used to write a streaming query to write data from Kafka into a Hive table with partition-commit,
+and runs a batch query to read that data back out. 
+
+Please see the [StreamingFileSink]({% link dev/connectors/streamfile_sink.md %}) for 
+a full list of available configurations. 
+
+{% highlight sql %}
+
+SET table.sql-dialect=hive;
+CREATE TABLE hive_table (
+  user_id STRING,
+  order_amount DOUBLE
+) PARTITIONED BY (dt STRING, hr STRING) STORED AS parquet TBLPROPERTIES (
+  'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
+  'sink.partition-commit.trigger'='partition-time',
+  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.policy.kind'='metastore,success-file'
+);
+
+SET table.sql-dialect=default;
+CREATE TABLE kafka_table (
+  user_id STRING,
+  order_amount DOUBLE,
+  log_ts TIMESTAMP(3),
+  WATERMARK FOR log_ts AS log_ts - INTERVAL '5' SECOND
+) WITH (...);
+
+-- streaming sql, insert into hive table
+INSERT INTO TABLE hive_table 
+SELECT user_id, order_amount, DATE_FORMAT(log_ts, 'yyyy-MM-dd'), DATE_FORMAT(log_ts, 'HH')
+FROM kafka_table;
+
+-- batch sql, select with partition pruning
+SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
+
+{% endhighlight %}
+
+
+By default, for streaming writes, Flink only supports renaming committers, meaning the S3 filesystem
+cannot support exactly-once streaming writes.
+Exactly-once writes to S3 can be achieved by configuring the following parameter to false.
+This will instruct the sink to use Flink's native writers but only works for
+parquet and orc file types.
+This configuration is set in the `TableConfig` and will affect all sinks of the job.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+        <th class="text-left" style="width: 20%">Key</th>
+        <th class="text-left" style="width: 15%">Default</th>
+        <th class="text-left" style="width: 10%">Type</th>
+        <th class="text-left" style="width: 55%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><h5>table.exec.hive.fallback-mapred-writer</h5></td>
+        <td style="word-wrap: break-word;">true</td>
+        <td>Boolean</td>
+        <td>If it is false, using flink native writer to write parquet and orc files; if it is true, using hadoop mapred record writer to write parquet and orc files.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+## Formats
+
+Flink's Hive integration has been tested against the following file formats:
+
+- Text
+- CSV
+- SequenceFile
+- ORC
+- Parquet
+
