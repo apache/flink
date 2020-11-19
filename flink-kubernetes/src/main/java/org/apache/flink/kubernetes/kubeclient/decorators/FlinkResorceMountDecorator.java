@@ -35,13 +35,13 @@ import java.util.List;
  * All resources are assumed to exist.
  * Resource definition is contained in FlinkConfiguration as follows:
  *  for job manager:
- * 			pvckey = "jobmanagerpvcmount"
- * 			secretkey = "jobmanagersecretmount"
- * 			pvckey = "jobmanagerconfigmapmount"
+ * 			pvckey = "kubernetes.jobmanager.pvcmount"
+ * 			secretkey = "kubernetes.jobmanager.secretmount"
+ * 			pvckey = "kubernetes.jobmanager.configmapmount"
  * 	for task manager:
- * 			pvckey = "taskmanagerpvcmount"
- * 			secretkey = "taskmanagersecretmount"
- * 			pvckey = "taskmanagerconfigmapmount"
+ * 			pvckey = "kubernetes.taskmanager.pvcmount"
+ * 			secretkey = "kubernetes.taskmanager.secretmount"
+ * 			pvckey = "kubernetes.taskmanager.configmapmount"
  * Each key can contain multiple resources separated by ",". The resource itself is defined by three
  * strings separated by ":", as following :
  * 	mount name:resource name:mount path
