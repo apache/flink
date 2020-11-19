@@ -1030,6 +1030,9 @@ public class StreamingJobGraphGenerator {
 			final Set<ManagedMemoryUseCase> groupSlotScopeUseCases,
 			final StreamConfig operatorConfig) {
 
+		// For each operator, make sure fractions are set for all use cases in the group, even if the operator does not
+		// have the use case (set the fraction to 0.0). This allows us to learn which use cases exist in the group from
+		// either one of the stream configs.
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
 			for (Map.Entry<ManagedMemoryUseCase, Integer> entry : groupManagedMemoryWeights.entrySet()) {
 				final ManagedMemoryUseCase useCase = entry.getKey();
