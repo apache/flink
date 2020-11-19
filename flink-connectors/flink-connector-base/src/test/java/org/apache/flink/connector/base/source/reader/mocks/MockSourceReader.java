@@ -27,7 +27,7 @@ import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcher
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
-import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -52,7 +52,7 @@ public class MockSourceReader
 	}
 
 	@Override
-	protected void onSplitFinished(Collection<String> finishedSplitIds) {
+	protected void onSplitFinished(Map<String, AtomicInteger> finishedSplitIds) {
 
 	}
 

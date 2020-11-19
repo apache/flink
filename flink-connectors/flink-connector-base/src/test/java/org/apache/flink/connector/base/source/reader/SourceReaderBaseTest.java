@@ -44,9 +44,9 @@ import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -296,7 +296,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 			public void notifyCheckpointComplete(long checkpointId) {}
 
 			@Override
-			protected void onSplitFinished(Collection<String> finishedSplitIds) {}
+			protected void onSplitFinished(Map<String, TestingSourceSplit> finishedSplitIds) {}
 
 			@Override
 			protected TestingSourceSplit initializedState(TestingSourceSplit split) {

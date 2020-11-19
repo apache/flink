@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -172,11 +171,12 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		final Set<String> finishedSplits = fetch.finishedSplits();
 		if (!finishedSplits.isEmpty()) {
 			LOG.info("Finished reading split(s) {}", finishedSplits);
+			Map<String, SplitStateT> stateOfFinishedSplits = new HashMap<>();
 			for (String finishedSplitId : finishedSplits) {
-				splitStates.remove(finishedSplitId);
+				stateOfFinishedSplits.put(finishedSplitId, splitStates.remove(finishedSplitId).state);
 				output.releaseOutputForSplit(finishedSplitId);
 			}
-			onSplitFinished(finishedSplits);
+			onSplitFinished(stateOfFinishedSplits);
 		}
 
 		fetch.recycle();
@@ -251,7 +251,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	/**
 	 * Handles the finished splits to clean the state if needed.
 	 */
-	protected abstract void onSplitFinished(Collection<String> finishedSplitIds);
+	protected abstract void onSplitFinished(Map<String, SplitStateT> finishedSplitIds);
 
 	/**
 	 * When new splits are added to the reader. The initialize the state of the new splits.
