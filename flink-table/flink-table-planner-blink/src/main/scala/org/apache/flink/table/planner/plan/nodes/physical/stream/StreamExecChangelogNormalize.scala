@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
@@ -32,6 +29,10 @@ import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUt
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{ProcTimeDeduplicateKeepLastRowFunction, ProcTimeMiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
 import java.util
 
@@ -72,13 +73,13 @@ class StreamExecChangelogNormalize(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    List(getInput.asInstanceOf[ExecNode[_]])
   }
 
   override def replaceInputNode(
     ordinalInParent: Int,
-    newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+    newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

@@ -51,7 +51,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 	 * 	                  with this shuffleMode to resolve conflict
 	 */
 	public InputPriorityConflictResolver(
-			List<ExecNode<?, ?>> roots,
+			List<ExecNode<?>> roots,
 			ExecEdge.DamBehavior safeDamBehavior,
 			ShuffleMode shuffleMode) {
 		super(roots, Collections.emptySet(), safeDamBehavior);
@@ -63,9 +63,9 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 	}
 
 	@Override
-	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput) {
-		ExecNode<?, ?> higherNode = node.getInputNodes().get(higherInput);
-		ExecNode<?, ?> lowerNode = node.getInputNodes().get(lowerInput);
+	protected void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput) {
+		ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
+		ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
 		if (lowerNode instanceof BatchExecExchange) {
 			BatchExecExchange exchange = (BatchExecExchange) lowerNode;
 			if (isConflictCausedByExchange(higherNode, exchange)) {
@@ -76,16 +76,16 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 					exchange.getInput(),
 					exchange.getDistribution());
 				newExchange.setRequiredShuffleMode(shuffleMode);
-				node.replaceInputNode(lowerInput, (ExecNode) newExchange);
+				node.replaceInputNode(lowerInput, newExchange);
 			} else {
 				exchange.setRequiredShuffleMode(shuffleMode);
 			}
 		} else {
-			node.replaceInputNode(lowerInput, (ExecNode) createExchange(node, lowerInput));
+			node.replaceInputNode(lowerInput, createExchange(node, lowerInput));
 		}
 	}
 
-	private boolean isConflictCausedByExchange(ExecNode<?, ?> higherNode, BatchExecExchange lowerNode) {
+	private boolean isConflictCausedByExchange(ExecNode<?> higherNode, BatchExecExchange lowerNode) {
 		// check if `lowerNode` is the ancestor of `higherNode`,
 		// if yes then conflict is caused by `lowerNode`
 		ConflictCausedByExchangeChecker checker = new ConflictCausedByExchangeChecker(lowerNode);
@@ -93,7 +93,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 		return checker.found;
 	}
 
-	private BatchExecExchange createExchange(ExecNode<?, ?> node, int idx) {
+	private BatchExecExchange createExchange(ExecNode<?> node, int idx) {
 		RelNode inputRel = (RelNode) node.getInputNodes().get(idx);
 
 		FlinkRelDistribution distribution;
@@ -129,11 +129,11 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 		}
 
 		@Override
-		protected void visitNode(ExecNode<?, ?> node) {
+		protected void visitNode(ExecNode<?> node) {
 			if (node == exchange) {
 				found = true;
 			}
-			for (ExecNode<?, ?> inputNode : node.getInputNodes()) {
+			for (ExecNode<?> inputNode : node.getInputNodes()) {
 				visit(inputNode);
 				if (found) {
 					return;

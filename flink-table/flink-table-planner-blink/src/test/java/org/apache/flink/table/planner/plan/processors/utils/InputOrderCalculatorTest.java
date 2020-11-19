@@ -93,7 +93,7 @@ public class InputOrderCalculatorTest {
 			nodes[8],
 			new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5])),
 			ExecEdge.DamBehavior.BLOCKING);
-		Map<ExecNode<?, ?>, Integer> result = calculator.calculate();
+		Map<ExecNode<?>, Integer> result = calculator.calculate();
 		Assert.assertEquals(3, result.size());
 		Assert.assertEquals(0, result.get(nodes[3]).intValue());
 		Assert.assertEquals(1, result.get(nodes[1]).intValue());
@@ -124,7 +124,7 @@ public class InputOrderCalculatorTest {
 			nodes[5],
 			new HashSet<>(Arrays.asList(nodes[0], nodes[1], nodes[3], nodes[6])),
 			ExecEdge.DamBehavior.BLOCKING);
-		Map<ExecNode<?, ?>, Integer> result = calculator.calculate();
+		Map<ExecNode<?>, Integer> result = calculator.calculate();
 		Assert.assertEquals(4, result.size());
 		Assert.assertEquals(1, result.get(nodes[0]).intValue());
 		Assert.assertEquals(1, result.get(nodes[1]).intValue());
@@ -159,7 +159,7 @@ public class InputOrderCalculatorTest {
 			nodes[4],
 			new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5], nodes[7])),
 			ExecEdge.DamBehavior.BLOCKING);
-		Map<ExecNode<?, ?>, Integer> result = calculator.calculate();
+		Map<ExecNode<?>, Integer> result = calculator.calculate();
 		Assert.assertEquals(4, result.size());
 		Assert.assertEquals(0, result.get(nodes[1]).intValue());
 		Assert.assertEquals(1, result.get(nodes[3]).intValue());

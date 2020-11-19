@@ -113,12 +113,12 @@ class StreamExecIntervalJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
   }
   
   override def replaceInputNode(
-      ordinalInParent: Int, newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      ordinalInParent: Int, newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

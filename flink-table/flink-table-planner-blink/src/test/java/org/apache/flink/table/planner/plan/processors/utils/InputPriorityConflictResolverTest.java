@@ -114,11 +114,11 @@ public class InputPriorityConflictResolverTest {
 			ShuffleMode.BATCH);
 		resolver.detectAndResolve();
 
-		ExecNode<?, ?> input0 = nodes[1].getInputNodes().get(0);
-		ExecNode<?, ?> input1 = nodes[1].getInputNodes().get(1);
+		ExecNode<?> input0 = nodes[1].getInputNodes().get(0);
+		ExecNode<?> input1 = nodes[1].getInputNodes().get(1);
 		Assert.assertNotSame(input0, input1);
 
-		Consumer<ExecNode<?, ?>> checkExchange = execNode -> {
+		Consumer<ExecNode<?>> checkExchange = execNode -> {
 			Assert.assertTrue(execNode instanceof BatchExecExchange);
 			BatchExecExchange e = (BatchExecExchange) execNode;
 			Assert.assertEquals(ShuffleMode.BATCH, e.getShuffleMode(new Configuration()));

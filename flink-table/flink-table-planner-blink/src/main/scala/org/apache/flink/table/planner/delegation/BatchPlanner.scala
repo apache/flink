@@ -60,7 +60,7 @@ class BatchPlanner(
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
   override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
     val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
     val context = new DAGProcessContext(this)
 
@@ -78,7 +78,7 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
     planner.overrideEnvParallelism()
 
