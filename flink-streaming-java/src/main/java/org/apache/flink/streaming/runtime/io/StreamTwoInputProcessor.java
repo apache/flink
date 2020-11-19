@@ -76,14 +76,14 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		int readingInputIndex;
 		if (isPrepared) {
 			readingInputIndex = selectNextReadingInputIndex();
-			assert readingInputIndex != InputSelection.NONE_AVAILABLE;
 		} else {
 			// the preparations here are not placed in the constructor because all work in it
 			// must be executed after all operators are opened.
 			readingInputIndex = selectFirstReadingInputIndex();
-			if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-				return InputStatus.NOTHING_AVAILABLE;
-			}
+		}
+		// In case of double notification (especially with priority notification), there may not be an input after all.
+		if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
+			return InputStatus.NOTHING_AVAILABLE;
 		}
 
 		lastReadInputIndex = readingInputIndex;
