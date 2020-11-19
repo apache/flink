@@ -94,12 +94,15 @@ function guaranteed_kill {
 
   # send sigterm for graceful shutdown
   kill $to_stop_pid
-  # wait 10 seconds for process to stop. By default, Flink kills the JVM 5 seconds after sigterm.
-  timeout 10 tail --pid=$to_stop_pid -f /dev/null
-  if [ "$?" -eq 124 ]; then
-    echo "Daemon $daemon didn't stop within 10 seconds. Killing it."
-    # send sigkill
-    kill -9 $to_stop_pid
+  # if timeout exists, use it
+  if command -v timeout &> /dev/null ; then
+    # wait 10 seconds for process to stop. By default, Flink kills the JVM 5 seconds after sigterm.
+    timeout 10 tail --pid=$to_stop_pid -f /dev/null
+    if [ "$?" -eq 124 ]; then
+      echo "Daemon $daemon didn't stop within 10 seconds. Killing it."
+      # send sigkill
+      kill -9 $to_stop_pid
+    fi
   fi
 }
 
