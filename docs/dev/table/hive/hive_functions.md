@@ -1,5 +1,5 @@
 ---
-title: "Hive functions"
+title: "Hive Functions"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---

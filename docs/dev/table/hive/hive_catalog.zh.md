@@ -1,5 +1,5 @@
 ---
-title: "HiveCatalog"
+title: "Hive Catalog"
 nav-parent_id: hive_tableapi
 nav-pos: 1
 ---
