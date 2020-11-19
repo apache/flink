@@ -45,11 +45,11 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction
 	public ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
 			InternalTypeInfo<RowData> typeInfo,
 			TypeSerializer<RowData> serializer,
-			long minRetentionTime,
+			long stateRetentionTime,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
 			boolean inputInsertOnly) {
-		super(typeInfo, minRetentionTime);
+		super(typeInfo, stateRetentionTime);
 		this.serializer = serializer;
 		this.generateUpdateBefore = generateUpdateBefore;
 		this.generateInsert = generateInsert;

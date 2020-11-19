@@ -38,12 +38,12 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunction
 		extends MiniBatchDeduplicateFunctionBase<Boolean, RowData, RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -7994602893547654994L;
-	private TypeSerializer<RowData> serializer;
+	private final TypeSerializer<RowData> serializer;
 
 	public ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
 			TypeSerializer<RowData> serializer,
-			long minRetentionTime) {
-		super(Types.BOOLEAN, minRetentionTime);
+			long stateRetentionTime) {
+		super(Types.BOOLEAN, stateRetentionTime);
 		this.serializer = serializer;
 	}
 

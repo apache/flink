@@ -37,9 +37,11 @@ import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlCo
  */
 abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFunction<K, IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	// the TypeInformation of the values in the state.
 	protected final TypeInformation<T> typeInfo;
-	protected final long minRetentionTime;
+	protected final long stateRetentionTime;
 	protected final TypeSerializer<OUT> serializer;
 	// state stores previous message under the key.
 	protected ValueState<T> state;
@@ -47,9 +49,9 @@ abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFuncti
 	public DeduplicateFunctionBase(
 			TypeInformation<T> typeInfo,
 			TypeSerializer<OUT> serializer,
-			long minRetentionTime) {
+			long stateRetentionTime) {
 		this.typeInfo = typeInfo;
-		this.minRetentionTime = minRetentionTime;
+		this.stateRetentionTime = stateRetentionTime;
 		this.serializer = serializer;
 	}
 
@@ -57,7 +59,7 @@ abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFuncti
 	public void open(Configuration configure) throws Exception {
 		super.open(configure);
 		ValueStateDescriptor<T> stateDesc = new ValueStateDescriptor<>("deduplicate-state", typeInfo);
-		StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
+		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 		if (ttlConfig.isEnabled()) {
 			stateDesc.enableTimeToLive(ttlConfig);
 		}

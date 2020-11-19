@@ -33,8 +33,8 @@ public class ProcTimeDeduplicateKeepFirstRowFunction
 	private static final long serialVersionUID = 5865777137707602549L;
 
 	// state stores a boolean flag to indicate whether key appears before.
-	public ProcTimeDeduplicateKeepFirstRowFunction(long minRetentionTime) {
-		super(Types.BOOLEAN, null, minRetentionTime);
+	public ProcTimeDeduplicateKeepFirstRowFunction(long stateRetentionTime) {
+		super(Types.BOOLEAN, null, stateRetentionTime);
 	}
 
 	@Override

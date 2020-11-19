@@ -38,11 +38,11 @@ public class ProcTimeDeduplicateKeepLastRowFunction
 
 	public ProcTimeDeduplicateKeepLastRowFunction(
 			InternalTypeInfo<RowData> typeInfo,
-			long minRetentionTime,
+			long stateRetentionTime,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
 			boolean inputInsertOnly) {
-		super(typeInfo, null, minRetentionTime);
+		super(typeInfo, null, stateRetentionTime);
 		this.generateUpdateBefore = generateUpdateBefore;
 		this.generateInsert = generateInsert;
 		this.inputIsInsertOnly = inputInsertOnly;
