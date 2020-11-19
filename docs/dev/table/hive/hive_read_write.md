@@ -1,7 +1,7 @@
 ---
 title: "Hive Read & Write"
 nav-parent_id: hive_tableapi
-nav-pos: 2
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Using the HiveCatalog, Apache Flink can be used for unified `BATCH` and STREAM processing of Apache 
+Using the `HiveCatalog`, Apache Flink can be used for unified `BATCH` and `STREAM` processing of Apache 
 Hive Tables. This means Flink can be used as a more performant alternative to Hive’s batch engine,
 or to continuously read and write data into and out of Hive tables to power real-time data
 warehousing applications. 
@@ -212,7 +212,7 @@ Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-Data can also be inserted into a particular partitions. 
+Data can also be inserted into particular partitions. 
 
 {% highlight sql %}
 # ------ Insert with static partition ------ 
@@ -303,4 +303,3 @@ Flink's Hive integration has been tested against the following file formats:
 - SequenceFile
 - ORC
 - Parquet
-

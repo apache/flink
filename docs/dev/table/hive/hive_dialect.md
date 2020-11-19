@@ -1,7 +1,7 @@
 ---
 title: "Hive Dialect"
 nav-parent_id: hive_tableapi
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
