@@ -22,8 +22,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -156,12 +154,8 @@ public class DataStreamBatchExecutionITCase {
 	}
 
 	private StreamExecutionEnvironment getExecutionEnvironment() {
-
-		Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
-			config);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 		env.setParallelism(1);
 
 		// trick the collecting sink into working even in the face of failures 🙏

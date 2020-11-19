@@ -285,6 +285,26 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the runtime execution mode for the application (see {@link RuntimeExecutionMode}).
+	 * This is equivalent to setting the {@code execution.runtime-mode} in your application's
+	 * configuration file.
+	 *
+	 * <p>We recommend users to NOT use this method but set the {@code execution.runtime-mode}
+	 * using the command-line when submitting the application. Keeping the application code
+	 * configuration-free allows for more flexibility as the same application will be able to
+	 * be executed in any execution mode.
+	 *
+	 * @param executionMode the desired execution mode.
+	 * @return The execution environment of your application.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment setRuntimeMode(final RuntimeExecutionMode executionMode) {
+		checkNotNull(executionMode);
+		configuration.set(ExecutionOptions.RUNTIME_MODE, executionMode);
+		return this;
+	}
+
+	/**
 	 * Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
 	 * is Short.MAX_VALUE.
 	 *

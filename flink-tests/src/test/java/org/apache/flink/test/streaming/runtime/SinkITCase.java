@@ -20,8 +20,6 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.streaming.util.FiniteTestSource;
@@ -235,17 +233,14 @@ public class SinkITCase extends AbstractTestBase {
 
 	private StreamExecutionEnvironment buildStreamEnv() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		final Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+		env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
 		env.enableCheckpointing(100);
 		return env;
 	}
 
 	private StreamExecutionEnvironment buildBatchEnv() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		final Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-		env.configure(config, this.getClass().getClassLoader());
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 		return env;
 	}
 }
