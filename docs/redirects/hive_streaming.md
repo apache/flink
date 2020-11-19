@@ -1,8 +1,8 @@
 ---
 title: "Hive Streaming"
 layout: redirect
-redirect: /dev/table/hive/hive_streaming.html
-permalink: /dev/table/hive/hive_read_write.html
+redirect: /dev/table/hive/hive_read_write.html
+permalink: /dev/table/hive/hive_streaming.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
