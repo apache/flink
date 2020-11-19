@@ -25,7 +25,7 @@ class JavaException(Exception):
         self.stack_trace = stack_trace
 
     def __str__(self):
-        return repr(self.msg)
+        return self.msg + "\n\t at " + self.stack_trace
 
 
 class TableException(JavaException):
@@ -151,8 +151,12 @@ def capture_java_exception(f):
                                               e.java_exception.getStackTrace()))
             for exception in exception_mapping.keys():
                 if s.startswith(exception):
-                    raise exception_mapping[exception](s.split(': ', 1)[1], stack_trace)
-            raise
+                    java_exception = \
+                        exception_mapping[exception](s.split(': ', 1)[1], stack_trace)
+                    break
+            else:
+                raise
+        raise java_exception
     return deco
 
 
