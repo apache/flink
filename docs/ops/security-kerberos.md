@@ -39,7 +39,7 @@ or ticket cache entry.
 
 The current implementation supports running Flink clusters (JobManager / TaskManager / jobs) with either a configured keytab credential
 or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.   To use a different keytab
-for for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
+for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
 or Mesos environment.
 
 ## How Flink Security works
