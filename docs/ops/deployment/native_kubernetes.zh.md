@@ -166,7 +166,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 - `LoadBalancer`：使用云提供商的负载均衡器在外部暴露服务。
 由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因为你可能在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
-你可以使用 `kubectl get services/<ClusterId>` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
+你可以使用 `kubectl get services/<ClusterId>-rest` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
   <span class="label label-warning">警告!</span> JobManager 可能会在无需认证的情况下暴露在公网上，同时可以提交任务运行。
 
