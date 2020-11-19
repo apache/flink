@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -144,10 +145,11 @@ public class ExecutionCheckpointingOptions {
 					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
 				.build());
 
+	@Documentation.ExcludeFromDocumentation("Do not advertise this option until timeout in unaligned checkpoint is completed.")
 	public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
 		ConfigOptions.key("execution.checkpointing.alignment-timeout")
 			.durationType()
-			.defaultValue(Duration.ofSeconds(30))
+			.defaultValue(Duration.ofSeconds(0L))
 			.withDescription(Description.builder()
 				.text("Only relevant if %s is enabled.", TextElement.code(ENABLE_UNALIGNED.key()))
 				.linebreak()
