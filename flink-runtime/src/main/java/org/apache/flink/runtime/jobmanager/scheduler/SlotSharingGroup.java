@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -45,7 +46,10 @@ public class SlotSharingGroup implements java.io.Serializable {
      * Represents resources of all tasks in the group. Default to be zero. Any task with UNKNOWN
      * resources will turn it to be UNKNOWN.
      */
-    private ResourceSpec resourceSpec = ResourceSpec.ZERO;
+    @Deprecated private ResourceSpec resourceSpec = ResourceSpec.ZERO;
+
+    // Represents resources of all tasks in the group. Default to be UNKNOWN.
+    private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
 
     // --------------------------------------------------------------------------------------------
 
@@ -67,6 +71,15 @@ public class SlotSharingGroup implements java.io.Serializable {
         return slotSharingGroupId;
     }
 
+    public void setResourceProfile(ResourceProfile resourceProfile) {
+        this.resourceProfile = checkNotNull(resourceProfile);
+    }
+
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
+
+    @Deprecated
     public ResourceSpec getResourceSpec() {
         return resourceSpec;
     }
