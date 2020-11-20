@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector
-import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction}
+import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction, ComparableRecordComparator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -133,11 +133,17 @@ class StreamExecLimit(
     } else {
       val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
       val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("LimitValueEqualiser")
+      val comparator = new ComparableRecordComparator(
+        sortKeyComparator,
+        Array(),
+        Array(),
+        Array(),
+        Array())
       new RetractableTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
         inputRowTypeInfo,
-        sortKeyComparator,
+        comparator,
         sortKeySelector,
         rankType,
         rankRange,
