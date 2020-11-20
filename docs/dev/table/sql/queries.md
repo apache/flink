@@ -722,6 +722,31 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) ON TRUE
     </tr>
     <tr>
       <td>
+        <strong>Join with Temporal Table</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
+        A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
+
+        <p>Processing-time temporal join and event-time temporal join are supported, inner join and left join are supported.</p>
+        <p>The event-time temporal join is not suppored in <span class="label label-primary">Batch</span></p>
+        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
+{% highlight sql %}
+SELECT
+  o.amount, o.currency, r.rate, o.amount * r.rate
+FROM
+  Orders AS o
+  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
+  ON r.currency = o.currency
+{% endhighlight %}
+        <p>The RHS table can be named with an alias using optional clause <code>[[<strong>AS</strong>] correlationName]</code>, note that the <code><strong>AS</strong></code> keyword is also optional.</p>
+        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
+        <p>Only supported in Blink planner.</p>
+      </td>
+    </tr>    
+    <tr>
+      <td>
         <strong>Join with Temporal Table Function</strong><br>
         <span class="label label-primary">Streaming</span>
       </td>
@@ -745,31 +770,6 @@ WHERE
         <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
     </tr>
-    <tr>
-      <td>
-        <strong>Join with Temporal Table</strong><br>
-        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
-      </td>
-      <td>
-        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
-
-        <p>Only inner and left joins with processing-time temporal tables are supported.</p>
-        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
-{% highlight sql %}
-SELECT
-  o.amout, o.currency, r.rate, o.amount * r.rate
-FROM
-  Orders AS o
-  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
-  ON r.currency = o.currency
-{% endhighlight %}
-        <p>The RHS table can be named with an alias using optional clause <code>[[<strong>AS</strong>] correlationName]</code>, note that the <code><strong>AS</strong></code> keyword is also optional.</p>
-        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
-        <p>Only supported in Blink planner.</p>
-      </td>
-    </tr>
-
   </tbody>
 </table>
 </div>
