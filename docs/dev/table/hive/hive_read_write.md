@@ -212,7 +212,7 @@ Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-Data can also be inserted into a particular partitions. 
+Data can also be inserted into particular partitions. 
 
 {% highlight sql %}
 # ------ Insert with static partition ------ 
@@ -303,4 +303,3 @@ Flink's Hive integration has been tested against the following file formats:
 - SequenceFile
 - ORC
 - Parquet
-
