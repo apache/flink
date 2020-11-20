@@ -20,15 +20,18 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
--->
+--> 
 
-Temporal Tables represent a concept of a (parameterized) view on a changing table that returns the content of a table at a specific point in time.
+A Temporal table is a table that evolves over time -  otherwise known in Flink as a [dynamic table](dynamic_tables.html). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
 
-The changing table can either be a changing history table which tracks the changes (e.g. database changelogs) or a changing dimension table which materializes the changes (e.g. database tables).
+A temporal table contains one or more versioned table snapshots, it can be a changing history table which tracks the changes(e.g. database changelog, contains all snapshots) or a changing dimensioned table which materializes the changes(e.g. database table, contains the latest snapshot). 
 
-For the changing history table, Flink can keep track of the changes and allows for accessing the content of the table at a certain point in time within a query. In Flink, this kind of table is represented by a *Temporal Table Function*.
+**Version**: A temporal table can split into a set of versioned table snapshots, the version in table snapshots represents the valid life circle of rows, the start time and the end time of the valid period can be assigned by users. 
+Temporal table can split to `versioned table` and `regular table` according to the table can tracks its history version or not.
 
-For the changing dimension table, Flink allows for accessing the content of the table at processing time within a query. In Flink, this kind of table is represented by a *Temporal Table*.
+**Versioned table**: If the rows a in temporal table can track its history changes and visit its history versions, we call this a versioned table. Tables that comes from a database changelog can be defined as a versioned table.
+
+**Regular table**: If the row in temporal table can only track and visit its latest version，we call this kind of temporal table as regular table. Tables that comes from a database or HBase can be defined as a regular table.
 
 * This will be replaced by the TOC
 {:toc}
@@ -36,87 +39,236 @@ For the changing dimension table, Flink allows for accessing the content of the 
 Motivation
 ----------
 
-### Correlate with a changing history table
+### Correlate with a versioned table
+Given a scenario the order stream correlates the dimension table product, the table `orders` comes from kafka which contains the real time orders, the table `product_changelog` comes from the changelog of the database table `products`,
+ the product price in table `products` is changing over time. 
 
-Let's assume that we have the following table `RatesHistory`.
+{% highlight sql %}
+SELECT * FROM product_changelog;
+
+(changelog kind)  update_time  product_id product_name price
+================= ===========  ========== ============ ===== 
++(INSERT)         00:01:00     p_001      scooter      11.11
++(INSERT)         00:02:00     p_002      basketball   23.11
+-(UPDATE_BEFORE)  12:00:00     p_001      scooter      11.11
++(UPDATE_AFTER)   12:00:00     p_001      scooter      12.99
+-(UPDATE_BEFORE)  12:00:00     p_002      basketball   23.11 
++(UPDATE_AFTER)   12:00:00     p_002      basketball   19.99
+-(DELETE)         18:00:00     p_001      scooter      12.99 
+{% endhighlight %}
+
+The table `product_changelog` represents an ever growing changelog of database table `products`,  for example, the initial price of product `scooter` is `11.11` at `00:01:00`, and the price increases to `12.99` at `12:00:00`,
+ the product item is deleted from the table `products` at `18:00:00`.
+
+Given that we would like to output the version of `product_changelog` table of the time `10:00:00`, the following table shows the result. 
+{% highlight sql %}
+update_time  product_id product_name price
+===========  ========== ============ ===== 
+00:01:00     p_001      scooter      11.11
+00:02:00     p_002      basketball   23.11
+{% endhighlight %}
+
+Given that we would like to output the version of `product_changelog` table of the time `13:00:00`, the following table shows the result. 
+{% highlight sql %}
+update_time  product_id product_name price
+===========  ========== ============ ===== 
+12:00:00     p_001      scooter      12.99
+12:00:00     p_002      basketball   19.99
+{% endhighlight %}
+
+In above example, the specific version of the table is tracked by `update_time` and `product_id`,  the `product_id` would be a primary key for `product_changelog` table and `update_time` would be the event time.
+
+In Flink, this is represented by a [*versioned table*](#defining-versioned-table).
+
+### Correlate with a regular table
+
+On the other hand, some use cases require to join a regular table which is an external database table.
+
+Let's assume that `LatestRates` is a table (e.g. stored in HBase) which is materialized with the latest rates. The `LatestRates` always represents the latest content of hbase table `rates`.
+ 
+Then the content of `LatestRates` table when we query at time `10:15:00` is:
+{% highlight sql %}
+10:15:00 > SELECT * FROM LatestRates;
+
+currency  rate
+========= ====
+US Dollar 102
+Euro      114
+Yen       1
+{% endhighlight %}
+
+Then the content of `LatestRates` table when we query at time `11:00:00` is:
+{% highlight sql %}
+11:00:00 > SELECT * FROM LatestRates;
+
+currency  rate
+========= ====
+US Dollar 102
+Euro      116
+Yen       1
+{% endhighlight %}
+
+In Flink, this is represented by a [*regular Table*](#defining-regular-table).
+
+Temporal Table
+--------------
+<span class="label label-danger">Attention</span> This is only supported in Blink planner.
+
+Flink uses primary key constraint and event time to define both versioned table and versioned view.
+
+### Defining Versioned Table
+The table is a versioned table in Flink only is the table contains primary key constraint and event time.
+{% highlight sql %}
+-- Define a versioned table
+CREATE TABLE product_changelog (
+  product_id STRING,
+  product_name STRING,
+  product_price DECIMAL(10, 4),
+  update_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  PRIMARY KEY(product_id) NOT ENFORCED,      -- (1) defines the primary key constraint
+  WATERMARK FOR update_time AS update_time   -- (2) defines the event time by watermark                               
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'products',
+  'scan.startup.mode' = 'earliest-offset',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'value.format' = 'debezium-json'
+);
+{% endhighlight %}
+
+Line `(1)` defines the primary key constraint for table `product_changelog`, Line `(2)` defines the `update_time` as event time for table `product_changelog`,
+thus table `product_changelog` is a versioned table.
+
+**Note**: The grammar `METADATA FROM 'value.source.timestamp' VIRTUAL` means extract the database
+operation execution time for every changelog, it's strongly recommended defines the database operation execution time 
+as event time rather than ingestion-time or time in the record, otherwise the version extract from the changelog may
+mismatch with the version in database.
+ 
+### Defining Versioned View
+
+Flink also supports defining versioned view only if the view contains unique key constraint and event time.
+ 
+Let’s assume that we have the following table `RatesHistory`:
+{% highlight sql %}
+-- Define an append-only table
+CREATE TABLE RatesHistory (
+    currency_time TIMESTAMP(3),
+    currency STRING,
+    rate DECIMAL(38, 10),
+    WATERMARK FOR currency_time AS currency_time   -- defines the event time
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'rates',
+  'scan.startup.mode' = 'earliest-offset',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'format' = 'json'                                -- this is an append only source
+)
+{% endhighlight %}
+
+Table `RatesHistory` represents an ever growing append-only table of currency exchange rates with respect to 
+Yen (which has a rate of 1). For example, the exchange rate for the period from 09:00 to 10:45 of Euro to Yen was 114.
+From 10:45 to 11:15 it was 116.
 
 {% highlight sql %}
 SELECT * FROM RatesHistory;
 
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-09:00   Euro        114
-09:00   Yen           1
-10:45   Euro        116
-11:15   Euro        119
-11:49   Pounds      108
+currency_time currency  rate
+============= ========= ====
+09:00:00      US Dollar 102
+09:00:00      Euro      114
+09:00:00      Yen       1
+10:45:00      Euro      116
+11:15:00      Euro      119
+11:49:00      Pounds    108
 {% endhighlight %}
 
-`RatesHistory` represents an ever growing append-only table of currency exchange rates with respect to `Yen` (which has a rate of `1`).
-For example, the exchange rate for the period from `09:00` to `10:45` of `Euro` to `Yen` was `114`. From `10:45` to `11:15` it was `116`.
-
-Given that we would like to output all current rates at the time `10:58`, we would need the following SQL query to compute a result table:
+To define a versioned table on `RatesHistory`, Flink supports defining a versioned view 
+by [deduplication query]({{ site.baseurl }}/dev/table/sql/queries.html#deduplication) which produces an ordered changelog
+stream with an inferred primary key(`currency`) and event time(`currency_time`).
 
 {% highlight sql %}
-SELECT *
-FROM RatesHistory AS r
-WHERE r.rowtime = (
-  SELECT MAX(rowtime)
-  FROM RatesHistory AS r2
-  WHERE r2.currency = r.currency
-  AND r2.rowtime <= TIME '10:58');
+-- Define a versioned view
+CREATE VIEW versioned_rates AS              
+SELECT currency, rate, currency_time            -- (1) `currency_time` keeps the event time
+  FROM (
+      SELECT *,
+      ROW_NUMBER() OVER (PARTITION BY currency  -- (2) the inferred unique key `currency` can be a primary key
+         ORDER BY currency_time DESC) AS rowNum 
+      FROM RatesHistory)
+WHERE rowNum = 1; 
+
+-- the view `versioned_rates` will produce changelog as the following.
+(changelog kind) currency_time currency   rate
+================ ============= =========  ====
++(INSERT)        09:00:00      US Dollar  102
++(INSERT)        09:00:00      Euro       114
++(INSERT)        09:00:00      Yen        1
++(UPDATE_AFTER)  10:45:00      Euro       116
++(UPDATE_AFTER)  11:15:00      Euro       119
++(INSERT)        11:49:00      Pounds     108
+{% endhighlight sql %}
+
+Line `(1)` defines the `currency_time` as event time for view `versioned_rates`， Line `(2)` defines the primary key constraint
+for view `versioned_rates`, thus view `versioned_rates` is a versioned view.
+
+The deduplication query in view will be optimized in Flink and produce changelog effectively, the produced changelog keep primary key and event times.
+
+Given that we would like to output the version of `versioned_rates` view of the time `11:00:00`, the following table shows the result: 
+{% highlight sql %}
+currency_time currency   rate  
+============= ========== ====
+09:00:00      US Dollar  102
+09:00:00      Yen        1
+10:45:00      Euro       116
 {% endhighlight %}
 
-The correlated subquery determines the maximum time for the corresponding currency that is lower or equal than the desired time. The outer query lists the rates that have a maximum timestamp.
-
-The following table shows the result of such a computation. In our example, the update to `Euro` at `10:45` is taken into account, however, the update to `Euro` at `11:15` and the new entry of `Pounds` are not considered in the table's version at time `10:58`.
-
-{% highlight text %}
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-09:00   Yen           1
-10:45   Euro        116
+Given that we would like to output the version of `versioned_rates` view of the time `12:00:00`, the following table shows the result: 
+{% highlight sql %}
+currency_time currency   rate  
+============= ========== ====
+09:00:00      US Dollar  102
+09:00:00      Yen        1
+10:45:00      Euro       119
+11:49:00      Pounds     108
 {% endhighlight %}
 
-The concept of *Temporal Tables* aims to simplify such queries, speed up their execution, and reduce Flink's state usage. A *Temporal Table* is a parameterized view on an append-only table that interprets the rows of the append-only table as the changelog of a table and provides the version of that table at a specific point in time. Interpreting the append-only table as a changelog requires the specification of a primary key attribute and a timestamp attribute. The primary key determines which rows are overwritten and the timestamp determines the time during which a row is valid.
-
-In the above example `currency` would be a primary key for `RatesHistory` table and `rowtime` would be the timestamp attribute.
-
-In Flink, this is represented by a [*Temporal Table Function*](#temporal-table-function).
-
-### Correlate with a changing dimension table
-
-On the other hand, some use cases require to join a changing dimension table which is an external database table.
-
-Let's assume that `LatestRates` is a table (e.g. stored in HBase) which is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
-
-{% highlight text %}
-10:58> SELECT * FROM LatestRates;
-currency   rate
-======== ======
-US Dollar   102
-Yen           1
-Euro        116
+### Defining Regular Table
+ 
+Regular table definition is same with Flink table DDL, see also the page about [create table]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about how to create a regular table.
+ 
+{% highlight sql %}
+-- Define an HBase table with DDL, then we can use it as a temporal table in sql
+-- Column 'currency' is the rowKey in HBase table
+ CREATE TABLE LatestRates (   
+     currency STRING,   
+     fam1 ROW<rate DOUBLE>   
+ ) WITH (   
+    'connector' = 'hbase-1.4',   
+    'table-name' = 'rates',   
+    'zookeeper.quorum' = 'localhost:2181'   
+ );
 {% endhighlight %}
 
-The content of `LatestRates` table at time `12:00` will be:
+<span class="label label-danger">Attention</span>
+Arbitrary table can use as temporal table in processing-time temporal join theoretically, but currently the supported tale is the 
+table backed by a `LookupableTableSource`. A `LookupableTableSource` can only be used for processing-time temporal join as a temporal table. 
 
-{% highlight text %}
-12:00> SELECT * FROM LatestRates;
-currency   rate
-======== ======
-US Dollar   102
-Yen           1
-Euro        119
-Pounds      108
-{% endhighlight %}
+The table defines with `LookupableTableSource` means the table must has lookup ability to look up an external storage system 
+by one or more keys during runtime. The current supported regular table in processing-time temporal join includes 
+[JDBC]({{ site.baseurl }}/dev/table/connectors/jdbc.html), [HBase]({{ site.baseurl }}/dev/table/connectors/hbase.html) 
+and [Hive]({{ site.baseurl }}/dev/table/hive/hive_streaming.html#hive-table-as-temporal-tables).
 
-In Flink, this is represented by a [*Temporal Table*](#temporal-table).
+See also the page about [how to define LookupableTableSource](../sourceSinks.html#lookup-table-source).
+
+Using arbitrary table as temporal table in processing time temporal table join will be supported in the near future. 
 
 Temporal Table Function
 ------------------------
+The temporal table function is a legacy way to define ad temporal table and access the temporal table content. In order to access the data in a temporal table,  now we can use
+DDL to define a temporal table.
+
+The main difference between Temporal Table DDL and Temporal Table Function are the temporal table DDL can directly use in pure SQL but temporal table function can not; the temporal table DDL support defines versioned table from changelog stream and append-only stream but temporal table function only supports append-only stream.
+
 
 In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
 Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
@@ -127,33 +279,32 @@ This set contains the latest versions of the rows for all of the existing primar
 Assuming that we defined a temporal table function `Rates(timeAttribute)` based on `RatesHistory` table, we could query such a function in the following way:
 
 {% highlight sql %}
-SELECT * FROM Rates('10:15');
+SELECT * FROM Rates('10:15:00');
 
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-09:00   Euro        114
-09:00   Yen           1
+rowtime  currency  rate
+=======  ========= ====
+09:00:00 US Dollar 102
+09:00:00 Euro      114
+09:00:00 Yen       1
 
-SELECT * FROM Rates('11:00');
+SELECT * FROM Rates('11:00:00');
 
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-10:45   Euro        116
-09:00   Yen           1
+rowtime  currency  rate
+======== ========= ====
+09:00:00 US Dollar 102
+10:45:00 Euro      116
+09:00:00 Yen       1
 {% endhighlight %}
 
 Each query to `Rates(timeAttribute)` would return the state of the `Rates` for the given `timeAttribute`.
 
-**Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
-The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
+**Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. The above example was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
 
 See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
 
 ### Defining Temporal Table Function
 
-The following code snippet illustrates how to create a temporal table function from an append-only table.
+The following code snippet illustrates how to create a temporal table by temporal table function from an append-only table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -216,93 +367,10 @@ tEnv.registerFunction("Rates", rates)                                          /
 </div>
 </div>
 
-Line `(1)` creates a `rates` [temporal table function](#temporal-table-functions),
+Line `(1)` creates a `rates` [temporal table function](#temporal-table-function),
 which allows us to use the function `rates` in the [Table API](../tableApi.html#joins).
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
 which allows us to use the `Rates` function in [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
-
-## Temporal Table
-
-<span class="label label-danger">Attention</span> This is only supported in Blink planner.
-
-In order to access data in temporal table, currently one must define a `TableSource` with `LookupableTableSource`. Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011.
-
-Assuming that we defined a temporal table called `LatestRates`, we can query such a table in the following way:
-
-{% highlight sql %}
-SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '10:15';
-
-currency   rate
-======== ======
-US Dollar   102
-Euro        114
-Yen           1
-
-SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '11:00';
-
-currency   rate
-======== ======
-US Dollar   102
-Euro        116
-Yen           1
-{% endhighlight %}
-
-**Note**: Currently, Flink doesn't support directly querying the temporal table with a constant time. At the moment, temporal table can only be used in joins. The example above is used to provide an intuition about what the temporal table `LatestRates` returns.
-
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
-
-### Defining Temporal Table
-
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-// Get the stream and table environments.
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
-StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
-// or TableEnvironment tEnv = TableEnvironment.create(settings);
-
-// Define an HBase table with DDL, then we can use it as a temporal table in sql
-// Column 'currency' is the rowKey in HBase table
-tEnv.executeSql(
-    "CREATE TABLE LatestRates (" +
-    "   currency STRING," +
-    "   fam1 ROW<rate DOUBLE>" +
-    ") WITH (" +
-    "   'connector' = 'hbase-1.4'," +
-    "   'table-name' = 'Rates'," +
-    "   'zookeeper.quorum' = 'localhost:2181'" +
-    ")");
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// Get the stream and table environments.
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-val settings = EnvironmentSettings.newInstance().build()
-val tEnv = StreamTableEnvironment.create(env, settings)
-// or val tEnv = TableEnvironment.create(settings)
-
-// Define an HBase table with DDL, then we can use it as a temporal table in sql
-// Column 'currency' is the rowKey in HBase table
-tEnv.executeSql(
-    s"""
-       |CREATE TABLE LatestRates (
-       |    currency STRING,
-       |    fam1 ROW<rate DOUBLE>
-       |) WITH (
-       |    'connector' = 'hbase-1.4',
-       |    'table-name' = 'Rates',
-       |    'zookeeper.quorum' = 'localhost:2181'
-       |)
-       |""".stripMargin)
-
-{% endhighlight %}
-</div>
-</div>
-
-See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-for-lookups).
 
 {% top %}

@@ -721,6 +721,31 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) AS t(tag) ON TRUE
     </tr>
     <tr>
       <td>
+        <strong>Join Temporal Tables </strong><br>
+        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+        <p><a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 是随时间变化而变化的表。
+        <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 提供访问指定时间点的 temporal table 版本的功能。</p>
+
+        <p>支持基于处理时间 或 基于事件时间 的 temporal table join, 支持 inner 和 left join。 </p>
+        <p>基于事件时间的 temporal table join 在 <span class="label label-primary">批处理</span> 中暂不支持。</p>
+        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 物化的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 。</p>
+{% highlight sql %}
+SELECT
+  o.amount, o.currency, r.rate, o.amount * r.rate
+FROM
+  Orders AS o
+  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
+  ON r.currency = o.currency
+{% endhighlight %}
+        <p>Join 的右表可以使用可选表达式 <code>[[<strong>AS</strong>] correlationName]</code> 取别名，注意 <code><strong>AS</strong></code> 关键词也是可选的。</p>
+        <p>请阅读 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 概念描述以了解详细信息。</p>
+        <p>仅 Blink planner 支持。</p>
+      </td>
+    </tr>    
+    <tr>
+      <td>
         <strong>Join Temporal Table Function</strong><br>
         <span class="label label-primary">流处理</span>
       </td>
@@ -744,31 +769,6 @@ WHERE
         <p>请查看 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html"> Temporal Tables 概念描述</a> 以了解详细信息。</p>
       </td>
     </tr>
-    <tr>
-      <td>
-        <strong>Join Temporal Tables </strong><br>
-        <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
-      </td>
-      <td>
-        <p><a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 是随时间变化而变化的表。
-        <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 提供访问指定时间点的 temporal table 版本的功能。</p>
-
-        <p>仅支持带有处理时间的 temporal tables 的 inner 和 left join。</p>
-        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 物化的 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> 。</p>
-{% highlight sql %}
-SELECT
-  o.amout, o.currency, r.rate, o.amount * r.rate
-FROM
-  Orders AS o
-  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
-  ON r.currency = o.currency
-{% endhighlight %}
-        <p>Join 的右表可以使用可选表达式 <code>[[<strong>AS</strong>] correlationName]</code> 取别名，注意 <code><strong>AS</strong></code> 关键词也是可选的。</p>
-        <p>请阅读 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 概念描述以了解详细信息。</p>
-        <p>仅 Blink planner 支持。</p>
-      </td>
-    </tr>
-
   </tbody>
 </table>
 </div>
