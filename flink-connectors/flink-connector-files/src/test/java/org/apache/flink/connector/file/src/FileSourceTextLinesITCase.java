@@ -123,6 +123,19 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	 */
 	@Test
 	public void testContinuousTextFileSource() throws Exception {
+		testContinuousTextFileSource(FailoverType.NONE);
+	}
+
+	/**
+	 * This test runs a job reading continuous input (files appearing over time)
+	 * with a stream record format (text lines) and restarts TaskManager.
+	 */
+	@Test
+	public void testContinuousTextFileSourceWithTaskManagerFailover() throws Exception {
+		testContinuousTextFileSource(FailoverType.TM);
+	}
+
+	private void testContinuousTextFileSource(FailoverType failoverType) throws Exception {
 		final File testDir = TMP_FOLDER.newFolder();
 
 		final FileSource<String> source = FileSource
@@ -132,6 +145,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
 		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
 		env.setParallelism(PARALLELISM);
+		env.enableCheckpointing(10L);
 
 		final DataStream<String> stream = env.fromSource(
 			source,
@@ -155,15 +169,27 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		for (int i = 1; i < LINES_PER_FILE.length; i++) {
 			Thread.sleep(10);
 			writeFile(testDir, i);
+			final boolean failAfterHalfOfInput = i == LINES_PER_FILE.length / 2;
+			if (failoverType == FailoverType.TM && failAfterHalfOfInput) {
+				restartTaskManager();
+			}
 		}
 
-		final List<String> result2 = DataStreamUtils.collectRecordsFromUnboundedStream(client, numLinesAfter);
+		final List<String> result2 = DataStreamUtils.collectRecordsFromUnboundedStream(
+			client,
+			numLinesAfter);
 
 		// shut down the job, now that we have all the results we expected.
 		client.client.cancel().get();
 
 		result1.addAll(result2);
 		verifyResult(result1);
+	}
+
+	private static void restartTaskManager() throws Exception {
+		miniCluster.terminateTaskExecutor(0).get();
+		Thread.sleep(100);
+		miniCluster.startTaskExecutor();
 	}
 
 	// ------------------------------------------------------------------------
@@ -324,5 +350,10 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		assertTrue(parent.mkdirs() || parent.exists());
 
 		assertTrue(stagingFile.renameTo(file));
+	}
+
+	private enum FailoverType {
+		NONE,
+		TM
 	}
 }
