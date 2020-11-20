@@ -36,7 +36,7 @@ The command line can be used to
 - cancel a running job,
 - provide information about a job,
 - list running and waiting jobs,
-- trigger and dispose savepoints, and
+- trigger and dispose savepoints
 
 A prerequisite to using the command line interface is that the
 JobManager has been started (via
