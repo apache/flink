@@ -166,7 +166,7 @@ CREATE TABLE MyTable (
 
 Some connectors and formats expose additional metadata fields that can be accessed in metadata columns
 next to the physical payload columns. See the [`CREATE TABLE` section]({% link dev/table/sql/create.zh.md %}#columns)
-for more information about metadata column.
+for more information about metadata columns.
 
 ### Primary Key
 
