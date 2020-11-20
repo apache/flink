@@ -341,12 +341,13 @@ public class CliFrontendParser {
 	/**
 	 * Prints the help for the client.
 	 */
-	public static void printHelp(Collection<CustomCommandLine> customCommandLines) {
+	public static void printHelp(Collection<CustomCommandLine> customCommandLines, String availableApplicationModeTargets) {
 		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
 		System.out.println();
 		System.out.println("The following actions are available:");
 
 		printHelpForRun(customCommandLines);
+		printHelpForRunApplication(availableApplicationModeTargets);
 		printHelpForInfo();
 		printHelpForList(customCommandLines);
 		printHelpForStop(customCommandLines);
@@ -368,6 +369,18 @@ public class CliFrontendParser {
 
 		printCustomCliOptions(customCommandLines, formatter, true);
 
+		System.out.println();
+	}
+
+	public static void printHelpForRunApplication(String availableApplicationModeTargets) {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
+		System.out.println("\n  Syntax: run-application -t [" + availableApplicationModeTargets + "] [OPTIONS] <jar-file> <arguments>");
+		formatter.setSyntaxPrefix("  \"run-application\" action options:");
+		formatter.printHelp(" ", new Options().addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES));
 		System.out.println();
 	}
 
