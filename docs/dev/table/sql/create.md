@@ -144,10 +144,12 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 ## CREATE TABLE
 
-{% highlight sql %}
+The following grammar gives an overview about the available syntax:
+
+{% highlight text %}
 CREATE TABLE [catalog_name.][db_name.]table_name
   (
-    { <column_definition> | <computed_column_definition> }[ , ...n]
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
     [ <table_constraint> ][ , ...n]
   )
@@ -156,7 +158,7 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] ]
    
-<column_definition>:
+<physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
   
 <column_constraint>:
@@ -164,6 +166,9 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 <table_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
+
+<metadata_column_definition>:
+  column_name column_type METADATA [ FROM metadata_key ] [ VIRTUAL ]
 
 <computed_column_definition>:
   column_name AS computed_column_expression [COMMENT column_comment]
@@ -182,24 +187,169 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 {% endhighlight %}
 
-Creates a table with the given name. If a table with the same name already exists in the catalog, an exception is thrown.
+The statement above creates a table with the given name. If a table with the same name already exists
+in the catalog, an exception is thrown.
 
-**COMPUTED COLUMN**
+### Columns
 
-A computed column is a virtual column that is generated using the syntax  "`column_name AS computed_column_expression`". It is generated from a non-query expression that uses other columns in the same table and is not physically stored within the table. For example, a computed column could be defined as `cost AS price * quantity`. The expression may contain any combination of physical column, constant, function, or variable. The expression cannot contain a subquery.
+**Physical / Regular Columns**
 
-Computed columns are commonly used in Flink for defining [time attributes]({{ site.baseurl}}/dev/table/streaming/time_attributes.html) in CREATE TABLE statements.
-A [processing time attribute]({{ site.baseurl}}/dev/table/streaming/time_attributes.html#processing-time) can be defined easily via `proc AS PROCTIME()` using the system `PROCTIME()` function.
-On the other hand, computed column can be used to derive event time column because an event time column may need to be derived from existing fields, e.g. the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+Physical columns are regular columns known from databases. They define the names, the types, and the
+order of fields in the physical data. Thus, physical columns represent the payload that is read from
+and written to an external system. Connectors and formats use these columns (in the defined order)
+to configure themselves. Other kinds of columns can be declared between physical columns but will not
+influence the final physical schema.
 
-Notes:
+The following statement creates a table with only regular columns:
 
-- A computed column defined on a source table is computed after reading from the source, it can be used in the following SELECT query statements.
-- A computed column cannot be the target of an INSERT statement. In INSERT statements, the schema of SELECT clause should match the schema of the target table without computed columns.
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING
+) WITH (
+  ...
+);
+{% endhighlight %}
 
-**WATERMARK**
+**Metadata Columns**
 
-The `WATERMARK` defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression`.
+Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
+fields for every row of a table. A metadata column is indicated by the `METADATA` keyword. For example,
+a metadata column can be be used to read and write the timestamp from and to Kafka records for time-based
+operations. The [connector and format documentation]({% link dev/table/connectors/index.md %}) lists the
+available metadata fields for every component. However, declaring a metadata column in a table's schema
+is optional.
+
+The following statement creates a table with an additional metadata column that references the metadata field `timestamp`:
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `record_time` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+Every metadata field is identified by a string-based key and has a documented data type. For example,
+the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP(3) WITH LOCAL TIME ZONE`
+that can be used for both reading and writing records.
+
+In the example above, the metadata column `record_time` becomes part of the table's schema and can be
+transformed and stored like a regular column:
+
+{% highlight sql %}
+INSERT INTO MyTable SELECT user_id, name, record_time + INTERVAL '1' SECOND FROM MyTable;
+{% endhighlight %}
+
+For convenience, the `FROM` clause can be omitted if the column name should be used as the identifying metadata key:
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA    -- use column name as metadata key
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+For convenience, the runtime will perform an explicit cast if the data type of the column differs from
+the data type of the metadata field. Of course, this requires that the two data types are compatible.
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `timestamp` BIGINT METADATA    -- cast the timestamp as BIGINT
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+By default, the planner assumes that a metadata column can be used for both reading and writing. However,
+in many cases an external system provides more read-only metadata fields than writable fields. Therefore,
+it is possible to exclude metadata columns from persisting using the `VIRTUAL` keyword.
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
+  `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
+  `user_id` BIGINT,
+  `name` STRING,
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+In the example above, the `offset` is a read-only metadata column and excluded from the query-to-sink
+schema. Thus, source-to-query schema (for `SELECT`) and query-to-sink (for `INSERT INTO`) schema differ:
+
+{% highlight text %}
+source-to-query schema:
+MyTable(`timestamp` BIGINT, `offset` BIGINT, `user_id` BIGINT, `name` STRING)
+
+query-to-sink schema:
+MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
+{% endhighlight %}
+
+**Computed Columns**
+
+Computed columns are virtual columns that are generated using the syntax `column_name AS computed_column_expression`.
+
+A computed column evaluates an expression that can reference other columns declared in the same table.
+Both physical columns and metadata columns can be accessed if they preceed the computed column in the
+schema declaration. The column itself is not physically stored within the table. The column's data type
+is derived automatically from the given expression and does not have to be declared manually.
+
+The planner will transform computed columns into a regular projection after the source. For optimization
+or [watermark strategy push down]({% link dev/table/sourceSinks.md %}), the evaluation might be spread
+across operators, performed multiple times, or skipped if not needed for the given query.
+
+For example, a computed column could be defined as:
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `price` DOUBLE,
+  `quantity` DOUBLE,
+  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+The expression may contain any combination of columns, constants, or functions. The expression cannot
+contain a subquery.
+
+Computed columns are commonly used in Flink for defining [time attributes]({% link dev/table/streaming/time_attributes.md %})
+in `CREATE TABLE` statements.
+- A [processing time attribute]({% link dev/table/streaming/time_attributes.md %}#processing-time)
+can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
+- An [event time attribute]({% link dev/table/streaming/time_attributes.md %}#event-time) timestamp
+can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
+if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+
+Similar to virtual metadata columns, computed columns are excluded from persisting. Therefore, a computed
+column cannot be the target of an `INSERT INTO` statement. Thus, source-to-query schema (for `SELECT`)
+and query-to-sink (for `INSERT INTO`) schema differ:
+
+{% highlight text %}
+source-to-query schema:
+MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE, `cost` DOUBLE)
+
+query-to-sink schema:
+MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
+{% endhighlight %}
+
+### `WATERMARK`
+
+The `WATERMARK` clause defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name AS watermark_strategy_expression`.
 
 The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
 
@@ -234,7 +384,7 @@ CREATE TABLE Orders (
 ) WITH ( . . . );
 {% endhighlight %}
 
-**PRIMARY KEY**
+### `PRIMARY KEY`
 
 Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.
 Neither of columns in a primary can be nullable. Primary key therefore uniquely identify a row in a table.
@@ -242,7 +392,7 @@ Neither of columns in a primary can be nullable. Primary key therefore uniquely 
 Primary key constraint can be either declared along with a column definition (a column constraint) or as a single line (a table constraint).
 For both cases, it should only be declared as a singleton. If you define multiple primary key constraints at the same time, an exception would be thrown.
 
-##### Validity Check
+**Validity Check**
 
 SQL standard specifies that a constraint can either be `ENFORCED` or `NOT ENFORCED`. This controls if the constraint checks are performed on the incoming/outgoing data.
 Flink does not own the data therefore the only mode we want to support is the `NOT ENFORCED` mode.
@@ -252,21 +402,21 @@ Flink will assume correctness of the primary key by assuming that the columns nu
 
 **Notes:** In a CREATE TABLE statement, creating a primary key constraint will alter the columns nullability, that means, a column with primary key constraint is not nullable.
 
-**PARTITIONED BY**
+### `PARTITIONED BY`
 
 Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
 
-**WITH OPTIONS**
+### `WITH` Options
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
 
-The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({{ site.baseurl }}/dev/table/connect.html) for all the supported table properties of different connectors.
+The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({{ site.baseurl }}/dev/table/connectors) for all the supported table properties of different connectors.
 
 **Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
 **Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
 
-**LIKE clause**
+### `LIKE`
 
 The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
 can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
@@ -313,6 +463,7 @@ You can control the merging behavior of:
 
 * CONSTRAINTS - constraints such as primary and unique keys
 * GENERATED - computed columns
+* METADATA - metadata columns
 * OPTIONS - connector options that describe connector and format properties
 * PARTITIONS - partition of the tables
 * WATERMARKS - watermark declarations
@@ -359,7 +510,7 @@ LIKE Orders_in_file (
 
 If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used as a default.
 
-**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
+**NOTE** You cannot control the behavior of merging physical columns. Those will be merged as if you applied the `INCLUDING` strategy.
 
 **NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
 

@@ -50,20 +50,137 @@ The example below shows how to create a Kafka table:
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
-CREATE TABLE kafkaTable (
- user_id BIGINT,
- item_id BIGINT,
- category_id BIGINT,
- behavior STRING,
- ts TIMESTAMP(3)
+CREATE TABLE KafkaTable (
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp'
 ) WITH (
- 'connector' = 'kafka',
- 'topic' = 'user_behavior',
- 'properties.bootstrap.servers' = 'localhost:9092',
- 'properties.group.id' = 'testGroup',
- 'format' = 'csv',
- 'scan.startup.mode' = 'earliest-offset'
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'format' = 'csv'
 )
+{% endhighlight %}
+</div>
+</div>
+
+Available Metadata
+------------------
+
+The following connector metadata can be accessed as metadata columns in a table definition.
+
+The `R/W` column defines whether a metadata field is readable (`R`) and/or writable (`W`).
+Read-only columns must be declared `VIRTUAL` to exclude them during an `INSERT INTO` operation.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 30%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+      <th class="text-center" style="width: 5%">R/W</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>topic</code></td>
+      <td><code>STRING NOT NULL</code></td>
+      <td>Topic name of the Kafka record.</td>
+      <td><code>R</code></td>
+    </tr>
+    <tr>
+      <td><code>partition</code></td>
+      <td><code>INT NOT NULL</code></td>
+      <td>Partition ID of the Kafka record.</td>
+      <td><code>R</code></td>
+    </tr>
+    <tr>
+      <td><code>headers</code></td>
+      <td><code>MAP<STRING, BYTES> NOT NULL</code></td>
+      <td>Headers of the Kafka record as a map of raw bytes.</td>
+      <td><code>R/W</code></td>
+    </tr>
+    <tr>
+      <td><code>leader-epoch</code></td>
+      <td><code>INT NULL</code></td>
+      <td>Leader epoch of the Kafka record if available.</td>
+      <td><code>R</code></td>
+    </tr>
+    <tr>
+      <td><code>offset</code></td>
+      <td><code>BIGINT NOT NULL</code></td>
+      <td>Offset of the Kafka record in the partition.</td>
+      <td><code>R</code></td>
+    </tr>
+    <tr>
+      <td><code>timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL</code></td>
+      <td>Timestamp of the Kafka record.</td>
+      <td><code>R/W</code></td>
+    </tr>
+    <tr>
+      <td><code>timestamp-type</code></td>
+      <td><code>STRING NOT NULL</code></td>
+      <td>Timestamp type of the Kafka record. Either "NoTimestampType",
+          "CreateTime" (also set when writing metadata), or "LogAppendTime".</td>
+      <td><code>R</code></td>
+    </tr>
+    </tbody>
+</table>
+
+The extended `CREATE TABLE` example demonstrates the syntax for exposing these metadata fields:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `event_time` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `partition` BIGINT METADATA VIRTUAL,
+  `offset` BIGINT METADATA VIRTUAL,
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'format' = 'csv'
+);
+{% endhighlight %}
+</div>
+</div>
+
+**Format Metadata**
+
+The connector is able to expose metadata of the value format for reading. Format metadata keys
+are prefixed with `'value.'`.
+
+The following example shows how to access both Kafka and Debezium metadata fields:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,  -- from Debezium format
+  `origin_table` STRING METADATA FROM 'value.source.table' VIRTUAL, -- from Debezium format
+  `partition_id` BIGINT METADATA FROM 'partition' VIRTUAL,  -- from Kafka connector
+  `offset` BIGINT METADATA VIRTUAL,  -- from Kafka connector
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'debezium-json'
+);
 {% endhighlight %}
 </div>
 </div>
@@ -122,9 +239,65 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The format used to deserialize and serialize Kafka messages.
-      The supported formats are <code>'csv'</code>, <code>'json'</code>, <code>'avro'</code>, <code>'debezium-json'</code> and <code>'canal-json'</code>.
-      Please refer to <a href="{% link dev/table/connectors/formats/index.zh.md %}">Formats</a> page for more details and more format options.
+      <td>The format used to deserialize and serialize the value part of Kafka messages.
+      Please refer to the <a href="{% link dev/table/connectors/formats/index.zh.md %}">formats</a> page for
+      more details and more format options.
+      Note: Either this option or the <code>'value.format'</code> option are required.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>key.format</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The format used to deserialize and serialize the key part of Kafka messages.
+      Please refer to the <a href="{% link dev/table/connectors/formats/index.zh.md %}">formats</a> page
+      for more details and more format options. Note: If a key format is defined, the <code>'key.fields'</code>
+      option is required as well. Otherwise the Kafka records will have an empty key.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>key.fields</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">[]</td>
+      <td>List&lt;String&gt;</td>
+      <td>Defines an explicit list of physical columns from the table schema that configure the data
+        type for the key format. By default, this list is empty and thus a key is undefined.
+        The list should look like <code>'field1;field2'</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>key.fields-prefix</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Defines a custom prefix for all fields of the key format to avoid name clashes with fields
+        of the value format. By default, the prefix is empty. If a custom prefix is defined, both the
+        table schema and <code>'key.fields'</code> will work with prefixed names. When constructing the
+        data type of the key format, the prefix will be removed and the non-prefixed names will be used
+        within the key format. Please note that this option requires that <code>'value.fields-include'</code>
+        must be set to <code>'EXCEPT_KEY'</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>value.format</h5></td>
+      <td>required</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The format used to deserialize and serialize the value part of Kafka messages.
+      Please refer to the <a href="{% link dev/table/connectors/formats/index.zh.md %}">formats</a> page
+      for more details and more format options.
+      Note: Either this option or the <code>'format'</code> option are required.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>value.fields-include</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">ALL</td>
+      <td><p>Enum</p>Possible values: [ALL, EXCEPT_KEY]</td>
+      <td>Defines a strategy how to deal with key columns in the data type of the value format. By
+        default, <code>'ALL'</code> physical columns of the table schema will be included in the value
+        format which means that key columns appear in the data type for both the key and value format.
       </td>
     </tr>
     <tr>
@@ -190,6 +363,130 @@ Connector Options
 
 Features
 ----------------
+
+### Key and Value Formats
+
+Both the key and value part of a Kafka record can be serialized to and deserialized from raw bytes using
+one of the given [formats]({% link dev/table/connectors/formats/index.zh.md %}).
+
+**Value Format**
+
+Since a key is optional in Kafka records, the following statement reads and writes records with a configured
+value format but without a key format. The `'format'` option is a synonym for `'value.format'`. All format
+options are prefixed with the format identifier.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (,
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  ...
+
+  'format' = 'json',
+  'json.ignore-parse-errors' = 'true'
+)
+{% endhighlight %}
+</div>
+</div>
+
+The value format will be configured with the following data type:
+
+{% highlight text %}
+ROW<`user_id` BIGINT, `item_id` BIGINT, `behavior` STRING>
+{% endhighlight %}
+
+**Key and Value Format**
+
+The following example shows how to specify and configure key and value formats. The format options are
+prefixed with either the `'key'` or `'value'` plus format identifier.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  ...
+
+  'key.format' = 'json',
+  'key.json.ignore-parse-errors' = 'true',
+  'key.fields' = 'user_id;item_id',
+
+  'value.format' = 'json',
+  'value.json.fail-on-missing-field' = 'false',
+  'value.fields-include' = 'ALL'
+)
+{% endhighlight %}
+</div>
+</div>
+
+The key format includes the fields listed in `'key.fields'` (using `';'` as the delimiter) in the same
+order. Thus, it will be configured with the following data type:
+
+{% highlight text %}
+ROW<`user_id` BIGINT, `item_id` BIGINT>
+{% endhighlight %}
+
+Since the value format is configured with `'value.fields-include' = 'ALL'`, key fields will also end up in
+the value format's data type:
+
+{% highlight text %}
+ROW<`user_id` BIGINT, `item_id` BIGINT, `behavior` STRING>
+{% endhighlight %}
+
+**Overlapping Format Fields**
+
+The connector cannot split the table's columns into key and value fields based on schema information
+if both key and value formats contain fields of the same name. The `'key.fields-prefix'` option allows
+to give key columns a unique name in the table schema while keeping the original names when configuring
+the key format.
+
+The following example shows a key and value format that both contain a `version` field:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `k_version` INT,
+  `k_user_id` BIGINT,
+  `k_item_id` BIGINT,
+  `version` INT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  ...
+
+  'key.format' = 'json',
+  'key.fields-prefix' = 'k_',
+  'key.fields' = 'k_version;k_user_id;k_item_id',
+
+  'value.format' = 'json',
+  'value.fields-include' = 'EXCEPT_KEY'
+)
+{% endhighlight %}
+</div>
+</div>
+
+The value format must be configured in `'EXCEPT_KEY'` mode. The formats will be configured with
+the following data types:
+
+{% highlight text %}
+key format:
+ROW<`version` INT, `user_id` BIGINT, `item_id` BIGINT>
+
+value format:
+ROW<`version` INT, `behavior` STRING>
+{% endhighlight %}
+
 ### Topic and Partition Discovery
 
 The config option `topic` and `topic-pattern` specifies the topics or topic pattern to consume for source. The config option `topic` can accept topic list using semicolon separator like 'topic-1;topic-2'.
@@ -199,7 +496,7 @@ To allow the consumer to discover dynamically created topics after the job start
 
 Please refer to [Kafka DataStream Connector documentation]({% link dev/connectors/kafka.zh.md %}#kafka-consumers-topic-and-partition-discovery) for more about topic and partition discovery.
 
-Notice that topic list and topic pattern only work in source. In sink, Flink currently only supports single topic.
+Note that topic list and topic pattern only work in sources. In sinks, Flink currently only supports a single topic.
 
 ### Start Reading Position
 

@@ -74,6 +74,7 @@ Flink supports the following formats:
         <tr>
         <td><a href="{% link dev/table/connectors/formats/raw.md %}">Raw</a></td>
         <td><a href="{% link dev/table/connectors/kafka.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.md %}">Filesystem</a></td>
         </tr>
     </tbody>

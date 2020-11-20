@@ -91,6 +91,12 @@ GROUP BY region;
 </div>
 <span class="label label-danger">注意</span> 确保在 DDL 中定义主键。
 
+Available Metadata
+------------------
+
+See the [regular Kafka connector]({% link dev/connectors/kafka.zh.md %}#available-metadata) for a list
+of all available metadata fields.
+
 连接器参数
 ----------------
 
@@ -135,6 +141,19 @@ GROUP BY region;
       </td>
     </tr>
     <tr>
+      <td><h5>key.fields-prefix</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Defines a custom prefix for all fields of the key format to avoid name clashes with fields
+        of the value format. By default, the prefix is empty. If a custom prefix is defined, both the
+        table schema and <code>'key.fields'</code> will work with prefixed names. When constructing the
+        data type of the key format, the prefix will be removed and the non-prefixed names will be used
+        within the key format. Please note that this option requires that <code>'value.fields-include'</code>
+        must be set to <code>'EXCEPT_KEY'</code>.
+      </td>
+    </tr>
+    <tr>
       <td><h5>value.format</h5></td>
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
@@ -167,6 +186,39 @@ GROUP BY region;
 特性
 ----------------
 
+### Key and Value Formats
+
+See the [regular Kafka connector]({% link dev/connectors/kafka.zh.md %}#key-and-value-formats) for more
+explanation around key and value formats. However, note that this connector requires both a key and
+value format where the key fields are derived from the `PRIMARY KEY` constraint.
+
+The following example shows how to specify and configure key and value formats. The format options are
+prefixed with either the `'key'` or `'value'` plus format identifier.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  PRIMARY KEY (`user_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'upsert-kafka',
+  ...
+
+  'key.format' = 'json',
+  'key.json.ignore-parse-errors' = 'true',
+
+  'value.format' = 'json',
+  'value.json.fail-on-missing-field' = 'false',
+  'value.fields-include' = 'EXCEPT_KEY'
+)
+{% endhighlight %}
+</div>
+</div>
+
 ### 主键约束
 
 Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键。在具有相同主键值的消息按序存储在同一个分区的前提下，在 changlog source 定义主键意味着 在物化后的 changelog 上主键具有唯一性。定义的主键将决定哪些字段出现在 Kafka 消息的 key 中。
@@ -175,7 +227,7 @@ Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键
 
 默认情况下，如果[启用 checkpoint]({% link dev/stream/state/checkpointing.zh.md %}#enabling-and-configuring-checkpointing)，Upsert Kafka sink 会保证至少一次将数据插入 Kafka topic。
 
-这意味着，Flink 可以将具有相同 key 的重复记录写入 Kafka topic。但由于该连接器以 upsert 的模式工作，该连接器作为 source 读入时，可以确保具有相同主键值下仅最后一条消息会生效。因此，upsert-kafka 连接器可以像 [HBase sink]({{ site.baseurl }}/dev/table/connectors/hbase.html) 一样实现幂等写入。
+这意味着，Flink 可以将具有相同 key 的重复记录写入 Kafka topic。但由于该连接器以 upsert 的模式工作，该连接器作为 source 读入时，可以确保具有相同主键值下仅最后一条消息会生效。因此，upsert-kafka 连接器可以像 [HBase sink]({% link dev/table/connectors/hbase.zh.md %}) 一样实现幂等写入。
 
 数据类型映射
 ----------------
