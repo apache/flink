@@ -107,7 +107,9 @@ CREATE TABLE topic_products (
  'topic' = 'products_binlog',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'debezium-json'  -- please use 'debezium-avro-confluent' if Debezium encodes messages in Avro format
+ -- using 'debezium-json' as the format to interpret Debezium JSON messages
+ -- please use 'debezium-avro-confluent' if Debezium encodes messages in Avro format
+ 'format' = 'debezium-json'
 )
 {% endhighlight %}
 </div>
@@ -163,7 +165,7 @@ Format Options
 ----------------
 
 Flink provides `debezium-avro-confluent` and `debezium-json` formats to interpret Avro or Json messages produced by Debezium.
-Please pick corresponding format according to your Debezium message encoding.
+Use format `debezium-avro-confluent` to interpret Debezium Avro messages and format `debezium-json` to interpret Debezium Json messages.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Debezium Avro" markdown="1">

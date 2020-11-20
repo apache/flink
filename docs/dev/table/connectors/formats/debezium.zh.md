@@ -107,6 +107,8 @@ CREATE TABLE topic_products (
  'topic' = 'products_binlog',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
+  -- 使用 'debezium-json' format 来解析 Debezium 的 JSON 消息
+  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
  'format' = 'debezium-json'  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
 )
 {% endhighlight %}
@@ -163,7 +165,7 @@ Format 参数
 ----------------
 
 Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来解析 Debezium 生成的 JSON 格式和 Avro 格式的消息。
-请根据你的 Debezium 消息编码格式来选择对应的 format。
+请使用 `debezium-avro-confluent` 来解析 Debezium 的 Avro 消息，使用 `debezium-json` 来解析 Debezium 的 JSON 消息。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Debezium Avro" markdown="1">
