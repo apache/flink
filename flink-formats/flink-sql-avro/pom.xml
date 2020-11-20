@@ -75,6 +75,10 @@ under the License.
 									<pattern>org.apache.commons.compress</pattern>
 									<shadedPattern>org.apache.flink.avro.shaded.org.apache.commons.compress</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.avro</pattern>
+									<shadedPattern>org.apache.flink.avro.shaded.org.apache.avro</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
