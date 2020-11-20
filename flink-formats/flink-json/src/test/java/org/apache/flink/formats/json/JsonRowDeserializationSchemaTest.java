@@ -394,9 +394,12 @@ public class JsonRowDeserializationSchemaTest {
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.typeInfo(Types.ROW_NAMED(new String[]{"map"}, Types.MAP(Types.STRING, Types.INT)))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'"),
 
-
+		TestSpec
+			.json("{\"id\":1,\"factor\":799.929496989092949698}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id", "factor"}, Types.INT, Types.BIG_DEC))
+			.expect(Row.of(1, new BigDecimal("799.929496989092949698")))
 	);
 
 	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {
