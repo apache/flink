@@ -897,7 +897,7 @@ Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的�
 **`AggregateFunction` 的以下方法在某些场景下是必须实现的：**
 
 - `retract()` 在 bounded `OVER` 窗口中是必须实现的。
-- `merge()` 在许多批式聚合和会话窗口聚合中是必须实现的。
+- `merge()` 在许多批式聚合和会话以及滚动窗口聚合中是必须实现的。除此之外，这个方法对于优化也很多帮助。例如，两阶段聚合优化就需要所有的 `AggregateFunction` 都实现 `merge` 方法。
 - `resetAccumulator()` 在许多批式聚合中是必须实现的。
 
 `AggregateFunction` 的所有方法都必须是 `public` 的，不能是 `static` 的，而且名字必须跟上面写的一样。`createAccumulator`、`getValue`、`getResultType` 以及 `getAccumulatorType` 这几个函数是在抽象类 `AggregateFunction` 中定义的，而其他函数都是约定的方法。如果要定义一个聚合函数，你需要扩展 `org.apache.flink.table.functions.AggregateFunction`，并且实现一个（或者多个）`accumulate` 方法。`accumulate` 方法可以重载，每个方法的参数类型不同，并且支持变长参数。
