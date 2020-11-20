@@ -664,7 +664,12 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12+0800\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'.")
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'."),
+
+		TestSpec
+			.json("{\"id\":1,\"factor\":799.929496989092949698}")
+			.rowType(ROW(FIELD("id", INT()), FIELD("factor", DECIMAL(38, 18))))
+			.expect(Row.of(1, new BigDecimal("799.929496989092949698")))
 	);
 
 	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {
