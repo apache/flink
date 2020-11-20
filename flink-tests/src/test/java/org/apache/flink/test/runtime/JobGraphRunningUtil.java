@@ -40,7 +40,7 @@ public class JobGraphRunningUtil {
 			int numTaskManagers,
 			int numSlotsPerTaskManager) throws Exception {
 		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
-		configuration.setString(RestOptions.BIND_ADDRESS, "0");
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
