@@ -152,74 +152,73 @@ public class KubernetesConfigOptions {
 			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
 	public static final ConfigOption<String> JOBMANAGER_PVC_MOUNT =
-		key("kubernetes.jobmanager.pvcmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("PVC mount information for the Job manager. " +
-				"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the claim, mounting path");
+			key("kubernetes.jobmanager.pvcmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("PVC mount information for the Job manager. " +
+							"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the claim, mounting path");
 
 	public static final ConfigOption<String> JOBMANAGER_SECRET_MOUNT =
-		key("kubernetes.jobmanager.secretmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("Secret mount information for the Job manager. " +
-				"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the secret, mounting path");
+			key("kubernetes.jobmanager.secretmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Secret mount information for the Job manager. " +
+							"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the secret, mounting path");
 
 	public static final ConfigOption<String> JOBMANAGER_CONFIGMAP_MOUNT =
-		key("kubernetes.jobmanager.configmapmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("Config map mount information for the Job manager. " +
-				"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the config map, mounting path");
-
+			key("kubernetes.jobmanager.configmapmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Config map mount information for the Job manager. " +
+							"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the config map, mounting path");
 
 	public static final ConfigOption<String> TASKMANAGER_PVC_MOUNT =
-		key("kubernetes.taskmanager.pvcmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("PVC mount information for the Task manager. " +
-				"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the claim, mounting path");
+			key("kubernetes.taskmanager.pvcmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("PVC mount information for the Task manager. " +
+							"Value can contain several comma-separated PVC mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the claim, mounting path");
 
 	public static final ConfigOption<String> TASKMANAGER_SECRET_MOUNT =
-		key("kubernetes.taskmanager.secretmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("Secret mount information for the Task manager. " +
-				"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the secret, mounting path");
+			key("kubernetes.taskmanager.secretmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Secret mount information for the Task manager. " +
+							"Value can contain several comma-separated secret mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the secret, mounting path");
 
 	public static final ConfigOption<String> TASKMANAGER_CONFIGMAP_MOUNT =
-		key("kubernetes.taskmanager.configmapmount")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("Config map mount information for the Task manager. " +
-				"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
-				"parameters - name used for mount, name of the config map, mounting path");
+			key("kubernetes.taskmanager.configmapmount")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Config map mount information for the Task manager. " +
+							"Value can contain several comma-separated config map mounts. Each mount is defined by three : separated " +
+							"parameters - name used for mount, name of the config map, mounting path");
 
 	public static final ConfigOption<String> JOBMANAGER_ENV_VARIABLES =
-		key("kubernetes.jobmanager.environment")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("environment variables for the Job manager. " +
-				"Value can contain several comma-separated environment variables. Each environment variable is defined as a key-value pair");
+			key("kubernetes.jobmanager.environment")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("environment variables for the Job manager. " +
+							"Value can contain several comma-separated environment variables. Each environment variable is defined as a key-value pair");
 
 	public static final ConfigOption<String> TASKMANAGER_ENV_VARIABLES =
-		key("kubernetes.taskmanager.environment")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("environment variables for the Task manager. " +
-				"Value can contain several comma-separated environment variables. Each environment variable is defined as a key-value pair");
+			key("kubernetes.taskmanager.environment")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("environment variables for the Task manager. " +
+							"Value can contain several comma-separated environment variables. Each environment variable is defined as a key-value pair");
 
 	public static final ConfigOption<String> JOBMANAGER_OWNER_REF =
-		key("kubernetes.jobmanager.ownerref")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("owner reference for the job manager. " +
-				"Value is a comma-separated values - apiVersion, blockOwnerDeletion, controller, kind, name, uid");
+			key("kubernetes.jobmanager.ownerref")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("owner reference for the job manager. " +
+							"Value is a comma-separated values - apiVersion, blockOwnerDeletion, controller, kind, name, uid");
 
 	/**
 	 * The following config options need to be set according to the image.

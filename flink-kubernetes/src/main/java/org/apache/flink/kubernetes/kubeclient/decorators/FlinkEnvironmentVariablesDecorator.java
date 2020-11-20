@@ -62,15 +62,21 @@ public class FlinkEnvironmentVariablesDecorator extends AbstractKubernetesStepDe
 			return flinkPod;
 		}
 
+		// Get current environment variables and merge them with new ones
+		List<EnvVar> current = flinkPod.getMainContainer().getEnv();
+		if ((current != null) && (current.size() > 0)) {
+			envVarList.addAll(current);
+		}
+
 		// Update container
-		final Container mainContainerWithStartCmd = new ContainerBuilder(flinkPod.getMainContainer())
-				.withEnv(envVarList)
-				.build();
+		final Container containerWithEnvironment = new ContainerBuilder(flinkPod.getMainContainer())
+			.withEnv(envVarList)
+			.build();
 
 		// Rebuild POd
 		return new FlinkPod.Builder(flinkPod)
-				.withMainContainer(mainContainerWithStartCmd)
-				.build();
+			.withMainContainer(containerWithEnvironment)
+			.build();
 	}
 
 	/**
