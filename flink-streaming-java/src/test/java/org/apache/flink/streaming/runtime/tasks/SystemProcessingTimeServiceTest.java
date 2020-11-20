@@ -352,6 +352,9 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			}
 		} while (interruptCallerThread.isAlive());
 
+		// clear the interrupted flag in case join didn't do it
+		final boolean ignored = Thread.interrupted();
+
 		blockUntilTriggered.trigger();
 		Assert.assertTrue(timeService.shutdownServiceUninterruptible(timeoutMs));
 		Assert.assertTrue(timerFinished.get());
