@@ -74,6 +74,7 @@ Flink 支持以下格式：
         <tr>
         <td><a href="{% link dev/table/connectors/formats/raw.zh.md %}">Raw</a></td>
         <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>        
     </tbody>
