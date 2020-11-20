@@ -160,6 +160,90 @@ SELECT * FROM topic_products;
 </div>
 </div>
 
+Available Metadata
+------------------
+
+The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+
+<span class="label label-danger">Attention</span> Format metadata fields are only available if the
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 40%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>schema</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>JSON string describing the schema of the payload. Null if the schema is not included in
+      the Debezium record.</td>
+    </tr>
+    <tr>
+      <td><code>ingestion-timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts_ms</code>
+      field in the Debezium record.</td>
+    </tr>
+    <tr>
+      <td><code>source.timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp at which the source system created the event. Corresponds to the <code>source.ts_ms</code>
+      field in the Debezium record.</td>
+    </tr>
+    <tr>
+      <td><code>source.database</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database. Corresponds to the <code>source.db</code> field in the
+      Debezium record if available.</td>
+    </tr>
+    <tr>
+      <td><code>source.schema</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database schema. Corresponds to the <code>source.schema</code> field in the
+      Debezium record if available.</td>
+    </tr>
+    <tr>
+      <td><code>source.table</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database table. Corresponds to the <code>source.table</code> or <code>source.collection</code>
+      field in the Debezium record if available.</td>
+    </tr>
+    <tr>
+      <td><code>source.properties</code></td>
+      <td><code>MAP&lt;STRING, STRING&gt; NULL</code></td>
+      <td>Map of various source properties. Corresponds to the <code>source</code> field in the Debezium record.</td>
+    </tr>
+    </tbody>
+</table>
+
+The following example shows how to access Debezium metadata fields in Kafka:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  `origin_table` STRING METADATA FROM 'value.source.table' VIRTUAL,
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'debezium-json'
+);
+{% endhighlight %}
+</div>
+</div>
 
 Format Options
 ----------------

@@ -49,18 +49,20 @@ The following example shows how to create a table backed by a Kinesis data strea
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE KinesisTable (
- user_id BIGINT,
- item_id BIGINT,
- category_id BIGINT,
- behavior STRING,
- ts TIMESTAMP(3)
-) PARTITIONED BY (user_id, item_id) WITH (
- 'connector' = 'kinesis',
- 'stream' = 'user_behavior',
- 'aws.region' = 'us-east-2',
- 'scan.stream.initpos' = 'LATEST',
- 'format' = 'csv'
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `category_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3)
 )
+PARTITIONED BY (user_id, item_id)
+WITH (
+  'connector' = 'kinesis',
+  'stream' = 'user_behavior',
+  'aws.region' = 'us-east-2',
+  'scan.stream.initpos' = 'LATEST',
+  'format' = 'csv'
+);
 {% endhighlight %}
 </div>
 </div>
@@ -80,44 +82,46 @@ The following metadata can be exposed as read-only (`VIRTUAL`) columns in a tabl
     </thead>
     <tbody>
     <tr>
-      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Record.html#Streams-Type-Record-ApproximateArrivalTimestamp">'timestamp'</a></code></td>
-      <td><code>TIMESTAMP(3) WITH LOCAL TIMEZONE NOT NULL</code></td>
+      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Record.html#Streams-Type-Record-ApproximateArrivalTimestamp">timestamp</a></code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL</code></td>
       <td>The approximate time when the record was inserted into the stream.</td>
     </tr>
     <tr>
-      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Shard.html#Streams-Type-Shard-ShardId">'shard-id'</a></code></td>
+      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Shard.html#Streams-Type-Shard-ShardId">shard-id</a></code></td>
       <td><code>VARCHAR(128) NOT NULL</code></td>
       <td>The unique identifier of the shard within the stream from which the record was read.</td>
     </tr>
     <tr>
-      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Record.html#Streams-Type-Record-SequenceNumber">'sequence-number'</a></code></td>
+      <td><code><a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_Record.html#Streams-Type-Record-SequenceNumber">sequence-number</a></code></td>
       <td><code>VARCHAR(128) NOT NULL</code></td>
       <td>The unique identifier of the record within its shard.</td>
     </tr>
     </tbody>
 </table>
 
-The extended `CREATE TABLE` example demonstrates the syntax for exposing these metadata columns:
+The extended `CREATE TABLE` example demonstrates the syntax for exposing these metadata fields:
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
 CREATE TABLE KinesisTable (
- user_id BIGINT,
- item_id BIGINT,
- category_id BIGINT,
- behavior STRING,
- ts TIMESTAMP(3),
- arrival_time TIMESTAMP(3) METADATA FROM 'timestamp' VIRTUAL,
- shard_id VARCHAR(128) NOT NULL METADATA FROM 'shard-id' VIRTUAL,
- sequence_number VARCHAR(128) NOT NULL METADATA FROM 'sequence-number' VIRTUAL
-) PARTITIONED BY (user_id, item_id) WITH (
- 'connector' = 'kinesis',
- 'stream' = 'user_behavior',
- 'aws.region' = 'us-east-2',
- 'scan.stream.initpos' = 'LATEST',
- 'format' = 'csv'
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `category_id` BIGINT,
+  `behavior` STRING,
+  `ts` TIMESTAMP(3),
+  `arrival_time` TIMESTAMP(3) METADATA FROM 'timestamp' VIRTUAL,
+  `shard_id` VARCHAR(128) NOT NULL METADATA FROM 'shard-id' VIRTUAL,
+  `sequence_number` VARCHAR(128) NOT NULL METADATA FROM 'sequence-number' VIRTUAL
 )
+PARTITIONED BY (user_id, item_id)
+WITH (
+  'connector' = 'kinesis',
+  'stream' = 'user_behavior',
+  'aws.region' = 'us-east-2',
+  'scan.stream.initpos' = 'LATEST',
+  'format' = 'csv'
+);
 {% endhighlight %}
 </div>
 </div>

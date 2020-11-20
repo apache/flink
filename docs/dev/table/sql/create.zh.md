@@ -144,10 +144,10 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 ##  CREATE TABLE
 
-{% highlight sql %}
+{% highlight text %}
 CREATE TABLE [catalog_name.][db_name.]table_name
   (
-    { <column_definition> | <computed_column_definition> }[ , ...n]
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
     [ <table_constraint> ][ , ...n]
   )
@@ -155,15 +155,18 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] ]
-
-<column_definition>:
+   
+<physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
-
+  
 <column_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY NOT ENFORCED
 
 <table_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
+
+<metadata_column_definition>:
+  column_name column_type METADATA [ FROM metadata_key ] [ VIRTUAL ]
 
 <computed_column_definition>:
   column_name AS computed_column_expression [COMMENT column_comment]
@@ -184,20 +187,164 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
-**COMPUTED COLUMN**
+### Columns
 
-计算列是一个使用 “`column_name AS computed_column_expression`” 语法生成的虚拟列。它由使用同一表中其他列的非查询表达式生成，并且不会在表中进行物理存储。例如，一个计算列可以使用 `cost AS price * quantity` 进行定义，这个表达式可以包含物理列、常量、函数或变量的任意组合，但这个表达式不能存在任何子查询。
+**Physical / Regular Columns**
 
-在 Flink 中计算列一般用于为 CREATE TABLE 语句定义 [时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html)。
-[处理时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html#processing-time) 可以简单地通过使用了系统函数 `PROCTIME()` 的 `proc AS PROCTIME()` 语句进行定义。
-另一方面，由于事件时间列可能需要从现有的字段中获得，因此计算列可用于获得事件时间列。例如，原始字段的类型不是 `TIMESTAMP(3)` 或嵌套在 JSON 字符串中。
+Physical columns are regular columns known from databases. They define the names, the types, and the
+order of fields in the physical data. Thus, physical columns represent the payload that is read from
+and written to an external system. Connectors and formats use these columns (in the defined order)
+to configure themselves. Other kinds of columns can be declared between physical columns but will not
+influence the final physical schema.
 
-注意：
+The following statement creates a table with only regular columns:
 
-- 定义在一个数据源表（ source table ）上的计算列会在从数据源读取数据后被计算，它们可以在 SELECT 查询语句中使用。
-- 计算列不可以作为 INSERT 语句的目标，在 INSERT 语句中，SELECT 语句的 schema 需要与目标表不带有计算列的 schema 一致。
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING
+) WITH (
+  ...
+);
+{% endhighlight %}
 
-**WATERMARK**
+**Metadata Columns**
+
+Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
+fields for every row of a table. A metadata column is indicated by the `METADATA` keyword. For example,
+a metadata column can be be used to read and write the timestamp from and to Kafka records for time-based
+operations. The [connector and format documentation]({% link dev/table/connectors/index.zh.md %}) lists the
+available metadata fields for every component. However, declaring a metadata column in a table's schema
+is optional.
+
+The following statement creates a table with an additional metadata column that references the metadata field `timestamp`:
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `record_time` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+Every metadata field is identified by a string-based key and has a documented data type. For example,
+the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP(3) WITH LOCAL TIME ZONE`
+that can be used for both reading and writing records.
+
+In the example above, the metadata column `record_time` becomes part of the table's schema and can be
+transformed and stored like a regular column:
+
+{% highlight sql %}
+INSERT INTO MyTable SELECT user_id, name, record_time + INTERVAL '1' SECOND FROM MyTable;
+{% endhighlight %}
+
+For convenience, the `FROM` clause can be omitted if the column name should be used as the identifying metadata key:
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA    -- use column name as metadata key
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+For convenience, the runtime will perform an explicit cast if the data type of the column differs from
+the data type of the metadata field. Of course, this requires that the two data types are compatible.
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING,
+  `timestamp` BIGINT METADATA    -- cast the timestamp as BIGINT
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+By default, the planner assumes that a metadata column can be used for both reading and writing. However,
+in many cases an external system provides more read-only metadata fields than writable fields. Therefore,
+it is possible to exclude metadata columns from persisting using the `VIRTUAL` keyword.
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
+  `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
+  `user_id` BIGINT,
+  `name` STRING,
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+In the example above, the `offset` is a read-only metadata column and excluded from the query-to-sink
+schema. Thus, source-to-query schema (for `SELECT`) and query-to-sink (for `INSERT INTO`) schema differ:
+
+{% highlight text %}
+source-to-query schema:
+MyTable(`timestamp` BIGINT, `offset` BIGINT, `user_id` BIGINT, `name` STRING)
+
+query-to-sink schema:
+MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
+{% endhighlight %}
+
+**Computed Columns**
+
+Computed columns are virtual columns that are generated using the syntax `column_name AS computed_column_expression`.
+
+A computed column evaluates an expression that can reference other columns declared in the same table.
+Both physical columns and metadata columns can be accessed if they preceed the computed column in the
+schema declaration. The column itself is not physically stored within the table. The column's data type
+is derived automatically from the given expression and does not have to be declared manually.
+
+The planner will transform computed columns into a regular projection after the source. For optimization
+or [watermark strategy push down]({% link dev/table/sourceSinks.zh.md %}), the evaluation might be spread
+across operators, performed multiple times, or skipped if not needed for the given query.
+
+For example, a computed column could be defined as:
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `price` DOUBLE,
+  `quantity` DOUBLE,
+  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+) WITH (
+  'connector' = 'kafka'
+  ...
+);
+{% endhighlight %}
+
+The expression may contain any combination of columns, constants, or functions. The expression cannot
+contain a subquery.
+
+Computed columns are commonly used in Flink for defining [time attributes]({% link dev/table/streaming/time_attributes.md %})
+in `CREATE TABLE` statements.
+- A [processing time attribute]({% link dev/table/streaming/time_attributes.md %}#processing-time)
+can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
+- An [event time attribute]({% link dev/table/streaming/time_attributes.md %}#event-time) timestamp
+can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
+if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+
+Similar to virtual metadata columns, computed columns are excluded from persisting. Therefore, a computed
+column cannot be the target of an `INSERT INTO` statement. Thus, source-to-query schema (for `SELECT`)
+and query-to-sink (for `INSERT INTO`) schema differ:
+
+{% highlight text %}
+source-to-query schema:
+MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE, `cost` DOUBLE)
+
+query-to-sink schema:
+MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
+{% endhighlight %}
+
+### `WATERMARK`
 
 `WATERMARK` 定义了表的事件时间属性，其形式为 `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression` 。
 
@@ -235,14 +382,14 @@ CREATE TABLE Orders (
 {% endhighlight %}
 
 
-**PRIMARY KEY**
+### `PRIMARY KEY`
 
 主键用作 Flink 优化的一种提示信息。主键限制表明一张表或视图的某个（些）列是唯一的并且不包含 Null 值。
 主键声明的列都是非 nullable 的。因此主键可以被用作表行级别的唯一标识。
 
 主键可以和列的定义一起声明，也可以独立声明为表的限制属性，不管是哪种方式，主键都不可以重复定义，否则 Flink 会报错。
 
-##### 有效性检查
+**有效性检查**
 
 SQL 标准主键限制可以有两种模式：`ENFORCED` 或者 `NOT ENFORCED`。 它申明了是否输入/出数据会做合法性检查（是否唯一）。Flink 不存储数据因此只支持 `NOT ENFORCED` 模式，即不做检查，用户需要自己保证唯一性。
 
@@ -250,11 +397,11 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 **Notes:** 在 CREATE TABLE 语句中，创建主键会修改列的 nullable 属性，主键声明的列默认都是非 Nullable 的。
 
-**PARTITIONED BY**
+### `PARTITIONED BY`
 
 根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
 
-**WITH OPTIONS**
+### `WITH` Options
 
 表属性用于创建 table source/sink ，一般用于寻找和创建底层的连接器。
 
@@ -264,7 +411,7 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 **注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
 
-**LIKE**
+### `LIKE`
 
 `LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的 LIKE 语法” 和 Feature T173，“表定义中的 LIKE 语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义，并且是基于 CREATE 语句的更上层定义，这是因为 LIKE 子句可以用于定义表的多个部分，而不仅仅是 schema 部分。
 
