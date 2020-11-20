@@ -150,13 +150,16 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
 
 		INGESTION_TIMESTAMP(
 			"ingestion-timestamp",
-			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
 			true,
 			DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
 			new MetadataConverter() {
 				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(GenericRowData row, int pos) {
+					if (row.isNullAt(pos)) {
+						return null;
+					}
 					return TimestampData.fromEpochMillis(row.getLong(pos));
 				}
 			}
