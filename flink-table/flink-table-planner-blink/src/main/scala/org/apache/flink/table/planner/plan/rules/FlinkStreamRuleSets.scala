@@ -432,10 +432,18 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet related to watermark assignment.
+   * RuleSet related to transpose watermark to be close to source
+   */
+  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITH_COMPUTED_COLUMN,
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_COMPUTED_COLUMN
+  )
+
+  /**
+    * RuleSet related to mini-batch.
     */
   val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(
-    // watermark interval infer rule
+    // mini-batch interval infer rule
     MiniBatchIntervalInferRule.INSTANCE
   )
 
