@@ -35,6 +35,8 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -67,6 +69,11 @@ public class YarnClusterClientFactory extends AbstractContainerizedClusterClient
 		checkNotNull(configuration);
 		final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
 		return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
+	}
+
+	@Override
+	public Optional<String> getApplicationTargetName() {
+		return Optional.of(YarnDeploymentTarget.APPLICATION.getName());
 	}
 
 	private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {

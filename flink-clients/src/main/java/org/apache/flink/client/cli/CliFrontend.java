@@ -176,7 +176,7 @@ public class CliFrontend {
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
-			CliFrontendParser.printHelpForRun(customCommandLines);
+			CliFrontendParser.printHelpForRunApplication(getApplicationModeTargetNames());
 			return;
 		}
 
@@ -205,6 +205,12 @@ public class CliFrontend {
 		final ApplicationConfiguration applicationConfiguration =
 				new ApplicationConfiguration(programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
 		deployer.run(effectiveConfiguration, applicationConfiguration);
+	}
+
+	private static String getApplicationModeTargetNames() {
+		return new DefaultClusterClientServiceLoader().getApplicationModeTargetNames()
+				.map(name -> String.format("\"%s\"", name))
+				.collect(Collectors.joining(", "));
 	}
 
 	/**
@@ -953,7 +959,7 @@ public class CliFrontend {
 
 		// check for action
 		if (args.length < 1) {
-			CliFrontendParser.printHelp(customCommandLines);
+			CliFrontendParser.printHelp(customCommandLines, getApplicationModeTargetNames());
 			System.out.println("Please specify an action.");
 			return 1;
 		}
@@ -990,7 +996,7 @@ public class CliFrontend {
 					return 0;
 				case "-h":
 				case "--help":
-					CliFrontendParser.printHelp(customCommandLines);
+					CliFrontendParser.printHelp(customCommandLines, getApplicationModeTargetNames());
 					return 0;
 				case "-v":
 				case "--version":

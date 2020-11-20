@@ -27,8 +27,11 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -82,5 +85,30 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 		}
 
 		return (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+	}
+
+	@Override
+	public Stream<String> getApplicationModeTargetNames() {
+		final ServiceLoader<ClusterClientFactory> loader =
+				ServiceLoader.load(ClusterClientFactory.class);
+
+		final List<String> result = new ArrayList<>();
+
+		final Iterator<ClusterClientFactory> it = loader.iterator();
+		while (it.hasNext()) {
+			try {
+				final ClusterClientFactory clientFactory = it.next();
+
+				final Optional<String> applicationName = clientFactory.getApplicationTargetName();
+				if (applicationName.isPresent()) {
+					result.add(applicationName.get());
+				}
+
+			} catch (ServiceConfigurationError e) {
+				// cannot be loaded, most likely because Hadoop is not
+				// in the classpath, we can ignore it for now.
+			}
+		}
+		return result.stream();
 	}
 }

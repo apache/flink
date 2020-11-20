@@ -31,6 +31,8 @@ import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -64,6 +66,11 @@ public class KubernetesClusterClientFactory extends AbstractContainerizedCluster
 	public String getClusterId(Configuration configuration) {
 		checkNotNull(configuration);
 		return configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+	}
+
+	@Override
+	public Optional<String> getApplicationTargetName() {
+		return Optional.of(KubernetesDeploymentTarget.APPLICATION.getName());
 	}
 
 	private String generateClusterId() {
