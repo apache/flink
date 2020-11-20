@@ -99,7 +99,10 @@ import org.apache.flink.table.types.inference.TypeInference;
  * <pre>
  * {@code
  * Merges a group of accumulator instances into one accumulator instance. This method must be
- * implemented for unbounded session window grouping aggregates and bounded grouping aggregates.
+ * implemented for unbounded session window and hop window grouping aggregates and
+ * bounded grouping aggregates. Besides, implementing this method will be helpful for optimizations.
+ * For example, two phase aggregation optimization requires all the {@link AggregateFunction}s
+ * support "merge" method.
  *
  * param: accumulator the accumulator which will keep the merged aggregate results. It should
  *                    be noted that the accumulator may contain the previous aggregated

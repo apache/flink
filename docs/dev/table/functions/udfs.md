@@ -1126,7 +1126,7 @@ that "connects" them).
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and session window and hop window aggregations. Besides, this method is also helpful for optimizations. For example, two phase aggregation optimization requires all the `AggregateFunction` support `merge` method.
 
 If the aggregate function can only be applied in an OVER window, this can be declared by returning the
 requirement `FunctionRequirement.OVER_WINDOW_ONLY` in `getRequirements()`.
