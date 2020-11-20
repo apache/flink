@@ -161,9 +161,9 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
    :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[amount, currency, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
-         +- ChangelogNormalize(key=[currency], changelogMode=[I,UA,D])
-            +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+      +- ChangelogNormalize(key=[currency], changelogMode=[I,UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[UA,D])
                +- TableSourceScan(table=[[default_catalog, default_database, rates_history]], fields=[currency, rate, rowtime], changelogMode=[UA,D])
 ]]>
     </Resource>
@@ -540,6 +540,27 @@ Union(all=[true], union=[b, ts, a], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUpsertSourceWithWatermarkPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT id, ts FROM src]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], ts=[$4])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
+   +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
++- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id, c], watermark=[-(TO_TIMESTAMP($1), 1000:INTERVAL SECOND)]]], fields=[id, c], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertSourceWithComputedColumnAndWatermark">
     <Resource name="sql">
       <![CDATA[SELECT a, b, c FROM src WHERE a > 1]]>
@@ -556,10 +577,10 @@ LogicalProject(a=[$1], b=[$2], c=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I,UB,UA,D])
-   +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[I,UB,UA,D])
-      +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
-         +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[UA,D])
+      +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[UA,D])
+         +- Calc(select=[id, a, +(a, 1) AS b, c, TO_TIMESTAMP(c) AS ts], changelogMode=[UA,D])
             +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, a, c], changelogMode=[UA,D])
 ]]>
     </Resource>

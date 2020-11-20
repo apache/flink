@@ -388,6 +388,28 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testUpsertSourceWithWatermarkPushDown(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'enable-watermark-push-down' = 'true',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT id, ts FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testUnionUpsertSourceAndAggregation(): Unit = {
     util.addTable(
       """
