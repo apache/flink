@@ -32,6 +32,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -231,6 +234,9 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		// execution graph construction, before the main thread executor is set
 
 		eventValve.reset();
+		if (context != null) {
+			context.resetFailed();
+		}
 		coordinator.resetToCheckpoint(checkpointData);
 	}
 
@@ -366,6 +372,8 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	 */
 	private static final class LazyInitializedCoordinatorContext implements OperatorCoordinator.Context {
 
+		private static final Logger LOG = LoggerFactory.getLogger(LazyInitializedCoordinatorContext.class);
+
 		private final OperatorID operatorId;
 		private final OperatorEventValve eventValve;
 		private final String operatorName;
@@ -374,6 +382,8 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		private Consumer<Throwable> globalFailureHandler;
 		private Executor schedulerExecutor;
+
+		private volatile boolean failed;
 
 		public LazyInitializedCoordinatorContext(
 				final OperatorID operatorId,
@@ -406,6 +416,10 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			checkState(isInitialized(), "Context was not yet initialized");
 		}
 
+		void resetFailed() {
+			failed = false;
+		}
+
 		@Override
 		public OperatorID getOperatorId() {
 			return operatorId;
@@ -436,6 +450,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public void failJob(final Throwable cause) {
 			checkInitialized();
+			if (failed) {
+				LOG.warn("Ignoring the request to fail job because the job is already failing. "
+							+ "The ignored failure cause is", cause);
+				return;
+			}
+			failed = true;
 
 			final FlinkException e = new FlinkException("Global failure triggered by OperatorCoordinator for '" +
 				operatorName + "' (operator " + operatorId + ").", cause);
