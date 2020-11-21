@@ -77,6 +77,11 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 		return numSubtasks;
 	}
 
+	@Override
+	public ClassLoader getUserCodeClassloader() {
+		return getClass().getClassLoader();
+	}
+
 	// -------------------------------
 
 	public List<OperatorEvent> getEventsToOperatorBySubtaskId(int subtaskId) {

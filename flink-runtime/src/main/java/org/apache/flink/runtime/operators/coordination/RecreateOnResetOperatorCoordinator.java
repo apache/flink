@@ -227,6 +227,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			return context.currentParallelism();
 		}
 
+		@Override
+		public ClassLoader getUserCodeClassloader() {
+			return context.getUserCodeClassloader();
+		}
+
 		@VisibleForTesting
 		synchronized void quiesce() {
 			quiesced = true;

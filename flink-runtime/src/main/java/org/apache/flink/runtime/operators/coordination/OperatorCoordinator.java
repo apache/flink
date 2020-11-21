@@ -175,6 +175,12 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 		 * Gets the current parallelism with which this operator is executed.
 		 */
 		int currentParallelism();
+
+		/**
+		 * Gets the classloader that contains the additional dependencies, which are not
+		 * part of the JVM's classpath.
+		 */
+		ClassLoader getUserCodeClassloader();
 	}
 
 	// ------------------------------------------------------------------------
