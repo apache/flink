@@ -401,6 +401,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 				provider,
 				eventSender,
 				"test-coordinator-name",
+				getClass().getClassLoader(),
 				3,
 				1775);
 
