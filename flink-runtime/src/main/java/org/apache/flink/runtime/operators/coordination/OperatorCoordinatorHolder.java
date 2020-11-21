@@ -319,6 +319,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 					provider,
 					eventSender,
 					jobVertex.getName(),
+					jobVertex.getGraph().getUserClassLoader(),
 					jobVertex.getParallelism(),
 					jobVertex.getMaxParallelism());
 		}
@@ -330,13 +331,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			final OperatorCoordinator.Provider coordinatorProvider,
 			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
 			final String operatorName,
+			final ClassLoader userCodeClassLoader,
 			final int operatorParallelism,
 			final int operatorMaxParallelism) throws Exception {
 
 		final OperatorEventValve valve = new OperatorEventValve(eventSender);
 
 		final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(
-				opId, valve, operatorName, operatorParallelism);
+				opId, valve, operatorName, userCodeClassLoader, operatorParallelism);
 
 		final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -367,6 +369,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		private final OperatorID operatorId;
 		private final OperatorEventValve eventValve;
 		private final String operatorName;
+		private final ClassLoader userCodeClassLoader;
 		private final int operatorParallelism;
 
 		private Consumer<Throwable> globalFailureHandler;
@@ -376,10 +379,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 				final OperatorID operatorId,
 				final OperatorEventValve eventValve,
 				final String operatorName,
+				final ClassLoader userCodeClassLoader,
 				final int operatorParallelism) {
 			this.operatorId = checkNotNull(operatorId);
 			this.eventValve = checkNotNull(eventValve);
 			this.operatorName = checkNotNull(operatorName);
+			this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 			this.operatorParallelism = operatorParallelism;
 		}
 
@@ -441,6 +446,11 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public int currentParallelism() {
 			return operatorParallelism;
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassloader() {
+			return userCodeClassLoader;
 		}
 	}
 }
