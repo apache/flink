@@ -48,6 +48,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -278,6 +279,35 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 			new EventWithSubtask(new TestOperatorEvent(2), 0),
 			new EventWithSubtask(new TestOperatorEvent(3), 0)
 		));
+	}
+
+	@Test
+	public void testFailingJobMultipleTimesNotCauseCascadingJobFailure() throws Exception {
+		Function<OperatorCoordinator.Context, OperatorCoordinator> coordinatorProvider =
+			context -> new TestingOperatorCoordinator(context) {
+				@Override
+				public void handleEventFromOperator(int subtask, OperatorEvent event) {
+					context.failJob(new RuntimeException("Artificial Exception"));
+				}
+			};
+		final TestEventSender sender = new TestEventSender();
+		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, coordinatorProvider);
+
+		holder.handleEventFromOperator(0, new TestOperatorEvent());
+		assertNotNull(globalFailure);
+		final Throwable firstGlobalFailure = globalFailure;
+
+		holder.handleEventFromOperator(1, new TestOperatorEvent());
+		assertEquals("The global failure should be the same instance because the context"
+						+ "should only take the first request from the coordinator to fail the job.",
+				firstGlobalFailure, globalFailure);
+
+		holder.resetToCheckpoint(new byte[0]);
+		holder.handleEventFromOperator(1, new TestOperatorEvent());
+		assertNotEquals("The new failures should be propagated after the coordinator "
+							+ "is reset.", firstGlobalFailure, globalFailure);
+		// Reset global failure to null to make the after method check happy.
+		globalFailure = null;
 	}
 
 	/**
