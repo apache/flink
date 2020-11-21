@@ -19,22 +19,34 @@
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSplitEnumerator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.SourceEventWrapper;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -42,6 +54,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class SourceCoordinatorProviderTest {
 	private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
+	private static final String OPERATOR_NAME = "SourceCoordinatorProviderTest";
 	private static final int NUM_SPLITS = 10;
 	private SourceCoordinatorProvider<MockSourceSplit> provider;
 
@@ -96,4 +109,55 @@ public class SourceCoordinatorProviderTest {
 				restoredSourceCoordinator.getContext().registeredReaders().get(0));
 	}
 
+	@Test
+	public void testErrorThrownFromSplitEnumerator() throws Exception {
+		final AtomicReference<Throwable> fatalError = new AtomicReference<>();
+		SourceCoordinatorProvider<MockSourceSplit> testingProvider =
+			getProvider(
+				enumContext -> new MockSplitEnumerator(NUM_SPLITS, enumContext) {
+					@Override
+					public void start() {
+						throw new RuntimeException("Exception to fail job");
+					}
+
+					@Override
+					public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+						throw new UnknownError("Error");
+					}
+				},
+				() -> new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+					OPERATOR_NAME,
+					(t, e) -> fatalError.set(e)));
+		MockOperatorCoordinatorContext mockContext = new MockOperatorCoordinatorContext(OPERATOR_ID, 1);
+		OperatorCoordinator coordinator = testingProvider.getCoordinator(mockContext);
+		coordinator.start();
+		waitUtil(
+			mockContext::isJobFailed,
+			Duration.ofSeconds(10),
+			"The job did not fail before timeout.");
+		assertNull(fatalError.get());
+		coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
+		waitUtil(
+			() -> fatalError.get() != null && fatalError.get() instanceof Error,
+			Duration.ofSeconds(10),
+			"Did not receive fatal error before timeout."
+		);
+	}
+
+	// ---------------------
+
+	private SourceCoordinatorProvider<MockSourceSplit> getProvider(
+		Function<SplitEnumeratorContext<MockSourceSplit>, MockSplitEnumerator> enumeratorFactory,
+		Supplier<SourceCoordinatorProvider.CoordinatorExecutorThreadFactory> threadFactorySupplier) {
+		return new SourceCoordinatorProvider<>(
+			OPERATOR_NAME,
+			OPERATOR_ID,
+			new MockSource(Boundedness.BOUNDED, NUM_SPLITS) {
+				@Override
+				public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> createEnumerator(
+					SplitEnumeratorContext<MockSourceSplit> enumContext) {
+					return enumeratorFactory.apply(enumContext);
+				}
+			}, 1, threadFactorySupplier);
+	}
 }

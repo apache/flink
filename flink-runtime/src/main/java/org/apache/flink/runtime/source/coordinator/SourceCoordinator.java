@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
@@ -110,9 +111,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		coordinatorExecutor.execute(() -> {
 			try {
 				enumerator.start();
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOG.error("Failed to start the enumerator of operator {} due to", operatorName, e);
 				context.failJob(e);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 		started = true;
@@ -150,10 +152,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				} else {
 					throw new FlinkException("Unrecognized Operator Event: " + event);
 				}
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOG.error("Failing the job due to exception when handling operator event {} from subtask {} " +
 								"of source {}.", event, subtask, operatorName, e);
 				context.failJob(e);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 	}
@@ -168,10 +171,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				context.unregisterSourceReader(subtaskId);
 				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
 				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOG.error("Failing the job due to exception when handling subtask {} failure in source {}.",
 						subtaskId, operatorName, e);
 				context.failJob(e);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 	}
@@ -184,9 +188,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			try {
 				LOG.debug("Taking a state snapshot on operator {} for checkpoint {}", operatorName, checkpointId);
 				result.complete(toBytes(checkpointId));
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				result.completeExceptionally(new CompletionException(
 						String.format("Failed to checkpoint coordinator for source %s due to ", operatorName), e));
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 	}
@@ -199,10 +204,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				LOG.info("Marking checkpoint {} as completed for source {}.", checkpointId, operatorName);
 				context.onCheckpointComplete(checkpointId);
 				enumerator.notifyCheckpointComplete(checkpointId);
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOG.error("Failing the job due to exception when notifying the completion of the "
 					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
 				context.failJob(e);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 	}
@@ -214,10 +220,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			try {
 				LOG.info("Marking checkpoint {} as aborted for source {}.", checkpointId, operatorName);
 				enumerator.notifyCheckpointAborted(checkpointId);
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOG.error("Failing the job due to exception when notifying abortion of the "
 					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
 				context.failJob(e);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
 			}
 		});
 	}

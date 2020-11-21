@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /**
  * The provider of {@link SourceCoordinator}.
@@ -40,6 +42,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	private final String operatorName;
 	private final Source<?, SplitT, ?> source;
 	private final int numWorkerThreads;
+	private final Supplier<CoordinatorExecutorThreadFactory> coordinatorExecutorThreadFactorySupplier;
 
 	/**
 	 * Construct the {@link SourceCoordinatorProvider}.
@@ -57,22 +60,43 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 			OperatorID operatorID,
 			Source<?, SplitT, ?> source,
 			int numWorkerThreads) {
-		super(operatorID);
-		this.operatorName = operatorName;
-		this.source = source;
-		this.numWorkerThreads = numWorkerThreads;
+		this(
+			operatorName,
+			operatorID,
+			source,
+			numWorkerThreads,
+			() -> new CoordinatorExecutorThreadFactory("SourceCoordinator-" + operatorName)
+		);
+	}
+
+	@VisibleForTesting
+	SourceCoordinatorProvider(
+		String operatorName,
+		OperatorID operatorID,
+		Source<?, SplitT, ?> source,
+		int numWorkerThreads,
+		Supplier<CoordinatorExecutorThreadFactory> coordinatorExecutorThreadFactorySupplier) {
+			super(operatorID);
+			this.operatorName = operatorName;
+			this.source = source;
+			this.numWorkerThreads = numWorkerThreads;
+			this.coordinatorExecutorThreadFactorySupplier = coordinatorExecutorThreadFactorySupplier;
 	}
 
 	@Override
 	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) throws Exception  {
-		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
-		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
-		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+		CoordinatorExecutorThreadFactory threadFactory =
+			coordinatorExecutorThreadFactorySupplier.get();
+		ExecutorService coordinatorExecutor =
+			Executors.newSingleThreadExecutor(threadFactory);
 		SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
-				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
-						context, splitSerializer);
+				new SourceCoordinatorContext<>(
+						coordinatorExecutor,
+						threadFactory,
+						numWorkerThreads,
+						context,
+						splitSerializer);
 		return new SourceCoordinator<>(operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
 	}
 
@@ -81,21 +105,32 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	 */
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
 		private final String coordinatorThreadName;
+		private final Thread.UncaughtExceptionHandler errorHandler;
 		private Thread t;
 
 		CoordinatorExecutorThreadFactory(String coordinatorThreadName) {
+			this(coordinatorThreadName, FatalExitExceptionHandler.INSTANCE);
+		}
+
+			@VisibleForTesting
+		CoordinatorExecutorThreadFactory(
+				String coordinatorThreadName,
+				Thread.UncaughtExceptionHandler errorHandler) {
 			this.coordinatorThreadName = coordinatorThreadName;
 			this.t = null;
+			this.errorHandler = errorHandler;
 		}
 
 		@Override
 		public Thread newThread(Runnable r) {
 			if (t != null) {
-				throw new IllegalStateException("Should never happen. This factory should only be used by a " +
-						"SingleThreadExecutor.");
+				throw new Error(
+					"This indicates that a fatal error has happened and caused the "
+						+ "coordinator executor thread to exit. Check the earlier logs"
+						+ "to see the root cause of the problem.");
 			}
 			t = new Thread(r, coordinatorThreadName);
-			t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+			t.setUncaughtExceptionHandler(errorHandler);
 			return t;
 		}
 
