@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -318,7 +319,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 				return closeAsyncWithTimeout(
 					"SourceCoordinator for " + operatorId,
 					(ThrowingRunnable<Exception>) internalCoordinator::close,
-					timeoutMs).exceptionally(e -> {
+					Duration.ofMillis(timeoutMs)).exceptionally(e -> {
 						cleanAndFailJob(e);
 						return null;
 					});

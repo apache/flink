@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -38,13 +39,13 @@ public class ComponentClosingUtils {
 	 *
 	 * @param componentName the name of the component.
 	 * @param closingSequence the closing logic which is a callable that can throw exceptions.
-	 * @param closeTimeoutMs the timeout in milliseconds to waif for the component to close.
+	 * @param closeTimeout the timeout to wait for the component to close.
 	 * @return An optional throwable which is non-empty if an error occurred when closing the component.
 	 */
 	public static CompletableFuture<Void> closeAsyncWithTimeout(
 			String componentName,
 			ThrowingRunnable<Exception> closingSequence,
-			long closeTimeoutMs) {
+			Duration closeTimeout) {
 		return closeAsyncWithTimeout(
 				componentName,
 				(Runnable) () -> {
@@ -53,7 +54,7 @@ public class ComponentClosingUtils {
 					} catch (Exception e) {
 						throw new ClosingException(componentName, e);
 					}
-				}, closeTimeoutMs);
+				}, closeTimeout);
 	}
 
 	/**
@@ -61,13 +62,13 @@ public class ComponentClosingUtils {
 	 *
 	 * @param componentName the name of the component.
 	 * @param closingSequence the closing logic.
-	 * @param closeTimeoutMs the timeout in milliseconds to waif for the component to close.
+	 * @param closeTimeout the timeout to wait for the component to close.
 	 * @return An optional throwable which is non-empty if an error occurred when closing the component.
 	 */
 	public static CompletableFuture<Void> closeAsyncWithTimeout(
 			String componentName,
 			Runnable closingSequence,
-			long closeTimeoutMs) {
+			Duration closeTimeout) {
 		final CompletableFuture<Void> future = new CompletableFuture<>();
 		// Start a dedicate thread to close the component.
 		final Thread t = new Thread(() -> {
@@ -88,8 +89,8 @@ public class ComponentClosingUtils {
 
 		FutureUtils.orTimeout(
 				future,
-				closeTimeoutMs, TimeUnit.MILLISECONDS,
-				String.format("Failed to close the %s before timeout of %d milliseconds", componentName, closeTimeoutMs));
+				closeTimeout.toMillis(), TimeUnit.MILLISECONDS,
+				String.format("Failed to close the %s before timeout of %d ms", componentName, closeTimeout.toMillis()));
 
 		return future;
 	}
