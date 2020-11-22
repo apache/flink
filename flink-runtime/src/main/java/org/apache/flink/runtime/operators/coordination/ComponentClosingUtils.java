@@ -44,17 +44,12 @@ public class ComponentClosingUtils {
 	 */
 	public static CompletableFuture<Void> closeAsyncWithTimeout(
 			String componentName,
-			ThrowingRunnable<Exception> closingSequence,
+			Runnable closingSequence,
 			Duration closeTimeout) {
 		return closeAsyncWithTimeout(
 				componentName,
-				(Runnable) () -> {
-					try {
-						closingSequence.run();
-					} catch (Exception e) {
-						throw new ClosingException(componentName, e);
-					}
-				}, closeTimeout);
+				(ThrowingRunnable<Exception>) closingSequence::run,
+				closeTimeout);
 	}
 
 	/**
@@ -67,16 +62,19 @@ public class ComponentClosingUtils {
 	 */
 	public static CompletableFuture<Void> closeAsyncWithTimeout(
 			String componentName,
-			Runnable closingSequence,
+			ThrowingRunnable<Exception> closingSequence,
 			Duration closeTimeout) {
+
 		final CompletableFuture<Void> future = new CompletableFuture<>();
 		// Start a dedicate thread to close the component.
 		final Thread t = new Thread(() -> {
-			closingSequence.run();
-			future.complete(null);
+			try {
+				closingSequence.run();
+				future.complete(null);
+			} catch (Throwable error) {
+				future.completeExceptionally(error);
+			}
 		});
-		// Use uncaught exception handler to handle exceptions during closing.
-		t.setUncaughtExceptionHandler((thread, error) -> future.completeExceptionally(error));
 		t.start();
 
 		// if the future fails due to a timeout, we interrupt the thread
@@ -98,15 +96,5 @@ public class ComponentClosingUtils {
 	static void abortThread(Thread t) {
 		// the abortion strategy is pretty simple here...
 		t.interrupt();
-	}
-
-	// ---------------------------
-
-	private static class ClosingException extends RuntimeException {
-		private static final long serialVersionUID = 2527474477287706295L;
-
-		private ClosingException(String componentName, Exception e) {
-			super(String.format("Caught exception when closing %s", componentName), e);
-		}
 	}
 }
