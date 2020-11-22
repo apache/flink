@@ -221,6 +221,17 @@ Format Options
     </tbody>
 </table>
 
+Caveats
+----------------
+
+### Duplicate change events
+
+Under normal operating scenarios, the Canal application delivers every change event **exactly-once**. Flink works pretty well when consuming Canal produced events in this situation.
+However, Canal application works in **at-least-once** delivery if any failover happens.
+That means, in the abnormal situations, Canal may deliver duplicate change events to message queues and Flink will get the duplicate events.
+This may cause Flink query to get wrong results or unexpected exceptions. Thus, it is recommended to set job configuration [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.md %}#table-exec-source-cdc-events-duplicate) to `true` and define PRIMARY KEY on the source in this situation.
+Framework will generate an additional stateful operator, and use the primary key to deduplicate the change events and produce a normalized changelog stream.
+
 Data Type Mapping
 ----------------
 

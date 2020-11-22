@@ -219,6 +219,17 @@ Format 参数
     </tbody>
 </table>
 
+注意事项
+----------------
+
+### 重复的变更事件
+
+在正常的操作环境下，Canal 应用能以 **exactly-once** 的语义投递每条变更事件。在这种情况下，Flink 消费 Canal 产生的变更事件能够工作得很好。
+然而，当有故障发生时，Canal 应用只能保证 **at-least-once** 的投递语义。
+这也意味着，在非正常情况下，Canal 可能会投递重复的变更事件到消息队列中，当 Flink 从消息队列中消费的时候就会得到重复的事件。
+这可能会导致 Flink query 的运行得到错误的结果或者非预期的异常。因此，建议在这种情况下，建议在这种情况下，将作业参数 [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.zh.md %}#table-exec-source-cdc-events-duplicate) 设置成 `true`，并在该 source 上定义 PRIMARY KEY。
+框架会生成一个额外的有状态算子，使用该 primary key 来对变更事件去重并生成一个规范化的 changelog 流。
+
 数据类型映射
 ----------------
 

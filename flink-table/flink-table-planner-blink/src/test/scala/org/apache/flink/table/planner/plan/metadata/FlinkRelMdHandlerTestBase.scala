@@ -723,6 +723,14 @@ class FlinkRelMdHandlerTestBase {
       key)
   }
 
+  protected lazy val streamDropUpdateBefore = {
+    new StreamExecDropUpdateBefore(
+      cluster,
+      streamPhysicalTraits,
+      studentStreamScan
+    )
+  }
+
   // equivalent SQL is
   // select * from (
   //  select id, name, score, age, height, sex, class,

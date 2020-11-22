@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -32,11 +31,11 @@ import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.sources.DynamicSourceUtils;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -85,6 +84,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
 		final TableSchema oldSchema = oldTableSourceTable.catalogTable().getSchema();
 		final DynamicTableSource oldSource = oldTableSourceTable.tableSource();
+		final TableConfig config = ShortcutUtils.unwrapContext(call.getPlanner().getContext()).getTableConfig();
 
 		final boolean supportsNestedProjection =
 				((SupportsProjectionPushDown) oldTableSourceTable.tableSource()).supportsNestedProjection();
@@ -98,7 +98,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
 		List<RexNode> oldProjectsWithPK = new ArrayList<>(project.getProjects());
 		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
-		if (isUpsertSource(oldTableSourceTable)) {
+		if (isPrimaryKeyFieldsRequired(oldTableSourceTable, config)) {
 			// add pk into projects for upsert source
 			oldSchema.getPrimaryKey().ifPresent(
 					pks -> {
@@ -165,19 +165,11 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 	}
 
 	/**
-	 * Returns true if the table is a upsert source when it is works in scan mode.
+	 * Returns true if the primary key is required and should be retained.
 	 */
-	private static boolean isUpsertSource(TableSourceTable table) {
-		TableSchema schema = table.catalogTable().getSchema();
-		if (!schema.getPrimaryKey().isPresent()) {
-			return false;
-		}
-		DynamicTableSource tableSource = table.tableSource();
-		if (tableSource instanceof ScanTableSource) {
-			ChangelogMode mode = ((ScanTableSource) tableSource).getChangelogMode();
-			return mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE);
-		}
-		return false;
+	private static boolean isPrimaryKeyFieldsRequired(TableSourceTable table, TableConfig config) {
+		return DynamicSourceUtils.isUpsertSource(table.catalogTable(), table.tableSource()) ||
+			DynamicSourceUtils.isSourceChangeEventsDuplicate(table.catalogTable(), table.tableSource(), config);
 	}
 
 	/**

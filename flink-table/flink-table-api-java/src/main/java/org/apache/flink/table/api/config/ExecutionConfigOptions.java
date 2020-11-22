@@ -70,6 +70,33 @@ public class ExecutionConfigOptions {
 				"watermarks from this source while it is idle. " +
 				"Default value is 0, which means detecting source idleness is not enabled.");
 
+	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	public static final ConfigOption<Boolean> TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE =
+		key("table.exec.source.cdc-events-duplicate")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(Description.builder()
+				.text("Indicates whether the CDC (Change Data Capture) sources " +
+					"in the job will produce duplicate change events that requires the " +
+					"framework to deduplicate and get consistent result. CDC source refers to the " +
+					"source that produces full change events, including INSERT/UPDATE_BEFORE/" +
+					"UPDATE_AFTER/DELETE, for example Kafka source with Debezium format. " +
+					"The value of this configuration is false by default.")
+				.linebreak().linebreak()
+				.text("However, it's a common case that there are duplicate change events. " +
+					"Because usually the CDC tools (e.g. Debezium) work in at-least-once delivery " +
+					"when failover happens. Thus, in the abnormal situations Debezium may deliver " +
+					"duplicate change events to Kafka and Flink will get the duplicate events. " +
+					"This may cause Flink query to get wrong results or unexpected exceptions.")
+				.linebreak().linebreak()
+				.text("Therefore, it is recommended to turn on this configuration if your CDC tool " +
+					"is at-least-once delivery. Enabling this configuration requires to define " +
+					"PRIMARY KEY on the CDC sources. The primary key will be used to deduplicate " +
+					"change events and generate normalized changelog stream at the cost of " +
+					"an additional stateful operator.")
+				.build()
+			);
+
 	// ------------------------------------------------------------------------
 	//  Sink Options
 	// ------------------------------------------------------------------------
