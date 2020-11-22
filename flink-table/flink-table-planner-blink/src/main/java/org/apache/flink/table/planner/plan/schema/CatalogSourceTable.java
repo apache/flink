@@ -102,7 +102,8 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 			schemaTable.getTableIdentifier(),
 			catalogTable,
 			tableSource,
-			schemaTable.isStreamingMode());
+			schemaTable.isStreamingMode(),
+			context.getTableConfig());
 
 		// 2. push table scan
 		pushTableScan(

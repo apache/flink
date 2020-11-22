@@ -366,6 +366,14 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
 Caveats
 ----------------
 
+### Duplicate change events
+
+Under normal operating scenarios, the Debezium application delivers every change event **exactly-once**. Flink works pretty well when consuming Debezium produced events in this situation.
+However, Debezium application works in **at-least-once** delivery if any failover happens. See more details about delivery guarantee from [Debezium documentation](https://debezium.io/documentation/faq/#what_happens_when_an_application_stops_or_crashes).
+That means, in the abnormal situations, Debezium may deliver duplicate change events to Kafka and Flink will get the duplicate events.
+This may cause Flink query to get wrong results or unexpected exceptions. Thus, it is recommended to set job configuration [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.md %}#table-exec-source-cdc-events-duplicate) to `true` and define PRIMARY KEY on the source in this situation.
+Framework will generate an additional stateful operator, and use the primary key to deduplicate the change events and produce a normalized changelog stream.
+
 ### Consuming data produced by Debezium Postgres Connector
 
 If you are using [Debezium Connector for PostgreSQL](https://debezium.io/documentation/reference/1.2/connectors/postgresql.html) to capture the changes to Kafka, please make sure the [REPLICA IDENTITY](https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY) configuration of the monitored PostgreSQL table has been set to `FULL` which is by default `DEFAULT`.

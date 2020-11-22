@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecChangelogNormalize, StreamExecTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.types.RowKind
+import org.apache.flink.table.planner.plan.utils.ScanUtil
+import org.apache.flink.table.planner.sources.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
+import org.apache.flink.table.planner.utils.ShortcutUtils
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
-import org.apache.flink.table.planner.plan.utils.ScanUtil
 
 /**
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[StreamExecTableSourceScan]].
@@ -62,24 +63,20 @@ class StreamExecTableSourceScanRule
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val config = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
+    val table = scan.getTable.asInstanceOf[TableSourceTable]
+
     val newScan = new StreamExecTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable.asInstanceOf[TableSourceTable])
+      table)
 
-    val table = scan.getTable.asInstanceOf[TableSourceTable]
-    val tableSource = table.tableSource.asInstanceOf[ScanTableSource]
-    val changelogMode = tableSource.getChangelogMode
-    if (changelogMode.contains(RowKind.UPDATE_AFTER) &&
-        !changelogMode.contains(RowKind.UPDATE_BEFORE)) {
-      // generate changelog normalize node for upsert source
-      val primaryKey = table.catalogTable.getSchema.getPrimaryKey
-      if (!primaryKey.isPresent) {
-        throw new TableException(s"Table '${table.tableIdentifier.asSummaryString()}' produces" +
-          " a changelog stream contains UPDATE_AFTER but no UPDATE_BEFORE," +
-          " this requires to define primary key on the table.")
-      }
-      val keyFields = primaryKey.get().getColumns
+    if (isUpsertSource(table.catalogTable, table.tableSource) ||
+        isSourceChangeEventsDuplicate(table.catalogTable, table.tableSource, config)) {
+      // generate changelog normalize node
+      // primary key has been validated in CatalogSourceTable
+      val primaryKey = table.catalogTable.getSchema.getPrimaryKey.get()
+      val keyFields = primaryKey.getColumns
       val inputFieldNames = newScan.getRowType.getFieldNames
       val primaryKeyIndices = ScanUtil.getPrimaryKeyIndices(inputFieldNames, keyFields)
       val requiredDistribution = FlinkRelDistribution.hash(primaryKeyIndices, requireStrict = true)
