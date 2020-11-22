@@ -33,6 +33,7 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.DataInputStream;
@@ -47,7 +48,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -116,13 +116,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		this.assignmentTracker = splitAssignmentTracker;
 		this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
 		this.notifier = new ExecutorNotifier(
-				Executors.newScheduledThreadPool(numWorkerThreads, new ThreadFactory() {
-					private int index = 0;
-					@Override
-					public Thread newThread(Runnable r) {
-						return new Thread(r, coordinatorThreadName + "-worker-" + index++);
-					}
-				}),
+				Executors.newScheduledThreadPool(numWorkerThreads, new ExecutorThreadFactory(coordinatorThreadName + "-worker")),
 				coordinatorExecutor);
 	}
 
