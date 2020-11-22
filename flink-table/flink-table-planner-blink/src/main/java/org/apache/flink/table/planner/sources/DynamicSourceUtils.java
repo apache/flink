@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.sources;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.MetadataColumn;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -61,24 +63,27 @@ public final class DynamicSourceUtils {
 			ObjectIdentifier sourceIdentifier,
 			CatalogTable table,
 			DynamicTableSource source,
-			boolean isStreamingMode) {
+			boolean isStreamingMode,
+			TableConfig config) {
 		final TableSchema schema = table.getSchema();
 
 		validateAndApplyMetadata(sourceIdentifier, schema, source);
 
 		if (source instanceof ScanTableSource) {
-			validateScanSource(sourceIdentifier, schema, (ScanTableSource) source, isStreamingMode);
+			validateScanSource(sourceIdentifier, schema, (ScanTableSource) source, isStreamingMode, config);
 		}
 
 		// lookup table source is validated in LookupJoin node
 	}
+
+	// TODO: isUpsertSource(), isSourceChangeEventsDuplicate()
 
 	/**
 	 * Returns a list of required metadata keys. Ordered by the iteration order of
 	 * {@link SupportsReadingMetadata#listReadableMetadata()}.
 	 *
 	 * <p>This method assumes that source and schema have been validated via
-	 * {@link #prepareDynamicSource(ObjectIdentifier, CatalogTable, DynamicTableSource, boolean)}.
+	 * {@link #prepareDynamicSource(ObjectIdentifier, CatalogTable, DynamicTableSource, boolean, TableConfig)}.
 	 */
 	public static List<String> createRequiredMetadataKeys(TableSchema schema, DynamicTableSource source) {
 		final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
@@ -120,6 +125,34 @@ public final class DynamicSourceUtils {
 			.collect(Collectors.toList());
 
 		return new RowType(false, rowFields);
+	}
+
+	/**
+	 * Returns true if the table is an upsert source.
+	 */
+	public static boolean isUpsertSource(CatalogTable catalogTable, DynamicTableSource tableSource) {
+		if (!(tableSource instanceof ScanTableSource)) {
+			return false;
+		}
+		ChangelogMode mode = ((ScanTableSource) tableSource).getChangelogMode();
+		boolean isUpsertMode = mode.contains(RowKind.UPDATE_AFTER) && !mode.contains(RowKind.UPDATE_BEFORE);
+		boolean hasPrimaryKey = catalogTable.getSchema().getPrimaryKey().isPresent();
+		return isUpsertMode && hasPrimaryKey;
+	}
+
+	/**
+	 * Returns true if the table source produces duplicate change events.
+	 */
+	public static boolean isSourceChangeEventsDuplicate(CatalogTable catalogTable, DynamicTableSource tableSource, TableConfig config) {
+		if (!(tableSource instanceof ScanTableSource)) {
+			return false;
+		}
+		ChangelogMode mode = ((ScanTableSource) tableSource).getChangelogMode();
+		boolean isCDCSource = !mode.containsOnly(RowKind.INSERT) && !isUpsertSource(catalogTable, tableSource);
+		boolean changeEventsDuplicate = config.getConfiguration()
+			.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
+		boolean hasPrimaryKey = catalogTable.getSchema().getPrimaryKey().isPresent();
+		return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -224,14 +257,15 @@ public final class DynamicSourceUtils {
 			ObjectIdentifier sourceIdentifier,
 			TableSchema schema,
 			ScanTableSource scanSource,
-			boolean isStreamingMode) {
+			boolean isStreamingMode,
+			TableConfig config) {
 		final ScanRuntimeProvider provider = scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 		final ChangelogMode changelogMode = scanSource.getChangelogMode();
 
 		validateWatermarks(sourceIdentifier, schema);
 
 		if (isStreamingMode) {
-			validateScanSourceForStreaming(sourceIdentifier, schema, scanSource, changelogMode);
+			validateScanSourceForStreaming(sourceIdentifier, schema, scanSource, changelogMode, config);
 		} else {
 			validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
 		}
@@ -241,7 +275,8 @@ public final class DynamicSourceUtils {
 			ObjectIdentifier sourceIdentifier,
 			TableSchema schema,
 			ScanTableSource scanSource,
-			ChangelogMode changelogMode) {
+			ChangelogMode changelogMode,
+			TableConfig config) {
 		// sanity check for produced ChangelogMode
 		final boolean hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE);
 		final boolean hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER);
@@ -267,6 +302,20 @@ public final class DynamicSourceUtils {
 					scanSource.getClass().getName()
 				)
 			);
+		} else if (!changelogMode.containsOnly(RowKind.INSERT)) {
+			// CDC mode (non-upsert mode and non-insert-only mode)
+			boolean changeEventsDuplicate = config.getConfiguration()
+				.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
+			if (changeEventsDuplicate && !schema.getPrimaryKey().isPresent()) {
+				throw new TableException(
+					String.format(
+						"Configuration '%s' is enabled which requires the changelog sources to define a PRIMARY KEY. " +
+							"However, table '%s' doesn't have a primary key.",
+						ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE.key(),
+						sourceIdentifier.asSummaryString()
+					)
+				);
+			}
 		}
 	}
 

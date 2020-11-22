@@ -364,6 +364,14 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
 注意事项
 ----------------
 
+### 重复的变更事件
+
+在正常的操作环境下，Debezium 应用能以 **exactly-once** 的语义投递每条变更事件。在这种情况下，Flink 消费 Debezium 产生的变更事件能够工作得很好。
+然而，当有故障发生时，Debezium 应用只能保证 **at-least-once** 的投递语义。可以查看 [Debezium 官方文档](https://debezium.io/documentation/faq/#what_happens_when_an_application_stops_or_crashes) 了解更多关于 Debezium 的消息投递语义。
+这也意味着，在非正常情况下，Debezium 可能会投递重复的变更事件到 Kafka 中，当 Flink 从 Kafka 中消费的时候就会得到重复的事件。
+这可能会导致 Flink query 的运行得到错误的结果或者非预期的异常。因此，建议在这种情况下，将作业参数 [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.zh.md %}#table-exec-source-cdc-events-duplicate) 设置成 `true`，并在该 source 上定义 PRIMARY KEY。
+框架会生成一个额外的有状态算子，使用该 primary key 来对变更事件去重并生成一个规范化的 changelog 流。
+
 ### 消费 Debezium Postgres Connector 产生的数据
 
 如果你正在使用 [Debezium PostgreSQL Connector](https://debezium.io/documentation/reference/1.2/connectors/postgresql.html) 捕获变更到 Kafka，请确保被监控表的 [REPLICA IDENTITY](https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY) 已经被配置成 `FULL` 了，默认值是 `DEFAULT`。

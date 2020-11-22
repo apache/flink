@@ -19,21 +19,22 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase.SourceMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND}
-import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase.{CHANGELOG_SOURCE, NO_UPDATE_SOURCE, UPSERT_SOURCE}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchOff, MiniBatchOn}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.planner.JBigDecimal
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
 import org.apache.flink.types.{Row, RowKind}
-import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
+import org.junit.Assert.{assertEquals, assertFalse}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
+import java.lang.{Long => JLong}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -66,6 +67,7 @@ class ChangelogSourceITCase(
          |""".stripMargin)
     sourceMode match {
       case CHANGELOG_SOURCE => registerChangelogSource()
+      case CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE => registerChangelogSourceWithEventsDuplicate()
       case UPSERT_SOURCE => registerUpsertSource()
       case NO_UPDATE_SOURCE => registerNoUpdateSource()
     }
@@ -73,7 +75,7 @@ class ChangelogSourceITCase(
 
   @Test
   def testToRetractStream(): Unit = {
-    val result = tEnv.sqlQuery(s"SELECT * FROM ${sourceMode.usersTable}").toRetractStream[Row]
+    val result = tEnv.sqlQuery(s"SELECT * FROM users").toRetractStream[Row]
     val sink = new TestingRetractSink()
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
@@ -103,7 +105,7 @@ class ChangelogSourceITCase(
     val dml =
       s"""
          |INSERT INTO user_sink
-         |SELECT * FROM ${sourceMode.usersTable}
+         |SELECT * FROM users
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()
@@ -113,6 +115,17 @@ class ChangelogSourceITCase(
       "user3,Bailey,bailey@qq.com,9.99,19.98",
       "user4,Tina,tina@gmail.com,11.30,22.60")
     assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+
+    // verify the update_before messages haven been filtered when scanning changelog source
+    sourceMode match {
+      case CHANGELOG_SOURCE | CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE =>
+        val rawResult = TestValuesTableFactory.getRawResults("user_sink")
+        val hasUB = rawResult.exists(r => r.startsWith("-U"))
+        assertFalse(
+          s"Sink result shouldn't contain UPDATE_BEFORE, but is:\n ${rawResult.mkString("\n")}",
+          hasUB)
+      case _ => // do nothing
+    }
   }
 
   @Test
@@ -120,7 +133,7 @@ class ChangelogSourceITCase(
     val query =
       s"""
          |SELECT count(*), sum(balance), max(email)
-         |FROM ${sourceMode.usersTable}
+         |FROM users
          |""".stripMargin
 
     val result = tEnv.sqlQuery(query).toRetractStream[Row]
@@ -151,7 +164,7 @@ class ChangelogSourceITCase(
       s"""
          |INSERT INTO user_sink
          |SELECT 'ALL', count(*), sum(balance), max(email)
-         |FROM ${sourceMode.usersTable}
+         |FROM users
          |GROUP BY 'ALL'
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
@@ -179,7 +192,7 @@ class ChangelogSourceITCase(
       s"""
          |INSERT INTO user_sink
          |SELECT balance2, count(*), max(email)
-         |FROM ${sourceMode.usersTable}
+         |FROM users
          |GROUP BY balance2
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
@@ -213,7 +226,7 @@ class ChangelogSourceITCase(
     val dml =
       s"""
          |INSERT INTO user_sink
-         |SELECT * FROM ${sourceMode.usersTable} WHERE balance > 9
+         |SELECT * FROM users WHERE balance > 9
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()
@@ -229,7 +242,7 @@ class ChangelogSourceITCase(
     val sql =
       s"""
         |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
-        |FROM orders AS o JOIN ${sourceMode.ratesTable} AS r
+        |FROM orders AS o JOIN rates AS r
         |ON o.currency = r.currency
         |""".stripMargin
 
@@ -250,7 +263,7 @@ class ChangelogSourceITCase(
     val userDataId: String = TestValuesTableFactory.registerData(TestData.userChangelog)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${CHANGELOG_SOURCE.usersTable} (
+         |CREATE TABLE users (
          |  user_id STRING,
          |  user_name STRING,
          |  email STRING,
@@ -266,7 +279,7 @@ class ChangelogSourceITCase(
     val ratesDataId = TestValuesTableFactory.registerData(TestData.ratesHistoryData)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${CHANGELOG_SOURCE.ratesTable} (
+         |CREATE TABLE rates (
          |  currency STRING,
          |  rate BIGINT
          |) WITH (
@@ -278,11 +291,75 @@ class ChangelogSourceITCase(
       """.stripMargin)
   }
 
+  private def registerChangelogSourceWithEventsDuplicate(): Unit = {
+    tEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    val userChangelog: Seq[Row] = Seq(
+      changelogRow("+I", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+      changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+      changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")), // dup
+      changelogRow("-U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+      changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+      changelogRow("-U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),  // dup
+      changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")), // dup
+      changelogRow("+I", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+      changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+      changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")), // dup
+      changelogRow("+I", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+      changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+      changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+    val userDataId = TestValuesTableFactory.registerData(userChangelog)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE users (
+         |  user_id STRING,
+         |  user_name STRING,
+         |  email STRING,
+         |  balance DECIMAL(18,2),
+         |  balance2 AS balance * 2,
+         |  PRIMARY KEY (user_name, user_id) NOT ENFORCED
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$userDataId',
+         | 'changelog-mode' = 'UA,D',
+         | 'disable-lookup' = 'true'
+         |)
+         |""".stripMargin)
+    val ratesChangelog: Seq[Row] = Seq(
+      changelogRow("+I", "US Dollar", JLong.valueOf(102L)),
+      changelogRow("+I", "Euro", JLong.valueOf(114L)),
+      changelogRow("+I", "Euro", JLong.valueOf(114L)), // dup
+      changelogRow("+I", "Yen", JLong.valueOf(1L)),
+      changelogRow("-U", "Euro", JLong.valueOf(114L)),
+      changelogRow("+U", "Euro", JLong.valueOf(116L)),
+      changelogRow("-U", "Euro", JLong.valueOf(116L)),
+      changelogRow("+U", "Euro", JLong.valueOf(119L)),
+      changelogRow("-U", "Euro", JLong.valueOf(116L)),  // dup
+      changelogRow("+U", "Euro", JLong.valueOf(119L)),  // dup
+      changelogRow("-D", "Yen", JLong.valueOf(1L)),
+      changelogRow("-D", "Yen", JLong.valueOf(1L)) // dup
+    )
+    val ratesDataId = TestValuesTableFactory.registerData(ratesChangelog)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE rates (
+         |  currency STRING,
+         |  rate BIGINT,
+         |  PRIMARY KEY (currency) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$ratesDataId',
+         |  'changelog-mode' = 'UA,D',
+         |  'disable-lookup' = 'true'
+         |)
+      """.stripMargin)
+  }
+
   private def registerUpsertSource(): Unit = {
     val userDataId = TestValuesTableFactory.registerData(TestData.userUpsertlog)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${UPSERT_SOURCE.usersTable} (
+         |CREATE TABLE users (
          |  user_id STRING,
          |  user_name STRING,
          |  email STRING,
@@ -299,7 +376,7 @@ class ChangelogSourceITCase(
     val ratesDataId = TestValuesTableFactory.registerData(TestData.ratesUpsertData)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${UPSERT_SOURCE.ratesTable} (
+         |CREATE TABLE rates (
          |  currency STRING,
          |  rate BIGINT,
          |  PRIMARY KEY (currency) NOT ENFORCED
@@ -318,7 +395,7 @@ class ChangelogSourceITCase(
     val userDataId = TestValuesTableFactory.registerData(userChangelog)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${NO_UPDATE_SOURCE.usersTable} (
+         |CREATE TABLE users (
          |  user_id STRING,
          |  user_name STRING,
          |  email STRING,
@@ -335,7 +412,7 @@ class ChangelogSourceITCase(
     val ratesDataId = TestValuesTableFactory.registerData(ratesChangelog)
     tEnv.executeSql(
       s"""
-         |CREATE TABLE ${NO_UPDATE_SOURCE.ratesTable} (
+         |CREATE TABLE rates (
          |  currency STRING,
          |  rate BIGINT
          |) WITH (
@@ -367,19 +444,21 @@ class ChangelogSourceITCase(
 
 object ChangelogSourceITCase {
 
-  case class SourceMode(mode: String, usersTable: String, ratesTable: String) {
-    override def toString: String = mode.toString
+  case class SourceMode(mode: String) {
+    override def toString: String = mode
   }
 
-  val CHANGELOG_SOURCE: SourceMode = SourceMode("CHANGELOG", "users_changelog", "rates_changelog")
-  val UPSERT_SOURCE: SourceMode = SourceMode("UPSERT", "users_upsert", "rates_upsert")
-  val NO_UPDATE_SOURCE: SourceMode = SourceMode("NO_UPDATE", "users_no_update", "rates_no_update")
+  val CHANGELOG_SOURCE: SourceMode = SourceMode("CHANGELOG")
+  val CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE: SourceMode = SourceMode("CHANGELOG_WITH_EVENTS_DUP")
+  val UPSERT_SOURCE: SourceMode = SourceMode("UPSERT")
+  val NO_UPDATE_SOURCE: SourceMode = SourceMode("NO_UPDATE")
 
-  @Parameterized.Parameters(name = "Source={0}, StateBackend={1}")
+  @Parameterized.Parameters(name = "Source={0}, MiniBatch={1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(CHANGELOG_SOURCE, MiniBatchOff, HEAP_BACKEND),
       Array(CHANGELOG_SOURCE, MiniBatchOff, ROCKSDB_BACKEND),
+      Array(CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE, MiniBatchOn, ROCKSDB_BACKEND),
       Array(UPSERT_SOURCE, MiniBatchOff, HEAP_BACKEND),
       Array(UPSERT_SOURCE, MiniBatchOff, ROCKSDB_BACKEND),
       // upsert source supports minibatch, we enable minibatch only for RocksDB to save time

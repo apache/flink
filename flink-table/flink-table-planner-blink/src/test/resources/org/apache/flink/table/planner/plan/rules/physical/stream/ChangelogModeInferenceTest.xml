@@ -143,9 +143,10 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime], changelogMode=[I])
    :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Orders, source: [CollectionTableSource(amount, currency, rowtime)]]], fields=[amount, currency, rowtime], changelogMode=[I])
-   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA,D])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UB,UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+         +- DropUpdateBefore(changelogMode=[I,UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, ratesChangelogStream]], fields=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
