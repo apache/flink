@@ -16,17 +16,12 @@
  limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -34,18 +29,8 @@ import java.util.concurrent.TimeoutException;
  * A util class to help with a clean component shutdown.
  */
 public class ComponentClosingUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(ComponentClosingUtils.class);
-	// A shared watchdog executor to handle the timeout closing.
-	private static final ScheduledExecutorService watchDog =
-			Executors.newSingleThreadScheduledExecutor((ThreadFactory) r -> {
-				Thread t = new Thread(r, "ComponentClosingUtil");
-				t.setUncaughtExceptionHandler((thread, exception) -> {
-					LOG.error("FATAL: The component closing util thread caught exception ", exception);
-					System.exit(-17);
-				});
-				return t;
-			});
 
+	/** Utility class, not meant to be instantiated. */
 	private ComponentClosingUtils() {}
 
 	/**
@@ -85,24 +70,33 @@ public class ComponentClosingUtils {
 			long closeTimeoutMs) {
 		final CompletableFuture<Void> future = new CompletableFuture<>();
 		// Start a dedicate thread to close the component.
-		Thread t = new Thread(() -> {
+		final Thread t = new Thread(() -> {
 			closingSequence.run();
 			future.complete(null);
 		});
 		// Use uncaught exception handler to handle exceptions during closing.
 		t.setUncaughtExceptionHandler((thread, error) -> future.completeExceptionally(error));
 		t.start();
-		// Schedule a watch dog job to the watching executor to detect timeout when
-		// closing the component.
-		watchDog.schedule(() -> {
-				if (t.isAlive()) {
-					t.interrupt();
-					future.completeExceptionally(new TimeoutException(
-							String.format("Failed to close the %s before timeout of %d milliseconds",
-									componentName, closeTimeoutMs)));
-				}
-			}, closeTimeoutMs, TimeUnit.MILLISECONDS);
+
+		// if the future fails due to a timeout, we interrupt the thread
+		future.exceptionally((error) -> {
+			if (error instanceof TimeoutException && t.isAlive()) {
+				abortThread(t);
+			}
+			return null;
+		});
+
+		FutureUtils.orTimeout(
+				future,
+				closeTimeoutMs, TimeUnit.MILLISECONDS,
+				String.format("Failed to close the %s before timeout of %d milliseconds", componentName, closeTimeoutMs));
+
 		return future;
+	}
+
+	static void abortThread(Thread t) {
+		// the abortion strategy is pretty simple here...
+		t.interrupt();
 	}
 
 	// ---------------------------
