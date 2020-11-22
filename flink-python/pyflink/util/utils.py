@@ -22,6 +22,8 @@ from py4j.java_gateway import JavaClass, get_java_class, JavaObject
 
 from pyflink.java_gateway import get_gateway
 
+STREAM_EXECUTION_ENV_CONFIG_JOIN_PATH_DELIMITER = ';'
+
 
 def to_jarray(j_type, arr):
     """

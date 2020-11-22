@@ -36,6 +36,7 @@ from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
+from pyflink.util import utils
 from pyflink.util.utils import load_java_class, add_jars_to_context_class_loader
 
 __all__ = ['StreamExecutionEnvironment']
@@ -567,10 +568,11 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_jar_paths = env_config.getString(jars_key, None)
-        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join(jars_path)
-        if old_jar_paths is not None:
-            jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_jar_paths, jars_path])
-        env_config.setString(jars_key, jars_path)
+        joined_jars_path = utils.STREAM_EXECUTION_ENV_CONFIG_JOIN_PATH_DELIMITER.join(jars_path)
+        if old_jar_paths and old_jar_paths.strip():
+            joined_jars_path = utils.STREAM_EXECUTION_ENV_CONFIG_JOIN_PATH_DELIMITER.join(
+                [old_jar_paths, joined_jars_path])
+        env_config.setString(jars_key, joined_jars_path)
 
     def add_classpaths(self, *classpaths: str):
         """
@@ -585,10 +587,12 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_classpaths = env_config.getString(classpaths_key, None)
-        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join(classpaths)
-        if old_classpaths is not None:
-            classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_classpaths, classpaths])
-        env_config.setString(classpaths_key, classpaths)
+        joined_classpaths = utils.STREAM_EXECUTION_ENV_CONFIG_JOIN_PATH_DELIMITER.join(
+            list(classpaths))
+        if old_classpaths and old_classpaths.strip():
+            joined_classpaths = utils.STREAM_EXECUTION_ENV_CONFIG_JOIN_PATH_DELIMITER.join(
+                [old_classpaths, joined_classpaths])
+        env_config.setString(classpaths_key, joined_classpaths)
 
     def get_default_local_parallelism(self) -> int:
         """
