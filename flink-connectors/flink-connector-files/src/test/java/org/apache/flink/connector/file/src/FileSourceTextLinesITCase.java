@@ -44,6 +44,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.zip.GZIPOutputStream;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -288,9 +289,9 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			final String[] lines,
 			final FunctionWithException<OutputStream, OutputStream, IOException> streamEncoderFactory) throws IOException {
 
-		final File parent = file.getParentFile();
-		final File stagingFile = new File(parent, ".tmp-" + file.getName());
-		assertTrue(parent.mkdirs() || parent.exists());
+		// we don't use TMP_FOLDER.newFile() here because we don't want this to actually create a file,
+		// but just construct the file path
+		final File stagingFile = new File(TMP_FOLDER.getRoot(), ".tmp-" + UUID.randomUUID().toString());
 
 		try (final FileOutputStream fileOut = new FileOutputStream(stagingFile);
 				final OutputStream out = streamEncoderFactory.apply(fileOut);
@@ -301,6 +302,9 @@ public class FileSourceTextLinesITCase extends TestLogger {
 				writer.println(line);
 			}
 		}
+
+		final File parent = file.getParentFile();
+		assertTrue(parent.mkdirs() || parent.exists());
 
 		assertTrue(stagingFile.renameTo(file));
 	}
