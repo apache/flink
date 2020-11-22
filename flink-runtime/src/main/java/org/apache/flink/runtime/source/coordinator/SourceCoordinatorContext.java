@@ -295,6 +295,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		assignmentTracker.onCheckpointComplete(checkpointId);
 	}
 
+	OperatorCoordinator.Context getCoordinatorContext() {
+		return operatorCoordinatorContext;
+	}
+
 	// ---------------- private helper methods -----------------
 
 	/**

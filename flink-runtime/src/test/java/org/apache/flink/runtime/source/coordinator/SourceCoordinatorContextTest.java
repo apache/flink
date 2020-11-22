@@ -132,7 +132,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 						context.assignSplits(splitsAssignment);
 					}
 				},
-				"assignSpoits() should fail to assign the splits to a reader that is not registered.",
+				"assignSplits() should fail to assign the splits to a reader that is not registered.",
 				"Cannot assign splits");
 	}
 
@@ -150,7 +150,10 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 		SplitAssignmentTracker<MockSourceSplit> restoredTracker = new SplitAssignmentTracker<>();
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-					TEST_OPERATOR_ID.toHexString(), operatorCoordinatorContext);
+						TEST_OPERATOR_ID.toHexString(),
+						operatorCoordinatorContext,
+						getClass().getClassLoader());
+
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
 				DataInputStream in = new DataInputStream(bais)) {
 			restoredContext = new SourceCoordinatorContext<>(

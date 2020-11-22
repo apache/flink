@@ -66,8 +66,9 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) throws Exception  {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new CoordinatorExecutorThreadFactory(coordinatorThreadName, context);
+				new CoordinatorExecutorThreadFactory(coordinatorThreadName, context, context.getUserCodeClassloader());
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+
 		SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
 				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads,
@@ -81,14 +82,17 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
 		private final String coordinatorThreadName;
 		private final OperatorCoordinator.Context context;
+		private final ClassLoader cl;
 		private Thread t;
 
 		CoordinatorExecutorThreadFactory(
-				String coordinatorThreadName,
-				OperatorCoordinator.Context context) {
+				final String coordinatorThreadName,
+				final OperatorCoordinator.Context context,
+				final ClassLoader contextClassLoader) {
 			this.coordinatorThreadName = coordinatorThreadName;
 			this.context = context;
 			this.t = null;
+			this.cl = contextClassLoader;
 		}
 
 		@Override
@@ -98,6 +102,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit> extends Recre
 						"SingleThreadExecutor.");
 			}
 			t = new Thread(r, coordinatorThreadName);
+			t.setContextClassLoader(cl);
 			t.setUncaughtExceptionHandler((thread, throwable) -> context.failJob(throwable));
 			return t;
 		}
