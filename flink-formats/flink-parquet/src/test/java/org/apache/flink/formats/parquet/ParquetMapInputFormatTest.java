@@ -30,6 +30,8 @@ import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -43,21 +45,27 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Test cases for reading Map from Parquet files.
  */
-public class ParquetMapInputFormatTest {
+@RunWith(Parameterized.class)
+public class ParquetMapInputFormatTest extends TestUtil {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 
 	@ClassRule
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
 
+	public ParquetMapInputFormatTest(boolean useLegacyMode) {
+		super(useLegacyMode);
+	}
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testReadMapFromNestedRecord() throws IOException {
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), getConfiguration());
+		MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
 		ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -84,12 +92,13 @@ public class ParquetMapInputFormatTest {
 	@SuppressWarnings("unchecked")
 	public void testProjectedReadMapFromNestedRecord() throws IOException {
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
-		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), getConfiguration());
+		MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 		ParquetMapInputFormat inputFormat = new ParquetMapInputFormat(path, nestedType);
 
 		inputFormat.selectFields(Collections.singletonList("nestedMap").toArray(new String[0]));
-		inputFormat.setRuntimeContext(TestUtil.getMockRuntimeContext());
+		inputFormat.setRuntimeContext(getMockRuntimeContext());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);

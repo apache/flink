@@ -40,6 +40,7 @@ import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
@@ -64,7 +65,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test cases for {@link ParquetTableSource}.
  */
-public class ParquetTableSourceTest extends TestUtil {
+public class ParquetTableSourceTest {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
 	private static Path testPath;
 
@@ -88,7 +89,7 @@ public class ParquetTableSourceTest extends TestUtil {
 		assertNotNull(returnType);
 		assertTrue(returnType instanceof RowTypeInfo);
 		RowTypeInfo rowType = (RowTypeInfo) returnType;
-		assertEquals(NESTED_ROW_TYPE, rowType);
+		assertEquals(TestUtil.NESTED_ROW_TYPE, rowType);
 	}
 
 	@Test
@@ -102,7 +103,7 @@ public class ParquetTableSourceTest extends TestUtil {
 		TableSchema schema = parquetTableSource.getTableSchema();
 		assertNotNull(schema);
 
-		RowTypeInfo expectedSchema = (RowTypeInfo) NESTED_ROW_TYPE;
+		RowTypeInfo expectedSchema = (RowTypeInfo) TestUtil.NESTED_ROW_TYPE;
 		assertArrayEquals(expectedSchema.getFieldNames(), schema.getFieldNames());
 		assertArrayEquals(expectedSchema.getFieldTypes(), schema.getFieldTypes());
 	}
@@ -121,8 +122,8 @@ public class ParquetTableSourceTest extends TestUtil {
 		// ensure that table source description differs
 		assertNotEquals(parquetTableSource.explainSource(), projected.explainSource());
 
-		String[] fieldNames = ((RowTypeInfo) NESTED_ROW_TYPE).getFieldNames();
-		TypeInformation[] fieldTypes =  ((RowTypeInfo) NESTED_ROW_TYPE).getFieldTypes();
+		String[] fieldNames = ((RowTypeInfo) TestUtil.NESTED_ROW_TYPE).getFieldNames();
+		TypeInformation[] fieldTypes =  ((RowTypeInfo) TestUtil.NESTED_ROW_TYPE).getFieldTypes();
 		assertEquals(
 			Types.ROW_NAMED(
 				new String[] {fieldNames[2], fieldNames[4], fieldNames[6]},
@@ -186,7 +187,7 @@ public class ParquetTableSourceTest extends TestUtil {
 		assertEquals(parquetTableSource.getTableSchema(), filtered.getTableSchema());
 
 		// ensure return type is identical
-		assertEquals(NESTED_ROW_TYPE, filtered.getReturnType());
+		assertEquals(TestUtil.NESTED_ROW_TYPE, filtered.getReturnType());
 
 		// ensure source description is not the same
 		assertNotEquals(parquetTableSource.explainSource(), filtered.explainSource());
@@ -217,14 +218,14 @@ public class ParquetTableSourceTest extends TestUtil {
 	}
 
 	private static Path createTestParquetFile() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = getNestedRecordTestData();
-		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
-			Collections.singletonList(nested.f1));
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
+		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA,
+			Collections.singletonList(nested.f1), new Configuration());
 		return path;
 	}
 
 	private ParquetTableSource createNestedTestParquetTableSource(Path path) throws Exception {
-		MessageType nestedSchema = SCHEMA_CONVERTER.convert(NESTED_SCHEMA);
+		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
 			.path(path.getPath())
 			.forParquetSchema(nestedSchema)
