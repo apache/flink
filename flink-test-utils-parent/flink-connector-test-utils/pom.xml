@@ -32,7 +32,7 @@
 	<!-- This module is the test module separated from flink-connector-base to avoid introducing
 	 Scala version bindings to the flink-connector-base. -->
 	<artifactId>flink-connector-test-utils</artifactId>
-	<name>Flink : Connectors : Base-Test</name>
+	<name>Flink : Test utils : Connectors</name>
 
 	<dependencies>
 		<dependency>
