@@ -84,6 +84,11 @@ public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSpli
 
 	@Override
 	public void handleSplitRequest(int subtask, @Nullable String hostname) {
+		if (!context.registeredReaders().containsKey(subtask)) {
+			// reader failed between sending the request and now. skip this request.
+			return;
+		}
+
 		if (LOG.isInfoEnabled()) {
 			final String hostInfo = hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
 			LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
