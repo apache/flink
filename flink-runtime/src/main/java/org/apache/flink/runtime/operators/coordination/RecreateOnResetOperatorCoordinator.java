@@ -33,7 +33,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.apache.flink.util.ComponentClosingUtils.closeAsyncWithTimeout;
+import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.closeAsyncWithTimeout;
 
 /**
  * A class that will recreate a new {@link OperatorCoordinator} instance when
