@@ -19,10 +19,13 @@
 package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.InputStreamFSInputWrapper;
+import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.compression.StandardDeCompressors;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -131,12 +134,17 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
 							StreamFormat.FETCH_IO_SIZE.key(), fetchSize));
 		}
 
+		final InflaterInputStreamFactory<?> deCompressor =
+				StandardDeCompressors.getDecompressorForFileName(file.getPath());
+
 		final FSDataInputStream inStream = fs.open(file);
 		return doWithCleanupOnException(inStream, () -> {
-			inStream.seek(seekPosition);
-			return new TrackingFsDataInputStream(inStream, fileLength, fetchSize);
+			final FSDataInputStream in = deCompressor == null
+					? inStream
+					: new InputStreamFSInputWrapper(deCompressor.create(inStream));
+			in.seek(seekPosition);
+			return new TrackingFsDataInputStream(in, fileLength, fetchSize);
 		});
-
 	}
 
 	// ----------------------------------------------------------------------------------

@@ -142,8 +142,10 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
 	 * file stream.
 	 *
 	 * <p>When possible, stream-based formats are generally easier (preferable) to file-based formats,
-	 * because they support better default behavior around I/O batching, or better progress tracking to
-	 * avoid re-doing work on recovery.
+	 * because they support better default behavior around I/O batching or progress tracking (checkpoints).
+	 *
+	 * <p>Stream formats also automatically de-compress files based on the file extension. This supports
+	 * files ending in ".deflate" (Deflate), ".xz" (XZ), ".bz2" (BZip2), ".gz", ".gzip" (GZip).
 	 */
 	public static <T> FileSourceBuilder<T> forRecordStreamFormat(final StreamFormat<T> reader, final Path... paths) {
 		checkNotNull(reader, "reader");
