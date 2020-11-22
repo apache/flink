@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class MockOperatorCoordinatorContext implements OperatorCoordinator.Context {
 	private final OperatorID operatorID;
+	private final ClassLoader userCodeClassLoader;
 	private final int numSubtasks;
 	private final boolean failEventSending;
 
@@ -40,12 +41,28 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 		this(operatorID, numSubtasks, true);
 	}
 
-	public MockOperatorCoordinatorContext(OperatorID operatorID, int numSubtasks, boolean failEventSending) {
+	public MockOperatorCoordinatorContext(
+			OperatorID operatorID,
+			int numSubtasks,
+			boolean failEventSending) {
+		this(operatorID, numSubtasks, failEventSending, MockOperatorCoordinatorContext.class.getClassLoader());
+	}
+
+	public MockOperatorCoordinatorContext(OperatorID operatorID, ClassLoader userCodeClassLoader) {
+		this(operatorID, 1, true, userCodeClassLoader);
+	}
+
+	public MockOperatorCoordinatorContext(
+			OperatorID operatorID,
+			int numSubtasks,
+			boolean failEventSending,
+			ClassLoader userCodeClassLoader) {
 		this.operatorID = operatorID;
 		this.numSubtasks = numSubtasks;
 		this.eventsToOperator = new HashMap<>();
 		this.jobFailed = false;
 		this.failEventSending = failEventSending;
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	@Override
@@ -79,7 +96,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 
 	@Override
 	public ClassLoader getUserCodeClassloader() {
-		return getClass().getClassLoader();
+		return userCodeClassLoader;
 	}
 
 	// -------------------------------
