@@ -36,6 +36,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.Assert.assertNotNull;
+
 /**
  * The test base for SourceCoordinator related tests.
  */
@@ -49,7 +51,7 @@ public abstract class SourceCoordinatorTestBase {
 	protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
 	protected SourceCoordinatorContext<MockSourceSplit> context;
 	protected SourceCoordinator<?, ?> sourceCoordinator;
-	protected MockSplitEnumerator enumerator;
+	private MockSplitEnumerator enumerator;
 
 	@Before
 	public void setup() throws Exception {
@@ -58,7 +60,10 @@ public abstract class SourceCoordinatorTestBase {
 		String coordinatorThreadName = TEST_OPERATOR_ID.toHexString();
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
 				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-					coordinatorThreadName, operatorCoordinatorContext);
+						coordinatorThreadName,
+						operatorCoordinatorContext,
+						getClass().getClassLoader());
+
 		coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		context = new SourceCoordinatorContext<>(
 				coordinatorExecutor,
@@ -68,7 +73,6 @@ public abstract class SourceCoordinatorTestBase {
 				new MockSourceSplitSerializer(),
 				splitSplitAssignmentTracker);
 		sourceCoordinator = getNewSourceCoordinator();
-		enumerator = (MockSplitEnumerator) sourceCoordinator.getEnumerator();
 	}
 
 	@After
@@ -77,6 +81,14 @@ public abstract class SourceCoordinatorTestBase {
 		if (!coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
 			throw new TimeoutException("Failed to close the CoordinatorExecutor before timeout.");
 		}
+	}
+
+	protected MockSplitEnumerator getEnumerator() {
+		if (enumerator == null) {
+			enumerator = (MockSplitEnumerator) sourceCoordinator.getEnumerator();
+			assertNotNull("source was not started", enumerator);
+		}
+		return enumerator;
 	}
 
 	// --------------------------
