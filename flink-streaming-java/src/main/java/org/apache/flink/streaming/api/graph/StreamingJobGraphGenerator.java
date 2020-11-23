@@ -86,6 +86,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -370,7 +371,7 @@ public class StreamingJobGraphGenerator {
 						chainEntryPoints);
 			}
 
-			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
+			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs, Optional.ofNullable(chainEntryPoints.get(currentNodeId))));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
 
@@ -429,8 +430,10 @@ public class StreamingJobGraphGenerator {
 			.computeIfAbsent(startNodeId, k -> new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader()));
 	}
 
-	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
-		String operatorName = streamGraph.getStreamNode(vertexID).getOperatorName();
+	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs, Optional<OperatorChainInfo> operatorChainInfo) {
+		final String operatorName = nameWithChainedSourcesInfo(
+			streamGraph.getStreamNode(vertexID).getOperatorName(),
+			operatorChainInfo.map(chain -> chain.getChainedSources().values()).orElse(Collections.emptyList()));
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<>();
 			for (StreamEdge chainable : chainedOutputs) {
@@ -1171,6 +1174,15 @@ public class StreamingJobGraphGenerator {
 			serializedHooks);
 
 		jobGraph.setSnapshotSettings(settings);
+	}
+
+	private static String nameWithChainedSourcesInfo(String operatorName, Collection<ChainedSourceInfo> chainedSourceInfos) {
+		return chainedSourceInfos.isEmpty() ? operatorName :
+			String.format("%s [%s]", operatorName, chainedSourceInfos
+				.stream()
+				.map(chainedSourceInfo -> chainedSourceInfo.getOperatorConfig().getOperatorName())
+				.collect(Collectors.joining(", "))
+			);
 	}
 
 	/**
