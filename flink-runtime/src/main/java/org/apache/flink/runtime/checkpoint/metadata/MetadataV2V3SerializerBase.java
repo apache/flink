@@ -470,8 +470,6 @@ public abstract class MetadataV2V3SerializerBase {
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
 		}
-
-		dos.flush();
 	}
 
 	@Nullable
