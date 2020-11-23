@@ -19,6 +19,10 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -26,11 +30,15 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamTaskExternallyInducedSourceInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,7 +47,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T, ?>> {
+
 	private AsyncDataOutputToOutput<T> output;
+	private boolean isExternallyInducedSource;
 
 	public SourceOperatorStreamTask(Environment env) throws Exception {
 		super(env);
@@ -54,7 +64,21 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 		// input processors
 		sourceOperator.initReader();
 
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
+		final SourceReader<T, ?> sourceReader = headOperator.getSourceReader();
+		final StreamTaskInput<T> input;
+
+		if (sourceReader instanceof ExternallyInducedSourceReader) {
+			isExternallyInducedSource = true;
+
+			input = new StreamTaskExternallyInducedSourceInput<>(
+				sourceOperator,
+				this::triggerCheckpointForExternallyInducedSource);
+		} else {
+			input = new StreamTaskSourceInput<>(sourceOperator);
+		}
+
+		// The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
+		// a WatermarkGauge on the input.
 		output = new AsyncDataOutputToOutput<>(
 			operatorChain.getChainEntryPoint(),
 			getStreamStatusMaintainer());
@@ -63,6 +87,21 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 			input,
 			output,
 			operatorChain);
+	}
+
+	@Override
+	public Future<Boolean> triggerCheckpointAsync(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) {
+		if (!isExternallyInducedSource) {
+			return super.triggerCheckpointAsync(
+				checkpointMetaData,
+				checkpointOptions,
+				advanceToEndOfEventTime);
+		} else {
+			return CompletableFuture.completedFuture(isRunning());
+		}
 	}
 
 	@Override
@@ -77,6 +116,22 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 		}
 		super.afterInvoke();
 	}
+
+	// --------------------------
+
+	private void triggerCheckpointForExternallyInducedSource(long checkpointId) {
+		final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation(
+			configuration.isExactlyOnceCheckpointMode(),
+			configuration.isUnalignedCheckpointsEnabled());
+		final long timestamp = System.currentTimeMillis();
+
+		final CheckpointMetaData checkpointMetaData =
+			new CheckpointMetaData(checkpointId, timestamp);
+
+		super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false);
+	}
+
+	// ---------------------------
 
 	/**
 	 * Implementation of {@link DataOutput} that wraps a specific {@link Output}.
