@@ -84,6 +84,12 @@ class WrapperTypeInfo(TypeInformation):
         """
         return obj
 
+    def from_internal_type(self, obj):
+        """
+         Converts an internal object into a native Python object.
+         """
+        return obj
+
 
 class BasicTypeInfo(TypeInformation, ABC):
     """
@@ -222,6 +228,17 @@ class PrimitiveArrayTypeInfo(WrapperTypeInfo, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO)
 
+    @classmethod
+    def is_primitive_array_type_info(cls, type_info: TypeInformation):
+        return type_info in {cls.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.BYTE_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.SHORT_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.INT_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.LONG_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO(),
+                             cls.CHAR_PRIMITIVE_ARRAY_TYPE_INFO()}
+
 
 class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
     """
@@ -282,6 +299,14 @@ class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)
 
+    @classmethod
+    def is_basic_array_type_info(cls, type_info: TypeInformation):
+        return type_info in {cls.BOOLEAN_ARRAY_TYPE_INFO(), cls.BYTE_ARRAY_TYPE_INFO(),
+                             cls.SHORT_ARRAY_TYPE_INFO(), cls.INT_ARRAY_TYPE_INFO(),
+                             cls.LONG_ARRAY_TYPE_INFO(), cls.FLOAT_ARRAY_TYPE_INFO(),
+                             cls.DOUBLE_ARRAY_TYPE_INFO(), cls.CHAR_ARRAY_TYPE_INFO(),
+                             cls.STRING_ARRAY_TYPE_INFO()}
+
 
 class PickledBytesTypeInfo(WrapperTypeInfo, ABC):
     """
@@ -300,7 +325,7 @@ class RowTypeInfo(WrapperTypeInfo):
     TypeInformation for Row.
     """
 
-    def __init__(self, types: List[TypeInformation], field_names: List[str] = None):
+    def __init__(self, types: List[WrapperTypeInfo], field_names: List[str] = None):
         self.types = types
         self.field_names = field_names
         self.j_types_array = get_gateway().new_array(
@@ -333,7 +358,7 @@ class RowTypeInfo(WrapperTypeInfo):
     def get_field_index(self, field_name: str) -> int:
         return self._j_typeinfo.getFieldIndex(field_name)
 
-    def get_field_types(self) -> List[TypeInformation]:
+    def get_field_types(self) -> List[WrapperTypeInfo]:
         return self.types
 
     def __eq__(self, other) -> bool:
@@ -383,13 +408,27 @@ class RowTypeInfo(WrapperTypeInfo):
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
 
+    def from_internal_type(self, obj):
+        if obj is None:
+            return
+        if isinstance(obj, (tuple, list)):
+            # it's already converted by pickler
+            return obj
+        if self._need_serialize_any_field:
+            # Only calling from_internal_type function for fields that need conversion
+            values = [f.from_internal_type(v) if c else v
+                      for f, v, c in zip(self.types, obj, self._need_conversion)]
+        else:
+            values = obj
+        return tuple(values)
+
 
 class TupleTypeInfo(WrapperTypeInfo):
     """
     TypeInformation for Tuple.
     """
 
-    def __init__(self, types: List[TypeInformation]):
+    def __init__(self, types: List[WrapperTypeInfo]):
         self.types = types
         j_types_array = get_gateway().new_array(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation, len(types))
@@ -403,7 +442,7 @@ class TupleTypeInfo(WrapperTypeInfo):
             .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
         super(TupleTypeInfo, self).__init__(j_typeinfo=j_typeinfo)
 
-    def get_field_types(self) -> List[TypeInformation]:
+    def get_field_types(self) -> List[WrapperTypeInfo]:
         return self.types
 
     def __eq__(self, other) -> bool:
@@ -433,6 +472,10 @@ class DateTypeInfo(WrapperTypeInfo):
         if d is not None:
             return d.toordinal() - self.EPOCH_ORDINAL
 
+    def from_internal_type(self, v):
+        if v is not None:
+            return datetime.date.fromordinal(v + self.EPOCH_ORDINAL)
+
 
 class TimeTypeInfo(WrapperTypeInfo):
     """
@@ -460,6 +503,13 @@ class TimeTypeInfo(WrapperTypeInfo):
             seconds = minutes * 60 + t.second
             return seconds * 10 ** 6 + t.microsecond - offset_microseconds
 
+    def from_internal_type(self, t):
+        if t is not None:
+            seconds, microseconds = divmod(t + self.EPOCH_ORDINAL, 10 ** 6)
+            minutes, seconds = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            return datetime.time(hours, minutes, seconds, microseconds)
+
 
 class TimestampTypeInfo(WrapperTypeInfo):
     """
@@ -477,6 +527,10 @@ class TimestampTypeInfo(WrapperTypeInfo):
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
             return int(seconds) * 10 ** 6 + dt.microsecond
+
+    def from_internal_type(self, ts):
+        if ts is not None:
+            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
 
 
 class Types(object):
@@ -504,7 +558,7 @@ class Types(object):
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
 
     @staticmethod
-    def ROW(types: List[TypeInformation]):
+    def ROW(types: List[WrapperTypeInfo]):
         """
         Returns type information for Row with fields of the given types. A row itself must not be
         null.
@@ -514,7 +568,7 @@ class Types(object):
         return RowTypeInfo(types)
 
     @staticmethod
-    def ROW_NAMED(names: List[str], types: List[TypeInformation]):
+    def ROW_NAMED(names: List[str], types: List[WrapperTypeInfo]):
         """
         Returns type information for Row with fields of the given types and with given names. A row
         must not be null.
@@ -525,7 +579,7 @@ class Types(object):
         return RowTypeInfo(types, names)
 
     @staticmethod
-    def TUPLE(types: List[TypeInformation]):
+    def TUPLE(types: List[WrapperTypeInfo]):
         """
         Returns type information for Tuple with fields of the given types. A Tuple itself must not
         be null.
@@ -563,7 +617,7 @@ class Types(object):
             raise TypeError("Invalid element type for a primitive array.")
 
     @staticmethod
-    def BASIC_ARRAY(element_type: TypeInformation) -> TypeInformation:
+    def BASIC_ARRAY(element_type: TypeInformation) -> WrapperTypeInfo:
         """
         Returns type information for arrays of boxed primitive type (such as Integer[]).
 
@@ -593,7 +647,7 @@ class Types(object):
                             str(element_type))
 
 
-def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
+def _from_java_type(j_type_info: JavaObject) -> WrapperTypeInfo:
     gateway = get_gateway()
     JBasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
 

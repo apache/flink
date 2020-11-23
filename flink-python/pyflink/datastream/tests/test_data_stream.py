@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import decimal
 import os
 import uuid
@@ -319,6 +320,89 @@ class DataStreamTests(PyFlinkTestCase):
         expected = ['deeefg,4', 'bdc,2', 'ab,1', 'cfgs,3']
         results.sort()
         expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_execute_and_collect(self):
+        collection = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                       bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
+                       datetime.time(hour=12, minute=0, second=0,
+                                     microsecond=123000),
+                       datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
+                       decimal.Decimal('1000000000000000000.05'),
+                       decimal.Decimal('1000000000000000000.0599999999999'
+                                       '9999899999999999')),
+                      (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
+                       bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
+                       datetime.time(hour=11, minute=2, second=2,
+                                     microsecond=234500),
+                       datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
+                       decimal.Decimal('2000000000000000000.74'),
+                       decimal.Decimal('2000000000000000000.061111111111111'
+                                       '11111111111111'))]
+        ds = self.env.from_collection(collection)
+
+        expected = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                     bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
+                     datetime.time(hour=12, minute=0, second=0,
+                                   microsecond=123000),
+                     datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
+                     decimal.Decimal('1000000000000000000.05'),
+                     decimal.Decimal('1000000000000000000.0599999999999'
+                                     '9999899999999999')),
+                    (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
+                     bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
+                     datetime.time(hour=11, minute=2, second=2,
+                                   microsecond=234500),
+                     datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
+                     decimal.Decimal('2000000000000000000.74'),
+                     decimal.Decimal('2000000000000000000.061111111111111'
+                                     '11111111111111'))]
+
+        with ds.execute_and_collect() as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=2)
+        results = []
+        for i in result:
+            results.append(i)
+        self.assertEqual(expected, results)
+
+        type_info = Types.ROW(
+            [Types.LONG(), Types.LONG(), Types.SHORT(), Types.BOOLEAN(), Types.SHORT(), Types.INT(),
+             Types.FLOAT(), Types.DOUBLE(), Types.PICKLED_BYTE_ARRAY(), Types.STRING(),
+             Types.SQL_DATE(), Types.SQL_TIME(), Types.SQL_TIMESTAMP(),
+             Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(), Types.BIG_DEC()])
+
+        ds = self.env.from_collection(collection=collection, type_info=type_info)
+
+        expected = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                     bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
+                     datetime.time(hour=12, minute=0, second=0),
+                     datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
+                     decimal.Decimal('1000000000000000000.05'),
+                     decimal.Decimal('1000000000000000000.0599999999999'
+                                     '9999899999999999')),
+                    (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
+                     bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
+                     datetime.time(hour=11, minute=2, second=2),
+                     datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
+                     decimal.Decimal('2000000000000000000.74'),
+                     decimal.Decimal('2000000000000000000.061111111111111'
+                                     '11111111111111'))]
+
+        with ds.execute_and_collect(type_info=type_info) as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=2, type_info=type_info)
+        results = []
+        for i in result:
+            results.append(i)
         self.assertEqual(expected, results)
 
     def test_key_by_map(self):
