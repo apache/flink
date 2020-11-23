@@ -24,7 +24,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -142,15 +141,7 @@ public class SourceCoordinatorSerdeUtils {
 
 	static byte[] readBytes(DataInputStream in, int size) throws IOException {
 		byte[] bytes = new byte[size];
-		int off = 0;
-		// For ByteArrayInputStream the read should succeed with one shot.
-		while (off < size) {
-			int read = in.read(bytes, off, size - off);
-			if (read < 0) {
-				throw new BufferUnderflowException();
-			}
-			off += read;
-		}
+		in.readFully(bytes);
 		return bytes;
 	}
 
