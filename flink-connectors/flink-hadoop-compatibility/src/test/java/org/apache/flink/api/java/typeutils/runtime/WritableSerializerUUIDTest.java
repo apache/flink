@@ -21,6 +21,8 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -43,11 +45,11 @@ public class WritableSerializerUUIDTest extends SerializerTestBase<WritableID> {
 	}
 
 	@Override
-	protected WritableID[] getTestData() {
-		return new WritableID[] {
+	protected List<WritableID> getTestData() {
+		return Arrays.asList(
 			new WritableID(new UUID(0, 0)),
 			new WritableID(new UUID(1, 0)),
 			new WritableID(new UUID(1, 1))
-		};
+		);
 	}
 }

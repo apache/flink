@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.data.StringData;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A test for the {@link StringDataSerializer}.
@@ -44,9 +46,9 @@ public class StringDataSerializerTest extends SerializerTestBase<StringData> {
 	}
 
 	@Override
-	protected StringData[] getTestData() {
+	protected List<StringData> getTestData() {
 		return Arrays.stream(
 				new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"})
-				.map(StringData::fromString).toArray(StringData[]::new);
+				.map(StringData::fromString).collect(Collectors.toList());
 	}
 }

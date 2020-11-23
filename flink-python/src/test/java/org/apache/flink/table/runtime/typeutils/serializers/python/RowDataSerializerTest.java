@@ -29,6 +29,8 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -94,9 +96,9 @@ public class RowDataSerializerTest extends SerializerTestBase<RowData> {
 	}
 
 	@Override
-	protected RowData[] getTestData() {
+	protected List<RowData> getTestData() {
 		RowData row1 = StreamRecordUtils.row(null, 1L);
 		BinaryRowData row2 = StreamRecordUtils.binaryrow(1L, null);
-		return new RowData[]{row1, row2};
+		return Arrays.asList(row1, row2);
 	}
 }

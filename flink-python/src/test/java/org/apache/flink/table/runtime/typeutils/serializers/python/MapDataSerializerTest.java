@@ -32,7 +32,9 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
@@ -77,11 +79,11 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
 	}
 
 	@Override
-	protected MapData[] getTestData() {
+	protected List<MapData> getTestData() {
 		Map<Object, Object> first = new HashMap<>();
 		first.put(1L, -100.1F);
 		BinaryArrayData keyBinary = BinaryArrayData.fromPrimitiveArray(new long[]{10L});
 		BinaryArrayData valueBinary = BinaryArrayData.fromPrimitiveArray(new float[]{10.2F});
-		return new MapData[]{new GenericMapData(first), BinaryMapData.valueOf(keyBinary, valueBinary)};
+		return Arrays.asList(new GenericMapData(first), BinaryMapData.valueOf(keyBinary, valueBinary));
 	}
 }

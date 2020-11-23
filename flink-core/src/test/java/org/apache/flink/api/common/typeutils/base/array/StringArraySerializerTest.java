@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
@@ -50,11 +51,11 @@ public class StringArraySerializerTest extends SerializerTestBase<String[]> {
 	}
 
 	@Override
-	protected String[][] getTestData() {
+    protected List<String[]> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		
 
-		return new String[][] {
+		return Arrays.asList(
 			new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"},
 			new String[] {"a", null, "", null, "bcd", null, "jbmbmner8 jhk hj \n \t üäßß@µ", null, "", null, "non-empty"},
 			new String[] {StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
@@ -71,7 +72,7 @@ public class StringArraySerializerTest extends SerializerTestBase<String[]> {
 				StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
 				"",
 				null}
-		};
+		);
 	}
 
 	@Test

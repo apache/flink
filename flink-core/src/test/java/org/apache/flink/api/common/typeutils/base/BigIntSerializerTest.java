@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -44,12 +46,12 @@ public class BigIntSerializerTest extends SerializerTestBase<BigInteger> {
 	}
 
 	@Override
-	protected BigInteger[] getTestData() {
+	protected List<BigInteger> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 
-		return new BigInteger[] {
-			BigInteger.ZERO, BigInteger.ONE, BigInteger.TEN,
-			new BigInteger(1000, rnd), new BigInteger("8745979691234123413478523984729447"),
-			BigInteger.valueOf(-1), BigInteger.valueOf(-10000)};
+		return Arrays.asList(
+				BigInteger.ZERO, BigInteger.ONE, BigInteger.TEN,
+				new BigInteger(1000, rnd), new BigInteger("8745979691234123413478523984729447"),
+				BigInteger.valueOf(-1), BigInteger.valueOf(-10000));
 	}
 }

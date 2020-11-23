@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -50,7 +51,7 @@ public class ListSerializerTest extends SerializerTestBase<List<Long>> {
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	@Override
-	protected List<Long>[] getTestData() {
+    protected List<List<Long>> getTestData() {
 		final Random rnd = new Random(123654789);
 
 		// empty lists
@@ -77,8 +78,8 @@ public class ListSerializerTest extends SerializerTestBase<List<Long>> {
 			list8.add(rnd.nextLong());
 		}
 
-		return (List<Long>[]) new List[] {
+		return Arrays.asList(
 				list1, list2, list3, list4, list5, list6, list7, list8
-		};
+		);
 	}
 }

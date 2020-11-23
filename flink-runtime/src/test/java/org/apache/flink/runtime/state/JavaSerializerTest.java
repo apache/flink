@@ -29,6 +29,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -88,8 +90,8 @@ public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 	}
 
 	@Override
-	protected Serializable[] getTestData() {
-		return new Serializable[] {
+    protected List<Serializable> getTestData() {
+		return Arrays.asList(
 				new Integer(42),
 				new File("/some/path/that/I/made/up"),
 
@@ -98,7 +100,7 @@ public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
 				// an object that is in the classpath with a nested object not in the classpath
 				new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
-		};
+		);
 	}
 
 	// ------------------------------------------------------------------------

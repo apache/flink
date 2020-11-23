@@ -21,6 +21,8 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.LongValue;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -44,7 +46,7 @@ public class LongValueArraySerializerTest extends ValueArraySerializerTestBase<L
 	}
 
 	@Override
-	protected LongValueArray[] getTestData() {
+	public List<LongValueArray> getTestData() {
 		int defaultElements = LongValueArray.DEFAULT_CAPACITY_IN_BYTES / LongValueArray.ELEMENT_LENGTH_IN_BYTES;
 
 		Random rnd = new Random(874597969123412341L);
@@ -87,6 +89,6 @@ public class LongValueArraySerializerTest extends ValueArraySerializerTestBase<L
 		}
 		lva8.addAll(lva8);
 
-		return new LongValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+		return Arrays.asList(lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8);
 	}
 }

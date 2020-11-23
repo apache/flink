@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
@@ -50,8 +52,7 @@ public class NullAwareMapSerializerTest extends SerializerTestBase<Map<Long, Str
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected Map<Long, String>[] getTestData() {
+	protected List<Map<Long, String>> getTestData() {
 		final Random rnd = new Random(123654789);
 
 		// empty maps
@@ -87,9 +88,9 @@ public class NullAwareMapSerializerTest extends SerializerTestBase<Map<Long, Str
 		// null-key maps
 		final Map<Long, String> map12 = Collections.singletonMap(null, "");
 
-		return (Map<Long, String>[]) new Map[] {
+		return Arrays.asList(
 			map1, map2, map3, map4, map5, map6, map7, map8, map9, map10, map11, map12
-		};
+		);
 
 	}
 }

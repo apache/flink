@@ -19,7 +19,8 @@
 package org.apache.flink.table.dataview
 
 import java.lang.Long
-import java.util.Random
+import java.util.{Arrays, Random, List}
+
 import org.apache.flink.api.common.typeutils.base.{LongSerializer, MapSerializer, StringSerializer}
 import org.apache.flink.api.common.typeutils.{SerializerTestBase, TypeSerializer}
 import org.apache.flink.table.api.dataview.MapView
@@ -40,7 +41,7 @@ class MapViewSerializerTest extends SerializerTestBase[MapView[Long, String]] {
   override protected def getTypeClass: Class[MapView[Long, String]] =
     classOf[MapView[Long, String]]
 
-  override protected def getTestData: Array[MapView[Long, String]] = {
+  protected override def getTestData: List[MapView[Long, String]] = {
     val rnd = new Random(321654)
 
     // empty
@@ -62,6 +63,6 @@ class MapViewSerializerTest extends SerializerTestBase[MapView[Long, String]] {
     val mapview4 = new MapView[Long, String]()
     mapview4.put(999L, null)
 
-    Array[MapView[Long, String]](mapview1, mapview2, mapview3, mapview4)
+    Arrays.asList(mapview1, mapview2, mapview3, mapview4)
   }
 }

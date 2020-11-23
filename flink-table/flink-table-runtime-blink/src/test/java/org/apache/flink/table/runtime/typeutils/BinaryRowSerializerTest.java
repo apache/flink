@@ -23,6 +23,9 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A test for the {@link BinaryRowDataSerializer}.
  */
@@ -44,13 +47,12 @@ public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRowData> {
 	}
 
 	@Override
-	protected BinaryRowData[] getTestData() {
-		return new BinaryRowData[] {
+	protected List<BinaryRowData> getTestData() {
+		return Arrays.asList(
 				createRow("11", 1),
 				createRow("12", 2),
 				createRow("132", 3),
-				createRow("13", 4)
-		};
+				createRow("13", 4));
 	}
 
 	private static BinaryRowData createRow(String f0, int f1) {

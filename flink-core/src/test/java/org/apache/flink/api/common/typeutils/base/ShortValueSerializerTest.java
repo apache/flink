@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -45,13 +47,13 @@ public class ShortValueSerializerTest extends SerializerTestBase<ShortValue> {
 	}
 	
 	@Override
-	protected ShortValue[] getTestData() {
+    protected List<ShortValue> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		int rndInt = rnd.nextInt(32767);
 		
-		return new ShortValue[] {new ShortValue((short) 0), new ShortValue((short) 1), new ShortValue((short) -1),
+		return Arrays.asList(new ShortValue((short) 0), new ShortValue((short) 1), new ShortValue((short) -1),
 							new ShortValue((short) rndInt), new ShortValue((short) -rndInt),
-							new ShortValue((short) -32767), new ShortValue((short) 32768)};
+							new ShortValue((short) -32767), new ShortValue((short) 32768));
 	}
 }
 	

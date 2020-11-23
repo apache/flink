@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -45,13 +47,13 @@ public class ByteValueSerializerTest extends SerializerTestBase<ByteValue> {
 	}
 	
 	@Override
-	protected ByteValue[] getTestData() {
+    protected List<ByteValue> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		byte byteArray[] = new byte[1];
 		rnd.nextBytes(byteArray);
 		
-		return new ByteValue[] {new ByteValue((byte) 0), new ByteValue((byte) 1), new ByteValue((byte) -1), 
+		return Arrays.asList(new ByteValue((byte) 0), new ByteValue((byte) 1), new ByteValue((byte) -1),
 							new ByteValue(Byte.MAX_VALUE), new ByteValue(Byte.MIN_VALUE),
-							new ByteValue(byteArray[0]), new ByteValue((byte) -byteArray[0])};
+							new ByteValue(byteArray[0]), new ByteValue((byte) -byteArray[0]));
 	}
 }

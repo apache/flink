@@ -22,7 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction.TransactionHolder;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -57,11 +59,9 @@ public class FlinkKafkaProducerStateSerializerTest
 	}
 
 	@Override
-	protected TwoPhaseCommitSinkFunction.State<
-		FlinkKafkaProducer.KafkaTransactionState,
-		FlinkKafkaProducer.KafkaTransactionContext>[] getTestData() {
+	protected List<TwoPhaseCommitSinkFunction.State<FlinkKafkaProducer.KafkaTransactionState, FlinkKafkaProducer.KafkaTransactionContext>> getTestData() {
 		//noinspection unchecked
-		return new TwoPhaseCommitSinkFunction.State[] {
+		return Arrays.asList(
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer.KafkaTransactionState,
 				FlinkKafkaProducer.KafkaTransactionContext>(
@@ -98,7 +98,7 @@ public class FlinkKafkaProducerStateSerializerTest
 				new TransactionHolder(new FlinkKafkaProducer.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
 				Collections.singletonList(new TransactionHolder(new FlinkKafkaProducer.KafkaTransactionState("fake", 1L, (short) 42, null), 0)),
 				Optional.of(new FlinkKafkaProducer.KafkaTransactionContext(Collections.singleton("hello"))))
-		};
+		);
 	}
 
 	@Override

@@ -25,6 +25,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Test for {@link AvroSerializer} that tests GenericRecord.
  */
@@ -50,10 +53,10 @@ public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericR
 	}
 
 	@Override
-	protected GenericRecord[] getTestData() {
-		return new GenericRecord[]{
-			new GenericRecordBuilder(SCHEMA)
-				.set("afield", "foo bar")
-				.build()};
+	protected List<GenericRecord> getTestData() {
+		return Collections.singletonList(
+				new GenericRecordBuilder(SCHEMA)
+						.set("afield", "foo bar")
+						.build());
 	}
 }

@@ -26,6 +26,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Tests for {@link KeyAndValueSerializer}, which verify fixed length keys.
  */
@@ -38,8 +41,8 @@ public class FixedLengthKeyAndValueSerializerTest extends SerializerTestBase<Tup
 	protected TypeSerializer<Tuple2<byte[], StreamRecord<Integer>>> createSerializer() {
 		IntSerializer intSerializer = new IntSerializer();
 		return new KeyAndValueSerializer<>(
-			intSerializer,
-			intSerializer.getLength()
+				intSerializer,
+				intSerializer.getLength()
 		);
 	}
 
@@ -55,8 +58,8 @@ public class FixedLengthKeyAndValueSerializerTest extends SerializerTestBase<Tup
 	}
 
 	@Override
-	protected Tuple2<byte[], StreamRecord<Integer>>[] getTestData() {
-		return SerializerComparatorTestData.getOrderedIntTestData();
+	protected List<Tuple2<byte[], StreamRecord<Integer>>> getTestData() {
+		return Arrays.asList(SerializerComparatorTestData.getOrderedIntTestData());
 	}
 
 	@Override

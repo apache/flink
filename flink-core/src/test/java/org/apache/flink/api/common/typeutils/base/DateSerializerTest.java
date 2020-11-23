@@ -21,7 +21,9 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -45,9 +47,9 @@ public class DateSerializerTest extends SerializerTestBase<Date> {
 	}
 	
 	@Override
-	protected Date[] getTestData() {
+    protected List<Date> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		long rndLong = rnd.nextLong();
-		return new Date[] {new Date(0L), new Date(1L),new Date(Long.MAX_VALUE), new Date(rndLong),};
+		return Arrays.asList(new Date(0L), new Date(1L),new Date(Long.MAX_VALUE), new Date(rndLong));
 	}
 }	

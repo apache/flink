@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 
 /**
  * A test for the {@link BooleanSerializer}.
@@ -45,12 +46,12 @@ public class BooleanSerializerTest extends SerializerTestBase<Boolean> {
 	}
 	
 	@Override
-	protected Boolean[] getTestData() {
+	protected List<Boolean> getTestData() {
 		Random rnd = new Random(874597969123412341L);
-		
-		return new Boolean[] {Boolean.valueOf(true), Boolean.valueOf(false),
-								Boolean.valueOf(rnd.nextBoolean()),
-								Boolean.valueOf(rnd.nextBoolean()),
-								Boolean.valueOf(rnd.nextBoolean())};
+
+		return Arrays.asList(Boolean.valueOf(true), Boolean.valueOf(false),
+				Boolean.valueOf(rnd.nextBoolean()),
+				Boolean.valueOf(rnd.nextBoolean()),
+				Boolean.valueOf(rnd.nextBoolean()));
 	}
 }

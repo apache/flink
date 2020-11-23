@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Date;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Test for {@link DateSerializer}.
@@ -44,7 +46,7 @@ public class DateSerializerTest extends SerializerTestBase<Date> {
 	}
 
 	@Override
-	protected Date[] getTestData() {
-		return new Date[]{Date.valueOf("2014-09-13")};
+	protected List<Date> getTestData() {
+		return Arrays.asList(Date.valueOf("2014-09-13"));
 	}
 }

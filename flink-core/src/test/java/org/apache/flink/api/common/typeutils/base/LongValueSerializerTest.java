@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -45,12 +47,12 @@ public class LongValueSerializerTest extends SerializerTestBase<LongValue> {
 	}
 	
 	@Override
-	protected LongValue[] getTestData() {
+    protected List<LongValue> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		long rndLong = rnd.nextLong();
 		
-		return new LongValue[] {new LongValue(0L), new LongValue(1L), new LongValue(-1L),
+		return Arrays.asList(new LongValue(0L), new LongValue(1L), new LongValue(-1L),
 							new LongValue(Long.MAX_VALUE), new LongValue(Long.MIN_VALUE),
-							new LongValue(rndLong), new LongValue(-rndLong)};
+							new LongValue(rndLong), new LongValue(-rndLong));
 	}
 }	

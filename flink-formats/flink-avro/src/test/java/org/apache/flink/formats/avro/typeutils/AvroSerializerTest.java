@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -46,7 +48,7 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 	}
 
 	@Override
-	protected User[] getTestData() {
+	protected List<User> getTestData() {
 		final Random rnd = new Random();
 		final User[] users = new User[20];
 
@@ -54,6 +56,6 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 			users[i] = TestDataGenerator.generateRandomUser(rnd);
 		}
 
-		return users;
+		return Arrays.asList(users);
 	}
 }

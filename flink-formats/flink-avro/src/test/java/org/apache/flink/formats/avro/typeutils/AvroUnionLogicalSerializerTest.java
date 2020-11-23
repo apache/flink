@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -46,7 +48,7 @@ public class AvroUnionLogicalSerializerTest extends SerializerTestBase<UnionLogi
 	}
 
 	@Override
-	protected UnionLogicalType[] getTestData() {
+	protected List<UnionLogicalType> getTestData() {
 		final Random rnd = new Random();
 		final UnionLogicalType[] data = new UnionLogicalType[20];
 
@@ -54,6 +56,6 @@ public class AvroUnionLogicalSerializerTest extends SerializerTestBase<UnionLogi
 			data[i] = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
 		}
 
-		return data;
+		return Arrays.asList(data);
 	}
 }

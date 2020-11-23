@@ -20,8 +20,9 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
@@ -44,11 +45,11 @@ public class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<bool
 	}
 
 	@Override
-	protected boolean[][] getTestData() {
-		return new boolean[][] {
+    protected List<boolean[]> getTestData() {
+		return Arrays.asList(
 			new boolean[] {true, false, true, true, true, true, false, true},
 			new boolean[] {},
 			new boolean[] {false, true, false, false, false, false, true, false}
-		};
+		);
 	}
 }

@@ -83,7 +83,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	protected abstract Class<T> getTypeClass();
 
-	protected abstract T[] getTestData();
+	protected abstract List<T> getTestData();
 
 	/**
 	 * Allows {@link TypeSerializer#createInstance()} to return null.
@@ -183,7 +183,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testCopy() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			for (T datum : testData) {
 				T copy = serializer.copy(datum);
@@ -202,7 +202,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testCopyIntoNewElements() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, serializer.createInstance());
@@ -221,7 +221,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testCopyIntoReusedElements() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			T target = serializer.createInstance();
 
@@ -243,7 +243,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializeIndividually() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
@@ -272,7 +272,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializeIndividuallyReusingValues() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			T reuseValue = serializer.createInstance();
 
@@ -304,7 +304,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializeAsSequenceNoReuse() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
@@ -318,11 +318,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				T deserialized = serializer.deserialize(in);
 				checkToString(deserialized);
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+				deepEquals("Deserialized value if wrong.", testData.get(num), deserialized);
 				num++;
 			}
 
-			assertEquals("Wrong number of elements deserialized.", testData.length, num);
+			assertEquals("Wrong number of elements deserialized.", testData.size(), num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -335,7 +335,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializeAsSequenceReusingValues() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
@@ -350,12 +350,12 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				T deserialized = serializer.deserialize(reuseValue, in);
 				checkToString(deserialized);
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+				deepEquals("Deserialized value if wrong.", testData.get(num), deserialized);
 				reuseValue = deserialized;
 				num++;
 			}
 
-			assertEquals("Wrong number of elements deserialized.", testData.length, num);
+			assertEquals("Wrong number of elements deserialized.", testData.size(), num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -368,7 +368,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializedCopyIndividually() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
@@ -402,7 +402,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	public void testSerializedCopyAsSequence() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			T[] testData = getData();
+			List<T> testData = getData();
 
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
@@ -411,7 +411,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 			TestInputView source = out.getInputView();
 			TestOutputView target = new TestOutputView();
-			for (int i = 0; i < testData.length; i++) {
+			for (int i = 0; i < testData.size(); i++) {
 				serializer.copy(source, target);
 			}
 
@@ -422,11 +422,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
 				checkToString(deserialized);
 
-				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+				deepEquals("Deserialized value if wrong.", testData.get(num), deserialized);
 				num++;
 			}
 
-			assertEquals("Wrong number of elements copied.", testData.length, num);
+			assertEquals("Wrong number of elements copied.", testData.size(), num);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -476,7 +476,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
 		Assert.assertEquals(serializer, serializer.duplicate());
 
-		T[] testData = getData();
+		List<T> testData = getData();
 
 		for (int i = 0; i < numThreads; ++i) {
 			SerializerRunner<T> runner = new SerializerRunner<>(
@@ -512,8 +512,8 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		return serializer;
 	}
 
-	private T[] getData() {
-		T[] data = getTestData();
+	private List<T> getData() {
+		List<T> data = getTestData();
 		if (data == null) {
 			throw new RuntimeException("Test case corrupt. Returns null as test data.");
 		}
@@ -555,7 +555,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	static class SerializerRunner<T> extends Thread {
 		final CyclicBarrier allReadyBarrier;
 		final TypeSerializer<T> serializer;
-		final T[] testData;
+		final List<T> testData;
 		final long durationLimitMillis;
 		Throwable failure;
 		final DeeplyEqualsChecker checker;
@@ -563,7 +563,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		SerializerRunner(
 			CyclicBarrier allReadyBarrier,
 			TypeSerializer<T> serializer,
-			T[] testData,
+			List<T> testData,
 			long testTargetDurationMillis, DeeplyEqualsChecker checker) {
 
 			this.allReadyBarrier = allReadyBarrier;

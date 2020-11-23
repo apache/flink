@@ -29,7 +29,9 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
@@ -73,16 +75,15 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
 	}
 
 	@Override
-	protected MapData[] getTestData() {
+	protected List<MapData> getTestData() {
 		Map<Object, Object> first = new HashMap<>();
 		first.put(1, StringData.fromString(""));
-		return new MapData[] {
+		return Arrays.asList(
 				new GenericMapData(first),
 				BinaryMapData.valueOf(createArray(1, 2), ArrayDataSerializerTest.createArray("11", "haa")),
 				BinaryMapData.valueOf(createArray(1, 3, 4), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
 				BinaryMapData.valueOf(createArray(1, 4, 2), ArrayDataSerializerTest.createArray("11", "haa", "ke")),
-				BinaryMapData.valueOf(createArray(1, 5, 6, 7), ArrayDataSerializerTest.createArray("11", "lele", "haa", "ke"))
-		};
+				BinaryMapData.valueOf(createArray(1, 5, 6, 7), ArrayDataSerializerTest.createArray("11", "lele", "haa", "ke")));
 	}
 
 	private static BinaryArrayData createArray(int... vs) {

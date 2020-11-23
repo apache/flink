@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.util
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.scala.createTypeInformation
@@ -38,7 +40,7 @@ class ScalaCaseClassSerializerTest
 
   override protected def getTypeClass = classOf[SimpleCaseClass]
 
-  override protected def getTestData = Array(
+  protected override def getTestData: util.List[SimpleCaseClass] = util.Arrays.asList(
     SimpleCaseClass("a", 1, Map("a" -> 15)),
     SimpleCaseClass("b", -1, Map("c" -> "C")),
     SimpleCaseClass("c", 5, Map("e" -> "f"))

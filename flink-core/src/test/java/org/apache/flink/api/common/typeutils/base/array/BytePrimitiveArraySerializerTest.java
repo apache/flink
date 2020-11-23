@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
@@ -48,8 +48,8 @@ public class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]>
 	}
 
 	@Override
-	protected byte[][] getTestData() {
-		return new byte[][] {
+    protected List<byte[]> getTestData() {
+		return Arrays.asList(
 			randomByteArray(),
 			randomByteArray(),
 			new byte[] {},
@@ -61,7 +61,7 @@ public class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]>
 			randomByteArray(),
 			randomByteArray(),
 			new byte[] {}
-		};
+		);
 	}
 	
 	private final byte[] randomByteArray() {

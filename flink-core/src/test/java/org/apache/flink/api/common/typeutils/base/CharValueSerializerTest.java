@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -45,12 +47,12 @@ public class CharValueSerializerTest extends SerializerTestBase<CharValue> {
 	}
 	
 	@Override
-	protected CharValue[] getTestData() {
+    protected List<CharValue> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		int rndInt = rnd.nextInt((int) Character.MAX_VALUE);
 		
-		return new CharValue[] {new CharValue('a'), new CharValue('@'), new CharValue('ä'),
+		return Arrays.asList(new CharValue('a'), new CharValue('@'), new CharValue('ä'),
 								new CharValue('1'), new CharValue((char) rndInt),
-								new CharValue(Character.MAX_VALUE), new CharValue(Character.MIN_VALUE)};
+								new CharValue(Character.MAX_VALUE), new CharValue(Character.MIN_VALUE));
 	}
 }

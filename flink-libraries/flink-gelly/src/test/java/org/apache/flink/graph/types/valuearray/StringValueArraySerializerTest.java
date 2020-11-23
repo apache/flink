@@ -21,6 +21,8 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -44,7 +46,7 @@ public class StringValueArraySerializerTest extends ValueArraySerializerTestBase
 	}
 
 	@Override
-	protected StringValueArray[] getTestData() {
+	public List<StringValueArray> getTestData() {
 		int defaultElements = StringValueArray.DEFAULT_CAPACITY_IN_BYTES;
 
 		Random rnd = new Random(874597969123412341L);
@@ -87,6 +89,6 @@ public class StringValueArraySerializerTest extends ValueArraySerializerTestBase
 		}
 		sva8.addAll(sva8);
 
-		return new StringValueArray[] {sva0, sva1, sva2, sva3, sva4, sva5, sva6, sva7, sva8};
+		return Arrays.asList(sva0, sva1, sva2, sva3, sva4, sva5, sva6, sva7, sva8);
 	}
 }

@@ -20,8 +20,9 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
@@ -44,11 +45,11 @@ public class ShortPrimitiveArraySerializerTest extends SerializerTestBase<short[
 	}
 
 	@Override
-	protected short[][] getTestData() {
-		return new short[][] {
+    protected List<short[]> getTestData() {
+		return Arrays.asList(
 			new short[] {0, 1, 2, 3, -1, -2, -3, Short.MAX_VALUE, Short.MIN_VALUE},
 			new short[] {},
 			new short[] {-1, -2, 9673, 26782, 0, 0, 0}
-		};
+		);
 	}
 }

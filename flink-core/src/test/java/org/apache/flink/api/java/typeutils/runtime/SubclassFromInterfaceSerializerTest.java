@@ -27,6 +27,8 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -57,13 +59,13 @@ public class SubclassFromInterfaceSerializerTest extends SerializerTestBase<Subc
 	}
 
 	@Override
-	protected TestUserInterface[] getTestData() {
+    protected List<TestUserInterface> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 
-		return new TestUserInterface[]{
+		return Arrays.asList(
 				new TestUserClass1(rnd.nextInt(), "foo", rnd.nextLong()),
 				new TestUserClass2(rnd.nextInt(), "bar", rnd.nextFloat())
-		};
+		);
 
 	}
 

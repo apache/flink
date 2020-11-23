@@ -27,6 +27,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Test for {@link TimestampDataSerializer}.
@@ -62,12 +63,11 @@ public class TimestampDataSerializerTest extends SerializerTestBase<TimestampDat
 	}
 
 	@Override
-	protected TimestampData[] getTestData() {
-		return new TimestampData[] {
+	protected List<TimestampData> getTestData() {
+		return Arrays.asList(
 			TimestampData.fromEpochMillis(1),
 			TimestampData.fromEpochMillis(2),
 			TimestampData.fromEpochMillis(3),
-			TimestampData.fromEpochMillis(4)
-		};
+			TimestampData.fromEpochMillis(4));
 	}
 }

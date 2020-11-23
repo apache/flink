@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -46,8 +48,8 @@ public class SimpleVersionedSerializerTypeSerializerProxyTest extends Serializer
 	}
 
 	@Override
-	protected String[] getTestData() {
-		return new String[]{"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+    protected List<String> getTestData() {
+		return Arrays.asList("a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty");
 	}
 
 	@Override

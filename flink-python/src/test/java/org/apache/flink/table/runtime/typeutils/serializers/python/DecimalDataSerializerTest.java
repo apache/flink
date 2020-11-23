@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.DecimalData;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Test for {@link DecimalDataSerializer}.
  */
@@ -42,12 +45,12 @@ public class DecimalDataSerializerTest extends SerializerTestBase<DecimalData> {
 	}
 
 	@Override
-	protected DecimalData[] getTestData() {
-		return new DecimalData[]{
+	protected List<DecimalData> getTestData() {
+		return Arrays.asList(
 			DecimalData.fromUnscaledLong(1, 5, 2),
 			DecimalData.fromUnscaledLong(2, 5, 2),
 			DecimalData.fromUnscaledLong(3, 5, 2),
 			DecimalData.fromUnscaledLong(4, 5, 2)
-		};
+		);
 	}
 }

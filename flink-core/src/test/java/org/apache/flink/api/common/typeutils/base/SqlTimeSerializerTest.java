@@ -19,6 +19,9 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.sql.Time;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -43,13 +46,13 @@ public class SqlTimeSerializerTest extends SerializerTestBase<Time> {
 	}
 
 	@Override
-	protected Time[] getTestData() {
-		return new Time[] {
+    protected List<Time> getTestData() {
+		return Arrays.asList(
 			new Time(0L),
 			Time.valueOf("00:00:00"),
 			Time.valueOf("02:42:25"),
 			Time.valueOf("14:15:59"),
 			Time.valueOf("18:00:45")
-		};
+		);
 	}
 }

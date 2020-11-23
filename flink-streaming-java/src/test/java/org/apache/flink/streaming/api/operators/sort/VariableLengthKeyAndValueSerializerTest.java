@@ -26,6 +26,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Tests for {@link KeyAndValueSerializer}, which verify variable length keys.
  */
@@ -35,8 +38,8 @@ public class VariableLengthKeyAndValueSerializerTest extends SerializerTestBase<
 	protected TypeSerializer<Tuple2<byte[], StreamRecord<String>>> createSerializer() {
 		StringSerializer stringSerializer = new StringSerializer();
 		return new KeyAndValueSerializer<>(
-			stringSerializer,
-			stringSerializer.getLength()
+				stringSerializer,
+				stringSerializer.getLength()
 		);
 	}
 
@@ -52,8 +55,8 @@ public class VariableLengthKeyAndValueSerializerTest extends SerializerTestBase<
 	}
 
 	@Override
-	protected Tuple2<byte[], StreamRecord<String>>[] getTestData() {
-		return SerializerComparatorTestData.getOrderedStringTestData();
+	protected List<Tuple2<byte[], StreamRecord<String>>> getTestData() {
+		return Arrays.asList(SerializerComparatorTestData.getOrderedStringTestData());
 	}
 
 	@Override

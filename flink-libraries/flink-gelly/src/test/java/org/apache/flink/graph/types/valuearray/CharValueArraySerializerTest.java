@@ -22,6 +22,8 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.CharValue;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -45,7 +47,7 @@ public class CharValueArraySerializerTest extends ValueArraySerializerTestBase<C
 	}
 
 	@Override
-	protected CharValueArray[] getTestData() {
+	public List<CharValueArray> getTestData() {
 		int defaultElements = CharValueArray.DEFAULT_CAPACITY_IN_BYTES / CharValueArray.ELEMENT_LENGTH_IN_BYTES;
 
 		Random rnd = new Random(874597969123412341L);
@@ -88,6 +90,6 @@ public class CharValueArraySerializerTest extends ValueArraySerializerTestBase<C
 		}
 		lva8.addAll(lva8);
 
-		return new CharValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+		return Arrays.asList(lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8);
 	}
 }

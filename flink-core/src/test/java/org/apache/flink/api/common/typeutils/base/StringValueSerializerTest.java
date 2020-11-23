@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A test for the {@link StringValueSerializer}.
  */
@@ -43,14 +46,14 @@ public class StringValueSerializerTest extends SerializerTestBase<StringValue> {
 	}
 	
 	@Override
-	protected StringValue[] getTestData() {
-		return new StringValue[] {
+    protected List<StringValue> getTestData() {
+		return Arrays.asList(
 				new StringValue("a"),
 				new StringValue(""),
 				new StringValue("bcd"),
 				new StringValue("jbmbmner8 jhk hj \n \t üäßß@µ"),
 				new StringValue(""),
 				new StringValue("non-empty"),
-				new StringValue("http://some-uri.com/that/is/a/common/prefix/to/all(((cmNH`0R)H<tnLa:/;Q,igWY2EdwW^W7T3H6NMRoqR[O2TqQ@SbGKc(:0XOXq-5]ndm-R8?=,o?AW+9Pi_v4eON=Mpje7N4n*-nhFWKn>Sn0cGMlnDquY@-F:QY@-UZ.-//*OL*8\\SIpiZa)tefalZ99-P_-WFIaKPeGbkQ^iRgd,YYkn7:jBAW::PqAYtgl73dTaJ2CIT:11HJ70<ATOXZ]c6b_7EgQU,@uq+SMa=7Z]kg/OZ>TGduw>D7Lu[nEj_l=Ucwo5BQtBESh/4V>N9nj/pDLw[NM)a=ac6R-(FM2U+dwROMUH;);Y=")};
+				new StringValue("http://some-uri.com/that/is/a/common/prefix/to/all(((cmNH`0R)H<tnLa:/;Q,igWY2EdwW^W7T3H6NMRoqR[O2TqQ@SbGKc(:0XOXq-5]ndm-R8?=,o?AW+9Pi_v4eON=Mpje7N4n*-nhFWKn>Sn0cGMlnDquY@-F:QY@-UZ.-//*OL*8\\SIpiZa)tefalZ99-P_-WFIaKPeGbkQ^iRgd,YYkn7:jBAW::PqAYtgl73dTaJ2CIT:11HJ70<ATOXZ]c6b_7EgQU,@uq+SMa=7Z]kg/OZ>TGduw>D7Lu[nEj_l=Ucwo5BQtBESh/4V>N9nj/pDLw[NM)a=ac6R-(FM2U+dwROMUH;);Y="));
 	}
 }

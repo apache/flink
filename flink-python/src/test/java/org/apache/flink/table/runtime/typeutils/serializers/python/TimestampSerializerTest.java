@@ -27,6 +27,7 @@ import org.junit.runners.Parameterized;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Test for {@link TimestampSerializer}.
@@ -62,7 +63,7 @@ public class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 	}
 
 	@Override
-	protected Timestamp[] getTestData() {
-		return new Timestamp[]{Timestamp.valueOf("2018-03-11 03:00:00.123")};
+	protected List<Timestamp> getTestData() {
+		return Arrays.asList(Timestamp.valueOf("2018-03-11 03:00:00.123"));
 	}
 }

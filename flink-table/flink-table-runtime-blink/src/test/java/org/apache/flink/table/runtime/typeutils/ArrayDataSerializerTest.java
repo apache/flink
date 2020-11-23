@@ -30,6 +30,8 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link ArrayDataSerializer}.
@@ -77,15 +79,14 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
 	}
 
 	@Override
-	protected ArrayData[] getTestData() {
-		return new ArrayData[] {
+	protected List<ArrayData> getTestData() {
+		return Arrays.asList(
 				new GenericArrayData(new StringData[] {StringData.fromString("11")}),
 				createArray("11", "haa"),
 				createArray("11", "haa", "ke"),
 				createArray("11", "haa", "ke"),
 				createArray("11", "lele", "haa", "ke"),
-				createColumnarArray("11", "lele", "haa", "ke"),
-		};
+				createColumnarArray("11", "lele", "haa", "ke"));
 	}
 
 	static BinaryArrayData createArray(String... vs) {

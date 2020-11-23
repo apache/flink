@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.types.Either;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class EitherSerializerCommonTest extends SerializerTestBase<Either<String, Integer>> {
 
 	@Override
@@ -44,14 +47,14 @@ public class EitherSerializerCommonTest extends SerializerTestBase<Either<String
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected Either<String, Integer>[] getTestData() {
-		return new Either[] {
+    protected List<Either<String, Integer>> getTestData() {
+		return Arrays.asList(
 				new Either.Left("hello friend"),
 				new Either.Left("hello friend"),
 				new Either.Right(37),
 				new Either.Left("hello friend"),
 				new Either.Right(1569653),
 				new Either.Left("hello friend")
-		};
+		);
 	}
 }

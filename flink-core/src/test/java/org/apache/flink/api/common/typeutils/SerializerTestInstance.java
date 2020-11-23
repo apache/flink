@@ -26,6 +26,8 @@ import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 
 @Ignore
 public class SerializerTestInstance<T> extends SerializerTestBase<T> {
@@ -36,7 +38,7 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 
 	private final int length;
 
-	private final T[] testData;
+	private final List<T> testData;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -56,7 +58,7 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 		this.serializer = serializer;
 		this.typeClass = typeClass;
 		this.length = length;
-		this.testData = testData;
+		this.testData = Arrays.asList(testData);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -77,7 +79,7 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 	}
 
 	@Override
-	protected T[] getTestData() {
+	protected List<T> getTestData() {
 		return this.testData;
 	}
 

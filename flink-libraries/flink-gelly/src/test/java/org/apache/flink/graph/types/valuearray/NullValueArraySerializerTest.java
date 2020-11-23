@@ -21,6 +21,9 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.NullValue;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A test for the {@link NullValueArraySerializer}.
  */
@@ -42,7 +45,7 @@ public class NullValueArraySerializerTest extends ValueArraySerializerTestBase<N
 	}
 
 	@Override
-	protected NullValueArray[] getTestData() {
+	public List<NullValueArray> getTestData() {
 		NullValue nv = NullValue.getInstance();
 
 		NullValueArray nva0 = new NullValueArray();
@@ -62,6 +65,6 @@ public class NullValueArraySerializerTest extends ValueArraySerializerTestBase<N
 		}
 		nva3.addAll(nva3);
 
-		return new NullValueArray[] {nva0, nva1, nva2, nva3};
+		return Arrays.asList(nva0, nva1, nva2, nva3);
 	}
 }

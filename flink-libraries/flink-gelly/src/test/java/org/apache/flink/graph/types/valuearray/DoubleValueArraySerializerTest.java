@@ -22,6 +22,8 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.DoubleValue;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -45,7 +47,7 @@ public class DoubleValueArraySerializerTest extends ValueArraySerializerTestBase
 	}
 
 	@Override
-	protected DoubleValueArray[] getTestData() {
+	public List<DoubleValueArray> getTestData() {
 		int defaultElements = DoubleValueArray.DEFAULT_CAPACITY_IN_BYTES / DoubleValueArray.ELEMENT_LENGTH_IN_BYTES;
 
 		Random rnd = new Random(874597969123412341L);
@@ -88,6 +90,6 @@ public class DoubleValueArraySerializerTest extends ValueArraySerializerTestBase
 		}
 		lva8.addAll(lva8);
 
-		return new DoubleValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+		return Arrays.asList(lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8);
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -45,14 +47,14 @@ public class DoubleValueSerializerTest extends SerializerTestBase<DoubleValue> {
 	}
 	
 	@Override
-	protected DoubleValue[] getTestData() {
+    protected List<DoubleValue> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		Double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
 		
-		return new DoubleValue[] {new DoubleValue(0), new DoubleValue(1), new DoubleValue(-1),
+		return Arrays.asList(new DoubleValue(0), new DoubleValue(1), new DoubleValue(-1),
 							new DoubleValue(Double.MAX_VALUE), new DoubleValue(Double.MIN_VALUE),
 							new DoubleValue(rndDouble), new DoubleValue(-rndDouble),
 							new DoubleValue(Double.NaN),
-							new DoubleValue(Double.NEGATIVE_INFINITY), new DoubleValue(Double.POSITIVE_INFINITY)};
+							new DoubleValue(Double.NEGATIVE_INFINITY), new DoubleValue(Double.POSITIVE_INFINITY));
 	}
 }	

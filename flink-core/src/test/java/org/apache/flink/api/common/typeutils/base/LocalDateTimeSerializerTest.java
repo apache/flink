@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link LocalDateTimeSerializer}.
@@ -44,8 +46,8 @@ public class LocalDateTimeSerializerTest extends SerializerTestBase<LocalDateTim
 	}
 
 	@Override
-	protected LocalDateTime[] getTestData() {
-		return new LocalDateTime[] {
+    protected List<LocalDateTime> getTestData() {
+		return Arrays.asList(
 			LocalDateTime.of(1970, 1, 1, 0, 0, 0, 0),
 			LocalDateTime.of(1990, 10, 14, 2, 42, 25, 123_000_000),
 			LocalDateTime.of(1990, 10, 14, 2, 42, 25, 123_000_001),
@@ -53,6 +55,6 @@ public class LocalDateTimeSerializerTest extends SerializerTestBase<LocalDateTim
 			LocalDateTime.of(2013, 8, 12, 14, 15, 59, 478_000_000),
 			LocalDateTime.of(2013, 8, 12, 14, 15, 59, 479_000_000),
 			LocalDateTime.of(2040, 5, 12, 18, 0, 45, 999_000_000)
-		};
+		);
 	}
 }

@@ -21,8 +21,10 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
@@ -50,7 +52,7 @@ public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	@Override
-	protected Map<Long, String>[] getTestData() {
+    protected List<Map<Long, String>> getTestData() {
 		final Random rnd = new Random(123654789);
 
 		// empty maps
@@ -83,8 +85,8 @@ public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
 		final Map<Long, String> map11 = new TreeMap<>();
 		map11.put(666L, null);
 
-		return (Map<Long, String>[]) new Map[] {
+		return Arrays.asList(
 				map1, map2, map3, map4, map5, map6, map7, map8, map9, map10, map11
-		};
+		);
 	}
 }

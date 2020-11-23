@@ -19,7 +19,7 @@
 package org.apache.flink.table.dataview
 
 import java.lang.Long
-import java.util.Random
+import java.util.{Arrays, List, Random}
 import org.apache.flink.api.common.typeutils.base.{ListSerializer, LongSerializer}
 import org.apache.flink.api.common.typeutils.{SerializerTestBase, TypeSerializer}
 import org.apache.flink.table.api.dataview.ListView
@@ -38,7 +38,7 @@ class ListViewSerializerTest extends SerializerTestBase[ListView[Long]] {
 
   override protected def getTypeClass: Class[ListView[Long]] = classOf[ListView[Long]]
 
-  override protected def getTestData: Array[ListView[Long]] = {
+  protected override def getTestData: List[ListView[Long]] = {
     val rnd = new Random(321332)
 
     // empty
@@ -56,6 +56,6 @@ class ListViewSerializerTest extends SerializerTestBase[ListView[Long]] {
       i += 1
     }
 
-    Array[ListView[Long]](listview1, listview2, listview3)
+    Arrays.asList(listview1, listview2, listview3)
   }
 }

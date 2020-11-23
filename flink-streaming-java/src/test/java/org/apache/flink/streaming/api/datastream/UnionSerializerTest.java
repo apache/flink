@@ -26,6 +26,9 @@ import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.UnionSerializer;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Serializer tests for {@link UnionSerializer}.
  */
@@ -71,11 +74,11 @@ public class UnionSerializerTest extends SerializerTestBase<TaggedUnion<Object, 
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected TaggedUnion<Object, Object>[] getTestData() {
-		return new TaggedUnion[]{
-			TaggedUnion.one(1),
-			TaggedUnion.two("A"),
-			TaggedUnion.one("C")
-		};
+	protected List<TaggedUnion<Object, Object>> getTestData() {
+		return Arrays.asList(
+				TaggedUnion.one(1),
+				TaggedUnion.two("A"),
+				TaggedUnion.one("C")
+		);
 	}
 }

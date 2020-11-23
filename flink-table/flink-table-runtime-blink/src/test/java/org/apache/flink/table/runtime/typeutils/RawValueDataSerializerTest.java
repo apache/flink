@@ -24,6 +24,9 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.utils.RawValueDataAsserter;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A test for the {@link RawValueDataSerializer}.
  */
@@ -54,13 +57,12 @@ public class RawValueDataSerializerTest extends SerializerTestBase<RawValueData<
 	}
 
 	@Override
-	protected RawValueData[] getTestData() {
-		return new RawValueData[] {
+	protected List<RawValueData<String>> getTestData() {
+		return Arrays.asList(
 				RawValueData.fromObject("1"),
 				RawValueData.fromObject("2"),
 				RawValueData.fromObject("3"),
 				RawValueData.fromObject("4"),
-				RawValueData.fromObject("5")
-		};
+				RawValueData.fromObject("5"));
 	}
 }

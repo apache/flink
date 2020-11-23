@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import java.util.function.Consumer
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -197,14 +199,16 @@ class TraversableSerializerTestInstance[T](
     // check for deep copy if type is immutable and not serialized with Kryo
     // elements of traversable should not have reference equality
     if (!elementSerializer.isImmutableType && !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
-      data.foreach { datum =>
-        val original = datum.asInstanceOf[Traversable[_]].toIterable
-        val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
-        copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
-          assertTrue("Copy of mutable element has reference equality.", c ne o)
-        case _ => // ok
+      data.forEach(new Consumer[T] {
+        override def accept(datum: T): Unit = {
+          val original = datum.asInstanceOf[Traversable[_]].toIterable
+          val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
+          copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
+            assertTrue("Copy of mutable element has reference equality.", c ne o)
+          case _ => // ok
+          }
         }
-      }
+      })
     }
   }
 

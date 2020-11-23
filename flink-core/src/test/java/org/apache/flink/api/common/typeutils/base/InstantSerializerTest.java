@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -54,14 +56,13 @@ public class InstantSerializerTest extends SerializerTestBase<Instant> {
 	}
 
 	@Override
-	protected Instant[] getTestData() {
+    protected List<Instant> getTestData() {
 		final Random rnd = new Random(874597969123412341L);
 
-		return new Instant[] {
+		return Arrays.asList(
 			Instant.EPOCH, Instant.MIN, Instant.MAX,
 			Instant.ofEpochSecond(rndSeconds(rnd),	rndNanos(rnd)),
 			Instant.ofEpochSecond(1534135584,949495),
-			Instant.ofEpochSecond(56090783)
-		};
+			Instant.ofEpochSecond(56090783));
 	}
 }

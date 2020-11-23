@@ -42,6 +42,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -74,10 +75,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 	}
 
 	@Override
-	protected TestUserClass[] getTestData() {
+    protected List<TestUserClass> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 
-		return new TestUserClass[]{
+		return Arrays.asList(
 				new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[]{1, 2, 3}, new Date(),
 						new NestedTestUserClass(rnd.nextInt(), "foo@boo", rnd.nextDouble(), new int[]{10, 11, 12})),
 				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6}, null,
@@ -85,7 +86,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new TestUserClass(rnd.nextInt(), null, rnd.nextDouble(), null, null, null),
 				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6}, new Date(),
 						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22}))
-		};
+		);
 
 	}
 

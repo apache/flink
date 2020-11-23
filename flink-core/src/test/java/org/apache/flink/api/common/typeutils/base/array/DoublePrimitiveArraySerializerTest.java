@@ -20,8 +20,9 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
@@ -44,12 +45,12 @@ public class DoublePrimitiveArraySerializerTest extends SerializerTestBase<doubl
 	}
 
 	@Override
-	protected double[][] getTestData() {
-		return new double[][] {
+    protected List<double[]> getTestData() {
+		return Arrays.asList(
 			new double[] {0, 1, 2, 3, -1, -2, -3, Integer.MAX_VALUE, Integer.MIN_VALUE, Double.MAX_VALUE, Double.MIN_VALUE},
 			new double[] {Double.NEGATIVE_INFINITY},
 			new double[] {},
 			new double[] {-1, -2, 96769243, Double.NaN, Double.POSITIVE_INFINITY, 26782, Double.MIN_NORMAL, 0, 0, 0}
-		};
+		);
 	}
 }

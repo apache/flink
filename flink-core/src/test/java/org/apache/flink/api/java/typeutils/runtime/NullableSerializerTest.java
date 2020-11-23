@@ -70,8 +70,8 @@ public class NullableSerializerTest extends SerializerTestBase<Integer> {
 	}
 
 	@Override
-	protected Integer[] getTestData() {
-		return new Integer[] { 5, -1, null, 5 };
+    protected List<Integer> getTestData() {
+		return Arrays.asList(5, -1, null, 5 );
 	}
 
 	@Test

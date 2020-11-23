@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Time;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Test for {@link TimeSerializer}.
@@ -43,7 +45,7 @@ public class TimeSerializerTest extends SerializerTestBase<Time> {
 	}
 
 	@Override
-	protected Time[] getTestData() {
-		return new Time[]{Time.valueOf("11:11:11")};
+	protected List<Time> getTestData() {
+		return Arrays.asList(Time.valueOf("11:11:11"));
 	}
 }

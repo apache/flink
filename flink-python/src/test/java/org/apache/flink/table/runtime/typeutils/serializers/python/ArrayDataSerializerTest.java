@@ -27,6 +27,9 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Test for {@link ArrayDataSerializer}.
  */
@@ -52,8 +55,8 @@ public class ArrayDataSerializerTest {
 		}
 
 		@Override
-		protected ArrayData[] getTestData() {
-			return new BinaryArrayData[]{BinaryArrayData.fromPrimitiveArray(new long[]{100L})};
+		protected List<ArrayData> getTestData() {
+			return Arrays.asList(BinaryArrayData.fromPrimitiveArray(new long[]{100L}));
 		}
 	}
 
@@ -79,7 +82,7 @@ public class ArrayDataSerializerTest {
 		}
 
 		@Override
-		protected ArrayData[] getTestData() {
+		protected List<ArrayData> getTestData() {
 			BinaryArrayData elementArray = BinaryArrayData.fromPrimitiveArray(new long[]{100L});
 			ArrayDataSerializer elementTypeSerializer =
 				new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
@@ -87,7 +90,7 @@ public class ArrayDataSerializerTest {
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 1, 8);
 			writer.writeArray(0, elementArray, elementTypeSerializer);
 			writer.complete();
-			return new BinaryArrayData[]{array};
+			return Arrays.asList(array);
 		}
 	}
 }

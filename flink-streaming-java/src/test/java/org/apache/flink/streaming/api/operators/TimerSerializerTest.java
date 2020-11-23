@@ -23,6 +23,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Test for {@link TimerSerializer}.
  */
@@ -47,16 +50,15 @@ public class TimerSerializerTest extends SerializerTestBase<TimerHeapInternalTim
 		return (Class<TimerHeapInternalTimer<Long, TimeWindow>>) (Class<?>) TimerHeapInternalTimer.class;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected TimerHeapInternalTimer<Long, TimeWindow>[] getTestData() {
-		return (TimerHeapInternalTimer<Long, TimeWindow>[]) new TimerHeapInternalTimer[]{
-			new TimerHeapInternalTimer<>(42L, 4711L, new TimeWindow(1000L, 2000L)),
-			new TimerHeapInternalTimer<>(0L, 0L, new TimeWindow(0L, 0L)),
-			new TimerHeapInternalTimer<>(1L, -1L, new TimeWindow(1L, -1L)),
-			new TimerHeapInternalTimer<>(-1L, 1L, new TimeWindow(-1L, 1L)),
-			new TimerHeapInternalTimer<>(Long.MAX_VALUE, Long.MIN_VALUE, new TimeWindow(Long.MAX_VALUE, Long.MIN_VALUE)),
-			new TimerHeapInternalTimer<>(Long.MIN_VALUE, Long.MAX_VALUE, new TimeWindow(Long.MIN_VALUE, Long.MAX_VALUE))
-		};
+	protected List<TimerHeapInternalTimer<Long, TimeWindow>> getTestData() {
+		return Arrays.asList(
+				new TimerHeapInternalTimer<>(42L, 4711L, new TimeWindow(1000L, 2000L)),
+				new TimerHeapInternalTimer<>(0L, 0L, new TimeWindow(0L, 0L)),
+				new TimerHeapInternalTimer<>(1L, -1L, new TimeWindow(1L, -1L)),
+				new TimerHeapInternalTimer<>(-1L, 1L, new TimeWindow(-1L, 1L)),
+				new TimerHeapInternalTimer<>(Long.MAX_VALUE, Long.MIN_VALUE, new TimeWindow(Long.MAX_VALUE, Long.MIN_VALUE)),
+				new TimerHeapInternalTimer<>(Long.MIN_VALUE, Long.MAX_VALUE, new TimeWindow(Long.MIN_VALUE, Long.MAX_VALUE))
+		);
 	}
 }

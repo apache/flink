@@ -21,6 +21,8 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 public class ValueSerializerUUIDTest extends SerializerTestBase<ValueID> {
@@ -40,11 +42,11 @@ public class ValueSerializerUUIDTest extends SerializerTestBase<ValueID> {
 	}
 
 	@Override
-	protected ValueID[] getTestData() {
-		return new ValueID[] {
+    protected List<ValueID> getTestData() {
+		return Arrays.asList(
 			new ValueID(new UUID(0, 0)),
 			new ValueID(new UUID(1, 0)),
 			new ValueID(new UUID(1, 1))
-		};
+		);
 	}
 }

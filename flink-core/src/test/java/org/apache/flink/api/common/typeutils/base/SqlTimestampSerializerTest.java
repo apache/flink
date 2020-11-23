@@ -19,6 +19,9 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -43,8 +46,8 @@ public class SqlTimestampSerializerTest extends SerializerTestBase<Timestamp> {
 	}
 
 	@Override
-	protected Timestamp[] getTestData() {
-		return new Timestamp[] {
+    protected List<Timestamp> getTestData() {
+		return Arrays.asList(
 			new Timestamp(0L),
 			Timestamp.valueOf("1970-01-01 00:00:00.000"),
 			Timestamp.valueOf("1990-10-14 02:42:25.123"),
@@ -53,6 +56,6 @@ public class SqlTimestampSerializerTest extends SerializerTestBase<Timestamp> {
 			Timestamp.valueOf("2013-08-12 14:15:59.478"),
 			Timestamp.valueOf("2013-08-12 14:15:59.479"),
 			Timestamp.valueOf("2040-05-12 18:00:45.999")
-		};
+		);
 	}
 }

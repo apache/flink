@@ -21,6 +21,9 @@ package org.apache.flink.api.common.typeutils.base.array;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -42,11 +45,11 @@ public class CharPrimitiveArraySerializerTest extends SerializerTestBase<char[]>
 	}
 
 	@Override
-	protected char[][] getTestData() {
-		return new char[][] {
+    protected List<char[]> getTestData() {
+		return Arrays.asList(
 			new char[] {0, 1, 2, 3, '\n', '\t', 'a', 'b', 'c', Character.MAX_VALUE, Character.MIN_VALUE},
 			new char[] {},
 			new char[] {100, 200, 315, 0, 17, 0, 0}
-		};
+		);
 	}
 }

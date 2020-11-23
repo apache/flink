@@ -20,7 +20,9 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A test for the {@link StringSerializer}.
@@ -43,7 +45,7 @@ public class StringSerializerTest extends SerializerTestBase<String> {
 	}
 	
 	@Override
-	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+    protected List<String> getTestData() {
+		return Arrays.asList("a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty");
 	}
 }

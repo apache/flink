@@ -29,6 +29,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.fail;
 
@@ -88,8 +90,8 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 	}
 
 	@Override
-	protected Object[] getTestData() {
-		return new Object[] {
+    protected List<Object> getTestData() {
+		return Arrays.asList(
 				new Integer(7),
 
 				// an object whose class is not on the classpath
@@ -98,7 +100,7 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 				// an object whose class IS on the classpath with a nested object whose class
 				// is NOT on the classpath
 				new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
-		};
+		);
 	}
 
 	@Override

@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.util
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-
 import org.junit.Test
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
@@ -46,8 +47,8 @@ class EitherSerializerTest extends SerializerTestBase[Either[String, Integer]] {
   override protected def getTypeClass: Class[Either[String, Integer]] =
     classOf[Either[String, Integer]]
 
-  override protected def getTestData: Array[Either[String, Integer]] =
-    Array[Either[String, Integer]](
+  protected override def getTestData: util.List[Either[String, Integer]] =
+    util.Arrays.asList(
       Left("hello"),
       Right(17),
       Right(0),

@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ShortSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /**
  * A test for the {@link StringSerializer}.
@@ -46,13 +46,13 @@ public class ShortSerializerTest extends SerializerTestBase<Short> {
 	}
 	
 	@Override
-	protected Short[] getTestData() {
+    protected List<Short> getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		int rndInt = rnd.nextInt(32767);
 		
-		return new Short[] {Short.valueOf((short) 0), Short.valueOf((short) 1), Short.valueOf((short) -1),
+		return Arrays.asList(Short.valueOf((short) 0), Short.valueOf((short) 1), Short.valueOf((short) -1),
 							Short.valueOf((short) rndInt), Short.valueOf((short) -rndInt),
-							Short.valueOf((short) -32767), Short.valueOf((short) 32768)};
+							Short.valueOf((short) -32767), Short.valueOf((short) 32768));
 	}
 }
 	
