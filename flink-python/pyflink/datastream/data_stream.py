@@ -26,6 +26,7 @@ from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
     ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
     PartitionerFunctionWrapper, RuntimeContext, ProcessFunction, KeyedProcessFunction
+from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
@@ -597,6 +598,33 @@ class DataStream(object):
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
+    def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
+            -> Union['CloseableIterator', list]:
+        """
+        Triggers the distributed execution of the streaming dataflow and returns an iterator over
+        the elements of the given DataStream.
+
+        The DataStream application is executed in the regular distributed manner on the target
+        environment, and the events from the stream are polled back to this application process and
+        thread through Flink's REST API.
+
+        The returned iterator must be closed to free all cluster resources.
+
+        :param job_execution_name: The name of the job execution.
+        :param limit: The limit for the collected elements.
+        """
+        if job_execution_name is None and limit is None:
+            return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
+        elif job_execution_name is not None and limit is None:
+            return CloseableIterator(self._j_data_stream.executeAndCollect(job_execution_name),
+                                     self.get_type())
+        if job_execution_name is None and limit is not None:
+            return list(map(lambda data: convert_to_python_obj(data, self.get_type()),
+                            self._j_data_stream.executeAndCollect(limit)))
+        else:
+            return list(map(lambda data: convert_to_python_obj(data, self.get_type()),
+                            self._j_data_stream.executeAndCollect(job_execution_name, limit)))
+
     def print(self, sink_identifier: str = None) -> 'DataStreamSink':
         """
         Writes a DataStream to the standard output stream (stdout).
@@ -1126,3 +1154,33 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
         connected_streams._is_keyed_stream())
 
     return j_python_data_stream_function_operator, j_output_type_info
+
+
+class CloseableIterator(object):
+    """
+    Representing an Iterator that is also auto closeable.
+    """
+
+    def __init__(self, j_closeable_iterator, type_info: TypeInformation = None):
+        self._j_closeable_iterator = j_closeable_iterator
+        self._type_info = type_info
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def next(self):
+        if not self._j_closeable_iterator.hasNext():
+            raise StopIteration('No more data.')
+        return convert_to_python_obj(self._j_closeable_iterator.next(), self._type_info)
+
+    def close(self):
+        self._j_closeable_iterator.close()

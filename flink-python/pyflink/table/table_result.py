@@ -26,7 +26,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_type
-from pyflink.table.utils import java_to_python_converter
+from pyflink.table.utils import pickled_bytes_to_python_converter
 
 __all__ = ['TableResult']
 
@@ -247,7 +247,7 @@ class CloseableIterator(object):
             if len(data) == 0:
                 fields.append(None)
             else:
-                fields.append(java_to_python_converter(data, field_type))
+                fields.append(pickled_bytes_to_python_converter(data, field_type))
         result_row = Row(*fields)
         result_row.set_row_kind(row_kind)
         return result_row

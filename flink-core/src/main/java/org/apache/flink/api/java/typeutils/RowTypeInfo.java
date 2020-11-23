@@ -302,13 +302,6 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 	}
 
 	/**
-	 * Returns the field types of the row. The order matches the order of the field names.
-	 */
-	public TypeInformation<?>[] getFieldTypes() {
-		return types;
-	}
-
-	/**
 	 * Tests whether an other object describes the same, schema-equivalent row information.
 	 */
 	public boolean schemaEquals(Object obj) {

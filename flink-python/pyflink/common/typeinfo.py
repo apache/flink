@@ -84,6 +84,12 @@ class WrapperTypeInfo(TypeInformation):
         """
         return obj
 
+    def from_internal_type(self, obj):
+        """
+         Converts an internal object into a native Python object.
+         """
+        return obj
+
 
 class BasicTypeInfo(TypeInformation, ABC):
     """
@@ -223,6 +229,19 @@ class PrimitiveArrayTypeInfo(WrapperTypeInfo, ABC):
             .PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO)
 
 
+def is_primitive_array_type_info(type_info: TypeInformation):
+    return type_info in {
+        PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO()
+    }
+
+
 class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
     """
     A TypeInformation for arrays of boxed primitive types (Integer, Long, Double, ...).
@@ -281,6 +300,20 @@ class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
         return WrapperTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)
+
+
+def is_basic_array_type_info(type_info: TypeInformation):
+    return type_info in {
+        BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO()
+    }
 
 
 class PickledBytesTypeInfo(WrapperTypeInfo, ABC):
@@ -383,6 +416,20 @@ class RowTypeInfo(WrapperTypeInfo):
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
 
+    def from_internal_type(self, obj):
+        if obj is None:
+            return
+        if isinstance(obj, (tuple, list)):
+            # it's already converted by pickler
+            return obj
+        if self._need_serialize_any_field:
+            # Only calling from_internal_type function for fields that need conversion
+            values = [f.from_internal_type(v) if c else v
+                      for f, v, c in zip(self.types, obj, self._need_conversion)]
+        else:
+            values = obj
+        return tuple(values)
+
 
 class TupleTypeInfo(WrapperTypeInfo):
     """
@@ -433,6 +480,10 @@ class DateTypeInfo(WrapperTypeInfo):
         if d is not None:
             return d.toordinal() - self.EPOCH_ORDINAL
 
+    def from_internal_type(self, v):
+        if v is not None:
+            return datetime.date.fromordinal(v + self.EPOCH_ORDINAL)
+
 
 class TimeTypeInfo(WrapperTypeInfo):
     """
@@ -460,6 +511,13 @@ class TimeTypeInfo(WrapperTypeInfo):
             seconds = minutes * 60 + t.second
             return seconds * 10 ** 6 + t.microsecond - offset_microseconds
 
+    def from_internal_type(self, t):
+        if t is not None:
+            seconds, microseconds = divmod(t + self.EPOCH_ORDINAL, 10 ** 6)
+            minutes, seconds = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            return datetime.time(hours, minutes, seconds, microseconds)
+
 
 class TimestampTypeInfo(WrapperTypeInfo):
     """
@@ -477,6 +535,10 @@ class TimestampTypeInfo(WrapperTypeInfo):
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
             return int(seconds) * 10 ** 6 + dt.microsecond
+
+    def from_internal_type(self, ts):
+        if ts is not None:
+            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
 
 
 class Types(object):
