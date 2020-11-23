@@ -364,9 +364,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
 		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
+		long nextRank = 1L; // the next rank number, should be in the rank range
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
+		while (iterator.hasNext() && isInRankEnd(nextRank)) {
 			Map.Entry<RowData, Long> entry = iterator.next();
 			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
@@ -380,20 +380,19 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					}
 				} else {
 					Iterator<RowData> inputIter = inputs.iterator();
-					while (inputIter.hasNext() && isInRankEnd(curRank)) {
-						curRank += 1;
+					while (inputIter.hasNext() && isInRankEnd(nextRank)) {
 						RowData prevRow = inputIter.next();
 						if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
-							collectDelete(out, prevRow, curRank);
-							curRank -= 1;
+							collectDelete(out, prevRow, nextRank);
+							nextRank -= 1;
 							findsSortKey = true;
 							inputIter.remove();
 						} else if (findsSortKey) {
-							if (curRank == rankEnd) {
-								collectInsert(out, prevRow, curRank);
-								break;
+							if (nextRank == rankEnd) {
+								collectInsert(out, prevRow, nextRank);
 							}
 						}
+						nextRank += 1;
 					}
 					if (inputs.isEmpty()) {
 						dataState.remove(key);
@@ -404,19 +403,19 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			} else if (findsSortKey) {
 				long count = entry.getValue();
 				// gets the rank of last record with same sortKey
-				long rankOfLastRecord = curRank + count;
-				// sends the record if there is a record recently upgrades to Top-N
+				long rankOfLastRecord = nextRank + count - 1;
 				if (rankOfLastRecord < rankEnd) {
-					curRank = rankOfLastRecord;
+					nextRank = rankOfLastRecord + 1;
 				} else {
-					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
+					// sends the record if there is a record recently upgrades to Top-N
+					int index = Long.valueOf(rankEnd - nextRank).intValue();
 					List<RowData> inputs = dataState.get(key);
 					RowData toAdd = inputs.get(index);
 					collectInsert(out, toAdd);
 					break;
 				}
 			} else {
-				curRank += entry.getValue();
+				nextRank += entry.getValue();
 			}
 		}
 	}
