@@ -39,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * unavailable or finished.
  */
 @Internal
-public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, CheckpointableInput {
+public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, CheckpointableInput {
 
 	private final SourceOperator<T, ?> operator;
 	private final int inputGateIndex;
