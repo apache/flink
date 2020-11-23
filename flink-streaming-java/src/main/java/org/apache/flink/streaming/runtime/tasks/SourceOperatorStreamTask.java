@@ -50,11 +50,10 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
 	@Override
 	public void init() {
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0, 0);
-		/**
-		 * {@link SourceOperatorStreamTask} doesn't have any inputs, so there is no need for
-		 * {@link WatermarkGauge} on the input.
-		 */
+		final StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0, 0);
+
+		// The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
+		// a WatermarkGauge on the input.
 		output = new AsyncDataOutputToOutput<>(
 			operatorChain.getMainOperatorOutput(),
 			getStreamStatusMaintainer(),
