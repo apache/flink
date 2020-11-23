@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -63,6 +64,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
@@ -72,6 +74,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Collections.emptyList;
 
 /**
  * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
@@ -831,7 +835,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			if (async) {
 				@SuppressWarnings({ "unchecked", "rawtypes" })
-				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, memoryPages);
+				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, memoryPages, emptyList());
 				barrier.startReading();
 				this.tempBarriers[i] = barrier;
 				this.inputs[i] = null;
@@ -893,21 +897,31 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					}
 				} else {
 					// close the async barrier if there is one
-					if (this.tempBarriers[i] != null) {
-						this.tempBarriers[i].close();
-						this.tempBarriers[i] = null;
-					}
+					List<MemorySegment> allocated = tempBarriers[i] == null ? emptyList() :
+						tempBarriers[i].closeAndGetLeftoverMemory();
+					tempBarriers[i] = null;
 
-					// recreate the local strategy
-					initInputLocalStrategy(i);
+					try {
+						initInputLocalStrategy(i);
 
-					if (this.inputIsAsyncMaterialized[i]) {
-						final int pages = this.materializationMemory[i];
-						@SuppressWarnings({ "unchecked", "rawtypes" })
-						TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages);
-						barrier.startReading();
-						this.tempBarriers[i] = barrier;
-						this.inputs[i] = null;
+						if (this.inputIsAsyncMaterialized[i]) {
+							final int pages = this.materializationMemory[i];
+							Preconditions.checkState(allocated.size() <= pages); // pages shouldn't change, but some segments might have been consumed
+							@SuppressWarnings({ "unchecked", "rawtypes" })
+							TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, pages, allocated);
+							barrier.startReading();
+							this.tempBarriers[i] = barrier;
+							this.inputs[i] = null;
+						} else {
+							memMan.release(allocated);
+						}
+					} catch (Exception exception) {
+						try {
+							memMan.release(allocated);
+						} catch (Exception releaseException) {
+							exception.addSuppressed(releaseException);
+						}
+						throw exception;
 					}
 				}
 			}

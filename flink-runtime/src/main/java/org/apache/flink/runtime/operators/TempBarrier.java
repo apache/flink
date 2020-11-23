@@ -34,6 +34,8 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This class facilitates JVM-local exchange between stages of a batch job.
@@ -66,12 +68,16 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 			TypeSerializerFactory<T> serializerFactory,
 			MemoryManager memManager,
 			IOManager ioManager,
-			int numPages) throws MemoryAllocationException {
+			int numPages,
+			List<MemorySegment> preAllocated) throws MemoryAllocationException {
 		this.serializer = serializerFactory.getSerializer();
 		this.memManager = memManager;
 
 		this.memory = new ArrayList<>(numPages);
-		memManager.allocatePages(owner, this.memory, numPages);
+		this.memory.addAll(preAllocated);
+		if (numPages > memory.size()) {
+			memManager.allocatePages(owner, memory, numPages - preAllocated.size());
+		}
 
 		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(this.memory), memManager.getPageSize());
 		this.tempWriter = new TempWritingThread(input, serializerFactory.getSerializer(), this.buffer);
@@ -107,9 +113,17 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 
 	@Override
 	public void close() throws IOException {
+		memManager.release(prepareToClose());
+	}
+
+	List<MemorySegment> closeAndGetLeftoverMemory() throws IOException {
+		return prepareToClose();
+	}
+
+	private List<MemorySegment> prepareToClose() throws IOException {
 		synchronized (this.lock) {
 			if (this.closed) {
-				return;
+				return Collections.emptyList();
 			}
 			if (this.exception == null) {
 				this.exception = new Exception("The dam has been closed.");
@@ -124,8 +138,11 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 			throw new IOException("Interrupted");
 		}
 
-		this.memManager.release(this.buffer.close());
-		this.memManager.release(this.memory);
+		List<MemorySegment> toRelease = new ArrayList<>();
+		toRelease.addAll(buffer.close());
+		toRelease.addAll(memory);
+		memory.clear();
+		return toRelease;
 	}
 
 	private void setException(Throwable t) {
