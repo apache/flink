@@ -149,7 +149,7 @@ public class FlinkKafkaProducer<IN>
 	 * Number of characters to truncate the taskName to for the Kafka transactionalId.
 	 * The maximum this can possibly be set to is 32,767 - (length of operatorUniqueId).
 	 */
-	private static final short maxTaskNameSize = 10_000;
+	private static final short maxTaskNameSize = 1_000;
 
 	/**
 	 * This coefficient determines what is the safe scale down factor.
@@ -1095,6 +1095,7 @@ public class FlinkKafkaProducer<IN>
 		// so we truncate here if necessary to a more reasonable length string.
 		if (taskName.length() > maxTaskNameSize) {
 			taskName = taskName.substring(0, maxTaskNameSize);
+			LOG.warn("Truncated task name for Kafka TransactionalId from {} to {}.", getRuntimeContext().getTaskName(), taskName);
 		}
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
 			taskName + "-" + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID(),
