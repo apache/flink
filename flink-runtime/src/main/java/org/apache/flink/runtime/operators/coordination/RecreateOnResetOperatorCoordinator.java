@@ -105,7 +105,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
 		// First bump up the coordinator epoch to fence out the active coordinator.
 		LOG.info("Resetting coordinator to checkpoint.");
 		// Replace the coordinator variable with a new DeferrableCoordinator instance.
@@ -366,7 +366,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			internalCoordinator.start();
 		}
 
-		void resetAndStart(byte[] checkpointData, boolean started) {
+		void resetAndStart(@Nullable byte[] checkpointData, boolean started) {
 			if (failed || closed || internalCoordinator == null) {
 				return;
 			}

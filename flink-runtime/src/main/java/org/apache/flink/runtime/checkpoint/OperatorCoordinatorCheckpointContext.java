@@ -22,6 +22,8 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -52,5 +54,16 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
 	@Override
 	default void notifyCheckpointAborted(long checkpointId) {}
 
-	void resetToCheckpoint(byte[] checkpointData) throws Exception;
+	/**
+	 * Resets the coordinator to the checkpoint with the given state.
+	 *
+	 * <p>This method is called with a null state argument in the following situations:
+	 * <ul>
+	 *   <li>There is a recovery and there was no completed checkpoint yet.</li>
+	 *   <li>There is a recovery from a completed checkpoint/savepoint but it contained no state
+	 *       for the coordinator.</li>
+	 * </ul>
+	 * In both cases, the coordinator should reset to an empty (new) state.
+	 */
+	void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception;
 }
