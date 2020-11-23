@@ -437,6 +437,15 @@ public class DataTypeExtractorTest {
 
 			TestSpec
 				.forType(
+					"Data view with invalid list element",
+					AccumulatorWithInvalidDefaultDataView.class)
+				.expectErrorMessage(
+					"Could not extract a data type from '" + ListView.class.getName()
+						+ "<" + Object.class.getName() + ">'. "
+						+ "Please pass the required data type manually or allow RAW types."),
+
+			TestSpec
+				.forType(
 					"Data view with default extraction",
 					AccumulatorWithDefaultDataView.class)
 				.lookupExpects(Object.class)
@@ -1104,6 +1113,13 @@ public class DataTypeExtractorTest {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Accumulator with invalid default extraction for data view.
+	 */
+	public static class AccumulatorWithInvalidDefaultDataView {
+		public ListView<Object> listView;
+	}
 
 	/**
 	 * Accumulator with default extraction for data view.

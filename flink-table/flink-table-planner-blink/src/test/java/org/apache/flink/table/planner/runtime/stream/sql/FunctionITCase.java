@@ -22,10 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -52,7 +54,9 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -899,8 +903,8 @@ public class FunctionITCase extends StreamingTestBase {
 		);
 
 		final List<Row> sinkData = Arrays.asList(
-			Row.of("Jonathan"),
-			Row.of("Alice")
+			Row.of("Jonathan", "Alice=(Alice, 5), Bob=(Bob, 3), Jonathan=(Jonathan, 8)"),
+			Row.of("Alice", "Alice=(Alice, 5), Bob=(Bob, 3)")
 		);
 
 		TestCollectionTableFactory.reset();
@@ -910,14 +914,14 @@ public class FunctionITCase extends StreamingTestBase {
 			"CREATE TABLE SourceTable(ts TIMESTAMP(3), s STRING, WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) " +
 				"WITH ('connector' = 'COLLECTION')");
 		tEnv().executeSql(
-			"CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+			"CREATE TABLE SinkTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().executeSql(
-			"CREATE FUNCTION LongestStringAggregateFunction AS '" + LongestStringAggregateFunction.class.getName() + "'");
+		tEnv().createTemporarySystemFunction("LongestStringAggregateFunction", LongestStringAggregateFunction.class);
+		tEnv().createTemporarySystemFunction("RawMapViewAggregateFunction", RawMapViewAggregateFunction.class);
 
 		tEnv().executeSql(
 			"INSERT INTO SinkTable " +
-			"SELECT LongestStringAggregateFunction(s) " +
+			"SELECT LongestStringAggregateFunction(s), RawMapViewAggregateFunction(s) " +
 			"FROM SourceTable " +
 			"GROUP BY TUMBLE(ts, INTERVAL '1' SECOND)").await();
 
@@ -1229,6 +1233,59 @@ public class FunctionITCase extends StreamingTestBase {
 		@Override
 		public String getValue(Row acc) {
 			return (String) acc.getField(0);
+		}
+	}
+
+	/**
+	 * Aggregate function that tests raw types in map views.
+	 */
+	public static class RawMapViewAggregateFunction
+			extends AggregateFunction<String, RawMapViewAggregateFunction.AccWithRawView> {
+
+		/**
+		 * POJO is invalid and needs to be treated as raw type.
+		 */
+		public static class RawPojo {
+			public String a;
+			public int b;
+
+			public RawPojo(String s) {
+				this.a = s;
+				this.b = s.length();
+			}
+
+			@Override
+			public String toString() {
+				return "(" + a + ", " + b + ')';
+			}
+		}
+
+		/**
+		 * Accumulator with view that maps to raw type.
+		 */
+		public static class AccWithRawView {
+			@DataTypeHint(allowRawGlobally = HintFlag.TRUE)
+			public MapView<String, RawPojo> view = new MapView<>();
+		}
+
+		@Override
+		public AccWithRawView createAccumulator() {
+			return new AccWithRawView();
+		}
+
+		public void accumulate(AccWithRawView acc, String value) throws Exception {
+			if (value != null) {
+				acc.view.put(value, new RawPojo(value));
+			}
+		}
+
+		@Override
+		public String getValue(AccWithRawView acc) {
+			return acc.view.getMap().entrySet()
+				.stream()
+				.map(Objects::toString)
+				.sorted()
+				.collect(Collectors.joining(", "));
 		}
 	}
 }
