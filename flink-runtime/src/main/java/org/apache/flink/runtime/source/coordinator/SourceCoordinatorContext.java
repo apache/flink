@@ -104,9 +104,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
 			OperatorCoordinator.Context operatorCoordinatorContext,
-			SimpleVersionedSerializer<SplitT> splitSerializser) {
+			SimpleVersionedSerializer<SplitT> splitSerializer) {
 		this(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, operatorCoordinatorContext,
-				splitSerializser, new SplitAssignmentTracker<>());
+				splitSerializer, new SplitAssignmentTracker<>());
 	}
 
 	// Package private method for unit test.
@@ -268,7 +268,6 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 * @param in the input from which the states are read.
 	 * @throws Exception when the restoration failed.
 	 */
-	@SuppressWarnings("unchecked")
 	void restoreState(
 			SimpleVersionedSerializer<SplitT> splitSerializer,
 			DataInputStream in) throws Exception {
