@@ -1493,7 +1493,7 @@ that "connects" them).
 **The following methods of `TableAggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and unbounded session and hop window aggregations.
 - `emitValue(...)` is required for bounded and window aggregations.
 
 **The following methods of `TableAggregateFunction` are used to improve the performance of streaming jobs:**
