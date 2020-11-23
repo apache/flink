@@ -151,6 +151,7 @@ class BatchPlanner(
     sb.append(executionPlan)
 
     if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
       sb.append("== Streaming Execution Plan ==")
       sb.append(System.lineSeparator)
       sb.append(streamGraph.getStreamingPlanAsJSON)
