@@ -35,6 +35,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 class TestingOperatorCoordinator implements OperatorCoordinator {
 
+	public static final byte[] NULL_RESTORE_VALUE = new byte[0];
+
 	private final OperatorCoordinator.Context context;
 
 	private final ArrayList<Integer> failedTasks = new ArrayList<>();
@@ -104,8 +106,10 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) {
-		lastRestoredCheckpointState = checkpointData;
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
+		lastRestoredCheckpointState = checkpointData == null
+				? NULL_RESTORE_VALUE
+				: checkpointData;
 	}
 
 	// ------------------------------------------------------------------------
