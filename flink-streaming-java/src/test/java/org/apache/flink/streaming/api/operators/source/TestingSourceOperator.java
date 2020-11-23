@@ -43,8 +43,6 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 	private final int subtaskIndex;
 	private final int parallelism;
 
-	private volatile boolean readerCreated;
-
 	public TestingSourceOperator(
 			SourceReader<T, MockSourceSplit> reader,
 			WatermarkStrategy<T> watermarkStrategy,
@@ -85,13 +83,13 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 		this.subtaskIndex = subtaskIndex;
 		this.parallelism = parallelism;
 		this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-		this.readerCreated = false;
-	}
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		readerCreated = true;
+		// unchecked wrapping is okay to keep tests simpler
+		try {
+			initReader();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
@@ -105,9 +103,5 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 		ExecutionConfig cfg = new ExecutionConfig();
 		cfg.setAutoWatermarkInterval(100);
 		return cfg;
-	}
-
-	public boolean isReaderCreated() {
-		return readerCreated;
 	}
 }

@@ -49,8 +49,16 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	}
 
 	@Override
-	public void init() {
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0, 0);
+	public void init() throws Exception {
+		final SourceOperator<T, ?> sourceOperator = this.mainOperator;
+		// reader initialization, which cannot happen in the constructor due to the
+		// lazy metric group initialization. We do this here now, rather than
+		// later (in open()) so that we can access the reader when setting up the
+		// input processors
+		sourceOperator.initReader();
+
+		final StreamTaskInput<T> input = new StreamTaskSourceInput<>(sourceOperator, 0, 0);
+
 		/**
 		 * {@link SourceOperatorStreamTask} doesn't have any inputs, so there is no need for
 		 * {@link WatermarkGauge} on the input.
