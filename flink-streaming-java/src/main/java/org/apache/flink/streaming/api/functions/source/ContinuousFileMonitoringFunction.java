@@ -96,6 +96,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** The maximum file modification time seen so far. */
 	private volatile long globalModificationTime;
 
+	/** store the initialized value of globalModificationTime */
+	private volatile long initializedGlobalModificationTime;
+
 	private transient Object checkpointLock;
 
 	private volatile boolean isRunning = true;
@@ -134,6 +137,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
 		this.globalModificationTime = globalModificationTime;
+		this.initializedGlobalModificationTime = globalModificationTime;
 	}
 
 	@VisibleForTesting
@@ -168,7 +172,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 			Preconditions.checkArgument(retrievedStates.size() <= 1,
 				getClass().getSimpleName() + " retrieved invalid state.");
 
-			if (retrievedStates.size() == 1 && globalModificationTime != Long.MIN_VALUE) {
+			if (retrievedStates.size() == 1 && globalModificationTime != initializedGlobalModificationTime) {
 				// this is the case where we have both legacy and new state.
 				// The two should be mutually exclusive for the operator, thus we throw the exception.
 
@@ -230,7 +234,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 					// after a failure and we managed to have a successful
 					// checkpoint, we will not reprocess the directory.
 
-					if (globalModificationTime == Long.MIN_VALUE) {
+					if (globalModificationTime == initializedGlobalModificationTime) {
 						monitorDirAndForwardSplits(fileSystem, context);
 						globalModificationTime = Long.MAX_VALUE;
 					}
