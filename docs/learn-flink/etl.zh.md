@@ -130,35 +130,12 @@ public static class NYCEnrichment implements FlatMapFunction<TaxiRide, EnrichedR
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(value -> value.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell)
 {% endhighlight %}
 
 每个 `keyBy` 会通过 shuffle 来为数据流进行重新分区。总体来说这个开销是很大的，它涉及网络通信、序列化和反序列化。
 
 <img src="{% link /fig/keyBy.png %}" alt="keyBy and network shuffle" class="offset" width="45%" />
-
-在上面的例子中，将 "startCell" 这个字段定义为键。这种选择键的方式有个缺点，就是编译器无法推断用作键的字段的类型，所以 Flink 会将键值作为元组传递，这有时候会比较难处理。所以最好还是使用一个合适的 KeySelector，
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(
-        new KeySelector<EnrichedRide, int>() {
-
-            @Override
-            public int getKey(EnrichedRide enrichedRide) throws Exception {
-                return enrichedRide.startCell;
-            }
-        })
-{% endhighlight %}
-
-也可以使用更简洁的 lambda 表达式：
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
-{% endhighlight %}
 
 ### 通过计算得到键
 
