@@ -32,33 +32,41 @@ under the License.
 
 [Debezium](https://debezium.io/) 是一个 CDC（Changelog Data Capture，变更数据捕获）的工具，可以把来自 MySQL、PostgreSQL、Oracle、Microsoft SQL Server 和许多其他数据库的更改实时流式传输到 Kafka 中。 Debezium 为变更日志提供了统一的格式结构，并支持使用 JSON 和 Apache Avro 序列化消息。
 
-Flink 支持将 Debezium JSON 消息解析为 INSERT / UPDATE / DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常的有用，例如
+Flink 支持将 Debezium JSON 和 Avro 消息解析为 INSERT / UPDATE / DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常的有用，例如
  - 将增量数据从数据库同步到其他系统
  - 日志审计
  - 数据库的实时物化视图
  - 关联维度数据库的变更历史，等等。
 
-Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Debezium 格式的 JSON 消息，输出到 Kafka 等存储中。
+Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Debezium 格式的 JSON 或 Avro 消息，输出到 Kafka 等存储中。
 但需要注意的是，目前 Flink 还不支持将 UPDATE_BEFORE 和 UPDATE_AFTER 合并为一条 UPDATE 消息。因此，Flink 将 UPDATE_BEFORE 和 UPDATE_AFTER 分别编码为 DELETE 和 INSERT 类型的 Debezium 消息。
-
-*注意: 支持解析 Debezium Avro 消息和输出 Debezium 消息已经规划在路线图上了。*
 
 依赖
 ------------
 
-{% assign connector = site.data.sql-connectors['debezium'] %} 
-{% include sql-connector-download-table.html 
+<div class="codetabs" markdown="1">
+<div data-lang="Debezium Avro" markdown="1">
+{% assign connector = site.data.sql-connectors['debezium-avro-confluent'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
+</div>
+<div data-lang="Debezium Json" markdown="1">
+{% assign connector = site.data.sql-connectors['debezium-json'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
+</div>
+</div>
 
-*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.1/index.html)，了解如何设置 Debezium Kafka Connect 用来将变更日志同步到 Kafka 主题。*
+*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.3/index.html)，了解如何设置 Debezium Kafka Connect 用来将变更日志同步到 Kafka 主题。*
 
 
 如何使用 Debezium Format
 ----------------
 
 
-Debezium 为变更日志提供了统一的格式，这是一个从 MySQL product 表捕获的更新操作的简单示例:
+Debezium 为变更日志提供了统一的格式，这是一个 JSON 格式的从 MySQL product 表捕获的更新操作的简单示例:
 
 ```json
 {
@@ -81,7 +89,7 @@ Debezium 为变更日志提供了统一的格式，这是一个从 MySQL product
 }
 ```
 
-*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.1/connectors/mysql.html#mysql-connector-events_debezium)，了解每个字段的含义。*
+*注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.3/connectors/mysql.html#mysql-connector-events_debezium)，了解每个字段的含义。*
 
 MySQL 产品表有4列（`id`、`name`、`description`、`weight`）。上面的 JSON 消息是 `products` 表上的一条更新事件，其中 `id = 111` 的行的 `weight` 值从 `5.18` 更改为 `5.15`。假设此消息已同步到 Kafka 主题 `products_binlog`，则可以使用以下 DDL 来使用此主题并解析更改事件。
 
@@ -99,7 +107,9 @@ CREATE TABLE topic_products (
  'topic' = 'products_binlog',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'debezium-json'  -- 使用 debezium-json 作为 format
+  -- 使用 'debezium-json' format 来解析 Debezium 的 JSON 消息
+  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
+ 'format' = 'debezium-json'  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
 )
 {% endhighlight %}
 </div>
@@ -153,6 +163,50 @@ SELECT * FROM topic_products;
 
 Format 参数
 ----------------
+
+Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来解析 Debezium 生成的 JSON 格式和 Avro 格式的消息。
+请使用 `debezium-avro-confluent` 来解析 Debezium 的 Avro 消息，使用 `debezium-json` 来解析 Debezium 的 JSON 消息。
+
+<div class="codetabs" markdown="1">
+<div data-lang="Debezium Avro" markdown="1">
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>format</h5></td>
+      <td>必选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>指定要使用的格式，此处应为 <code>'debezium-avro-confluent'</code>。</td>
+    </tr>
+    <tr>
+      <td><h5>debezium-avro-confluent.schema-registry.url</h5></td>
+      <td>必选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的 URL。</td>
+    </tr>
+    <tr>
+      <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
+      <td>sink 必选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema。</td>
+    </tr>
+    </tbody>
+</table>
+
+</div>
+<div data-lang="Debezium Json" markdown="1">
 
 <table class="table table-bordered">
     <thead>
@@ -221,6 +275,8 @@ Format 参数
     </tbody>
 </table>
 
+</div>
+
 注意事项
 ----------------
 
@@ -236,5 +292,5 @@ Format 参数
 数据类型映射
 ----------------
 
-目前，Debezium Format 使用 JSON Format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
+目前，Debezium Format 使用 JSON Format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping) 和 [Confluent Avro Format 文档]({% link dev/table/connectors/formats/avro-confluent.md %}#data-type-mapping)。
 

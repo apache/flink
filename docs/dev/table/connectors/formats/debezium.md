@@ -32,32 +32,40 @@ under the License.
 
 [Debezium](https://debezium.io/) is a CDC (Changelog Data Capture) tool that can stream changes in real-time from MySQL, PostgreSQL, Oracle, Microsoft SQL Server and many other databases into Kafka. Debezium provides a unified format schema for changelog and supports to serialize messages using JSON and [Apache Avro](https://avro.apache.org/).
 
-Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
+Flink supports to interpret Debezium JSON and Avro messages as INSERT/UPDATE/DELETE messages into Flink SQL system. This is useful in many cases to leverage this feature, such as
  - synchronizing incremental data from databases to other systems
  - auditing logs
  - real-time materialized views on databases
  - temporal join changing history of a database table and so on.
 
-Flink also supports to encode the INSERT/UPDATE/DELETE messages in Flink SQL as Debezium JSON messages, and emit to storage like Kafka.
+Flink also supports to encode the INSERT/UPDATE/DELETE messages in Flink SQL as Debezium JSON or Avro messages, and emit to external systems like Kafka.
 However, currently Flink can't combine UPDATE_BEFORE and UPDATE_AFTER into a single UPDATE message. Therefore, Flink encodes UPDATE_BEFORE and UDPATE_AFTER as DELETE and INSERT Debezium messages.
-
-*Note: Support for interpreting Debezium Avro messages and emitting Debezium messages is on the roadmap.*
 
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['debezium'] %} 
+<div class="codetabs" markdown="1">
+<div data-lang="Debezium Avro" markdown="1">
+{% assign connector = site.data.sql-connectors['debezium-avro-confluent'] %}
 {% include sql-connector-download-table.html 
     connector=connector
 %}
+</div>
+<div data-lang="Debezium Json" markdown="1">
+{% assign connector = site.data.sql-connectors['debezium-json'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
+</div>
+</div>
 
-*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.1/index.html) about how to setup a Debezium Kafka Connect to synchronize changelog to Kafka topics.*
+*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.3/index.html) about how to setup a Debezium Kafka Connect to synchronize changelog to Kafka topics.*
 
 
 How to use Debezium format
 ----------------
 
-Debezium provides a unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table:
+Debezium provides a unified format for changelog, here is a simple example for an update operation captured from a MySQL `products` table in JSON format:
 
 ```json
 {
@@ -80,7 +88,7 @@ Debezium provides a unified format for changelog, here is a simple example for a
 }
 ```
 
-*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.1/connectors/mysql.html#mysql-connector-events_debezium) about the meaning of each fields.*
+*Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.3/connectors/mysql.html#mysql-connector-events_debezium) about the meaning of each fields.*
 
 The MySQL `products` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON message is an update change event on the `products` table where the `weight` value of the row with `id = 111` is changed from `5.18` to `5.15`.
 Assuming this messages is synchronized to Kafka topic `products_binlog`, then we can use the following DDL to consume this topic and interpret the change events.
@@ -99,7 +107,9 @@ CREATE TABLE topic_products (
  'topic' = 'products_binlog',
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
- 'format' = 'debezium-json'  -- using debezium-json as the format
+ -- using 'debezium-json' as the format to interpret Debezium JSON messages
+ -- please use 'debezium-avro-confluent' if Debezium encodes messages in Avro format
+ 'format' = 'debezium-json'
 )
 {% endhighlight %}
 </div>
@@ -153,6 +163,50 @@ SELECT * FROM topic_products;
 
 Format Options
 ----------------
+
+Flink provides `debezium-avro-confluent` and `debezium-json` formats to interpret Avro or Json messages produced by Debezium.
+Use format `debezium-avro-confluent` to interpret Debezium Avro messages and format `debezium-json` to interpret Debezium Json messages.
+
+<div class="codetabs" markdown="1">
+<div data-lang="Debezium Avro" markdown="1">
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 7%">Default</th>
+        <th class="text-center" style="width: 10%">Type</th>
+        <th class="text-center" style="width: 50%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>format</h5></td>
+      <td>required</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify what format to use, here should be <code>'debezium-avro-confluent'</code>.</td>
+    </tr>
+    <tr>
+      <td><h5>debezium-avro-confluent.schema-registry.url</h5></td>
+      <td>required</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
+    </tr>
+    <tr>
+      <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
+      <td>required by sink</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization.</td>
+    </tr>
+    </tbody>
+</table>
+
+</div>
+<div data-lang="Debezium Json" markdown="1">
 
 <table class="table table-bordered">
     <thead>
@@ -220,9 +274,10 @@ Format Options
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'debezium-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>        
-    <tr>       
     </tbody>
 </table>
+
+</div>
 
 Caveats
 ----------------
@@ -239,5 +294,5 @@ See more details in [Debezium Documentation for PostgreSQL REPLICA IDENTITY](htt
 Data Type Mapping
 ----------------
 
-Currently, the Debezium format uses JSON format for serialization and deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.md %}#data-type-mapping) for more details about the data type mapping.
+Currently, the Debezium format uses JSON and Avro format for serialization and deserialization. Please refer to [JSON Format documentation]({% link dev/table/connectors/formats/json.md %}#data-type-mapping) and [Confluent Avro Format documentation]({% link dev/table/connectors/formats/avro-confluent.md %}#data-type-mapping) for more details about the data type mapping.
 
