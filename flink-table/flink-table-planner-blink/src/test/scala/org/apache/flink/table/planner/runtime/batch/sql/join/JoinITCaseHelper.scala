@@ -34,7 +34,12 @@ object JoinITCaseHelper {
 
   def disableOtherJoinOpForJoin(tEnv: TableEnvironment, expected: JoinType): Unit = {
     val disabledOperators = expected match {
-      case BroadcastHashJoin => "NestedLoopJoin, SortMergeJoin"
+      case BroadcastHashJoin =>
+        // set up the broadcast join threshold to Long.MaxValue
+        // so that the threshold constraints are always met.
+        tEnv.getConfig.getConfiguration.setLong(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.MaxValue)
+        "ShuffleHashJoin, NestedLoopJoin, SortMergeJoin"
       case HashJoin =>
         disableBroadcastHashJoin(tEnv)
         "NestedLoopJoin, SortMergeJoin"
