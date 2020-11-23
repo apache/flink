@@ -47,7 +47,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 			maxTime.toMilliseconds(),
 			inputRowType,
 			rowKeySelector,
-			sortKeyComparator,
+			generatedSortKeyComparator,
 			sortKeySelector,
 			rankType,
 			rankRange,

@@ -44,7 +44,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 			minTime.toMilliseconds(),
 			maxTime.toMilliseconds(),
 			inputRowType,
-			sortKeyComparator,
+			comparableRecordComparator,
 			sortKeySelector,
 			rankType,
 			rankRange,
