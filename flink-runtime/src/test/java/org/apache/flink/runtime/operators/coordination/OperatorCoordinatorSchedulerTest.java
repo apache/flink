@@ -78,6 +78,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -319,6 +320,17 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		assertArrayEquals("coordinator should have a restored checkpoint",
 				coordinatorState, coordinator.getLastRestoredCheckpointState());
+	}
+
+	@Test
+	public void testGlobalFailureBeforeCheckpointResetsToEmptyState() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failGlobalAndRestart(scheduler, new TestException());
+
+		assertSame("coordinator should have null restored state",
+			TestingOperatorCoordinator.NULL_RESTORE_VALUE, coordinator.getLastRestoredCheckpointState());
 	}
 
 	@Test
