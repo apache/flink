@@ -40,6 +40,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	private InputDependencyConstraint inputDependencyConstraint;
 
+	private ExecutionState executionState;
+
 	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
 		this(jobVertexId, subtaskIndex, InputDependencyConstraint.ANY);
 	}
@@ -60,6 +62,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 		this.inputDependencyConstraint = constraint;
 		this.consumedPartitions = checkNotNull(consumedPartitions);
 		this.producedPartitions = new ArrayList<>();
+		this.executionState = ExecutionState.CREATED;
 	}
 
 	@Override
@@ -69,7 +72,11 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	@Override
 	public ExecutionState getState() {
-		return ExecutionState.CREATED;
+		return executionState;
+	}
+
+	public void setState(ExecutionState state) {
+		this.executionState = state;
 	}
 
 	@Override
