@@ -229,7 +229,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 

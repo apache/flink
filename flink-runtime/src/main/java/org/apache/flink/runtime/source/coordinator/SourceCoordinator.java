@@ -223,9 +223,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
 		checkState(!started, "The coordinator can only be reset if it was not yet started");
 		assert enumerator == null;
+
+		// the checkpoint data is null if there was no completed checkpoint before
+		// in that case we don't restore here, but let a fresh SplitEnumerator be created
+		// when "start()" is called.
+		if (checkpointData == null) {
+			return;
+		}
 
 		LOG.info("Restoring SplitEnumerator of source {} from checkpoint.", operatorName);
 

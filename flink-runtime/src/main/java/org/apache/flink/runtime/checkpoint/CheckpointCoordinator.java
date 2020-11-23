@@ -1226,7 +1226,11 @@ public class CheckpointCoordinator {
 			boolean errorIfNoCheckpoint,
 			boolean allowNonRestoredState) throws Exception {
 
-		return restoreLatestCheckpointedStateInternal(new HashSet<>(tasks.values()), true, errorIfNoCheckpoint, allowNonRestoredState);
+		return restoreLatestCheckpointedStateInternal(
+				new HashSet<>(tasks.values()),
+				OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET,
+				errorIfNoCheckpoint,
+				allowNonRestoredState);
 	}
 
 	/**
@@ -1257,7 +1261,11 @@ public class CheckpointCoordinator {
 		//     of the restarted region), meaning there will be unmatched state by design.
 		//   - because what we might end up restoring from an original savepoint with unmatched
 		//     state, if there is was no checkpoint yet.
-		return restoreLatestCheckpointedStateInternal(tasks, false, false, true);
+		return restoreLatestCheckpointedStateInternal(
+				tasks,
+				OperatorCoordinatorRestoreBehavior.SKIP, // local/regional recovery does not reset coordinators
+				false,         // recovery might come before first successful checkpoint
+				true);       // see explanation above
 	}
 
 	/**
@@ -1287,12 +1295,34 @@ public class CheckpointCoordinator {
 			final Set<ExecutionJobVertex> tasks,
 			final boolean allowNonRestoredState) throws Exception {
 
-		return restoreLatestCheckpointedStateInternal(tasks, true, false, allowNonRestoredState);
+		return restoreLatestCheckpointedStateInternal(
+				tasks,
+				OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET, // global recovery restores coordinators, or resets them to empty
+				false,   // recovery might come before first successful checkpoint
+				allowNonRestoredState);
+	}
+
+	/**
+	 * Restores the latest checkpointed at the beginning of the job execution.
+	 * If there is a checkpoint, this method acts like a "global restore"-style
+	 * operation where all stateful tasks and coordinators from the given
+	 * set of Job Vertices are restored.
+	 *
+	 * @param tasks Set of job vertices to restore. State for these vertices is
+	 *              restored via {@link Execution#setInitialState(JobManagerTaskRestore)}.
+	 * @return True, if a checkpoint was found and its state was restored, false otherwise.
+	 */
+	public boolean restoreInitialCheckpointIfPresent(final Set<ExecutionJobVertex> tasks) throws Exception {
+		return restoreLatestCheckpointedStateInternal(
+			tasks,
+			OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
+			false,    // initial checkpoints exist only on JobManager failover. ok if not present.
+			false); // JobManager failover means JobGraphs match exactly.
 	}
 
 	private boolean restoreLatestCheckpointedStateInternal(
 		final Set<ExecutionJobVertex> tasks,
-		final boolean restoreCoordinators,
+		final OperatorCoordinatorRestoreBehavior operatorCoordinatorRestoreBehavior,
 		final boolean errorIfNoCheckpoint,
 		final boolean allowNonRestoredState) throws Exception {
 
@@ -1321,14 +1351,23 @@ public class CheckpointCoordinator {
 			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint(isPreferCheckpointForRecovery);
 
 			if (latest == null) {
+				LOG.info("No checkpoint found during restore.");
+
 				if (errorIfNoCheckpoint) {
 					throw new IllegalStateException("No completed checkpoint available");
-				} else {
+				}
+
+				if (operatorCoordinatorRestoreBehavior == OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET) {
+					// we let the JobManager-side components know that there was a recovery,
+					// even if there was no checkpoint to recover from, yet
 					LOG.debug("Resetting the master hooks.");
 					MasterHooks.reset(masterHooks.values(), LOG);
 
-					return false;
+					LOG.info("Resetting the Coordinators to an empty state.");
+					restoreStateToCoordinators(Collections.emptyMap());
 				}
+
+				return false;
 			}
 
 			LOG.info("Restoring job {} from latest valid checkpoint: {}.", job, latest);
@@ -1352,7 +1391,7 @@ public class CheckpointCoordinator {
 					allowNonRestoredState,
 					LOG);
 
-			if (restoreCoordinators) {
+			if (operatorCoordinatorRestoreBehavior != OperatorCoordinatorRestoreBehavior.SKIP) {
 				restoreStateToCoordinators(operatorStates);
 			}
 
@@ -1410,7 +1449,11 @@ public class CheckpointCoordinator {
 
 		LOG.info("Reset the checkpoint ID of job {} to {}.", job, nextCheckpointId);
 
-		return restoreLatestCheckpointedStateInternal(new HashSet<>(tasks.values()), true, true, allowNonRestored);
+		return restoreLatestCheckpointedStateInternal(
+				new HashSet<>(tasks.values()),
+				OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
+				true,
+				allowNonRestored);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1567,14 +1610,9 @@ public class CheckpointCoordinator {
 	private void restoreStateToCoordinators(final Map<OperatorID, OperatorState> operatorStates) throws Exception {
 		for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
 			final OperatorState state = operatorStates.get(coordContext.operatorId());
-			if (state == null) {
-				continue;
-			}
-
-			final ByteStreamStateHandle coordinatorState = state.getCoordinatorState();
-			if (coordinatorState != null) {
-				coordContext.resetToCheckpoint(coordinatorState.getData());
-			}
+			final ByteStreamStateHandle coordinatorState = state == null ? null : state.getCoordinatorState();
+			final byte[] bytes = coordinatorState == null ? null : coordinatorState.getData();
+			coordContext.resetToCheckpoint(bytes);
 		}
 	}
 
@@ -1847,5 +1885,17 @@ public class CheckpointCoordinator {
 		public boolean isForce() {
 			return props.forceCheckpoint();
 		}
+	}
+
+	private enum OperatorCoordinatorRestoreBehavior {
+
+		/** Coordinators are always restored. If there is no checkpoint, they are restored empty. */
+		RESTORE_OR_RESET,
+
+		/** Coordinators are restored if there was a checkpoint. */
+		RESTORE_IF_CHECKPOINT_PRESENT,
+
+		/** Coordinators are not restored during this checkpoint restore. */
+		SKIP;
 	}
 }
