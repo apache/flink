@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Optional;
@@ -31,11 +32,17 @@ import java.util.Optional;
  * be made by returning a checkpointId when shouldTriggerCheckpoint() is invoked.
  *
  * <p>The implementations typically works together with the SplitEnumerator which informs
- * the external system to trigger a checkpoint.
+ * the external system to trigger a checkpoint. The external system also needs to forward
+ * the Checkpoint ID to the source, so the source knows which checkpoint to trigger.
+ *
+ * <p><b>Important:</b> It is crucial that all parallel source tasks trigger
+ * their checkpoints at roughly the same time. Otherwise this leads to performance
+ * issues due to long checkpoint alignment phases or large alignment data snapshots.
  *
  * @param <T>        The type of records produced by the source.
  * @param <SplitT>   The type of splits handled by the source.
  */
+@Experimental
 @PublicEvolving
 public interface ExternallyInducedSourceReader<T, SplitT extends SourceSplit>
 		extends SourceReader<T, SplitT> {
