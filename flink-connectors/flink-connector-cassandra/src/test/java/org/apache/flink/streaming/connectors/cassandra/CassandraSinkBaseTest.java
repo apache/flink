@@ -36,14 +36,12 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedList;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
@@ -161,8 +159,7 @@ public class CassandraSinkBaseTest {
 
 				Assert.fail();
 			} catch (Exception e) {
-				Optional<IOException> exCause = findSerializedThrowable(e, IOException.class, ClassLoader.getSystemClassLoader());
-				Assert.assertTrue(exCause.isPresent());
+				Assert.assertTrue(e.getCause() instanceof IOException);
 			}
 		}
 	}
