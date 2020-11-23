@@ -1056,9 +1056,9 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:  # type: ignore
         JDataStreamPythonFunctionOperator = gateway.jvm.PythonFlatMapOperator
     elif func_type == UserDefinedDataStreamFunction.PROCESS:  # type: ignore
-        JDataStreamPythonFunctionOperator = gateway.jvm.PythonProcessFunctionOperator
+        JDataStreamPythonFunctionOperator = gateway.jvm.PythonProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
-        JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessFunctionOperator
+        JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessOperator
     else:
         raise TypeError("Unsupported function type: %s" % func_type)
 

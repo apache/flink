@@ -31,11 +31,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
 /**
- * {@link PythonProcessFunctionOperator} is responsible for launching beam runner which will start
+ * {@link PythonProcessOperator} is responsible for launching beam runner which will start
  * a python harness to execute user defined python ProcessFunction.
  */
 @Internal
-public class PythonProcessFunctionOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT>{
+public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT>{
 
 	private static final long serialVersionUID = 1L;
 
@@ -51,7 +51,7 @@ public class PythonProcessFunctionOperator<IN, OUT> extends OneInputPythonFuncti
 	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
 	private transient long currentWatermark;
 
-	public PythonProcessFunctionOperator(
+	public PythonProcessOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
