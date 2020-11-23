@@ -250,7 +250,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
 		if (memoryManager != null && config.isUsingManagedMemory()) {
-			Preconditions.checkArgument(managedMemoryFraction > 0 && managedMemoryFraction <= 1.0);
+			Preconditions.checkArgument(managedMemoryFraction > 0 && managedMemoryFraction <= 1.0,
+				"The configured managed memory fraction for Python worker process must be within (0, 1], was: %s. " +
+				"Please refer to the config option \"taskmanager.memory.managed.consumer-weights\" for more details.",
+				managedMemoryFraction);
 
 			final LongFunctionWithException<PythonSharedResources, Exception> initializer = (size) ->
 				new PythonSharedResources(createJobBundleFactory(pipelineOptions), createPythonExecutionEnvironment(size));
