@@ -234,12 +234,12 @@ public class FactoryUtilTest {
 	}
 
 	@Test
-	public void testAvailableFactoryTipsDependencyJarForConnector() {
+	public void testConnectorErrorHint() {
 		try {
 			createTableSource(Collections.singletonMap("connector", "sink-only"));
 			fail();
 		} catch (Exception e) {
-			String errorMsg = "Connector 'sink-only' only supports to be used as sink, can't be used as source.";
+			String errorMsg = "Connector 'sink-only' can only be used as a sink. It cannot be used as a source.";
 			assertThat(e, containsCause(new ValidationException(errorMsg)));
 		}
 
@@ -247,7 +247,7 @@ public class FactoryUtilTest {
 			createTableSink(Collections.singletonMap("connector", "source-only"));
 			fail();
 		} catch (Exception e) {
-			String errorMsg = "Connector 'source-only' only supports to be used as source, can't be used as sink.";
+			String errorMsg = "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
 			assertThat(e, containsCause(new ValidationException(errorMsg)));
 		}
 	}
