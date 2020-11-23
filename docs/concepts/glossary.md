@@ -142,6 +142,12 @@ or [partitions](#partition) of data streams or data sets.
 Records are the constituent elements of a data set or data stream. [Operators](#operator) and
 [Functions](#Function) receive records as input and emit records as output.
 
+#### (Runtime) Execution Mode
+
+DataStream API programs can be executed in one of two execution modes: `BATCH`
+or `STREAMING`. See [Execution Mode]({% link dev/datastream_execution_mode.md
+%}) for more details.
+
 #### Flink Session Cluster
 
 A long-running [Flink Cluster](#flink-cluster) which accepts multiple [Flink Jobs](#flink-job) for
