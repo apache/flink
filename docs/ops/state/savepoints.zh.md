@@ -84,7 +84,7 @@ mapper-id   | State of StatefulMapper
 <strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统上的位置。
 </div>
 
-以 `FsStateBackend`  或 `RocksDBStateBackend` 为例：
+Savepoint的目录结构如下：
 
 {% highlight shell %}
 # Savepoint 目标目录
@@ -100,12 +100,8 @@ mapper-id   | State of StatefulMapper
 /savepoint/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-<div class="alert alert-info">
-  <strong>注意:</strong>
-虽然看起来好像可以移动 Savepoint ，但由于 <code>_metadata</code> 中保存的是绝对路径，因此暂时不支持。
-请按照<a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a>了解取消此限制的进度。
-</div>
-请注意，如果使用 `MemoryStateBackend`，则元数据*和*  Savepoint 状态将存储在 `_metadata` 文件中。 由于它是自包含的，你可以移动文件并从任何位置恢复。
+请注意，如果使用 `MemoryStateBackend`，则元数据*和*  Savepoint 状态将存储在 `_metadata` 文件中。
+在不使用文件系统的熵注入功能的前提下，无论使用哪种状态后端，因为FLINK-5763已经得到解决，我们均可以任意地移动savepoint的目录并进行恢复。
 
 <div class="alert alert-warning">
   <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。

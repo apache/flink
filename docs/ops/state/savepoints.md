@@ -94,7 +94,7 @@ When triggering a savepoint, a new savepoint directory is created where the data
 <strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
 </div>
 
-For example with a `FsStateBackend` or `RocksDBStateBackend`:
+For example:
 
 {% highlight shell %}
 # Savepoint target directory
@@ -110,13 +110,8 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-<div class="alert alert-info">
-  <strong>Note:</strong>
-Although it looks as if the savepoints may be moved, it is currently not possible due to absolute paths in the <code>_metadata</code> file.
-Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a> for progress on lifting this restriction.
-</div>
-
-Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
+Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. 
+If entropy injection has not been enabled, no matter what kind of state backend you use, you could move the savepoint directory and restore from any location since FLINK-5763 has been resolved.
 
 <div class="alert alert-warning">
   <strong>Attention:</strong> It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
