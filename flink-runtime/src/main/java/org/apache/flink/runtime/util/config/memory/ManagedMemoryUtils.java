@@ -26,6 +26,9 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.state.StateBackendLoader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +41,8 @@ import java.util.stream.Stream;
  */
 public enum ManagedMemoryUtils {
 	;
+
+	private static final Logger LOG = LoggerFactory.getLogger(ManagedMemoryUtils.class);
 
 	private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
@@ -71,15 +76,30 @@ public enum ManagedMemoryUtils {
 
 	@VisibleForTesting
 	static Map<ManagedMemoryUseCase, Integer> getManagedMemoryUseCaseWeightsFromConfig(Configuration config) {
-		return config.get(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS)
-			.entrySet().stream()
+		final Map<String, String> consumerWeights = config.get(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS);
+
+		for (String consumer : TaskManagerOptions.ManagedMemoryConsumerNames.getAll()) {
+			if (!consumerWeights.containsKey(consumer)) {
+				LOG.debug("Managed memory consumer weight for {} is not configured. Jobs containing this type of " +
+					"managed memory consumers may fail due to not being able to allocate managed memory.", consumer);
+			}
+		}
+
+		return consumerWeights.entrySet().stream()
 			.flatMap((entry) -> {
 				final String consumer = entry.getKey();
 				final int weight = Integer.parseInt(entry.getValue());
+
 				if (weight < 0) {
 					throw new IllegalConfigurationException(String.format(
 						"Managed memory weight should not be negative. Configured weight for %s is %d.", consumer, weight));
 				}
+
+				if (weight == 0) {
+					LOG.debug("Managed memory consumer weight for {} is configured to 0. Jobs containing this type of " +
+						"managed memory consumers may fail due to not being able to allocate managed memory.", consumer);
+				}
+
 				switch (consumer) {
 					case TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC:
 						return Stream.of(

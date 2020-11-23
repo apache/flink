@@ -26,7 +26,9 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -571,5 +573,9 @@ public class TaskManagerOptions {
 	public static class ManagedMemoryConsumerNames {
 		public static final String DATAPROC = "DATAPROC";
 		public static final String PYTHON = "PYTHON";
+
+		public static List<String> getAll() {
+			return Arrays.asList(DATAPROC, PYTHON);
+		}
 	}
 }
