@@ -661,7 +661,7 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
-	public void testSortingOnModTimeWithGiveGlobalModificationTime() throws Exception {
+	public void testSortingOnModTimeWithGivenGlobalModificationTime() throws Exception {
 		testSortingOnModTime(2);
 	}
 
