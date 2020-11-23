@@ -36,6 +36,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.RowDataRecordEqualiser;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
@@ -62,16 +63,23 @@ abstract class TopNFunctionTestBase {
 			new BigIntType(),
 			new IntType());
 
-	static GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
+	static GeneratedRecordComparator generatedSortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
 
 		private static final long serialVersionUID = 1434685115916728955L;
 
 		@Override
 		public RecordComparator newInstance(ClassLoader classLoader) {
-
 			return IntRecordComparator.INSTANCE;
 		}
 	};
+
+	static ComparableRecordComparator comparableRecordComparator = new ComparableRecordComparator(
+		generatedSortKeyComparator,
+		new int[]{0},
+		new LogicalType[]{new IntType()},
+		new boolean[]{true},
+		new boolean[]{true}
+	);
 
 	private int sortKeyIdx = 2;
 

@@ -177,11 +177,17 @@ class StreamExecSortLimit(
       case RetractStrategy =>
         val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.toRowFieldTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
+        val comparator = new ComparableRecordComparator(
+          sortKeyComparator,
+          sortFields.indices.toArray,
+          sortKeyType.toRowFieldTypes,
+          sortDirections,
+          nullsIsLast)
         new RetractableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
           inputRowTypeInfo,
-          sortKeyComparator,
+          comparator,
           sortKeySelector,
           rankType,
           rankRange,
