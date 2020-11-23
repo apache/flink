@@ -399,4 +399,52 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		expectedOutput.add(insertRecord("book", 1L, 12, 1L));
 		assertorWithRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
+
+	@Test
+	public void testConstantRankRangeWithoutRowNumber() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false,
+			false);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("a", 1L, 1));
+		testHarness.processElement(insertRecord("a", 2L, 2));
+		testHarness.processElement(insertRecord("a", 3L, 2));
+		testHarness.processElement(insertRecord("a", 4L, 2));
+		testHarness.processElement(insertRecord("a", 5L, 3));
+		testHarness.processElement(insertRecord("a", 6L, 4));
+		testHarness.processElement(updateBeforeRecord("a", 2L, 2));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(insertRecord("a", 1L, 1));
+		expectedOutput.add(insertRecord("a", 2L, 2));
+		expectedOutput.add(insertRecord("a", 3L, 2));
+		expectedOutput.add(deleteRecord("a", 2L, 2));
+		expectedOutput.add(insertRecord("a", 4L, 2));
+		assertorWithoutRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testConstantRankRangeWithRowNumber() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false,
+			true);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("a", 1L, 1));
+		testHarness.processElement(insertRecord("a", 2L, 2));
+		testHarness.processElement(insertRecord("a", 3L, 2));
+		testHarness.processElement(insertRecord("a", 4L, 2));
+		testHarness.processElement(insertRecord("a", 5L, 3));
+		testHarness.processElement(insertRecord("a", 6L, 4));
+		testHarness.processElement(updateBeforeRecord("a", 2L, 2));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(insertRecord("a", 1L, 1, 1L));
+		expectedOutput.add(insertRecord("a", 2L, 2, 2L));
+		expectedOutput.add(insertRecord("a", 3L, 2, 3L));
+		expectedOutput.add(updateAfterRecord("a", 3L, 2, 2L));
+		expectedOutput.add(updateAfterRecord("a", 4L, 2, 3L));
+		assertorWithRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+	}
 }
