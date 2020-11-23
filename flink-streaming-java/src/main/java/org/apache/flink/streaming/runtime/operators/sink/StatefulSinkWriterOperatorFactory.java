@@ -23,6 +23,8 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
  * StatefulSinkWriterOperator}.
@@ -35,13 +37,27 @@ public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT
 
 	private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
+	@Nullable
+	private final String previousSinkStateName;
+
 	public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
+		this(sink, null);
+	}
+
+	public StatefulSinkWriterOperatorFactory(
+			Sink<InputT, CommT, WriterStateT, ?> sink,
+			@Nullable String previousSinkStateName) {
 		this.sink = sink;
+		this.previousSinkStateName = previousSinkStateName;
 	}
 
 	@Override
 	AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(ProcessingTimeService processingTimeService) {
-		return new StatefulSinkWriterOperator<>(processingTimeService, sink, sink.getWriterStateSerializer().get());
+		return new StatefulSinkWriterOperator<>(
+				previousSinkStateName,
+				processingTimeService,
+				sink,
+				sink.getWriterStateSerializer().get());
 	}
 
 	@Override
