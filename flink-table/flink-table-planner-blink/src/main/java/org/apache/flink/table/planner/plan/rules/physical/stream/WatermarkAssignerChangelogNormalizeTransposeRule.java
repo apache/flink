@@ -39,16 +39,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class WatermarkAssignerChangelogNormalizeTransposeRule
 	extends RelRule<WatermarkAssignerChangelogNormalizeTransposeRule.Config> {
 
-	public static final RelOptRule WITH_COMPUTED_COLUMN = Config.EMPTY
-		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithComputedColumn")
+	public static final RelOptRule WITH_CALC = Config.EMPTY
+		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithCalc")
 		.as(Config.class)
-		.withComputedColumnCalc()
+		.withCalc()
 		.toRule();
 
-	public static final RelOptRule WITHOUT_COMPUTED_COLUMN = Config.EMPTY
-		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithoutComputedColumn")
+	public static final RelOptRule WITHOUT_CALC = Config.EMPTY
+		.withDescription("WatermarkAssignerChangelogNormalizeTransposeRuleWithoutCalc")
 		.as(Config.class)
-		.withoutComputedColumnCalc()
+		.withoutCalc()
 		.toRule();
 
 	public WatermarkAssignerChangelogNormalizeTransposeRule(Config config) {
@@ -60,7 +60,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 		final StreamExecWatermarkAssigner watermark = call.rel(0);
 		final RelNode node = call.rel(1);
 		if (node instanceof StreamExecCalc) {
-			// with computed column
+			// with calc
 			final StreamExecCalc calc = call.rel(1);
 			final StreamExecChangelogNormalize changelogNormalize = call.rel(2);
 			final StreamExecExchange exchange = call.rel(3);
@@ -73,7 +73,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 				exchange.getInput());
 			call.transformTo(newTree);
 		} else if (node instanceof StreamExecChangelogNormalize) {
-			// without computed column
+			// without calc
 			final StreamExecChangelogNormalize changelogNormalize = call.rel(1);
 			final StreamExecExchange exchange = call.rel(2);
 
@@ -112,7 +112,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 			return new WatermarkAssignerChangelogNormalizeTransposeRule(this);
 		}
 
-		default Config withComputedColumnCalc() {
+		default Config withCalc() {
 			return withOperandSupplier(b0 ->
 				b0.operand(StreamExecWatermarkAssigner.class).oneInput(
 					b1 -> b1.operand(StreamExecCalc.class).oneInput(
@@ -121,7 +121,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
 				.as(Config.class);
 		}
 
-		default Config withoutComputedColumnCalc() {
+		default Config withoutCalc() {
 			return withOperandSupplier(b0 ->
 				b0.operand(StreamExecWatermarkAssigner.class).oneInput(
 					b1 -> b1.operand(StreamExecChangelogNormalize.class).oneInput(

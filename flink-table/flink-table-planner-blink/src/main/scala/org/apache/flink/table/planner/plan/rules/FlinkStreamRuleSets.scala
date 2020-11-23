@@ -435,8 +435,8 @@ object FlinkStreamRuleSets {
    * RuleSet related to transpose watermark to be close to source
    */
   val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
-    WatermarkAssignerChangelogNormalizeTransposeRule.WITH_COMPUTED_COLUMN,
-    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_COMPUTED_COLUMN
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
   )
 
   /**
