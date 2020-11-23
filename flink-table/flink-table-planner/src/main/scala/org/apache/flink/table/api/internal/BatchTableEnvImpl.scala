@@ -297,7 +297,7 @@ abstract class BatchTableEnvImpl(
     val extended = extraDetails.contains(ExplainDetail.ESTIMATED_COST)
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
-    s"== Abstract Syntax Tree ==" +
+    val explanation = s"== Abstract Syntax Tree ==" +
       System.lineSeparator +
       s"$astPlan" +
       System.lineSeparator +
@@ -308,6 +308,16 @@ abstract class BatchTableEnvImpl(
       s"== Physical Execution Plan ==" +
       System.lineSeparator +
       s"$sqlPlan"
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      s"$explanation" +
+      System.lineSeparator +
+      s"== Streaming Execution Plan ==" +
+      System.lineSeparator +
+      s"$jasonSqlPlan"
+    } else {
+      s"$explanation"
+    }
   }
 
   override def execute(jobName: String): JobExecutionResult = {
