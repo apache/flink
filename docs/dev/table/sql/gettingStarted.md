@@ -73,6 +73,7 @@ SELECT CURRENT_TIMESTAMP;
 ---------------
 
 {% top %}
+
 ## Setting up tables
 Real-world database queries are run against the SQL tables. Although Flink is a stream processing engine, users can define a table on top of the streaming data. Generally, Flink data processing pipelines have three components - source, compute, sink. 
 
@@ -201,6 +202,24 @@ So far, We have seen the query execution using the SQL client but does that mean
  {% endhighlight %} 
  
 Once submitted such a query, can only be controlled from Flink cluster.  It will run and store the results into the sink table directly instead of loading the results into the system memory. 
+
+---------------
+
+{% top %}
+
+## Looking for Help! 
+
+If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
+In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
+
+## Resources to Learn more
+
+* [SQL]({{ site.baseurl }}/dev/table/sql/index.html): Supported operations and syntax for SQL.
+* [SQL Client]({{ site.baseurl }}/dev/table/sqlClient.html): Play around with Flink SQL and submit a table program to a cluster without programming knowledge
+* [Concepts & Common API]({{ site.baseurl }}/dev/table/common.html): Shared concepts and APIs of the Table API and SQL.
+* [Streaming Concepts]({{ site.baseurl }}/dev/table/streaming): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
+* [Built-in Functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html): Supported functions in Table API and SQL.
+* [Connect to External Systems]({{ site.baseurl }}/dev/table/connect.html): Available connectors and formats for reading and writing data to external systems.
 
 ---------------
 
