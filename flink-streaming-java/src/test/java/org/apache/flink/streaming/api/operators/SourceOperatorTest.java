@@ -91,9 +91,7 @@ public class SourceOperatorTest {
 	@After
 	public void cleanUp() throws Exception {
 		operator.close();
-		if (((TestingSourceOperator<Integer>) operator).isReaderCreated()) {
-			assertTrue(mockSourceReader.isClosed());
-		}
+		assertTrue(mockSourceReader.isClosed());
 	}
 
 	@Test

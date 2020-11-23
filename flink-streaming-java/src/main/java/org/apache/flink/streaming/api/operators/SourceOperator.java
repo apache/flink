@@ -131,9 +131,27 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		this.localHostname = checkNotNull(localHostname);
 	}
 
-	@Override
-	public void open() throws Exception {
+	/**
+	 * Initializes the reader. The code from this method should ideally happen in the
+	 * constructor or in the operator factory even. It has to happen here at a slightly
+	 * later stage, because of the lazy metric initialization.
+	 *
+	 * <p>Calling this method explicitly is an optional way to have the reader
+	 * initialization a bit earlier than in open(), as needed by the
+	 * {@link org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask}
+	 *
+	 * <p>This code should move to the constructor once the metric groups are available
+	 * at task setup time.
+	 */
+	public void initReader() throws Exception {
+		if (sourceReader != null) {
+			return;
+		}
+
 		final MetricGroup metricGroup = getMetricGroup();
+		assert metricGroup != null;
+
+		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
 		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
@@ -153,7 +171,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 			@Override
 			public int getIndexOfSubtask() {
-				return getRuntimeContext().getIndexOfThisSubtask();
+				return subtaskIndex;
 			}
 
 			@Override
@@ -167,16 +185,21 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			}
 		};
 
+		sourceReader = readerFactory.apply(context);
+	}
+
+	@Override
+	public void open() throws Exception {
+		initReader();
+
 		// in the future when we support both batch and streaming modes for the source operator,
 		// and when this one is migrated to the "eager initialization" operator (StreamOperatorV2),
 		// then we should evaluate this during operator construction.
 		eventTimeLogic = TimestampsAndWatermarks.createStreamingEventTimeLogic(
-				watermarkStrategy,
-				metricGroup,
-				getProcessingTimeService(),
-				getExecutionConfig().getAutoWatermarkInterval());
-
-		sourceReader = readerFactory.apply(context);
+			watermarkStrategy,
+			getMetricGroup(),
+			getProcessingTimeService(),
+			getExecutionConfig().getAutoWatermarkInterval());
 
 		// restore the state if necessary.
 		final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());

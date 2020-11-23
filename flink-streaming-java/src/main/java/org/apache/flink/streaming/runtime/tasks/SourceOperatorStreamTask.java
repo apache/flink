@@ -46,7 +46,14 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	}
 
 	@Override
-	public void init() {
+	public void init() throws Exception {
+		final SourceOperator<T, ?> sourceOperator = headOperator;
+		// reader initialization, which cannot happen in the constructor due to the
+		// lazy metric group initialization. We do this here now, rather than
+		// later (in open()) so that we can access the reader when setting up the
+		// input processors
+		sourceOperator.initReader();
+
 		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
 		output = new AsyncDataOutputToOutput<>(
 			operatorChain.getChainEntryPoint(),
