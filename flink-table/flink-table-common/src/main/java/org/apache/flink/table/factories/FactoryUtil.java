@@ -262,8 +262,8 @@ public final class FactoryUtil {
 					"%s",
 					factoryIdentifier,
 					factoryClass.getName(),
-					foundFactories.stream()
-						.map(f -> factories.getClass().getName())
+					matchingFactories.stream()
+						.map(f -> f.getClass().getName())
 						.sorted()
 						.collect(Collectors.joining("\n"))));
 		}
@@ -383,7 +383,7 @@ public final class FactoryUtil {
 		} catch (ValidationException e) {
 			return new ValidationException(
 				String.format(
-					"Cannot discover a connector using option '%s'.",
+					"Cannot discover a connector using option: %s",
 					stringifyOption(CONNECTOR.key(), connectorOption)),
 				e);
 		}

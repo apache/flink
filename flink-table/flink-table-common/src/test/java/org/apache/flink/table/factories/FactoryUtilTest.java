@@ -67,8 +67,19 @@ public class FactoryUtilTest {
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DynamicTableFactory.class.getName() + "' in the classpath.\n\n" +
 			"Available factory identifiers are:\n\n" +
-			"sink-only\nsource-only\ntest\ntest-connector");
+			"conflicting\nsink-only\nsource-only\ntest\ntest-connector");
 		testError(options -> options.put("connector", "FAIL"));
+	}
+
+	@Test
+	public void testConflictingConnector() {
+		expectError(
+			"Multiple factories for identifier 'conflicting' that implement '"
+				+ DynamicTableFactory.class.getName() + "' found in the classpath.\n"
+				+ "\n" + "Ambiguous factory classes are:\n" + "\n"
+				+ TestConflictingDynamicTableFactory1.class.getName() + "\n"
+				+ TestConflictingDynamicTableFactory2.class.getName());
+		testError(options -> options.put("connector", TestConflictingDynamicTableFactory1.IDENTIFIER));
 	}
 
 	@Test
