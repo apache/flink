@@ -137,7 +137,13 @@ public class PythonConfigUtil {
 		StreamExecutionEnvironment env, boolean clearTransformations) throws IllegalAccessException,
 		NoSuchMethodException, InvocationTargetException, NoSuchFieldException {
 		Configuration mergedConfig = getEnvConfigWithDependencies(env);
-		boolean existsUnboundedSource = false;
+
+		boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
+		if (executedInBatchMode) {
+			throw new UnsupportedOperationException("Running jobs in Batch mode is not supported in" +
+				" Python DataStream.");
+		}
+
 		if (mergedConfig.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
 			Field transformationsField = StreamExecutionEnvironment.class.getDeclaredField("transformations");
 			transformationsField.setAccessible(true);
@@ -149,8 +155,6 @@ public class PythonConfigUtil {
 				} else if (transform instanceof AbstractMultipleInputTransformation && isPythonOperator(((AbstractMultipleInputTransformation) transform).getOperatorFactory())) {
 					transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
 				}
-				existsUnboundedSource = existsUnboundedSource || (transform instanceof WithBoundedness &&
-					((WithBoundedness) transform).getBoundedness() != Boundedness.BOUNDED);
 			}
 		}
 
@@ -176,8 +180,7 @@ public class PythonConfigUtil {
 
 					if (streamOperator instanceof PythonTimestampsAndWatermarksOperator) {
 						((PythonTimestampsAndWatermarksOperator) streamOperator)
-							.configureEmitProgressiveWatermarks(
-								!isExecuteInBatchMode(mergedConfig) || existsUnboundedSource);
+							.configureEmitProgressiveWatermarks(!executedInBatchMode);
 					}
 				}
 			}
@@ -225,11 +228,23 @@ public class PythonConfigUtil {
 	/**
 	 * Return is executed in batch mode according to the configured RuntimeExecutionMode.
 	 */
-	private static boolean isExecuteInBatchMode(Configuration configuration) {
+	private static boolean isExecuteInBatchMode(
+		StreamExecutionEnvironment env,
+		Configuration configuration) throws NoSuchFieldException, IllegalAccessException {
+
 		final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
 		if (executionMode != RuntimeExecutionMode.AUTOMATIC) {
 			return executionMode == RuntimeExecutionMode.BATCH;
 		}
-		return false;
+
+		Field transformationsField = StreamExecutionEnvironment.class
+			.getDeclaredField("transformations");
+		transformationsField.setAccessible(true);
+		boolean existsUnboundedSource = false;
+		for (Transformation transform : (List<Transformation<?>>) transformationsField.get(env)) {
+			existsUnboundedSource = existsUnboundedSource || (transform instanceof WithBoundedness
+				&& ((WithBoundedness) transform).getBoundedness() != Boundedness.BOUNDED);
+		}
+		return !existsUnboundedSource;
 	}
 }
