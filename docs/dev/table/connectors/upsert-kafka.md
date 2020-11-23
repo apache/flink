@@ -205,6 +205,33 @@ See the [regular Kafka connector]({% link dev/connectors/kafka.md %}#key-and-val
 explanation around key and value formats. However, note that this connector requires both a key and
 value format where the key fields are derived from the `PRIMARY KEY` constraint.
 
+The following example shows how to specify and configure key and value formats. The format options are
+prefixed with either the `'key'` or `'value'` plus format identifier.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  PRIMARY KEY (`user_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'upsert-kafka',
+  ...
+
+  'key.format' = 'json',
+  'key.json.ignore-parse-errors' = 'true',
+
+  'value.format' = 'json',
+  'value.json.fail-on-missing-field' = 'false',
+  'value.fields-include' = 'EXCEPT_KEY'
+)
+{% endhighlight %}
+</div>
+</div>
+
 ### Primary Key Constraints
 
 The Upsert Kafka always works in the upsert fashion and requires to define the primary key in the DDL.

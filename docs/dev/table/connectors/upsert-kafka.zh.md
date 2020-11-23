@@ -192,6 +192,33 @@ See the [regular Kafka connector]({% link dev/connectors/kafka.zh.md %}#key-and-
 explanation around key and value formats. However, note that this connector requires both a key and
 value format where the key fields are derived from the `PRIMARY KEY` constraint.
 
+The following example shows how to specify and configure key and value formats. The format options are
+prefixed with either the `'key'` or `'value'` plus format identifier.
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  `ts` TIMESTAMP(3) METADATA FROM 'timestamp',
+  `user_id` BIGINT,
+  `item_id` BIGINT,
+  `behavior` STRING,
+  PRIMARY KEY (`user_id`) NOT ENFORCED
+) WITH (
+  'connector' = 'upsert-kafka',
+  ...
+
+  'key.format' = 'json',
+  'key.json.ignore-parse-errors' = 'true',
+
+  'value.format' = 'json',
+  'value.json.fail-on-missing-field' = 'false',
+  'value.fields-include' = 'EXCEPT_KEY'
+)
+{% endhighlight %}
+</div>
+</div>
+
 ### 主键约束
 
 Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键。在具有相同主键值的消息按序存储在同一个分区的前提下，在 changlog source 定义主键意味着 在物化后的 changelog 上主键具有唯一性。定义的主键将决定哪些字段出现在 Kafka 消息的 key 中。

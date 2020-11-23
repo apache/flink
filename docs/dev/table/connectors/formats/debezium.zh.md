@@ -166,8 +166,8 @@ Available Metadata
 The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
 
 <span class="label label-danger">Attention</span> Format metadata fields are only available if the
-corresponding connector forwards them. Currently, only the Kafka connector is able to expose metadata
-fields for its value format.
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
 
 <table class="table table-bordered">
     <thead>

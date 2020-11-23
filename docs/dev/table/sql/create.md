@@ -196,7 +196,7 @@ in the catalog, an exception is thrown.
 
 Physical columns are regular columns known from databases. They define the names, the types, and the
 order of fields in the physical data. Thus, physical columns represent the payload that is read from
-and written to an external system. Connectors and formats are using these columns (in the defined order)
+and written to an external system. Connectors and formats use these columns (in the defined order)
 to configure themselves. Other kinds of columns can be declared between physical columns but will not
 influence the final physical schema.
 
@@ -258,7 +258,7 @@ CREATE TABLE MyTable (
 {% endhighlight %}
 
 For convenience, the runtime will perform an explicit cast if the data type of the column differs from
-the data type of the metadata field. Of course this requires that the two data types are compatible.
+the data type of the metadata field. Of course, this requires that the two data types are compatible.
 
 {% highlight sql %}
 CREATE TABLE MyTable (
@@ -307,6 +307,10 @@ Both physical columns and metadata columns can be accessed if they preceed the c
 schema declaration. The column itself is not physically stored within the table. The column's data type
 is derived automatically from the given expression and does not have to be declared manually.
 
+The planner will transform computed columns into a regular projection after the source. For optimization
+or [watermark strategy push down]({% link dev/table/sourceSinks.md %}), the evaluation might be spread
+across operators, performed multiple times, or skipped if not needed for the given query.
+
 For example, a computed column could be defined as:
 {% highlight sql %}
 CREATE TABLE MyTable (
@@ -343,9 +347,9 @@ query-to-sink schema:
 MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
 {% endhighlight %}
 
-### Watermark
+### `WATERMARK`
 
-The `WATERMARK` defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name AS watermark_strategy_expression`.
+The `WATERMARK` clause defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name AS watermark_strategy_expression`.
 
 The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
 
@@ -380,7 +384,7 @@ CREATE TABLE Orders (
 ) WITH ( . . . );
 {% endhighlight %}
 
-### Primary Keys
+### `PRIMARY KEY`
 
 Primary key constraint is a hint for Flink to leverage for optimizations. It tells that a column or a set of columns of a table or a view are unique and they **do not** contain null.
 Neither of columns in a primary can be nullable. Primary key therefore uniquely identify a row in a table.
@@ -412,7 +416,7 @@ The key and value of expression `key1=val1` should both be string literal. See d
 
 **Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
 
-### `LIKE` clause
+### `LIKE`
 
 The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
 can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.

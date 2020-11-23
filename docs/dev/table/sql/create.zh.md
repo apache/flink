@@ -187,6 +187,27 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
+### Columns
+
+**Physical / Regular Columns**
+
+Physical columns are regular columns known from databases. They define the names, the types, and the
+order of fields in the physical data. Thus, physical columns represent the payload that is read from
+and written to an external system. Connectors and formats use these columns (in the defined order)
+to configure themselves. Other kinds of columns can be declared between physical columns but will not
+influence the final physical schema.
+
+The following statement creates a table with only regular columns:
+
+{% highlight sql %}
+CREATE TABLE MyTable (
+  `user_id` BIGINT,
+  `name` STRING
+) WITH (
+  ...
+);
+{% endhighlight %}
+
 **Metadata Columns**
 
 Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
@@ -234,7 +255,7 @@ CREATE TABLE MyTable (
 {% endhighlight %}
 
 For convenience, the runtime will perform an explicit cast if the data type of the column differs from
-the data type of the metadata field. Of course this requires that the two data types are compatible.
+the data type of the metadata field. Of course, this requires that the two data types are compatible.
 
 {% highlight sql %}
 CREATE TABLE MyTable (
@@ -283,6 +304,10 @@ Both physical columns and metadata columns can be accessed if they preceed the c
 schema declaration. The column itself is not physically stored within the table. The column's data type
 is derived automatically from the given expression and does not have to be declared manually.
 
+The planner will transform computed columns into a regular projection after the source. For optimization
+or [watermark strategy push down]({% link dev/table/sourceSinks.zh.md %}), the evaluation might be spread
+across operators, performed multiple times, or skipped if not needed for the given query.
+
 For example, a computed column could be defined as:
 {% highlight sql %}
 CREATE TABLE MyTable (
@@ -319,21 +344,7 @@ query-to-sink schema:
 MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
 {% endhighlight %}
 
-
-**COMPUTED COLUMN**
-
-计算列是一个使用 “`column_name AS computed_column_expression`” 语法生成的虚拟列。它由使用同一表中其他列的非查询表达式生成，并且不会在表中进行物理存储。例如，一个计算列可以使用 `cost AS price * quantity` 进行定义，这个表达式可以包含物理列、常量、函数或变量的任意组合，但这个表达式不能存在任何子查询。
-
-在 Flink 中计算列一般用于为 CREATE TABLE 语句定义 [时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html)。
-[处理时间属性]({{ site.baseurl}}/zh/dev/table/streaming/time_attributes.html#processing-time) 可以简单地通过使用了系统函数 `PROCTIME()` 的 `proc AS PROCTIME()` 语句进行定义。
-另一方面，由于事件时间列可能需要从现有的字段中获得，因此计算列可用于获得事件时间列。例如，原始字段的类型不是 `TIMESTAMP(3)` 或嵌套在 JSON 字符串中。
-
-注意：
-
-- 定义在一个数据源表（ source table ）上的计算列会在从数据源读取数据后被计算，它们可以在 SELECT 查询语句中使用。
-- 计算列不可以作为 INSERT 语句的目标，在 INSERT 语句中，SELECT 语句的 schema 需要与目标表不带有计算列的 schema 一致。
-
-**WATERMARK**
+### `WATERMARK`
 
 `WATERMARK` 定义了表的事件时间属性，其形式为 `WATERMARK FOR rowtime_column_name  AS watermark_strategy_expression` 。
 
@@ -371,14 +382,14 @@ CREATE TABLE Orders (
 {% endhighlight %}
 
 
-**PRIMARY KEY**
+### `PRIMARY KEY`
 
 主键用作 Flink 优化的一种提示信息。主键限制表明一张表或视图的某个（些）列是唯一的并且不包含 Null 值。
 主键声明的列都是非 nullable 的。因此主键可以被用作表行级别的唯一标识。
 
 主键可以和列的定义一起声明，也可以独立声明为表的限制属性，不管是哪种方式，主键都不可以重复定义，否则 Flink 会报错。
 
-##### 有效性检查
+**有效性检查**
 
 SQL 标准主键限制可以有两种模式：`ENFORCED` 或者 `NOT ENFORCED`。 它申明了是否输入/出数据会做合法性检查（是否唯一）。Flink 不存储数据因此只支持 `NOT ENFORCED` 模式，即不做检查，用户需要自己保证唯一性。
 
@@ -386,11 +397,11 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 **Notes:** 在 CREATE TABLE 语句中，创建主键会修改列的 nullable 属性，主键声明的列默认都是非 Nullable 的。
 
-**PARTITIONED BY**
+### `PARTITIONED BY`
 
 根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
 
-**WITH OPTIONS**
+### `WITH` Options
 
 表属性用于创建 table source/sink ，一般用于寻找和创建底层的连接器。
 
@@ -400,7 +411,7 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 **注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
 
-**LIKE**
+### `LIKE`
 
 `LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的 LIKE 语法” 和 Feature T173，“表定义中的 LIKE 语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义，并且是基于 CREATE 语句的更上层定义，这是因为 LIKE 子句可以用于定义表的多个部分，而不仅仅是 schema 部分。
 

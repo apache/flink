@@ -429,8 +429,8 @@ CREATE TABLE KafkaTable (
 </div>
 </div>
 
-The key format includes the fields listed in `'key.fields'` (in the same order). Thus, it will be configured with
-the following data type:
+The key format includes the fields listed in `'key.fields'` (using `';'` as the delimiter) in the same
+order. Thus, it will be configured with the following data type:
 
 {% highlight text %}
 ROW<`user_id` BIGINT, `item_id` BIGINT>

@@ -95,7 +95,7 @@ Flink natively support various connectors. The following tables list all availab
 How to use connectors
 --------
 
-Flink supports to use SQL `CREATE TABLE` statement to register a table. One can define the table name,
+Flink supports using SQL `CREATE TABLE` statements to register tables. One can define the table name,
 the table schema, and the table options for connecting to an external system.
 
 See the [SQL section for more information about creating a table]({% link dev/table/sql/create.md %}#create-table).
