@@ -19,6 +19,15 @@ package org.apache.flink.api.common.python;
 
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
@@ -52,6 +61,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE;
+import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME;
+import static org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP;
 
 /**
  * Utility class that contains helper methods to create a TableSource from
@@ -236,21 +250,19 @@ public final class PythonBridgeUtils {
 			} else if (dataType instanceof MapType) {
 				List<List<Object>> serializedMapKV = new ArrayList<>(2);
 				MapType mapType = (MapType) dataType;
-				LogicalType keyType = mapType.getKeyType();
-				LogicalType valueType = mapType.getValueType();
-				List<Object> keyBytesList = new ArrayList<>();
-				List<Object> valueBytesList = new ArrayList<>();
 				Map<Object, Object> mapObj = (Map) obj;
+				List<Object> keyBytesList = new ArrayList<>(mapObj.size());
+				List<Object> valueBytesList = new ArrayList<>(mapObj.size());
 				for (Map.Entry entry : mapObj.entrySet()) {
-					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), keyType));
-					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), valueType));
+					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), mapType.getKeyType()));
+					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), mapType.getValueType()));
 				}
 				serializedMapKV.add(keyBytesList);
 				serializedMapKV.add(valueBytesList);
 				return pickler.dumps(serializedMapKV);
 			} else if (dataType instanceof ArrayType) {
-				List<Object> serializedElements = new ArrayList<>();
 				Object[] objects = (Object[]) obj;
+				List<Object> serializedElements = new ArrayList<>(objects.length);
 				ArrayType arrayType = (ArrayType) dataType;
 				LogicalType elementType = arrayType.getElementType();
 				for (Object object : objects) {
@@ -259,6 +271,51 @@ public final class PythonBridgeUtils {
 				return pickler.dumps(serializedElements);
 			}
 			if (dataType instanceof FloatType) {
+				return pickler.dumps(String.valueOf(obj));
+			} else {
+				return pickler.dumps(obj);
+			}
+		}
+	}
+
+	public static Object getPickledBytesFromJavaObject(Object obj, TypeInformation<?> dataType) throws IOException {
+		Pickler pickler = new Pickler();
+		initialize();
+		if (obj == null) {
+			return new byte[0];
+		} else {
+			if (dataType instanceof SqlTimeTypeInfo) {
+				SqlTimeTypeInfo<?> sqlTimeTypeInfo = SqlTimeTypeInfo.getInfoFor(dataType.getTypeClass());
+				if (sqlTimeTypeInfo == DATE) {
+					return pickler.dumps(((Date) obj).toLocalDate().toEpochDay());
+				} else if (sqlTimeTypeInfo == TIME) {
+					return pickler.dumps(((Time) obj).toLocalTime().toNanoOfDay() / 1000);
+				}
+			} else if (dataType instanceof RowTypeInfo || dataType instanceof TupleTypeInfo) {
+				TypeInformation<?>[] fieldTypes = ((TupleTypeInfoBase<?>) dataType).getFieldTypes();
+				int arity = dataType instanceof RowTypeInfo ? ((Row) obj).getArity() : ((Tuple) obj).getArity();
+				List<Object> fieldBytes = new ArrayList<>(arity + 1);
+				if (dataType instanceof RowTypeInfo) {
+					fieldBytes.add(new byte[]{((Row) obj).getKind().toByteValue()});
+				}
+				for (int i = 0; i < arity; i++) {
+					Object field = dataType instanceof RowTypeInfo ? ((Row) obj).getField(i) : ((Tuple) obj).getField(i);
+					fieldBytes.add(getPickledBytesFromJavaObject(field, fieldTypes[i]));
+				}
+				return fieldBytes;
+			} else if (dataType instanceof BasicArrayTypeInfo || dataType instanceof PrimitiveArrayTypeInfo) {
+				Object[] objects = (Object[]) obj;
+				List<Object> serializedElements = new ArrayList<>(objects.length);
+				TypeInformation<?> elementType = dataType instanceof BasicArrayTypeInfo ?
+					((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo() :
+					((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
+				for (Object object : objects) {
+					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
+				}
+				return pickler.dumps(serializedElements);
+			}
+			if (dataType instanceof BasicTypeInfo && BasicTypeInfo.getInfoFor(dataType.getTypeClass()) == FLOAT_TYPE_INFO) {
+				// Serialization of float type with pickler loses precision.
 				return pickler.dumps(String.valueOf(obj));
 			} else {
 				return pickler.dumps(obj);

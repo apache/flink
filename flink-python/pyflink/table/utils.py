@@ -85,13 +85,13 @@ def to_expression_jarray(exprs):
     return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])
 
 
-def java_to_python_converter(data, field_type: DataType):
+def pickled_bytes_to_python_converter(data, field_type: DataType):
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
         data = zip(list(data[1:]), field_type.field_types())
         fields = []
         for d, d_type in data:
-            fields.append(java_to_python_converter(d, d_type))
+            fields.append(pickled_bytes_to_python_converter(d, d_type))
         result_row = Row(fields)
         result_row.set_row_kind(row_kind)
         return result_row
@@ -110,8 +110,8 @@ def java_to_python_converter(data, field_type: DataType):
             key_type = field_type.key_type
             value_type = field_type.value_type
             zip_kv = zip(data[0], data[1])
-            return dict((java_to_python_converter(k, key_type),
-                         java_to_python_converter(v, value_type))
+            return dict((pickled_bytes_to_python_converter(k, key_type),
+                         pickled_bytes_to_python_converter(v, value_type))
                         for k, v in zip_kv)
         elif isinstance(field_type, FloatType):
             return field_type.from_sql_type(ast.literal_eval(data))
@@ -119,7 +119,7 @@ def java_to_python_converter(data, field_type: DataType):
             element_type = field_type.element_type
             elements = []
             for element_bytes in data:
-                elements.append(java_to_python_converter(element_bytes, element_type))
+                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
             return elements
         else:
             return field_type.from_sql_type(data)
