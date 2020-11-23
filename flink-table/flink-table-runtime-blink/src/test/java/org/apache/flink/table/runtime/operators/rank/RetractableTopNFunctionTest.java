@@ -447,4 +447,60 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 		expectedOutput.add(updateAfterRecord("a", 4L, 2, 3L));
 		assertorWithRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
+
+	@Test
+	public void testRetractRecordOutOfRankRangeWithoutRowNumber() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+			false);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("a", 1L, 1));
+		testHarness.processElement(insertRecord("a", 2L, 2));
+		testHarness.processElement(insertRecord("a", 3L, 2));
+		testHarness.processElement(insertRecord("a", 4L, 4));
+		testHarness.processElement(insertRecord("a", 5L, 4));
+
+		// delete records from out of rank range
+		testHarness.processElement(deleteRecord("a", 4L, 4));
+		testHarness.processElement(deleteRecord("a", 1L, 1));
+		testHarness.processElement(deleteRecord("a", 2L, 2));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(insertRecord("a", 1L, 1));
+		expectedOutput.add(insertRecord("a", 2L, 2));
+		expectedOutput.add(deleteRecord("a", 1L, 1));
+		expectedOutput.add(insertRecord("a", 3L, 2));
+		expectedOutput.add(deleteRecord("a", 2L, 2));
+		expectedOutput.add(insertRecord("a", 5L, 4));
+		assertorWithoutRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testRetractRecordOutOfRankRangeWithRowNumber() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false,
+			true);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+		testHarness.open();
+		testHarness.processElement(insertRecord("a", 1L, 1));
+		testHarness.processElement(insertRecord("a", 2L, 2));
+		testHarness.processElement(insertRecord("a", 3L, 2));
+		testHarness.processElement(insertRecord("a", 4L, 4));
+		testHarness.processElement(insertRecord("a", 5L, 4));
+
+		// delete records from out of rank range
+		testHarness.processElement(deleteRecord("a", 4L, 4));
+		testHarness.processElement(deleteRecord("a", 1L, 1));
+		testHarness.processElement(deleteRecord("a", 2L, 2));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(insertRecord("a", 1L, 1, 1L));
+		expectedOutput.add(insertRecord("a", 2L, 2, 2L));
+		expectedOutput.add(updateAfterRecord("a", 2L, 2, 1L));
+		expectedOutput.add(updateAfterRecord("a", 3L, 2, 2L));
+		expectedOutput.add(updateAfterRecord("a", 3L, 2, 1L));
+		expectedOutput.add(updateAfterRecord("a", 5L, 4, 2L));
+		assertorWithRowNumber.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+	}
 }

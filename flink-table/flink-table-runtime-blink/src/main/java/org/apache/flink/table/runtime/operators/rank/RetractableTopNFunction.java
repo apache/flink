@@ -160,13 +160,14 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			inputs.add(input);
 			dataState.put(sortKey, inputs);
 		} else {
+			final boolean stateRemoved;
 			// emit updates first
 			if (outputRankNumber || hasOffset()) {
 				// the without-number-algorithm can't handle topN with offset,
 				// so use the with-number-algorithm to handle offset
-				retractRecordWithRowNumber(sortedMap, sortKey, input, out);
+				stateRemoved = retractRecordWithRowNumber(sortedMap, sortKey, input, out);
 			} else {
-				retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
+				stateRemoved = retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
 			}
 
 			// and then update sortedMap
@@ -190,6 +191,26 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				}
 			}
 
+			if (!stateRemoved) {
+				// the input record has not been removed from state
+				// should update the data state
+				List<RowData> inputs = dataState.get(sortKey);
+				if (inputs != null) {
+					// comparing record by equaliser
+					Iterator<RowData> inputsIter = inputs.iterator();
+					while (inputsIter.hasNext()) {
+						if (equaliser.equals(inputsIter.next(), input)) {
+							inputsIter.remove();
+							break;
+						}
+					}
+					if (inputs.isEmpty()) {
+						dataState.remove(sortKey);
+					} else {
+						dataState.put(sortKey, inputs);
+					}
+				}
+			}
 		}
 		treeMap.update(sortedMap);
 	}
@@ -298,7 +319,11 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		}
 	}
 
-	private void retractRecordWithRowNumber(
+	/**
+	 * Retract the input record and emit updated records. This works for outputting with row_number.
+	 * @return true if the input record has been removed from {@link #dataState}.
+	 */
+	private boolean retractRecordWithRowNumber(
 			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
 		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
@@ -358,9 +383,15 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			// there is no enough elements in Top-N, emit DELETE message for the retract record.
 			collectDelete(out, prevRow, currentRank);
 		}
+
+		return findsSortKey;
 	}
 
-	private void retractRecordWithoutRowNumber(
+	/**
+	 * Retract the input record and emit updated records. This works for outputting without row_number.
+	 * @return true if the input record has been removed from {@link #dataState}.
+	 */
+	private boolean retractRecordWithoutRowNumber(
 			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
 		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
@@ -418,5 +449,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				nextRank += entry.getValue();
 			}
 		}
+
+		return findsSortKey;
 	}
 }
