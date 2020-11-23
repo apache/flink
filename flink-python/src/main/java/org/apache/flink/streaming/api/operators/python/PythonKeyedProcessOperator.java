@@ -53,12 +53,12 @@ import java.util.LinkedList;
 import java.util.Map;
 
 /**
- * {@link PythonKeyedProcessFunctionOperator} is responsible for launching beam runner which will start
+ * {@link PythonKeyedProcessOperator} is responsible for launching beam runner which will start
  * a python harness to execute user defined python function. It is also able to handle the timer and
  * state request from the python stateful user defined function.
  */
 @Internal
-public class PythonKeyedProcessFunctionOperator<OUT> extends AbstractOneInputPythonFunctionOperator<Row, OUT>
+public class PythonKeyedProcessOperator<OUT> extends AbstractOneInputPythonFunctionOperator<Row, OUT>
 	implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
 
 	private static final long serialVersionUID = 1L;
@@ -156,7 +156,7 @@ public class PythonKeyedProcessFunctionOperator<OUT> extends AbstractOneInputPyt
 
 	private transient TimestampedCollector<OUT> collector;
 
-	public PythonKeyedProcessFunctionOperator(
+	public PythonKeyedProcessOperator(
 		Configuration config,
 		RowTypeInfo inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
