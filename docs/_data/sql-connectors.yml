@@ -60,7 +60,13 @@ parquet:
     category: format
     sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-sql-parquet{{site.scala_version_suffix}}-{{site.version}}.jar
 
-debezium:
+debezium-avro-confluent:
+    name: Debezium
+    maven: flink-avro-confluent-registry
+    category: format
+    sql-url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/{{site.version}}/flink-sql-avro-confluent-registry-{{site.version}}.jar
+
+debezium-json:
     name: Debezium
     maven: flink-json
     category: format
