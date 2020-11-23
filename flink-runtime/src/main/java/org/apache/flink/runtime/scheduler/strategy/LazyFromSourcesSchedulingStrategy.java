@@ -25,9 +25,10 @@ import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -125,20 +126,15 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	private void allocateSlotsAndDeployExecutionVertices(
 			final Iterable<? extends SchedulingExecutionVertex> vertices) {
 
-		final Set<ExecutionVertexID> verticesToDeploy = IterableUtils.toStream(vertices)
+		final Set<SchedulingExecutionVertex> vertexSet = Sets.newHashSet(vertices);
+
+		// do the check right before scheduling each vertex in case that a vertex's status is changed
+		// when scheduling other vertices
+		IterableUtils.toStream(schedulingTopology.getVertices())
+			.filter((v -> vertexSet.contains(v)))
 			.filter(IS_IN_CREATED_EXECUTION_STATE.and(isInputConstraintSatisfied()))
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-
-		final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
-				schedulingTopology,
-				verticesToDeploy,
-				deploymentOptions::get);
-
-		for (ExecutionVertexDeploymentOption deploymentOption : vertexDeploymentOptions) {
-			schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(deploymentOption));
-		}
+			.map(v -> new ExecutionVertexDeploymentOption(v.getId(), deploymentOptions.get(v.getId())))
+			.forEach(d -> schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(d)));
 	}
 
 	private Predicate<SchedulingExecutionVertex> isInputConstraintSatisfied() {
