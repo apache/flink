@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -145,7 +144,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 			harness.snapshot(2, 5);
 			fail("something should fail");
 		} catch (Exception ex) {
-			if (!findSerializedThrowable(ex, ContentDump.NotWritableException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
+			if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
 				throw ex;
 			}
 			// ignore
