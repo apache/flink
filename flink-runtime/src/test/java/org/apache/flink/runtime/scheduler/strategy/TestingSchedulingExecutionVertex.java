@@ -42,7 +42,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	private final InputDependencyConstraint inputDependencyConstraint;
 
-	private final ExecutionState executionState;
+	private ExecutionState executionState;
 
 	public TestingSchedulingExecutionVertex(
 			JobVertexID jobVertexId,
@@ -66,6 +66,10 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 	@Override
 	public ExecutionState getState() {
 		return executionState;
+	}
+
+	public void setState(ExecutionState state) {
+		this.executionState = state;
 	}
 
 	@Override

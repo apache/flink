@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -42,7 +44,12 @@ import static org.junit.Assert.assertThat;
  */
 public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 
-	private TestingSchedulerOperations testingSchedulerOperation = new TestingSchedulerOperations();
+	private TestingSchedulerOperations testingSchedulerOperation;
+
+	@Before
+	public void setUp() {
+		testingSchedulerOperation = new TestingSchedulerOperations();
+	}
 
 	/**
 	 * Tests that when start scheduling lazy from sources scheduling strategy will start input vertices in scheduling topology.
@@ -341,6 +348,26 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		}
 
 		assertLatestScheduledVerticesAreEqualTo(consumers);
+	}
+
+	@Test
+	public void testOnlyCreatedVertexWillBeScheduled() {
+		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
+		final TestingSchedulingExecutionVertex v1 = testingSchedulingTopology.newExecutionVertex();
+		final TestingSchedulingExecutionVertex v2 = testingSchedulingTopology.newExecutionVertex();
+
+		testingSchedulerOperation = new TestingSchedulerOperations() {
+			@Override
+			public void allocateSlotsAndDeploy(List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
+				super.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+
+				// set v2 to CANCELED so that is should not be scheduled
+				v2.setState(ExecutionState.CANCELED);
+			}
+		};
+		startScheduling(testingSchedulingTopology);
+
+		assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(1));
 	}
 
 	private LazyFromSourcesSchedulingStrategy startScheduling(TestingSchedulingTopology testingSchedulingTopology) {
