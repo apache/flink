@@ -96,8 +96,8 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** The maximum file modification time seen so far. */
 	private volatile long globalModificationTime;
 
-	/** store the initialized value of globalModificationTime */
-	private volatile long initializedGlobalModificationTime;
+	/** Store the initialized value of globalModificationTime. */
+	private final long initializedGlobalModificationTime;
 
 	private transient Object checkpointLock;
 
