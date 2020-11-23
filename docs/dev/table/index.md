@@ -34,7 +34,7 @@ and specify the same result regardless of whether the input is continuous (strea
 
 The Table API and SQL interfaces integrate seamlessly with each other and Flink's DataStream API. 
 You can easily switch between all APIs and libraries which build upon them.
-For instance, you can extract patterns from a Table using [Match Recognize]({% link dev/table/streaming/match_recognize.md %})
+For instance, you can detect patterns from a table using [`MATCH_RECOGNIZE` clause]({% link dev/table/streaming/match_recognize.md %})
 and later use the DataStream API to build alerting based on the matched patterns.
 
 Table Planners
@@ -42,7 +42,7 @@ Table Planners
 
 Table planners are responsible for translating relational operators into an executable, optimized Flink job.
 Flink supports two different planner implementations; the modern Blink planner and the legacy planner.
-For production use cases, we recommend the blink planner which has been the default planner since 1.11.
+For production use cases, we recommend the Blink planner which has been the default planner since 1.11.
 See the [common API]({% link dev/table/common.md %}) page for more information on how to switch between the two planners.
 
 ### Table Program Dependencies
@@ -122,8 +122,8 @@ following set of modules, depending which planner you want to use.
 
 ### Extension Dependencies
 
-If you want to implement a [custom format]({% link dev/table/sourceSinks.md %}#define-a-tablefactory) 
-for (de)serializing rows or a set of [user-defined functions]({% link dev/table/functions/systemFunctions.md %}),
+If you want to implement a [custom format or connector]({% link dev/table/sourceSinks.md %}) 
+for (de)serializing rows or a set of [user-defined functions]({% link dev/table/functions/udfs.md %}),
 the following dependency is sufficient and can be used for JAR files for the SQL Client:
 
 {% highlight xml %}
