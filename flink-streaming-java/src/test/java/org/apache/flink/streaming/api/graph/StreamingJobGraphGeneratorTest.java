@@ -785,8 +785,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			set(
 				TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
 				new HashMap<String, String>() {{
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC, "6");
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.PYTHON, "4");
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "6");
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "4");
 				}});
 		}};
 

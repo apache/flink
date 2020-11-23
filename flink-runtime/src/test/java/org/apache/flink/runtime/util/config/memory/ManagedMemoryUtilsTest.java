@@ -53,8 +53,8 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 			set(
 				TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
 				new HashMap<String, String>() {{
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC, String.valueOf(DATA_PROC_WEIGHT));
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.PYTHON, String.valueOf(PYTHON_WEIGHT));
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, String.valueOf(DATA_PROC_WEIGHT));
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON, String.valueOf(PYTHON_WEIGHT));
 				}});
 		}});
 
@@ -85,7 +85,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 	public void testGetWeightsFromConfigFailNegativeWeight() {
 		final Configuration config = new Configuration() {{
 			set(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
-				Collections.singletonMap(TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC, "-123"));
+				Collections.singletonMap(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "-123"));
 		}};
 
 		ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
