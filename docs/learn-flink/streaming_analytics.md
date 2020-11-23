@@ -283,7 +283,7 @@ A couple of things to note in this implementation:
 
 * All of the events assigned to the window have to be buffered in keyed Flink state until the window
   is triggered. This is potentially quite expensive.
-* Our `ProcessWindowFunction` is being passed a `Context` object from which contains information about
+* Our `ProcessWindowFunction` is being passed a `Context` object which contains information about
   the window. Its interface looks like this:
 
 {% highlight java %}
