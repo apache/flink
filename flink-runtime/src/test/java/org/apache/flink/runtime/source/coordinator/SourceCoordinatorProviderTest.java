@@ -42,10 +42,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit tests for {@link SourceCoordinatorProvider}.
  */
-@SuppressWarnings("serial")
 public class SourceCoordinatorProviderTest {
+
 	private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
-	private static final String OPERATOR_NAME = "SourceCoordinatorProviderTest";
 	private static final int NUM_SPLITS = 10;
 
 	private SourceCoordinatorProvider<MockSourceSplit> provider;
