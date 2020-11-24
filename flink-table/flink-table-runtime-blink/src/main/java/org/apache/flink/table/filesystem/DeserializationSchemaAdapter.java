@@ -161,7 +161,6 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 	private class Reader implements BulkFormat.Reader<RowData> {
 
 		private final LineBytesInputFormat inputFormat;
-		private final ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
 		private long numRead = 0;
 
 		private Reader(Configuration config, FileSourceSplit split) throws IOException {
@@ -173,7 +172,7 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 		@Nullable
 		@Override
 		public RecordIterator<RowData> readBatch() throws IOException {
-			Object[] records = new Object[DEFAULT_SIZE];
+			RowData[] records = new RowData[DEFAULT_SIZE];
 			int num = 0;
 			final long skipCount = numRead;
 			for (int i = 0; i < BATCH_SIZE; i++) {
@@ -187,7 +186,9 @@ public class DeserializationSchemaAdapter implements BulkFormat<RowData, FileSou
 				return null;
 			}
 			numRead += num;
-			((ArrayResultIterator) iterator).set(records, num, NO_OFFSET, skipCount);
+
+			ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
+			iterator.set(records, num, NO_OFFSET, skipCount);
 			return iterator;
 		}
 
