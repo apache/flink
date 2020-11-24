@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
@@ -40,16 +39,12 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -83,25 +78,19 @@ import static org.junit.Assert.assertNull;
  * IT case for HiveCatalog.
  * TODO: move to flink-connector-hive-test end-to-end test module once it's setup
  */
-@RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveCatalogITCase {
-
-	@HiveSQL(files = {})
-	private static HiveShell hiveShell;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static HiveCatalog hiveCatalog;
-	private static HiveConf hiveConf;
 
 	private String sourceTableName = "csv_source";
 	private String sinkTableName = "csv_sink";
 
 	@BeforeClass
 	public static void createCatalog() {
-		hiveConf = hiveShell.getHiveConf();
-		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
+		hiveCatalog = HiveTestUtils.createHiveCatalog();
 		hiveCatalog.open();
 	}
 
