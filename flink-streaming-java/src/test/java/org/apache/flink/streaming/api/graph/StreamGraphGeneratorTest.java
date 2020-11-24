@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -66,8 +67,11 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -523,6 +527,51 @@ public class StreamGraphGeneratorTest extends TestLogger {
                 assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().size(), is(0));
             }
         }
+    }
+
+    @Test
+    public void testSetSlotSharingResource() {
+        final String slotSharingGroup1 = "a";
+        final String slotSharingGroup2 = "b";
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        final ResourceProfile resourceProfile3 = ResourceProfile.fromResources(3, 30);
+        final Map<String, ResourceProfile> slotSharingGroupResource = new HashMap<>();
+        slotSharingGroupResource.put(slotSharingGroup1, resourceProfile1);
+        slotSharingGroupResource.put(slotSharingGroup2, resourceProfile2);
+        slotSharingGroupResource.put(
+                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, resourceProfile3);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStream<Integer> sourceDataStream =
+                env.fromElements(1, 2, 3).slotSharingGroup(slotSharingGroup1);
+        final DataStream<Integer> mapDataStream1 =
+                sourceDataStream.map(x -> x + 1).slotSharingGroup(slotSharingGroup2);
+        final DataStream<Integer> mapDataStream2 = mapDataStream1.map(x -> x * 2);
+
+        final List<Transformation<?>> transformations = new ArrayList<>();
+        transformations.add(sourceDataStream.getTransformation());
+        transformations.add(mapDataStream1.getTransformation());
+        transformations.add(mapDataStream2.getTransformation());
+
+        // all stream nodes share default group by default
+        final StreamGraph streamGraph =
+                new StreamGraphGenerator(
+                                transformations, env.getConfig(), env.getCheckpointConfig())
+                        .setSlotSharingGroupResource(slotSharingGroupResource)
+                        .generate();
+
+        assertThat(
+                streamGraph.getSlotSharingGroupResource(slotSharingGroup1).get(),
+                equalTo(resourceProfile1));
+        assertThat(
+                streamGraph.getSlotSharingGroupResource(slotSharingGroup2).get(),
+                equalTo(resourceProfile2));
+        assertThat(
+                streamGraph
+                        .getSlotSharingGroupResource(
+                                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .get(),
+                equalTo(resourceProfile3));
     }
 
     static class OutputTypeConfigurableOperationWithTwoInputs
