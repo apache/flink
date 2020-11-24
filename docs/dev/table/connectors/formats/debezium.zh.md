@@ -376,5 +376,5 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
 数据类型映射
 ----------------
 
-目前，Debezium Format 使用 JSON Format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping) 和 [Confluent Avro Format 文档]({% link dev/table/connectors/formats/avro-confluent.md %}#data-type-mapping)。
+目前，Debezium Format 使用 JSON Format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping) 和 [Confluent Avro Format 文档]({% link dev/table/connectors/formats/avro-confluent.zh.md %}#data-type-mapping)。
 
