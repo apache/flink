@@ -25,7 +25,8 @@ import org.apache.calcite.rel.core.Snapshot
 import org.apache.calcite.rel.logical.LogicalSnapshot
 import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexFieldAccess, RexLiteral, RexNode}
+import org.apache.calcite.util.Litmus
 
 import java.util
 import java.util.function.Supplier
@@ -41,6 +42,26 @@ class FlinkLogicalSnapshot(
     period: RexNode)
   extends Snapshot(cluster, traits, child, period)
   with FlinkLogicalRel {
+
+  isValid(Litmus.THROW, null)
+
+  override def isValid(
+      litmus: Litmus,
+      context: RelNode.Context): Boolean = {
+    period match {
+      case _: RexFieldAccess =>
+        // pass
+      case lit: RexLiteral =>
+        return litmus.fail(s"Querying a temporal table using " +
+          "'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
+          s"'${lit.toString}' is not supported yet.")
+      case _ =>
+        return litmus.fail(s"Querying a temporal table using " +
+          "'FOR SYSTEM TIME AS OF' syntax with an expression call " +
+          s"'${period.toString}' is not supported yet.")
+    }
+    super.isValid(litmus, context)
+  }
 
   override def copy(
     traitSet: RelTraitSet,
