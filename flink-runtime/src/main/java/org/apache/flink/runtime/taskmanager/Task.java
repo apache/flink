@@ -75,6 +75,7 @@ import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
@@ -412,6 +413,14 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+
+		//add CallerContext
+		//JID => jobID, JName => jobName, TName => TaskName, and with attempt number end.
+		String callerContext = "Flink_Task_"+ "JID_"
+			+ jobId + "_JName_" + jobInformation.getJobName() +
+			"_TName_" + taskInfo.getTaskName() +
+			"_" + taskInfo.getAttemptNumber();
+		HadoopUtils.setCallerContext(callerContext, getJobConfiguration());
 	}
 
 	// ------------------------------------------------------------------------

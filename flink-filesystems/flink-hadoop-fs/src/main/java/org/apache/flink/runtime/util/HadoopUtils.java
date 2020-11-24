@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.util.Collection;
 
 /**
@@ -171,6 +172,44 @@ public class HadoopUtils {
 		int min = hadoopVersion.f1;
 
 		return maj < major || (maj == major && min < minor);
+	}
+
+	/**
+	 * Set up the caller context [[callerContext]] by invoking Hadoop CallerContext API of
+	 * [[org.apache.hadoop.ipc.CallerContext]], which was added in hadoop 2.8.
+	 */
+	public static void setCallerContext(String callerContext,
+										org.apache.flink.configuration.Configuration flinkConfiguration) {
+		if (isMinHadoopVersion(2,8)) {
+			String finalCallerContext = truncateCallerContext(callerContext,
+				getHadoopConfiguration(flinkConfiguration));
+			try {
+				Class callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
+				Class builder = Class.forName("org.apache.hadoop.ipc.CallerContext$Builder");
+				Constructor builderInst =  builder.getConstructor(finalCallerContext.getClass());
+				callerContextClass.getMethod("setCurrent", callerContextClass)
+					.invoke(null, builder.getMethod("build").invoke(builderInst));
+
+			} catch (Exception e) {
+				LOG.warn("Not supported CallerContext with exception: " + e);
+			}
+		}
+	}
+
+	/**
+	 * Truncate callerContext for demand
+	 */
+	private static String truncateCallerContext(String callerContext, Configuration conf) {
+		// The default max size of Hadoop caller context is 128
+		int len = conf.getInt("hadoop.caller.context.max.size", 128);
+		if (callerContext == null || callerContext.length() <= len) {
+			return callerContext;
+		} else {
+			String finalCallerContext = callerContext.substring(0, len);
+			LOG.warn("Truncated Flink caller context from " + callerContext
+				+ " to " + finalCallerContext);
+			return finalCallerContext;
+		}
 	}
 
 	private static Tuple2<Integer, Integer> getMajorMinorBundledHadoopVersion() {
