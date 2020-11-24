@@ -316,9 +316,15 @@ tableReference:
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName [ dynamicTableOptions ]
+  [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | UNNEST '(' expression ')'
+
+tablePath:
+  [ [ catalogName . ] schemaName . ] tableName  
+
+systemTimePeriod:
+  FOR SYSTEM_TIME AS OF dateTimeExpression
 
 dynamicTableOptions:
   /*+ OPTIONS(key=val [, key=val]*) */
@@ -757,6 +763,7 @@ FROM
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
   ON r.currency = o.currency
 {% endhighlight %}
+        <p>Join 的右表可以使用可选表达式 <code>[[<strong>AS</strong>] correlationName]</code> 取别名，注意 <code><strong>AS</strong></code> 关键词也是可选的。</p>
         <p>请阅读 <a href="{{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html">Temporal Tables</a> 概念描述以了解详细信息。</p>
         <p>仅 Blink planner 支持。</p>
       </td>
