@@ -64,7 +64,7 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
-See also **[how to configure hadoop dependencies]({{ site.baseurl }}/ops/deployment/hadoop.html#add-hadoop-classpaths)**.
+See also **[how to configure hadoop dependencies]({{ site.baseurl }}/ops/resource-providers/hadoop.html#add-hadoop-classpaths)**.
 
 ### Using Hadoop InputFormats
 

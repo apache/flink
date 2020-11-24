@@ -76,7 +76,7 @@ The reference documentation covers all the details. Some starting points:
 
 ### Deploy Flink
 
-Before putting your Flink job into production, read the [Production Readiness Checklist]({% link ops/production_ready.md %}). For an overview of possible deployment targets, see [Clusters and Deployments]({% link ops/deployment/index.md %}). 
+Before putting your Flink job into production, read the [Production Readiness Checklist]({% link ops/production_ready.md %}). For an overview of possible deployment targets, see [Clusters and Deployments]({% link ops/resource-providers/index.md %}). 
 
 ### Upgrade Flink
 

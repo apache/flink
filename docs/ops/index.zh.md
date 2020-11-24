@@ -120,7 +120,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Run Flink locally for basic testing and experimentation
-        <br><a href="{% link ops/deployment/local.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/local.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -131,7 +131,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A simple solution for running Flink on bare metal or VM's 
-        <br><a href="{% link ops/deployment/cluster_setup.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/cluster_setup.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -142,7 +142,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Deploy Flink on-top of Apache Hadoop's resource manager 
-        <br><a href="{% link ops/deployment/yarn_setup.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/yarn_setup.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -155,7 +155,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A generic resource manager for running distriubted systems
-        <br><a href="{% link ops/deployment/mesos.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/mesos.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A popular solution for running Flink within a containerized environment
-        <br><a href="{% link ops/deployment/docker.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/docker.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -177,7 +177,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         An automated system for deploying containerized applications
-        <br><a href="{% link ops/deployment/kubernetes.zh.md %}">Learn more</a>
+        <br><a href="{% link ops/resource-providers/kubernetes.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
