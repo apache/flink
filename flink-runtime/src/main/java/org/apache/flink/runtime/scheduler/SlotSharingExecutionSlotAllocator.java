@@ -239,11 +239,15 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
     private ResourceProfile getPhysicalSlotResourceProfile(
             ExecutionSlotSharingGroup executionSlotSharingGroup) {
-        return executionSlotSharingGroup.getExecutionVertexIds().stream()
-                .reduce(
-                        ResourceProfile.ZERO,
-                        (r, e) -> r.merge(resourceProfileRetriever.apply(e)),
-                        ResourceProfile::merge);
+        if (!executionSlotSharingGroup.getResourceProfile().equals(ResourceProfile.UNKNOWN)) {
+            return executionSlotSharingGroup.getResourceProfile();
+        } else {
+            return executionSlotSharingGroup.getExecutionVertexIds().stream()
+                    .reduce(
+                            ResourceProfile.ZERO,
+                            (r, e) -> r.merge(resourceProfileRetriever.apply(e)),
+                            ResourceProfile::merge);
+        }
     }
 
     private SharingPhysicalSlotRequestBulk createBulk(
