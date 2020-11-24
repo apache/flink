@@ -87,7 +87,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
     private static class ExecutionSlotSharingGroupBuilder {
         private final SchedulingTopology topology;
 
-        private final Map<JobVertexID, SlotSharingGroupId> slotSharingGroupMap;
+        private final Map<JobVertexID, SlotSharingGroup> slotSharingGroupMap;
 
         private final Map<JobVertexID, CoLocationGroup> coLocationGroupMap;
 
@@ -111,7 +111,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
             this.slotSharingGroupMap = new HashMap<>();
             for (SlotSharingGroup slotSharingGroup : logicalSlotSharingGroups) {
                 for (JobVertexID jobVertexId : slotSharingGroup.getJobVertexIds()) {
-                    slotSharingGroupMap.put(jobVertexId, slotSharingGroup.getSlotSharingGroupId());
+                    slotSharingGroupMap.put(jobVertexId, slotSharingGroup);
                 }
             }
 
@@ -237,12 +237,11 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
                 final ExecutionVertexID executionVertexId2) {
 
             return Objects.equals(
-                    getSlotSharingGroupId(executionVertexId1),
-                    getSlotSharingGroupId(executionVertexId2));
+                    getSlotSharingGroup(executionVertexId1).getSlotSharingGroupId(),
+                    getSlotSharingGroup(executionVertexId2).getSlotSharingGroupId());
         }
 
-        private SlotSharingGroupId getSlotSharingGroupId(
-                final ExecutionVertexID executionVertexId) {
+        private SlotSharingGroup getSlotSharingGroup(final ExecutionVertexID executionVertexId) {
             // slot sharing group of a vertex would never be null in production
             return checkNotNull(slotSharingGroupMap.get(executionVertexId.getJobVertexId()));
         }
@@ -271,11 +270,11 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
                 final List<SchedulingExecutionVertex> executionVertices) {
 
             for (SchedulingExecutionVertex executionVertex : executionVertices) {
-                final SlotSharingGroupId slotSharingGroupId =
-                        getSlotSharingGroupId(executionVertex.getId());
+                final SlotSharingGroup slotSharingGroup =
+                        getSlotSharingGroup(executionVertex.getId());
                 final List<ExecutionSlotSharingGroup> groups =
                         executionSlotSharingGroups.computeIfAbsent(
-                                slotSharingGroupId, k -> new ArrayList<>());
+                                slotSharingGroup.getSlotSharingGroupId(), k -> new ArrayList<>());
 
                 ExecutionSlotSharingGroup group = null;
                 for (ExecutionSlotSharingGroup executionSlotSharingGroup : groups) {
@@ -288,6 +287,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
                 if (group == null) {
                     group = new ExecutionSlotSharingGroup();
+                    group.setResourceProfile(slotSharingGroup.getResourceProfile());
                     groups.add(group);
                 }
 
