@@ -67,6 +67,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -655,7 +656,17 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
-	public void testSortingOnModTime() throws Exception {
+	public void testSortingOnModTimeWithDefaultGlobalModificationTime() throws Exception {
+		testSortingOnModTime(-1);
+	}
+
+	@Test
+	public void testSortingOnModTimeWithGivenGlobalModificationTime() throws Exception {
+		testSortingOnModTime(2);
+	}
+
+	private void testSortingOnModTime(int modTimesIdx) throws Exception {
+		Preconditions.checkArgument(modTimesIdx < NO_OF_FILES);
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
 
 		final long[] modTimes = new long[NO_OF_FILES];
@@ -663,7 +674,7 @@ public class ContinuousFileProcessingTest {
 
 		for (int i = 0; i < NO_OF_FILES; i++) {
 			Tuple2<org.apache.hadoop.fs.Path, String> file =
-				createFileAndFillWithData(testBasePath, "file", i, "This is test line.");
+					createFileAndFillWithData(testBasePath, "file", i, "This is test line.");
 			Thread.sleep(400);
 
 			filesCreated[i] = file.f0;
@@ -676,14 +687,24 @@ public class ContinuousFileProcessingTest {
 		// this is just to verify that all splits have been forwarded later.
 		FileInputSplit[] splits = format.createInputSplits(1);
 
+		final long[] finalModTimes;
+		final long globalModificationTime;
+		if (modTimesIdx < 0) {
+			globalModificationTime = Long.MIN_VALUE;
+			finalModTimes = modTimes;
+		} else {
+			globalModificationTime = modTimes[modTimesIdx];
+			finalModTimes = Arrays.copyOfRange(modTimes, modTimesIdx + 1, NO_OF_FILES);
+		}
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE);
+				createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_ONCE, globalModificationTime);
 
-		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
+		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(finalModTimes);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(context);
-		Assert.assertEquals(splits.length, context.getCounter());
+		Assert.assertEquals(splits.length, NO_OF_FILES);
+		Assert.assertEquals(finalModTimes.length, context.getCounter());
 
 		// delete the created files.
 		for (int i = 0; i < NO_OF_FILES; i++) {
@@ -759,7 +780,16 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
-	public void testFunctionRestore() throws Exception {
+	public void testFunctionRestoreWithDefaultGlobalModificationTime() throws Exception {
+		testFunctionRestore(Long.MIN_VALUE);
+	}
+
+	@Test
+	public void testFunctionRestoreWithGivenGlobalModificationTime() throws Exception {
+		testFunctionRestore(100);
+	}
+
+	private void testFunctionRestore(long globalModificationTime) throws Exception {
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
 
 		org.apache.hadoop.fs.Path path = null;
@@ -773,13 +803,13 @@ public class ContinuousFileProcessingTest {
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
+				createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY, globalModificationTime);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
-			new StreamSource<>(monitoringFunction);
+				new StreamSource<>(monitoringFunction);
 
 		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
 		testHarness.open();
 
 		final Throwable[] error = new Throwable[1];
@@ -824,13 +854,13 @@ public class ContinuousFileProcessingTest {
 		testHarness.close();
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunctionCopy =
-			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
+				createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY, globalModificationTime);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> srcCopy =
-			new StreamSource<>(monitoringFunctionCopy);
+				new StreamSource<>(monitoringFunctionCopy);
 
 		AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarnessCopy =
-			new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
+				new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
 		testHarnessCopy.initializeState(snapshot);
 		testHarnessCopy.open();
 
@@ -1060,8 +1090,18 @@ public class ContinuousFileProcessingTest {
 	 * Create continuous monitoring function with 1 reader-parallelism and interval: {@link #INTERVAL}.
 	 */
 	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
+		return createTestContinuousFileMonitoringFunction(format, fileProcessingMode, Long.MIN_VALUE);
+	}
+
+	/**
+	 * Create continuous monitoring function with 1 reader-parallelism, interval: {@link #INTERVAL} and globalModificationTime.
+	 */
+	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(
+			FileInputFormat<OUT> format,
+			FileProcessingMode fileProcessingMode,
+			long globalModificationTime) {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
+				new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, globalModificationTime);
 		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 		return monitoringFunction;
 	}
