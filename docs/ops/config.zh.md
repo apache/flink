@@ -175,7 +175,7 @@ Options for configuring Flink's security and secure interaction with external sy
 
 ### SSL
 
-Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({% link ops/security-ssl.zh.md %}) for detailed setup guide and background.
+Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({% link ops/security/security-ssl.zh.md %}) for detailed setup guide and background.
 
 {% include generated/security_ssl_section.html %}
 
@@ -190,7 +190,7 @@ These options are necessary when connecting to a secured ZooKeeper quorum.
 
 **Kerberos-based Authentication / Authorization**
 
-Please refer to the [Flink and Kerberos Docs]({% link ops/security-kerberos.zh.md %}) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
+Please refer to the [Flink and Kerberos Docs]({% link ops/security/security-kerberos.zh.md %}) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
 
 {% include generated/security_auth_kerberos_section.html %}
 
