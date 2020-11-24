@@ -2,7 +2,7 @@
 nav-title: 'State & Fault Tolerance'
 nav-id: ops_state
 nav-parent_id: ops
-nav-pos: 2
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

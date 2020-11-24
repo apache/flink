@@ -27,7 +27,7 @@ under the License.
 
 ## Reading from and writing to file systems
 
-The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/ops/filesystems/index.html) that can be used as backing stores
+The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/deployment/filesystems/index.html) that can be used as backing stores
 for input and output connectors. 
 
 ## Connecting to other systems using Input/OutputFormat wrappers for Hadoop

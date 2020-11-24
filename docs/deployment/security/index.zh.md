@@ -1,7 +1,7 @@
 ---
 title: "Security"
 nav-id: security
-nav-parent_id: ops
+nav-parent_id: deployment
 nav-pos: 7
 ---
 <!--

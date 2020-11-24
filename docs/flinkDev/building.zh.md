@@ -127,7 +127,7 @@ mvn clean install
 
 ## Hadoop 版本
 
-请查看 [Hadoop 集成模块]({% link ops/resource-providers/hadoop.zh.md %}) 一节中关于处理 Hadoop 的类和版本问题的方法。
+请查看 [Hadoop 集成模块]({% link deployment/resource-providers/hadoop.zh.md %}) 一节中关于处理 Hadoop 的类和版本问题的方法。
 
 ## Scala 版本
 

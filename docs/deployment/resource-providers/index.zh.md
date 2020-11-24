@@ -1,7 +1,7 @@
 ---
 title: "Resource Providers"
 nav-id: resource_providers
-nav-parent_id: ops
+nav-parent_id: deployment
 nav-pos: 1
 ---
 <!--

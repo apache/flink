@@ -35,7 +35,7 @@ You can:
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
 
 This document shows how to use existing Hadoop MapReduce code with Flink. Please refer to the
-[Connecting to other systems]({{ site.baseurl }}/ops/filesystems/index.html#hadoop-file-system-hdfs-and-its-other-implementations) guide for reading from Hadoop supported file systems.
+[Connecting to other systems]({{ site.baseurl }}/deployment/filesystems/index.html#hadoop-file-system-hdfs-and-its-other-implementations) guide for reading from Hadoop supported file systems.
 
 * This will be replaced by the TOC
 {:toc}
@@ -64,7 +64,7 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
-See also **[how to configure hadoop dependencies]({{ site.baseurl }}/ops/resource-providers/hadoop.html#add-hadoop-classpaths)**.
+See also **[how to configure hadoop dependencies]({{ site.baseurl }}/deployment/resource-providers/hadoop.html#add-hadoop-classpaths)**.
 
 ### Using Hadoop InputFormats
 

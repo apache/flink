@@ -36,7 +36,7 @@ Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是�
 
 本节介绍如何在命令行里启动（setup）和运行你的第一个 Flink SQL 程序。
 
-SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它仅需要一个正在运行的 Flink 集群就可以在其中执行表程序。有关设置 Flink 群集的更多信息，请参见[集群和部署]({{ site.baseurl }}/zh/ops/resource-providers/cluster_setup.html)部分。如果仅想试用 SQL 客户端，也可以使用以下命令启动本地集群：
+SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它仅需要一个正在运行的 Flink 集群就可以在其中执行表程序。有关设置 Flink 群集的更多信息，请参见[集群和部署]({{ site.baseurl }}/zh/deployment/resource-providers/cluster_setup.html)部分。如果仅想试用 SQL 客户端，也可以使用以下命令启动本地集群：
 
 {% highlight bash %}
 ./bin/start-cluster.sh
