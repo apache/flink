@@ -97,6 +97,8 @@ Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refe
 
 There are two ways to add Hive dependencies. First is to use Flink's bundled Hive jars. You can choose a bundled Hive jar according to the version of the metastore you use. Second is to add each of the required jars separately. The second way can be useful if the Hive version you're using is not listed here.
 
+**NOTE**: the recommended way to add dependency is to use a bundled jar. Separate jars should be used only if bundled jars don't meet your needs.
+
 #### Using bundled hive jar
 
 The following tables list all available bundled hive jars. You can pick one to the `/lib/` directory in Flink distribution.
