@@ -21,15 +21,19 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -61,14 +65,27 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(PARALLELISM)
-			.build());
+	private static TestingMiniCluster miniCluster;
 
-	// ------------------------------------------------------------------------
+	@BeforeClass
+	public static void setupClass() throws Exception  {
+		miniCluster = new TestingMiniCluster(
+			new TestingMiniClusterConfiguration.Builder()
+				.setNumTaskManagers(1)
+				.setNumSlotsPerTaskManager(PARALLELISM)
+				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+				.build(),
+			null);
+
+		miniCluster.start();
+	}
+
+	@AfterClass
+	public static void teardownClass() throws Exception {
+		if (miniCluster != null) {
+			miniCluster.close();
+		}
+	}
 
 	/**
 	 * This test runs a job reading bounded input with a stream record format (text lines).
@@ -84,16 +101,16 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		writeHiddenJunkFiles(testDir);
 
 		final FileSource<String> source = FileSource
-				.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
-				.build();
+			.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+			.build();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
 		env.setParallelism(PARALLELISM);
 
 		final DataStream<String> stream = env.fromSource(
-				source,
-				WatermarkStrategy.noWatermarks(),
-				"file-source");
+			source,
+			WatermarkStrategy.noWatermarks(),
+			"file-source");
 
 		final List<String> result = DataStreamUtils.collectBoundedStream(stream, "Bounded TextFiles Test");
 
@@ -109,17 +126,17 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		final File testDir = TMP_FOLDER.newFolder();
 
 		final FileSource<String> source = FileSource
-				.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
-				.monitorContinuously(Duration.ofMillis(5))
-				.build();
+			.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
+			.monitorContinuously(Duration.ofMillis(5))
+			.build();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
 		env.setParallelism(PARALLELISM);
 
 		final DataStream<String> stream = env.fromSource(
-				source,
-				WatermarkStrategy.noWatermarks(),
-				"file-source");
+			source,
+			WatermarkStrategy.noWatermarks(),
+			"file-source");
 
 		final ClientAndIterator<String> client =
 				DataStreamUtils.collectWithClient(stream, "Continuous TextFiles Monitoring Test");
