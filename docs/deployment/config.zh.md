@@ -1,8 +1,8 @@
 ---
 title: "配置参数"
 nav-id: "config"
-nav-parent_id: ops
-nav-pos: 8
+nav-parent_id: deployment
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

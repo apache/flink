@@ -1,8 +1,8 @@
 ---
 title: "File Systems"
 layout: redirect
-redirect: /ops/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/filesystems/index.html
+permalink: /deployment/filesystems.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

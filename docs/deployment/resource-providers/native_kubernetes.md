@@ -83,8 +83,8 @@ Please refer to the following [section](#custom-flink-docker-image).
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation]({% link ops/resource-providers/docker.md %}),
-[its tags]({% link ops/resource-providers/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link ops/resource-providers/docker.md %}#customize-flink-image) and [enable plugins]({% link ops/resource-providers/docker.md %}#using-plugins).
+If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation]({% link deployment/resource-providers/docker.md %}),
+[its tags]({% link deployment/resource-providers/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link deployment/resource-providers/docker.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/docker.md %}#using-plugins).
 If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`]({% link ops/config.md %}#kubernetes-container-image) configuration option:
 
 {% highlight bash %}
@@ -208,7 +208,7 @@ $ kubectl delete deployment/<ClusterID>
 
 ### Start Flink Application
 <div class="codetabs" markdown="1">
-Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized]({% link ops/resource-providers/docker.md %}#customize-flink-image) for any use case.
+Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized]({% link deployment/resource-providers/docker.md %}#customize-flink-image) for any use case.
 <div data-lang="java" markdown="1">
 {% highlight dockerfile %}
 FROM flink
@@ -287,7 +287,7 @@ If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tun
 
 ## Using plugins
 
-In order to use [plugins]({% link ops/plugins.md %}), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
+In order to use [plugins]({% link deployment/plugins.md %}), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
 You can use the built-in plugins without mounting a volume or building a custom Docker image.
 For example, use the following command to pass the environment variable to enable the S3 plugin for your Flink application.
 

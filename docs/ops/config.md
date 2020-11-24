@@ -2,7 +2,7 @@
 title: "Configuration"
 nav-id: "config"
 nav-parent_id: ops
-nav-pos: 9
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -39,13 +39,13 @@ The options in this section are the ones most commonly needed for a basic distri
 
 **Hostnames / Ports**
 
-These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link ops/resource-providers/cluster_setup.md %}) or [Kubernetes]({% link ops/resource-providers/kubernetes.md %})).
+These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link deployment/resource-providers/cluster_setup.md %}) or [Kubernetes]({% link deployment/resource-providers/kubernetes.md %})).
 
-If you use Flink with [Yarn]({% link ops/resource-providers/yarn_setup.md %}), [Mesos]({% link ops/resource-providers/mesos.md %}), or the [*active* Kubernetes integration]({% link ops/resource-providers/native_kubernetes.md %}), the hostnames and ports are automatically discovered.
+If you use Flink with [Yarn]({% link deployment/resource-providers/yarn_setup.md %}), [Mesos]({% link deployment/resource-providers/mesos.md %}), or the [*active* Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}), the hostnames and ports are automatically discovered.
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
-  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({% link ops/jobmanager_high_availability.md %}) where the leader election mechanism is used to discover this automatically.
+  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({% link deployment/jobmanager_high_availability.md %}) where the leader election mechanism is used to discover this automatically.
 
 **Memory Sizes** 
 
@@ -175,7 +175,7 @@ Options for configuring Flink's security and secure interaction with external sy
 
 ### SSL
 
-Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({% link ops/security/security-ssl.md %}) for detailed setup guide and background.
+Flink's network connections can be secured via SSL. Please refer to the [SSL Setup Docs]({% link deployment/security/security-ssl.md %}) for detailed setup guide and background.
 
 {% include generated/security_ssl_section.html %}
 
@@ -190,7 +190,7 @@ These options are necessary when connecting to a secured ZooKeeper quorum.
 
 **Kerberos-based Authentication / Authorization**
 
-Please refer to the [Flink and Kerberos Docs]({% link ops/security/security-kerberos.md %}) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
+Please refer to the [Flink and Kerberos Docs]({% link deployment/security/security-kerberos.md %}) for a setup guide and a list of external system to which Flink can authenticate itself via Kerberos.
 
 {% include generated/security_auth_kerberos_section.html %}
 
@@ -202,7 +202,7 @@ Please refer to the [Flink and Kerberos Docs]({% link ops/security/security-kerb
 This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
 
 Note that is not always necessary to integrate Flink with the resource orchestration framework.
-For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({% link ops/resource-providers/kubernetes.md %}) for an example.
+For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({% link deployment/resource-providers/kubernetes.md %}) for an example.
 
 The options in this section are necessary for setups where Flink itself actively requests and releases resources from the orchestrators.
 

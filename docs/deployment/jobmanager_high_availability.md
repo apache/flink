@@ -1,7 +1,7 @@
 ---
-title: "JobManager 高可用 (HA)"
-nav-title: 高可用 (HA)
-nav-parent_id: ops
+title: "JobManager High Availability (HA)"
+nav-title: High Availability (HA)
+nav-parent_id: deployment
 nav-pos: 6
 ---
 <!--
@@ -69,7 +69,7 @@ By default, the job manager will pick a *random port* for inter process communic
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
 
 - **high-availability mode** (required): The *high-availability mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
-Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance.
+Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance. 
 
   <pre>high-availability: zookeeper</pre>
 
@@ -216,7 +216,7 @@ Starting zookeeper daemon on host localhost.</pre>
 $ bin/yarn-session.sh -n 2</pre>
 
 ## Kubernetes Cluster High Availability
-Kubernetes high availability service could support both [standalone Flink on Kubernetes]({{ site.baseurl}}/zh/ops/resource-providers/kubernetes.html) and [native Kubernetes integration]({{ site.baseurl}}/zh/ops/resource-providers/native_kubernetes.html).
+Kubernetes high availability service could support both [standalone Flink on Kubernetes]({{ site.baseurl}}/deployment/resource-providers/kubernetes.html) and [native Kubernetes integration]({{ site.baseurl}}/deployment/resource-providers/native_kubernetes.html).
 
 When running Flink JobManager as a Kubernetes deployment, the replica count should be configured to 1 or greater.
 * The value `1` means that a new JobManager will be launched to take over leadership if the current one terminates exceptionally.
@@ -230,9 +230,9 @@ high-availability.storageDir: hdfs:///flink/recovery
 {% endhighlight %}
 
 #### Example: Highly Available Standalone Flink Cluster on Kubernetes
-Both session and job/application clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml]({{ site.baseurl}}/zh/ops/resource-providers/kubernetes.html#common-cluster-resource-definitions). All other yamls do not need to be updated.
+Both session and job/application clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml]({{ site.baseurl}}/deployment/resource-providers/kubernetes.html#common-cluster-resource-definitions). All other yamls do not need to be updated.
 
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({{ site.baseurl}}/zh/ops/resource-providers/docker.html#customize-flink-image) and [enable plugins]({{ site.baseurl}}/zh/ops/resource-providers/docker.html#using-plugins) for more information.
+<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({{ site.baseurl}}/deployment/resource-providers/docker.html#customize-flink-image) and [enable plugins]({{ site.baseurl}}/deployment/resource-providers/docker.html#using-plugins) for more information.
 
 {% highlight yaml %}
 apiVersion: v1
@@ -301,8 +301,8 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
                                            # configured in "security.kerberos.login.contexts".
 </pre>
 
-For more information on Flink configuration for Kerberos security, please see [here]({% link ops/config.zh.md %}).
-You can also find [here]({% link ops/security/security-kerberos.zh.md %}) further details on how Flink internally setups Kerberos-based security.
+For more information on Flink configuration for Kerberos security, please see [here]({% link ops/config.md %}).
+You can also find [here]({% link deployment/security/security-kerberos.md %}) further details on how Flink internally setups Kerberos-based security.
 
 ## Zookeeper Versions
 
