@@ -544,7 +544,7 @@ When using standalone Flink deployment, you can also use `SASL_SSL`; please see 
 A mismatch in service name between client and server configuration will cause the authentication to fail.
 
 For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
-You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+You can also find [here]({{ site.baseurl}}/ops/security/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
 
 ## Upgrading to the Latest Connector Version
 
