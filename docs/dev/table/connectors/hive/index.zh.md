@@ -92,7 +92,7 @@ Flink 支持一下的 Hive 版本。
 或者，您可以将这些依赖项放在专用文件夹中，并分别使用 Table API 程序或 SQL Client 的`-C`或`-l`选项将它们添加到 classpath 中。
 
 Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖，请参考
-[Providing Hadoop classes]({{ site.baseurl }}/zh/ops/deployment/hadoop.html#providing-hadoop-classes).
+[Providing Hadoop classes]({{ site.baseurl }}/zh/ops/resource-providers/hadoop.html#providing-hadoop-classes).
 
 有两种添加 Hive 依赖项的方法。第一种是使用 Flink 提供的 Hive Jar包。您可以根据使用的 Metastore 的版本来选择对应的 Hive jar。第二个方式是分别添加每个所需的 jar 包。如果您使用的 Hive 版本尚未在此处列出，则第二种方法会更适合。
 

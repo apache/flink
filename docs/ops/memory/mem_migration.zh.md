@@ -105,7 +105,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{%link ops/deployment/cluster_setup.zh.md %}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link ops/config.zh.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li><a href="{%link ops/resource-providers/cluster_setup.zh.md %}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link ops/config.zh.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
                   <li>容器化部署模式（Containerized Deployement）下：<a href="{%link ops/config.zh.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
@@ -190,8 +190,8 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 
 #### 占比
 
-此前，如果不指定明确的大小，也可以将托管内存配置为占用总内存减去网络内存和容器切除内存（仅在 [Yarn]({% link ops/deployment/yarn_setup.zh.md %}) 和
-[Mesos]({% link ops/deployment/mesos.zh.md %}) 上）之后剩余部分的固定比例（`taskmanager.memory.fraction`）。
+此前，如果不指定明确的大小，也可以将托管内存配置为占用总内存减去网络内存和容器切除内存（仅在 [Yarn]({% link ops/resource-providers/yarn_setup.zh.md %}) 和
+[Mesos]({% link ops/resource-providers/mesos.zh.md %}) 上）之后剩余部分的固定比例（`taskmanager.memory.fraction`）。
 该配置参数已经被彻底移除，配置它不会产生任何效果。
 请使用新的配置参数 [`taskmanager.memory.managed.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-managed-fraction)。
 在未通过 [`taskmanager.memory.managed.size`]({% link ops/config.zh.md %}#taskmanager-memory-managed-size) 指定明确大小的情况下，新的配置参数将指定[托管内存]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory)在 [Flink 总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)中的所占比例。
@@ -201,7 +201,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 #### RocksDB State Backend
 
 流处理作业如果选择使用 [RocksDBStateBackend]({% link ops/state/state_backends.zh.md %}#rocksdbstatebackend)，它使用的本地内存现在也被归为[托管内存]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory)。
-默认情况下，RocksDB 将限制其内存用量不超过[托管内存]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory)大小，以避免在 [Yarn]({% link ops/deployment/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/deployment/mesos.zh.md %}) 上容器被杀。你也可以通过设置 [state.backend.rocksdb.memory.managed]({% link ops/config.zh.md %}#state-backend-rocksdb-memory-managed) 来关闭 RocksDB 的内存控制。
+默认情况下，RocksDB 将限制其内存用量不超过[托管内存]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory)大小，以避免在 [Yarn]({% link ops/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/resource-providers/mesos.zh.md %}) 上容器被杀。你也可以通过设置 [state.backend.rocksdb.memory.managed]({% link ops/config.zh.md %}#state-backend-rocksdb-memory-managed) 来关闭 RocksDB 的内存控制。
 请参考[如何升级容器切除内存](#container-cut-off-memory)。
 
 <a name="other-changes" />
@@ -221,14 +221,14 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
-尽管这两个参数以“堆（Heap）”命名，在此之前它们实际上只有在[独立部署模式]({% link ops/deployment/cluster_setup.zh.md %})才完全对应于 *JVM 堆内存*。
-在容器化部署模式下（[Kubernetes]({% link ops/deployment/kubernetes.zh.md %}) 和 [Yarn]({% link ops/deployment/yarn_setup.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
+尽管这两个参数以“堆（Heap）”命名，在此之前它们实际上只有在[独立部署模式]({% link ops/resource-providers/cluster_setup.zh.md %})才完全对应于 *JVM 堆内存*。
+在容器化部署模式下（[Kubernetes]({% link ops/resource-providers/kubernetes.zh.md %}) 和 [Yarn]({% link ops/resource-providers/yarn_setup.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
 *JVM 堆空间*的实际大小，是参数指定的大小减去容器切除（Cut-Off）内存后剩余的部分。
 容器切除内存在 *1.11* 及以上版本中已被彻底移除。
 
-上述两个参数此前对 [Mesos]({% link ops/deployment/mesos.zh.md %}) 部署模式并不生效。
+上述两个参数此前对 [Mesos]({% link ops/resource-providers/mesos.zh.md %}) 部署模式并不生效。
 Flink 在 Mesos 上启动 JobManager 进程时并未设置任何 JVM 内存参数。
-从 *1.11* 版本开始，Flink 将采用与[独立部署模式]({% link ops/deployment/cluster_setup.zh.md %})相同的方式设置这些参数。
+从 *1.11* 版本开始，Flink 将采用与[独立部署模式]({% link ops/resource-providers/cluster_setup.zh.md %})相同的方式设置这些参数。
 
 这两个配置参数目前已被弃用。
 如果配置了上述弃用的参数，同时又没有配置与之对应的新配置参数，那它们将按如下规则对应到新的配置参数。

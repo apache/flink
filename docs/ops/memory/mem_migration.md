@@ -109,7 +109,7 @@ The following options are deprecated but if they are still used they will be int
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{% link ops/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link ops/deployment/cluster_setup.md %}">standalone deployment</a></li>
+                  <li><a href="{% link ops/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link ops/resource-providers/cluster_setup.md %}">standalone deployment</a></li>
                   <li><a href="{% link ops/config.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a> for containerized deployments</li>
                 </ul>
                 See also <a href="#total-memory-previously-heap-memory">how to migrate total memory</a>.
@@ -189,8 +189,8 @@ It is recommended to use the new option because the legacy one can be removed in
 #### Fraction
 
 If not set explicitly, the managed memory could be previously specified as a fraction (`taskmanager.memory.fraction`)
-of the total memory minus network memory and container cut-off (only for [Yarn]({% link ops/deployment/yarn_setup.md %}) and
-[Mesos]({% link ops/deployment/mesos.md %}) deployments). This option has been completely removed and will have no effect if still used.
+of the total memory minus network memory and container cut-off (only for [Yarn]({% link ops/resource-providers/yarn_setup.md %}) and
+[Mesos]({% link ops/resource-providers/mesos.md %}) deployments). This option has been completely removed and will have no effect if still used.
 Please, use the new option [`taskmanager.memory.managed.fraction`]({% link ops/config.md %}#taskmanager-memory-managed-fraction) instead.
 This new option will set the [managed memory]({% link ops/memory/mem_setup_tm.md %}#managed-memory) to the specified fraction of the
 [total Flink memory]({% link ops/memory/mem_setup.md %}#configure-total-memory) if its size is not set explicitly by
@@ -201,7 +201,7 @@ This new option will set the [managed memory]({% link ops/memory/mem_setup_tm.md
 If the [RocksDBStateBackend]({% link ops/state/state_backends.md %}#the-rocksdbstatebackend) is chosen for a streaming job,
 its native memory consumption should now be accounted for in [managed memory]({% link ops/memory/mem_setup_tm.md %}#managed-memory).
 The RocksDB memory allocation is limited by the [managed memory]({% link ops/memory/mem_setup_tm.md %}#managed-memory) size.
-This should prevent the killing of containers on [Yarn]({% link ops/deployment/yarn_setup.md %}) and [Mesos]({% link ops/deployment/mesos.md %}).
+This should prevent the killing of containers on [Yarn]({% link ops/resource-providers/yarn_setup.md %}) and [Mesos]({% link ops/resource-providers/mesos.md %}).
 You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed]({% link ops/config.md %}#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
 
@@ -218,19 +218,19 @@ Previously, there were options responsible for setting the *JVM Heap* size of th
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
-Despite their naming, they represented the *JVM Heap* only for [standalone deployments]({% link ops/deployment/cluster_setup.md %}).
-For the containerized deployments ([Kubernetes]({% link ops/deployment/kubernetes.md %}) and [Yarn]({% link ops/deployment/yarn_setup.md %})),
+Despite their naming, they represented the *JVM Heap* only for [standalone deployments]({% link ops/resource-providers/cluster_setup.md %}).
+For the containerized deployments ([Kubernetes]({% link ops/resource-providers/kubernetes.md %}) and [Yarn]({% link ops/resource-providers/yarn_setup.md %})),
 they also included other off-heap memory consumption. The size of *JVM Heap* was additionally reduced by the container
 cut-off which has been completely removed after *1.11*.
 
-The [Mesos]({% link ops/deployment/mesos.md %}) integration did not take into account the mentioned legacy memory options.
+The [Mesos]({% link ops/resource-providers/mesos.md %}) integration did not take into account the mentioned legacy memory options.
 The scripts provided in Flink to start the Mesos JobManager process did not set any memory JVM arguments. After the *1.11* release,
-they are set the same way as it is done by the [standalone deployment]({% link ops/deployment/cluster_setup.md %}) scripts.
+they are set the same way as it is done by the [standalone deployment]({% link ops/resource-providers/cluster_setup.md %}) scripts.
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* JVM Heap ([`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link ops/deployment/cluster_setup.md %}) and [Mesos]({% link ops/deployment/mesos.md %}) deployments
-* Total process memory ([`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link ops/deployment/kubernetes.md %}) and [Yarn]({% link ops/deployment/yarn_setup.md %}))
+* JVM Heap ([`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link ops/resource-providers/cluster_setup.md %}) and [Mesos]({% link ops/resource-providers/mesos.md %}) deployments
+* Total process memory ([`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link ops/resource-providers/kubernetes.md %}) and [Yarn]({% link ops/resource-providers/yarn_setup.md %}))
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 

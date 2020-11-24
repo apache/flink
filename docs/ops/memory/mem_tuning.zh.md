@@ -31,7 +31,7 @@ under the License.
 
 ## 独立部署模式（Standalone Deployment）下的内存配置
 
-[独立部署模式]({% link ops/deployment/cluster_setup.zh.md %})下，我们通常更关注 Flink 应用本身使用的内存大小。
+[独立部署模式]({% link ops/resource-providers/cluster_setup.zh.md %})下，我们通常更关注 Flink 应用本身使用的内存大小。
 建议配置 [Flink 总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.flink.size`]({% link ops/config.zh.md %}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({% link ops/config.zh.md %}#jobmanager-memory-flink-size.zh.md %})）或其组成部分。
 此外，如果出现 [Metaspace 不足的问题]({% link ops/memory/mem_trouble.zh.md %}#outofmemoryerror-metaspace)，可以调整 *JVM Metaspace* 的大小。
 
@@ -41,7 +41,7 @@ under the License.
 
 ## 容器（Container）的内存配置
 
-在容器化部署模式（Containerized Deployment）下（[Kubernetes]({% link ops/deployment/kubernetes.zh.md %})、[Yarn]({% link ops/deployment/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/deployment/mesos.zh.md %})），建议配置[进程总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.process.size`]({% link ops/config.zh.md %}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({% link ops/config.zh.md %}#jobmanager-memory-process-size)）。
+在容器化部署模式（Containerized Deployment）下（[Kubernetes]({% link ops/resource-providers/kubernetes.zh.md %})、[Yarn]({% link ops/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/resource-providers/mesos.zh.md %})），建议配置[进程总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.process.size`]({% link ops/config.zh.md %}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({% link ops/config.zh.md %}#jobmanager-memory-process-size)）。
 该配置参数用于指定分配给 Flink *JVM 进程*的总内存，也就是需要申请的容器大小。
 
 <span class="label label-info">提示</span>

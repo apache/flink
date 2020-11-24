@@ -59,7 +59,7 @@ The simplest way to setup memory in Flink is to configure either of the two foll
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
 See also how to set up other components for [TaskManager]({% link ops/memory/mem_setup_tm.md %}) and [JobManager]({% link ops/memory/mem_setup_jobmanager.md %}) memory.
 
-Configuring *total Flink memory* is better suited for [standalone deployments]({% link ops/deployment/cluster_setup.md %})
+Configuring *total Flink memory* is better suited for [standalone deployments]({% link ops/resource-providers/cluster_setup.md %})
 where you want to declare how much memory is given to Flink itself. The *total Flink memory* splits up into *JVM Heap*
 and *Off-heap* memory.
 See also [how to configure memory for standalone deployments]({% link ops/memory/mem_tuning.md %}#configure-memory-for-standalone-deployment).

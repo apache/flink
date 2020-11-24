@@ -81,7 +81,7 @@ $ ./bin/kubernetes-session.sh \
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档]({% link ops/deployment/docker.zh.md %})、[镜像 tags]({% link ops/deployment/docker.zh.md %}#image-tags)、[如何自定义 Flink Docker 镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)和[启用插件]({% link ops/deployment/docker.zh.md %}#using-plugins)。
+如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档]({% link ops/resource-providers/docker.zh.md %})、[镜像 tags]({% link ops/resource-providers/docker.zh.md %}#image-tags)、[如何自定义 Flink Docker 镜像]({% link ops/resource-providers/docker.zh.md %}#customize-flink-image)和[启用插件]({% link ops/resource-providers/docker.zh.md %}#using-plugins)。
 如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 配置项来指定它：
 
 {% highlight bash %}
@@ -205,7 +205,7 @@ $ kubectl delete deployment/<ClusterID>
 ### 启动 Flink Application
 <div class="codetabs" markdown="1">
 
-Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)的基础镜像。
+Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像]({% link ops/resource-providers/docker.zh.md %}#customize-flink-image)的基础镜像。
 
 <div data-lang="java" markdown="1">
 {% highlight dockerfile %}

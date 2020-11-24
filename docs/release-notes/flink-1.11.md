@@ -32,7 +32,7 @@ these notes carefully if you are planning to upgrade your Flink version to 1.11.
 #### Support for Application Mode ([FLIP-85](https://cwiki.apache.org/confluence/display/FLINK/FLIP-85+Flink+Application+Mode))
 The user can now submit applications and choose to execute their `main()` method on the cluster rather than the client.
 This allows for more light-weight application submission. For more details,
-see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/#application-mode).
+see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/#application-mode).
  
 #### Web Submission behaves the same as detached mode.
 With [FLINK-16657](https://issues.apache.org/jira/browse/FLINK-16657) the web submission logic changes and it exposes
@@ -68,11 +68,11 @@ The examples of `Dockerfiles` and docker image `build.sh` scripts have been remo
 - `flink-container/docker`
 - `flink-container/kubernetes`
 
-Check the updated user documentation for [Flink Docker integration](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html) instead. It now describes in detail how to [use](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#how-to-run-a-flink-image) and [customize](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#customize-flink-image) [the Flink official docker image](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#docker-hub-flink-images): configuration options, logging, plugins, adding more dependencies and installing software. The documentation also includes examples for Session and Job cluster deployments with:
-- [docker run](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#how-to-run-flink-image)
-- [docker compose](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#flink-with-docker-compose)
-- [docker swarm](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/docker.html#flink-with-docker-swarm)
-- [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/kubernetes.html)
+Check the updated user documentation for [Flink Docker integration](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html) instead. It now describes in detail how to [use](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#how-to-run-a-flink-image) and [customize](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#customize-flink-image) [the Flink official docker image](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#docker-hub-flink-images): configuration options, logging, plugins, adding more dependencies and installing software. The documentation also includes examples for Session and Job cluster deployments with:
+- [docker run](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#how-to-run-flink-image)
+- [docker compose](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#flink-with-docker-compose)
+- [docker swarm](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/docker.html#flink-with-docker-swarm)
+- [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/ops/resource-providers/kubernetes.html)
 
 ### Memory Management
 #### New JobManager Memory Model

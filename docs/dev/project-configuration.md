@@ -152,7 +152,7 @@ for details on how to build Flink for a specific Scala version.
 *(The only exception being when using existing Hadoop input-/output formats with Flink's Hadoop compatibility wrappers)*
 
 If you want to use Flink with Hadoop, you need to have a Flink setup that includes the Hadoop dependencies, rather than
-adding Hadoop as an application dependency. Please refer to the [Hadoop Setup Guide]({{ site.baseurl }}/ops/deployment/hadoop.html)
+adding Hadoop as an application dependency. Please refer to the [Hadoop Setup Guide]({{ site.baseurl }}/ops/resource-providers/hadoop.html)
 for details.
 
 There are two main reasons for that design:
