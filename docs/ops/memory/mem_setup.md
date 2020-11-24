@@ -67,7 +67,7 @@ See also [how to configure memory for standalone deployments]({% link ops/memory
 If you configure *total process memory* you declare how much memory in total should be assigned to the Flink *JVM process*.
 For the containerized deployments it corresponds to the size of the requested container, see also
 [how to configure memory for containers]({% link ops/memory/mem_tuning.md %}#configure-memory-for-containers)
-([Kubernetes]({% link ops/deployment/kubernetes.md %}), [Yarn]({% link ops/deployment/yarn_setup.md %}) or [Mesos]({% link ops/deployment/mesos.md %})).
+([Kubernetes]({% link ops/resource-providers/kubernetes.md %}), [Yarn]({% link ops/resource-providers/yarn_setup.md %}) or [Mesos]({% link ops/resource-providers/mesos.md %})).
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
 specific to the concrete Flink process. Check how to configure them for [TaskManager]({% link ops/memory/mem_setup_tm.md %}#configure-heap-and-managed-memory)

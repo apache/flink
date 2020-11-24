@@ -252,7 +252,7 @@ The user-jars position in the class path can be controlled by setting the parame
 
 ## Run an application in Application Mode
 
-To launch an application in [Application Mode]({% link ops/deployment/index.zh.md %}#deployment-modes), you can type:
+To launch an application in [Application Mode]({% link ops/resource-providers/index.zh.md %}#deployment-modes), you can type:
 
 {% highlight bash %}
 ./bin/flink run-application -t yarn-application ./examples/batch/WordCount.jar

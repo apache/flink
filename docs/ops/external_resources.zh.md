@@ -1,7 +1,7 @@
 ---
 title:  "扩展资源框架"
 nav-parent_id: ops
-nav-pos: 10
+nav-pos: 16
 nav-title: 扩展资源
 ---
 <!--
