@@ -274,7 +274,7 @@ public class DataStream<T> {
 				environment,
 				this,
 				Preconditions.checkNotNull(broadcastStream),
-				broadcastStream.getBroadcastStateDescriptor());
+				broadcastStream.getBroadcastStateDescriptors());
 	}
 
 	/**
