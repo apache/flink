@@ -2,7 +2,7 @@
 title: "Plugins"
 nav-id: plugins
 nav-parent_id: ops
-nav-pos: 5
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
