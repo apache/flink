@@ -1,7 +1,7 @@
 ---
 title: "SSL 设置"
-nav-parent_id: ops
-nav-pos: 7
+nav-parent_id: security
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
