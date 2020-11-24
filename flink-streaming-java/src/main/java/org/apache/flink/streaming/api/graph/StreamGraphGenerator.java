@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -137,6 +138,9 @@ public class StreamGraphGenerator {
     private final CheckpointConfig checkpointConfig;
 
     private final ReadableConfig configuration;
+
+    // Records the slot sharing groups and their corresponding ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     private StateBackend stateBackend;
 
@@ -259,6 +263,20 @@ public class StreamGraphGenerator {
         return this;
     }
 
+    /**
+     * Specify fine-grained resource requirements for slot sharing groups.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     */
+    public StreamGraphGenerator setSlotSharingGroupResource(
+            Map<String, ResourceProfile> slotSharingGroupResources) {
+        this.slotSharingGroupResources.putAll(slotSharingGroupResources);
+        return this;
+    }
+
     public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
         this.savepointRestoreSettings = savepointRestoreSettings;
     }
@@ -291,6 +309,7 @@ public class StreamGraphGenerator {
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setJobName(jobName);
         graph.setJobType(shouldExecuteInBatchMode ? JobType.BATCH : JobType.STREAMING);
+        graph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         if (shouldExecuteInBatchMode) {
 
