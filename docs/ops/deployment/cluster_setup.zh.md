@@ -1,6 +1,6 @@
 ---
 title: "独立集群"
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 nav-pos: 3
 ---
 <!--
