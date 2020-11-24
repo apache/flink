@@ -196,7 +196,14 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				// should update the data state
 				List<RowData> inputs = dataState.get(sortKey);
 				if (inputs != null) {
-					inputs.remove(input);
+					// comparing record by equaliser
+					Iterator<RowData> inputsIter = inputs.iterator();
+					while (inputsIter.hasNext()) {
+						if (equaliser.equals(inputsIter.next(), input)) {
+							inputsIter.remove();
+							break;
+						}
+					}
 					if (inputs.isEmpty()) {
 						dataState.remove(sortKey);
 					} else {
