@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -33,11 +34,15 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -46,6 +51,9 @@ import static org.junit.Assert.assertEquals;
  * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
  */
 public class BroadcastStateITCase extends AbstractTestBase {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testKeyedWithBroadcastTranslation() throws Exception {
@@ -146,6 +154,43 @@ public class BroadcastStateITCase extends AbstractTestBase {
 		output
 			.addSink(new TestSink(0))
 			.setParallelism(1);
+		env.execute();
+	}
+
+	@Test
+	public void testBroadcastBatchTranslationThrowsException() throws Exception {
+		final MapStateDescriptor<Long, Long> utterDescriptor = new MapStateDescriptor<>(
+				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
+		);
+
+		final List<Long> input = new ArrayList<>();
+		input.add(1L);
+		input.add(2L);
+		input.add(3L);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+		final DataStream<Long> srcOne = env.fromCollection(input);
+		final DataStream<Long> srcTwo = env.fromCollection(input);
+		final BroadcastStream<Long> broadcast = srcTwo.broadcast(utterDescriptor);
+
+		srcOne.connect(broadcast).process(
+				new BroadcastProcessFunction<Long, Long, Long>() {
+					@Override
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+
+					}
+
+					@Override
+					public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {
+
+					}
+				});
+
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("The Broadcast State Pattern is not support in BATCH execution mode.");
+
 		env.execute();
 	}
 

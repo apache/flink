@@ -42,6 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Transformation<OUT>>
 		extends SimpleTransformationTranslator<OUT, OP> {
+
 	protected Collection<Integer> translateInternal(
 			final Transformation<OUT> transformation,
 			final StreamOperatorFactory<OUT> operatorFactory,
