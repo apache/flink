@@ -1,7 +1,7 @@
 ---
 title:  "External Resource Framework"
 nav-parent_id: ops
-nav-pos: 10
+nav-pos: 16
 nav-title: External Resources
 ---
 <!--

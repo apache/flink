@@ -2,7 +2,7 @@
 nav-title: '内存配置'
 nav-id: ops_mem
 nav-parent_id: ops
-nav-pos: 5
+nav-pos: 12
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

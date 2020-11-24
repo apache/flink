@@ -60,12 +60,12 @@ Flink JVM 进程的*进程总内存（Total Process Memory）*包含了由 Flink
 Flink 会根据默认值或其他配置参数自动调整剩余内存部分的大小。
 关于各内存部分的更多细节，请分别参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}) 的相关文档。
 
-对于[独立部署模式（Standalone Deployment）]({% link ops/deployment/cluster_setup.zh.md %})，如果你希望指定由 Flink 应用本身使用的内存大小，最好选择配置 *Flink 总内存*。
+对于[独立部署模式（Standalone Deployment）]({% link ops/resource-providers/cluster_setup.zh.md %})，如果你希望指定由 Flink 应用本身使用的内存大小，最好选择配置 *Flink 总内存*。
 *Flink 总内存*会进一步划分为 *JVM 堆内存*和*堆外内存*。
 更多详情请参考[如何为独立部署模式配置内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-standalone-deployment)。
 
 通过配置*进程总内存*可以指定由 Flink *JVM 进程*使用的总内存大小。
-对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-containers)（[Kubernetes]({% link ops/deployment/kubernetes.zh.md %})、[Yarn]({% link ops/deployment/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/deployment/mesos.zh.md %})）。
+对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-containers)（[Kubernetes]({% link ops/resource-providers/kubernetes.zh.md %})、[Yarn]({% link ops/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link ops/resource-providers/mesos.zh.md %})）。
 
 此外，还可以通过设置 *Flink 总内存*的特定内部组成部分的方式来进行内存配置。
 不同进程需要设置的内存组成部分是不一样的。
