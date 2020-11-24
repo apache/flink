@@ -1,7 +1,7 @@
 ---
 title:  "Kerberos Authentication Setup and Configuration"
 nav-parent_id: ops
-nav-pos: 10
+nav-pos: 8
 nav-title: Kerberos
 ---
 <!--

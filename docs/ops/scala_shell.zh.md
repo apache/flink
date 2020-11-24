@@ -1,7 +1,7 @@
 ---
 title: "Scala REPL"
 nav-parent_id: ops
-nav-pos: 9
+nav-pos: 14
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
