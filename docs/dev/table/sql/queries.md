@@ -317,9 +317,15 @@ tableReference:
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName [ dynamicTableOptions ]
+  [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | UNNEST '(' expression ')'
+
+tablePath:
+  [ [ catalogName . ] schemaName . ] tableName
+
+systemTimePeriod:
+  FOR SYSTEM_TIME AS OF dateTimeExpression
 
 dynamicTableOptions:
   /*+ OPTIONS(key=val [, key=val]*) */
@@ -758,6 +764,7 @@ FROM
   JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
   ON r.currency = o.currency
 {% endhighlight %}
+        <p>The RHS table can be named with an alias using optional clause <code>[[<strong>AS</strong>] correlationName]</code>, note that the <code><strong>AS</strong></code> keyword is also optional.</p>
         <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
         <p>Only supported in Blink planner.</p>
       </td>
