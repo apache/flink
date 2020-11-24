@@ -1411,7 +1411,7 @@ connector:
 <span class="label label-primary">Source: Batch</span>
 <span class="label label-primary">Sink: Batch</span>
 
-Please refer to [Hive integration]({{ site.baseurl }}/dev/table/hive/).
+Please refer to [Hive integration]({{ site.baseurl }}/dev/table/connectors/hive/).
 
 {% top %}
 

@@ -1,8 +1,8 @@
 ---
-title: "Hive Integration"
+title: "Hive"
 nav-id: hive_tableapi
-nav-parent_id: tableapi
-nav-pos: 100
+nav-parent_id: sql-connectors
+nav-pos: 15
 nav-show_overview: true
 ---
 <!--
@@ -287,7 +287,7 @@ You're supposed to add dependencies as stated above at runtime.
 ## Connecting To Hive
 
 Connect to an existing Hive installation using the [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 
-and [HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html) through the table environment or YAML configuration.
+and [HiveCatalog]({{ site.baseurl }}/dev/table/connectors/hive/hive_catalog.html) through the table environment or YAML configuration.
 
 If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
 the hive configuration file to their local environment first. 
@@ -298,9 +298,10 @@ Therefore it's highly recommended that you use blink planner when connecting to 
 `HiveCatalog` is capable of automatically detecting the Hive version in use. It's recommended **NOT** to specify the Hive
 version, unless the automatic detection fails.
 
+Following is an example of how to connect to Hive:
+
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
-Following is an example of how to connect to Hive:
 
 {% highlight java %}
 
@@ -319,7 +320,6 @@ tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
-Take Hive version 2.3.4 for example:
 
 {% highlight scala %}
 
@@ -376,9 +376,9 @@ catalogs:
 
 ## DDL
 
-It's recommended to use [Hive dialect]({{ site.baseurl }}/dev/table/hive/hive_dialect.html) to execute DDLs to create
+It's recommended to use [Hive dialect]({{ site.baseurl }}/dev/table/connectors/hive/hive_dialect.html) to execute DDLs to create
 Hive tables, views, partitions, functions within Flink.
 
 ## DML
 
-Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/hive_read_write.html)
+Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/connectors/hive/hive_read_write.html)
