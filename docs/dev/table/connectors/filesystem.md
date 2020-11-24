@@ -96,6 +96,9 @@ The file system connector supports multiple formats:
  - Avro: [Apache Avro](http://avro.apache.org). Support compression by configuring `avro.codec`.
  - Parquet: [Apache Parquet](http://parquet.apache.org). Compatible with Hive.
  - Orc: [Apache Orc](http://orc.apache.org). Compatible with Hive.
+ - Debezium-JSON: [debezium-json]({% link dev/table/connectors/formats/debezium.md %}).
+ - Canal-JSON: [canal-json]({% link dev/table/connectors/formats/canal.md %}).
+ - Raw: [raw]({% link dev/table/connectors/formats/raw.md %}).
 
 ## Streaming Sink
 
