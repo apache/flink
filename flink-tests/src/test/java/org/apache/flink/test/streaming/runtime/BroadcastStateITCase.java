@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -37,10 +38,13 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
@@ -147,6 +151,45 @@ public class BroadcastStateITCase extends AbstractTestBase {
 			.addSink(new TestSink(0))
 			.setParallelism(1);
 		env.execute();
+	}
+
+	@Test
+	public void testBroadcastBatchTranslationThrowsException() throws Exception {
+		final MapStateDescriptor<Long, Long> utterDescriptor = new MapStateDescriptor<>(
+				"broadcast-state", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO
+		);
+
+		final List<Long> input = new ArrayList<>();
+		input.add(1L);
+		input.add(2L);
+		input.add(3L);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+		final DataStream<Long> srcOne = env.fromCollection(input);
+		final DataStream<Long> srcTwo = env.fromCollection(input);
+		final BroadcastStream<Long> broadcast = srcTwo.broadcast(utterDescriptor);
+
+		srcOne.connect(broadcast).process(
+				new BroadcastProcessFunction<Long, Long, Long>() {
+					@Override
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<Long> out) {
+
+					}
+
+					@Override
+					public void processBroadcastElement(Long value, Context ctx, Collector<Long> out) {
+
+					}
+				});
+
+		try {
+			env.execute();
+			fail("Execution should have failed during job graph creation.");
+		} catch (UnsupportedOperationException e) {
+			assertEquals(e.getMessage(), "The Broadcast State Pattern is not support in BATCH execution mode.");
+		}
 	}
 
 	private static class TestSink extends RichSinkFunction<String> {
