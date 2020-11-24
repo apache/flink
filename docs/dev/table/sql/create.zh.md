@@ -324,11 +324,11 @@ CREATE TABLE MyTable (
 The expression may contain any combination of columns, constants, or functions. The expression cannot
 contain a subquery.
 
-Computed columns are commonly used in Flink for defining [time attributes]({% link dev/table/streaming/time_attributes.md %})
+Computed columns are commonly used in Flink for defining [time attributes]({% link dev/table/streaming/time_attributes.zh.md %})
 in `CREATE TABLE` statements.
-- A [processing time attribute]({% link dev/table/streaming/time_attributes.md %}#processing-time)
+- A [processing time attribute]({% link dev/table/streaming/time_attributes.zh.md %}#processing-time)
 can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
-- An [event time attribute]({% link dev/table/streaming/time_attributes.md %}#event-time) timestamp
+- An [event time attribute]({% link dev/table/streaming/time_attributes.zh.md %}#event-time) timestamp
 can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
 if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
