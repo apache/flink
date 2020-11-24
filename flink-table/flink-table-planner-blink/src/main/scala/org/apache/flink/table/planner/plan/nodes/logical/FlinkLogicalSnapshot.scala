@@ -48,17 +48,16 @@ class FlinkLogicalSnapshot(
   override def isValid(
       litmus: Litmus,
       context: RelNode.Context): Boolean = {
+    val msg = "Temporal table can only be used in temporal join and only supports " +
+      "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\nQuerying a temporal table " +
+      "using 'FOR SYSTEM TIME AS OF' syntax with %s is not supported yet."
     period match {
       case _: RexFieldAccess =>
         // pass
       case lit: RexLiteral =>
-        return litmus.fail(s"Querying a temporal table using " +
-          "'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
-          s"'${lit.toString}' is not supported yet.")
+        return litmus.fail(String.format(msg, s"a constant timestamp '${lit.toString}'"))
       case _ =>
-        return litmus.fail(s"Querying a temporal table using " +
-          "'FOR SYSTEM TIME AS OF' syntax with an expression call " +
-          s"'${period.toString}' is not supported yet.")
+        return litmus.fail(String.format(msg, s"an expression call '${period.toString}'"))
     }
     super.isValid(litmus, context)
   }
