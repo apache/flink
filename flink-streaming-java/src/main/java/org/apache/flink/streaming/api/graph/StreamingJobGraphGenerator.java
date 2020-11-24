@@ -966,7 +966,14 @@ public class StreamingJobGraphGenerator {
             } else {
                 effectiveSlotSharingGroup =
                         specifiedSlotSharingGroups.computeIfAbsent(
-                                slotSharingGroupKey, k -> new SlotSharingGroup());
+                                slotSharingGroupKey,
+                                k -> {
+                                    SlotSharingGroup ssg = new SlotSharingGroup();
+                                    streamGraph
+                                            .getSlotSharingGroupResource(k)
+                                            .ifPresent(ssg::setResourceProfile);
+                                    return ssg;
+                                });
             }
 
             vertex.setSlotSharingGroup(effectiveSlotSharingGroup);
@@ -981,6 +988,9 @@ public class StreamingJobGraphGenerator {
     private Map<JobVertexID, SlotSharingGroup> buildVertexRegionSlotSharingGroups() {
         final Map<JobVertexID, SlotSharingGroup> vertexRegionSlotSharingGroups = new HashMap<>();
         final SlotSharingGroup defaultSlotSharingGroup = new SlotSharingGroup();
+        streamGraph
+                .getSlotSharingGroupResource(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                .ifPresent(defaultSlotSharingGroup::setResourceProfile);
 
         final boolean allRegionsInSameSlotSharingGroup =
                 streamGraph.isAllVerticesInSameSlotSharingGroupByDefault();
@@ -993,6 +1003,10 @@ public class StreamingJobGraphGenerator {
                 regionSlotSharingGroup = defaultSlotSharingGroup;
             } else {
                 regionSlotSharingGroup = new SlotSharingGroup();
+                streamGraph
+                        .getSlotSharingGroupResource(
+                                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .ifPresent(regionSlotSharingGroup::setResourceProfile);
             }
 
             for (JobVertexID jobVertexID : region.getVertexIDs()) {
