@@ -253,9 +253,9 @@ Please refer to [Kafka documentation]({% link dev/connectors/kafka.md %}#kafka-p
 
 Flink supports to emit per-partition-watermark for Kafka. Using this feature, watermarks are generated inside the Kafka consumer. The per-partition-watermark are merged in
 the same way as watermarks are merged on stream shuffles. The output watermark of the source is determined by the minimum watermark among the partitions it reads. If some
-partitions in the topics are idle, the watermark assigner will not advance. You can alleviate this problem by setting appropriate [idelness timeouts]({{ site.baseurl }}/dev/event_timestamps_watermarks.html#dealing-with-idle-sources).
+partitions in the topics are idle, the watermark assigner will not advance. You can alleviate this problem by setting appropriate option [table.exec.source.idle-timeout]({{ site.baseurl }}/dev/table/config.html#table-exec-source-idle-timeout).
 
-Please refer to [Kafka DataStream Connector documentation]({% link dev/connectors/kafka.md %}#kafka-consumers-and-timestamp-extractionwatermark-emission) for more details.
+Please refer to [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.md %}#watermark-strategies-and-the-kafka-connector) for more details.
 
 Data Type Mapping
 ----------------

@@ -181,10 +181,10 @@ Upsert Kafka 始终以 upsert 方式工作，并且需要在 DDL 中定义主键
 
 Flink 支持根据 Upsert Kafka 的 每个分区的数据特性发送相应的 watermark。当使用这个特性的时候，watermark 是在 Kafka consumer 内部生成的。 合并每个分区
 生成的 watermark 的方式和 stream shuffle 的方式是一致的。 数据源产生的 watermark 是取决于该 consumer 负责的所有分区中当前最小的 watermark。如果该
-consumer 负责的部分分区是 idle 的，那么整体的 watermark 并不会前进。在这种情况下，可以通过设置合适的 [idelness timeouts]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html#dealing-with-idle-sources)
+consumer 负责的部分分区是 idle 的，那么整体的 watermark 并不会前进。在这种情况下，可以通过设置合适的 [table.exec.source.idle-timeout]({{ site.baseurl }}/zh/dev/table/config.html#table-exec-source-idle-timeout)
 来缓解这个问题。
 
-如想获得更多细节，请查阅 [Kafka DataStream Connector documentation]({% link dev/connectors/kafka.zh.md %}#kafka-consumers-and-timestamp-extractionwatermark-emission).
+如想获得更多细节，请查阅 [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.zh.md %}#watermark-strategies-and-the-kafka-connector).
 
 数据类型映射
 ----------------
