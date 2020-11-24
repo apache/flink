@@ -58,6 +58,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
 import org.apache.flink.table.filesystem.stream.StreamingSink;
@@ -119,10 +120,12 @@ public class FileSystemTableSink extends AbstractFileSystemTable implements
 		this.bulkReaderFormat = bulkReaderFormat;
 		this.deserializationFormat = deserializationFormat;
 		this.formatFactory = formatFactory;
-		if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory)
-				.allMatch(Objects::isNull)) {
-			throw new ValidationException("Please implement at least one of the following formats:" +
-					" BulkWriter.Factory, SerializationSchema, FileSystemFormatFactory.");
+		if (Stream.of(bulkWriterFormat, serializationFormat, formatFactory).allMatch(Objects::isNull)) {
+			Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
+			String identifier = options.get(FactoryUtil.FORMAT);
+			throw new ValidationException(String.format(
+				"Could not find any format factory for identifier '%s' in the classpath.",
+				identifier));
 		}
 		this.bulkWriterFormat = bulkWriterFormat;
 		this.serializationFormat = serializationFormat;
