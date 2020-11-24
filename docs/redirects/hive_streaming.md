@@ -1,7 +1,7 @@
 ---
 title: "Hive Streaming"
 layout: redirect
-redirect: /dev/table/hive/hive_read_write.html
+redirect: /dev/table/connectors/hive/hive_read_write.html
 permalink: /dev/table/hive/hive_streaming.html
 ---
 <!--

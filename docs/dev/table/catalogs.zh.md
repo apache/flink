@@ -45,7 +45,7 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 ### HiveCatalog
 
 `HiveCatalog` 有两个用途：作为原生 Flink 元数据的持久化存储，以及作为读写现有 Hive 元数据的接口。 
-Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
+Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/connectors/hive/index.html) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
 
 
 <span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。

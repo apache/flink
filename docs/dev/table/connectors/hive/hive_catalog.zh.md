@@ -38,12 +38,12 @@ users to create tables and other meta-objects only once, and reference and manag
 
 ### Dependencies
 
-Setting up a `HiveCatalog` in Flink requires the same [dependencies]({{ site.baseurl }}/dev/table/hive/#dependencies) 
+Setting up a `HiveCatalog` in Flink requires the same [dependencies]({{ site.baseurl }}/dev/table/connectors/hive/#dependencies) 
 as those of an overall Flink-Hive integration.
 
 ### Configuration
 
-Setting up a `HiveCatalog` in Flink requires the same [configuration]({{ site.baseurl }}/dev/table/hive/#connecting-to-hive) 
+Setting up a `HiveCatalog` in Flink requires the same [configuration]({{ site.baseurl }}/dev/table/connectors/hive/#connecting-to-hive) 
 as those of an overall Flink-Hive integration.
 
 

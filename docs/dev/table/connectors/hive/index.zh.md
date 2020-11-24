@@ -1,8 +1,8 @@
 ---
-title: "Hive 集成"
+title: "Hive"
 nav-id: hive_tableapi
-nav-parent_id: tableapi
-nav-pos: 100
+nav-parent_id: sql-connectors
+nav-pos: 15
 nav-show_overview: true
 ---
 <!--
@@ -284,7 +284,7 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 ## 连接到Hive
 
-通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{ site.baseurl }}/zh/dev/table/catalogs.html) 和 [HiveCatalog]({{ site.baseurl }}/zh/dev/table/hive/hive_catalog.html)连接到现有的 Hive 集群。
+通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{ site.baseurl }}/zh/dev/table/catalogs.html) 和 [HiveCatalog]({{ site.baseurl }}/zh/dev/table/connectors/hive/hive_catalog.html)连接到现有的 Hive 集群。
 
 如果`hive-conf/hive-site.xml`文件存储在远端存储系统，则用户首先应该将hive配置文件下载至其本地环境中。
 
@@ -292,9 +292,10 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 `HiveCatalog` 能够自动检测使用的 Hive 版本。我们建议**不要**手动设置 Hive 版本，除非自动检测机制失败。
 
+以下是如何连接到 Hive 的示例：
+
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
-以下是如何连接到 Hive 的示例：
 
 {% highlight java %}
 
@@ -313,7 +314,6 @@ tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
-以Hive 2.3.4版本为例：
 
 {% highlight scala %}
 
@@ -375,4 +375,4 @@ catalogs:
 
 ## DML
 
-Flink 支持 DML 写入 Hive 表，请参考[读写 Hive 表]({{ site.baseurl }}/zh/dev/table/hive/hive_read_write.html)
+Flink 支持 DML 写入 Hive 表，请参考[读写 Hive 表]({{ site.baseurl }}/zh/dev/table/connectors/hive/hive_read_write.html)

@@ -101,7 +101,7 @@ FROM hive_table
 - Streaming reading for partitioned tables requires that each partition should be added atomically in the view of hive metastore. If not, new data added to an existing partition will be consumed.
 - Streaming reads do not support watermark grammar in Flink DDL. These tables cannot be used for window operators.
 
-## Reading Hive Views
+### Reading Hive Views
 
 Flink is able to read from Hive defined views, but some limitations apply:
 
