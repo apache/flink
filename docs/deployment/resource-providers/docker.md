@@ -26,7 +26,7 @@ under the License.
 [Docker](https://www.docker.com) is a popular container runtime.
 There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
 You can use the docker images to deploy a *Session* or *Job cluster* in a containerized environment, e.g.,
-[standalone Kubernetes]({% link ops/resource-providers/kubernetes.md %}) or [native Kubernetes]({% link ops/resource-providers/native_kubernetes.md %}).
+[standalone Kubernetes]({% link deployment/resource-providers/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}).
 
 * This will be replaced by the TOC
 {:toc}
@@ -67,18 +67,18 @@ You can run its entry point in the following modes:
 
 This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
 * manually in a local Docker setup,
-* [in a Kubernetes cluster]({% link ops/resource-providers/kubernetes.md %}),
+* [in a Kubernetes cluster]({% link deployment/resource-providers/kubernetes.md %}),
 * [with Docker Compose](#flink-with-docker-compose),
 * [with Docker swarm](#flink-with-docker-swarm).
 
-<span class="label label-info">Note</span> [The native Kubernetes]({% link ops/resource-providers/native_kubernetes.md %}) also runs the same image by default
+<span class="label label-info">Note</span> [The native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) also runs the same image by default
 and deploys *TaskManagers* on demand so that you do not have to do it manually.
 
 The next chapters describe how to start a single Flink Docker container for various purposes.
 
 Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar`.
 
-We recommend using [Docker Compose]({% link ops/resource-providers/docker.md %}#session-cluster-with-docker-compose) or [Docker Swarm]({% link ops/resource-providers/docker.md %}#session-cluster-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
+We recommend using [Docker Compose]({% link deployment/resource-providers/docker.md %}#session-cluster-with-docker-compose) or [Docker Swarm]({% link deployment/resource-providers/docker.md %}#session-cluster-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
 
 ### Start a Session Cluster
 
@@ -254,7 +254,7 @@ The `flink-conf.yaml` file must have write permission so that the Docker entry p
 
 ### Using plugins
 
-As described in the [plugins]({% link ops/plugins.md %}) documentation page: in order to use plugins they must be
+As described in the [plugins]({% link deployment/plugins.md %}) documentation page: in order to use plugins they must be
 copied to the correct location in the Flink installation in the Docker container for them to work.
 
 If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.

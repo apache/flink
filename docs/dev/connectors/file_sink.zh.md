@@ -26,7 +26,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-这个连接器提供了一个在流和批模式下统一的 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中，它对于流和批模式可以提供相同的一致性语义保证。File Sink 是现有的 [Streaming File Sink]({{ site.baseurl }}/zh/dev/connectors/streamfile_sink.html) 的一个升级版本，后者仅在流模式下提供了精确一致性。
+这个连接器提供了一个在流和批模式下统一的 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/deployment/filesystems/index.html) 接口的文件系统中，它对于流和批模式可以提供相同的一致性语义保证。File Sink 是现有的 [Streaming File Sink]({{ site.baseurl }}/zh/dev/connectors/streamfile_sink.html) 的一个升级版本，后者仅在流模式下提供了精确一致性。
 
 File Sink 会将数据写入到桶中。由于输入流可能是无界的，因此每个桶中的数据被划分为多个有限大小的文件。如何分桶是可以配置的，默认使用基于时间的分桶策略，这种策略每个小时创建一个新的桶，桶中包含的文件将记录所有该小时内从流中接收到的数据。
 

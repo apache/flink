@@ -27,7 +27,7 @@ under the License.
 {:toc}
 
 This connector provides a unified Sink for `BATCH` and `STREAMING` that writes partitioned files to filesystems
-supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/ops/filesystems/index.html). This filesystem
+supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/deployment/filesystems/index.html). This filesystem
 connector provides the same guarantees for both `BATCH` and `STREAMING` and it is an evolution of the 
 existing [Streaming File Sink]({{ site.baseurl }}/dev/connectors/streamfile_sink.html) which was designed for providing exactly-once semantics for `STREAMING` execution.
 

@@ -53,9 +53,9 @@ that triggers the execution, or in the command line process `./bin/flink run
 
 The JobManager and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({% link
-ops/resource-providers/cluster_setup.zh.md %}), in containers, or managed by resource
-frameworks like [YARN]({% link ops/resource-providers/yarn_setup.zh.md
-%}) or [Mesos]({% link ops/resource-providers/mesos.zh.md %}).
+deployment/resource-providers/cluster_setup.zh.md %}), in containers, or managed by resource
+frameworks like [YARN]({% link deployment/resource-providers/yarn_setup.zh.md
+%}) or [Mesos]({% link deployment/resource-providers/mesos.zh.md %}).
 TaskManagers connect to JobManagers, announcing themselves as available, and
 are assigned work.
 
@@ -92,7 +92,7 @@ failures, among others. This process consists of three different components:
 
 There is always at least one JobManager. A high-availability setup might have
 multiple JobManagers, one of which is always the *leader*, and the others are
-*standby* (see [High Availability (HA)]({% link ops/jobmanager_high_availability.zh.md %})).
+*standby* (see [High Availability (HA)]({% link deployment/jobmanager_high_availability.zh.md %})).
 
 ### TaskManagers
 

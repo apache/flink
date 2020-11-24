@@ -1,7 +1,7 @@
 ---
 title: "Production Readiness Checklist"
 nav-parent_id: ops
-nav-pos: 15
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -61,7 +61,7 @@ See the [description of state backends]({% link ops/state/state_backends.md %}#c
 The JobManager serves as a central coordinator for each Flink deployment, being responsible for both scheduling and resource management of the cluster.
 It is a single point of failure within the cluster, and if it crashes, no new jobs can be submitted, and running applications will fail. 
 
-Configuring [High Availability]({% link ops/jobmanager_high_availability.md %}), in conjunction with Apache Zookeeper, allows for a swift recovery and is highly recommended for production setups. 
+Configuring [High Availability]({% link deployment/jobmanager_high_availability.md %}), in conjunction with Apache Zookeeper, allows for a swift recovery and is highly recommended for production setups. 
 
 
 {% top %}

@@ -24,7 +24,7 @@ under the License.
 -->
 
 This connector provides access to partitioned files in filesystems
-supported by the [Flink FileSystem abstraction]({{ site.baseurl}}/ops/filesystems/index.html).
+supported by the [Flink FileSystem abstraction]({{ site.baseurl}}/deployment/filesystems/index.html).
 
 * This will be replaced by the TOC
 {:toc}
@@ -61,7 +61,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/ops/filesystems/index.html).
+<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/deployment/filesystems/index.html).
 
 <span class="label label-danger">Attention</span> File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
 

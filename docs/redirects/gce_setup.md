@@ -2,7 +2,7 @@
 title: "Google Compute Engine Setup"
 layout: redirect
 redirect: /index.html
-permalink: /ops/resource-providers/gce_setup.html
+permalink: /deployment/resource-providers/gce_setup.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
