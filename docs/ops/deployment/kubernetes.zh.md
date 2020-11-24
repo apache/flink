@@ -1,7 +1,7 @@
 ---
 title:  "Kubernetes 设置"
 nav-title: Kubernetes
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 nav-pos: 7
 ---
 <!--

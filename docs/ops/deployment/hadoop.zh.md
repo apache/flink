@@ -1,7 +1,7 @@
 ---
 title:  "Hadoop 集成"
 nav-title: Hadoop 集成
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 nav-pos: 8
 ---
 <!--

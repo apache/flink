@@ -1,7 +1,7 @@
 ---
 title:  "原生 Kubernetes 设置"
 nav-title: Native Kubernetes
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 is_beta: true
 nav-pos: 7
 ---

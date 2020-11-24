@@ -1,7 +1,7 @@
 ---
 title:  "Docker Setup"
 nav-title: Docker
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 nav-pos: 6
 ---
 <!--
