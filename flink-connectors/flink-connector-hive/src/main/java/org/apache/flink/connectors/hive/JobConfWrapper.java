@@ -18,6 +18,8 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.Credentials;
@@ -35,7 +37,7 @@ public class JobConfWrapper implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private JobConf jobConf;
+	private transient JobConf jobConf;
 
 	public JobConfWrapper(JobConf jobConf) {
 		this.jobConf = jobConf;
@@ -46,14 +48,29 @@ public class JobConfWrapper implements Serializable {
 	}
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
-		jobConf.write(out);
+		out.defaultWriteObject();
+
+		// we write the jobConf through a separate serializer to avoid cryptic exceptions when it
+		// corrupts the serialization stream
+		final DataOutputSerializer ser = new DataOutputSerializer(256);
+		jobConf.write(ser);
+		out.writeInt(ser.length());
+		out.write(ser.getSharedBuffer(), 0, ser.length());
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		if (jobConf == null) {
-			jobConf = new JobConf();
+		in.defaultReadObject();
+
+		final byte[] data = new byte[in.readInt()];
+		in.readFully(data);
+		final DataInputDeserializer deser = new DataInputDeserializer(data);
+		this.jobConf = new JobConf();
+		try {
+			jobConf.readFields(deser);
+		} catch (IOException e) {
+			throw new IOException(
+					"Could not deserialize JobConf, the serialized and de-serialized don't match.", e);
 		}
-		jobConf.readFields(in);
 		Credentials currentUserCreds = HadoopInputFormatCommonBase.getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
 		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
