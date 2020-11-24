@@ -10,3 +10,5 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.parquet:parquet-column:1.11.1
 - org.apache.parquet:parquet-common:1.11.1
 - org.apache.parquet:parquet-encoding:1.11.1
+- org.apache.parquet:parquet-format-structures:1.11.1
+- org.apache.parquet:parquet-jackson:1.11.1
