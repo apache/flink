@@ -51,8 +51,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Object LEAKED_OBJECTS_CLEANUP_LOCK = new Object();
-
 	/**
 	 * For each classloader we only need to execute the cleanup method once.
 	 */
@@ -328,22 +326,20 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 
-	private void cleanUpLeakingObjects() throws ReflectiveOperationException {
-		synchronized (LEAKED_OBJECTS_CLEANUP_LOCK) {
-			if (!leakedObjectsCleanupped) {
-				// clear the soft references.
-				// see https://bugs.openjdk.java.net/browse/JDK-8199589
-				Class<?> clazz = Class.forName("java.io.ObjectStreamClass$Caches");
-				clearCache(clazz, "localDescs");
-				clearCache(clazz, "reflectors");
-				// clear the finalizers created by last python job which uses another classloader.
-				System.gc();
-				leakedObjectsCleanupped = true;
-			}
+	private static synchronized void cleanUpLeakingObjects() throws ReflectiveOperationException {
+		if (!leakedObjectsCleanupped) {
+			// clear the soft references.
+			// see https://bugs.openjdk.java.net/browse/JDK-8199589
+			Class<?> clazz = Class.forName("java.io.ObjectStreamClass$Caches");
+			clearCache(clazz, "localDescs");
+			clearCache(clazz, "reflectors");
+			// clear the finalizers created by last python job which uses another classloader.
+			System.gc();
+			leakedObjectsCleanupped = true;
 		}
 	}
 
-	private void clearCache(Class<?> target, String mapName)
+	private static void clearCache(Class<?> target, String mapName)
 		throws ReflectiveOperationException, SecurityException, ClassCastException {
 		Field f = target.getDeclaredField(mapName);
 		f.setAccessible(true);
@@ -356,7 +352,7 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 				if (clazz instanceof Class) {
 					ClassLoader cl = ((Class<?>) clazz).getClassLoader();
 					while (cl != null) {
-						if (cl == this.getClass().getClassLoader()) {
+						if (cl == AbstractPythonFunctionOperator.class.getClassLoader()) {
 							keys.remove();
 							break;
 						}
