@@ -121,7 +121,10 @@ public class TestingSlotManager implements SlotManager {
 
     @Override
     public boolean registerTaskManager(
-            TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
+            TaskExecutorConnection taskExecutorConnection,
+            SlotReport initialSlotReport,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
         return true;
     }
 

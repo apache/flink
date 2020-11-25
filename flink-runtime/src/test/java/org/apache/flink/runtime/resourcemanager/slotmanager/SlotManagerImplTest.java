@@ -124,7 +124,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertTrue(
                     "The number registered slots does not equal the expected number.",
@@ -170,7 +171,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertTrue(
                     "The number registered slots does not equal the expected number.",
@@ -294,7 +296,8 @@ public class SlotManagerImplTest extends TestLogger {
             final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
             final SlotReport slotReport = new SlotReport(slotStatus);
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertTrue(
                     "The slot request should be accepted",
@@ -352,7 +355,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -428,7 +432,8 @@ public class SlotManagerImplTest extends TestLogger {
 
             assertThat(numberAllocateResourceCalls.get(), is(1));
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertThat(
                     requestFuture.get(),
@@ -471,7 +476,8 @@ public class SlotManagerImplTest extends TestLogger {
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -552,7 +558,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManager slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertFalse(slotManager.registerSlotRequest(slotRequest));
         }
@@ -593,7 +600,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
             assertTrue(slotManager.registerSlotRequest(slotRequest1));
 
             TaskManagerSlot slot = slotManager.getSlot(slotId);
@@ -645,7 +653,8 @@ public class SlotManagerImplTest extends TestLogger {
 
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
             assertTrue(slotManager.registerSlotRequest(slotRequest1));
 
             TaskManagerSlot slot = slotManager.getSlot(slotId);
@@ -735,7 +744,8 @@ public class SlotManagerImplTest extends TestLogger {
             // check that we don't have any slots registered
             assertTrue(0 == slotManager.getNumberRegisteredSlots());
 
-            slotManager.registerTaskManager(taskManagerConnection, slotReport1);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport1, ResourceProfile.ANY, ResourceProfile.ANY);
 
             TaskManagerSlot slot1 = slotManager.getSlot(slotId1);
             TaskManagerSlot slot2 = slotManager.getSlot(slotId2);
@@ -853,7 +863,8 @@ public class SlotManagerImplTest extends TestLogger {
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
 
-            slotManager.registerTaskManager(taskManagerConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             slotManager.registerSlotRequest(slotRequest);
 
@@ -939,7 +950,10 @@ public class SlotManagerImplTest extends TestLogger {
                     CompletableFuture.supplyAsync(
                                     () -> {
                                         slotManager.registerTaskManager(
-                                                taskManagerConnection, slotReport);
+                                                taskManagerConnection,
+                                                slotReport,
+                                                ResourceProfile.ANY,
+                                                ResourceProfile.ANY);
 
                                         return null;
                                     },
@@ -1054,7 +1068,10 @@ public class SlotManagerImplTest extends TestLogger {
                     .thenRun(
                             () ->
                                     slotManager.registerTaskManager(
-                                            taskManagerConnection, initialSlotReport));
+                                            taskManagerConnection,
+                                            initialSlotReport,
+                                            ResourceProfile.ANY,
+                                            ResourceProfile.ANY));
 
             final SlotID slotId = requestedSlotFuture.get();
 
@@ -1128,7 +1145,11 @@ public class SlotManagerImplTest extends TestLogger {
                         .setRedundantTaskManagerNum(0)
                         .buildAndStartWithDirectExec(resourceManagerId, resourceActions)) {
 
-            slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection,
+                    initialSlotReport,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             assertEquals(1, slotManager.getNumberRegisteredSlots());
 
@@ -1167,7 +1188,11 @@ public class SlotManagerImplTest extends TestLogger {
             final SlotStatus initialSlotStatus = new SlotStatus(slotId, ResourceProfile.ANY);
             final SlotReport initialSlotReport = new SlotReport(initialSlotStatus);
 
-            slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection,
+                    initialSlotReport,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             assertThat(slotManager.getNumberRegisteredSlots(), is(equalTo(1)));
 
@@ -1246,7 +1271,8 @@ public class SlotManagerImplTest extends TestLogger {
                     new CompletableFuture<>();
             responseQueue.offer(firstManualSlotRequestResponse);
 
-            slotManager.registerTaskManager(taskExecutionConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>
                     firstRequest = requestSlotQueue.take();
@@ -1328,7 +1354,8 @@ public class SlotManagerImplTest extends TestLogger {
                     new CompletableFuture<>();
             responseQueue.offer(firstManualSlotRequestResponse);
 
-            slotManager.registerTaskManager(taskExecutionConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>
                     firstRequest = requestSlotQueue.take();
@@ -1402,7 +1429,11 @@ public class SlotManagerImplTest extends TestLogger {
 
             // register the task-manager-1 to the slot manager, this will trigger the slot
             // allocation for job1.
-            slotManager.registerTaskManager(taskExecutionConnection1, slotReport1);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection1,
+                    slotReport1,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             // register slot request for job2.
             JobID jobId2 = new JobID();
@@ -1427,7 +1458,11 @@ public class SlotManagerImplTest extends TestLogger {
 
             // register the task-manager-2 to the slot manager, this will trigger the slot
             // allocation for job2 and job3.
-            slotManager.registerTaskManager(taskExecutionConnection2, slotReport2);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection2,
+                    slotReport2,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             // validate for job1.
             slotManager.unregisterTaskManager(
@@ -1628,7 +1663,8 @@ public class SlotManagerImplTest extends TestLogger {
                             resourceProfile,
                             SlotManagerImplTest::createEmptySlotStatus);
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertThat(slotManager.getNumberRegisteredSlots(), is(numberSlots - 1));
             assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(1));
@@ -1676,7 +1712,8 @@ public class SlotManagerImplTest extends TestLogger {
                             offeredSlotProfile,
                             SlotManagerImplTest::createEmptySlotStatus);
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertThat(slotManager.getNumberRegisteredSlots(), is(numberOfferedSlots));
             assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numberSlots));
@@ -1701,7 +1738,8 @@ public class SlotManagerImplTest extends TestLogger {
                     new SlotStatus(slotId, ResourceProfile.ANY, jobId, new AllocationID());
             final SlotReport slotReport = new SlotReport(slotStatus);
 
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertThat(slotManager.getNumberRegisteredSlots(), is(1));
             assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numberSlots));
@@ -1730,7 +1768,8 @@ public class SlotManagerImplTest extends TestLogger {
             SlotReport slotReport =
                     createSingleAllocatedSlotReport(
                             taskExecutorConnection.getResourceID(), new JobID());
-            slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+            slotManager.registerTaskManager(
+                    taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
             slotManager.unregisterTaskManager(taskExecutorConnection.getInstanceID(), failureCause);
 
             assertThat(allocationFailureCause.get(), FlinkMatchers.containsCause(failureCause));
@@ -1869,8 +1908,10 @@ public class SlotManagerImplTest extends TestLogger {
                         .setMaxSlotNum(maxSlotNum)
                         .setRedundantTaskManagerNum(0)
                         .buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
-            slotManager.registerTaskManager(taskManagerConnection1, slotReport1);
-            slotManager.registerTaskManager(taskManagerConnection2, slotReport2);
+            slotManager.registerTaskManager(
+                    taskManagerConnection1, slotReport1, ResourceProfile.ANY, ResourceProfile.ANY);
+            slotManager.registerTaskManager(
+                    taskManagerConnection2, slotReport2, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertThat(
                     "The number registered slots does not equal the expected number.",
@@ -1901,7 +1942,11 @@ public class SlotManagerImplTest extends TestLogger {
                 createTaskExecutorConnection(taskExecutorGateway);
         final SlotReport firstSlotReport =
                 createSlotReport(firstTaskExecutorConnection.getResourceID(), 2);
-        slotManager.registerTaskManager(firstTaskExecutorConnection, firstSlotReport);
+        slotManager.registerTaskManager(
+                firstTaskExecutorConnection,
+                firstSlotReport,
+                ResourceProfile.ANY,
+                ResourceProfile.ANY);
     }
 
     @Test
