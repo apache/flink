@@ -42,11 +42,11 @@ The last section explains some best practices concerning planning how many resou
 ## Monitoring State and Checkpoints
 
 The easiest way to monitor checkpoint behavior is via the UI's checkpoint section. The documentation
-for [checkpoint monitoring]({% link monitoring/checkpoint_monitoring.zh.md %}) shows how to access the available checkpoint
+for [checkpoint monitoring]({% link monitoring/monitoring/checkpoint_monitoring.zh.md %}) shows how to access the available checkpoint
 metrics.
 
 The two numbers (both exposed via Task level [metrics]({% link monitoring/metrics.zh.md %}#checkpointing)
-and in the [web interface]({% link monitoring/checkpoint_monitoring.zh.md %})) that are of particular interest when scaling
+and in the [web interface]({% link monitoring/monitoring/checkpoint_monitoring.zh.md %})) that are of particular interest when scaling
 up checkpoints are:
 
   - The time until operators receive their first checkpoint barrier
@@ -171,7 +171,7 @@ This section discusses how to decide how many resources should be used for a Fli
 The basic rules of thumb for capacity planning are:
 
   - Normal operation should have enough capacity to not operate under constant *back pressure*.
-    See [back pressure monitoring]({% link monitoring/back_pressure.zh.md %}) for details on how to check whether the application runs under back pressure.
+    See [back pressure monitoring]({% link monitoring/monitoring/back_pressure.zh.md %}) for details on how to check whether the application runs under back pressure.
 
   - Provision some extra resources on top of the resources needed to run the program back-pressure-free during failure-free time.
     These resources are needed to "catch up" with the input data that accumulated during the time the application
