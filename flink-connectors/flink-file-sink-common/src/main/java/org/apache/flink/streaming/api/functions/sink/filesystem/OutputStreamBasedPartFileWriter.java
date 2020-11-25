@@ -135,11 +135,14 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 			final long creationTime) throws IOException;
 	}
 
-	static final class OutputStreamBasedPendingFileRecoverable implements PendingFileRecoverable {
+	/**
+	 * The {@link PendingFileRecoverable} implementation for {@link OutputStreamBasedBucketWriter}.
+	 */
+	public static final class OutputStreamBasedPendingFileRecoverable implements PendingFileRecoverable {
 
 		private final RecoverableWriter.CommitRecoverable commitRecoverable;
 
-		OutputStreamBasedPendingFileRecoverable(final RecoverableWriter.CommitRecoverable commitRecoverable) {
+		public OutputStreamBasedPendingFileRecoverable(final RecoverableWriter.CommitRecoverable commitRecoverable) {
 			this.commitRecoverable = commitRecoverable;
 		}
 
@@ -149,7 +152,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 	}
 
 	/**
-	 * A kind of {@link InProgressFileRecoverable} implementation.
+	 * The {@link InProgressFileRecoverable} implementation for {@link OutputStreamBasedBucketWriter}.
 	 */
 	public static final class OutputStreamBasedInProgressFileRecoverable implements InProgressFileRecoverable {
 
@@ -183,7 +186,10 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 	}
 
-	static class OutputStreamBasedInProgressFileRecoverableSerializer implements SimpleVersionedSerializer<InProgressFileRecoverable> {
+	/**
+	 * The serializer for {@link OutputStreamBasedInProgressFileRecoverable}.
+	 */
+	public static class OutputStreamBasedInProgressFileRecoverableSerializer implements SimpleVersionedSerializer<InProgressFileRecoverable> {
 
 		private static final int MAGIC_NUMBER = 0xb3a4073d;
 
@@ -219,7 +225,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 			}
 		}
 
-		SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> getResumeSerializer() {
+		public SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> getResumeSerializer() {
 			return resumeSerializer;
 		}
 
@@ -239,7 +245,10 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 	}
 
-	static class OutputStreamBasedPendingFileRecoverableSerializer implements SimpleVersionedSerializer<PendingFileRecoverable> {
+	/**
+	 * The serializer for {@link OutputStreamBasedPendingFileRecoverable}.
+	 */
+	public static class OutputStreamBasedPendingFileRecoverableSerializer implements SimpleVersionedSerializer<PendingFileRecoverable> {
 
 		private static final int MAGIC_NUMBER = 0x2c853c89;
 
@@ -276,7 +285,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 			}
 		}
 
-		SimpleVersionedSerializer<RecoverableWriter.CommitRecoverable> getCommitSerializer() {
+		public SimpleVersionedSerializer<RecoverableWriter.CommitRecoverable> getCommitSerializer() {
 			return this.commitSerializer;
 		}
 

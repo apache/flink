@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalRecoverableWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
@@ -45,7 +46,10 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
@@ -252,6 +256,28 @@ public class FileWriterBucketTest {
 		assertNotNull(
 				"The bucket should have in-progress recoverable",
 				bucketState.getInProgressFileRecoverable());
+	}
+
+	/**
+	 * Tests restoring with state containing pending files. This might happen
+	 * if we are migrating from {@code StreamingFileSink}.
+	 */
+	@Test
+	public void testRestoringWithOnlyPendingFiles() throws IOException {
+		final int noOfPendingFileCheckpoints = 4;
+
+		StubResumableWriter resumableWriter = new StubResumableWriter();
+		FileWriterBucket<String> bucket = getRestoredBucketWithOnlyPendingFiles(
+				resumableWriter,
+				DEFAULT_ROLLING_POLICY,
+				noOfPendingFileCheckpoints);
+		assertNull("There should be no in-progress file", bucket.getInProgressPart());
+		// There is one pending file for each checkpoint
+		assertEquals(noOfPendingFileCheckpoints, bucket.getPendingFiles().size());
+
+		List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
+		bucket.snapshotState();
+		compareNumberOfPendingAndInProgress(fileSinkCommittables, noOfPendingFileCheckpoints, 0);
 	}
 
 	@Test
@@ -486,5 +512,38 @@ public class FileWriterBucketTest {
 				rollingPolicy,
 				stateWithOnlyInProgressFile,
 				OutputFileConfig.builder().build());
+	}
+
+	private FileWriterBucket<String> getRestoredBucketWithOnlyPendingFiles(
+			BaseStubWriter writer,
+			RollingPolicy<String, String> rollingPolicy,
+			int numberOfPendingParts) throws IOException {
+
+		Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> completePartsPerCheckpoint =
+				createPendingPartsPerCheckpoint(numberOfPendingParts);
+
+		FileWriterBucketState state =
+				new FileWriterBucketState(
+						"test",
+						new Path("file:///fake/fakefile"),
+						12345L,
+						null,
+						completePartsPerCheckpoint);
+
+		return FileWriterBucket.restore(
+				new RowWiseBucketWriter<>(writer, ENCODER),
+				rollingPolicy,
+				state,
+				OutputFileConfig.builder().build());
+	}
+
+	private Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingCommittablesPerCheckpoint = new HashMap<>();
+		for (int checkpointId = 0; checkpointId < noOfCheckpoints; checkpointId++) {
+			final List<InProgressFileWriter.PendingFileRecoverable> pending = new ArrayList<>();
+			pending.add(new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable(new NoOpRecoverable()));
+			pendingCommittablesPerCheckpoint.put((long) checkpointId, pending);
+		}
+		return pendingCommittablesPerCheckpoint;
 	}
 }
