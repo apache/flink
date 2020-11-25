@@ -77,6 +77,7 @@ public class RowDataToAvroConverters {
 		switch (type.getTypeRoot()) {
 		case NULL:
 			converter = new RowDataToAvroConverter() {
+					private static final long serialVersionUID = 1L;
 					@Override
 					public Object convert(Schema schema, Object object) {
 						return null;
@@ -85,6 +86,7 @@ public class RowDataToAvroConverters {
 			break;
 		case TINYINT:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return ((Byte) object).intValue();
@@ -93,6 +95,7 @@ public class RowDataToAvroConverters {
 			break;
 		case SMALLINT:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return ((Short) object).intValue();
@@ -109,6 +112,7 @@ public class RowDataToAvroConverters {
 		case TIME_WITHOUT_TIME_ZONE: // int
 		case DATE: // int
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return object;
@@ -118,6 +122,7 @@ public class RowDataToAvroConverters {
 		case CHAR:
 		case VARCHAR:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return new Utf8(object.toString());
@@ -127,6 +132,7 @@ public class RowDataToAvroConverters {
 		case BINARY:
 		case VARBINARY:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return ByteBuffer.wrap((byte[]) object);
@@ -135,6 +141,7 @@ public class RowDataToAvroConverters {
 			break;
 		case TIMESTAMP_WITHOUT_TIME_ZONE:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return ((TimestampData) object).toInstant().toEpochMilli();
@@ -143,6 +150,7 @@ public class RowDataToAvroConverters {
 			break;
 		case DECIMAL:
 			converter = new RowDataToAvroConverter() {
+				private static final long serialVersionUID = 1L;
 				@Override
 				public Object convert(Schema schema, Object object) {
 					return ByteBuffer.wrap(((DecimalData) object).toUnscaledBytes());
@@ -166,6 +174,7 @@ public class RowDataToAvroConverters {
 
 		// wrap into nullable converter
 		return new RowDataToAvroConverter() {
+			private static final long serialVersionUID = 1L;
 			@Override
 			public Object convert(Schema schema, Object object) {
 				if (object == null) {
@@ -207,6 +216,7 @@ public class RowDataToAvroConverters {
 		final int length = rowType.getFieldCount();
 
 		return new RowDataToAvroConverter() {
+			private static final long serialVersionUID = 1L;
 			@Override
 			public Object convert(Schema schema, Object object) {
 				final RowData row = (RowData) object;
@@ -230,6 +240,7 @@ public class RowDataToAvroConverters {
 		final RowDataToAvroConverter elementConverter = createConverter(arrayType.getElementType());
 
 		return new RowDataToAvroConverter() {
+			private static final long serialVersionUID = 1L;
 			@Override
 			public Object convert(Schema schema, Object object) {
 				final Schema elementSchema = schema.getElementType();
@@ -251,6 +262,7 @@ public class RowDataToAvroConverters {
 		final RowDataToAvroConverter valueConverter = createConverter(valueType);
 
 		return new RowDataToAvroConverter() {
+			private static final long serialVersionUID = 1L;
 			@Override
 			public Object convert(Schema schema, Object object) {
 				final Schema valueSchema = schema.getValueType();
