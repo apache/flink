@@ -234,7 +234,8 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
                         Collections.singleton(
                                 new SlotStatus(new SlotID(resourceID, 0), slotProfile)));
 
-        slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+        slotManager.registerTaskManager(
+                taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
     }
 
     private static SlotRequest slotRequest(ResourceProfile profile) {
