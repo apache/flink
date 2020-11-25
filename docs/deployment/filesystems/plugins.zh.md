@@ -1,7 +1,7 @@
 ---
 title: "Plugins"
 nav-id: plugins
-nav-parent_id: deployment
+nav-parent_id: filesystems
 nav-pos: 4
 ---
 <!--
@@ -70,7 +70,7 @@ possible across Flink core, plugins, and user code.
 
 ## File Systems
 
-All [file systems](filesystems) **except MapR** are pluggable. That means they can and should
+All [file systems]({%link deployment/filesystems/index.md %}) **except MapR** are pluggable. That means they can and should
 be used as plugins. To use a pluggable file system, copy the corresponding JAR file from the `opt`
 directory to a directory under `plugins` directory of your Flink distribution before starting Flink,
 e.g.

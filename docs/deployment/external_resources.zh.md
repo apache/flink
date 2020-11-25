@@ -62,7 +62,7 @@ under the License.
 
 ## 准备插件
 
-你需要为使用的扩展资源准备插件，并将其放入 Flink 发行版的 `plugins/` 文件夹中, 参看 [Flink Plugins]({% link deployment/plugins.zh.md %})。
+你需要为使用的扩展资源准备插件，并将其放入 Flink 发行版的 `plugins/` 文件夹中, 参看 [Flink Plugins]({% link deployment/filesystems/plugins.zh.md %})。
 Flink 提供了第一方的 [GPU 资源插件](#plugin-for-gpu-resources)。你同样可以为你所使用的扩展资源实现自定义插件[实现自定义插件](#implement-a-plugin-for-your-custom-resource-type)。
 
 ## 配置项
@@ -227,7 +227,7 @@ class FPGAInfo extends ExternalResourceInfo {
 在 `META-INF/services/` 中创建名为 `org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory` 的文件，向其中写入工厂类名，如 `your.domain.FPGADriverFactory`。
 
 之后，将 `FPGADriver`，`FPGADriverFactory`，`META-INF/services/` 和所有外部依赖打入 jar 包。在你的 Flink 发行版的 `plugins/` 文件夹中创建一个名为“fpga”的文件夹，将打好的 jar 包放入其中。
-更多细节请查看 [Flink Plugin]({% link deployment/plugins.zh.md %})。
+更多细节请查看 [Flink Plugin]({% link deployment/filesystems/plugins.zh.md %})。
 
 <div class="alert alert-info">
      <strong>提示：</strong> 扩展资源由运行在同一台机器上的所有算子共享。社区可能会在未来的版本中支持外部资源隔离。

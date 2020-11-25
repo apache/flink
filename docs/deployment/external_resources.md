@@ -62,7 +62,7 @@ To enable an external resource with the external resource framework, you need to
 ## Prepare plugins
 
 You need to prepare the external resource plugin and put it into the `plugins/` folder of your Flink distribution, see
-[Flink Plugins]({% link deployment/plugins.md %}). Apache Flink provides a first-party [plugin for GPU resources](#plugin-for-gpu-resources). You can also
+[Flink Plugins]({% link deployment/filesystems/plugins.md %}). Apache Flink provides a first-party [plugin for GPU resources](#plugin-for-gpu-resources). You can also
 [implement a plugin for your custom resource type](#implement-a-plugin-for-your-custom-resource-type).
 
 ## Configurations
@@ -240,7 +240,7 @@ and write the factory class name (e.g. `your.domain.FPGADriverFactory`) to it.
 
 Then, create a jar which includes `FPGADriver`, `FPGADriverFactory`, `META-INF/services/` and all the external dependencies.
 Make a directory in `plugins/` of your Flink distribution with an arbitrary name, e.g. "fpga", and put the jar into this directory.
-See [Flink Plugin]({% link deployment/plugins.md %}) for more details.
+See [Flink Plugin]({% link deployment/filesystems/plugins.md %}) for more details.
 
 <div class="alert alert-info">
      <strong>Note:</strong> External resources are shared by all operators running on the same machine. The community might add external resource isolation in a future release.

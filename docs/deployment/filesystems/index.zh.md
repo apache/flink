@@ -51,7 +51,7 @@ Apache Flink 支持下列文件系统：
 
   - **[Azure Blob Storage]({% link deployment/filesystems/azure.zh.md %})** 由`flink-azure-fs-hadoop` 支持，并通过 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
-除 **MapR FS** 之外，上述文件系统可以并且需要作为[插件]({% link deployment/plugins.zh.md %})使用。
+除 **MapR FS** 之外，上述文件系统可以并且需要作为[插件]({% link deployment/filesystems/plugins.zh.md %})使用。
 
 使用外部文件系统时，在启动 Flink 之前需将对应的 JAR 文件从 `opt` 目录复制到 Flink 发行版 `plugin` 目录下的某一文件夹中，例如：
 
@@ -60,9 +60,9 @@ mkdir ./plugins/s3-fs-hadoop
 cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 文件系统的[插件]({% link deployment/plugins.zh.md %})机制在 Flink 版本 1.9 中引入，以支持每个插件专有 Java 类加载器，并避免类隐藏机制。您仍然可以通过旧机制使用文件系统，即将对应的 JAR 文件复制到 `lib` 目录中，或使用您自己的实现方式，但是从版本 1.10 开始，**S3 插件必须通过插件机制加载**，因为这些插件不再被隐藏（版本 1.10 之后类不再被重定位），旧机制不再可用。
+<span class="label label-danger">注意</span> 文件系统的[插件]({% link deployment/filesystems/plugins.zh.md %})机制在 Flink 版本 1.9 中引入，以支持每个插件专有 Java 类加载器，并避免类隐藏机制。您仍然可以通过旧机制使用文件系统，即将对应的 JAR 文件复制到 `lib` 目录中，或使用您自己的实现方式，但是从版本 1.10 开始，**S3 插件必须通过插件机制加载**，因为这些插件不再被隐藏（版本 1.10 之后类不再被重定位），旧机制不再可用。
 
-尽可能通过基于[插件]({% link deployment/plugins.zh.md %})的加载机制使用支持的文件系统。未来的 Flink 版本将不再支持通过 `lib` 目录加载文件系统组件。
+尽可能通过基于[插件]({% link deployment/filesystems/plugins.zh.md %})的加载机制使用支持的文件系统。未来的 Flink 版本将不再支持通过 `lib` 目录加载文件系统组件。
 
 ## 添加新的外部文件系统实现
 
