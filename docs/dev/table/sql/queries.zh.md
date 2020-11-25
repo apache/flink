@@ -1150,7 +1150,7 @@ val result1 = tableEnv.sqlQuery(
 {% top %}
 
 去重能够保留输入流的时间属性，当下游操作是 window 聚合 或 join 关联操作时非常有用。
-基于处理时间的去重和基于事件时间的去重都支持 mini-batch 模式，这对性能很友好, 查看 [mini-batch 配置]({% link dev/table/config.zh.md %}#table-exec-mini-batch-enabled) 了解更多信息。
+基于处理时间的去重和基于事件时间的去重都支持 mini-batch 模式，这对性能更加友好, 查看 [mini-batch 配置]({% link dev/table/config.zh.md %}#table-exec-mini-batch-enabled) 了解如何开启 mini-batch 模式。
 
 ### 分组窗口
 

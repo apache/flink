@@ -1156,7 +1156,7 @@ val result1 = tableEnv.sqlQuery(
 {% top %}
 
 Deduplication can keep the time attribute of input stream, this is very helpful when the downstream operation is window aggregation or join operation.
-Both processing-time deduplication and event-time deduplication supports working on mini-batch mode, this is friendly to performance, please see also [mini-batch configuration]({% link dev/table/config.md %}#table-exec-mini-batch-enabled) for more information.
+Both processing-time deduplication and event-time deduplication support working on mini-batch mode, this is more performance friendly, please see also [mini-batch configuration]({% link dev/table/config.md %}#table-exec-mini-batch-enabled) for how to enable mini-batch mode..
 
 ### Group Windows
 
