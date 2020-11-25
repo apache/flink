@@ -127,7 +127,10 @@ public class SlotProtocolTest extends TestLogger {
             final SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
             // register slot at SlotManager
             slotManager.registerTaskManager(
-                    new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
+                    new TaskExecutorConnection(resourceID, taskExecutorGateway),
+                    slotReport,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             // 4) Slot becomes available and TaskExecutor gets a SlotRequest
             assertThat(requestFuture.get(), is(equalTo(Tuple3.of(slotID, jobID, allocationID))));
@@ -173,7 +176,10 @@ public class SlotProtocolTest extends TestLogger {
             final SlotReport slotReport = new SlotReport(Collections.singletonList(slotStatus));
             // register slot at SlotManager
             slotManager.registerTaskManager(
-                    new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
+                    new TaskExecutorConnection(resourceID, taskExecutorGateway),
+                    slotReport,
+                    ResourceProfile.ANY,
+                    ResourceProfile.ANY);
 
             final String targetAddress = "foobar";
 
