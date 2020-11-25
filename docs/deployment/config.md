@@ -41,7 +41,7 @@ The options in this section are the ones most commonly needed for a basic distri
 
 These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link deployment/resource-providers/standalone/index.md %}) or [Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %})).
 
-If you use Flink with [Yarn]({% link deployment/resource-providers/yarn_setup.md %}), [Mesos]({% link deployment/resource-providers/mesos.md %}), or the [*active* Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}), the hostnames and ports are automatically discovered.
+If you use Flink with [Yarn]({% link deployment/resource-providers/yarn.md %}), [Mesos]({% link deployment/resource-providers/mesos.md %}), or the [*active* Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}), the hostnames and ports are automatically discovered.
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
