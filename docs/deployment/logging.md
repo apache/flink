@@ -1,8 +1,8 @@
 ---
 title: "How to use logging"
 nav-title: Logging
-nav-parent_id: monitoring
-nav-pos: 2
+nav-parent_id: deployment
+nav-pos: 18
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
