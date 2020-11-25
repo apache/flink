@@ -40,7 +40,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public final class SharedResourceHolder {
-	static final long DESTROY_DELAY_SECONDS = 1;
+	static final long DESTROY_DELAY_SECONDS = 0;
 
 	// The sole holder instance.
 	private static final SharedResourceHolder holder = new SharedResourceHolder(
