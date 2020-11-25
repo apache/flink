@@ -371,7 +371,7 @@ stream.addSink(myProducer);
 {% highlight scala %}
 val stream: DataStream[String] = ...
 
-Properties properties = new Properties
+val properties = new Properties
 properties.setProperty("bootstrap.servers", "localhost:9092")
 
 val myProducer = new FlinkKafkaProducer[String](
