@@ -92,7 +92,7 @@ failures, among others. This process consists of three different components:
 
 There is always at least one JobManager. A high-availability setup might have
 multiple JobManagers, one of which is always the *leader*, and the others are
-*standby* (see [High Availability (HA)]({% link deployment/jobmanager_high_availability.md %})).
+*standby* (see [High Availability (HA)]({% link deployment/ha/index.md %})).
 
 ### TaskManagers
 

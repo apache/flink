@@ -45,7 +45,7 @@ If you use Flink with [Yarn]({% link deployment/resource-providers/yarn_setup.zh
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
-  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({% link deployment/jobmanager_high_availability.zh.md %}) where the leader election mechanism is used to discover this automatically.
+  - The `jobmanager.rpc.address` (defaults to *"localhost"*) and `jobmanager.rpc.port` (defaults to *6123*) config entries are used by the TaskManager to connect to the JobManager/ResourceManager. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes internal) service for the JobManager. This option is ignored on [setups with high-availability]({% link deployment/ha/index.zh.md %}) where the leader election mechanism is used to discover this automatically.
 
 **Memory Sizes** 
 
