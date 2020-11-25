@@ -598,8 +598,8 @@ class DataStream(object):
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
-    def execute_and_collect(self, job_execution_name: str = None, limit: int = None,
-                            type_info: TypeInformation = None) -> Union['CloseableIterator', list]:
+    def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
+            -> Union['CloseableIterator', list]:
         """
         Triggers the distributed execution of the streaming dataflow and returns an iterator over
         the elements of the given DataStream.
@@ -612,18 +612,17 @@ class DataStream(object):
 
          :param job_execution_name: The name of the job execution.
          :param limit: The limit for the collected elements.
-         :param  type_info: The type info of the collected elements.
          """
         if job_execution_name is None and limit is None:
-            return CloseableIterator(self._j_data_stream.executeAndCollect(), type_info)
+            return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
         elif job_execution_name is not None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(job_execution_name),
-                                     type_info)
+                                     self.get_type())
         if job_execution_name is None and limit is not None:
-            return list(map(lambda data: convert_to_python_obj(data, type_info),
+            return list(map(lambda data: convert_to_python_obj(data, self.get_type()),
                             self._j_data_stream.executeAndCollect(limit)))
         else:
-            return list(map(lambda data: convert_to_python_obj(data, type_info),
+            return list(map(lambda data: convert_to_python_obj(data, self.get_type()),
                             self._j_data_stream.executeAndCollect(job_execution_name, limit)))
 
     def print(self, sink_identifier: str = None) -> 'DataStreamSink':

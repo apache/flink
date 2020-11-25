@@ -26,29 +26,31 @@ from pyflink.java_gateway import get_gateway
 
 
 def convert_to_python_obj(data, type_info):
-    if type_info is None:
+    if type_info == Types.PICKLED_BYTE_ARRAY():
         return pickle.loads(data)
     else:
         gateway = get_gateway()
         pickle_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
-        pickle_bytes = list(pickle_bytes[1:])
-        field_data = zip(pickle_bytes, type_info.types)
-        fields = []
-        for data, field_type in field_data:
-            if len(data) == 0:
-                fields.append(None)
-            else:
-                fields.append(java_to_python_converter(data, field_type))
-        return tuple(fields)
+        if hasattr(type_info, 'types'):
+            field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
+            fields = []
+            for data, field_type in field_data:
+                if len(data) == 0:
+                    fields.append(None)
+                else:
+                    fields.append(pickled_bytes_to_python_converter(data, field_type))
+            return tuple(fields)
+        else:
+            return pickled_bytes_to_python_converter(pickle_bytes, type_info)
 
 
-def java_to_python_converter(data, field_type: WrapperTypeInfo):
+def pickled_bytes_to_python_converter(data, field_type: WrapperTypeInfo):
     if isinstance(field_type, RowTypeInfo):
         data = zip(list(data[1:]), field_type.get_field_types())
         fields = []
         for d, d_type in data:
-            fields.append(java_to_python_converter(d, d_type))
+            fields.append(pickled_bytes_to_python_converter(d, d_type))
         return tuple(fields)
     else:
         data = pickle.loads(data)
@@ -69,7 +71,7 @@ def java_to_python_converter(data, field_type: WrapperTypeInfo):
                 field_type.get_java_type_info().getComponentInfo())
             elements = []
             for element_bytes in data:
-                elements.append(java_to_python_converter(element_bytes, element_type))
+                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
             return elements
         else:
             return field_type.from_internal_type(data)

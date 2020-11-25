@@ -323,6 +323,37 @@ class DataStreamTests(PyFlinkTestCase):
         self.assertEqual(expected, results)
 
     def test_execute_and_collect(self):
+        collection = ['pyflink', 'datastream', 'execute', 'collect']
+        ds = self.env.from_collection(collection)
+
+        expected = ['pyflink', 'datastream', 'execute', 'collect']
+
+        with ds.execute_and_collect() as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=4)
+        results = []
+        for i in result:
+            results.append(i)
+        self.assertEqual(expected, results)
+
+        ds = self.env.from_collection(collection=collection, type_info=Types.STRING())
+
+        with ds.execute_and_collect() as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=4)
+        results = []
+        for i in result:
+            results.append(i)
+        self.assertEqual(expected, results)
+
         collection = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
                        bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
                        datetime.time(hour=12, minute=0, second=0,
@@ -370,13 +401,11 @@ class DataStreamTests(PyFlinkTestCase):
             results.append(i)
         self.assertEqual(expected, results)
 
-        type_info = Types.ROW(
-            [Types.LONG(), Types.LONG(), Types.SHORT(), Types.BOOLEAN(), Types.SHORT(), Types.INT(),
-             Types.FLOAT(), Types.DOUBLE(), Types.PICKLED_BYTE_ARRAY(), Types.STRING(),
-             Types.SQL_DATE(), Types.SQL_TIME(), Types.SQL_TIMESTAMP(),
-             Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(), Types.BIG_DEC()])
-
-        ds = self.env.from_collection(collection=collection, type_info=type_info)
+        ds = self.env.from_collection(collection=collection, type_info=Types.ROW([
+            Types.LONG(), Types.LONG(), Types.SHORT(), Types.BOOLEAN(), Types.SHORT(),
+            Types.INT(), Types.FLOAT(), Types.DOUBLE(), Types.PICKLED_BYTE_ARRAY(),
+            Types.STRING(), Types.SQL_DATE(), Types.SQL_TIME(), Types.SQL_TIMESTAMP(),
+            Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(), Types.BIG_DEC()]))
 
         expected = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
                      bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
@@ -393,13 +422,13 @@ class DataStreamTests(PyFlinkTestCase):
                      decimal.Decimal('2000000000000000000.061111111111111'
                                      '11111111111111'))]
 
-        with ds.execute_and_collect(type_info=type_info) as result:
+        with ds.execute_and_collect() as result:
             results = []
             for i in result:
                 results.append(i)
             self.assertEqual(expected, results)
 
-        result = ds.execute_and_collect(limit=2, type_info=type_info)
+        result = ds.execute_and_collect(limit=2)
         results = []
         for i in result:
             results.append(i)
