@@ -54,7 +54,7 @@ Options for Generic CLI mode:
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -t,--target <arg>     The deployment target for the given application,
                            which is equivalent to the "execution.target" config
                            option. The currently available targets are:
@@ -456,7 +456,7 @@ Action "run" compiles and runs a program.
                              execution/deployment and for the configured executor.
                              The available options can be found at
                              https://ci.apache.org/projects/flink/flink-docs-stabl
-                             e/ops/config.html
+                             e/deployment/config.html
        -t,--target <arg>     The deployment target for the given application,
                              which is equivalent to the "execution.target" config
                              option. The currently available targets are:
@@ -508,7 +508,7 @@ Action "list" lists running and scheduled programs.
                                execution/deployment and for the configured executor.
                                The available options can be found at
                                https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
+                               e/deployment/config.html
          -t,--target <arg>     The deployment target for the given application,
                                which is equivalent to the "execution.target" config
                                option. The currently available targets are:
@@ -550,7 +550,7 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                                execution/deployment and for the configured executor.
                                The available options can be found at
                                https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
+                               e/deployment/config.html
          -t,--target <arg>     The deployment target for the given application,
                                which is equivalent to the "execution.target" config
                                option. The currently available targets are:
@@ -593,7 +593,7 @@ Action "cancel" cancels a running program.
                                execution/deployment and for the configured executor.
                                The available options can be found at
                                https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
+                               e/deployment/config.html
          -t,--target <arg>     The deployment target for the given application,
                                which is equivalent to the "execution.target" config
                                option. The currently available targets are:
@@ -630,7 +630,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                                execution/deployment and for the configured executor.
                                The available options can be found at
                                https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
+                               e/deployment/config.html
          -t,--target <arg>     The deployment target for the given application,
                                which is equivalent to the "execution.target" config
                                option. The currently available targets are:

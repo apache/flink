@@ -30,7 +30,7 @@ under the License.
 If you see an *IllegalConfigurationException* thrown from *TaskExecutorProcessUtils* or *JobManagerProcessUtils*, it
 usually indicates that there is either an invalid configuration value (e.g. negative memory size, fraction that is
 greater than 1, etc.) or configuration conflicts. Check the documentation chapters or
-[configuration options]({% link ops/config.md %}#memory-configuration) related to the memory components mentioned in the exception message.
+[configuration options]({% link deployment/config.md %}#memory-configuration) related to the memory components mentioned in the exception message.
 
 ## OutOfMemoryError: Java heap space
 
@@ -53,8 +53,8 @@ See also how to configure off-heap memory for [TaskManagers]({% link deployment/
 ## OutOfMemoryError: Metaspace
 
 The exception usually indicates that [JVM metaspace limit]({% link deployment/memory/mem_setup.md %}#jvm-parameters) is configured too small.
-You can try to increase the JVM metaspace option for [TaskManagers]({% link ops/config.md %}#taskmanager-memory-jvm-metaspace-size)
-or [JobManagers]({% link ops/config.md %}#jobmanager-memory-jvm-metaspace-size).
+You can try to increase the JVM metaspace option for [TaskManagers]({% link deployment/config.md %}#taskmanager-memory-jvm-metaspace-size)
+or [JobManagers]({% link deployment/config.md %}#jobmanager-memory-jvm-metaspace-size).
 
 ## IOException: Insufficient number of network buffers
 
@@ -62,9 +62,9 @@ This is only relevant for TaskManagers.
 
 The exception usually indicates that the size of the configured [network memory]({% link deployment/memory/mem_setup_tm.md %}#detailed-memory-model)
 is not big enough. You can try to increase the *network memory* by adjusting the following options:
-* [`taskmanager.memory.network.min`]({% link ops/config.md %}#taskmanager-memory-network-min)
-* [`taskmanager.memory.network.max`]({% link ops/config.md %}#taskmanager-memory-network-max)
-* [`taskmanager.memory.network.fraction`]({% link ops/config.md %}#taskmanager-memory-network-fraction)
+* [`taskmanager.memory.network.min`]({% link deployment/config.md %}#taskmanager-memory-network-min)
+* [`taskmanager.memory.network.max`]({% link deployment/config.md %}#taskmanager-memory-network-max)
+* [`taskmanager.memory.network.fraction`]({% link deployment/config.md %}#taskmanager-memory-network-fraction)
 
 ## Container Memory Exceeded
 
@@ -73,7 +73,7 @@ this usually indicates that Flink has not reserved enough native memory. You can
 monitoring system or from the error messages when a container gets killed by the deployment environment.
 
 If you encounter this problem in the *JobManager* process, you can also enable the *JVM Direct Memory* limit by setting the
-[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) option
+[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link deployment/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) option
 to exclude possible *JVM Direct Memory* leak.
 
 If [RocksDBStateBackend]({% link ops/state/state_backends.md %}#the-rocksdbstatebackend) is used, and the memory controlling is disabled,

@@ -82,7 +82,7 @@ With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Un
 Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html).
 
 If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures.
-In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size).
+In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-heap-size).
 See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_migration.html#migrate-job-manager-memory-configuration) for more information.
 
 ##### Deprecation and breaking changes
@@ -91,8 +91,8 @@ The following options are deprecated:
  * `jobmanager.heap.mb`
 
 If these deprecated options are still used, they will be interpreted as one of the following new options in order to maintain backwards compatibility:
- * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
- * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
+ * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
+ * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
 
 The following options have been removed and have no effect anymore:
  * `containerized.heap-cutoff-ratio`
@@ -102,8 +102,8 @@ There is [no container cut-off](https://ci.apache.org/projects/flink/flink-docs-
 
 ##### JVM arguments
 The `direct` and `metaspace` memory of the JobManager's JVM process are now limited by configurable values:
- * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-off-heap-size)
- * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-jvm-metaspace-size)
+ * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-off-heap-size)
+ * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/deployment/config.html#jobmanager-memory-jvm-metaspace-size)
 
 See also [JVM Parameters](https://ci.apache.org/projects/flink/flink-docs-master/deployment/memory/mem_setup.html#jvm-parameters).
 

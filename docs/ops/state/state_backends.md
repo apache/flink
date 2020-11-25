@@ -66,7 +66,7 @@ new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
 Limitations of the MemoryStateBackend:
 
   - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({% link ops/config.md %})).
+  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({% link deployment/config.md %})).
   - The aggregate state must fit into the JobManager memory.
 
 The MemoryStateBackend is encouraged for:
@@ -128,7 +128,7 @@ Check also recommendations about the [task executor memory configuration]({% lin
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({% link ops/state/large_state_tuning.md %})). 
 
-Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({% link ops/config.md %}#rocksdb-native-metrics)
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({% link deployment/config.md %}#rocksdb-native-metrics)
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({% link ops/state/large_state_tuning.md %}#bounding-rocksdb-memory-usage) for details.
 
@@ -178,7 +178,7 @@ If you want to use the `RocksDBStateBackend` in your IDE or configure it program
 {% endhighlight %}
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({% link ops/config.md %}#checkpointing) and [RocksDB-specific]({% link ops/config.md %}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({% link deployment/config.md %}#checkpointing) and [RocksDB-specific]({% link deployment/config.md %}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
 </div>
 
 
@@ -273,7 +273,7 @@ Set the configuration option `state.backend.rocksdb.timer-service.factory` to `h
 ### Enabling RocksDB Native Metrics
 
 You can optionally access RockDB's native metrics through Flink's metrics system, by enabling certain metrics selectively.
-See [configuration docs]({% link ops/config.md %}#rocksdb-native-metrics) for details.
+See [configuration docs]({% link deployment/config.md %}#rocksdb-native-metrics) for details.
 
 <div class="alert alert-warning">
   <strong>Note:</strong> Enabling RocksDB's native metrics may have a negative performance impact on your application.
@@ -317,7 +317,7 @@ allocating more memory than configured.
 
 When a `RocksDBOptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
 
-The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({% link ops/config.md %}#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
+The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({% link deployment/config.md %}#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
 Below is an example how to define a custom ConfigurableOptionsFactory (set class name under `state.backend.rocksdb.options-factory`).
 

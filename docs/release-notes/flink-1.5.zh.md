@@ -44,7 +44,7 @@ There are two ways to address problems of job submissions that fail due to lack 
 * Reduce the number of buffers per channel, i.e., `taskmanager.network.memory.buffers-per-channel` or
 * Increase the amount of TaskManager memory that is used by the network stack, i.e., increase `taskmanager.network.memory.fraction` and/or `taskmanager.network.memory.max`.
 
-Please consult the section about [network buffer configuration]({{ site.baseurl }}/ops/config.html#configuring-the-network-buffers) in the Flink documentation for details. In case you experience issues with the new credit-based flow control mode, you can disable flow control by setting `taskmanager.network.credit-model: false`. 
+Please consult the section about [network buffer configuration]({{ site.baseurl }}/deployment/config.html#configuring-the-network-buffers) in the Flink documentation for details. In case you experience issues with the new credit-based flow control mode, you can disable flow control by setting `taskmanager.network.credit-model: false`. 
 
 *Note*: We plan to remove the old model and this configuration in the next release.
 

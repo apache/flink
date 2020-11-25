@@ -107,7 +107,7 @@ cd flink-*
 
 Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用共享的 NFS 目录，或将 Flink 目录复制到每个 worker 节点上。
 
-请参考 [配置参数页面]({% link ops/config.zh.md %}) 获取更多细节以及额外的配置项。
+请参考 [配置参数页面]({% link deployment/config.zh.md %}) 获取更多细节以及额外的配置项。
 
 特别地，
 

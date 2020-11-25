@@ -54,7 +54,7 @@ Options for Generic CLI mode:
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -t,--target <arg>     The deployment target for the given application,
                            which is equivalent to the "execution.target" config
                            option. The currently available targets are:
@@ -418,7 +418,7 @@ Action "run" compiles and runs a program.
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
                            also available with the "Application Mode".
                            The name of the executor to be used for executing the
@@ -504,7 +504,7 @@ Action "list" lists running and scheduled programs.
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
                            also available with the "Application Mode".
                            The name of the executor to be used for executing the
@@ -554,7 +554,7 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
                            also available with the "Application Mode".
                            The name of the executor to be used for executing the
@@ -605,7 +605,7 @@ Action "cancel" cancels a running program.
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
                            also available with the "Application Mode".
                            The name of the executor to be used for executing the
@@ -650,7 +650,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                            execution/deployment and for the configured executor.
                            The available options can be found at
                            https://ci.apache.org/projects/flink/flink-docs-stabl
-                           e/ops/config.html
+                           e/deployment/config.html
      -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
                            also available with the "Application Mode".
                            The name of the executor to be used for executing the

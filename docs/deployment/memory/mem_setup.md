@@ -49,8 +49,8 @@ The simplest way to setup memory in Flink is to configure either of the two foll
 
 | &nbsp;&nbsp;**Component**&nbsp;&nbsp; | &nbsp;&nbsp;**Option for TaskManager**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**Option for JobManager**&nbsp;&nbsp;                                |
 | :------------------------------------ | :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
-| Total Flink memory                    | [`taskmanager.memory.flink.size`]({% link ops/config.md %}#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`]({% link ops/config.md %}#jobmanager-memory-flink-size)     |
-| Total process memory                  | [`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size) |
+| Total Flink memory                    | [`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`]({% link deployment/config.md %}#jobmanager-memory-flink-size)     |
+| Total process memory                  | [`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size) |
 {:.table-bordered}
 <br/>
 
@@ -79,9 +79,9 @@ which do not have default values, have to be configured explicitly:
 
 | &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for JobManager:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
-| [`taskmanager.memory.flink.size`]({% link ops/config.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link ops/config.md %}#jobmanager-memory-flink-size)     |
-| [`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size) |
-| [`taskmanager.memory.task.heap.size`]({% link ops/config.md %}#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`]({% link ops/config.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size)       |
+| [`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link deployment/config.md %}#jobmanager-memory-flink-size)     |
+| [`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size) |
+| [`taskmanager.memory.task.heap.size`]({% link deployment/config.md %}#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`]({% link deployment/config.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)       |
 {:.table-bordered}
 <br/>
 
@@ -106,7 +106,7 @@ This will lead to a different maximum being returned by the [Heap metrics]({% li
 (\*\*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
 <br/>
 (\*\*\*) The *JVM Direct memory limit* is added for JobManager process only if the corresponding option
-[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) is set. 
+[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link deployment/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) is set. 
 <br/><br/>
 
 Check also the detailed memory model for [TaskManager]({% link deployment/memory/mem_setup_tm.md %}#detailed-memory-model) and

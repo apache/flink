@@ -32,7 +32,7 @@ under the License.
 ## 独立部署模式（Standalone Deployment）下的内存配置
 
 [独立部署模式]({% link deployment/resource-providers/cluster_setup.zh.md %})下，我们通常更关注 Flink 应用本身使用的内存大小。
-建议配置 [Flink 总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.flink.size`]({% link ops/config.zh.md %}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({% link ops/config.zh.md %}#jobmanager-memory-flink-size.zh.md %})）或其组成部分。
+建议配置 [Flink 总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.flink.size`]({% link deployment/config.zh.md %}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({% link deployment/config.zh.md %}#jobmanager-memory-flink-size.zh.md %})）或其组成部分。
 此外，如果出现 [Metaspace 不足的问题]({% link deployment/memory/mem_trouble.zh.md %}#outofmemoryerror-metaspace)，可以调整 *JVM Metaspace* 的大小。
 
 这种情况下通常无需配置*进程总内存*，因为不管是 Flink 还是部署环境都不会对 *JVM 开销* 进行限制，它只与机器的物理资源相关。
@@ -41,7 +41,7 @@ under the License.
 
 ## 容器（Container）的内存配置
 
-在容器化部署模式（Containerized Deployment）下（[Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %})、[Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %})），建议配置[进程总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.process.size`]({% link ops/config.zh.md %}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({% link ops/config.zh.md %}#jobmanager-memory-process-size)）。
+在容器化部署模式（Containerized Deployment）下（[Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %})、[Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %})），建议配置[进程总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)（[`taskmanager.memory.process.size`]({% link deployment/config.zh.md %}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({% link deployment/config.zh.md %}#jobmanager-memory-process-size)）。
 该配置参数用于指定分配给 Flink *JVM 进程*的总内存，也就是需要申请的容器大小。
 
 <span class="label label-info">提示</span>
@@ -73,7 +73,7 @@ under the License.
 默认情况下，RocksDB 会限制其内存用量不超过用户配置的[*托管内存*]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory)。
 因此，使用这种方式存储状态时，配置足够多的*托管内存*是十分重要的。
 如果你关闭了 RocksDB 的内存控制，那么在容器化部署模式下如果 RocksDB 分配的内存超出了申请容器的大小（[进程总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)），可能会造成 TaskExecutor 被部署环境杀掉。
-请同时参考[如何调整 RocksDB 内存]({% link ops/state/large_state_tuning.zh.md %}#tuning-rocksdb-memory)以及 [state.backend.rocksdb.memory.managed]({% link ops/config.zh.md %}#state-backend-rocksdb-memory-managed)。
+请同时参考[如何调整 RocksDB 内存]({% link ops/state/large_state_tuning.zh.md %}#tuning-rocksdb-memory)以及 [state.backend.rocksdb.memory.managed]({% link deployment/config.zh.md %}#state-backend-rocksdb-memory-managed)。
 
 <a name="configure-memory-for-batch-jobs" />
 
@@ -89,16 +89,16 @@ Flink 明确知道可以使用的内存大小，因此可以有效避免 `OutOfM
 ## SortMerge数据Shuffle内存配置
 
 对于SortMerge数据Shuffle，每个ResultPartition需要的网络缓冲区（Buffer）数目是由[taskmanager.network.sort-
-shuffle.min-buffers]({% link ops/config.zh.md %}#taskmanager-network-sort-shuffle-min-buffers)这个配置决定的。它的
+shuffle.min-buffers]({% link deployment/config.zh.md %}#taskmanager-network-sort-shuffle-min-buffers)这个配置决定的。它的
 默认值是64，是比较小的。虽然64个网络Buffer已经可以支持任意规模的并发，但性能可能不是最好的。对于大并发的作业，通
 过增大这个配置值，可以提高落盘数据的压缩率并且减少网络小包的数量，从而有利于提高Shuffle性能。为了增大这个配置值，
-你可能需要通过调整[taskmanager.memory.network.fraction]({% link ops/config.zh.md %}#taskmanager-memory-network-fraction)，
-[taskmanager.memory.network.min]({% link ops/config.zh.md %}#taskmanager-memory-network-min)和[taskmanager.memory
-.network.max]({% link ops/config.zh.md %}#taskmanager-memory-network-max)这三个参数来增大总的网络内存大小从而避免出现
+你可能需要通过调整[taskmanager.memory.network.fraction]({% link deployment/config.zh.md %}#taskmanager-memory-network-fraction)，
+[taskmanager.memory.network.min]({% link deployment/config.zh.md %}#taskmanager-memory-network-min)和[taskmanager.memory
+.network.max]({% link deployment/config.zh.md %}#taskmanager-memory-network-max)这三个参数来增大总的网络内存大小从而避免出现
 `insufficient number of network buffers`错误。
 
 除了网络内存，SortMerge数据Shuffle还需要使用一些JVM Direct Memory来进行Shuffle数据的写出与读取。所以，为了使
 用SortMerge数据Shuffle你可能还需要通过增大这个配置值[taskmanager.memory.task.off-heap.size
-]({% link ops/config.zh.md %}#taskmanager-memory-task-off-heap-size)来为其来预留一些JVM Direct Memory。如果在你开启
+]({% link deployment/config.zh.md %}#taskmanager-memory-task-off-heap-size)来为其来预留一些JVM Direct Memory。如果在你开启
 SortMerge数据Shuffle之后出现了Direct Memory OOM的错误，你只需要继续加大上面的配置值来预留更多的Direct Memory
 直到不再发生Direct Memory OOM的错误为止。

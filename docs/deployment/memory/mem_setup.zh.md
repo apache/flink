@@ -49,8 +49,8 @@ Flink JVM 进程的*进程总内存（Total Process Memory）*包含了由 Flink
 
 | &nbsp;&nbsp;**配置项**&nbsp;&nbsp; | &nbsp;&nbsp;**TaskManager 配置参数**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**JobManager 配置参数**&nbsp;&nbsp;                                |
 | :------------------------------------ | :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
-| Flink 总内存                    | [`taskmanager.memory.flink.size`]({% link ops/config.zh.md %}#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`]({% link ops/config.zh.md %}#jobmanager-memory-flink-size)     |
-| 进程总内存                  | [`taskmanager.memory.process.size`]({% link ops/config.zh.md %}#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`]({% link ops/config.zh.md %}#jobmanager-memory-process-size) |
+| Flink 总内存                    | [`taskmanager.memory.flink.size`]({% link deployment/config.zh.md %}#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`]({% link deployment/config.zh.md %}#jobmanager-memory-flink-size)     |
+| 进程总内存                  | [`taskmanager.memory.process.size`]({% link deployment/config.zh.md %}#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`]({% link deployment/config.zh.md %}#jobmanager-memory-process-size) |
 {:.table-bordered}
 <br/>
 
@@ -77,9 +77,9 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 
 | &nbsp;&nbsp;**TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**JobManager:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
-| [`taskmanager.memory.flink.size`]({% link ops/config.zh.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link ops/config.zh.md %}#jobmanager-memory-flink-size)     |
-| [`taskmanager.memory.process.size`]({% link ops/config.zh.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link ops/config.zh.md %}#jobmanager-memory-process-size) |
-| [`taskmanager.memory.task.heap.size`]({% link ops/config.zh.md %}#taskmanager-memory-task-heap-size) 和 <br/> [`taskmanager.memory.managed.size`]({% link ops/config.zh.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link ops/config.zh.md %}#jobmanager-memory-heap-size)       |
+| [`taskmanager.memory.flink.size`]({% link deployment/config.zh.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link deployment/config.zh.md %}#jobmanager-memory-flink-size)     |
+| [`taskmanager.memory.process.size`]({% link deployment/config.zh.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link deployment/config.zh.md %}#jobmanager-memory-process-size) |
+| [`taskmanager.memory.task.heap.size`]({% link deployment/config.zh.md %}#taskmanager-memory-task-heap-size) 和 <br/> [`taskmanager.memory.managed.size`]({% link deployment/config.zh.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link deployment/config.zh.md %}#jobmanager-memory-heap-size)       |
 {:.table-bordered}
 <br/>
 
@@ -104,7 +104,7 @@ Flink 进程启动时，会根据配置的和自动推导出的各内存部分�
 <br/>
 (\*\*) 请注意，堆外内存也包括了用户代码使用的本地内存（非直接内存）。
 <br/>
-(\*\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.zh.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
+(\*\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link deployment/config.zh.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
 <br/><br/>
 
 相关内存部分的配置方法，请同时参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}#detailed-memory-model) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) 的详细内存模型。

@@ -53,7 +53,7 @@ Note that you can run multiple programs per session.
 $ ./bin/kubernetes-session.sh
 {% endhighlight %}
 
-All the Kubernetes configuration options can be found in our [configuration guide]({% link ops/config.md %}#kubernetes).
+All the Kubernetes configuration options can be found in our [configuration guide]({% link deployment/config.md %}#kubernetes).
 
 **Example**: Issue the following command to start a session cluster with 4 GB of memory and 2 CPUs with 4 slots per TaskManager:
 
@@ -72,7 +72,7 @@ $ ./bin/kubernetes-session.sh \
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`.
-Please follow our [configuration guide]({% link ops/config.md %}) if you want to change something.
+Please follow our [configuration guide]({% link deployment/config.md %}) if you want to change something.
 
 If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name.
 
@@ -85,7 +85,7 @@ Please refer to the following [section](#custom-flink-docker-image).
 
 If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation]({% link deployment/resource-providers/docker.md %}),
 [its tags]({% link deployment/resource-providers/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link deployment/resource-providers/docker.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/docker.md %}#using-plugins).
-If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`]({% link ops/config.md %}#kubernetes-container-image) configuration option:
+If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`]({% link deployment/config.md %}#kubernetes-container-image) configuration option:
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -118,7 +118,7 @@ Build the image named as **pyflink:latest**:
 sudo docker build -t pyflink:latest .
 {% endhighlight %}
 
-Then you are able to start a PyFlink session cluster by setting the [`kubernetes.container.image`]({% link ops/config.md %}#kubernetes-container-image) 
+Then you are able to start a PyFlink session cluster by setting the [`kubernetes.container.image`]({% link deployment/config.md %}#kubernetes-container-image) 
 configuration option value to be the name of custom image:
 
 {% highlight bash %}
@@ -155,7 +155,7 @@ $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> -
 ### Accessing Job Manager UI
 
 There are several ways to expose a Service onto an external (outside of your cluster) IP address.
-This can be configured using [`kubernetes.rest-service.exposed.type`]({% link ops/config.md %}#kubernetes-rest-service-exposed-type).
+This can be configured using [`kubernetes.rest-service.exposed.type`]({% link deployment/config.md %}#kubernetes-rest-service-exposed-type).
 
 - `ClusterIP`: Exposes the service on a cluster-internal IP.
 The Service is only reachable within the cluster. If you want to access the Job Manager ui or submit job to the existing session, you need to start a local proxy.

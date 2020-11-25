@@ -110,7 +110,7 @@ Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` en
 ./bin/yarn-session.sh -tm 8192 -s 32
 {% endhighlight %}
 
-The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({% link ops/config.zh.md %}) if you want to change something.
+The system will use the configuration in `conf/flink-conf.yaml`. Please follow our [configuration guide]({% link deployment/config.zh.md %}) if you want to change something.
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `io.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
@@ -125,7 +125,7 @@ Once Flink is deployed in your YARN cluster, it will show you the connection det
 Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
 
 Flink on YARN will only start if enough resources are available for the ApplicationMaster on the cluster. Most YARN schedulers account for the requested memory of the containers,
-some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The [`yarn.containers.vcores`]({% link ops/config.zh.md %}#yarn-containers-vcores) allows overwriting the
+some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The [`yarn.containers.vcores`]({% link deployment/config.zh.md %}#yarn-containers-vcores) allows overwriting the
 number of vcores with a custom value. In order for this parameter to work you should enable CPU scheduling in your cluster.
 
 #### Detached YARN Session
@@ -271,7 +271,7 @@ As an example, the command to specify the memory sizes of the JM and the TM, loo
 ./bin/flink run-application -t yarn-application -Djobmanager.memory.process.size=2048m -Dtaskmanager.memory.process.size=4096m  ./examples/batch/WordCount.jar
 {% endhighlight %}
 
-For a look at the available configuration options, you can have a look [here]({% link ops/config.zh.md %}). To unlock
+For a look at the available configuration options, you can have a look [here]({% link deployment/config.zh.md %}). To unlock
 the full potential of the application mode, consider using it with the `yarn.provided.lib.dirs` configuration option
 and pre-upload your application jar to a location accessible by all nodes in your cluster. In this case, the 
 command could look like: 

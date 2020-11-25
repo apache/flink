@@ -67,7 +67,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 </div>
 <div class="col-sm-6" markdown="1">
 
-* [配置参数]({% link ops/config.zh.md %})
+* [配置参数]({% link deployment/config.zh.md %})
 * [Rest API]({% link monitoring/rest_api.zh.md %})
 * [CLI]({% link deployment/cli.zh.md %})
 

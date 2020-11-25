@@ -1396,7 +1396,7 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### RocksDB
-Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({% link ops/config.zh.md %}#rocksdb-native-metrics)
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({% link deployment/config.zh.md %}#rocksdb-native-metrics)
 
 ### IO
 <table class="table table-bordered">
@@ -1412,7 +1412,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     <tr>
       <th rowspan="1"><strong>Job (only available on TaskManager)</strong></th>
       <td>[&lt;source_id&gt;.[&lt;source_subtask_index&gt;.]]&lt;operator_id&gt;.&lt;operator_subtask_index&gt;.latency</td>
-      <td>The latency distributions from a given source (subtask) to an operator subtask (in milliseconds), depending on the <a href="{% link ops/config.zh.md %}#metrics-latency-granularity">latency granularity</a>.</td>
+      <td>The latency distributions from a given source (subtask) to an operator subtask (in milliseconds), depending on the <a href="{% link deployment/config.zh.md %}#metrics-latency-granularity">latency granularity</a>.</td>
       <td>Histogram</td>
     </tr>
     <tr>
@@ -1835,7 +1835,7 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
 To enable the latency tracking you must set the `latencyTrackingInterval` to a positive number in either the
-[Flink configuration]({% link ops/config.zh.md %}#metrics-latency-interval) or `ExecutionConfig`.
+[Flink configuration]({% link deployment/config.zh.md %}#metrics-latency-interval) or `ExecutionConfig`.
 
 At the `latencyTrackingInterval`, the sources will periodically emit a special record, called a `LatencyMarker`.
 The marker contains a timestamp from the time when the record has been emitted at the sources.
@@ -1849,7 +1849,7 @@ the markers will reflect that.
 
 The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each
 downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can
-be controlled in the [Flink configuration]({% link ops/config.zh.md %}#metrics-latency-interval). For the highest
+be controlled in the [Flink configuration]({% link deployment/config.zh.md %}#metrics-latency-interval). For the highest
 granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream 
 subtask, which results in quadratic (in the terms of the parallelism) number of histograms. 
 

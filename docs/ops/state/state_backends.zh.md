@@ -63,7 +63,7 @@ new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
 MemoryStateBackend 的限制：
 
   - 默认情况下，每个独立的状态大小限制是 5 MB。在 MemoryStateBackend 的构造器中可以增加其大小。
-  - 无论配置的最大状态内存大小（MAX_MEM_STATE_SIZE）有多大，都不能大于 akka frame 大小（看[配置参数]({% link ops/config.zh.md %})）。
+  - 无论配置的最大状态内存大小（MAX_MEM_STATE_SIZE）有多大，都不能大于 akka frame 大小（看[配置参数]({% link deployment/config.zh.md %})）。
   - 聚合后的状态必须能够放进 JobManager 的内存中。
 
 MemoryStateBackend 适用场景：
@@ -124,7 +124,7 @@ RocksDBStateBackend 的适用场景：
 
 RocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Backend (见 [这里]({% link ops/state/large_state_tuning.zh.md %}))。
 
-可以使用一些 RocksDB 的本地指标(metrics)，但默认是关闭的。你能在 [这里]({% link ops/config.zh.md %}#rocksdb-native-metrics) 找到关于 RocksDB 本地指标的文档。
+可以使用一些 RocksDB 的本地指标(metrics)，但默认是关闭的。你能在 [这里]({% link deployment/config.zh.md %}#rocksdb-native-metrics) 找到关于 RocksDB 本地指标的文档。
 
 The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({% link ops/state/large_state_tuning.zh.md %}#bounding-rocksdb-memory-usage) for details.
 
@@ -175,7 +175,7 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 {% endhighlight %}
 
 <div class="alert alert-info" markdown="span">
-  <strong>注意:</strong> 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({% link ops/config.zh.md %}#checkpointing) 和 [RocksDB 特定的]({% link ops/config.zh.md %}#rocksdb-state-backend) 参数。
+  <strong>注意:</strong> 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({% link deployment/config.zh.md %}#checkpointing) 和 [RocksDB 特定的]({% link deployment/config.zh.md %}#rocksdb-state-backend) 参数。
 </div>
 
 
@@ -263,7 +263,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 ### 开启 RocksDB 原生监控指标
 
 您可以选择使用 Flink 的监控指标系统来汇报 RocksDB 的原生指标，并且可以选择性的指定特定指标进行汇报。
-请参阅 [configuration docs]({% link ops/config.zh.md %}#rocksdb-native-metrics) 了解更多详情。
+请参阅 [configuration docs]({% link deployment/config.zh.md %}#rocksdb-native-metrics) 了解更多详情。
 
 <div class="alert alert-warning">
   <strong>注意：</strong> 启用 RocksDB 的原生指标可能会对应用程序的性能产生负面影响。
@@ -303,7 +303,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 一个实现了 `ConfigurableRocksDBOptionsFactory` 接口的 `RocksDBOptionsFactory` 可以直接从配置文件（`flink-conf.yaml`）中读取设定。
 
-`state.backend.rocksdb.options-factory` 的默认配置是 `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory`，它默认会将 [这里定义]({% link ops/config.zh.md %}#advanced-rocksdb-state-backends-options) 的所有配置项全部加载。
+`state.backend.rocksdb.options-factory` 的默认配置是 `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory`，它默认会将 [这里定义]({% link deployment/config.zh.md %}#advanced-rocksdb-state-backends-options) 的所有配置项全部加载。
 因此您可以简单的通过关闭 RocksDB 使用托管内存的功能并将需要的设置选项加入配置文件来配置底层的列族选项。
 
 下面是自定义 `ConfigurableRocksDBOptionsFactory` 的一个示例 (开发完成后，请将您的实现类全名设置到 `state.backend.rocksdb.options-factory`).
