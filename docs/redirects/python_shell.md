@@ -1,7 +1,7 @@
 ---
 title: "Python Shell"
 layout: redirect
-redirect: /ops/python_shell.html
+redirect: /deployment/repls/python_shell.html
 permalink: /apis/python_shell.html
 ---
 <!--
