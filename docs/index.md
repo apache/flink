@@ -68,7 +68,7 @@ The reference documentation covers all the details. Some starting points:
 <div class="col-sm-6" markdown="1">
 
 * [Configuration]({% link deployment/config.md %})
-* [Rest API]({% link ops/monitoring/rest_api.md %})
+* [Rest API]({% link ops/rest_api.md %})
 * [CLI]({% link deployment/cli.md %})
 
 </div>

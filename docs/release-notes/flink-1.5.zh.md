@@ -64,7 +64,7 @@ In an effort to harmonize, extend, and improve the REST API, a few handlers and 
 * The REST API to cancel a job was changed.
 * The REST API to cancel a job with savepoint was changed. 
 
-Please check the [REST API documentation]({{ site.baseurl }}/ops/monitoring/rest_api.html#available-requests) for details.
+Please check the [REST API documentation]({{ site.baseurl }}/ops/rest_api.html#available-requests) for details.
 
 ### Kafka Producer Flushes on Checkpoint by Default
 
