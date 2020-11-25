@@ -197,7 +197,7 @@ function_context
 
 You can refer to the Java metric document for more details on the following sections:
 
-- [Reporter]({% link monitoring/metrics.md %}#reporter).
+- [Reporter]({% link deployment/metric_reporters.md %}).
 - [System metrics]({% link monitoring/metrics.md %}#system-metrics).
 - [Latency tracking]({% link monitoring/metrics.md %}#latency-tracking).
 - [REST API integration]({% link monitoring/metrics.md %}#rest-api-integration).

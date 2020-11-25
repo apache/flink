@@ -199,7 +199,7 @@ function_context
 
 您可以参考Java的指标文档，以获取关于以下部分的更多详细信息：
 
-*    [Reporter]({% link monitoring/metrics.zh.md %}#reporter) 。
+*    [Reporter]({% link deployment/metric_reporters.md %}) 。
 *    [系统指标]({% link monitoring/metrics.zh.md %}#system-metrics) 。
 *    [延迟跟踪]({% link monitoring/metrics.zh.md %}#latency-tracking) 。
 *    [REST API集成]({% link monitoring/metrics.zh.md %}#rest-api-integration) 。
