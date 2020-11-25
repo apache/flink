@@ -287,7 +287,7 @@ If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tun
 
 ## Using plugins
 
-In order to use [plugins]({% link deployment/plugins.md %}), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
+In order to use [plugins]({% link deployment/filesystems/plugins.md %}), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
 You can use the built-in plugins without mounting a volume or building a custom Docker image.
 For example, use the following command to pass the environment variable to enable the S3 plugin for your Flink application.
 
