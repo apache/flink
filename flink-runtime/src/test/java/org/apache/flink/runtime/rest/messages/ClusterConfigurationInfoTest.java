@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.junit.Assert;
+import org.junit.Test;
+
+import static org.hamcrest.CoreMatchers.is;
+
 /**
  * Tests for the {@link ClusterConfigurationInfo}.
  */
@@ -31,9 +36,28 @@ public class ClusterConfigurationInfoTest extends RestResponseMarshallingTestBas
 	@Override
 	protected ClusterConfigurationInfo getTestResponseInstance() {
 		final ClusterConfigurationInfo expected = new ClusterConfigurationInfo(2);
-		expected.add(new ClusterConfigurationInfoEntry("key1", "value1"));
-		expected.add(new ClusterConfigurationInfoEntry("key2", "value2"));
+		expected.add(new ClusterConfigurationInfoEntry<>("key-string", "value1"));
+		expected.add(new ClusterConfigurationInfoEntry<>("key-int", 123));
+		// any long value being below Integer.MAX_VALUE would cause a failure due to Jackson creating
+		// an Integer out of it during deserialization
+		expected.add(new ClusterConfigurationInfoEntry<>("key-long", 9876543210L));
 
 		return expected;
+	}
+
+	@Test
+	public void testClusterConfigurationInfoCreationWithString() {
+		assertClusterConfigurationInfoEntryCreation("key", "value", "value");
+	}
+
+	@Test
+	public void testMemoryRelatedClusterConfigurationInfoCreation() {
+		for (String key : ClusterConfigurationInfo.MEMORY_OPTION_KEYS) {
+			assertClusterConfigurationInfoEntryCreation(key, "1b", 1L);
+		}
+	}
+
+	private void assertClusterConfigurationInfoEntryCreation(String key, String inputValue, Object expectedValue) {
+		Assert.assertThat(ClusterConfigurationInfo.createClusterConfigurationInfoEntry(key, inputValue), is(new ClusterConfigurationInfoEntry<>(key, expectedValue)));
 	}
 }

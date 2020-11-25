@@ -462,13 +462,13 @@
       "type" : "array",
       "items" : {
         "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ClusterConfigurationInfoEntry",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ClusterConfigurationInfoEntry<java:lang:Object>",
         "properties" : {
           "key" : {
             "type" : "string"
           },
           "value" : {
-            "type" : "string"
+            "type" : "any"
           }
         }
       }
@@ -984,10 +984,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1081,10 +1081,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1293,10 +1293,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"
@@ -1394,10 +1394,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"

@@ -375,7 +375,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		return clusterConfigurationInfoEntries.stream().collect(Collectors.toMap(
 			ClusterConfigurationInfoEntry::getKey,
-			ClusterConfigurationInfoEntry::getValue));
+			e -> String.valueOf(e.getValue())));
 	}
 
 	/**

@@ -18,20 +18,34 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Response of the {@link ClusterConfigHandler}, represented as a list
  * of key-value pairs of the cluster {@link Configuration}.
  */
-public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry> implements ResponseBody {
+public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry<?>> implements ResponseBody {
 
 	private static final long serialVersionUID = -1170348873871206964L;
+
+	@VisibleForTesting
+	static final Set<String> MEMORY_OPTION_KEYS = Sets.newHashSet(
+		JobManagerOptions.JVM_HEAP_MEMORY.key(),
+		JobManagerOptions.OFF_HEAP_MEMORY.key(),
+		JobManagerOptions.JVM_METASPACE.key(),
+		JobManagerOptions.JVM_OVERHEAD_MIN.key(),
+		JobManagerOptions.JVM_OVERHEAD_MAX.key());
 
 	// a default constructor is required for collection type marshalling
 	public ClusterConfigurationInfo() {}
@@ -45,10 +59,19 @@ public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfo
 		final Map<String, String> configurationWithHiddenSensitiveValues = ConfigurationUtils.hideSensitiveValues(config.toMap());
 
 		for (Map.Entry<String, String> keyValuePair : configurationWithHiddenSensitiveValues.entrySet()) {
-			clusterConfig.add(new ClusterConfigurationInfoEntry(keyValuePair.getKey(), keyValuePair.getValue()));
+			clusterConfig.add(createClusterConfigurationInfoEntry(keyValuePair.getKey(), keyValuePair.getValue()));
 		}
 
 		return clusterConfig;
+	}
+
+	@VisibleForTesting
+	static ClusterConfigurationInfoEntry<?> createClusterConfigurationInfoEntry(String key, String valueStr) {
+		if (MEMORY_OPTION_KEYS.contains(key)) {
+			return new ClusterConfigurationInfoEntry<>(key, MemorySize.parse(valueStr).getBytes());
+		} else {
+			return new ClusterConfigurationInfoEntry<>(key, valueStr);
+		}
 	}
 
 }

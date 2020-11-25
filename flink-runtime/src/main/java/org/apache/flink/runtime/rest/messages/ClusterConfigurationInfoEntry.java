@@ -28,7 +28,7 @@ import java.util.Objects;
 /**
  * A single key-value pair entry in the {@link ClusterConfigurationInfo} response.
  */
-public class ClusterConfigurationInfoEntry {
+public class ClusterConfigurationInfoEntry<T> {
 
 	public static final String FIELD_NAME_CONFIG_KEY = "key";
 	public static final String FIELD_NAME_CONFIG_VALUE = "value";
@@ -37,12 +37,12 @@ public class ClusterConfigurationInfoEntry {
 	private final String key;
 
 	@JsonProperty(FIELD_NAME_CONFIG_VALUE)
-	private final String value;
+	private final T value;
 
 	@JsonCreator
 	public ClusterConfigurationInfoEntry(
 			@JsonProperty(FIELD_NAME_CONFIG_KEY) String key,
-			@JsonProperty(FIELD_NAME_CONFIG_VALUE) String value) {
+			@JsonProperty(FIELD_NAME_CONFIG_VALUE) T value) {
 		this.key = Preconditions.checkNotNull(key);
 		this.value = Preconditions.checkNotNull(value);
 	}
@@ -51,7 +51,7 @@ public class ClusterConfigurationInfoEntry {
 		return key;
 	}
 
-	public String getValue() {
+	public T getValue() {
 		return value;
 	}
 
