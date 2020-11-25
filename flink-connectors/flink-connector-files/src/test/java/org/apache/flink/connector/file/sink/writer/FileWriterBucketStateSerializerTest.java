@@ -70,7 +70,9 @@ public class FileWriterBucketStateSerializerTest {
 	private FileWriterBucketState serializeAndDeserialize(FileWriterBucketState bucketState) throws IOException {
 		FileWriterBucketStateSerializer serializer = new FileWriterBucketStateSerializer(
 				new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
-						FileSinkTestUtils.TestInProgressFileRecoverable::new));
+						FileSinkTestUtils.TestInProgressFileRecoverable::new),
+				new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
+						FileSinkTestUtils.TestPendingFileRecoverable::new));
 		byte[] data = serializer.serialize(bucketState);
 		return serializer.deserialize(serializer.getVersion(), data);
 	}

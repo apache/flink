@@ -293,10 +293,11 @@ public class FileSink<IN>
 
 		@Override
 		SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() throws IOException {
+			BucketWriter<IN, String> bucketWriter = createBucketWriter();
+
 			return new FileWriterBucketStateSerializer(
-					createBucketWriter()
-							.getProperties()
-							.getInProgressFileRecoverableSerializer());
+					bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+					bucketWriter.getProperties().getPendingFileRecoverableSerializer());
 		}
 
 		@Override
@@ -444,10 +445,11 @@ public class FileSink<IN>
 
 		@Override
 		SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() throws IOException {
+			BucketWriter<IN, String> bucketWriter = createBucketWriter();
+
 			return new FileWriterBucketStateSerializer(
-					createBucketWriter()
-							.getProperties()
-							.getInProgressFileRecoverableSerializer());
+					bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+					bucketWriter.getProperties().getPendingFileRecoverableSerializer());
 		}
 
 		@Override

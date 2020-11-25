@@ -118,6 +118,10 @@ class FileWriterBucket<IN> {
 				outputFileConfig);
 
 		restoreInProgressFile(bucketState);
+
+		// Restore pending files, this only make difference if we are
+		// migrating from {@code StreamingFileSink}.
+		cacheRecoveredPendingFiles(bucketState);
 	}
 
 	private void restoreInProgressFile(FileWriterBucketState state) throws IOException {
@@ -134,6 +138,14 @@ class FileWriterBucket<IN> {
 					bucketId, inProgressFileRecoverable, state.getInProgressFileCreationTime());
 		} else {
 			pendingFiles.add(inProgressFileRecoverable);
+		}
+	}
+
+	private void cacheRecoveredPendingFiles(FileWriterBucketState state) {
+		// Cache the previous pending files and send to committer on the first prepareCommit operation.
+		for (List<InProgressFileWriter.PendingFileRecoverable> restoredPendingRecoverables :
+				state.getPendingFileRecoverablesPerCheckpoint().values()) {
+			pendingFiles.addAll(restoredPendingRecoverables);
 		}
 	}
 

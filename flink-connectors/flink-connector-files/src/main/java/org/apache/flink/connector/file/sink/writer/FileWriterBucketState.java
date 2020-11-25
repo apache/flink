@@ -23,7 +23,12 @@ import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.InProgressFileRecoverable;
+import static org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
 
 /**
  * States for {@link FileWriterBucket}.
@@ -49,15 +54,31 @@ public class FileWriterBucketState {
 	@Nullable
 	private final InProgressFileRecoverable inProgressFileRecoverable;
 
+	/**
+	 * The {@link PendingFileRecoverable} should be empty unless we
+	 * are migrating from {@code StreamingFileSink}.
+	 */
+	private final Map<Long, List<PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint;
+
 	public FileWriterBucketState(
 			String bucketId,
 			Path bucketPath,
 			long inProgressFileCreationTime,
 			@Nullable InProgressFileRecoverable inProgressFileRecoverable) {
+		this(bucketId, bucketPath, inProgressFileCreationTime, inProgressFileRecoverable, new HashMap<>());
+	}
+
+	public FileWriterBucketState(
+			String bucketId,
+			Path bucketPath,
+			long inProgressFileCreationTime,
+			@Nullable InProgressFileRecoverable inProgressFileRecoverable,
+			Map<Long, List<PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint) {
 		this.bucketId = bucketId;
 		this.bucketPath = bucketPath;
 		this.inProgressFileCreationTime = inProgressFileCreationTime;
 		this.inProgressFileRecoverable = inProgressFileRecoverable;
+		this.pendingFileRecoverablesPerCheckpoint = pendingFileRecoverablesPerCheckpoint;
 	}
 
 	public String getBucketId() {
@@ -81,6 +102,10 @@ public class FileWriterBucketState {
 		return inProgressFileRecoverable != null;
 	}
 
+	public Map<Long, List<PendingFileRecoverable>> getPendingFileRecoverablesPerCheckpoint() {
+		return pendingFileRecoverablesPerCheckpoint;
+	}
+
 	@Override
 	public String toString() {
 		final StringBuilder strBuilder = new StringBuilder();
@@ -91,6 +116,14 @@ public class FileWriterBucketState {
 
 		if (hasInProgressFileRecoverable()) {
 			strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
+		}
+
+		if (!pendingFileRecoverablesPerCheckpoint.isEmpty()) {
+			strBuilder.append(", has pending files for checkpoints: {");
+			for (long checkpointId: pendingFileRecoverablesPerCheckpoint.keySet()) {
+				strBuilder.append(checkpointId).append(' ');
+			}
+			strBuilder.append('}');
 		}
 		return strBuilder.toString();
 	}
