@@ -374,10 +374,10 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	@GuardedBy("lock")
-	private void setupDispatcherResourceManagerComponents(Configuration configuration, RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory, MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
+	private void setupDispatcherResourceManagerComponents(Configuration configuration, RpcServiceFactory dispatcherResourceManagerComponentRpcServiceFactory, MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
 		dispatcherResourceManagerComponents.addAll(createDispatcherResourceManagerComponents(
 			configuration,
-			dispatcherResourceManagreComponentRpcServiceFactory,
+			dispatcherResourceManagerComponentRpcServiceFactory,
 			haServices,
 			blobServer,
 			heartbeatServices,
