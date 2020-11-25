@@ -102,7 +102,7 @@ configuration files (which need to be accessible at the same path on all machine
 
 The Flink directory must be available on every worker under the same path. You can use a shared NFS directory, or copy the entire Flink directory to every worker node.
 
-Please see the [configuration page]({% link ops/config.md %}) for details and additional configuration options.
+Please see the [configuration page]({% link deployment/config.md %}) for details and additional configuration options.
 
 In particular,
 

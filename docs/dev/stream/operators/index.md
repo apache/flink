@@ -1171,7 +1171,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />
@@ -1239,7 +1239,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />
@@ -1307,7 +1307,7 @@ previous transformation. For example, you can use `some_stream.map(...).start_ne
 you cannot use `some_stream.start_new_chain()`.
 
 A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <br />

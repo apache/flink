@@ -301,7 +301,7 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
                                            # configured in "security.kerberos.login.contexts".
 </pre>
 
-For more information on Flink configuration for Kerberos security, please see [here]({% link ops/config.md %}).
+For more information on Flink configuration for Kerberos security, please see [here]({% link deployment/config.md %}).
 You can also find [here]({% link deployment/security/security-kerberos.md %}) further details on how Flink internally setups Kerberos-based security.
 
 ## Zookeeper Versions

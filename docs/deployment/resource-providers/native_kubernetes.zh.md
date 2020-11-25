@@ -53,7 +53,7 @@ Session 集群将启动所有必需的 Flink 服务（JobManager 和 TaskManager
 $ ./bin/kubernetes-session.sh
 {% endhighlight %}
 
-所有 Kubernetes 配置项都可以在我们的[配置指南]({% link ops/config.zh.md %}#kubernetes)中找到。
+所有 Kubernetes 配置项都可以在我们的[配置指南]({% link deployment/config.zh.md %}#kubernetes)中找到。
 
 **示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
@@ -70,7 +70,7 @@ $ ./bin/kubernetes-session.sh \
 {% endhighlight %}
 
 系统将使用 `conf/flink-conf.yaml` 中的配置。
-如果你更改某些配置，请遵循我们的[配置指南]({% link ops/config.zh.md %})。
+如果你更改某些配置，请遵循我们的[配置指南]({% link deployment/config.zh.md %})。
 
 如果你未通过 `kubernetes.cluster-id` 为 session 指定特定名称，Flink 客户端将会生成一个 UUID 名称。
 
@@ -82,7 +82,7 @@ $ ./bin/kubernetes-session.sh \
 <div data-lang="java" markdown="1">
 
 如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档]({% link deployment/resource-providers/docker.zh.md %})、[镜像 tags]({% link deployment/resource-providers/docker.zh.md %}#image-tags)、[如何自定义 Flink Docker 镜像]({% link deployment/resource-providers/docker.zh.md %}#customize-flink-image)和[启用插件]({% link deployment/resource-providers/docker.zh.md %}#using-plugins)。
-如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 配置项来指定它：
+如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`]({% link deployment/config.zh.md %}#kubernetes-container-image) 配置项来指定它：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -114,7 +114,7 @@ RUN pip3 install apache-flink
 {% highlight bash %}
 sudo docker build -t pyflink:latest .
 {% endhighlight %}
-接下来将下面的命令行 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
+接下来将下面的命令行 [`kubernetes.container.image`]({% link deployment/config.zh.md %}#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -151,7 +151,7 @@ $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> -
 ### 访问 Job Manager UI
 
 有几种方法可以将服务暴露到外部（集群外部） IP 地址。
-可以使用 [`kubernetes.rest-service.exposed.type`]({% link ops/config.zh.md %}#kubernetes-rest-service-exposed-type) 进行配置。
+可以使用 [`kubernetes.rest-service.exposed.type`]({% link deployment/config.zh.md %}#kubernetes-rest-service-exposed-type) 进行配置。
 
 - `ClusterIP`：通过集群内部 IP 暴露服务。
 该服务只能在集群中访问。如果想访问 JobManager ui 或将作业提交到现有 session，则需要启动一个本地代理。

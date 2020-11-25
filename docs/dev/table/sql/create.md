@@ -356,7 +356,7 @@ The  `rowtime_column_name` defines an existing column that is marked as the even
 The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
 The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
 The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
-Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/ops/config.html#pipeline-auto-watermark-interval) configuration.
+Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/deployment/config.html#pipeline-auto-watermark-interval) configuration.
 If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
 
 When using event time semantics, tables must contain an event time attribute and watermarking strategy.

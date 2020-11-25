@@ -45,15 +45,15 @@ the following options is configured explicitly, otherwise the configuration will
 
 | &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for JobManager:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
-| [`taskmanager.memory.flink.size`]({% link ops/config.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link ops/config.md %}#jobmanager-memory-flink-size)     |
-| [`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size) |
-| [`taskmanager.memory.task.heap.size`]({% link ops/config.md %}#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`]({% link ops/config.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size)       |
+| [`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`]({% link deployment/config.md %}#jobmanager-memory-flink-size)     |
+| [`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size) |
+| [`taskmanager.memory.task.heap.size`]({% link deployment/config.md %}#taskmanager-memory-task-heap-size) <br/> and [`taskmanager.memory.managed.size`]({% link deployment/config.md %}#taskmanager-memory-managed-size) | [`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)       |
 {:.table-bordered}
 <br/>
 
 The [default `flink-conf.yaml`](#default-configuration-in-flink-confyaml) shipped with Flink sets
-[`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size) (since *1.10*) and
-[`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size) (since *1.11*)
+[`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size) (since *1.10*) and
+[`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size) (since *1.11*)
 to make the default memory configuration consistent.
 
 This [spreadsheet](https://docs.google.com/spreadsheets/d/1mJaMkMPfDJJ-w6nMXALYmTc4XxiV30P5U7DzgwLkSoE) can also help
@@ -79,7 +79,7 @@ The following options are completely removed. If they are still used, they will 
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                Check the description of the new option <a href="{% link ops/config.md %}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a>.
+                Check the description of the new option <a href="{% link deployment/config.md %}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a>.
                 The new option has different semantics and the value of the deprecated option usually has to be adjusted.
                 See also <a href="#managed-memory">how to migrate managed memory</a>.
             </td>
@@ -109,27 +109,27 @@ The following options are deprecated but if they are still used they will be int
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{% link ops/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link deployment/resource-providers/cluster_setup.md %}">standalone deployment</a></li>
-                  <li><a href="{% link ops/config.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a> for containerized deployments</li>
+                  <li><a href="{% link deployment/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link deployment/resource-providers/cluster_setup.md %}">standalone deployment</a></li>
+                  <li><a href="{% link deployment/config.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a> for containerized deployments</li>
                 </ul>
                 See also <a href="#total-memory-previously-heap-memory">how to migrate total memory</a>.
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.size</h5></td>
-             <td><a href="{% link ops/config.md %}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>, see also <a href="#managed-memory">how to migrate managed memory</a>.</td>
+             <td><a href="{% link deployment/config.md %}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>, see also <a href="#managed-memory">how to migrate managed memory</a>.</td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.min</h5></td>
-             <td><a href="{% link ops/config.md %}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
+             <td><a href="{% link deployment/config.md %}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.max</h5></td>
-             <td><a href="{% link ops/config.md %}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
+             <td><a href="{% link deployment/config.md %}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.fraction</h5></td>
-             <td><a href="{% link ops/config.md %}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
+             <td><a href="{% link deployment/config.md %}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
         </tr>
     </tbody>
 </table>
@@ -150,8 +150,8 @@ The Mesos integration also had a separate option with the same semantics: `mesos
 
 If you use the mentioned legacy options without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* Total Flink memory ([`taskmanager.memory.flink.size`]({% link ops/config.md %}#taskmanager-memory-flink-size)) for standalone deployments
-* Total process memory ([`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size)) for containerized deployments (Yarn or Mesos)
+* Total Flink memory ([`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size)) for standalone deployments
+* Total process memory ([`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size)) for containerized deployments (Yarn or Mesos)
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
@@ -167,13 +167,13 @@ Now, if only *total Flink memory* or *total process memory* is configured, then 
 what is left after subtracting all other components from the total memory, see also [how to configure total memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory).
 
 Additionally, you can now have more direct control over the JVM Heap assigned to the operator tasks
-([`taskmanager.memory.task.heap.size`]({% link ops/config.md %}#taskmanager-memory-task-heap-size)),
+([`taskmanager.memory.task.heap.size`]({% link deployment/config.md %}#taskmanager-memory-task-heap-size)),
 see also [Task (Operator) Heap Memory]({% link deployment/memory/mem_setup_tm.md %}#task-operator-heap-memory).
 The JVM Heap memory is also used by the heap state backends ([MemoryStateBackend]({% link ops/state/state_backends.md %}#the-memorystatebackend)
 or [FsStateBackend]({% link ops/state/state_backends.md %}#the-fsstatebackend)) if it is chosen for streaming jobs.
 
 A part of the JVM Heap is now always reserved for the Flink framework
-([`taskmanager.memory.framework.heap.size`]({% link ops/config.md %}#taskmanager-memory-framework-heap-size)).
+([`taskmanager.memory.framework.heap.size`]({% link deployment/config.md %}#taskmanager-memory-framework-heap-size)).
 See also [Framework memory]({% link deployment/memory/mem_setup_tm.md %}#framework-memory).
 
 ### Managed Memory
@@ -183,7 +183,7 @@ See also [how to configure managed memory now]({% link deployment/memory/mem_set
 #### Explicit Size
 
 The previous option to configure managed memory size (`taskmanager.memory.size`) was renamed to
-[`taskmanager.memory.managed.size`]({% link ops/config.md %}#taskmanager-memory-managed-size) and deprecated.
+[`taskmanager.memory.managed.size`]({% link deployment/config.md %}#taskmanager-memory-managed-size) and deprecated.
 It is recommended to use the new option because the legacy one can be removed in future releases.
 
 #### Fraction
@@ -191,10 +191,10 @@ It is recommended to use the new option because the legacy one can be removed in
 If not set explicitly, the managed memory could be previously specified as a fraction (`taskmanager.memory.fraction`)
 of the total memory minus network memory and container cut-off (only for [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) and
 [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments). This option has been completely removed and will have no effect if still used.
-Please, use the new option [`taskmanager.memory.managed.fraction`]({% link ops/config.md %}#taskmanager-memory-managed-fraction) instead.
+Please, use the new option [`taskmanager.memory.managed.fraction`]({% link deployment/config.md %}#taskmanager-memory-managed-fraction) instead.
 This new option will set the [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to the specified fraction of the
 [total Flink memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory) if its size is not set explicitly by
-[`taskmanager.memory.managed.size`]({% link ops/config.md %}#taskmanager-memory-managed-size).
+[`taskmanager.memory.managed.size`]({% link deployment/config.md %}#taskmanager-memory-managed-size).
 
 #### RocksDB state
 
@@ -202,7 +202,7 @@ If the [RocksDBStateBackend]({% link ops/state/state_backends.md %}#the-rocksdbs
 its native memory consumption should now be accounted for in [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory).
 The RocksDB memory allocation is limited by the [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) size.
 This should prevent the killing of containers on [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}).
-You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed]({% link ops/config.md %}#state-backend-rocksdb-memory-managed)
+You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed]({% link deployment/config.md %}#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
 
 #### Other changes
@@ -229,8 +229,8 @@ they are set the same way as it is done by the [standalone deployment]({% link d
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* JVM Heap ([`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link deployment/resource-providers/cluster_setup.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments
-* Total process memory ([`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %}))
+* JVM Heap ([`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link deployment/resource-providers/cluster_setup.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments
+* Total process memory ([`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %}))
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
@@ -238,14 +238,14 @@ Now, if only the *total Flink memory* or *total process memory* is configured, t
 is also derived as the rest of what is left after subtracting all other components from the total memory, see also
 [how to configure total memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory). Additionally, you can now have more direct
 control over the [JVM Heap]({% link deployment/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) by adjusting the
-[`jobmanager.memory.heap.size`]({% link ops/config.md %}#jobmanager-memory-heap-size) option.
+[`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size) option.
 
 ## Flink JVM process memory limits
 
 Since *1.10* release, Flink sets the *JVM Metaspace* and *JVM Direct Memory* limits for the TaskManager process
 by adding the corresponding JVM arguments. Since *1.11* release, Flink also sets the *JVM Metaspace* limit for the JobManager process.
 You can enable the *JVM Direct Memory* limit for JobManager process if you set the
-[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) option.
+[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link deployment/config.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) option.
 See also [JVM parameters]({% link deployment/memory/mem_setup.md %}#jvm-parameters).
 
 Flink sets the mentioned JVM memory limits to simplify debugging of the corresponding memory leaks and avoid
@@ -268,26 +268,26 @@ The RocksDB memory allocation is also limited by the configured size of the [man
 See also [migrating managed memory](#managed-memory) and [how to configure managed memory now]({% link deployment/memory/mem_setup_tm.md %}#managed-memory).
 
 The other direct or native off-heap memory consumers can now be addressed by the following new configuration options:
-* Task off-heap memory ([`taskmanager.memory.task.off-heap.size`]({% link ops/config.md %}#taskmanager-memory-task-off-heap-size))
-* Framework off-heap memory ([`taskmanager.memory.framework.off-heap.size`]({% link ops/config.md %}#taskmanager-memory-framework-off-heap-size))
-* JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`]({% link ops/config.md %}#taskmanager-memory-jvm-metaspace-size))
+* Task off-heap memory ([`taskmanager.memory.task.off-heap.size`]({% link deployment/config.md %}#taskmanager-memory-task-off-heap-size))
+* Framework off-heap memory ([`taskmanager.memory.framework.off-heap.size`]({% link deployment/config.md %}#taskmanager-memory-framework-off-heap-size))
+* JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`]({% link deployment/config.md %}#taskmanager-memory-jvm-metaspace-size))
 * [JVM overhead]({% link deployment/memory/mem_setup_tm.md %}#detailed-memory-model)
 
 ### for JobManagers
 
 The direct or native off-heap memory consumers can now be addressed by the following new configuration options:
-* Off-heap memory ([`jobmanager.memory.off-heap.size`]({% link ops/config.md %}#jobmanager-memory-off-heap-size))
-* JVM metaspace ([`jobmanager.memory.jvm-metaspace.size`]({% link ops/config.md %}#jobmanager-memory-jvm-metaspace-size))
+* Off-heap memory ([`jobmanager.memory.off-heap.size`]({% link deployment/config.md %}#jobmanager-memory-off-heap-size))
+* JVM metaspace ([`jobmanager.memory.jvm-metaspace.size`]({% link deployment/config.md %}#jobmanager-memory-jvm-metaspace-size))
 * [JVM overhead]({% link deployment/memory/mem_setup_jobmanager.md %}#detailed-configuration)
 
 ## Default Configuration in flink-conf.yaml
 
 This section describes the changes of the default `flink-conf.yaml` shipped with Flink.
 
-The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size)
+The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1728Mb.
 
-The total memory for JobManagers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size)
+The total memory for JobManagers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)
 in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
 
 See also [how to configure total memory now]({% link deployment/memory/mem_setup.md %}#configure-total-memory).

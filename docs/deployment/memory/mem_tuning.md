@@ -31,7 +31,7 @@ depending on the use case and which options are important for each case.
 ## Configure memory for standalone deployment
 
 It is recommended to configure [total Flink memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory)
-([`taskmanager.memory.flink.size`]({% link ops/config.md %}#taskmanager-memory-flink-size) or [`jobmanager.memory.flink.size`]({% link ops/config.md %}#jobmanager-memory-flink-size))
+([`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size) or [`jobmanager.memory.flink.size`]({% link deployment/config.md %}#jobmanager-memory-flink-size))
 or its components for [standalone deployment]({% link deployment/resource-providers/cluster_setup.md %}) where you want to declare how much memory
 is given to Flink itself. Additionally, you can adjust *JVM metaspace* if it causes [problems]({% link deployment/memory/mem_trouble.md %}#outofmemoryerror-metaspace).
 
@@ -41,7 +41,7 @@ only physical resources of the executing machine matter in this case.
 ## Configure memory for containers
 
 It is recommended to configure [total process memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory)
-([`taskmanager.memory.process.size`]({% link ops/config.md %}#taskmanager-memory-process-size) or [`jobmanager.memory.process.size`]({% link ops/config.md %}#jobmanager-memory-process-size))
+([`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size) or [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size))
 for the containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}), [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) or [Mesos]({% link deployment/resource-providers/mesos.md %})).
 It declares how much memory in total should be assigned to the Flink *JVM process* and corresponds to the size of the requested container.
 
@@ -75,7 +75,7 @@ Therefore, it is important to reserve enough *managed memory* for your state. If
 TaskManagers can be killed in containerized deployments if RocksDB allocates memory above the limit of the requested container size
 (the [total process memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory)).
 See also [how to tune RocksDB memory]({% link ops/state/large_state_tuning.md %}#tuning-rocksdb-memory)
-and [state.backend.rocksdb.memory.managed]({% link ops/config.md %}#state-backend-rocksdb-memory-managed).
+and [state.backend.rocksdb.memory.managed]({% link deployment/config.md %}#state-backend-rocksdb-memory-managed).
 
 ## Configure memory for batch jobs
 
@@ -92,19 +92,19 @@ Flink will gracefully spill to disk.
 ## Configure memory for sort-merge blocking shuffle
 
 The number of required network buffers per sort-merge blocking result partition is controlled by 
-[taskmanager.network.sort-shuffle.min-buffers]({% link ops/config.md %}#taskmanager-network-sort-shuffle-min-buffers)
+[taskmanager.network.sort-shuffle.min-buffers]({% link deployment/config.md %}#taskmanager-network-sort-shuffle-min-buffers)
 and the default value is 64 which is quite small. Though it can work for arbitrary parallelism, the 
 performance may not be the best. For large scale jobs, it is suggested to increase this config value 
 to improve compression ratio and reduce small network packets which is good for performance. To increase 
 this value, you may also need to increase the size of total network memory by adjusting the config 
-values of [taskmanager.memory.network.fraction]({% link ops/config.md %}#taskmanager-memory-network-fraction),
-[taskmanager.memory.network.min]({% link ops/config.md %}#taskmanager-memory-network-min) and [taskmanager.
-memory.network.max]({% link ops/config.md %}#taskmanager-memory-network-max) to avoid `insufficient number of 
+values of [taskmanager.memory.network.fraction]({% link deployment/config.md %}#taskmanager-memory-network-fraction),
+[taskmanager.memory.network.min]({% link deployment/config.md %}#taskmanager-memory-network-min) and [taskmanager.
+memory.network.max]({% link deployment/config.md %}#taskmanager-memory-network-max) to avoid `insufficient number of 
 network buffers` error.
 
 Except for network memory, the sort-merge blocking shuffle implementation also uses some unmanaged 
 direct memory for shuffle data writing and reading. So to use sort-merge blocking shuffle, you may 
 need to reserve some direct memory for it by increasing the config value of [taskmanager.memory.task
-.off-heap.size]({% link ops/config.md %}#taskmanager-memory-task-off-heap-size). If direct memory OOM error 
+.off-heap.size]({% link deployment/config.md %}#taskmanager-memory-task-off-heap-size). If direct memory OOM error 
 occurs after you enable the sort-merge blocking shuffle, you can just give more direct memory until 
 the OOM error disappears.
