@@ -144,11 +144,11 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 	private void commitUpToCheckpoint(long checkpointId) throws Exception {
 		helper.commitUpToCheckpoint(checkpointId);
 
-		NavigableMap<Long, Set<String>> newPartitions = this.newPartitions.headMap(checkpointId, true);
+		NavigableMap<Long, Set<String>> headPartitions = this.newPartitions.headMap(checkpointId, true);
 		Set<String> partitions = new HashSet<>(committablePartitions);
 		committablePartitions.clear();
-		newPartitions.values().forEach(partitions::addAll);
-		newPartitions.clear();
+		headPartitions.values().forEach(partitions::addAll);
+		headPartitions.clear();
 
 		CommitMessage message = new CommitMessage(
 				checkpointId,
