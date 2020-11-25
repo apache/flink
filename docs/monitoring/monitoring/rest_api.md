@@ -1,7 +1,7 @@
 ---
 title: "Monitoring REST API"
-nav-parent_id: monitoring
-nav-pos: 10
+nav-parent_id: monitoring_group
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -175,7 +175,7 @@ docker-compose run --no-deps client flink --help
 
 ### Flink REST API
 
-[Flink REST API]({%link monitoring/rest_api.zh.md %}#api) 可以通过本机的 
+[Flink REST API]({%link monitoring/monitoring/rest_api.zh.md %}#api) 可以通过本机的 
 `localhost:8081` 进行访问，也可以在 client 容器中通过 `jobmanager:8081` 进行访问。
 比如，通过如下命令可以获取所有正在运行中的 Job：
 {% highlight bash%}
@@ -793,7 +793,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-请查阅 [REST API 参考]({%link monitoring/rest_api.zh.md %}#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如 TaskManager 指标）。
+请查阅 [REST API 参考]({%link monitoring/monitoring/rest_api.zh.md %}#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如 TaskManager 指标）。
 
 {%  top %}
 
@@ -813,4 +813,4 @@ curl localhost:8081/jobs/<jod-id>
 
 *Click Event Count* 这个 Job 还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的 `docker-compose.yaml` 文件中添加该选项从而观察该 Job 在反压下的表现，该选项描述如下：
 
-* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。
+* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link monitoring/monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。

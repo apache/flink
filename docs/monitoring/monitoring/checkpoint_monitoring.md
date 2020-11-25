@@ -1,7 +1,7 @@
 ---
 title: "Monitoring Checkpointing"
-nav-parent_id: monitoring
-nav-pos: 4
+nav-parent_id: monitoring_group
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

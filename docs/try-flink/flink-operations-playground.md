@@ -177,7 +177,7 @@ docker-compose run --no-deps client flink --help
 
 ### Flink REST API
 
-The [Flink REST API]({% link monitoring/rest_api.md %}#api) is exposed via
+The [Flink REST API]({% link monitoring/monitoring/rest_api.md %}#api) is exposed via
 `localhost:8081` on the host or via `jobmanager:8081` from the client container, e.g. to list all
 currently running jobs, you can run:
 {% highlight bash%}
@@ -780,7 +780,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-Please consult the [REST API reference]({% link monitoring/rest_api.md %}#api)
+Please consult the [REST API reference]({% link monitoring/monitoring/rest_api.md %}#api)
 for a complete list of possible queries including how to query metrics of different scopes (e.g. 
 TaskManager metrics);
 
@@ -810,5 +810,5 @@ command of the *client* container in `docker-compose.yaml`.
 during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by 
 inspecting various [network metrics]({% link monitoring/metrics.md %}#default-shuffle-service) 
 such as `outputQueueLength` and `outPoolUsage`, and/or by using the 
-[backpressure monitoring]({% link monitoring/back_pressure.md %}#monitoring-back-pressure) 
+[backpressure monitoring]({% link monitoring/monitoring/back_pressure.md %}#monitoring-back-pressure) 
 available in the WebUI.
