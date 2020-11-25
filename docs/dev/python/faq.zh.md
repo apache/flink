@@ -65,7 +65,7 @@ $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 ## 添加Jar文件
 
 PyFlink作业可能依赖jar文件，比如connector，Java UDF等。
-您可以在提交作业时使用以下Python Table API或通过[命令行参数]({% link ops/cli.zh.md %}#usage)来指定依赖项。
+您可以在提交作业时使用以下Python Table API或通过[命令行参数]({% link deployment/cli.zh.md %}#usage)来指定依赖项。
 
 {% highlight python %}
 # 注意：仅支持本地文件URL（以"file:"开头）。

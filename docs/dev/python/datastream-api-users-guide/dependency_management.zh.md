@@ -26,7 +26,7 @@ under the License.
 
 # Java 依赖管理
 
-如果应用了第三方 Java 依赖， 用户可以通过以下 Python DataStream API进行配置，或者在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果应用了第三方 Java 依赖， 用户可以通过以下 Python DataStream API进行配置，或者在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 {% highlight python %}
 # 通过 add_jars() 添加本地 jar 包依赖，这些 jar 包最终会被上传到集群中。
@@ -42,7 +42,7 @@ stream_execution_environment.add_classpaths("file:///my/jar/path/connector.jar",
 <a name="python-dependency-in-python-program"/>
 
 # Python 依赖管理
-如果 Python DataStream 程序中应用到了 Python 第三方依赖，用户可以使用以下 API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果 Python DataStream 程序中应用到了 Python 第三方依赖，用户可以使用以下 API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 <table class="table table-bordered">
   <thead>

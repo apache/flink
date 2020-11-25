@@ -1,7 +1,7 @@
 ---
 title: "CLI"
 layout: redirect
-redirect: /ops/cli.html
+redirect: /deployment/cli.html
 permalink: /apis/cli.html
 ---
 <!--

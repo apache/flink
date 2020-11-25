@@ -1,8 +1,8 @@
 ---
 title:  "命令行界面"
-nav-title: CLI
-nav-parent_id: ops
-nav-pos: 1
+nav-title: Command-Line Interface
+nav-parent_id: deployment
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

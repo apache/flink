@@ -176,7 +176,7 @@ Use the following command to submit a Flink program to the YARN cluster:
 ./bin/flink
 {% endhighlight %}
 
-Please refer to the documentation of the [command-line client]({% link ops/cli.zh.md %}).
+Please refer to the documentation of the [command-line client]({% link deployment/cli.zh.md %}).
 
 The command will show you a help menu like this:
 

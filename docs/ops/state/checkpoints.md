@@ -104,7 +104,7 @@ Checkpoints have a few differences from [savepoints]({% link ops/state/savepoint
 
 A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide]({% link ops/cli.md %}#restore-a-savepoint)). Note that if the
+[savepoint restore guide]({% link deployment/cli.md %}#restore-a-savepoint)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).

@@ -82,7 +82,7 @@ In the above example, the print sink is stateless and hence not part of the save
 
 ## Operations
 
-You can use the [command line client]({% link ops/cli.md %}#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
+You can use the [command line client]({% link deployment/cli.md %}#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
 
 With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the webui.
 

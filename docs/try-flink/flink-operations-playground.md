@@ -169,7 +169,7 @@ After the initial startup you should mainly see log messages for every checkpoin
 
 ### Flink CLI
 
-The [Flink CLI]({% link ops/cli.md %}) can be used from within the client container. For
+The [Flink CLI]({% link deployment/cli.md %}) can be used from within the client container. For
 example, to print the `help` message of the Flink CLI you can run
 {% highlight bash%}
 docker-compose run --no-deps client flink --help

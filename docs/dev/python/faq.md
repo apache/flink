@@ -66,7 +66,7 @@ For details on the usage of `add_python_archive` and `set_python_executable`, yo
 ## Adding Jar Files
 
 A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc.
-You can specify the dependencies with the following Python Table APIs or through [command-line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+You can specify the dependencies with the following Python Table APIs or through [command-line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # NOTE: Only local file URLs (start with "file:") are supported.

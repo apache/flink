@@ -24,7 +24,7 @@ under the License.
 -->
 
 
-正如之前所描述的，Flink 程序可以使用 `remote environment` 在集群上执行。或者，程序可以被打包成 JAR 文件（Java Archives）执行。如果使用[命令行]({% link ops/cli.zh.md %})的方式执行程序，将程序打包是必需的。
+正如之前所描述的，Flink 程序可以使用 `remote environment` 在集群上执行。或者，程序可以被打包成 JAR 文件（Java Archives）执行。如果使用[命令行]({% link deployment/cli.zh.md %})的方式执行程序，将程序打包是必需的。
 
 <a name="packaging-programs"></a>
 
