@@ -23,7 +23,7 @@ under the License.
 -->
 
 Flink allows reporting metrics to external systems.
-For more information about Flink's metric system go to the [metric system documentation]({% link monitoring/metrics.md %}).
+For more information about Flink's metric system go to the [metric system documentation]({% link ops/metrics.md %}).
 
 * This will be replaced by the TOC
 {:toc}

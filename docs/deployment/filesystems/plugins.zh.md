@@ -117,6 +117,6 @@ Furthermore, loggers are whitelisted, so that they are configured properly.
 ## Metric Reporters
 
 All [metric reporters]({% link deployment/metric_reporters.md %}) that Flink provides can be used as plugins.
-See the [metrics]({% link monitoring/metrics.md %}) documentation for more details.
+See the [metrics]({% link ops/metrics.md %}) documentation for more details.
 
 {% top %}

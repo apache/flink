@@ -502,7 +502,7 @@ application before first checkpoint completes, by factor larger than `FlinkKafka
 
 ## Kafka Connector Metrics
 
-Flink's Kafka connectors provide some metrics through Flink's [metrics system]({% link monitoring/metrics.md %}) to analyze
+Flink's Kafka connectors provide some metrics through Flink's [metrics system]({% link ops/metrics.md %}) to analyze
 the behavior of the connector.
 The producers export Kafka's internal metrics through Flink's metric system for all supported versions.
 The Kafka documentation lists all exported metrics in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
