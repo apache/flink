@@ -365,6 +365,8 @@ object FlinkStreamRuleSets {
     PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
+    // remove trivial calc
+    FlinkLogicalCalcRemoveRule.INSTANCE,
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
