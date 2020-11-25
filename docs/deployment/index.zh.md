@@ -259,7 +259,7 @@ applications. These approaches differ based on the deployment mode and target, b
 To provide a dependency, there are the following options:
 - files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if you are adding a different version of a library already provided by Flink.
 
-- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link deployment/plugins.zh.md %}) can be added here.
+- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link deployment/filesystems/plugins.zh.md %}) can be added here.
 
 ### Download Maven dependencies locally
 

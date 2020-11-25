@@ -286,7 +286,7 @@ STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodNam
 
 ## 启用插件
 
-为了使用[插件]({% link deployment/plugins.zh.md %})，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
+为了使用[插件]({% link deployment/filesystems/plugins.zh.md %})，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
 使用内置的插件就不需要再挂载额外的存储卷或者构建自定义镜像。
 例如，可以使用如下命令通过设置环境变量来给你的Flink应用启用S3插件。
 
