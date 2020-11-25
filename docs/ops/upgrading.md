@@ -1,7 +1,7 @@
 ---
 title: "Upgrading Applications and Flink Versions"
 nav-parent_id: ops
-nav-pos: 3
+nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
