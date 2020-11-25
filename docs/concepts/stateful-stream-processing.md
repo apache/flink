@@ -46,8 +46,8 @@ Some examples of stateful operations:
     to events that occurred in the past.
 
 Flink needs to be aware of the state in order to make it fault tolerant using
-[checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.md %})
-and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md %}).
+[checkpoints]({% link dev/stream/state/checkpointing.md %})
+and [savepoints]({%link ops/state/savepoints.md %}).
 
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
