@@ -53,7 +53,7 @@ that triggers the execution, or in the command line process `./bin/flink run
 
 The JobManager and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({% link
-deployment/resource-providers/cluster_setup.md %}), in containers, or managed by resource
+deployment/resource-providers/standalone/index.md %}), in containers, or managed by resource
 frameworks like [YARN]({% link deployment/resource-providers/yarn_setup.md
 %}) or [Mesos]({% link deployment/resource-providers/mesos.md %}).
 TaskManagers connect to JobManagers, announcing themselves as available, and

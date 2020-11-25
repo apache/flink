@@ -39,7 +39,7 @@ The options in this section are the ones most commonly needed for a basic distri
 
 **Hostnames / Ports**
 
-These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link deployment/resource-providers/cluster_setup.zh.md %}) or [Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %})).
+These options are only necessary for *standalone* application- or session deployments ([simple standalone]({% link deployment/resource-providers/standalone/index.zh.md %}) or [Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.zh.md %})).
 
 If you use Flink with [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}), [Mesos]({% link deployment/resource-providers/mesos.zh.md %}), or the [*active* Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.zh.md %}), the hostnames and ports are automatically discovered.
 
@@ -202,7 +202,7 @@ Please refer to the [Flink and Kerberos Docs]({% link deployment/security/securi
 This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
 
 Note that is not always necessary to integrate Flink with the resource orchestration framework.
-For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({% link deployment/resource-providers/kubernetes.zh.md %}) for an example.
+For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}) for an example.
 
 The options in this section are necessary for setups where Flink itself actively requests and releases resources from the orchestrators.
 

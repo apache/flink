@@ -1,7 +1,7 @@
 ---
 title: "Local Cluster"
 nav-title: 'Local Cluster'
-nav-parent_id: resource_providers
+nav-parent_id: standalone
 nav-pos: 2
 ---
 <!--
