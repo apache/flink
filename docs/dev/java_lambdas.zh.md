@@ -28,7 +28,7 @@ Java 8 引入了几种新的语言特性，旨在实现更快、更清晰的编�
 
 This document shows how to use lambda expressions and describes current
 limitations. For a general introduction to the Flink API, please refer to the
-[DataSteam API overview]({{ site.baseurl }}{% link dev/datastream_api.zh.md %})
+[DataSteam API overview]({% link dev/datastream_api.zh.md %})
 
 ### 示例和限制
 
