@@ -91,6 +91,9 @@ under the License.
 
 	<dependencyManagement>
 		<dependencies>
+			<!-- We pick an arbitrary version of net.java.dev.jna:jna to satisfy dependency
+				 convergence for org.testcontainers:testcontainers which transitively depends on
+				 two different versions.-->
 			<dependency>
 				<groupId>net.java.dev.jna</groupId>
 				<artifactId>jna</artifactId>
