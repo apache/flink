@@ -30,7 +30,7 @@ Apache Flink 基于 JVM 的高效处理能力，依赖于其对各组件内存�
 {:toc}
 
 本文接下来介绍的内存配置方法适用于 *1.10* 及以上版本的 TaskManager 进程和 *1.11* 及以上版本的 JobManager 进程。
-Flink 在 *1.10* 和 *1.11* 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({% link ops/memory/mem_migration.zh.md %})。
+Flink 在 *1.10* 和 *1.11* 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({% link deployment/memory/mem_migration.zh.md %})。
 
 <a name="configure-total-memory" />
 
@@ -55,21 +55,21 @@ Flink JVM 进程的*进程总内存（Total Process Memory）*包含了由 Flink
 <br/>
 
 <span class="label label-info">提示</span>
-关于本地执行，请分别参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}#local-execution) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#local-execution) 的相关文档。
+关于本地执行，请分别参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}#local-execution) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}#local-execution) 的相关文档。
 
 Flink 会根据默认值或其他配置参数自动调整剩余内存部分的大小。
-关于各内存部分的更多细节，请分别参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}) 的相关文档。
+关于各内存部分的更多细节，请分别参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}) 的相关文档。
 
 对于[独立部署模式（Standalone Deployment）]({% link deployment/resource-providers/cluster_setup.zh.md %})，如果你希望指定由 Flink 应用本身使用的内存大小，最好选择配置 *Flink 总内存*。
 *Flink 总内存*会进一步划分为 *JVM 堆内存*和*堆外内存*。
-更多详情请参考[如何为独立部署模式配置内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-standalone-deployment)。
+更多详情请参考[如何为独立部署模式配置内存]({% link deployment/memory/mem_tuning.zh.md %}#configure-memory-for-standalone-deployment)。
 
 通过配置*进程总内存*可以指定由 Flink *JVM 进程*使用的总内存大小。
-对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-containers)（[Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %})、[Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %})）。
+对于容器化部署模式（Containerized Deployment），这相当于申请的容器（Container）大小，详情请参考[如何配置容器内存]({% link deployment/memory/mem_tuning.zh.md %}#configure-memory-for-containers)（[Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %})、[Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %})）。
 
 此外，还可以通过设置 *Flink 总内存*的特定内部组成部分的方式来进行内存配置。
 不同进程需要设置的内存组成部分是不一样的。
-详情请分别参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}#configure-heap-and-managed-memory) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#configure-jvm-heap) 的相关文档。
+详情请分别参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}#configure-heap-and-managed-memory) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}#configure-jvm-heap) 的相关文档。
 
 <span class="label label-info">提示</span>
 以上三种方式中，用户需要至少选择其中一种进行配置（本地运行除外），否则 Flink 将无法启动。
@@ -107,7 +107,7 @@ Flink 进程启动时，会根据配置的和自动推导出的各内存部分�
 (\*\*\*) 只有在 [`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.zh.md %}#jobmanager-memory-enable-jvm-direct-memory-limit) 设置为 `true` 时，JobManager 才会设置 *JVM 直接内存限制*。
 <br/><br/>
 
-相关内存部分的配置方法，请同时参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}#detailed-memory-model) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) 的详细内存模型。
+相关内存部分的配置方法，请同时参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}#detailed-memory-model) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) 的详细内存模型。
 
 <a name="capped-fractionated-components" />
 
@@ -117,7 +117,7 @@ Flink 进程启动时，会根据配置的和自动推导出的各内存部分�
 * *JVM 开销*：可以配置占用*进程总内存*的固定比例
 * *网络内存*：可以配置占用 *Flink 总内存*的固定比例（仅针对 TaskManager）
 
-相关内存部分的配置方法，请同时参考 [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}#detailed-memory-model) 和 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) 的详细内存模型。
+相关内存部分的配置方法，请同时参考 [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}#detailed-memory-model) 和 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}#detailed-configuration) 的详细内存模型。
 
 这些内存部分的大小必须在相应的最大值、最小值范围内，否则 Flink 将无法启动。
 最大值、最小值具有默认值，也可以通过相应的配置参数进行设置。

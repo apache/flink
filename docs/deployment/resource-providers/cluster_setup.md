@@ -107,7 +107,7 @@ Please see the [configuration page]({% link ops/config.md %}) for details and ad
 In particular,
 
  * the amount of available memory per JobManager (`jobmanager.memory.process.size`),
- * the amount of available memory per TaskManager (`taskmanager.memory.process.size` and check [memory setup guide]({% link ops/memory/mem_tuning.md %}#configure-memory-for-standalone-deployment)),
+ * the amount of available memory per TaskManager (`taskmanager.memory.process.size` and check [memory setup guide]({% link deployment/memory/mem_tuning.md %}#configure-memory-for-standalone-deployment)),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`io.tmp.dirs`)

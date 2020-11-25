@@ -74,7 +74,7 @@ The MemoryStateBackend is encouraged for:
   - Local development and debugging
   - Jobs that do hold little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
 
-It is also recommended to set [managed memory]({% link ops/memory/mem_setup_tm.md %}#managed-memory) to zero.
+It is also recommended to set [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The FsStateBackend
@@ -94,7 +94,7 @@ The FsStateBackend is encouraged for:
   - Jobs with large state, long windows, large key/value states.
   - All high-availability setups.
 
-It is also recommended to set [managed memory]({% link ops/memory/mem_setup_tm.md %}#managed-memory) to zero.
+It is also recommended to set [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The RocksDBStateBackend
@@ -124,7 +124,7 @@ This also means, however, that the maximum throughput that can be achieved will 
 this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
 on-heap representation as the heap-based backends are doing.
 
-Check also recommendations about the [task executor memory configuration]({% link ops/memory/mem_tuning.md %}#rocksdb-state-backend) for the RocksDBStateBackend.
+Check also recommendations about the [task executor memory configuration]({% link deployment/memory/mem_tuning.md %}#rocksdb-state-backend) for the RocksDBStateBackend.
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({% link ops/state/large_state_tuning.md %})). 
 

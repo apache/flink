@@ -157,8 +157,8 @@ Flink tries to shield users as much as possible from the complexity of configuri
 In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performance tuning and fixing memory related errors.
 
 For a detailed explanation of how these options interact,
-see the documentation on [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}) and
-[JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %} ) memory configurations.
+see the documentation on [TaskManager]({% link deployment/memory/mem_setup_tm.zh.md %}) and
+[JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %} ) memory configurations.
 
 {% include generated/common_memory_section.html %}
 
