@@ -263,7 +263,6 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 
 		private final HiveMapredSplitReader hiveMapredSplitReader;
 		private final RowDataSerializer serializer;
-		private final ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
 		private final int[] selectedFields;
 		private long numRead = 0;
 
@@ -287,6 +286,8 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
 			if (num == 0) {
 				return null;
 			}
+
+			ArrayResultIterator<RowData> iterator = new ArrayResultIterator<>();
 			iterator.set(records, num, NO_OFFSET, skipCount);
 			return iterator;
 		}
