@@ -3,7 +3,7 @@ title:  "Native Kubernetes Setup"
 nav-title: Native Kubernetes
 nav-parent_id: resource_providers
 is_beta: true
-nav-pos: 7
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
