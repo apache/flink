@@ -262,7 +262,7 @@ The metrics here are scoped to the operators and then further broken down by col
 
 The history server keeps the information of completed jobs (graphs, runtimes, statistics). To enable it, you have to enable "job archiving" in the JobManager (`jobmanager.archive.fs.dir`).
 
-See the [History Server Docs]({% link deployment/historyserver.md %}) for details.
+See the [History Server Docs]({% link deployment/advanced/historyserver.md %}) for details.
 
 {% include generated/history_server_configuration.html %}
 
