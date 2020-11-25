@@ -108,7 +108,7 @@ These examples about how to submit a job in CLI.
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({% link deployment/resource-providers/yarn_setup.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({% link deployment/resource-providers/yarn.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster \
                                ./examples/batch/WordCount.jar \
@@ -159,7 +159,7 @@ $ python --version
         ./bin/flink run -m myJMHost:8081 \
                                -py examples/python/table/batch/word_count.py
 
--   Run Python Table program using a [per-job YARN cluster]({% link deployment/resource-providers/yarn_setup.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run Python Table program using a [per-job YARN cluster]({% link deployment/resource-providers/yarn.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster \
                                -py examples/python/table/batch/word_count.py

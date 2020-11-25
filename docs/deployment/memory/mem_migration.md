@@ -189,7 +189,7 @@ It is recommended to use the new option because the legacy one can be removed in
 #### Fraction
 
 If not set explicitly, the managed memory could be previously specified as a fraction (`taskmanager.memory.fraction`)
-of the total memory minus network memory and container cut-off (only for [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) and
+of the total memory minus network memory and container cut-off (only for [Yarn]({% link deployment/resource-providers/yarn.md %}) and
 [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments). This option has been completely removed and will have no effect if still used.
 Please, use the new option [`taskmanager.memory.managed.fraction`]({% link deployment/config.md %}#taskmanager-memory-managed-fraction) instead.
 This new option will set the [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to the specified fraction of the
@@ -201,7 +201,7 @@ This new option will set the [managed memory]({% link deployment/memory/mem_setu
 If the [RocksDBStateBackend]({% link ops/state/state_backends.md %}#the-rocksdbstatebackend) is chosen for a streaming job,
 its native memory consumption should now be accounted for in [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory).
 The RocksDB memory allocation is limited by the [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) size.
-This should prevent the killing of containers on [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}).
+This should prevent the killing of containers on [Yarn]({% link deployment/resource-providers/yarn.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}).
 You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed]({% link deployment/config.md %}#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
 
@@ -219,7 +219,7 @@ Previously, there were options responsible for setting the *JVM Heap* size of th
 * `jobmanager.heap.mb`
 
 Despite their naming, they represented the *JVM Heap* only for [standalone deployments]({% link deployment/resource-providers/standalone/index.md %}).
-For the containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %})),
+For the containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn.md %})),
 they also included other off-heap memory consumption. The size of *JVM Heap* was additionally reduced by the container
 cut-off which has been completely removed after *1.11*.
 
@@ -230,7 +230,7 @@ they are set the same way as it is done by the [standalone deployment]({% link d
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
 * JVM Heap ([`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link deployment/resource-providers/standalone/index.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments
-* Total process memory ([`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %}))
+* Total process memory ([`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn.md %}))
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
