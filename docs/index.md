@@ -69,7 +69,7 @@ The reference documentation covers all the details. Some starting points:
 
 * [Configuration]({% link ops/config.md %})
 * [Rest API]({% link monitoring/rest_api.md %})
-* [CLI]({% link ops/cli.md %})
+* [CLI]({% link deployment/cli.md %})
 
 </div>
 </div>

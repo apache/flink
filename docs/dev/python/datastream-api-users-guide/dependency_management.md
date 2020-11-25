@@ -25,7 +25,7 @@ under the License.
 # Java Dependency
 
 If third-party Java dependencies are used, you can specify the dependencies with the following Python DataStream APIs or 
-through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # Use the add_jars() to add local jars and the jars will be uploaded to the cluster.
@@ -41,7 +41,7 @@ stream_execution_environment.add_classpaths("file:///my/jar/path/connector.jar",
 # Python Dependency
 
 If third-party Python dependencies are used, you can specify the dependencies with the following Python DataStream 
-APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>

@@ -72,7 +72,7 @@ mapper-id   | State of StatefulMapper
 
 ## 算子
 
-你可以使用[命令行客户端]({% link ops/cli.zh.md %}#Savepoint)来*触发 Savepoint*，*触发 Savepoint 并取消作业*，*从 Savepoint* 恢复，以及*删除 Savepoint*。
+你可以使用[命令行客户端]({% link deployment/cli.zh.md %}#Savepoint)来*触发 Savepoint*，*触发 Savepoint 并取消作业*，*从 Savepoint* 恢复，以及*删除 Savepoint*。
 
 从 Flink 1.2.0 开始，还可以使用 webui *从 Savepoint 恢复*。
 

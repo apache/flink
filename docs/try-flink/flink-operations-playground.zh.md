@@ -167,7 +167,7 @@ TaskManager 刚启动完成之时，你同样会看到很多关于 checkpoint co
 
 ### Flink CLI
 
-[Flink CLI]({%link ops/cli.zh.md %}) 相关命令可以在 client 容器内进行使用。
+[Flink CLI]({%link deployment/cli.zh.md %}) 相关命令可以在 client 容器内进行使用。
 比如，想查看 Flink CLI 的 `help` 命令，可以通过如下方式进行查看：
 {% highlight bash%}
 docker-compose run --no-deps client flink --help
