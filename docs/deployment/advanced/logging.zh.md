@@ -1,8 +1,8 @@
 ---
 title: "如何使用日志记录"
 nav-title: 日志
-nav-parent_id: deployment
-nav-pos: 18
+nav-parent_id: advanced
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

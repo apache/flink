@@ -1,7 +1,7 @@
 ---
 title:  "External Resource Framework"
-nav-parent_id: deployment
-nav-pos: 16
+nav-parent_id: advanced
+nav-pos: 1
 nav-title: External Resources
 ---
 <!--

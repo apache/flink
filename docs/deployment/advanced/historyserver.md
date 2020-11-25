@@ -1,7 +1,7 @@
 ---
 title: "History Server"
-nav-parent_id: deployment
-nav-pos: 17
+nav-parent_id: advanced
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
