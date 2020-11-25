@@ -48,7 +48,7 @@ public class UnalignedController implements CheckpointBarrierBehaviourController
 	}
 
 	@Override
-	public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException {
+	public boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
 		checkpointCoordinator.initCheckpoint(barrier.getId(), barrier.getCheckpointOptions());
 		for (final CheckpointableInput input : inputs) {
 			input.checkpointStarted(barrier);

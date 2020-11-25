@@ -41,7 +41,7 @@ public interface CheckpointBarrierBehaviourController {
 	 * {@link #barrierReceived(InputChannelInfo, CheckpointBarrier)} for that given checkpoint.
 	 * @return {@code true} if checkpoint should be triggered.
 	 */
-	boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException;
+	boolean preProcessFirstBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException;
 
 	/**
 	 * Invoked once per checkpoint, after the last invocation of
