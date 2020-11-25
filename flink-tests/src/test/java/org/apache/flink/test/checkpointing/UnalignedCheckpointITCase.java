@@ -110,12 +110,12 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 	}
 
 	private static UnalignedSettings createPipelineSettings(int parallelism, int slotsPerTaskManager, boolean slotSharing) {
-		int numShuffles = 5;
+		int numShuffles = 4;
 		return new UnalignedSettings(UnalignedCheckpointITCase::createPipeline)
 			.setParallelism(parallelism)
 			.setSlotSharing(slotSharing)
 			.setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
-			.setNumBuffers(3 * slotsPerTaskManager * parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
 			.setSlotsPerTaskManager(slotsPerTaskManager)
 			.setExpectedFailures(5);
 	}
@@ -126,7 +126,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 			.setParallelism(parallelism)
 			.setSlotSharing(true)
 			.setNumSlots(parallelism * numShuffles)
-			.setNumBuffers(3 * parallelism * parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
 			.setSlotsPerTaskManager(parallelism)
 			.setExpectedFailures(5);
 	}
@@ -137,9 +137,15 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 			.setParallelism(parallelism)
 			.setSlotSharing(true)
 			.setNumSlots(parallelism * numShuffles)
-			.setNumBuffers(3 * parallelism * parallelism * numShuffles)
+			.setNumBuffers(getNumBuffers(parallelism, numShuffles))
 			.setSlotsPerTaskManager(parallelism)
 			.setExpectedFailures(5);
+	}
+
+	private static int getNumBuffers(int parallelism, int numShuffles) {
+		int buffersPerSubtask =	parallelism + 1 + // output side
+			2 * BUFFER_PER_CHANNEL * parallelism; // input side including recovery (=local channels count fully)
+		return buffersPerSubtask * parallelism * numShuffles;
 	}
 
 	private final UnalignedSettings settings;
