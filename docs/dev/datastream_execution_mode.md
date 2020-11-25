@@ -100,12 +100,13 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 env.setRuntimeMode(RuntimeExecutionMode.BATCH);
  ```
 
-<div class="alert alert-info">
+{% capture configuration_note %}
 We recommend users to NOT set the runtime mode in their program but to instead
 set it using the command-line when submitting the application. Keeping the
 application code configuration-free allows for more flexibility as the same
 application can be executed in any execution mode.
-</div>
+{% endcapture %}
+{% include note.html content=configuration_note %}
 
 ## Execution Behavior
 
@@ -368,10 +369,11 @@ broadcast side is processed first entirely in the future.
 
 ### Writing Custom Operators
 
-<div class="alert alert-info">
+{% capture custom_operator_note %}
 Custom operators are an advanced usage pattern of Apache Flink. For most
 use-cases, consider using a (keyed-)process function instead.
-</div>
+{% endcapture %}
+{% include note.html content=custom_operator_note %}
 
 It is important to remember the assumptions made for `BATCH` execution mode
 when writing a custom operator. Otherwise, an operator that works just fine for
