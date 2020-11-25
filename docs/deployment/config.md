@@ -240,7 +240,7 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 # Metrics
 
-Please refer to the [metrics system documentation]({% link monitoring/metrics.md %}) for background on Flink's metrics infrastructure.
+Please refer to the [metrics system documentation]({% link ops/metrics.md %}) for background on Flink's metrics infrastructure.
 
 {% include generated/metric_configuration.html %}
 

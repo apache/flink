@@ -45,7 +45,7 @@ The easiest way to monitor checkpoint behavior is via the UI's checkpoint sectio
 for [checkpoint monitoring]({% link ops/monitoring/checkpoint_monitoring.zh.md %}) shows how to access the available checkpoint
 metrics.
 
-The two numbers (both exposed via Task level [metrics]({% link monitoring/metrics.zh.md %}#checkpointing)
+The two numbers (both exposed via Task level [metrics]({% link ops/metrics.zh.md %}#checkpointing)
 and in the [web interface]({% link ops/monitoring/checkpoint_monitoring.zh.md %})) that are of particular interest when scaling
 up checkpoints are:
 
