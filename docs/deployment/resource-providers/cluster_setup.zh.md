@@ -112,7 +112,7 @@ Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用
 特别地，
 
 * 每个 JobManager 的可用内存值（`jobmanager.memory.process.size`），
-* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-standalone-deployment)），
+* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({% link deployment/memory/mem_tuning.zh.md %}#configure-memory-for-standalone-deployment)），
 * 每台机器的可用 CPU 数（`taskmanager.numberOfTaskSlots`），
 * 集群中所有 CPU 数（`parallelism.default`）和
 * 临时目录（`io.tmp.dirs`）

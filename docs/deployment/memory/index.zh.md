@@ -1,8 +1,8 @@
 ---
 nav-title: '内存配置'
 nav-id: ops_mem
-nav-parent_id: ops
-nav-pos: 4
+nav-parent_id: deployment
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
