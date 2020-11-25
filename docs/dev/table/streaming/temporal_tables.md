@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 --> 
 
-A Temporal table is a table that evolves over time -  otherwise known in Flink as a [dynamic table](dynamic_tables.html). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
+A Temporal table is a table that evolves over time -  otherwise known in Flink as a [dynamic table]({% link dev/table/streaming/dynamic_tables.md %}). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
 
 A temporal table contains one or more versioned table snapshots, it can be a changing history table which tracks the changes(e.g. database changelog, contains all snapshots) or a changing dimensioned table which materializes the changes(e.g. database table, contains the latest snapshot). 
 
@@ -183,7 +183,7 @@ currency_time currency  rate
 {% endhighlight %}
 
 To define a versioned table on `RatesHistory`, Flink supports defining a versioned view 
-by [deduplication query]({{ site.baseurl }}/dev/table/sql/queries.html#deduplication) which produces an ordered changelog
+by [deduplication query]({% link dev/table/sql/queries.md %}#deduplication) which produces an ordered changelog
 stream with an inferred primary key(`currency`) and event time(`currency_time`).
 
 {% highlight sql %}
@@ -234,7 +234,7 @@ currency_time currency   rate
 
 ### Defining Regular Table
  
-Regular table definition is same with Flink table DDL, see also the page about [create table]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about how to create a regular table.
+Regular table definition is same with Flink table DDL, see also the page about [create table]({% link dev/table/sql/create.md %}#create-table) for more information about how to create a regular table.
  
 {% highlight sql %}
 -- Define an HBase table with DDL, then we can use it as a temporal table in sql
@@ -255,23 +255,23 @@ table backed by a `LookupableTableSource`. A `LookupableTableSource` can only be
 
 The table defines with `LookupableTableSource` means the table must has lookup ability to look up an external storage system 
 by one or more keys during runtime. The current supported regular table in processing-time temporal join includes 
-[JDBC]({{ site.baseurl }}/dev/table/connectors/jdbc.html), [HBase]({{ site.baseurl }}/dev/table/connectors/hbase.html) 
-and [Hive]({{ site.baseurl }}/dev/table/hive/hive_streaming.html#hive-table-as-temporal-tables).
+[JDBC]({% link dev/table/connectors/jdbc.md %}), [HBase]({% link dev/table/connectors/hbase.md %}) 
+and [Hive]({% link dev/table/connectors/hive/hive_read_write.md %}#temporal-table-join).
 
-See also the page about [how to define LookupableTableSource](../sourceSinks.html#lookup-table-source).
+See also the page [LookupableTableSource]({% link dev/table/sourceSinks.md%}#lookup-table-source) for more information.
 
 Using arbitrary table as temporal table in processing time temporal table join will be supported in the near future. 
 
 Temporal Table Function
 ------------------------
-The temporal table function is a legacy way to define ad temporal table and access the temporal table content. In order to access the data in a temporal table,  now we can use
-DDL to define a temporal table.
+The temporal table function is a legacy way to define a temporal table and correlate the temporal table content. In order to access the data in a temporal table,  now we can use
+temporal table DDL to define a temporal table and use [temporal table join]({% link dev/table/streaming/joins.md%}#temporal-joins) to correlate the temporal table.
 
 The main difference between Temporal Table DDL and Temporal Table Function are the temporal table DDL can directly use in pure SQL but temporal table function can not; the temporal table DDL support defines versioned table from changelog stream and append-only stream but temporal table function only supports append-only stream.
 
 
-In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
+In order to access the data in a temporal table, one must pass a [time attribute]({% link dev/table/streaming/time_attributes.md %}) that determines the version of the table that will be returned.
+Flink uses the SQL syntax of [table functions]({% link dev/table/functions/udfs.md %}#table-functions) to provide a way to express it.
 
 Once defined, a *Temporal Table Function* takes a single time argument `timeAttribute` and returns a set of rows.
 This set contains the latest versions of the rows for all of the existing primary keys with respect to the given time attribute.
@@ -300,7 +300,7 @@ Each query to `Rates(timeAttribute)` would return the state of the `Rates` for t
 
 **Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. The above example was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
 
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
+See also the page about [joins for continuous queries]({% link dev/table/streaming/joins.md %}) for more information about how to join with a temporal table.
 
 ### Defining Temporal Table Function
 
@@ -368,9 +368,9 @@ tEnv.registerFunction("Rates", rates)                                          /
 </div>
 
 Line `(1)` creates a `rates` [temporal table function](#temporal-table-function),
-which allows us to use the function `rates` in the [Table API](../tableApi.html#joins).
+which allows us to use the function `rates` in the [Table API]({% link dev/table/tableApi.md %}#joins).
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
-which allows us to use the `Rates` function in [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
+which allows us to use the `Rates` function in [SQL]({% link dev/table/sql/queries.md %}#joins).
 
 {% top %}

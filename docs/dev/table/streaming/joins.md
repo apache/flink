@@ -68,10 +68,11 @@ Compared to a regular join operation, this kind of join only supports append-onl
 Temporal Joins
 --------------
 <span class="label label-danger">Attention</span> This feature is only supported in Blink planner.
-<span class="label label-danger">Attention</span> Attention it is only supported in SQL, and not supported in Table API yet.
+<span class="label label-danger">Attention</span> Temporal table has two ways to define in Flink, i.e. [temporal table function]({% link dev/table/streaming/temporal_tables.md %}#temporal-table-function) and [temporal table DDL](({% link dev/table/streaming/temporal_tables.md %}#temporal-table-ddl)).
+Temporal join that using temporal table function is only supported in Table API, temporal join that using temporal table DDL is only supported in SQL, please see the page [temporal table]({% link dev/table/streaming/temporal_tables.md %}) for more information about the differences between temporal table function and temporal table DDL.
 
 Temporal join is an arbitrary table (left input/probe side) correlate with the versions of temporal table (right input/build side), The temporal table can be an external dimension table that changes over time 
-or a changelog that tracks all history changes. Please check the corresponding page for more information about [temporal tables](temporal_tables.html).
+or a changelog that tracks all history changes. 
 
 Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011 standard. The syntax of a temporal table join is as follows:
 
