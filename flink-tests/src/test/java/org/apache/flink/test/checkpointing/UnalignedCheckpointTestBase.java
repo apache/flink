@@ -310,7 +310,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			@Override
 			public void addSplitsBack(List<LongSplit> splits, int subtaskId) {
 				LOG.info("addSplitsBack {}", splits);
-				unassignedSplits.addAll(splits);
+				// disabled due to FLINK-20290, which may duplicate splits
+				// unassignedSplits.addAll(splits);
 			}
 
 			@Override
@@ -465,6 +466,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
 			conf.set(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, slotsPerTaskManager);
+			conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
 
 			final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
 			env.enableCheckpointing(100);
