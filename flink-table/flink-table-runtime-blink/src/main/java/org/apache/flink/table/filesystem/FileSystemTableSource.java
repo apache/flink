@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.io.CollectionInputFormat;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -45,6 +46,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
@@ -89,10 +91,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 			@Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat,
 			@Nullable FileSystemFormatFactory formatFactory) {
 		super(context);
-		if (Stream.of(bulkReaderFormat, deserializationFormat, formatFactory)
-				.allMatch(Objects::isNull)) {
-			throw new ValidationException("Please implement at least one of the following formats:" +
-					" BulkFormat, DeserializationSchema, FileSystemFormatFactory.");
+		if (Stream.of(bulkReaderFormat, deserializationFormat, formatFactory).allMatch(Objects::isNull)) {
+			Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
+			String identifier = options.get(FactoryUtil.FORMAT);
+			throw new ValidationException(String.format(
+					"Could not find any format factory for identifier '%s' in the classpath.",
+					identifier));
 		}
 		this.bulkReaderFormat = bulkReaderFormat;
 		this.deserializationFormat = deserializationFormat;

@@ -29,8 +29,12 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
+
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link FileSystemTableFactory}.
@@ -54,10 +58,10 @@ public class FileSystemTableFactoryTest {
 		descriptor.putString("testcsv.my_option", "my_value");
 
 		DynamicTableSource source = createSource(descriptor);
-		Assert.assertTrue(source instanceof FileSystemTableSource);
+		assertTrue(source instanceof FileSystemTableSource);
 
 		DynamicTableSink sink = createSink(descriptor);
-		Assert.assertTrue(sink instanceof FileSystemTableSink);
+		assertTrue(sink instanceof FileSystemTableSink);
 	}
 
 	@Test
@@ -70,13 +74,13 @@ public class FileSystemTableFactoryTest {
 			createSource(descriptor);
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+			assertTrue(cause.toString(), cause instanceof ValidationException);
+			assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Missing required options are:\n\nformat"));
 			return;
 		}
 
-		Assert.fail("Should fail by ValidationException.");
+		fail("Should fail by ValidationException.");
 	}
 
 	@Test
@@ -89,13 +93,13 @@ public class FileSystemTableFactoryTest {
 			createSink(descriptor);
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+			assertTrue(cause.toString(), cause instanceof ValidationException);
+			assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Missing required options are:\n\nformat"));
 			return;
 		}
 
-		Assert.fail("Should fail by ValidationException.");
+		fail("Should fail by ValidationException.");
 	}
 
 	@Test
@@ -110,13 +114,13 @@ public class FileSystemTableFactoryTest {
 			createSource(descriptor);
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+			assertTrue(cause.toString(), cause instanceof ValidationException);
+			assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Unsupported options:\n\nmy_option"));
 			return;
 		}
 
-		Assert.fail("Should fail by ValidationException.");
+		fail("Should fail by ValidationException.");
 	}
 
 	@Test
@@ -131,13 +135,65 @@ public class FileSystemTableFactoryTest {
 			createSink(descriptor);
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+			assertTrue(cause.toString(), cause instanceof ValidationException);
+			assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Unsupported options:\n\nmy_option"));
 			return;
 		}
 
-		Assert.fail("Should fail by ValidationException.");
+		fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testNoFormatFactoryFound() {
+		DescriptorProperties descriptor = new DescriptorProperties();
+		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+		descriptor.putString("path", "/tmp");
+		descriptor.putString("format", "invalid");
+
+		Exception expected = new ValidationException(
+			"Could not find any format factory for identifier 'invalid' in the classpath.");
+
+		try {
+			createSource(descriptor);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertThat(e.getCause(), containsCause(expected));
+		}
+
+		try {
+			createSink(descriptor);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertThat(e.getCause(), containsCause(expected));
+		}
+	}
+
+	@Test
+	public void testFormatOptionsError() {
+		DescriptorProperties descriptor = new DescriptorProperties();
+		descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+		descriptor.putString("path", "/tmp");
+		descriptor.putString("format", "test-format");
+
+		Exception expected = new ValidationException(
+			"One or more required options are missing.\n\n" +
+				"Missing required options are:\n\n" +
+				"delimiter");
+
+		try {
+			createSource(descriptor);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertThat(e.getCause().getCause(), containsCause(expected));
+		}
+
+		try {
+			createSink(descriptor);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertThat(e.getCause().getCause(), containsCause(expected));
+		}
 	}
 
 	private static DynamicTableSource createSource(DescriptorProperties properties) {

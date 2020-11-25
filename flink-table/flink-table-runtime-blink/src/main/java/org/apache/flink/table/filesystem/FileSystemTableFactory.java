@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -31,14 +32,18 @@ import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.EncodingFormatFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.factories.TableFactory;
 
 import java.util.HashSet;
-import java.util.Optional;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * File system {@link TableFactory}.
@@ -65,9 +70,9 @@ public class FileSystemTableFactory implements
 		validate(helper);
 		return new FileSystemTableSource(
 				context,
-				discoverOptionalDecodingFormat(helper, BulkReaderFormatFactory.class).orElse(null),
-				discoverOptionalDecodingFormat(helper, DeserializationFormatFactory.class).orElse(null),
-				discoverOptionalFormatFactory(helper).orElse(null));
+				discoverDecodingFormat(context, BulkReaderFormatFactory.class),
+				discoverDecodingFormat(context, DeserializationFormatFactory.class),
+				discoverFormatFactory(context));
 	}
 
 	@Override
@@ -76,11 +81,11 @@ public class FileSystemTableFactory implements
 		validate(helper);
 		return new FileSystemTableSink(
 				context,
-				discoverOptionalDecodingFormat(helper, BulkReaderFormatFactory.class).orElse(null),
-				discoverOptionalDecodingFormat(helper, DeserializationFormatFactory.class).orElse(null),
-				discoverOptionalFormatFactory(helper).orElse(null),
-				discoverOptionalEncodingFormat(helper, BulkWriterFormatFactory.class).orElse(null),
-				discoverOptionalEncodingFormat(helper, SerializationFormatFactory.class).orElse(null));
+				discoverDecodingFormat(context, BulkReaderFormatFactory.class),
+				discoverDecodingFormat(context, DeserializationFormatFactory.class),
+				discoverFormatFactory(context),
+				discoverEncodingFormat(context, BulkWriterFormatFactory.class),
+				discoverEncodingFormat(context, SerializationFormatFactory.class));
 	}
 
 	@Override
@@ -117,39 +122,67 @@ public class FileSystemTableFactory implements
 		helper.validateExcept(helper.getOptions().get(FactoryUtil.FORMAT) + ".");
 	}
 
-	private <I, F extends DecodingFormatFactory<I>> Optional<DecodingFormat<I>> discoverOptionalDecodingFormat(
-			FactoryUtil.TableFactoryHelper helper, Class<F> formatFactoryClass) {
-		try {
-			return Optional.of(helper.discoverDecodingFormat(formatFactoryClass, FactoryUtil.FORMAT));
-		} catch (ValidationException ignore) {
-			return Optional.empty();
+	private <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
+			Context context, Class<F> formatFactoryClass) {
+		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+		if (formatFactoryExists(context, formatFactoryClass)) {
+			return helper.discoverDecodingFormat(formatFactoryClass, FactoryUtil.FORMAT);
+		} else {
+			return null;
 		}
 	}
 
-	private <I, F extends EncodingFormatFactory<I>> Optional<EncodingFormat<I>> discoverOptionalEncodingFormat(
-			FactoryUtil.TableFactoryHelper helper, Class<F> formatFactoryClass) {
-		try {
-			return Optional.of(helper.discoverEncodingFormat(formatFactoryClass, FactoryUtil.FORMAT));
-		} catch (ValidationException ignore) {
-			return Optional.empty();
+	private <I, F extends EncodingFormatFactory<I>> EncodingFormat<I> discoverEncodingFormat(
+			Context context, Class<F> formatFactoryClass) {
+		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+		if (formatFactoryExists(context, formatFactoryClass)) {
+			return helper.discoverEncodingFormat(formatFactoryClass, FactoryUtil.FORMAT);
+		} else {
+			return null;
 		}
 	}
 
-	private Optional<FileSystemFormatFactory> discoverOptionalFormatFactory(
-			FactoryUtil.TableFactoryHelper helper) {
-		String format = helper.getOptions().get(FactoryUtil.FORMAT);
-		if (format == null) {
+	private FileSystemFormatFactory discoverFormatFactory(Context context) {
+		if (formatFactoryExists(context, FileSystemFormatFactory.class)) {
+			Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
+			String identifier = options.get(FactoryUtil.FORMAT);
+			return FactoryUtil.discoverFactory(
+				Thread.currentThread().getContextClassLoader(),
+				FileSystemFormatFactory.class,
+				identifier);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Returns true if the format factory can be found using the given factory base class and identifier.
+	 */
+	private boolean formatFactoryExists(
+			Context context,
+			Class<?> factoryClass) {
+		Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
+		String identifier = options.get(FactoryUtil.FORMAT);
+		if (identifier == null) {
 			throw new ValidationException(String.format(
-					"Table options do not contain an option key '%s' for discovering a format.",
-					FactoryUtil.FORMAT.key()));
+				"Table options do not contain an option key '%s' for discovering a format.",
+				FactoryUtil.FORMAT.key()));
 		}
-		try {
-			return Optional.of(FactoryUtil.discoverFactory(
-					Thread.currentThread().getContextClassLoader(),
-					FileSystemFormatFactory.class,
-					format));
-		} catch (ValidationException e) {
-			return Optional.empty();
-		}
+
+		final List<Factory> factories = new LinkedList<>();
+		ServiceLoader
+			.load(Factory.class, context.getClassLoader())
+			.iterator()
+			.forEachRemaining(factories::add);
+
+		final List<Factory> foundFactories = factories.stream()
+			.filter(f -> factoryClass.isAssignableFrom(f.getClass()))
+			.collect(Collectors.toList());
+
+		final List<Factory> matchingFactories = foundFactories.stream()
+			.filter(f -> f.factoryIdentifier().equals(identifier))
+			.collect(Collectors.toList());
+
+		return !matchingFactories.isEmpty();
 	}
 }
