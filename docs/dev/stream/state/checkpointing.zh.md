@@ -156,7 +156,7 @@ env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 
 ### 相关的配置选项
 
-更多的属性与默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [配置]({{ site.baseurl }}/zh/ops/config.html)）。
+更多的属性与默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [配置]({{ site.baseurl }}/zh/deployment/config.html)）。
 
 {% include generated/checkpointing_configuration.html %}
 

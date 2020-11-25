@@ -56,7 +56,7 @@ under the License.
 
  1. 将 `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar`
 从 [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads") 的 `opt/` 目录拷贝到 `lib/` 目录；
- 2. 将参数 `queryable-state.enable` 设置为 `true`。详细信息以及其它配置可参考文档 [Configuration]({{ site.baseurl }}/zh/ops/config.html#queryable-state)。
+ 2. 将参数 `queryable-state.enable` 设置为 `true`。详细信息以及其它配置可参考文档 [Configuration]({{ site.baseurl }}/zh/deployment/config.html#queryable-state)。
 
 为了验证集群的 queryable state 已经被激活，可以检查任意 task manager 的日志中是否包含 "Started the Queryable State Proxy Server @ ..."。
 

@@ -1155,7 +1155,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
 这样调用，而不能 `someStream.startNewChain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
@@ -1212,7 +1212,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
 这样调用，而不能 `someStream.startNewChain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
@@ -1269,7 +1269,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `some_stream.map(...).start_new_chain()`
 这样调用，而不能 `some_stream.start_new_chain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/deployment/config.html#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 

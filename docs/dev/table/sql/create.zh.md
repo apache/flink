@@ -353,7 +353,7 @@ MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
 `watermark_strategy_expression` 定义了 watermark 的生成策略。它允许使用包括计算列在内的任意非查询表达式来计算 watermark ；表达式的返回类型必须是 `TIMESTAMP(3)`，表示了从 Epoch 以来的经过的时间。
 返回的 watermark 只有当其不为空且其值大于之前发出的本地 watermark 时才会被发出（以保证 watermark 递增）。每条记录的 watermark 生成表达式计算都会由框架完成。
 框架会定期发出所生成的最大的 watermark ，如果当前 watermark 仍然与前一个 watermark 相同、为空、或返回的 watermark 的值小于最后一个发出的 watermark ，则新的 watermark 不会被发出。
-Watermark 根据 [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/zh/ops/config.html#pipeline-auto-watermark-interval) 中所配置的间隔发出。
+Watermark 根据 [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/zh/deployment/config.html#pipeline-auto-watermark-interval) 中所配置的间隔发出。
 若 watermark 的间隔是 `0ms` ，那么每条记录都会产生一个 watermark，且 watermark 会在不为空并大于上一个发出的 watermark 时发出。
 
 使用事件时间语义时，表必须包含事件时间属性和 watermark 策略。

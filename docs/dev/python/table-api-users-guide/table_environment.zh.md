@@ -89,7 +89,7 @@ env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_pl
 table_env = StreamTableEnvironment.create(env, environment_settings=env_settings)
 {% endhighlight %}
 
-**注意：** 现在， `ExecutionEnvironment`/`StreamExecutionEnvironment` 中所有的配置项几乎都可以通过 `TableEnvironment.get_config()` 来配置，更多详情，可查阅 [配置]({% link ops/config.zh.md %})。
+**注意：** 现在， `ExecutionEnvironment`/`StreamExecutionEnvironment` 中所有的配置项几乎都可以通过 `TableEnvironment.get_config()` 来配置，更多详情，可查阅 [配置]({% link deployment/config.zh.md %})。
 只有少数很少使用的或者被废弃的配置仍然需要直接通过 `ExecutionEnvironment` /`StreamExecutionEnvironment` 来配置，例如输入依赖约束。
 
 TableEnvironment API
@@ -609,7 +609,7 @@ TableEnvironment API
       </td>
       <td>
         返回 table config，可以通过 table config 来定义 Table API 的运行时行为。
-        你可以在 <a href="{{ site.baseurl }}/zh/ops/config.html">配置</a> 和
+        你可以在 <a href="{{ site.baseurl }}/zh/deployment/config.html">配置</a> 和
         <a href="{{ site.baseurl }}/zh/dev/python/python_config.html">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
         下面的代码示例展示了如何通过这个 API 来设置配置选项：
 {% highlight python %}
@@ -838,7 +838,7 @@ Statebackend，Checkpoint 以及重启策略
 ---------------------------------------------
 
 在 Flink 1.10 之前，你可以通过 `StreamExecutionEnvironment` 来配置 statebackend，checkpointing 以及重启策略。
-现在你可以通过在 `TableConfig` 中，通过设置键值选项来配置它们，更多详情可查阅 [容错]({% link ops/config.zh.md %}#fault-tolerance)，[State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) 以及 [Checkpointing]({% link ops/config.zh.md %}#checkpointing)。
+现在你可以通过在 `TableConfig` 中，通过设置键值选项来配置它们，更多详情可查阅 [容错]({% link deployment/config.zh.md %}#fault-tolerance)，[State Backends]({% link deployment/config.zh.md %}#checkpoints-and-state-backends) 以及 [Checkpointing]({% link deployment/config.zh.md %}#checkpointing)。
 
 下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 {% highlight python %}

@@ -28,7 +28,7 @@ under the License.
 ## IllegalConfigurationException
 
 如果遇到从 *TaskExecutorProcessUtils* 或 *JobManagerProcessUtils* 抛出的 *IllegalConfigurationException* 异常，这通常说明您的配置参数中存在无效值（例如内存大小为负数、占比大于 1 等）或者配置冲突。
-请根据异常信息，确认出错的内存部分的相关文档及[配置信息]({% link ops/config.zh.md %}#memory-configuration)。
+请根据异常信息，确认出错的内存部分的相关文档及[配置信息]({% link deployment/config.zh.md %}#memory-configuration)。
 
 ## OutOfMemoryError: Java heap space
 
@@ -49,7 +49,7 @@ under the License.
 ## OutOfMemoryError: Metaspace
 
 该异常说明 [JVM Metaspace 限制]({% link deployment/memory/mem_setup.zh.md %}#jvm-parameters)过小。
-可以尝试调整 [TaskManager]({% link ops/config.zh.md %}#taskmanager-memory-jvm-metaspace-size)、[JobManager]({% link ops/config.zh.md %}#jobmanager-memory-jvm-metaspace-size) 的 JVM Metaspace。
+可以尝试调整 [TaskManager]({% link deployment/config.zh.md %}#taskmanager-memory-jvm-metaspace-size)、[JobManager]({% link deployment/config.zh.md %}#jobmanager-memory-jvm-metaspace-size) 的 JVM Metaspace。
 
 ## IOException: Insufficient number of network buffers
 
@@ -57,9 +57,9 @@ under the License.
 
 该异常通常说明[网络内存]({% link deployment/memory/mem_setup_tm.zh.md %}#detailed-memory-model)过小。
 可以通过调整以下配置参数增大*网络内存*：
-* [`taskmanager.memory.network.min`]({% link ops/config.zh.md %}#taskmanager-memory-network-min)
-* [`taskmanager.memory.network.max`]({% link ops/config.zh.md %}#taskmanager-memory-network-max)
-* [`taskmanager.memory.network.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-network-fraction)
+* [`taskmanager.memory.network.min`]({% link deployment/config.zh.md %}#taskmanager-memory-network-min)
+* [`taskmanager.memory.network.max`]({% link deployment/config.zh.md %}#taskmanager-memory-network-max)
+* [`taskmanager.memory.network.fraction`]({% link deployment/config.zh.md %}#taskmanager-memory-network-fraction)
 
 <a name="container-memory-exceeded" />
 
@@ -68,7 +68,7 @@ under the License.
 如果 Flink 容器尝试分配超过其申请大小的内存（Yarn、Mesos 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
 可以通过外部监控系统或者容器被部署环境杀掉时的错误信息判断是否存在容器内存超用。
 
-对于 *JobManager* 进程，你还可以尝试启用 *JVM 直接内存限制*（[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link ops/config.zh.md %}#jobmanager-memory-enable-jvm-direct-memory-limit)），以排除 *JVM 直接内存泄漏*的可能性。
+对于 *JobManager* 进程，你还可以尝试启用 *JVM 直接内存限制*（[`jobmanager.memory.enable-jvm-direct-memory-limit`]({% link deployment/config.zh.md %}#jobmanager-memory-enable-jvm-direct-memory-limit)），以排除 *JVM 直接内存泄漏*的可能性。
 
 如果使用了 [RocksDBStateBackend]({% link ops/state/state_backends.zh.md %}#rocksdbstatebackend) 且没有开启内存控制，也可以尝试增大 TaskManager 的[托管内存]({% link deployment/memory/mem_setup.zh.md %}#managed-memory)。
 

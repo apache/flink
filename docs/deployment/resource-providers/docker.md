@@ -221,7 +221,7 @@ blob.server.port: 6124
 docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
 
-The [`jobmanager.rpc.address`]({% link ops/config.md %}#jobmanager-rpc-address) option must be configured, others are optional to set.
+The [`jobmanager.rpc.address`]({% link deployment/config.md %}#jobmanager-rpc-address) option must be configured, others are optional to set.
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
 the same way as in the `flink-conf.yaml`. `FLINK_PROPERTIES` takes precedence over configurations in `flink-conf.yaml`.

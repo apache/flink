@@ -245,7 +245,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 ### Configuration parameters
 
-For a list of Mesos specific configuration, refer to the [Mesos section]({% link ops/config.zh.md %}#mesos)
+For a list of Mesos specific configuration, refer to the [Mesos section]({% link deployment/config.zh.md %}#mesos)
 of the configuration documentation.
 
 {% top %}

@@ -23,7 +23,7 @@ under the License.
 -->
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
-To change the defaults that affect all jobs, see [Configuration]({{ site.baseurl }}/ops/config.html).
+To change the defaults that affect all jobs, see [Configuration]({{ site.baseurl }}/deployment/config.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
