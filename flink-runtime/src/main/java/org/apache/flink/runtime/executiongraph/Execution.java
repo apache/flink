@@ -1606,15 +1606,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			} else {
 				if (LOG.isInfoEnabled()) {
-					final String locationInformation = getAssignedResource() != null ? getAssignedResource().toString() : "not deployed";
-
 					LOG.info(
 						"{} ({}) switched from {} to {} on {}.",
 						getVertex().getTaskNameWithSubtaskIndex(),
 						getAttemptId(),
 						currentState,
 						targetState,
-						locationInformation,
+						getLocationInformation(),
 						error);
 				}
 			}
@@ -1635,6 +1633,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			return true;
 		} else {
 			return false;
+		}
+	}
+
+	private String getLocationInformation() {
+		if (assignedResource != null) {
+			return assignedResource.getTaskManagerLocation().toString();
+		} else {
+			return "[unassigned resource]";
 		}
 	}
 
