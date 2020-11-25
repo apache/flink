@@ -1,7 +1,7 @@
 ---
 title: "Metrics"
 nav-parent_id: ops
-nav-pos: 6
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -1629,7 +1629,7 @@ purposes.
 
 ## REST API integration
 
-Metrics can be queried through the [Monitoring REST API]({% link ops/monitoring/rest_api.md %}).
+Metrics can be queried through the [Monitoring REST API]({% link ops/rest_api.md %}).
 
 Below is a list of available endpoints, with a sample JSON response. All endpoints are of the sample form `http://hostname:8081/jobmanager/metrics`, below we list only the *path* part of the URLs.
 

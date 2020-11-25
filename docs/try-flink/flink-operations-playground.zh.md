@@ -175,7 +175,7 @@ docker-compose run --no-deps client flink --help
 
 ### Flink REST API
 
-[Flink REST API]({%link ops/monitoring/rest_api.zh.md %}#api) 可以通过本机的 
+[Flink REST API]({%link ops/rest_api.zh.md %}#api) 可以通过本机的 
 `localhost:8081` 进行访问，也可以在 client 容器中通过 `jobmanager:8081` 进行访问。
 比如，通过如下命令可以获取所有正在运行中的 Job：
 {% highlight bash%}
@@ -793,7 +793,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-请查阅 [REST API 参考]({%link ops/monitoring/rest_api.zh.md %}#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如 TaskManager 指标）。
+请查阅 [REST API 参考]({%link ops/rest_api.zh.md %}#api)，该参考上有完整的指标查询接口信息，包括如何查询不同种类的指标（例如 TaskManager 指标）。
 
 {%  top %}
 

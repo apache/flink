@@ -177,7 +177,7 @@ docker-compose run --no-deps client flink --help
 
 ### Flink REST API
 
-The [Flink REST API]({% link ops/monitoring/rest_api.md %}#api) is exposed via
+The [Flink REST API]({% link ops/rest_api.md %}#api) is exposed via
 `localhost:8081` on the host or via `jobmanager:8081` from the client container, e.g. to list all
 currently running jobs, you can run:
 {% highlight bash%}
@@ -780,7 +780,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-Please consult the [REST API reference]({% link ops/monitoring/rest_api.md %}#api)
+Please consult the [REST API reference]({% link ops/rest_api.md %}#api)
 for a complete list of possible queries including how to query metrics of different scopes (e.g. 
 TaskManager metrics);
 
