@@ -293,7 +293,7 @@ See the [Queryable State Docs]({% link dev/stream/state/queryable_state.md %}) f
 
 Flink dynamically loads the code for jobs submitted to a session cluster. In addition, Flink tries to hide many dependencies in the classpath from the application. This helps to reduce dependency conflicts between the application code and the dependencies in the classpath.
 
-Please refer to the [Debugging Classloading Docs]({% link monitoring/debugging_classloading.md %}) for details.
+Please refer to the [Debugging Classloading Docs]({% link monitoring/debugging/debugging_classloading.md %}) for details.
 
 {% include generated/expert_class_loading_section.html %}
 

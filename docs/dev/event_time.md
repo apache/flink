@@ -49,7 +49,7 @@ exhibits.
 * [Builtin Watermark Generators]({% link dev/event_timestamp_extractors.md %}):
   Gives an overview of the builtin watermark generators.
 * [Debugging Windows & Event Time]({{ site.baseurl
-  }}/monitoring/debugging_event_time.html): Show how to debug problems around
+  }}/monitoring/debugging/debugging_event_time.html): Show how to debug problems around
   watermarks and timestamps in event-time Flink applications.
 
 {% top %}

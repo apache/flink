@@ -1,7 +1,7 @@
 ---
 title: "调试类加载"
-nav-parent_id: monitoring
-nav-pos: 14
+nav-parent_id: debugging
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
