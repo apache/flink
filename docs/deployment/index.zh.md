@@ -87,7 +87,7 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li><a href="{% link deployment/resource-providers/standalone/index.md %}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{% link deployment/resource-providers/standalone/docker.md %}">Docker, Docker Swarm / Compose</a>, <a href="{% link deployment/resource-providers/standalone/kubernetes.md %}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
                     </li>
                     <li><a href="{% link deployment/resource-providers/native_kubernetes.md %}">Kubernetes</a></li>
-                    <li><a href="{% link deployment/resource-providers/yarn_setup.md %}">YARN</a></li>
+                    <li><a href="{% link deployment/resource-providers/yarn.md %}">YARN</a></li>
                     <li><a href="{% link deployment/resource-providers/mesos.md %}">Mesos</a></li>
                 </ul>
             </td>

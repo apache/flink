@@ -1,7 +1,7 @@
 ---
 title: "Yarn"
 layout: redirect
-redirect: /deployment/resource-providers/yarn_setup.html
+redirect: /deployment/resource-providers/yarn.html
 permalink: /ops/deployment/yarn_setup.html
 ---
 <!--

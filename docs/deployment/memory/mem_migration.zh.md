@@ -190,7 +190,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 
 #### 占比
 
-此前，如果不指定明确的大小，也可以将托管内存配置为占用总内存减去网络内存和容器切除内存（仅在 [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 和
+此前，如果不指定明确的大小，也可以将托管内存配置为占用总内存减去网络内存和容器切除内存（仅在 [Yarn]({% link deployment/resource-providers/yarn.zh.md %}) 和
 [Mesos]({% link deployment/resource-providers/mesos.zh.md %}) 上）之后剩余部分的固定比例（`taskmanager.memory.fraction`）。
 该配置参数已经被彻底移除，配置它不会产生任何效果。
 请使用新的配置参数 [`taskmanager.memory.managed.fraction`]({% link deployment/config.zh.md %}#taskmanager-memory-managed-fraction)。
@@ -201,7 +201,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 #### RocksDB State Backend
 
 流处理作业如果选择使用 [RocksDBStateBackend]({% link ops/state/state_backends.zh.md %}#rocksdbstatebackend)，它使用的本地内存现在也被归为[托管内存]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory)。
-默认情况下，RocksDB 将限制其内存用量不超过[托管内存]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory)大小，以避免在 [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %}) 上容器被杀。你也可以通过设置 [state.backend.rocksdb.memory.managed]({% link deployment/config.zh.md %}#state-backend-rocksdb-memory-managed) 来关闭 RocksDB 的内存控制。
+默认情况下，RocksDB 将限制其内存用量不超过[托管内存]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory)大小，以避免在 [Yarn]({% link deployment/resource-providers/yarn.zh.md %}) 或 [Mesos]({% link deployment/resource-providers/mesos.zh.md %}) 上容器被杀。你也可以通过设置 [state.backend.rocksdb.memory.managed]({% link deployment/config.zh.md %}#state-backend-rocksdb-memory-managed) 来关闭 RocksDB 的内存控制。
 请参考[如何升级容器切除内存](#container-cut-off-memory)。
 
 <a name="other-changes" />
@@ -222,7 +222,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 * `jobmanager.heap.mb`
 
 尽管这两个参数以“堆（Heap）”命名，在此之前它们实际上只有在[独立部署模式]({% link deployment/resource-providers/standalone/index.zh.md %})才完全对应于 *JVM 堆内存*。
-在容器化部署模式下（[Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}) 和 [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
+在容器化部署模式下（[Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}) 和 [Yarn]({% link deployment/resource-providers/yarn.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
 *JVM 堆空间*的实际大小，是参数指定的大小减去容器切除（Cut-Off）内存后剩余的部分。
 容器切除内存在 *1.11* 及以上版本中已被彻底移除。
 

@@ -100,7 +100,7 @@ in your implementation.
 
 For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
 All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
-See also **[Hadoop Integration]({% link deployment/resource-providers/hadoop.md %})**.
+
 
 This way, Flink seamlessly supports all of Hadoop file systems implementing the `org.apache.hadoop.fs.FileSystem` interface,
 and all Hadoop-compatible file systems (HCFS).
