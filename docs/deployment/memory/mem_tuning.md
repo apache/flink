@@ -32,7 +32,7 @@ depending on the use case and which options are important for each case.
 
 It is recommended to configure [total Flink memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory)
 ([`taskmanager.memory.flink.size`]({% link deployment/config.md %}#taskmanager-memory-flink-size) or [`jobmanager.memory.flink.size`]({% link deployment/config.md %}#jobmanager-memory-flink-size))
-or its components for [standalone deployment]({% link deployment/resource-providers/cluster_setup.md %}) where you want to declare how much memory
+or its components for [standalone deployment]({% link deployment/resource-providers/standalone/index.md %}) where you want to declare how much memory
 is given to Flink itself. Additionally, you can adjust *JVM metaspace* if it causes [problems]({% link deployment/memory/mem_trouble.md %}#outofmemoryerror-metaspace).
 
 The *total Process memory* is not relevant because *JVM overhead* is not controlled by Flink or the deployment environment,
@@ -42,7 +42,7 @@ only physical resources of the executing machine matter in this case.
 
 It is recommended to configure [total process memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory)
 ([`taskmanager.memory.process.size`]({% link deployment/config.md %}#taskmanager-memory-process-size) or [`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size))
-for the containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}), [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) or [Mesos]({% link deployment/resource-providers/mesos.md %})).
+for the containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}), [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) or [Mesos]({% link deployment/resource-providers/mesos.md %})).
 It declares how much memory in total should be assigned to the Flink *JVM process* and corresponds to the size of the requested container.
 
 <span class="label label-info">Note</span> If you configure the *total Flink memory* Flink will implicitly add JVM memory components

@@ -1,8 +1,8 @@
 ---
-title:  "Docker 设置"
+title:  "Docker Setup"
 nav-title: Docker
-nav-parent_id: resource_providers
-nav-pos: 6
+nav-parent_id: standalone
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +26,7 @@ under the License.
 [Docker](https://www.docker.com) is a popular container runtime.
 There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
 You can use the docker images to deploy a *Session* or *Job cluster* in a containerized environment, e.g.,
-[standalone Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %}).
+[standalone Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}).
 
 * This will be replaced by the TOC
 {:toc}
@@ -47,7 +47,7 @@ For example, you can use the following aliases:
 * `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
 * `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.11`
 
-<span class="label label-info">Note</span>It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
+<span class="label label-info">Note</span> It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
 versions (for example `flink:1.11-scala_2.12`).
 This will avoid some class conflicts that can occur if the Flink and/or Scala versions used in the application are different
 from the versions provided by the docker image.
@@ -61,24 +61,24 @@ that do not include a bundled Hadoop distribution.
 
 The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
 You can run its entry point in the following modes:
-* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Session cluster](#start-a-session-cluster)
-* [JobManager]({% link concepts/glossary.zh.md %}#flink-jobmanager) for [a Job cluster](#start-a-job-cluster)
-* [TaskManager]({% link concepts/glossary.zh.md %}#flink-taskmanager) for any cluster
+* [JobManager]({% link concepts/glossary.md %}#flink-jobmanager) for [a Session cluster](#start-a-session-cluster)
+* [JobManager]({% link concepts/glossary.md %}#flink-jobmanager) for [a Job cluster](#start-a-job-cluster)
+* [TaskManager]({% link concepts/glossary.md %}#flink-taskmanager) for any cluster
 
 This allows you to deploy a standalone cluster (Session or Job) in any containerised environment, for example:
 * manually in a local Docker setup,
-* [in a Kubernetes cluster]({% link deployment/resource-providers/kubernetes.zh.md %}),
+* [in a Kubernetes cluster]({% link deployment/resource-providers/standalone/kubernetes.md %}),
 * [with Docker Compose](#flink-with-docker-compose),
 * [with Docker swarm](#flink-with-docker-swarm).
 
-<span class="label label-info">Note</span> [The native Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %}) also runs the same image by default
+<span class="label label-info">Note</span> [The native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}) also runs the same image by default
 and deploys *TaskManagers* on demand so that you do not have to do it manually.
 
 The next chapters describe how to start a single Flink Docker container for various purposes.
 
 Once you've started Flink on Docker, you can access the Flink Webfrontend on [localhost:8081](http://localhost:8081/#/overview) or submit jobs like this `./bin/flink run ./examples/streaming/TopSpeedWindowing.jar`.
 
-We recommend using [Docker Compose]({% link deployment/resource-providers/docker.zh.md %}#session-cluster-with-docker-compose) or [Docker Swarm]({% link deployment/resource-providers/docker.zh.md %}#session-cluster-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
+We recommend using [Docker Compose]({% link deployment/resource-providers/standalone/docker.md %}#session-cluster-with-docker-compose) or [Docker Swarm]({% link deployment/resource-providers/standalone/docker.md %}#session-cluster-with-docker-swarm) for deploying Flink as a Session Cluster to ease system configuration.
 
 ### Start a Session Cluster
 
@@ -221,7 +221,7 @@ blob.server.port: 6124
 docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %} <jobmanager|standalone-job|taskmanager>
 ```
 
-The [`jobmanager.rpc.address`]({% link deployment/config.zh.md %}#jobmanager-rpc-address) option must be configured, others are optional to set.
+The [`jobmanager.rpc.address`]({% link deployment/config.md %}#jobmanager-rpc-address) option must be configured, others are optional to set.
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
 the same way as in the `flink-conf.yaml`. `FLINK_PROPERTIES` takes precedence over configurations in `flink-conf.yaml`.
@@ -254,7 +254,7 @@ The `flink-conf.yaml` file must have write permission so that the Docker entry p
 
 ### Using plugins
 
-As described in the [plugins]({% link deployment/filesystems/plugins.zh.md %}) documentation page: in order to use plugins they must be
+As described in the [plugins]({% link deployment/filesystems/plugins.md %}) documentation page: in order to use plugins they must be
 copied to the correct location in the Flink installation in the Docker container for them to work.
 
 If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.
@@ -277,7 +277,7 @@ There are several ways in which you can further customize the Flink image:
 * add other libraries to `/opt/flink/lib` (e.g. Hadoop)
 * add other plugins to `/opt/flink/plugins`
 
-See also: [How to provide dependencies in the classpath]({% link index.zh.md %}#how-to-provide-dependencies-in-the-classpath).
+See also: [How to provide dependencies in the classpath]({% link index.md %}#how-to-provide-dependencies-in-the-classpath).
 
 You can customize the Flink image in several ways:
 
@@ -395,13 +395,13 @@ The next chapters show examples of configuration files to run Flink.
 
 * To submit a job to a *Session cluster* via the command line, you can either
 
-  * use [Flink CLI]({% link deployment/cli.zh.md %}) on the host if it is installed:
+  * use [Flink CLI]({% link deployment/cli.md %}) on the host if it is installed:
 
     ```sh
     flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-  * or copy the JAR to the *JobManager* container and submit the job using the [CLI]({% link deployment/cli.zh.md %}) from there, for example:
+  * or copy the JAR to the *JobManager* container and submit the job using the [CLI]({% link deployment/cli.md %}) from there, for example:
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"

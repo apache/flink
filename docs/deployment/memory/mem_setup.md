@@ -59,7 +59,7 @@ The simplest way to setup memory in Flink is to configure either of the two foll
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
 See also how to set up other components for [TaskManager]({% link deployment/memory/mem_setup_tm.md %}) and [JobManager]({% link deployment/memory/mem_setup_jobmanager.md %}) memory.
 
-Configuring *total Flink memory* is better suited for [standalone deployments]({% link deployment/resource-providers/cluster_setup.md %})
+Configuring *total Flink memory* is better suited for [standalone deployments]({% link deployment/resource-providers/standalone/index.md %})
 where you want to declare how much memory is given to Flink itself. The *total Flink memory* splits up into *JVM Heap*
 and *Off-heap* memory.
 See also [how to configure memory for standalone deployments]({% link deployment/memory/mem_tuning.md %}#configure-memory-for-standalone-deployment).
@@ -67,7 +67,7 @@ See also [how to configure memory for standalone deployments]({% link deployment
 If you configure *total process memory* you declare how much memory in total should be assigned to the Flink *JVM process*.
 For the containerized deployments it corresponds to the size of the requested container, see also
 [how to configure memory for containers]({% link deployment/memory/mem_tuning.md %}#configure-memory-for-containers)
-([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}), [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) or [Mesos]({% link deployment/resource-providers/mesos.md %})).
+([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}), [Yarn]({% link deployment/resource-providers/yarn_setup.md %}) or [Mesos]({% link deployment/resource-providers/mesos.md %})).
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
 specific to the concrete Flink process. Check how to configure them for [TaskManager]({% link deployment/memory/mem_setup_tm.md %}#configure-heap-and-managed-memory)

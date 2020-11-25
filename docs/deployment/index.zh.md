@@ -120,7 +120,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         Run Flink locally for basic testing and experimentation
-        <br><a href="{% link deployment/resource-providers/local.zh.md %}">Learn more</a>
+        <br><a href="{% link deployment/resource-providers/standalone/local.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -131,7 +131,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A simple solution for running Flink on bare metal or VM's 
-        <br><a href="{% link deployment/resource-providers/cluster_setup.zh.md %}">Learn more</a>
+        <br><a href="{% link deployment/resource-providers/standalone/index.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         A popular solution for running Flink within a containerized environment
-        <br><a href="{% link deployment/resource-providers/docker.zh.md %}">Learn more</a>
+        <br><a href="{% link deployment/resource-providers/standalone/docker.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>
@@ -177,7 +177,7 @@ Apache Flink ships with first class support for a number of common deployment ta
       </div>
       <div class="panel-body">
         An automated system for deploying containerized applications
-        <br><a href="{% link deployment/resource-providers/kubernetes.zh.md %}">Learn more</a>
+        <br><a href="{% link deployment/resource-providers/standalone/kubernetes.zh.md %}">Learn more</a>
       </div>
     </div>
   </div>

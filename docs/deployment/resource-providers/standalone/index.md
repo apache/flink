@@ -1,7 +1,9 @@
 ---
-title: "Standalone Cluster"
+title: "Standalone"
+nav-id: standalone
 nav-parent_id: resource_providers
 nav-pos: 3
+nav-show_overview: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -37,7 +37,7 @@ Getting Started
 
 This section describes how to setup and run your first Flink SQL program from the command-line.
 
-The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{ site.baseurl }}/deployment/resource-providers/cluster_setup.html) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{ site.baseurl }}/deployment/resource-providers/standalone/index.html) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
 
 {% highlight bash %}
 ./bin/start-cluster.sh

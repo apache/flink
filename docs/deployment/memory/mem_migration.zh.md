@@ -105,7 +105,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{%link deployment/resource-providers/cluster_setup.zh.md %}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link deployment/config.zh.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li><a href="{%link deployment/resource-providers/standalone/index.zh.md %}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link deployment/config.zh.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
                   <li>容器化部署模式（Containerized Deployement）下：<a href="{%link deployment/config.zh.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
@@ -221,14 +221,14 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
-尽管这两个参数以“堆（Heap）”命名，在此之前它们实际上只有在[独立部署模式]({% link deployment/resource-providers/cluster_setup.zh.md %})才完全对应于 *JVM 堆内存*。
-在容器化部署模式下（[Kubernetes]({% link deployment/resource-providers/kubernetes.zh.md %}) 和 [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
+尽管这两个参数以“堆（Heap）”命名，在此之前它们实际上只有在[独立部署模式]({% link deployment/resource-providers/standalone/index.zh.md %})才完全对应于 *JVM 堆内存*。
+在容器化部署模式下（[Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}) 和 [Yarn]({% link deployment/resource-providers/yarn_setup.zh.md %})），它们指定的内存还包含了其他堆外内存部分。
 *JVM 堆空间*的实际大小，是参数指定的大小减去容器切除（Cut-Off）内存后剩余的部分。
 容器切除内存在 *1.11* 及以上版本中已被彻底移除。
 
 上述两个参数此前对 [Mesos]({% link deployment/resource-providers/mesos.zh.md %}) 部署模式并不生效。
 Flink 在 Mesos 上启动 JobManager 进程时并未设置任何 JVM 内存参数。
-从 *1.11* 版本开始，Flink 将采用与[独立部署模式]({% link deployment/resource-providers/cluster_setup.zh.md %})相同的方式设置这些参数。
+从 *1.11* 版本开始，Flink 将采用与[独立部署模式]({% link deployment/resource-providers/standalone/index.zh.md %})相同的方式设置这些参数。
 
 这两个配置参数目前已被弃用。
 如果配置了上述弃用的参数，同时又没有配置与之对应的新配置参数，那它们将按如下规则对应到新的配置参数。
