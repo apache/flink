@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
+
 /**
  * Base class for all stream operators to execute Python functions.
  */
@@ -163,6 +165,12 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			invokeFinishBundle();
 		} finally {
 			super.close();
+
+			try {
+				cleanUpLeakingClasses(this.getClass().getClassLoader());
+			} catch (Throwable t) {
+				LOG.warn("Failed to clean up the leaking objects.", t);
+			}
 		}
 	}
 
