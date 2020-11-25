@@ -390,8 +390,9 @@ object RelNodeBlockPlanBuilder {
   val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.union-all-as-breakpoint-enabled")
         .defaultValue(JBoolean.valueOf(true))
-        .withDescription("When true, the optimizer will breakup the graph at union-all node when it's a breakpoint." +
-          "When false, the optimizer will skip the union all node even it's a breakpoint, and try find the breakpoint in its inputs.")
+        .withDescription("When true, the optimizer will breakup the graph at union-all node " +
+          "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
+          "even it's a breakpoint, and will try find the breakpoint in its inputs.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
