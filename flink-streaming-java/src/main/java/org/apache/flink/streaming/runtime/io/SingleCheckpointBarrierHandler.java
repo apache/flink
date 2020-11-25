@@ -118,12 +118,17 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 			currentCheckpointId = barrierId;
 			numBarriersReceived = 0;
 			allBarriersReceivedFuture = new CompletableFuture<>();
-			if (controller.preProcessFirstBarrier(channelInfo, barrier)) {
-				LOG.debug("{}: Triggering checkpoint {} on the first barrier at {}.",
-					taskName,
-					barrier.getId(),
-					barrier.getTimestamp());
-				notifyCheckpoint(barrier);
+			try {
+				if (controller.preProcessFirstBarrier(channelInfo, barrier)) {
+					LOG.debug("{}: Triggering checkpoint {} on the first barrier at {}.",
+						taskName,
+						barrier.getId(),
+						barrier.getTimestamp());
+					notifyCheckpoint(barrier);
+				}
+			} catch (CheckpointException e) {
+				abortInternal(barrier.getId(), e);
+				return;
 			}
 		}
 
@@ -158,14 +163,16 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long cancelledId = cancelBarrier.getCheckpointId();
-		if (currentCheckpointId > cancelledId || (currentCheckpointId == cancelledId && numBarriersReceived == 0)) {
-			return;
+		if (cancelledId > currentCheckpointId || (cancelledId == currentCheckpointId && numBarriersReceived > 0)) {
+			abortInternal(cancelledId, new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 		}
+	}
+
+	private void abortInternal(long cancelledId, CheckpointException exception) throws IOException {
 		// by setting the currentCheckpointId to this checkpoint while keeping the numBarriers
 		// at zero means that no checkpoint barrier can start a new alignment
-		currentCheckpointId = cancelledId;
+		currentCheckpointId = Math.max(cancelledId, currentCheckpointId);
 		numBarriersReceived = 0;
-		CheckpointException exception = new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
 		controller.abortPendingCheckpoint(cancelledId, exception);
 		allBarriersReceivedFuture.completeExceptionally(exception);
 		notifyAbort(cancelledId, exception);

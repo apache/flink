@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -36,7 +38,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
@@ -507,7 +508,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * Spills all queued buffers on checkpoint start. If barrier has already been received (and reordered), spill only
 	 * the overtaken buffers.
 	 */
-	public void checkpointStarted(CheckpointBarrier barrier) {
+	public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
 		synchronized (receivedBuffers) {
 			channelStatePersister.startPersisting(
 				barrier.getId(),
@@ -526,7 +527,7 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	@VisibleForTesting
-	List<Buffer> getInflightBuffers(long checkpointId) {
+	List<Buffer> getInflightBuffers(long checkpointId) throws CheckpointException {
 		synchronized (receivedBuffers) {
 			return getInflightBuffersUnsafe(checkpointId);
 		}
@@ -535,13 +536,16 @@ public class RemoteInputChannel extends InputChannel {
 	/**
 	 * Returns a list of buffers, checking the first n non-priority buffers, and skipping all events.
 	 */
-	private List<Buffer> getInflightBuffersUnsafe(long checkpointId) {
+	private List<Buffer> getInflightBuffersUnsafe(long checkpointId) throws CheckpointException {
 		assert Thread.holdsLock(receivedBuffers);
 
+		if (checkpointId < lastBarrierId) {
+			throw new CheckpointException(
+				String.format("Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)", checkpointId, lastBarrierId),
+				CheckpointFailureReason.CHECKPOINT_SUBSUMED); // currently, at most one active unaligned checkpoint is possible
+		}
+
 		final List<Buffer> inflightBuffers = new ArrayList<>();
-		Preconditions.checkState(
-			checkpointId >= lastBarrierId,
-			"Sequence number for checkpoint %s is not known (it was likely been overwritten by a newer checkpoint %s)", checkpointId, lastBarrierId);
 		Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
 		// skip all priority events (only buffers are stored anyways)
 		Iterators.advance(iterator, receivedBuffers.getNumPriorityElements());
