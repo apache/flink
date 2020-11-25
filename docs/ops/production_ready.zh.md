@@ -57,7 +57,7 @@ To establish a stable mapping, we need stable operator uids provided by the user
 The JobManager serves as a central coordinator for each Flink deployment, being responsible for both scheduling and resource management of the cluster.
 It is a single point of failure within the cluster, and if it crashes, no new jobs can be submitted, and running applications will fail. 
 
-Configuring [High Availability]({% link deployment/jobmanager_high_availability.zh.md %}), in conjunction with Apache Zookeeper, allows for a swift recovery and is highly recommended for production setups. 
+Configuring [High Availability]({% link deployment/ha/index.zh.md %}), in conjunction with Apache Zookeeper, allows for a swift recovery and is highly recommended for production setups. 
 
 
 {% top %}
