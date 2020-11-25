@@ -40,11 +40,11 @@ import static org.hamcrest.CoreMatchers.is;
  * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link ScalaEitherSerializerSnapshot}.
  */
 @RunWith(Parameterized.class)
-public class ScalaOptionSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
+public class OptionSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Option<String>, Option<String>> {
 
 	private static final String SPEC_NAME = "scala-option-serializer";
 
-	public ScalaOptionSerializerUpgradeTest(TestSpecification<Option<String>, Option<String>> testSpecification) {
+	public OptionSerializerUpgradeTest(TestSpecification<Option<String>, Option<String>> testSpecification) {
 		super(testSpecification);
 	}
 
