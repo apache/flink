@@ -98,6 +98,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 	protected static final String NUM_FAILURES = "failures";
 	protected static final String NUM_DUPLICATES = "duplicates";
 	protected static final String NUM_LOST = "lost";
+	public static final int BUFFER_PER_CHANNEL = 1;
 
 	@Rule
 	public final TemporaryFolder temp = new TemporaryFolder();
@@ -445,7 +446,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 				conf.set(SavepointConfigOptions.SAVEPOINT_PATH, restoreCheckpoint.toURI().toString());
 			}
 
-			conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 1);
+			conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
 			conf.set(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, slotsPerTaskManager);
 
 			final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
