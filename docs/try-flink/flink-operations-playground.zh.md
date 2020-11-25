@@ -545,7 +545,7 @@ docker-compose scale taskmanager=2
 
 ### 查询 Job 指标
 
-可以通过 JobManager 提供的 REST API 来获取系统和用户[指标]({%link monitoring/metrics.zh.md %})
+可以通过 JobManager 提供的 REST API 来获取系统和用户[指标]({%link ops/metrics.zh.md %})
 
 具体请求方式取决于我们想查询哪类指标，Job 相关的指标分类可通过 `jobs/<job-id>/metrics` 
 获得，而要想查询某类指标的具体值则可以在请求地址后跟上 `get` 参数。
@@ -813,4 +813,4 @@ curl localhost:8081/jobs/<jod-id>
 
 *Click Event Count* 这个 Job 还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的 `docker-compose.yaml` 文件中添加该选项从而观察该 Job 在反压下的表现，该选项描述如下：
 
-* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({%link monitoring/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link ops/monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。
+* `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({%link ops/metrics.zh.md %}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({%link ops/monitoring/back_pressure.zh.md %}#monitoring-back-pressure)也可以观察到。

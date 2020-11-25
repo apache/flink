@@ -101,7 +101,7 @@ or derived memory component sizes:
 | *-XX:MaxMetaspaceSize*                                                                 | JVM Metaspace                                      | JVM Metaspace                                     |
 {:.table-bordered}
 (\*) Keep in mind that you might not be able to use the full amount of heap memory depending on the GC algorithm used. Some GC algorithms allocate a certain amount of heap memory for themselves. 
-This will lead to a different maximum being returned by the [Heap metrics]({% link monitoring/metrics.md %}#memory).
+This will lead to a different maximum being returned by the [Heap metrics]({% link ops/metrics.md %}#memory).
 <br/>
 (\*\*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
 <br/>

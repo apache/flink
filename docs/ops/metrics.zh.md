@@ -1,7 +1,7 @@
 ---
 title: "指标"
-nav-parent_id: monitoring
-nav-pos: 1
+nav-parent_id: ops
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -797,7 +797,7 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
 </table>
 
 
-### Network (Deprecated: use [Default shuffle service metrics]({% link monitoring/metrics.zh.md %}#default-shuffle-service))
+### Network (Deprecated: use [Default shuffle service metrics]({% link ops/metrics.zh.md %}#default-shuffle-service))
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1185,42 +1185,42 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     <tr>
       <th rowspan="13"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInLocalPerSecond</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBytesInRemote</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInRemotePerSecond</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBuffersInLocal</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBuffersInLocalPerSecond</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBuffersInRemote</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBuffersInRemotePerSecond</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link monitoring/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{% link ops/metrics.zh.md %}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
