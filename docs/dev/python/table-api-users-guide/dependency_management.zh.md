@@ -29,7 +29,7 @@ under the License.
 
 # Java 依赖管理
 
-如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 {% highlight python %}
 # 通过 "pipeline.jars" 参数指定 jar 包 URL列表， 每个 URL 使用 ";" 分隔。这些 jar 包最终会被上传到集群中。
@@ -45,7 +45,7 @@ table_env.get_config().get_configuration().set_string("pipeline.classpaths", "fi
 
 # Python 依赖管理
 
-如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 <table class="table table-bordered">
   <thead>
@@ -145,6 +145,6 @@ You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sq
 on how to create Python user-defined functions using SQL statements.
 
 The Python dependencies could be specified via the Python [config options]({% link  dev/python/python_config.zh.md %}#python-options),
-such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link ops/cli.zh.md %}#usage) when submitting the job.
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link deployment/cli.zh.md %}#usage) when submitting the job.
 
 

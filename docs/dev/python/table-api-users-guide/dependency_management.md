@@ -27,7 +27,7 @@ under the License.
 
 # Java Dependency in Python Program
 
-If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";" and will be uploaded to the cluster.
@@ -41,7 +41,7 @@ table_env.get_config().get_configuration().set_string("pipeline.classpaths", "fi
 
 # Python Dependency in Python Program
 
-If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>
@@ -139,4 +139,4 @@ You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sq
 on how to create Python user-defined functions using SQL statements.
 
 The Python dependencies could be specified via the Python [config options]({% link  dev/python/python_config.md %}#python-options),
-such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link ops/cli.md %}#usage) when submitting the job.
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link deployment/cli.md %}#usage) when submitting the job.

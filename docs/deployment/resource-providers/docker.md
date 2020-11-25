@@ -395,13 +395,13 @@ The next chapters show examples of configuration files to run Flink.
 
 * To submit a job to a *Session cluster* via the command line, you can either
 
-  * use [Flink CLI]({% link ops/cli.md %}) on the host if it is installed:
+  * use [Flink CLI]({% link deployment/cli.md %}) on the host if it is installed:
 
     ```sh
     flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
 
-  * or copy the JAR to the *JobManager* container and submit the job using the [CLI]({% link ops/cli.md %}) from there, for example:
+  * or copy the JAR to the *JobManager* container and submit the job using the [CLI]({% link deployment/cli.md %}) from there, for example:
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"
