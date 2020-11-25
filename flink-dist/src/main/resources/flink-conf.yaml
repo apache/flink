@@ -121,7 +121,7 @@ parallelism.default: 1
 
 # Default target directory for savepoints, optional.
 #
-# state.savepoints.dir: hdfs://namenode-host:port/flink-checkpoints
+# state.savepoints.dir: hdfs://namenode-host:port/flink-savepoints
 
 # Flag to enable/disable incremental checkpoints for backends that
 # support incremental checkpoints (like the RocksDB state backend). 
