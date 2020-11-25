@@ -94,7 +94,7 @@ public class Buckets<IN, BucketID> {
 	 * @param bucketWriter The {@link BucketWriter} to be used when writing data.
 	 * @param rollingPolicy The {@link RollingPolicy} as specified by the user.
 	 */
-	Buckets(
+	public Buckets(
 			final Path basePath,
 			final BucketAssigner<IN, BucketID> bucketAssigner,
 			final BucketFactory<IN, BucketID> bucketFactory,
