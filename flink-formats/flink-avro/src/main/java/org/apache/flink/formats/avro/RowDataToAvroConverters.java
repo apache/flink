@@ -42,7 +42,9 @@ import java.util.Map;
 
 import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
 
-/** Tool class used to convert from {@link RowData} to Avro {@link GenericRecord}. **/
+/**
+ * Tool class used to convert from {@link RowData} to Avro {@link GenericRecord}.
+ */
 @Internal
 public class RowDataToAvroConverters {
 
@@ -58,6 +60,13 @@ public class RowDataToAvroConverters {
 	public interface RowDataToAvroConverter extends Serializable {
 		Object convert(Schema schema, Object object);
 	}
+
+	// --------------------------------------------------------------------------------
+	// IMPORTANT! We use anonymous classes instead of lambdas for a reason here. It is
+	// necessary because the maven shade plugin cannot relocate classes in
+	// SerializedLambdas (MSHADE-260). On the other hand we want to relocate Avro for
+	// sql-client uber jars.
+	// --------------------------------------------------------------------------------
 
 	/**
 	 * Creates a runtime converter accroding to the given logical type that converts objects
