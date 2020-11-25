@@ -1,6 +1,6 @@
 ---
 title: "Python REPL"
-nav-parent_id: ops
+nav-parent_id: repls
 nav-pos: 6
 ---
 <!--

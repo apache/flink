@@ -1,8 +1,8 @@
 ---
-title: "Scala Shell"
-layout: redirect
-redirect: /deployment/repls/scala_shell.html
-permalink: /apis/scala_shell.html
+title: "REPLs"
+nav-id: repls
+nav-parent_id: deployment
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
