@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
@@ -38,7 +39,7 @@ public interface CheckpointableInput {
 
 	int getNumberOfInputChannels();
 
-	void checkpointStarted(CheckpointBarrier barrier);
+	void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException;
 
 	void checkpointStopped(long cancelledCheckpointId);
 

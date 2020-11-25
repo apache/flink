@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -1254,7 +1255,7 @@ public class RemoteInputChannelTest {
 		channel.checkError();
 	}
 
-	private void assertInflightBufferSizes(RemoteInputChannel channel, Integer ...bufferSizes) {
+	private void assertInflightBufferSizes(RemoteInputChannel channel, Integer ...bufferSizes) throws CheckpointException {
 		assertEquals(Arrays.asList(bufferSizes), toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)));
 	}
 

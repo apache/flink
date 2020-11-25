@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -173,7 +174,7 @@ public abstract class InputChannel {
 	/**
 	 * Called by task thread when checkpointing is started (e.g., any input channel received barrier).
 	 */
-	public void checkpointStarted(CheckpointBarrier barrier) {
+	public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
 	}
 
 	/**
