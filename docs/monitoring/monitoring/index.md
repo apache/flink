@@ -1,8 +1,8 @@
 ---
-title: "Monitoring REST API"
-layout: redirect
-redirect: /monitoring/monitoring/rest_api.html
-permalink: /internals/monitoring_rest_api.html
+title: "Monitoring"
+nav-id: monitoring_group
+nav-parent_id: monitoring
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
