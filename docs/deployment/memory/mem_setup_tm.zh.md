@@ -29,11 +29,11 @@ Flink 的 TaskManager 负责执行用户代码。
 {:toc}
 
 本文接下来介绍的内存配置方法适用于 *1.10* 及以上版本。
-Flink 在 1.10 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({% link ops/memory/mem_migration.zh.md %})。
+Flink 在 1.10 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({% link deployment/memory/mem_migration.zh.md %})。
 
 <span class="label label-info">提示</span>
 本篇内存配置文档<strong>仅针对 TaskManager</strong>！
-与 [JobManager]({% link ops/memory/mem_setup_jobmanager.zh.md %}) 相比，TaskManager 具有相似但更加复杂的内存模型。
+与 [JobManager]({% link deployment/memory/mem_setup_jobmanager.zh.md %}) 相比，TaskManager 具有相似但更加复杂的内存模型。
 
 <a name="configure-total-memory" />
 
@@ -49,7 +49,7 @@ Flink JVM 进程的*进程总内存（Total Process Memory）*包含了由 Flink
 
 如果你是在本地运行 Flink（例如在 IDE 中）而非创建一个集群，那么本文介绍的配置并非所有都是适用的，详情请参考[本地执行](#local-execution)。
 
-其他情况下，配置 Flink 内存最简单的方法就是[配置总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)。
+其他情况下，配置 Flink 内存最简单的方法就是[配置总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)。
 此外，Flink 也支持[更细粒度的内存配置方式](#configure-heap-and-managed-memory)。
 
 Flink 会根据默认值或其他配置参数自动调整剩余内存部分的大小。
@@ -92,7 +92,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 当同时指定二者时，会优先采用指定的大小（Size）。
 若二者均未指定，会根据[默认占比]({% link ops/config.zh.md %}#taskmanager-memory-managed-fraction)进行计算。
 
-请同时参考[如何配置 State Backend 内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-state-backends)以及[如何配置批处理作业内存]({% link ops/memory/mem_tuning.zh.md %}#configure-memory-for-batch-jobs)。
+请同时参考[如何配置 State Backend 内存]({% link deployment/memory/mem_tuning.zh.md %}#configure-memory-for-state-backends)以及[如何配置批处理作业内存]({% link deployment/memory/mem_tuning.zh.md %}#configure-memory-for-batch-jobs)。
 
 <a name="consumer-weights" />
 
@@ -126,7 +126,7 @@ Flink 会根据默认值或其他配置参数自动调整剩余内存部分的�
 你也可以调整[框架堆外内存（Framework Off-heap Memory）](#framework-memory)。
 这是一个进阶配置，建议仅在确定 Flink 框架需要更多的内存时调整该配置。
 
-Flink 将*框架堆外内存*和*任务堆外内存*都计算在 JVM 的*直接内存*限制中，请参考 [JVM 参数]({% link ops/memory/mem_setup.zh.md %}#jvm-parameters)。
+Flink 将*框架堆外内存*和*任务堆外内存*都计算在 JVM 的*直接内存*限制中，请参考 [JVM 参数]({% link deployment/memory/mem_setup.zh.md %}#jvm-parameters)。
 
 <span class="label label-info">提示</span>
 本地内存（非直接内存）也可以被归在*框架堆外内存*或*任务堆外内存*中，在这种情况下 JVM 的*直接内存*限制可能会高于实际需求。
@@ -157,9 +157,9 @@ Flink 会负责管理网络内存，保证其实际用量不会超过配置大�
 | [托管内存（Managed memory）](#managed-memory)                                  | [`taskmanager.memory.managed.size`]({% link ops/config.zh.md %}#taskmanager-memory-managed-size) <br/> [`taskmanager.memory.managed.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-managed-fraction)                                                                                                                     | 由 Flink 管理的用于排序、哈希表、缓存中间结果及 RocksDB State Backend 的本地内存。                                                                                                                                                |
 | [框架堆外内存（Framework Off-heap Memory）](#framework-memory)                     | [`taskmanager.memory.framework.off-heap.size`]({% link ops/config.zh.md %}#taskmanager-memory-framework-off-heap-size)                                                                                                                                                                                                 | 用于 Flink 框架的[堆外内存（直接内存或本地内存）](#configure-off-heap-memory-direct-or-native)（进阶配置）。                                                                                                                                            |
 | [任务堆外内存（Task Off-heap Memory）](#configure-off-heap-memory-direct-or-native)| [`taskmanager.memory.task.off-heap.size`]({% link ops/config.zh.md %}#taskmanager-memory-task-off-heap-size)                                                                                                                                                                                                           | 	用于 Flink 应用的算子及用户代码的[堆外内存（直接内存或本地内存）](#configure-off-heap-memory-direct-or-native)。                                                                                                                                           |
-| 网络内存（Network Memory）                                                     | [`taskmanager.memory.network.min`]({% link ops/config.zh.md %}#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`]({% link ops/config.zh.md %}#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-network-fraction)                               | 用于任务之间数据传输的直接内存（例如网络传输缓冲）。该内存部分为基于 [Flink 总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)的[受限的等比内存部分]({% link ops/memory/mem_setup.zh.md %}#capped-fractionated-components)。 |
-| [JVM Metaspace]({% link ops/memory/mem_setup.zh.md %}#jvm-parameters)                     | [`taskmanager.memory.jvm-metaspace.size`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-metaspace-size)                                                                                                                                                                                                           | Flink JVM 进程的 Metaspace。                                                                                                                                                                                                                                      |
-| JVM 开销                                                       | [`taskmanager.memory.jvm-overhead.min`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-min) <br/> [`taskmanager.memory.jvm-overhead.max`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-max) <br/> [`taskmanager.memory.jvm-overhead.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-fraction) | 用于其他 JVM 开销的本地内存，例如栈空间、垃圾回收空间等。该内存部分为基于[进程总内存]({% link ops/memory/mem_setup.zh.md %}#configure-total-memory)的[受限的等比内存部分]({% link ops/memory/mem_setup.zh.md %}#capped-fractionated-components)。    |
+| 网络内存（Network Memory）                                                     | [`taskmanager.memory.network.min`]({% link ops/config.zh.md %}#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`]({% link ops/config.zh.md %}#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-network-fraction)                               | 用于任务之间数据传输的直接内存（例如网络传输缓冲）。该内存部分为基于 [Flink 总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)的[受限的等比内存部分]({% link deployment/memory/mem_setup.zh.md %}#capped-fractionated-components)。 |
+| [JVM Metaspace]({% link deployment/memory/mem_setup.zh.md %}#jvm-parameters)                     | [`taskmanager.memory.jvm-metaspace.size`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-metaspace-size)                                                                                                                                                                                                           | Flink JVM 进程的 Metaspace。                                                                                                                                                                                                                                      |
+| JVM 开销                                                       | [`taskmanager.memory.jvm-overhead.min`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-min) <br/> [`taskmanager.memory.jvm-overhead.max`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-max) <br/> [`taskmanager.memory.jvm-overhead.fraction`]({% link ops/config.zh.md %}#taskmanager-memory-jvm-overhead-fraction) | 用于其他 JVM 开销的本地内存，例如栈空间、垃圾回收空间等。该内存部分为基于[进程总内存]({% link deployment/memory/mem_setup.zh.md %}#configure-total-memory)的[受限的等比内存部分]({% link deployment/memory/mem_setup.zh.md %}#capped-fractionated-components)。    |
 {:.table-bordered}
 <br/>
 

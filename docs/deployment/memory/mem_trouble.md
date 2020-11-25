@@ -35,11 +35,11 @@ greater than 1, etc.) or configuration conflicts. Check the documentation chapte
 ## OutOfMemoryError: Java heap space
 
 The exception usually indicates that the *JVM Heap* is too small. You can try to increase the JVM Heap size
-by increasing [total memory]({% link ops/memory/mem_setup.md %}#configure-total-memory). You can also directly increase
-[task heap memory]({% link ops/memory/mem_setup_tm.md %}#task-operator-heap-memory) for TaskManagers or
-[JVM Heap memory]({% link ops/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) for JobManagers.
+by increasing [total memory]({% link deployment/memory/mem_setup.md %}#configure-total-memory). You can also directly increase
+[task heap memory]({% link deployment/memory/mem_setup_tm.md %}#task-operator-heap-memory) for TaskManagers or
+[JVM Heap memory]({% link deployment/memory/mem_setup_jobmanager.md %}#configure-jvm-heap) for JobManagers.
 
-<span class="label label-info">Note</span> You can also increase the [framework heap memory]({% link ops/memory/mem_setup_tm.md %}#framework-memory)
+<span class="label label-info">Note</span> You can also increase the [framework heap memory]({% link deployment/memory/mem_setup_tm.md %}#framework-memory)
 for TaskManagers, but you should only change this option if you are sure the Flink framework itself needs more memory.
 
 ## OutOfMemoryError: Direct buffer memory
@@ -47,12 +47,12 @@ for TaskManagers, but you should only change this option if you are sure the Fli
 The exception usually indicates that the JVM *direct memory* limit is too small or that there is a *direct memory leak*.
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting direct off-heap memory.
-See also how to configure off-heap memory for [TaskManagers]({% link ops/memory/mem_setup_tm.md %}#configure-off-heap-memory-direct-or-native),
-[JobManagers]({% link ops/memory/mem_setup_jobmanager.md %}#configure-off-heap-memory) and the [JVM arguments]({% link ops/memory/mem_setup.md %}#jvm-parameters) which Flink sets.
+See also how to configure off-heap memory for [TaskManagers]({% link deployment/memory/mem_setup_tm.md %}#configure-off-heap-memory-direct-or-native),
+[JobManagers]({% link deployment/memory/mem_setup_jobmanager.md %}#configure-off-heap-memory) and the [JVM arguments]({% link deployment/memory/mem_setup.md %}#jvm-parameters) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
 
-The exception usually indicates that [JVM metaspace limit]({% link ops/memory/mem_setup.md %}#jvm-parameters) is configured too small.
+The exception usually indicates that [JVM metaspace limit]({% link deployment/memory/mem_setup.md %}#jvm-parameters) is configured too small.
 You can try to increase the JVM metaspace option for [TaskManagers]({% link ops/config.md %}#taskmanager-memory-jvm-metaspace-size)
 or [JobManagers]({% link ops/config.md %}#jobmanager-memory-jvm-metaspace-size).
 
@@ -60,7 +60,7 @@ or [JobManagers]({% link ops/config.md %}#jobmanager-memory-jvm-metaspace-size).
 
 This is only relevant for TaskManagers.
 
-The exception usually indicates that the size of the configured [network memory]({% link ops/memory/mem_setup_tm.md %}#detailed-memory-model)
+The exception usually indicates that the size of the configured [network memory]({% link deployment/memory/mem_setup_tm.md %}#detailed-memory-model)
 is not big enough. You can try to increase the *network memory* by adjusting the following options:
 * [`taskmanager.memory.network.min`]({% link ops/config.md %}#taskmanager-memory-network-min)
 * [`taskmanager.memory.network.max`]({% link ops/config.md %}#taskmanager-memory-network-max)
@@ -77,8 +77,8 @@ If you encounter this problem in the *JobManager* process, you can also enable t
 to exclude possible *JVM Direct Memory* leak.
 
 If [RocksDBStateBackend]({% link ops/state/state_backends.md %}#the-rocksdbstatebackend) is used, and the memory controlling is disabled,
-you can try to increase the TaskManager's [managed memory]({% link ops/memory/mem_setup.md %}#managed-memory).
+you can try to increase the TaskManager's [managed memory]({% link deployment/memory/mem_setup.md %}#managed-memory).
 
-Alternatively, you can increase the [JVM Overhead]({% link ops/memory/mem_setup.md %}#capped-fractionated-components).
+Alternatively, you can increase the [JVM Overhead]({% link deployment/memory/mem_setup.md %}#capped-fractionated-components).
 
-See also [how to configure memory for containers]({% link ops/memory/mem_tuning.md %}#configure-memory-for-containers).
+See also [how to configure memory for containers]({% link deployment/memory/mem_tuning.md %}#configure-memory-for-containers).

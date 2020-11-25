@@ -71,7 +71,7 @@ MemoryStateBackend 适用场景：
   - 本地开发和调试。
   - 状态很小的 Job，例如：由每次只处理一条记录的函数（Map、FlatMap、Filter 等）构成的 Job。Kafka Consumer 仅仅需要非常小的状态。
 
-建议同时将 [managed memory]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 ### FsStateBackend
 
@@ -92,7 +92,7 @@ FsStateBackend 适用场景:
   - 状态比较大、窗口比较长、key/value 状态比较大的 Job。
   - 所有高可用的场景。
 
-建议同时将 [managed memory]({% link ops/memory/mem_setup_tm.zh.md %}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
+建议同时将 [managed memory]({% link deployment/memory/mem_setup_tm.zh.md %}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 <a name="the-rocksdbstatebackend" />
 
@@ -120,7 +120,7 @@ RocksDBStateBackend 的适用场景：
 然而，这也意味着使用 RocksDBStateBackend 将会使应用程序的最大吞吐量降低。
 所有的读写都必须序列化、反序列化操作，这个比基于堆内存的 state backend 的效率要低很多。
 
-请同时参考 [Task Executor 内存配置]({% link ops/memory/mem_tuning.zh.md %}#rocksdb-state-backend) 中关于 RocksDBStateBackend 的建议。
+请同时参考 [Task Executor 内存配置]({% link deployment/memory/mem_tuning.zh.md %}#rocksdb-state-backend) 中关于 RocksDBStateBackend 的建议。
 
 RocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Backend (见 [这里]({% link ops/state/large_state_tuning.zh.md %}))。
 
