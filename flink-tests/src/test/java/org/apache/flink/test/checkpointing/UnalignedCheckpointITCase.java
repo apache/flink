@@ -248,6 +248,9 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 	protected static class StrictOrderVerifyingSink extends VerifyingSinkBase<StrictOrderVerifyingSink.State> {
 		private Random random = new Random();
 		protected boolean backpressure;
+		private boolean firstOutOfOrder = true;
+		private boolean firstDuplicate = true;
+		private boolean firstLostValue = true;
 
 		protected StrictOrderVerifyingSink(long minCheckpoints) {
 			super(minCheckpoints);
@@ -277,23 +280,39 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 			long lastRecord = state.lastRecordInPartitions[partition];
 			if (value < lastRecord) {
 				state.numOutOfOrderness++;
-				LOG.debug(
-					"Out of order records current={} and last={} @ {} subtask ({} attempt)",
-					value,
-					lastRecord,
-					getRuntimeContext().getIndexOfThisSubtask(),
-					getRuntimeContext().getAttemptNumber());
+				if (firstOutOfOrder) {
+					LOG.info(
+						"Out of order records current={} and last={} @ {} subtask ({} attempt)",
+						value,
+						lastRecord,
+						getRuntimeContext().getIndexOfThisSubtask(),
+						getRuntimeContext().getAttemptNumber());
+					firstOutOfOrder = false;
+				}
 			} else if (value == lastRecord) {
 				state.numDuplicates++;
-				LOG.debug(
-					"Duplicate record {} @ {} subtask ({} attempt)",
-					value,
-					getRuntimeContext().getIndexOfThisSubtask(),
-					getRuntimeContext().getAttemptNumber());
+				if (firstDuplicate) {
+					LOG.info(
+						"Duplicate record {} @ {} subtask ({} attempt)",
+						value,
+						getRuntimeContext().getIndexOfThisSubtask(),
+						getRuntimeContext().getAttemptNumber());
+					firstDuplicate = false;
+				}
 			} else if (lastRecord != -1) {
 				long expectedValue = lastRecord + parallelism * parallelism;
 				if (value != expectedValue) {
 					state.numLostValues++;
+					if (firstLostValue) {
+						LOG.info(
+							"Lost records current={}, expected={}, and last={} @ {} subtask ({} attempt)",
+							value,
+							expectedValue,
+							lastRecord,
+							getRuntimeContext().getIndexOfThisSubtask(),
+							getRuntimeContext().getAttemptNumber());
+						firstLostValue = false;
+					}
 				}
 			}
 			state.lastRecordInPartitions[partition] = value;
