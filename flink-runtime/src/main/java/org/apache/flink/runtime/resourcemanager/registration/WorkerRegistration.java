@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.registration;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
@@ -38,13 +39,19 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
 
     private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
+    private final ResourceProfile totalResourceProfile;
+
+    private final ResourceProfile defaultSlotResourceProfile;
+
     public WorkerRegistration(
             TaskExecutorGateway taskExecutorGateway,
             WorkerType worker,
             int dataPort,
             int jmxPort,
             HardwareDescription hardwareDescription,
-            TaskExecutorMemoryConfiguration memoryConfiguration) {
+            TaskExecutorMemoryConfiguration memoryConfiguration,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
 
         super(worker.getResourceID(), taskExecutorGateway);
 
@@ -53,6 +60,8 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
         this.jmxPort = jmxPort;
         this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
         this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
+        this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
+        this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
     }
 
     public WorkerType getWorker() {
@@ -73,5 +82,13 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
 
     public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
         return memoryConfiguration;
+    }
+
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
+    }
+
+    public ResourceProfile getTotalResourceProfile() {
+        return totalResourceProfile;
     }
 }
