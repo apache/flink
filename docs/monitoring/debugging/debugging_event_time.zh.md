@@ -1,7 +1,7 @@
 ---
 title: "调试窗口与事件时间"
-nav-parent_id: monitoring
-nav-pos: 13
+nav-parent_id: debugging
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,7 +1,7 @@
 ---
 title: "Application Profiling & Debugging"
-nav-parent_id: monitoring
-nav-pos: 15
+nav-parent_id: debugging
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
