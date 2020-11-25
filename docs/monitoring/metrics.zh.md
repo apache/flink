@@ -1862,7 +1862,7 @@ purposes.
 
 ## REST API integration
 
-Metrics can be queried through the [Monitoring REST API]({% link monitoring/monitoring/rest_api.zh.md %}).
+Metrics can be queried through the [Monitoring REST API]({% link ops/monitoring/rest_api.zh.md %}).
 
 Below is a list of available endpoints, with a sample JSON response. All endpoints are of the sample form `http://hostname:8081/jobmanager/metrics`, below we list only the *path* part of the URLs.
 

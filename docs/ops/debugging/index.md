@@ -1,8 +1,8 @@
 ---
-title: "Monitoring"
-nav-id: monitoring_group
-nav-parent_id: monitoring
-nav-pos: 10
+title: "Debugging"
+nav-id: debugging
+nav-parent_id: ops
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
