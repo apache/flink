@@ -90,8 +90,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     // can't query a dim table directly
     expectExceptionThrown(
       "SELECT * FROM LookupTable FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
-      "Cannot generate a valid execution plan for the given query",
-      classOf[TableException]
+      "Temporal table can only be used in temporal join and only supports " +
+        "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\n" +
+        "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant " +
+        "timestamp '2017-08-09 14:36:11' is not supported yet",
+      classOf[AssertionError]
     )
 
     // only support left or inner join
