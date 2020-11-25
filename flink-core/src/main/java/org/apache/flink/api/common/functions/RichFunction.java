@@ -85,7 +85,7 @@ public interface RichFunction extends Function {
 	/**
 	 * Gets the context that contains information about the UDF's runtime, such as the
 	 * parallelism of the function, the subtask index of the function, or the name of
-	 * the of the task that executes the function.
+	 * the task that executes the function.
 	 *
 	 * <p>The RuntimeContext also gives access to the
 	 * {@link org.apache.flink.api.common.accumulators.Accumulator}s and the
