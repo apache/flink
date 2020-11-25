@@ -40,8 +40,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to all the elements that belong to the non-keyed, broadcasted side, as this is kept in Flink's
  * state.
  *
- * <p>For more information see
- * <a href="https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/state/broadcast_state.html">.
+ * <p>For more information see the
+ * <a href="https://ci.apache.org/projects/flink/flink-docs-stable/dev/stream/state/broadcast_state.html">
+ *     Broadcast State Pattern documentation page</a>.
  *
  * @param <IN1> The type of the elements in the non-broadcasted input.
  * @param <IN2> The type of the elements in the broadcasted input.
