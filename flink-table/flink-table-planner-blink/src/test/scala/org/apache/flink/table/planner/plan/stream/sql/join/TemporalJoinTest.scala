@@ -452,6 +452,21 @@ class TemporalJoinTest extends TableTestBase {
       s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
         s"versioned table, but no row time attribute can be found.",
       classOf[ValidationException])
+
+    val sqlQuery6 = "SELECT * FROM RatesHistory " +
+      "FOR SYSTEM_TIME AS OF TIMESTAMP '2020-11-11 13:12:13'"
+    expectExceptionThrown(
+      sqlQuery6,
+      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
+        "'2020-11-11 13:12:13' is not supported yet.",
+      classOf[AssertionError])
+
+    val sqlQuery7 = "SELECT * FROM RatesHistory FOR SYSTEM_TIME AS OF CAST(1 AS TIMESTAMP)"
+    expectExceptionThrown(
+      sqlQuery7,
+      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with an expression call " +
+        "'CAST(1):TIMESTAMP(6) NOT NULL' is not supported yet.",
+      classOf[AssertionError])
   }
 
   private def expectExceptionThrown(

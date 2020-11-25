@@ -1980,11 +1980,14 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected lazy val flinkLogicalSnapshot: FlinkLogicalSnapshot = {
+    val temporalTableRelType = relBuilder.scan("TemporalTable1").build().getRowType
+    val correlVar = rexBuilder.makeCorrel(temporalTableRelType, new CorrelationId(0))
+    val rowtimeField = rexBuilder.makeFieldAccess(correlVar, 4)
     new FlinkLogicalSnapshot(
       cluster,
       flinkLogicalTraits,
       studentFlinkLogicalScan,
-      relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+      rowtimeField)
   }
 
   // SELECT * FROM student AS T JOIN TemporalTable
