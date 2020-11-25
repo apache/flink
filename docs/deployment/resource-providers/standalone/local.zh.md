@@ -1,7 +1,7 @@
 ---
 title: "本地集群"
 nav-title: '本地集群'
-nav-parent_id: resource_providers
+nav-parent_id: standalone
 nav-pos: 2
 ---
 <!--

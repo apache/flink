@@ -183,7 +183,7 @@ In this step, we update the framework version of the cluster. What this basicall
 the Flink installation with the new version. This step can depend on how you are running Flink in your cluster (e.g.
 standalone, on Mesos, ...).
 
-If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({% link deployment/resource-providers/cluster_setup.zh.md %}).
+If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({% link deployment/resource-providers/standalone/index.zh.md %}).
 
 ### STEP 3: Resume the job under the new Flink version from savepoint.
 

@@ -109,7 +109,7 @@ The following options are deprecated but if they are still used they will be int
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{% link deployment/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link deployment/resource-providers/cluster_setup.md %}">standalone deployment</a></li>
+                  <li><a href="{% link deployment/config.md %}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a> for <a href="{% link deployment/resource-providers/standalone/index.md %}">standalone deployment</a></li>
                   <li><a href="{% link deployment/config.md %}#taskmanager-memory-process-size">taskmanager.memory.process.size</a> for containerized deployments</li>
                 </ul>
                 See also <a href="#total-memory-previously-heap-memory">how to migrate total memory</a>.
@@ -218,19 +218,19 @@ Previously, there were options responsible for setting the *JVM Heap* size of th
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
-Despite their naming, they represented the *JVM Heap* only for [standalone deployments]({% link deployment/resource-providers/cluster_setup.md %}).
-For the containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %})),
+Despite their naming, they represented the *JVM Heap* only for [standalone deployments]({% link deployment/resource-providers/standalone/index.md %}).
+For the containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %})),
 they also included other off-heap memory consumption. The size of *JVM Heap* was additionally reduced by the container
 cut-off which has been completely removed after *1.11*.
 
 The [Mesos]({% link deployment/resource-providers/mesos.md %}) integration did not take into account the mentioned legacy memory options.
 The scripts provided in Flink to start the Mesos JobManager process did not set any memory JVM arguments. After the *1.11* release,
-they are set the same way as it is done by the [standalone deployment]({% link deployment/resource-providers/cluster_setup.md %}) scripts.
+they are set the same way as it is done by the [standalone deployment]({% link deployment/resource-providers/standalone/index.md %}) scripts.
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* JVM Heap ([`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link deployment/resource-providers/cluster_setup.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments
-* Total process memory ([`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %}))
+* JVM Heap ([`jobmanager.memory.heap.size`]({% link deployment/config.md %}#jobmanager-memory-heap-size)) for [standalone]({% link deployment/resource-providers/standalone/index.md %}) and [Mesos]({% link deployment/resource-providers/mesos.md %}) deployments
+* Total process memory ([`jobmanager.memory.process.size`]({% link deployment/config.md %}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [Yarn]({% link deployment/resource-providers/yarn_setup.md %}))
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
