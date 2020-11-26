@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 /**
  * Tests for watermark push down.
@@ -86,6 +86,31 @@ class SourceWatermarkTest extends TableTestBase {
          | )
          |""".stripMargin
     util.tableEnv.executeSql(ddl3)
+
+    val ddl4 =
+      """
+        | CREATE TABLE MyTable(
+        |   a INT,
+        |   b BIGINT,
+        |   c TIMESTAMP(3),
+        |   originTime BIGINT METADATA,
+        |   rowtime AS TO_TIMESTAMP(FROM_UNIXTIME(originTime/1000), 'yyyy-MM-dd HH:mm:ss'),
+        |   WATERMARK FOR rowtime AS rowtime
+        | ) WITH (
+        |   'connector' = 'values',
+        |   'enable-watermark-push-down' = 'true',
+        |   'bounded' = 'false',
+        |   'disable-lookup' = 'true',
+        |   'readable-metadata' = 'originTime:BIGINT'
+        | )
+        |""".stripMargin
+
+    util.tableEnv.executeSql(ddl4)
+  }
+
+  @Test
+  def testSimpleWatermarkPushDown(): Unit = {
+    util.verifyPlan("SELECT a, b, c FROM VirtualTable")
   }
 
   @Test
@@ -110,25 +135,6 @@ class SourceWatermarkTest extends TableTestBase {
 
   @Test
   def testWatermarkWithMetadata(): Unit = {
-    val ddl =
-      """
-        | CREATE TABLE MyTable(
-        |   a INT,
-        |   b BIGINT,
-        |   c TIMESTAMP(3),
-        |   originTime BIGINT METADATA,
-        |   rowtime AS TO_TIMESTAMP(FROM_UNIXTIME(originTime/1000), 'yyyy-MM-dd HH:mm:ss'),
-        |   WATERMARK FOR rowtime AS rowtime
-        | ) WITH (
-        |   'connector' = 'values',
-        |   'enable-watermark-push-down' = 'true',
-        |   'bounded' = 'false',
-        |   'disable-lookup' = 'true',
-        |   'readable-metadata' = 'originTime:BIGINT'
-        | )
-        |""".stripMargin
-
-    util.tableEnv.executeSql(ddl)
     util.verifyPlan("SELECT a, b FROM MyTable")
   }
 }
