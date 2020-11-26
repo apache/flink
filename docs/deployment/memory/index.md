@@ -2,7 +2,7 @@
 nav-title: 'Memory Configuration'
 nav-id: ops_mem
 nav-parent_id: deployment
-nav-pos: 10
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
