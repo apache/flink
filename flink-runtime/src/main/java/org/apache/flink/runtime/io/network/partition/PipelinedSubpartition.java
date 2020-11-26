@@ -497,6 +497,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
     }
 
     private void notifyDataAvailable() {
+        final PipelinedSubpartitionView readView = this.readView;
         if (readView != null) {
             readView.notifyDataAvailable();
         }
