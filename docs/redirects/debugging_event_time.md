@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Debugging Event Time"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/debugging/debugging_event_time.html
+permalink: /monitoring/debugging_event_time.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

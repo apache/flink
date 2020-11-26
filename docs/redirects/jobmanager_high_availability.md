@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "High Availability"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/jobmanager_high_availability.html
+permalink: /ops/jobmanager_high_availability.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

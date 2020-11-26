@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Application Profiling"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/debugging/application_profiling.html
+permalink: /monitoring/application_profiling.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

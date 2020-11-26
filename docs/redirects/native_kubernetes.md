@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Native Kubernetes"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/resource-providers/native_kubernetes.html
+permalink: /ops/deployment/native_kubernetes.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

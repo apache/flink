@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Metrics"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/metrics.html
+permalink: /monitoring/metrics.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

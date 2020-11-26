@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Plugins"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/filesystems/plugins.html
+permalink: /ops/plugins.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

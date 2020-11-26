@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Memory Setup JobManager"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/memory/mem_setup_jobmanager.html
+permalink: /ops/memory/mem_setup_jobmanager.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

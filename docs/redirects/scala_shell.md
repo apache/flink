@@ -1,7 +1,7 @@
 ---
 title: "Scala Shell"
 layout: redirect
-redirect: /deployment/repls/scala_shell.html
+redirect: /ops/scala_shell.html
 permalink: /apis/scala_shell.html
 ---
 <!--

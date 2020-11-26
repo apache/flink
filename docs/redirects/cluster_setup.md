@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Cluster Setup"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/resource-providers/standalone/index.html
+permalink: /ops/deployment/cluster_setup.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
