@@ -131,7 +131,14 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 			LOG.info("Starting the KafkaSourceEnumerator for consumer group {} " +
 				"without periodic partition discovery.", consumerGroupId);
 			context.callAsync(
-					this::discoverAndInitializePartitionSplit,
+					() -> {
+						try {
+							return discoverAndInitializePartitionSplit();
+						} finally {
+							// Close the admin client early because we won't use it anymore.
+							adminClient.close();
+						}
+					},
 					this::handlePartitionSplitChanges);
 		}
 	}
