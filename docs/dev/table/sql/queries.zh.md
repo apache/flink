@@ -1096,7 +1096,7 @@ WHERE rownum = 1
 
 - `ROW_NUMBER()`: 从第一行开始，依次为每一行分配一个唯一且连续的号码。
 - `PARTITION BY col1[, col2...]`: 指定分区的列，例如去重的键。
-- `ORDER BY time_attr [asc|desc]`: 指定排序的列。所制定的列必须为 [时间属性]({{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html)。目前仅支持 [proctime attribute]({{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#processing-time)，在未来版本中将会支持 [Rowtime atttribute]({{ site.baseurl }}/zh/dev/table/streaming/time_attributes.html#event-time) 。升序（ ASC ）排列指只保留第一行，而降序排列（ DESC ）则指保留最后一行。
+- `ORDER BY time_attr [asc|desc]`: 指定排序的列。所指定的列必须为 [时间属性]({% link dev/table/streaming/time_attributes.zh.md %}), 目前 Flink 支持 [处理时间属性]({% link dev/table/streaming/time_attributes.zh.md %}#处理时间) 和 [事件时间属性]({% link dev/table/streaming/time_attributes.zh.md %}#事件时间) 。升序（ ASC ）排列指只保留第一行，而降序排列（ DESC ）则指保留最后一行。
 - `WHERE rownum = 1`: Flink 需要 `rownum = 1` 以确定该查询是否为去重查询。
 
 以下的例子描述了如何指定 SQL 查询以在一个流计算表中进行去重操作。
@@ -1148,6 +1148,9 @@ val result1 = tableEnv.sqlQuery(
 </div>
 
 {% top %}
+
+去重能够保留输入流的时间属性，当下游操作是 window 聚合 或 join 关联操作时非常有用。
+基于处理时间的去重和基于事件时间的去重都支持 mini-batch 模式，这对性能更加友好, 查看 [mini-batch 配置]({% link dev/table/config.zh.md %}#table-exec-mini-batch-enabled) 了解如何开启 mini-batch 模式。
 
 ### 分组窗口
 
