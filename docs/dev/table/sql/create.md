@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-CREATE statements are used to register a table/view/function into current or specified [Catalog]({{ site.baseurl }}/dev/table/catalogs.html). A registered table/view/function can be used in SQL queries.
+CREATE statements are used to register a table/view/function into current or specified [Catalog]({% link dev/table/catalogs.md %}). A registered table/view/function can be used in SQL queries.
 
 Flink SQL supports the following CREATE statements for now:
 
@@ -55,7 +55,7 @@ The following examples show how to run a CREATE statement in `TableEnvironment`.
 
 <div data-lang="SQL CLI" markdown="1">
 
-CREATE statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+CREATE statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run a CREATE statement in SQL CLI.
 
@@ -356,7 +356,7 @@ The  `rowtime_column_name` defines an existing column that is marked as the even
 The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
 The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
 The framework will periodically emit the largest generated watermark. If the current watermark is still identical to the previous one, or is null, or the value of the returned watermark is smaller than that of the last emitted one, then no new watermark will be emitted.
-Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({{ site.baseurl }}/deployment/config.html#pipeline-auto-watermark-interval) configuration.
+Watermark is emitted in an interval defined by [`pipeline.auto-watermark-interval`]({% link deployment/config.md %}#pipeline-auto-watermark-interval) configuration.
 If watermark interval is `0ms`, the generated watermarks will be emitted per-record if it is not null and greater than the last emitted one.
 
 When using event time semantics, tables must contain an event time attribute and watermarking strategy.
@@ -410,7 +410,7 @@ Partition the created table by the specified columns. A directory is created for
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
 
-The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({{ site.baseurl }}/dev/table/connectors) for all the supported table properties of different connectors.
+The key and value of expression `key1=val1` should both be string literal. See details in [Connect to External Systems]({% link dev/table/connectors/index.md %}) for all the supported table properties of different connectors.
 
 **Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
@@ -530,7 +530,7 @@ Create a catalog with the given catalog properties. If a catalog with the same n
 Catalog properties used to store extra information related to this catalog.
 The key and value of expression `key1=val1` should both be string literal.
 
-Check out more details at [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+Check out more details at [Catalogs]({% link dev/table/catalogs.md %}).
 
 {% top %}
 
@@ -583,7 +583,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 Create a catalog function that has catalog and database namespaces with the identifier and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
 
-If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html) for more details.
+If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({% link dev/table/functions/udfs.md %}) for more details.
 
 If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) for more details.
 

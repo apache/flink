@@ -37,7 +37,7 @@ The second is to offer Flink as an alternative engine for reading and writing Hi
 The `HiveCatalog` is designed to be “out of the box” compatible with existing Hive installations.
 You do not need to modify your existing Hive Metastore or change the data placement or partitioning of your tables.
 
-* Note that we highly recommend users using the [blink planner]({{ site.baseurl }}/dev/table/#dependency-structure) with Hive integration.
+* Note that we highly recommend users using the [blink planner]({% link dev/table/index.md %}#dependency-structure) with Hive integration.
 
 * This will be replaced by the TOC
 {:toc}
@@ -289,8 +289,8 @@ You're supposed to add dependencies as stated above at runtime.
 
 ## Connecting To Hive
 
-Connect to an existing Hive installation using the [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 
-and [HiveCatalog]({{ site.baseurl }}/dev/table/connectors/hive/hive_catalog.html) through the table environment or YAML configuration.
+Connect to an existing Hive installation using the [catalog interface]({% link dev/table/catalogs.md %}) 
+and [HiveCatalog]({% link dev/table/connectors/hive/hive_catalog.md %}) through the table environment or YAML configuration.
 
 Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
 Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
@@ -443,9 +443,9 @@ Below are the options supported when creating a `HiveCatalog` instance with YAML
 
 ## DDL
 
-It's recommended to use [Hive dialect]({{ site.baseurl }}/dev/table/connectors/hive/hive_dialect.html) to execute DDLs to create
+It's recommended to use [Hive dialect]({% link dev/table/connectors/hive/hive_dialect.md %}) to execute DDLs to create
 Hive tables, views, partitions, functions within Flink.
 
 ## DML
 
-Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/connectors/hive/hive_read_write.html)
+Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({% link dev/table/connectors/hive/hive_read_write.md %})

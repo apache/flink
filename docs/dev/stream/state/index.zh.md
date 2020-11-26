@@ -31,11 +31,11 @@ under the License.
 接下来看什么?
 -----------------
 
-* [Working with State](state.html): 描述了如何在 Flink 应用程序中使用状态，以及不同类型的状态。
-* [The Broadcast State 模式](broadcast_state.html): 描述了如何将广播流和非广播流进行连接从而交换数据。
-* [Checkpointing](checkpointing.html): 介绍了如何开启和配置 checkpoint，以实现状态容错。
-* [Queryable State](queryable_state.html): 介绍了如何从外围访问 Flink 的状态。
-* [状态数据结构升级](schema_evolution.html): 介绍了状态数据结构升级相关的内容。
-* [Managed State 的自定义序列化器](custom_serialization.html): 介绍了如何实现自定义的序列化器，尤其是如何支持状态数据结构升级。
+* [Working with State]({% link dev/stream/state/state.zh.md %}): 描述了如何在 Flink 应用程序中使用状态，以及不同类型的状态。
+* [The Broadcast State 模式]({% link dev/stream/state/broadcast_state.zh.md %}): 描述了如何将广播流和非广播流进行连接从而交换数据。
+* [Checkpointing]({% link dev/stream/state/checkpointing.zh.md %}): 介绍了如何开启和配置 checkpoint，以实现状态容错。
+* [Queryable State]({% link dev/stream/state/queryable_state.zh.md %}): 介绍了如何从外围访问 Flink 的状态。
+* [状态数据结构升级]({% link dev/stream/state/schema_evolution.zh.md %}): 介绍了状态数据结构升级相关的内容。
+* [Managed State 的自定义序列化器]({% link dev/stream/state/custom_serialization.zh.md %}): 介绍了如何实现自定义的序列化器，尤其是如何支持状态数据结构升级。
 
 {% top %}

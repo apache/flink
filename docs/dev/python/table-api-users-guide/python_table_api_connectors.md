@@ -28,11 +28,11 @@ This page describes how to use connectors in PyFlink and highlights the details 
 * This will be replaced by the TOC
 {:toc}
 
-<span class="label label-info">Note</span> For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{ site.baseurl }}/dev/table/connectors/index.html). 
+<span class="label label-info">Note</span> For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({% link dev/table/connectors/index.md %}). 
 
 ## Download connector and format jars
 
-Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/table-api-users-guide/dependency_management.html).
+Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({% link dev/python/table-api-users-guide/dependency_management.md %}).
 
 {% highlight python %}
 
@@ -182,5 +182,5 @@ The above query returns a Table like:
 
 ## User-defined sources & sinks
 
-In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL. More details can be found in the [Java/Scala documentation]({{ site.baseurl }}/dev/table/sourceSinks.html).
+In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL. More details can be found in the [Java/Scala documentation]({% link dev/table/sourceSinks.md %}).
 

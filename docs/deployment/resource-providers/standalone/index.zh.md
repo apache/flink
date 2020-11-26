@@ -181,7 +181,7 @@ jobManagerAddress1:webUIPort1
 jobManagerAddressX:webUIPortX
   </pre>
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({% link deployment/config.md %}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({% link deployment/config.zh.md %}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 ### Example: Standalone Cluster with 2 JobManagers
 

@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-以下示例展示了 Flink 从简单的WordCount到图算法的应用。示例代码展示了 [Flink's DataSet API]({{ site.baseurl }}/zh/dev/batch/index.html) 的使用。
+以下示例展示了 Flink 从简单的WordCount到图算法的应用。示例代码展示了 [Flink's DataSet API]({% link dev/batch/index.zh.md %}) 的使用。
 
 完整的源代码可以在 Flink 源代码库的 {% gh_link flink-examples/flink-examples-batch "flink-examples-batch" %} 模块找到。
 
