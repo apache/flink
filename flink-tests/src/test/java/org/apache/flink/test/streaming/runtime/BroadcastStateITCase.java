@@ -34,7 +34,9 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -44,12 +46,14 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}.
  */
 public class BroadcastStateITCase extends AbstractTestBase {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testKeyedWithBroadcastTranslation() throws Exception {
@@ -184,12 +188,10 @@ public class BroadcastStateITCase extends AbstractTestBase {
 					}
 				});
 
-		try {
-			env.execute();
-			fail("Execution should have failed during job graph creation.");
-		} catch (UnsupportedOperationException e) {
-			assertEquals(e.getMessage(), "The Broadcast State Pattern is not support in BATCH execution mode.");
-		}
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("The Broadcast State Pattern is not support in BATCH execution mode.");
+
+		env.execute();
 	}
 
 	private static class TestSink extends RichSinkFunction<String> {

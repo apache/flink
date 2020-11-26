@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,9 +53,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class BroadcastStateTransformation<IN1, IN2, OUT> extends PhysicalTransformation<OUT> {
 
-	private final DataStream<IN1> inputStream;
+	private final Transformation<IN1> nonBroadcastStream;
 
-	private final BroadcastStream<IN2> broadcastStream;
+	private final Transformation<IN2> broadcastStream;
 
 	private final StreamOperatorFactory<OUT> operatorFactory;
 
@@ -61,53 +63,17 @@ public class BroadcastStateTransformation<IN1, IN2, OUT> extends PhysicalTransfo
 
 	private final KeySelector<IN1, ?> keySelector;
 
-	public BroadcastStateTransformation(
-			final String name,
-			final DataStream<IN1> inputStream,
-			final BroadcastStream<IN2> broadcastStream,
-			final StreamOperatorFactory<OUT> operatorFactory,
-			final TypeInformation<OUT> outTypeInfo,
-			final int parallelism) {
-		this(
-				name,
-				checkNotNull(inputStream),
-				broadcastStream,
-				operatorFactory,
-				null,
-				null,
-				outTypeInfo,
-				parallelism);
-	}
-
-	public BroadcastStateTransformation(
-			final String name,
-			final KeyedStream<IN1, ?> inputStream,
-			final BroadcastStream<IN2> broadcastStream,
-			final StreamOperatorFactory<OUT> operatorFactory,
-			final TypeInformation<OUT> outTypeInfo,
-			final int parallelism) {
-		this(
-				name,
-				checkNotNull(inputStream),
-				broadcastStream,
-				operatorFactory,
-				inputStream.getKeyType(),
-				inputStream.getKeySelector(),
-				outTypeInfo,
-				parallelism);
-	}
-
 	private BroadcastStateTransformation(
 			final String name,
-			final DataStream<IN1> inputStream,
-			final BroadcastStream<IN2> broadcastStream,
+			final Transformation<IN1> inputStream,
+			final Transformation<IN2> broadcastStream,
 			final StreamOperatorFactory<OUT> operatorFactory,
-			final TypeInformation<?> keyType,
-			final KeySelector<IN1, ?> keySelector,
+			@Nullable final TypeInformation<?> keyType,
+			@Nullable final KeySelector<IN1, ?> keySelector,
 			final TypeInformation<OUT> outTypeInfo,
 			final int parallelism) {
 		super(name, outTypeInfo, parallelism);
-		this.inputStream = checkNotNull(inputStream);
+		this.nonBroadcastStream = checkNotNull(inputStream);
 		this.broadcastStream = checkNotNull(broadcastStream);
 		this.operatorFactory = checkNotNull(operatorFactory);
 
@@ -116,12 +82,12 @@ public class BroadcastStateTransformation<IN1, IN2, OUT> extends PhysicalTransfo
 		updateManagedMemoryStateBackendUseCase(keySelector != null);
 	}
 
-	public BroadcastStream<IN2> getBroadcastStream() {
+	public Transformation<IN2> getBroadcastStream() {
 		return broadcastStream;
 	}
 
-	public DataStream<IN1> getNonBroadcastStream() {
-		return inputStream;
+	public Transformation<IN1> getNonBroadcastStream() {
+		return nonBroadcastStream;
 	}
 
 	public StreamOperatorFactory<OUT> getOperatorFactory() {
@@ -145,16 +111,54 @@ public class BroadcastStateTransformation<IN1, IN2, OUT> extends PhysicalTransfo
 	public List<Transformation<?>> getTransitivePredecessors() {
 		final List<Transformation<?>> predecessors = new ArrayList<>();
 		predecessors.add(this);
-		predecessors.add(inputStream.getTransformation());
-		predecessors.add(broadcastStream.getTransformation());
+		predecessors.add(nonBroadcastStream);
+		predecessors.add(broadcastStream);
 		return predecessors;
 	}
 
 	@Override
 	public List<Transformation<?>> getInputs() {
 		final List<Transformation<?>> predecessors = new ArrayList<>();
-		predecessors.add(inputStream.getTransformation());
-		predecessors.add(broadcastStream.getTransformation());
+		predecessors.add(nonBroadcastStream);
+		predecessors.add(broadcastStream);
 		return predecessors;
+	}
+
+	// ------------------------------- Static Constructors -------------------------------
+
+	public static <IN1, IN2, OUT> BroadcastStateTransformation<IN1, IN2, OUT> forNonKeyedStream(
+			final String name,
+			final DataStream<IN1> nonBroadcastStream,
+			final BroadcastStream<IN2> broadcastStream,
+			final StreamOperatorFactory<OUT> operatorFactory,
+			final TypeInformation<OUT> outTypeInfo,
+			final int parallelism) {
+		return new BroadcastStateTransformation<>(
+				name,
+				checkNotNull(nonBroadcastStream).getTransformation(),
+				checkNotNull(broadcastStream).getTransformation(),
+				operatorFactory,
+				null,
+				null,
+				outTypeInfo,
+				parallelism);
+	}
+
+	public static <IN1, IN2, OUT> BroadcastStateTransformation<IN1, IN2, OUT> forKeyedStream(
+			final String name,
+			final KeyedStream<IN1, ?> nonBroadcastStream,
+			final BroadcastStream<IN2> broadcastStream,
+			final StreamOperatorFactory<OUT> operatorFactory,
+			final TypeInformation<OUT> outTypeInfo,
+			final int parallelism) {
+		return new BroadcastStateTransformation<>(
+				name,
+				checkNotNull(nonBroadcastStream).getTransformation(),
+				checkNotNull(broadcastStream).getTransformation(),
+				operatorFactory,
+				nonBroadcastStream.getKeyType(),
+				nonBroadcastStream.getKeySelector(),
+				outTypeInfo,
+				parallelism);
 	}
 }

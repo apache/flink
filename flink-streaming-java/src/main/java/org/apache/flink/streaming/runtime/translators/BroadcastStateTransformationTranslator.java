@@ -58,9 +58,9 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
 		checkNotNull(context);
 
 		final TypeInformation<IN1> nonBroadcastTypeInfo =
-				transformation.getNonBroadcastStream().getType();
+				transformation.getNonBroadcastStream().getOutputType();
 		final TypeInformation<IN2> broadcastTypeInfo =
-				transformation.getBroadcastStream().getType();
+				transformation.getBroadcastStream().getOutputType();
 
 		final StreamGraph streamGraph = context.getStreamGraph();
 		final String slotSharingGroup = context.getSlotSharingGroup();
@@ -94,11 +94,11 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
 		streamGraph.setParallelism(transformationId, parallelism);
 		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-		for (Integer inputId: context.getStreamNodeIds(transformation.getNonBroadcastStream().getTransformation())) {
+		for (Integer inputId: context.getStreamNodeIds(transformation.getNonBroadcastStream())) {
 			streamGraph.addEdge(inputId, transformationId, 1);
 		}
 
-		for (Integer inputId: context.getStreamNodeIds(transformation.getBroadcastStream().getTransformation())) {
+		for (Integer inputId: context.getStreamNodeIds(transformation.getBroadcastStream())) {
 			streamGraph.addEdge(inputId, transformationId, 2);
 		}
 

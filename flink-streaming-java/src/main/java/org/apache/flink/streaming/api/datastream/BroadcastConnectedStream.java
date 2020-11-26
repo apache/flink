@@ -240,7 +240,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 			final TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 
 		if (nonBroadcastStream instanceof KeyedStream) {
-			return new BroadcastStateTransformation<>(
+			return BroadcastStateTransformation.forKeyedStream(
 					functionName,
 					(KeyedStream<IN1, ?>) nonBroadcastStream,
 					broadcastStream,
@@ -248,7 +248,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
 					outTypeInfo,
 					environment.getParallelism());
 		} else {
-			return new BroadcastStateTransformation<>(
+			return BroadcastStateTransformation.forNonKeyedStream(
 					functionName,
 					nonBroadcastStream,
 					broadcastStream,
