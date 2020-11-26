@@ -20,8 +20,8 @@ import datetime
 import pickle
 
 from pyflink.common import typeinfo
-from pyflink.common.typeinfo import WrapperTypeInfo, RowTypeInfo, Types, BasicArrayTypeInfo, \
-    PrimitiveArrayTypeInfo
+from pyflink.common.typeinfo import WrapperTypeInfo, RowTypeInfo, TupleTypeInfo, Types, \
+    BasicArrayTypeInfo, PrimitiveArrayTypeInfo
 from pyflink.java_gateway import get_gateway
 
 
@@ -32,7 +32,7 @@ def convert_to_python_obj(data, type_info):
         gateway = get_gateway()
         pickle_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
-        if hasattr(type_info, 'types'):
+        if isinstance(type_info, RowTypeInfo) or isinstance(type_info, TupleTypeInfo):
             field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
             fields = []
             for data, field_type in field_data:

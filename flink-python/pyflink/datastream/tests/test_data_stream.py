@@ -354,6 +354,38 @@ class DataStreamTests(PyFlinkTestCase):
             results.append(i)
         self.assertEqual(expected, results)
 
+        collection = [['pyflink', 'datastream'], ['execute', 'collect']]
+        ds = self.env.from_collection(collection)
+
+        expected = [['pyflink', 'datastream'], ['execute', 'collect']]
+
+        with ds.execute_and_collect() as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=2)
+        results = []
+        for i in result:
+            results.append(i)
+        self.assertEqual(expected, results)
+
+        ds = self.env.from_collection(collection=collection,
+                                      type_info=Types.BASIC_ARRAY(Types.STRING()))
+
+        with ds.execute_and_collect() as result:
+            results = []
+            for i in result:
+                results.append(i)
+            self.assertEqual(expected, results)
+
+        result = ds.execute_and_collect(limit=2)
+        results = []
+        for i in result:
+            results.append(i)
+        self.assertEqual(expected, results)
+
         collection = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
                        bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
                        datetime.time(hour=12, minute=0, second=0,
