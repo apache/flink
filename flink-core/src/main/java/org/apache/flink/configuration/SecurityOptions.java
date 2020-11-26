@@ -88,7 +88,7 @@ public class SecurityOptions {
 			.stringType()
 			.noDefaultValue()
 			.withDescription("Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and " +
-				"TaskManager pods for Kubernetes. Note: The KDC defined needs to be visible from inside the containers.");
+				"TaskManager containers/pods for Kubernetes, Yarn and Mesos. Note: The KDC defined needs to be visible from inside the containers.");
 
 	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
