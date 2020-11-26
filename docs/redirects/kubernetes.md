@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Standalone Kubernetes"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/resource-providers/standalone/kubernetes.html
+permalink: /ops/deployment/kubernetes.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "History Server"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/advanced/historyserver.html
+permalink: /monitoring/historyserver.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

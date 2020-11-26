@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Standalone Docker"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/resource-providers/standalone/docker.html
+permalink: /ops/deployment/docker.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

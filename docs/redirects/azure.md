@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Azure Filesystem"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/filesystems/azure.html
+permalink: /ops/filesystems/azure.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

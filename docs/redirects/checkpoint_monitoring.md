@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Checkpoint Monitoring"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/monitoring/checkpoint_monitoring.html
+permalink: /monitoring/checkpoint_monitoring.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

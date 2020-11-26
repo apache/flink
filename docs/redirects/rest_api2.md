@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Monitoring REST API"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/rest_api.html
+permalink: /monitoring/rest_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

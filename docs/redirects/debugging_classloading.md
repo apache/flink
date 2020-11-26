@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Debugging Classloading"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /ops/debugging/debugging_classloading.html
+permalink: /monitoring/debugging_classloading.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

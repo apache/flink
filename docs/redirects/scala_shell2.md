@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Scala Shell"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/repls/scala_shell.html
+permalink: /ops/scala_shell.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
