@@ -286,11 +286,7 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{ site.baseurl }}/zh/dev/table/catalogs.html) 和 [HiveCatalog]({{ site.baseurl }}/zh/dev/table/connectors/hive/hive_catalog.html)连接到现有的 Hive 集群。
 
-如果`hive-conf/hive-site.xml`文件存储在远端存储系统，则用户首先应该将hive配置文件下载至其本地环境中。
-
 请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
-
-`HiveCatalog` 能够自动检测使用的 Hive 版本。我们建议**不要**手动设置 Hive 版本，除非自动检测机制失败。
 
 以下是如何连接到 Hive 的示例：
 
@@ -299,12 +295,12 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
-String hiveConfDir     = "/opt/hive-conf"; // a local path
+String hiveConfDir     = "/opt/hive-conf";
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir);
 tableEnv.registerCatalog("myhive", hive);
@@ -317,12 +313,12 @@ tableEnv.useCatalog("myhive");
 
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().inBatchMode().build()
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
-val hiveConfDir     = "/opt/hive-conf" // a local path
+val hiveConfDir     = "/opt/hive-conf"
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir)
 tableEnv.registerCatalog("myhive", hive)
@@ -331,18 +327,17 @@ tableEnv.registerCatalog("myhive", hive)
 tableEnv.useCatalog("myhive")
 {% endhighlight %}
 </div>
-</div>
 <div data-lang="Python" markdown="1">
 {% highlight python %}
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.new_instance().use_blink_planner().build()
 t_env = BatchTableEnvironment.create(environment_settings=settings)
 
 catalog_name = "myhive"
 default_database = "mydatabase"
-hive_conf_dir = "/opt/hive-conf"  # a local path
+hive_conf_dir = "/opt/hive-conf"
 
 hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
 t_env.register_catalog("myhive", hive_catalog)
@@ -366,7 +361,77 @@ catalogs:
      hive-conf-dir: /opt/hive-conf
 {% endhighlight %}
 </div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+
+CREATE CATALOG myhive WITH (
+    'type' = 'hive',
+    'default-database' = 'mydatabase',
+    'hive-conf-dir' = '/opt/hive-conf'
+);
+-- set the HiveCatalog as the current catalog of the session
+USE CATALOG myhive;
+{% endhighlight %}
 </div>
+</div>
+
+下表列出了通过 YAML 文件或 DDL 定义 `HiveCatalog` 时所支持的参数。
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">参数</th>
+      <th class="text-center" style="width: 5%">必选</th>
+      <th class="text-center" style="width: 5%">默认值</th>
+      <th class="text-center" style="width: 10%">类型</th>
+      <th class="text-center" style="width: 60%">描述</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>type</h5></td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>Catalog 的类型。 创建 HiveCatalog 时，该参数必须设置为<code>'hive'</code>。</td>
+    </tr>
+    <tr>
+      <td><h5>name</h5></td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>Catalog 的名字。仅在使用 YAML file 时需要指定。</td>
+    </tr>
+    <tr>
+      <td><h5>hive-conf-dir</h5></td>
+      <td>否</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>指向包含 hive-site.xml 目录的 URI。 该 URI 必须是 Hadoop 文件系统所支持的类型。 如果指定一个相对 URI，即不包含 scheme，则默认为本地文件系统。如果该参数没有指定，我们会在 class path 下查找hive-site.xml。</td>
+    </tr>
+    <tr>
+      <td><h5>default-database</h5></td>
+      <td>否</td>
+      <td style="word-wrap: break-word;">default</td>
+      <td>String</td>
+      <td>当一个catalog被设为当前catalog时，所使用的默认当前database。</td>
+    </tr>
+    <tr>
+      <td><h5>hive-version</h5></td>
+      <td>否</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>HiveCatalog 能够自动检测使用的 Hive 版本。我们建议<b>不要</b>手动设置 Hive 版本，除非自动检测机制失败。</td>
+    </tr>
+    <tr>
+      <td><h5>hadoop-conf-dir</h5></td>
+      <td>否</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>Hadoop 配置文件目录的路径。目前仅支持本地文件系统路径。我们推荐使用 <b>HADOOP_CONF_DIR</b> 环境变量来指定 Hadoop 配置。因此仅在环境变量不满足您的需求时再考虑使用该参数，例如当您希望为每个 HiveCatalog 单独设置 Hadoop 配置时。</td>
+    </tr>
+    </tbody>
+</table>
 
 
 ## DDL

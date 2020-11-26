@@ -289,14 +289,8 @@ You're supposed to add dependencies as stated above at runtime.
 Connect to an existing Hive installation using the [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 
 and [HiveCatalog]({{ site.baseurl }}/dev/table/connectors/hive/hive_catalog.html) through the table environment or YAML configuration.
 
-If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
-the hive configuration file to their local environment first. 
-
 Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
 Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
-
-`HiveCatalog` is capable of automatically detecting the Hive version in use. It's recommended **NOT** to specify the Hive
-version, unless the automatic detection fails.
 
 Following is an example of how to connect to Hive:
 
@@ -305,12 +299,12 @@ Following is an example of how to connect to Hive:
 
 {% highlight java %}
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
-String hiveConfDir     = "/opt/hive-conf"; // a local path
+String hiveConfDir     = "/opt/hive-conf";
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir);
 tableEnv.registerCatalog("myhive", hive);
@@ -323,12 +317,12 @@ tableEnv.useCatalog("myhive");
 
 {% highlight scala %}
 
-val settings = EnvironmentSettings.newInstance().inBatchMode().build()
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
-val hiveConfDir     = "/opt/hive-conf" // a local path
+val hiveConfDir     = "/opt/hive-conf"
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir)
 tableEnv.registerCatalog("myhive", hive)
@@ -342,12 +336,12 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.new_instance().use_blink_planner().build()
 t_env = BatchTableEnvironment.create(environment_settings=settings)
 
 catalog_name = "myhive"
 default_database = "mydatabase"
-hive_conf_dir = "/opt/hive-conf"  # a local path
+hive_conf_dir = "/opt/hive-conf"
 
 hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
 t_env.register_catalog("myhive", hive_catalog)
@@ -371,7 +365,77 @@ catalogs:
      hive-conf-dir: /opt/hive-conf
 {% endhighlight %}
 </div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+
+CREATE CATALOG myhive WITH (
+    'type' = 'hive',
+    'default-database' = 'mydatabase',
+    'hive-conf-dir' = '/opt/hive-conf'
+);
+-- set the HiveCatalog as the current catalog of the session
+USE CATALOG myhive;
+{% endhighlight %}
 </div>
+</div>
+
+Below are the options supported when creating a `HiveCatalog` instance with YAML file or DDL.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Option</th>
+      <th class="text-center" style="width: 5%">Required</th>
+      <th class="text-center" style="width: 5%">Default</th>
+      <th class="text-center" style="width: 10%">Type</th>
+      <th class="text-center" style="width: 60%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>type</h5></td>
+      <td>Yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Type of the catalog. Must be set to <code>'hive'</code> when creating a HiveCatalog.</td>
+    </tr>
+    <tr>
+      <td><h5>name</h5></td>
+      <td>Yes</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The unique name of the catalog. Only applicable to YAML file.</td>
+    </tr>
+    <tr>
+      <td><h5>hive-conf-dir</h5></td>
+      <td>No</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>URI to your Hive conf dir containing hive-site.xml. The URI needs to be supported by Hadoop FileSystem. If the URI is relative, i.e. without a scheme, local file system is assumed. If the option is not specified, hive-site.xml is searched in class path.</td>
+    </tr>
+    <tr>
+      <td><h5>default-database</h5></td>
+      <td>No</td>
+      <td style="word-wrap: break-word;">default</td>
+      <td>String</td>
+      <td>The default database to use when the catalog is set as the current catalog.</td>
+    </tr>
+    <tr>
+      <td><h5>hive-version</h5></td>
+      <td>No</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>HiveCatalog is capable of automatically detecting the Hive version in use. It's recommended <b>NOT</b> to specify the Hive version, unless the automatic detection fails.</td>
+    </tr>
+    <tr>
+      <td><h5>hadoop-conf-dir</h5></td>
+      <td>No</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Path to Hadoop conf dir. Only local file system paths are supported. The recommended way to set Hadoop conf is via the <b>HADOOP_CONF_DIR</b> environment variable. Use the option only if environment variable doesn't work for you, e.g. if you want to configure each HiveCatalog separately.</td>
+    </tr>
+    </tbody>
+</table>
 
 
 ## DDL
