@@ -40,7 +40,7 @@ Apache Flink's unified approach to stream and batch processing means that a
 DataStream application executed over bounded input will produce the same
 *final* results regardless of the configured execution mode. It is important to
 note what *final* means here: a job executing in `STREAMING` mode might produce
-incremental updates (think upserts in a data base) while a `BATCH` job would
+incremental updates (think upserts in a database) while a `BATCH` job would
 only produce one final result at the end. The final result will be the same if
 interpreted correctly but the way to get there can be different.
 
