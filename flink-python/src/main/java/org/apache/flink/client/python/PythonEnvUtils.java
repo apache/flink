@@ -18,9 +18,11 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.client.deployment.application.UnsuccessfulExecutionException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -72,6 +74,8 @@ final class PythonEnvUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
 
 	static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
+
+	static volatile Throwable capturedJavaException = null;
 
 	/**
 	 * Wraps Python exec environment.
@@ -374,5 +378,11 @@ final class PythonEnvUtils {
 		pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 		// start the python process.
 		return PythonEnvUtils.startPythonProcess(pythonEnv, commands, redirectToPipe);
+	}
+
+	public static void setPythonException(Throwable pythonException) {
+		if (ExceptionUtils.findThrowable(pythonException, UnsuccessfulExecutionException.class).isPresent()) {
+			capturedJavaException = pythonException;
+		}
 	}
 }

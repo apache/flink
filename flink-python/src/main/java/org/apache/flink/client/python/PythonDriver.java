@@ -33,7 +33,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -42,7 +41,7 @@ import java.util.concurrent.ExecutionException;
 public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
-	public static void main(String[] args) throws ExecutionException, InterruptedException {
+	public static void main(String[] args) throws Throwable {
 		// The python job needs at least 2 args.
 		// e.g. py a.py [user args]
 		// e.g. pym a.b [user args]
@@ -106,9 +105,13 @@ public final class PythonDriver {
 		} catch (Throwable e) {
 			LOG.error("Run python process failed", e);
 
-			// throw ProgramAbortException if the caller is interested in the program plan,
-			// there is no harm to throw ProgramAbortException even if it is not the case.
-			throw new ProgramAbortException();
+			if (PythonEnvUtils.capturedJavaException != null) {
+				throw PythonEnvUtils.capturedJavaException;
+			} else {
+				// throw ProgramAbortException if the caller is interested in the program plan,
+				// there is no harm to throw ProgramAbortException even if it is not the case.
+				throw new ProgramAbortException();
+			}
 		} finally {
 			PythonEnvUtils.setGatewayServer(null);
 			gatewayServer.shutdown();
