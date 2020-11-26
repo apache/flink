@@ -137,13 +137,13 @@ StreamTableSource[T] extends TableSource[T] {
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API]({% link dev/table/tableApi.md %}#group-windows) and [SQL]({% link dev/table/sql/queries.md %}#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes]({% link dev/table/streaming/time_attributes.md %}).
+Time-based operations of streaming [Table API]({% link dev/table/tableApi.md %}#group-windows) and [SQL]({% link dev/table/sql/queries.md %}#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes]({% link dev/table/streaming/unbounded-data-processing/time_attributes.md %}).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
 #### Defining a Processing Time Attribute
 
-[Processing time attributes]({% link dev/table/streaming/time_attributes.md %}#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
+[Processing time attributes]({% link dev/table/streaming/unbounded-data-processing/time_attributes.md %}#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. A `TableSource` defines a processing time attribute by implementing the `DefinedProctimeAttribute` interface. The interface looks as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -171,7 +171,7 @@ DefinedProctimeAttribute {
 
 #### Defining a Rowtime Attribute
 
-[Rowtime attributes]({% link dev/table/streaming/time_attributes.md %}#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
+[Rowtime attributes]({% link dev/table/streaming/unbounded-data-processing/time_attributes.md %}#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
 
 A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
 
@@ -332,7 +332,7 @@ FilterableTableSource[T] {
 
 <span class="label label-danger">Attention</span> This is an experimental feature. The interface may be changed in future versions. It's only supported in Blink planner.
 
-The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax]({% link dev/table/streaming/joins.md %}).
+The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax]({% link dev/table/streaming/unbounded-data-processing/joins.md %}).
 
 The interface looks as follows:
 

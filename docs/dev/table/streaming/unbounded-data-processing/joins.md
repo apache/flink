@@ -1,6 +1,6 @@
 ---
 title: "Joins in Continuous Queries"
-nav-parent_id: streaming_tableapi
+nav-parent_id: unbounded_data
 nav-pos: 3
 ---
 <!--

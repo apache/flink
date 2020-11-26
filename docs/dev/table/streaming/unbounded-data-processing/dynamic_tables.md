@@ -1,6 +1,6 @@
 ---
-title: "Unbounded Data Processing"
-nav-parent_id: streaming_tableapi
+title: "Dynamic Tables"
+nav-parent_id: unbounded_data
 nav-pos: 1
 ---
 <!--

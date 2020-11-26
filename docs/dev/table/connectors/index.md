@@ -169,7 +169,7 @@ CREATE TABLE MyTable (
 
 Time attributes are essential when working with unbounded streaming tables. Therefore both proctime and rowtime attributes can be defined as part of the schema.
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({% link dev/table/streaming/time_attributes.md %}).
+For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({% link dev/table/streaming/unbounded-data-processing/time_attributes.md %}).
 
 #### Proctime Attributes
 

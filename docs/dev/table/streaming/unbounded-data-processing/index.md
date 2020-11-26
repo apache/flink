@@ -1,8 +1,8 @@
 ---
-title: "Streaming Concepts"
-nav-id: streaming_tableapi
-nav-parent_id: tableapi
-nav-pos: 10
+title: "Unbounded Data Processing"
+nav-id: unbounded_data
+nav-parent_id: streaming_tableapi
+nav-pos: 1
 is_beta: false
 nav-show_overview: true
 ---
@@ -35,6 +35,7 @@ The following pages explain concepts, practical limitations, and stream-specific
 Where to go next?
 -----------------
 
-* [Temporal Tables]({{ site.baseurl }}/dev/table/streaming/temporal_tables.html): Describes the Temporal Table concept.
-
-{% top %}
+* [Dynamic Tables]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/dynamic_tables.html): Describes the concept of dynamic tables.
+* [Time attributes]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/time_attributes.html): Explains time attributes and how time attributes are handled in Table API & SQL.
+* [Joins in Continuous Queries]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/joins.html): Different supported types of Joins in Continuous Queries.
+* [Query configuration]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/query_configuration.html): Lists Table API & SQL specific configuration options.

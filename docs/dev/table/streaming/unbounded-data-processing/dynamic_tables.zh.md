@@ -1,6 +1,6 @@
 ---
 title: "动态表 (Dynamic Table)"
-nav-parent_id: streaming_tableapi
+nav-parent_id: unbounded_data
 nav-pos: 1
 ---
 <!--
