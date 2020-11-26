@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Memory Configuration"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/memory/index.html
+permalink: /ops/memory/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

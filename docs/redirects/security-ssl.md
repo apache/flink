@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Security SSL"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/security/security-ssl.html
+permalink: /ops/security-ssl.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

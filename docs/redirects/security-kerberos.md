@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Security Kerberos"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/security/security-kerberos.html
+permalink: /ops/security-kerberos.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

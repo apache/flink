@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "External Resources"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/advanced/external_resources.html
+permalink: /ops/external_resources.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

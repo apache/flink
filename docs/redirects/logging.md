@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Logging"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/advanced/logging.html
+permalink: /monitoring/logging.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

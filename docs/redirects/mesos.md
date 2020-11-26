@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Mesos"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/resource-providers/mesos.html
+permalink: /ops/deployment/mesos.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

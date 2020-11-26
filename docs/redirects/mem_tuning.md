@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Memory Tuning"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/memory/mem_tuning.html
+permalink: /ops/memory/mem_tuning.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

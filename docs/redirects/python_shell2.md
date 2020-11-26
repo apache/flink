@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Python Shell"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/repls/python_shell.html
+permalink: /ops/python_shell.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

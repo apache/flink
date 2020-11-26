@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Memory Migration"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/memory/mem_migration.html
+permalink: /ops/memory/mem_migration.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

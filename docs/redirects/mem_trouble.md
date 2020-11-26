@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "Memory Troubleshooting"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/memory/mem_trouble.html
+permalink: /ops/memory/mem_trouble.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

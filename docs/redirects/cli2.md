@@ -1,8 +1,8 @@
 ---
-title: "File Systems"
+title: "CLI"
 layout: redirect
-redirect: /deployment/filesystems/index.html
-permalink: /ops/filesystems.html
+redirect: /deployment/cli.html
+permalink: /ops/cli.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
