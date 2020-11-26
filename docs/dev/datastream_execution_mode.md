@@ -38,12 +38,18 @@ for which you have a known fixed input and which do not run continuously.
 
 Apache Flink's unified approach to stream and batch processing means that a
 DataStream application executed over bounded input will produce the same
-results regardless of the configured execution mode. By enabling `BATCH`
-execution, we allow Flink to apply additional optimizations that we can only do
-when we know that our input is bounded. For example, different join/aggregation
-strategies can be used, in addition to a different shuffle implementation that
-allows more efficient task scheduling and failure recovery behavior. We will go
-into some of the details of the execution behavior below.
+*final* results regardless of the configured execution mode. It is important to
+note what *final* means here: a job executing in `STREAMING` mode might produce
+incremental updates (think upserts in a database) while a `BATCH` job would
+only produce one final result at the end. The final result will be the same if
+interpreted correctly but the way to get there can be different.
+
+By enabling `BATCH` execution, we allow Flink to apply additional optimizations
+that we can only do when we know that our input is bounded. For example,
+different join/aggregation strategies can be used, in addition to a different
+shuffle implementation that allows more efficient task scheduling and failure
+recovery behavior. We will go into some of the details of the execution
+behavior below.
 
 * This will be replaced by the TOC
 {:toc}
