@@ -19,16 +19,10 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
 
 import java.util.Collection;
-import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
-		extends SimpleTransformationTranslator<OUT, BroadcastStateTransformation<IN1, IN2, OUT>>  {
+		extends AbstractTwoInputTransformationTranslator<IN1, IN2, OUT, BroadcastStateTransformation<IN1, IN2, OUT>> {
 
 	@Override
 	protected Collection<Integer> translateForBatchInternal(
@@ -57,52 +51,14 @@ public class BroadcastStateTransformationTranslator<IN1, IN2, OUT>
 		checkNotNull(transformation);
 		checkNotNull(context);
 
-		final TypeInformation<IN1> nonBroadcastTypeInfo =
-				transformation.getNonBroadcastStream().getOutputType();
-		final TypeInformation<IN2> broadcastTypeInfo =
-				transformation.getBroadcastStream().getOutputType();
-
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final String slotSharingGroup = context.getSlotSharingGroup();
-		final int transformationId = transformation.getId();
-		final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
-
-		streamGraph.addCoOperator(
-				transformationId,
-				slotSharingGroup,
-				transformation.getCoLocationGroupKey(),
+		return translateInternal(
+				transformation,
+				transformation.getNonBroadcastStream(),
+				transformation.getBroadcastStream(),
 				transformation.getOperatorFactory(),
-				nonBroadcastTypeInfo,
-				broadcastTypeInfo,
-				transformation.getOutputType(),
-				transformation.getName());
-
-		if (transformation.getKeySelector() != null) {
-			final TypeSerializer<?> keySerializer =
-					transformation.getStateKeyType().createSerializer(executionConfig);
-
-			streamGraph.setTwoInputStateKey(
-					transformationId,
-					transformation.getKeySelector(),
-					null,
-					keySerializer);
-		}
-
-		final int parallelism = transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-				? transformation.getParallelism()
-				: executionConfig.getParallelism();
-		streamGraph.setParallelism(transformationId, parallelism);
-		streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
-
-		for (Integer inputId: context.getStreamNodeIds(transformation.getNonBroadcastStream())) {
-			streamGraph.addEdge(inputId, transformationId, 1);
-		}
-
-		for (Integer inputId: context.getStreamNodeIds(transformation.getBroadcastStream())) {
-			streamGraph.addEdge(inputId, transformationId, 2);
-		}
-
-		return Collections.singleton(transformationId);
-
+				transformation.getStateKeyType(),
+				transformation.getKeySelector(),
+				null,
+				context);
 	}
 }
