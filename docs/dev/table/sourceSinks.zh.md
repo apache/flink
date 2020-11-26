@@ -38,7 +38,7 @@ This page focuses on how to develop a custom, user-defined connector.
 
 <span class="label label-danger">Attention</span> New table source and table sink interfaces have been
 introduced in Flink 1.11 as part of [FLIP-95](https://cwiki.apache.org/confluence/display/FLINK/FLIP-95%3A+New+TableSource+and+TableSink+interfaces).
-Also the factory interfaces have been reworked. If necessary, take a look at the [old table sources and sinks page]({% link dev/table/legacySourceSinks.md %}).
+Also the factory interfaces have been reworked. If necessary, take a look at the [old table sources and sinks page]({% link dev/table/legacySourceSinks.zh.md %}).
 Those interfaces are still supported for backwards compatibility.
 
 * This will be replaced by the TOC
