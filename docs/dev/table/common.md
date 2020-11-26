@@ -33,7 +33,7 @@ Main Differences Between the Two Planners
 1. Blink treats batch jobs as a special case of streaming. As such, the conversion between Table and DataSet is also not supported, and batch jobs will not be translated into `DateSet` programs but translated into `DataStream` programs, the same as the streaming jobs.
 2. The Blink planner does not support `BatchTableSource`, use bounded `StreamTableSource` instead of it.
 3. The implementations of `FilterableTableSource` for the old planner and the Blink planner are incompatible. The old planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
-4. String based key-value config options (Please see the documentation about [Configuration]({{ site.baseurl }}/dev/table/config.html) for details) are only used for the Blink planner.
+4. String based key-value config options (Please see the documentation about [Configuration]({% link dev/table/config.md %}) for details) are only used for the Blink planner.
 5. The implementation(`CalciteConfig`) of `PlannerConfig` in two planners is different.
 6. The Blink planner will optimize multiple-sinks into one DAG on both `TableEnvironment` and `StreamTableEnvironment`. The old planner will always optimize each sink into a new DAG, where all DAGs are independent of each other.
 7. The old planner does not support catalog statistics now, while the Blink planner does.
@@ -290,7 +290,7 @@ Create Tables in the Catalog
 
 A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier. Each
 identifier consists of 3 parts: catalog name, database name and object name. If a catalog or database is not
-specified, the current default value will be used (see examples in the [Table identifier expanding]({{ site.baseurl }}/dev/table/common.html#table-identifier-expanding) section).
+specified, the current default value will be used (see examples in the [Table identifier expanding]({% link dev/table/common.md %}#table-identifier-expanding) section).
 
 Tables can be either virtual (`VIEWS`) or regular (`TABLES`). `VIEWS` can be created from an
 existing `Table` object, usually the result of a Table API or SQL query. `TABLES` describe
@@ -301,7 +301,7 @@ external data, such as a file, database table, or message queue.
 Tables may either be temporary, and tied to the lifecycle of a single Flink session, or permanent,
 and visible across multiple Flink sessions and clusters.
 
-Permanent tables require a [catalog]({{ site.baseurl }}/dev/table/catalogs.html) (such as Hive Metastore)
+Permanent tables require a [catalog]({% link dev/table/catalogs.md %}) (such as Hive Metastore)
 to maintain metadata about the table. Once a permanent table is created, it is visible to any Flink
 session that is connected to the catalog and will continue to exist until the table is explicitly
 dropped.
@@ -380,7 +380,7 @@ registered `Table` will *not* be shared.
 
 #### Connector Tables
 
-It is also possible to create a `TABLE` as known from relational databases from a [connector]({{ site.baseurl }}/dev/table/connect.html) declaration.
+It is also possible to create a `TABLE` as known from relational databases from a [connector]({% link dev/table/connect.md %}) declaration.
 The connector describes the external system that stores the data of a table. Storage systems such as Apache Kafka or a regular file system can be declared here.
 
 <div class="codetabs" markdown="1">
@@ -501,7 +501,7 @@ The Table API is a language-integrated query API for Scala and Java. In contrast
 
 The API is based on the `Table` class which represents a table (streaming or batch) and offers methods to apply relational operations. These methods return a new `Table` object, which represents the result of applying the relational operation on the input `Table`. Some relational operations are composed of multiple method calls such as `table.groupBy(...).select()`, where `groupBy(...)` specifies a grouping of `table`, and `select(...)` the projection on the grouping of `table`.
 
-The [Table API]({{ site.baseurl }}/dev/table/tableApi.html) document describes all Table API operations that are supported on streaming and batch tables.
+The [Table API]({% link dev/table/tableApi.md %}) document describes all Table API operations that are supported on streaming and batch tables.
 
 The following example shows a simple Table API aggregation query:
 
@@ -577,7 +577,7 @@ revenue = orders \
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as regular Strings.
 
-The [SQL]({{ site.baseurl }}/dev/table/sql/index.html) document describes Flink's SQL support for streaming and batch tables.
+The [SQL]({% link dev/table/sql/index.md %}) document describes Flink's SQL support for streaming and batch tables.
 
 The following example shows how to specify a query and return the result as a `Table`.
 
@@ -727,7 +727,7 @@ A `Table` is emitted by writing it to a `TableSink`. A `TableSink` is a generic 
 
 A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Table` requires either an `AppendStreamTableSink`, a `RetractStreamTableSink`, or an `UpsertStreamTableSink`. 
 
-Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
+Please see the documentation about [Table Sources & Sinks]({% link dev/table/sourceSinks.md %}) for details about available sinks and instructions for how to implement a custom `TableSink`.
 
 The `Table.executeInsert(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
 
@@ -821,7 +821,7 @@ The behavior of translating and executing a query is different for the two plann
 <div class="codetabs" markdown="1">
 
 <div data-lang="Blink planner" markdown="1">
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases:
+Table API and SQL queries are translated into [DataStream]({% link dev/datastream_api.md %}) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases:
 
 1. Optimization of the logical plan,
 2. Translation into a DataStream program.
@@ -839,7 +839,7 @@ a Table API or SQL query is translated when:
 </div>
 
 <div data-lang="Old planner" markdown="1">
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) or [DataSet]({{ site.baseurl }}/dev/batch) programs depending on whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases:
+Table API and SQL queries are translated into [DataStream]({% link dev/datastream_api.md %}) or [DataSet]({% link dev/batch/index.md %}) programs depending on whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases:
 
 1. Optimization of the logical plan
 2. Translation into a DataStream or DataSet program
@@ -866,7 +866,7 @@ Integration with DataStream and DataSet API
 Both planners on stream can integrate with the `DataStream` API. Only old planner can integrate with the `DataSet API`, Blink planner on batch could not be combined with both.
 **Note:** The `DataSet` API discussed below is only relevant for the old planner on batch.
 
-Table API and SQL queries can be easily integrated with and embedded into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet]({{ site.baseurl }}/dev/batch) programs. For instance, it is possible to query an external table (for example from a RDBMS), do some pre-processing, such as filtering, projecting, aggregating, or joining with meta data, and then further process the data with either the DataStream or DataSet API (and any of the libraries built on top of these APIs, such as CEP or Gelly). Inversely, a Table API or SQL query can also be applied on the result of a DataStream or DataSet program.
+Table API and SQL queries can be easily integrated with and embedded into [DataStream]({% link dev/datastream_api.md %}) and [DataSet]({% link dev/batch/index.md %}) programs. For instance, it is possible to query an external table (for example from a RDBMS), do some pre-processing, such as filtering, projecting, aggregating, or joining with meta data, and then further process the data with either the DataStream or DataSet API (and any of the libraries built on top of these APIs, such as CEP or Gelly). Inversely, a Table API or SQL query can also be applied on the result of a DataStream or DataSet program.
 
 This interaction can be achieved by converting a `DataStream` or `DataSet` into a `Table` and vice versa. In this section, we describe how these conversions are done.
 
@@ -1442,7 +1442,7 @@ This is done through the `Table.explain()` method or `StatementSet.explain()` me
 2. the optimized logical query plan, and
 3. the physical execution plan.
 
-`TableEnvironment.explainSql()` and `TableEnvironment.executeSql()` support execute a `EXPLAIN` statement to get the plans, Please refer to [EXPLAIN]({{ site.baseurl }}/dev/table/sql/explain.html) page.
+`TableEnvironment.explainSql()` and `TableEnvironment.executeSql()` support execute a `EXPLAIN` statement to get the plans, Please refer to [EXPLAIN]({% link dev/table/sql/explain.md %}) page.
 
 The following code shows an example and the corresponding output for given `Table` using `Table.explain()` method:
 

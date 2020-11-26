@@ -59,7 +59,7 @@ of the Elasticsearch installation:
 </table>
 
 Note that the streaming connectors are currently not part of the binary
-distribution. See [here]({{site.baseurl}}/dev/project-configuration.html) for information
+distribution. See [here]({% link dev/project-configuration.zh.md %}) for information
 about how to package the program with the libraries for cluster execution.
 
 ## Installing Elasticsearch
@@ -317,7 +317,7 @@ time of checkpoints. This effectively assures that all requests before the
 checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
 proceeding to process more records sent to the sink.
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/zh/learn-flink/fault_tolerance.html).
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({% link learn-flink/fault_tolerance.zh.md %}).
 
 To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
 
@@ -464,7 +464,7 @@ More information about Elasticsearch can be found [here](https://elastic.co).
 
 For the execution of your Flink program, it is recommended to build a
 so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{site.baseurl}}/dev/project-configuration.html) for further information).
+(see [here]({% link dev/project-configuration.zh.md %}) for further information).
 
 Alternatively, you can put the connector's jar file into Flink's `lib/` folder to make it available
 system-wide, i.e. for all job being run.

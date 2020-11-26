@@ -195,8 +195,8 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         Executes the given single statement and returns the execution result.
         The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE. <br> <br>
         Note that for "INSERT INTO" statement this is an asynchronous operation, which is usually expected when submitting a job to a remote cluster.
-        However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to <a href="{{ site.baseurl }}/dev/python/faq.html#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">here</a> for more details. <br>
-        Please refer the <a href="{{ site.baseurl }}/dev/table/sql/">SQL</a> documentation for more details about SQL statement.
+        However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to <a href="{% link dev/python/faq.md %}#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">here</a> for more details. <br>
+        Please refer the <a href="{% link dev/table/sql/index.md %}">SQL</a> documentation for more details about SQL statement.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute_sql">link</a>
@@ -614,8 +614,8 @@ Please refer to the [Dependency Management]({% link dev/python/table-api-users-g
       </td>
       <td>
         Returns the table config to define the runtime behavior of the Table API.
-        You can find all the available configuration options in <a href="{{ site.baseurl }}/deployment/config.html">Configuration</a> and
-        <a href="{{ site.baseurl }}/dev/python/python_config.html">Python Configuation</a>. <br> <br>
+        You can find all the available configuration options in <a href="{% link deployment/config.md %}">Configuration</a> and
+        <a href="{% link dev/python/python_config.md %}">Python Configuation</a>. <br> <br>
         The following code is an example showing how to set the configuration options through this API:
 {% highlight python %}
 # set the parallelism to 8

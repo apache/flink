@@ -241,7 +241,7 @@ That is, batch data exchanges denote the boundaries of a region.
 - All data exchanges in a Batch Table/SQL job are batched by default.
 - The data exchange types in a DataSet job are determined by the 
   [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) 
-  which can be set through [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
+  which can be set through [ExecutionConfig]({% link dev/execution_configuration.md %}).
 
 The regions to restart are decided as below:
 1. The region containing the failed task will be restarted.

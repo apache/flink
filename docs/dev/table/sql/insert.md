@@ -51,7 +51,7 @@ The following examples show how to run a single INSERT statement in `TableEnviro
 
 <div data-lang="SQL CLI" markdown="1">
 
-Single INSERT statement can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+Single INSERT statement can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run a single INSERT statement in SQL CLI.
 

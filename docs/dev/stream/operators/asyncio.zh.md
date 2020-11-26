@@ -40,7 +40,7 @@ under the License.
 
 与数据库异步交互是指一个并行函数实例可以并发地处理多个请求和接收多个响应。这样，函数在等待的时间可以发送其他请求和接收其他响应。至少等待的时间可以被多个请求摊分。大多数情况下，异步交互可以大幅度提高流处理的吞吐量。
 
-<img src="{{ site.baseurl }}/fig/async_io.svg" class="center" width="50%" />
+<img src="{% link /fig/async_io.svg %}" class="center" width="50%" />
 
 *注意：*仅仅提高 `MapFunction` 的并行度（parallelism）在有些情况下也可以提升吞吐量，但是这样做通常会导致非常高的资源消耗：更多的并行 `MapFunction` 实例意味着更多的 Task、更多的线程、更多的 Flink 内部网络连接、 更多的与数据库的网络连接、更多的缓冲和更多程序内部协调的开销。
 
@@ -190,7 +190,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 
 ### 事件时间
 
-当流处理应用使用[事件时间]({{ site.baseurl }}/zh/dev/event_time.html)时，异步 I/O 算子会正确处理 watermark。对于两种顺序模式，这意味着以下内容：
+当流处理应用使用[事件时间]({% link dev/event_time.zh.md %})时，异步 I/O 算子会正确处理 watermark。对于两种顺序模式，这意味着以下内容：
 
   - **无序模式**： Watermark 既不超前于记录也不落后于记录，即 watermark 建立了*顺序的边界*。
     只有连续两个 watermark 之间的记录是无序发出的。

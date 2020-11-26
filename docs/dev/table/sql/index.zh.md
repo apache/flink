@@ -41,15 +41,15 @@ under the License.
 
 ## 数据类型
 
-请参考专门描述该主题的页面 [数据类型]({{ site.baseurl }}/zh/dev/table/types.html)。
+请参考专门描述该主题的页面 [数据类型]({% link dev/table/types.zh.md %})。
 
 通用类型与（嵌套的）复合类型 （如：POJO、tuples、rows、Scala case 类) 都可以作为行的字段。
 
-复合类型的字段任意的嵌套可被 [值访问函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html#value-access-functions) 访问。
+复合类型的字段任意的嵌套可被 [值访问函数]({% link dev/table/functions/systemFunctions.zh.md %}#value-access-functions) 访问。
 
-通用类型将会被视为一个黑箱，且可以被 [用户自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html) 传递或引用。
+通用类型将会被视为一个黑箱，且可以被 [用户自定义函数]({% link dev/table/functions/udfs.zh.md %}) 传递或引用。
 
-对于 DDL 语句而言，我们支持所有在 [数据类型]({{ site.baseurl }}/zh/dev/table/types.html) 页面中定义的数据类型。
+对于 DDL 语句而言，我们支持所有在 [数据类型]({% link dev/table/types.zh.md %}) 页面中定义的数据类型。
 
 **注意：** SQL查询不支持部分数据类型（cast 表达式或字符常量值）。如：`STRING`, `BYTES`, `RAW`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
 

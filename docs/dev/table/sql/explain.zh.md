@@ -50,7 +50,7 @@ EXPLAIN 语句可以通过 `TableEnvironment` 的 `execute_sql()` 执行。 若 
 
 <div data-lang="SQL CLI" markdown="1">
 
-可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 EXPLAIN 语句。
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 EXPLAIN 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一条 EXPLAIN 语句。
 
@@ -199,7 +199,7 @@ Stage 2 : Data Source
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 {% endhighlight %}
 
-请参阅 [Queries]({{ site.baseurl }}/zh/dev/table/sql/queries.html#supported-syntax) 页面获得 query 的语法。
-请参阅 [INSERT]({{ site.baseurl }}/zh/dev/table/sql/insert.html) 页面获得 INSERT 的语法。
+请参阅 [Queries]({% link dev/table/sql/queries.zh.md %}#supported-syntax) 页面获得 query 的语法。
+请参阅 [INSERT]({% link dev/table/sql/insert.zh.md %}) 页面获得 INSERT 的语法。
 
 {% top %}

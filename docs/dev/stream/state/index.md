@@ -35,11 +35,11 @@ to learn about the concepts behind stateful stream processing.
 Where to go next?
 -----------------
 
-* [Working with State](state.html): Shows how to use state in a Flink application and explains the different kinds of state.
-* [The Broadcast State Pattern](broadcast_state.html): Explains how to connect a broadcast stream with a non-broadcast stream and use state to exchange information between them. 
-* [Checkpointing](checkpointing.html): Describes how to enable and configure checkpointing for fault tolerance.
-* [Queryable State](queryable_state.html): Explains how to access state from outside of Flink during runtime.
-* [State Schema Evolution](schema_evolution.html): Shows how schema of state types can be evolved.
-* [Custom Serialization for Managed State](custom_serialization.html): Discusses how to implement custom serializers, especially for schema evolution.
+* [Working with State]({% link dev/stream/state/state.md %}): Shows how to use state in a Flink application and explains the different kinds of state.
+* [The Broadcast State Pattern]({% link dev/stream/state/broadcast_state.md %}): Explains how to connect a broadcast stream with a non-broadcast stream and use state to exchange information between them. 
+* [Checkpointing]({% link dev/stream/state/checkpointing.md %}): Describes how to enable and configure checkpointing for fault tolerance.
+* [Queryable State]({% link dev/stream/state/queryable_state.md %}): Explains how to access state from outside of Flink during runtime.
+* [State Schema Evolution]({% link dev/stream/state/schema_evolution.md %}): Shows how schema of state types can be evolved.
+* [Custom Serialization for Managed State]({% link dev/stream/state/custom_serialization.md %}): Discusses how to implement custom serializers, especially for schema evolution.
 
 {% top %}

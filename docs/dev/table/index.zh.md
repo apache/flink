@@ -27,7 +27,7 @@ under the License.
 
 Apache Flink 有两种关系型 API 来做流批统一处理：Table API 和 SQL。Table API 是用于 Scala 和 Java 语言的查询API，它可以用一种非常直观的方式来组合使用选取、过滤、join 等关系型算子。Flink SQL 是基于 [Apache Calcite](https://calcite.apache.org) 来实现的标准 SQL。这两种 API 中的查询对于批（DataSet）和流（DataStream）的输入有相同的语义，也会产生同样的计算结果。
 
-Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream 和 DataSet API。你可以在这些 API 之间，以及一些基于这些 API 的库之间轻松的切换。比如，你可以先用 [CEP]({{ site.baseurl }}/zh/dev/libs/cep.html) 从 DataStream 中做模式匹配，然后用 Table API 来分析匹配的结果；或者你可以用 SQL 来扫描、过滤、聚合一个批式的表，然后再跑一个 [Gelly 图算法]({{ site.baseurl }}/zh/dev/libs/gelly/index.html) 来处理已经预处理好的数据。
+Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream 和 DataSet API。你可以在这些 API 之间，以及一些基于这些 API 的库之间轻松的切换。比如，你可以先用 [CEP]({% link dev/libs/cep.zh.md %}) 从 DataStream 中做模式匹配，然后用 Table API 来分析匹配的结果；或者你可以用 SQL 来扫描、过滤、聚合一个批式的表，然后再跑一个 [Gelly 图算法]({% link dev/libs/gelly/index.zh.md %}) 来处理已经预处理好的数据。
 
 **注意：Table API 和 SQL 现在还处于活跃开发阶段，还没有完全实现所有的特性。不是所有的 \[Table API，SQL\] 和 \[流，批\] 的组合都是支持的。**
 
@@ -110,7 +110,7 @@ Planner 的作用主要是把关系型的操作翻译成可执行的、经过优
 
 ### 扩展依赖
 
-如果你想实现[自定义格式]({{ site.baseurl }}/zh/dev/table/sourceSinks.html#define-a-tablefactory)来解析 Kafka 数据，或者[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html)，下面的依赖就足够了，编译出来的 jar 文件可以直接给 SQL Client 使用：
+如果你想实现[自定义格式]({% link dev/table/sourceSinks.zh.md %}#define-a-tablefactory)来解析 Kafka 数据，或者[自定义函数]({% link dev/table/functions/systemFunctions.zh.md %})，下面的依赖就足够了，编译出来的 jar 文件可以直接给 SQL Client 使用：
 
 {% highlight xml %}
 <dependency>
@@ -133,13 +133,13 @@ Planner 的作用主要是把关系型的操作翻译成可执行的、经过优
 接下来？
 -----------------
 
-* [公共概念和 API]({{ site.baseurl }}/zh/dev/table/common.html): Table API 和 SQL 公共概念以及 API。
-* [数据类型]({{ site.baseurl }}/zh/dev/table/types.html): 内置数据类型以及它们的属性
-* [流式概念]({{ site.baseurl }}/zh/dev/table/streaming): Table API 和 SQL 中流式相关的文档，比如配置时间属性和如何处理更新结果。
-* [连接外部系统]({{ site.baseurl }}/zh/dev/table/connect.html): 读写外部系统的连接器和格式。
-* [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html): Table API 支持的操作。
-* [SQL]({{ site.baseurl }}/zh/dev/table/sql/index.html): SQL 支持的操作和语法。
-* [内置函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html): Table API 和 SQL 中的内置函数。
-* [SQL Client]({{ site.baseurl }}/zh/dev/table/sqlClient.html): 不用编写代码就可以尝试 Flink SQL，可以直接提交 SQL 任务到集群上。
+* [公共概念和 API]({% link dev/table/common.zh.md %}): Table API 和 SQL 公共概念以及 API。
+* [数据类型]({% link dev/table/types.zh.md %}): 内置数据类型以及它们的属性
+* [流式概念]({% link dev/table/streaming/index.zh.md %}): Table API 和 SQL 中流式相关的文档，比如配置时间属性和如何处理更新结果。
+* [连接外部系统]({% link dev/table/connect.zh.md %}): 读写外部系统的连接器和格式。
+* [Table API]({% link dev/table/tableApi.zh.md %}): Table API 支持的操作。
+* [SQL]({% link dev/table/sql/index.zh.md %}): SQL 支持的操作和语法。
+* [内置函数]({% link dev/table/functions/systemFunctions.zh.md %}): Table API 和 SQL 中的内置函数。
+* [SQL Client]({% link dev/table/sqlClient.zh.md %}): 不用编写代码就可以尝试 Flink SQL，可以直接提交 SQL 任务到集群上。
 
 {% top %}

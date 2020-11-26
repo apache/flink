@@ -741,7 +741,7 @@ format:                               # required: file system connector requires
 
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
-<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/internals/filesystems.html).
+<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({% link internals/filesystems.md %}).
 
 <span class="label label-danger">Attention</span> File system sources and sinks for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., directory monitoring and bucket output.
 
@@ -884,11 +884,11 @@ connector:
 </div>
 </div>
 
-**Specify the start reading position:** By default, the Kafka source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions, which correspond to the configurations in section [Kafka Consumers Start Position Configuration]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-consumers-start-position-configuration).
+**Specify the start reading position:** By default, the Kafka source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions, which correspond to the configurations in section [Kafka Consumers Start Position Configuration]({% link dev/connectors/kafka.md %}#kafka-consumers-start-position-configuration).
 
 **Flink-Kafka Sink Partitioning:** By default, a Kafka sink writes to at most as many partitions as its own parallelism (each parallel instance of the sink writes to exactly one partition). In order to distribute the writes to more partitions or control the routing of rows into partitions, a custom sink partitioner can be provided. The round-robin partitioner is useful to avoid an unbalanced partitioning. However, it will cause a lot of network connections between all the Flink instances and all the Kafka brokers.
 
-**Consistency guarantees:** By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({{ site.baseurl }}/dev/stream/state/checkpointing.html#enabling-and-configuring-checkpointing).
+**Consistency guarantees:** By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
 
 **Kafka 0.10+ Timestamps:** Since Kafka 0.10, Kafka messages have a timestamp as metadata that specifies when the record was written into the Kafka topic. These timestamps can be used for a [rowtime attribute](connect.html#defining-the-schema) by selecting `timestamps: from-source` in YAML and `timestampsFromSource()` in Java/Scala respectively.
 
@@ -1112,7 +1112,7 @@ connector:
 </div>
 </div>
 
-**Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({{ site.baseurl }}/dev/connectors/elasticsearch.html).
+**Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({% link dev/connectors/elasticsearch.md %}).
 
 **Disabling flushing on checkpoint:** When disabled, a sink will not wait for all pending action requests to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong guarantees for at-least-once delivery of action requests.
 
@@ -1275,7 +1275,7 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 
 **Catalog**
 
-JDBC Connector can be used together with [`JdbcCatalog`]({{ site.baseurl }}/dev/table/catalogs.html#jdbccatalog) to greatly simplify development effort and improve user experience.
+JDBC Connector can be used together with [`JdbcCatalog`]({% link dev/table/catalogs.md %}#jdbccatalog) to greatly simplify development effort and improve user experience.
 
 <br/>
 
@@ -1415,7 +1415,7 @@ connector:
 <span class="label label-primary">Source: Batch</span>
 <span class="label label-primary">Sink: Batch</span>
 
-Please refer to [Hive integration]({{ site.baseurl }}/dev/table/connectors/hive/).
+Please refer to [Hive integration]({% link dev/table/connectors/hive/index.md %}).
 
 {% top %}
 

@@ -26,7 +26,7 @@ Iterative algorithms occur in many domains of data analysis, such as *machine le
 
 Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guide](index.html) explains how to implement the operators in both Scala and Java. We also support both **vertex-centric and gather-sum-apply iterations** through Flink's graph processing API, [Gelly]({{site.baseurl}}/dev/libs/gelly/index.html).
+Here, we provide background on both operator variants and outline their usage. The [programming guide](index.html) explains how to implement the operators in both Scala and Java. We also support both **vertex-centric and gather-sum-apply iterations** through Flink's graph processing API, [Gelly]({% link dev/libs/gelly/index.zh.md %}).
 
 The following table provides an overview of both operators:
 
@@ -87,7 +87,7 @@ Iterate Operator
 The **iterate operator** covers the *simple form of iterations*: in each iteration, the **step function** consumes the **entire input** (the *result of the previous iteration*, or the *initial data set*), and computes the **next version of the partial solution** (e.g. `map`, `reduce`, `join`, etc.).
 
 <p class="text-center">
-    <img alt="Iterate Operator" width="60%" src="{{site.baseurl}}/fig/iterations_iterate_operator.png" />
+    <img alt="Iterate Operator" width="60%" src="{% link /fig/iterations_iterate_operator.png %}" />
 </p>
 
   1. **Iteration Input**: Initial input for the *first iteration* from a *data source* or *previous operators*.
@@ -122,7 +122,7 @@ setFinalState(state);
 In the following example, we **iteratively increment a set numbers**:
 
 <p class="text-center">
-    <img alt="Iterate Operator Example" width="60%" src="{{site.baseurl}}/fig/iterations_iterate_operator_example.png" />
+    <img alt="Iterate Operator Example" width="60%" src="{% link /fig/iterations_iterate_operator_example.png %}" />
 </p>
 
   1. **Iteration Input**: The initial input is read from a data source and consists of five single-field records (integers `1` to `5`).
@@ -150,7 +150,7 @@ The **delta iterate operator** covers the case of **incremental iterations**. In
 Where applicable, this leads to **more efficient algorithms**, because not every element in the solution set changes in each iteration. This allows to **focus on the hot parts** of the solution and leave the **cold parts untouched**. Frequently, the majority of the solution cools down comparatively fast and the later iterations operate only on a small subset of the data.
 
 <p class="text-center">
-    <img alt="Delta Iterate Operator" width="60%" src="{{site.baseurl}}/fig/iterations_delta_iterate_operator.png" />
+    <img alt="Delta Iterate Operator" width="60%" src="{% link /fig/iterations_delta_iterate_operator.png %}" />
 </p>
 
   1. **Iteration Input**: The initial workset and solution set are read from *data sources* or *previous operators* as input to the first iteration.
@@ -185,7 +185,7 @@ setFinalState(solution);
 In the following example, every vertex has an **ID** and a **coloring**. Each vertex will propagate its vertex ID to neighboring vertices. The **goal** is to *assign the minimum ID to every vertex in a subgraph*. If a received ID is smaller then the current one, it changes to the color of the vertex with the received ID. One application of this can be found in *community analysis* or *connected components* computation.
 
 <p class="text-center">
-    <img alt="Delta Iterate Operator Example" width="100%" src="{{site.baseurl}}/fig/iterations_delta_iterate_operator_example.png" />
+    <img alt="Delta Iterate Operator Example" width="100%" src="{% link /fig/iterations_delta_iterate_operator_example.png %}" />
 </p>
 
 The **initial input** is set as **both workset and solution set.** In the above figure, the colors visualize the **evolution of the solution set**. With each iteration, the color of the minimum ID is spreading in the respective subgraph. At the same time, the amount of work (exchanged and compared vertex IDs) decreases with each iteration. This corresponds to the **decreasing size of the workset**, which goes from all seven vertices to zero after three iterations, at which time the iteration terminates. The **important observation** is that *the lower subgraph converges before the upper half* does and the delta iteration is able to capture this with the workset abstraction.
@@ -206,7 +206,7 @@ Superstep Synchronization
 We referred to each execution of the step function of an iteration operator as *a single iteration*. In parallel setups, **multiple instances of the step function are evaluated in parallel** on different partitions of the iteration state. In many settings, one evaluation of the step function on all parallel instances forms a so called **superstep**, which is also the granularity of synchronization. Therefore, *all* parallel tasks of an iteration need to complete the superstep, before a next superstep will be initialized. **Termination criteria** will also be evaluated at superstep barriers.
 
 <p class="text-center">
-    <img alt="Supersteps" width="50%" src="{{site.baseurl}}/fig/iterations_supersteps.png" />
+    <img alt="Supersteps" width="50%" src="{% link /fig/iterations_supersteps.png %}" />
 </p>
 
 {% top %}

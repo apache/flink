@@ -88,8 +88,8 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/hive/">Apache Hive</a></td>
-      <td><a href="{{ site.baseurl }}/dev/table/connectors/hive/#supported-hive-versions">Supported Versions</a></td>
+      <td><a href="{% link dev/table/connectors/hive/index.md %}">Apache Hive</a></td>
+      <td><a href="{% link dev/table/connectors/hive/index.md %}#supported-hive-versions">Supported Versions</a></td>
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>

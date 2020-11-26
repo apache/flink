@@ -25,8 +25,7 @@ under the License.
 * toc
 {:toc}
 
-As described in [Generating Watermarks]({{ site.baseurl
-}}/dev/event_timestamps_watermarks.html), Flink provides abstractions that
+As described in [Generating Watermarks]({% link dev/event_timestamps_watermarks.md %}), Flink provides abstractions that
 allow the programmer to assign their own timestamps and emit their own
 watermarks. More specifically, one can do so by implementing the
 `WatermarkGenerator` interface.
@@ -78,8 +77,7 @@ result of `t - t_w`, where `t` is the (event-time) timestamp of an element, and
 `t_w` that of the previous watermark.  If `lateness > 0` then the element is
 considered late and is, by default, ignored when computing the result of the
 job for its corresponding window. See the documentation about [allowed
-lateness]({{ site.baseurl
-}}/dev/stream/operators/windows.html#allowed-lateness) for more information
+lateness]({% link dev/stream/operators/windows.md %}#allowed-lateness) for more information
 about working with late elements.
 
 <div class="codetabs" markdown="1">

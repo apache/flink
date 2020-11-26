@@ -26,7 +26,7 @@ under the License.
 
 The `HiveModule` provides Hive built-in functions as Flink system (built-in) functions to Flink SQL and Table API users.
 
-For detailed information, please refer to [HiveModule]({{ site.baseurl }}/dev/table/modules.html#hivemodule).
+For detailed information, please refer to [HiveModule]({% link dev/table/modules.md %}#hivemodule).
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">

@@ -50,7 +50,7 @@ The following examples show how to run a USE statement in `TableEnvironment`.
 
 <div data-lang="SQL CLI" markdown="1">
 
-USE statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+USE statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
 
 The following examples show how to run a USE statement in SQL CLI.
 

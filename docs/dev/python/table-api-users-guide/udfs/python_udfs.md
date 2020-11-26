@@ -246,7 +246,7 @@ aggregate function will be called to compute the aggregated result.
 The following example illustrates the aggregation process:
 
 <center>
-<img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism-python.png" width="80%">
+<img alt="UDAGG mechanism" src="{% link /fig/udagg-mechanism-python.png %}" width="80%">
 </center>
 
 In the above example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,

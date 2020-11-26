@@ -51,7 +51,7 @@ INSERT 语句用来向表中添加行。
 
 <div data-lang="SQL CLI" markdown="1">
 
-可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 INSERT 语句
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 INSERT 语句
 
 以下的例子展示了如何在 SQL CLI 中执行一条 INSERT 语句。
 

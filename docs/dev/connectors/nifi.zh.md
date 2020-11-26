@@ -34,7 +34,7 @@ under the License.
 </dependency>
 {% endhighlight %}
 
-注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({{site.baseurl}}/zh/dev/project-configuration.html)。
+注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({% link dev/project-configuration.zh.md %})。
 
 #### 安装 Apache NiFi
 

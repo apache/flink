@@ -257,7 +257,7 @@ Flink 会尽力推断有关数据类型的大量信息，这些数据会在分�
   并非所有的类型都可以被 Kryo (或者 Flink ) 处理。例如谷歌的 Guava 集合类型默认情况下是没办法很好处理的。
   解决方案是为这些引起问题的类型注册额外的序列化器。调用 `StreamExecutionEnvironment` 或者 `ExecutionEnvironment` 
   的 `.getConfig().addDefaultKryoSerializer(clazz, serializer)` 方法注册 Kryo 序列化器。存在很多的额外 Kryo 序列化器类库
-  具体细节可以参看 [自定义序列化器]({{ site.baseurl }}/zh/dev/custom_serializers.html) 以了解更多的自定义序列化器。
+  具体细节可以参看 [自定义序列化器]({% link dev/custom_serializers.zh.md %}) 以了解更多的自定义序列化器。
 
 * **添加类型提示** 有时， Flink 用尽一切手段也无法推断出泛型类型，用户需要提供*类型提示*。通常只在 Java API 中需要。
   [类型提示部分](#java-api-中的类型提示) 描述了更多的细节。

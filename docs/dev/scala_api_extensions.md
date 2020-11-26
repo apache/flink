@@ -334,7 +334,7 @@ data1.join(data2).
 
 
 For more information on the semantics of each method, please refer to the
-[DataSet]({{ site.baseurl }}/dev/batch/index.html) and [DataStream]({{ site.baseurl }}/dev/datastream_api.html) API documentation.
+[DataSet]({% link dev/batch/index.md %}) and [DataStream]({% link dev/datastream_api.md %}) API documentation.
 
 To use this extension exclusively, you can add the following `import`:
 

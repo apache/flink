@@ -47,7 +47,7 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/dev/project-configuration.html).
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({% link dev/project-configuration.md %}).
 
 ### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.

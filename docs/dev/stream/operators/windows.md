@@ -112,7 +112,7 @@ with pre-defined window assigners for the most common use cases, namely *tumblin
 *sliding windows*, *session windows* and *global windows*. You can also implement a custom window assigner by
 extending the `WindowAssigner` class. All built-in window assigners (except the global
 windows) assign elements to windows based on time, which can either be processing time or event
-time. Please take a look at our section on [event time]({{ site.baseurl }}/dev/event_time.html) to learn
+time. Please take a look at our section on [event time]({% link dev/event_time.md %}) to learn
 about the difference between processing time and event time and how timestamps and watermarks are generated.
 
 Time-based windows have a *start timestamp* (inclusive) and an *end timestamp* (exclusive)
@@ -132,7 +132,7 @@ Tumbling windows have a fixed size and do not overlap. For example, if you speci
 window with a size of 5 minutes, the current window will be evaluated and a new window will be
 started every five minutes as illustrated by the following figure.
 
-<img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/tumbling-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use tumbling windows.
 
@@ -210,7 +210,7 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 5 minutes a window that contains the events that arrived during the last 10 minutes as depicted by the
 following figure.
 
-<img src="{{ site.baseurl }}/fig/sliding-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/sliding-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use sliding windows.
 
@@ -285,7 +285,7 @@ inactivity occurred. A session window assigner can be configured with either a s
 *session gap extractor* function which defines how long the period of inactivity is. When this period expires, 
 the current session closes and subsequent elements are assigned to a new session window.
 
-<img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/session-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use session windows.
 
@@ -383,7 +383,7 @@ This windowing scheme is only useful if you also specify a custom [trigger](#tri
 no computation will be performed, as the global window does not have a natural end at
 which we could process the aggregated elements.
 
-<img src="{{ site.baseurl }}/fig/non-windowed.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/non-windowed.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use a global window.
 
@@ -1131,7 +1131,7 @@ necessarily the ones that arrive first or last.
 
 When working with *event-time* windowing, it can happen that elements arrive late, *i.e.* the watermark that Flink uses to
 keep track of the progress of event-time is already past the end timestamp of a window to which an element belongs. See
-[event time]({{ site.baseurl }}/dev/event_time.html) and especially [late elements]({{ site.baseurl }}/dev/event_time.html#late-elements) for a more thorough
+[event time]({% link dev/event_time.md %}) and especially [late elements]({% link dev/event_time.md %}#late-elements) for a more thorough
 discussion of how Flink deals with event time.
 
 By default, late elements are dropped when the watermark is past the end of the window. However,
@@ -1180,7 +1180,7 @@ data is ever considered late because the end timestamp of the global window is `
 
 ### Getting late data as a side output
 
-Using Flink's [side output]({{ site.baseurl }}/dev/stream/side_output.html) feature you can get a stream of the data
+Using Flink's [side output]({% link dev/stream/side_output.md %}) feature you can get a stream of the data
 that was discarded as late.
 
 You first need to specify that you want to get late data using `sideOutputLateData(OutputTag)` on
@@ -1251,7 +1251,7 @@ will cover this after taking a look how watermarks interact with windows.
 ### Interaction of watermarks and windows
 
 Before continuing in this section you might want to take a look at our section about
-[event time and watermarks]({{ site.baseurl }}/dev/event_time.html).
+[event time and watermarks]({% link dev/event_time.md %}).
 
 When watermarks arrive at the window operator this triggers two things:
 

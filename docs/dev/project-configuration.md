@@ -120,8 +120,8 @@ We recommend packaging the application code and all its required dependencies in
 we refer to as the *application jar*. The application jar can be submitted to an already running Flink cluster,
 or added to a Flink application container image.
 
-Projects created from the [Java Project Template]({{ site.baseurl }}/dev/project-configuration.html) or
-[Scala Project Template]({{ site.baseurl }}/dev/project-configuration) are configured to automatically include
+Projects created from the [Java Project Template]({% link dev/project-configuration.md %}) or
+[Scala Project Template]({% link dev/project-configuration.md %}) are configured to automatically include
 the application dependencies into the application jar when running `mvn clean package`. For projects that are
 not set up from those templates, we recommend adding the Maven Shade Plugin (as listed in the Appendix below)
 to build the application jar with all required dependencies.
@@ -143,7 +143,7 @@ Scala version that they are built for, for example `flink-streaming-scala_2.11`.
 Developers that only use Java can pick any Scala version, Scala developers need to
 pick the Scala version that matches their application's Scala version.
 
-Please refer to the [build guide]({{ site.baseurl }}/flinkDev/building.html#scala-versions)
+Please refer to the [build guide]({% link flinkDev/building.md %}#scala-versions)
 for details on how to build Flink for a specific Scala version.
 
 ## Hadoop Dependencies

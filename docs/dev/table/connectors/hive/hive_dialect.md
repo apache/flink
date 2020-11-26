@@ -359,7 +359,7 @@ spec, the dynamic partition column names can be omitted.
 ## DQL
 
 At the moment, Hive dialect supports the same syntax as Flink SQL for DQLs. Refer to
-[Flink SQL queries]({{ site.baseurl }}/dev/table/sql/queries.html) for more details. And it's recommended to switch to
+[Flink SQL queries]({% link dev/table/sql/queries.md %}) for more details. And it's recommended to switch to
 `default` dialect to execute DQLs.
 
 ## Notice
@@ -367,9 +367,9 @@ At the moment, Hive dialect supports the same syntax as Flink SQL for DQLs. Refe
 The following are some precautions for using the Hive dialect.
 
 - Hive dialect should only be used to manipulate Hive tables, not generic tables. And Hive dialect should be used together
-with a [HiveCatalog]({{ site.baseurl }}/dev/table/connectors/hive/hive_catalog.html).
+with a [HiveCatalog]({% link dev/table/connectors/hive/hive_catalog.md %}).
 - While all Hive versions support the same syntax, whether a specific feature is available still depends on the
-[Hive version]({{ site.baseurl }}/dev/table/connectors/hive/#supported-hive-versions) you use. For example, updating database
+[Hive version]({% link dev/table/connectors/hive/index.md %}#supported-hive-versions) you use. For example, updating database
 location is only supported in Hive-2.4.0 or later.
 - Hive and Calcite have different sets of reserved keywords. For example, `default` is a reserved keyword in Calcite and
 a non-reserved keyword in Hive. Even with Hive dialect, you have to quote such keywords with backtick ( ` ) in order to

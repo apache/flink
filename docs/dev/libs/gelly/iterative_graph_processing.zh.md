@@ -37,7 +37,7 @@ In each superstep, all active vertices execute the
 same user-defined computation in parallel. Supersteps are executed synchronously, so that messages sent during one superstep are guaranteed to be delivered in the beginning of the next superstep.
 
 <p class="text-center">
-    <img alt="Vertex-Centric Computational Model" width="70%" src="{{ site.baseurl }}/fig/vertex-centric supersteps.png"/>
+    <img alt="Vertex-Centric Computational Model" width="70%" src="{% link /fig/vertex-centric supersteps.png %}"/>
 </p>
 
 To use vertex-centric iterations in Gelly, the user only needs to define the vertex compute function, `ComputeFunction`.
@@ -173,7 +173,7 @@ and can be specified using the `setName()` method.
 * <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines
 all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `ComputeFunction`.
 
-* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/dev/batch/index.html#broadcast-variables) to the `ComputeFunction`, using the `addBroadcastSet()` method.
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({% link dev/batch/index.zh.md %}#broadcast-variables) to the `ComputeFunction`, using the `addBroadcastSet()` method.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -291,7 +291,7 @@ Additionally, the  neighborhood type (in/out/all) over which to run the scatter-
 Let us consider computing Single-Source-Shortest-Paths with scatter-gather iterations on the following graph and let vertex 1 be the source. In each superstep, each vertex sends a candidate distance message to all its neighbors. The message value is the sum of the current value of the vertex and the edge weight connecting this vertex with its neighbor. Upon receiving candidate distance messages, each vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The algorithm converges when there are no value updates.
 
 <p class="text-center">
-    <img alt="Scatter-gather SSSP superstep 1" width="70%" src="{{ site.baseurl }}/fig/gelly-vc-sssp1.png"/>
+    <img alt="Scatter-gather SSSP superstep 1" width="70%" src="{% link /fig/gelly-vc-sssp1.png %}"/>
 </p>
 
 <div class="codetabs" markdown="1">
@@ -409,7 +409,7 @@ and can be specified using the `setName()` method.
 * <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines
 all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `ScatterFunction` and `GatherFunction`.
 
-* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/dev/batch/index.html#broadcast-variables) to the `ScatterFunction` and `GatherFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({% link dev/batch/index.zh.md %}#broadcast-variables) to the `ScatterFunction` and `GatherFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
 
 * <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
 The number of vertices can then be accessed in the vertex update function and in the messaging function using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.
@@ -661,7 +661,7 @@ Like in the scatter-gather model, Gather-Sum-Apply also proceeds in synchronized
 Let us consider computing Single-Source-Shortest-Paths with GSA on the following graph and let vertex 1 be the source. During the `Gather` phase, we calculate the new candidate distances, by adding each vertex value with the edge weight. In `Sum`, the candidate distances are grouped by vertex ID and the minimum distance is chosen. In `Apply`, the newly calculated distance is compared to the current vertex value and the minimum of the two is assigned as the new value of the vertex.
 
 <p class="text-center">
-    <img alt="GSA SSSP superstep 1" width="70%" src="{{ site.baseurl }}/fig/gelly-gsa-sssp1.png"/>
+    <img alt="GSA SSSP superstep 1" width="70%" src="{% link /fig/gelly-gsa-sssp1.png %}"/>
 </p>
 
 Notice that, if a vertex does not change its value during a superstep, it will not calculate candidate distance during the next superstep. The algorithm converges when no vertex changes value.
@@ -781,7 +781,7 @@ Currently, the following parameters can be specified:
 
 * <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `GatherFunction`, `SumFunction` and `ApplyFunction`.
 
-* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/dev/index.html#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({% link dev/index.zh.md %}#broadcast-variables) to the `GatherFunction`, `SumFunction` and `ApplyFunction`, using the methods `addBroadcastSetForGatherFunction()`, `addBroadcastSetForSumFunction()` and `addBroadcastSetForApplyFunction` methods, respectively.
 
 * <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
 The number of vertices can then be accessed in the gather, sum and/or apply functions by using the `getNumberOfVertices()` method. If the option is not set in the configuration, this method will return -1.

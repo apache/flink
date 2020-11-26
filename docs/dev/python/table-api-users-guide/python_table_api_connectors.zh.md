@@ -28,11 +28,11 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-<span class="label label-info">Note</span> 想要了解常见的连接器信息和通用配置，请查阅相关的 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/connectors/index.html)。
+<span class="label label-info">Note</span> 想要了解常见的连接器信息和通用配置，请查阅相关的 [Java/Scala 文档]({% link dev/table/connectors/index.zh.md %})。
 
 ## 下载连接器（connector）和格式（format）jar 包
 
-由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/table-api-users-guide/dependency_management.html)。
+由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({% link dev/python/table-api-users-guide/dependency_management.zh.md %})。
 
 {% highlight python %}
 
@@ -182,5 +182,5 @@ table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
 
 ## 用户自定义的 source 和 sink
 
-在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink 必须使用 Java/Scala 实现，你可以定义一个 `TableFactory` ，然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/sourceSinks.html)。
+在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink 必须使用 Java/Scala 实现，你可以定义一个 `TableFactory` ，然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 [Java/Scala 文档]({% link dev/table/sourceSinks.zh.md %})。
 

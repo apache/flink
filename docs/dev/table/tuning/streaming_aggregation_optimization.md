@@ -28,7 +28,7 @@ In this page, we will introduce some useful optimization options and the interna
 
 <span class="label label-danger">Attention</span> Currently, the optimization options mentioned in this page are only supported in the Blink planner.
 
-<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql/queries.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) will be supported in the future.
+<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({% link dev/table/sql/queries.md %}#aggregations). Optimizations for [window aggregations]({% link dev/table/sql/queries.md %}#group-windows) will be supported in the future.
 
 * This will be replaced by the TOC
 {:toc}
@@ -43,10 +43,10 @@ The core idea of mini-batch aggregation is caching a bundle of inputs in a buffe
 The following figure explains how the mini-batch aggregation reduces state operations.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
+  <img src="{% link /fig/table-streaming/minibatch_agg.png %}" width="50%" height="50%" />
 </div>
 
-MiniBatch optimization is disabled by default. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{ site.baseurl }}/dev/table/config.html#execution-options) page for more details.
+MiniBatch optimization is disabled by default. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({% link dev/table/config.md %}#execution-options) page for more details.
 
 The following examples show how to enable these options.
 
@@ -111,7 +111,7 @@ This can significantly reduce the network shuffle and the cost of state access. 
 The following figure shows how the local-global aggregation improve performance.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/local_agg.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/local_agg.png %}" width="70%" height="70%" />
 </div>
 
 
@@ -198,7 +198,7 @@ GROUP BY day
 The following figure shows how the split distinct aggregation improve performance (assuming color represents days, and letter represents user_id).
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/distinct_split.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/distinct_split.png %}" width="70%" height="70%" />
 </div>
 
 NOTE: Above is the simplest example which can benefit from this optimization. Besides that, Flink supports to split more complex aggregation queries, for example, more than one distinct aggregates with different distinct key (e.g. `COUNT(DISTINCT a), SUM(DISTINCT b)`), works with other non-distinct aggregates (e.g. `SUM`, `MAX`, `MIN`, `COUNT`).

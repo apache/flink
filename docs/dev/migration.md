@@ -37,6 +37,6 @@ This would be relevant mostly for users implementing custom `TypeSerializer`s fo
 
 The old `TypeSerializerConfigSnapshot` abstraction is now deprecated, and will be fully removed in the future
 in favor of the new `TypeSerializerSnapshot`. For details and guides on how to migrate, please see
-[Migrating from deprecated serializer snapshot APIs before Flink 1.7]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
+[Migrating from deprecated serializer snapshot APIs before Flink 1.7]({% link dev/stream/state/custom_serialization.md %}#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
 
 {% top %}

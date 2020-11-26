@@ -50,7 +50,7 @@ DESCRIBE 语句可以通过 `TableEnvironment` 的 `execute_sql()` 执行。 若
 
 <div data-lang="SQL CLI" markdown="1">
 
-可以在 [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html) 中执行 DESCRIBE 语句。
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 DESCRIBE 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一个 DESCRIBE 语句。
 
