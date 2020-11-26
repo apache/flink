@@ -648,7 +648,7 @@ FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
       </td>
     </tr>
     <tr>
-      <td><strong>Interval Join</strong><br>
+      <td><strong>Inner/Outer Interval Join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
