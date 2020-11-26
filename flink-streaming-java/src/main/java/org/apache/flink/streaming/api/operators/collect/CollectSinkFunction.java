@@ -383,12 +383,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 					if (!version.equals(requestVersion) || requestOffset < offset) {
 						// invalid request
-						if (LOG.isDebugEnabled()) {
-							// this is normal for the 1st request after the sink (re)starts, so we print debug log
-							LOG.debug("Invalid request. Received version = " + requestVersion +
-								", offset = " + requestOffset + ", while expected version = "
-								+ version + ", offset = " + offset);
-						}
+						// this is normal for the 1st request after the sink (re)starts
+						LOG.info("Invalid request. Received version = " + requestVersion +
+							", offset = " + requestOffset + ", while expected version = "
+							+ version + ", offset = " + offset);
 						sendBackResults(Collections.emptyList());
 						continue;
 					}
