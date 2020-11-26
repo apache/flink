@@ -52,13 +52,6 @@ public class KafkaSourceOptions {
 					.withDescription("The max time to wait for partition discovery. The job " +
 							"will be fail if the partition cannot be discovered before timeout.");
 
-	public static final ConfigOption<Long> CLOSE_TIMEOUT_MS =
-			ConfigOptions
-					.key("close.timeout.ms")
-					.longType()
-					.defaultValue(10000L)
-					.withDescription("The max time to wait when closing components.");
-
 	@SuppressWarnings("unchecked")
 	public static <T> T getOption(Properties props, ConfigOption configOption, Function<String, T> parser) {
 		String value = props.getProperty(configOption.key());
