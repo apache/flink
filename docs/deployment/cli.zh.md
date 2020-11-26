@@ -2,7 +2,7 @@
 title:  "命令行界面"
 nav-title: Command-Line Interface
 nav-parent_id: deployment
-nav-pos: 2
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
