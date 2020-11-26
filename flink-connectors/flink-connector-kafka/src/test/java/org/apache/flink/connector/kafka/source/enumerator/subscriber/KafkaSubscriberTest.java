@@ -68,7 +68,7 @@ public class KafkaSubscriberTest {
 		KafkaSubscriber subscriber =
 				KafkaSubscriber.getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
 		KafkaSubscriber.PartitionChange change =
-				subscriber.getPartitionChanges(adminClient, currentAssignment);
+				subscriber.getPartitionChanges(adminClient, currentAssignment, 30000);
 		Set<TopicPartition> expectedNewPartitions = new HashSet<>(KafkaSourceTestEnv.getPartitionsForTopics(topics));
 		expectedNewPartitions.remove(assignedPartition1);
 		expectedNewPartitions.remove(assignedPartition2);
@@ -80,7 +80,7 @@ public class KafkaSubscriberTest {
 	public void testTopicPatternSubscriber() {
 		KafkaSubscriber subscriber = KafkaSubscriber.getTopicPatternSubscriber(Pattern.compile("pattern.*"));
 		KafkaSubscriber.PartitionChange change =
-				subscriber.getPartitionChanges(adminClient, currentAssignment);
+				subscriber.getPartitionChanges(adminClient, currentAssignment, 30000);
 
 		Set<TopicPartition> expectedNewPartitions = new HashSet<>();
 		for (int i = 0; i < KafkaSourceTestEnv.NUM_PARTITIONS; i++) {
@@ -103,7 +103,7 @@ public class KafkaSubscriberTest {
 
 		KafkaSubscriber subscriber = KafkaSubscriber.getPartitionSetSubscriber(partitions);
 		KafkaSubscriber.PartitionChange change =
-				subscriber.getPartitionChanges(adminClient, currentAssignment);
+				subscriber.getPartitionChanges(adminClient, currentAssignment, 3000);
 
 		Set<TopicPartition> expectedNewPartitions = new HashSet<>(partitions);
 		expectedNewPartitions.remove(assignedPartition1);

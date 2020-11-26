@@ -64,6 +64,7 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 	private final OffsetsInitializer stoppingOffsetInitializer;
 	private final Properties properties;
 	private final long partitionDiscoveryIntervalMs;
+	private final int partitionDiscoveryTimeoutMs;
 	private final SplitEnumeratorContext<KafkaPartitionSplit> context;
 
 	// The internal states of the enumerator.
@@ -112,6 +113,10 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 				properties,
 				KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS,
 				Long::parseLong);
+		this.partitionDiscoveryTimeoutMs = KafkaSourceOptions.getOption(
+			properties,
+			KafkaSourceOptions.PARTITION_DISCOVERY_TIMEOUT_MS,
+			Integer::parseInt);
 		this.consumerGroupId = properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
 	}
 
@@ -179,8 +184,10 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 
 	private PartitionSplitChange discoverAndInitializePartitionSplit() {
 		// Make a copy of the partitions to owners
-		KafkaSubscriber.PartitionChange partitionChange =
-				subscriber.getPartitionChanges(adminClient, Collections.unmodifiableSet(discoveredPartitions));
+		KafkaSubscriber.PartitionChange partitionChange = subscriber.getPartitionChanges(
+				adminClient,
+				Collections.unmodifiableSet(discoveredPartitions),
+				partitionDiscoveryTimeoutMs);
 
 		Set<TopicPartition> newPartitions = Collections.unmodifiableSet(partitionChange.getNewPartitions());
 		OffsetsInitializer.PartitionOffsetsRetriever offsetsRetriever = getOffsetsRetriever();

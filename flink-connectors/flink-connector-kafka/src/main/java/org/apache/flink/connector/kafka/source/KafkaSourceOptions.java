@@ -44,6 +44,14 @@ public class KafkaSourceOptions {
 					.withDescription("The interval in milliseconds for the Kafka source to discover " +
 							"the new partitions. A non-positive value disables the partition discovery.");
 
+	public static final ConfigOption<Integer> PARTITION_DISCOVERY_TIMEOUT_MS =
+			ConfigOptions
+					.key("partition.discovery.timeout.ms")
+					.intType()
+					.defaultValue(30000)
+					.withDescription("The max time to wait for partition discovery. The job " +
+							"will be fail if the partition cannot be discovered before timeout.");
+
 	public static final ConfigOption<Long> CLOSE_TIMEOUT_MS =
 			ConfigOptions
 					.key("close.timeout.ms")

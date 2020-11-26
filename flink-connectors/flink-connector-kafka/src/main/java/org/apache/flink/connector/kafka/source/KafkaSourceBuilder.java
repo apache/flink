@@ -79,6 +79,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .build();
  * }</pre>
  *
+ * <p>Users can also set more properties via {@link #setProperty(String, String)} and
+ * {@link #setProperties(Properties)}. The valid configurations can be found in
+ * {@link KafkaSourceOptions} and {@link ConsumerConfig configurations for KafkaConsumer}.
+ *
  * <p>Check the Java docs of each individual methods to learn more about the settings to
  * build a KafkaSource.
  */

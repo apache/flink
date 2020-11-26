@@ -49,7 +49,10 @@ public interface KafkaSubscriber extends Serializable {
 	 * @param currentAssignment the partitions that are currently assigned to the source readers.
 	 * @return The partition changes compared with the currently assigned partitions.
 	 */
-	PartitionChange getPartitionChanges(AdminClient adminClient, Set<TopicPartition> currentAssignment);
+	PartitionChange getPartitionChanges(
+			AdminClient adminClient,
+			Set<TopicPartition> currentAssignment,
+			int timeoutMs);
 
 	/**
 	 * A container class to hold the newly added partitions and removed partitions.

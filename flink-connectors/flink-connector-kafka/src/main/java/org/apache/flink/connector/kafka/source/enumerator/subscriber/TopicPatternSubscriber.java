@@ -48,11 +48,12 @@ class TopicPatternSubscriber implements KafkaSubscriber {
 	@Override
 	public PartitionChange getPartitionChanges(
 			AdminClient adminClient,
-			Set<TopicPartition> currentAssignment) {
+			Set<TopicPartition> currentAssignment,
+			int timeoutMs) {
 		Set<TopicPartition> newPartitions = new HashSet<>();
 		Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
 
-		Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient);
+		Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient, timeoutMs);
 		for (Map.Entry<String, TopicDescription> topicEntry : topicMetadata.entrySet()) {
 			String topic = topicEntry.getKey();
 			if (topicPattern.matcher(topic).matches()) {

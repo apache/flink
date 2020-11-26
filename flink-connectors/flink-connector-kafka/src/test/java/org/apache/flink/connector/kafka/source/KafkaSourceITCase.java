@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unite test class for {@link KafkaSource}.
@@ -76,13 +78,38 @@ public class KafkaSourceITCase {
 				.setStartingOffsets(OffsetsInitializer.earliest())
 				.setBounded(OffsetsInitializer.latest())
 				.build();
+		testBasicRead(source, "testBasicRead");
+	}
+
+	@Test(timeout = 30000L)
+	public void testPartitionDiscoveryTimeout() throws Exception {
+		KafkaSource<PartitionAndValue> source = KafkaSource
+				.<PartitionAndValue>builder()
+				.setBootstrapServers("123.123.123.123:1234")
+				.setGroupId("testBasicRead")
+				.setTopics(Arrays.asList(TOPIC1, TOPIC2))
+				.setDeserializer(new TestingKafkaRecordDeserializer())
+				.setStartingOffsets(OffsetsInitializer.earliest())
+				.setBounded(OffsetsInitializer.latest())
+				.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_TIMEOUT_MS.key(), "1")
+				.build();
+		try {
+			testBasicRead(source, "testPartitionDiscoveryTimeout");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils.getRootCause(e) instanceof org.apache.kafka.common.errors.TimeoutException);
+		}
+	}
+
+	private void testBasicRead(
+			KafkaSource<PartitionAndValue> source,
+			String sourceNameAndGroupId) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		DataStream<PartitionAndValue> stream = env.fromSource(
-				source,
-				WatermarkStrategy.noWatermarks(),
-				"testBasicRead");
+			source,
+			WatermarkStrategy.noWatermarks(),
+			sourceNameAndGroupId);
 		executeAndVerify(env, stream);
 	}
 

@@ -19,6 +19,8 @@
 package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsOptions;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
@@ -32,7 +34,6 @@ import java.util.Set;
  * The base implementations of {@link KafkaSubscriber}.
  */
 class KafkaSubscriberUtils {
-
 	private KafkaSubscriberUtils() {}
 
 	static void updatePartitionChanges(
@@ -48,10 +49,16 @@ class KafkaSubscriberUtils {
 		}
 	}
 
-	static Map<String, TopicDescription> getTopicMetadata(AdminClient adminClient) {
+	static Map<String, TopicDescription> getTopicMetadata(AdminClient adminClient, int timeoutMs) {
 		try {
-			Set<String> topicNames = adminClient.listTopics().names().get();
-			return adminClient.describeTopics(topicNames).all().get();
+			Set<String> topicNames = adminClient
+				.listTopics(new ListTopicsOptions().timeoutMs(timeoutMs))
+				.names()
+				.get();
+			return adminClient
+				.describeTopics(topicNames, new DescribeTopicsOptions().timeoutMs(timeoutMs))
+				.all()
+				.get();
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to get topic metadata.", e);
 		}

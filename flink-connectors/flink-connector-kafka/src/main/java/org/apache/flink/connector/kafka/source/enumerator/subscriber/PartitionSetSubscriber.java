@@ -46,11 +46,12 @@ class PartitionSetSubscriber implements KafkaSubscriber {
 	@Override
 	public PartitionChange getPartitionChanges(
 			AdminClient adminClient,
-			Set<TopicPartition> currentAssignment) {
+			Set<TopicPartition> currentAssignment,
+			int timeout) {
 		Set<TopicPartition> newPartitions = new HashSet<>();
 		Set<TopicPartition> removedPartitions = new HashSet<>(currentAssignment);
 
-		Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient);
+		Map<String, TopicDescription> topicMetadata = getTopicMetadata(adminClient, timeout);
 		for (TopicPartition tp : partitions) {
 			TopicDescription topicDescription = topicMetadata.get(tp.topic());
 			if (topicDescription != null && topicDescription.partitions().size() > tp.partition()) {
