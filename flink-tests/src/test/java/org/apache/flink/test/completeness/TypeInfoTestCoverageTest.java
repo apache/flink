@@ -50,11 +50,10 @@ public class TypeInfoTestCoverageTest extends TestLogger {
 			// we skip abstract classes and inner classes to skip type information defined in test classes
 			if (Modifier.isAbstract(typeInfo.getModifiers()) ||
 					Modifier.isPrivate(typeInfo.getModifiers()) ||
-					typeInfo.getName().contains("test") ||
-					typeInfo.getName().contains("Test") ||
-					typeInfo.getName().contains("ITCase") ||
-					typeInfo.getName().contains("$") ||
-					typeInfo.getName().contains("scala") ||
+					typeInfo.getName().contains("Test$") ||
+					typeInfo.getName().contains("TestBase$") ||
+					typeInfo.getName().contains("ITCase$") ||
+					typeInfo.getName().contains("$$anon") ||
 					typeInfo.getName().contains("queryablestate")) {
 				continue;
 			}
