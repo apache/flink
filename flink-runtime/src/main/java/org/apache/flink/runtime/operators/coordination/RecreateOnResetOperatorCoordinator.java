@@ -73,7 +73,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	@Override
 	public void close() throws Exception {
 		closed = true;
-		coordinator.closeAsync(closingTimeoutMs);
+		coordinator.closeAsync(closingTimeoutMs).get();
 	}
 
 	@Override
