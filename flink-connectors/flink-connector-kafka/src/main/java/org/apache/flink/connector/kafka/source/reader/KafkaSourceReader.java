@@ -107,7 +107,7 @@ public class KafkaSourceReader<T>
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		LOG.info("Committing offsets for checkpoint {}", checkpointId);
+		LOG.debug("Committing offsets for checkpoint {}", checkpointId);
 		((KafkaSourceFetcherManager<T>) splitFetcherManager).commitOffsets(
 				offsetsToCommit.get(checkpointId),
 				(ignored, e) -> {
