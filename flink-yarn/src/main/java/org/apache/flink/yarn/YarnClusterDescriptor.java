@@ -1557,7 +1557,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		logger.info(
 			"The Flink YARN session cluster has been started in detached mode. In order to " +
 				"stop Flink gracefully, use the following command:\n" +
-				"$ echo \"stop\" | ./bin/yarn-session.sh -id {}\n" +
+				"$ echo \"stop\" | ./bin/yarn-session.sh -yid {}\n" +
 				"If this should not be possible, then you can also kill Flink via YARN's web interface or via:\n" +
 				"$ yarn application -kill {}\n" +
 				"Note that killing Flink might not clean up all job artifacts and temporary files.",

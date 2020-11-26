@@ -135,7 +135,7 @@ The parameter for that is called `-d` or `--detached`.
 
 In that case, the Flink YARN client will only submit Flink to the cluster and then close itself.
 
-In order to stop the Flink cluster gracefully use the following command: `echo "stop" | ./bin/yarn-session.sh -id <appId>`.
+In order to stop the Flink cluster gracefully use the following command: `echo "stop" | ./bin/yarn-session.sh -yid <appId>`.
 
 If this should not be possible, then you can also kill Flink via YARN's web interface or via its utilities: `yarn application -kill <appId>`.
 Note, however, that killing Flink might not clean up all job artifacts and temporary files.
