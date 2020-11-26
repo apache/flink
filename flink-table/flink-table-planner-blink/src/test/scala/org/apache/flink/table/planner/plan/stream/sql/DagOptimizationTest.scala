@@ -116,7 +116,7 @@ class DagOptimizationTest extends TableTestBase {
   @Test
   def testSingleSinkSplitOnUnion(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
 
     val sqlQuery = "SELECT SUM(a) AS total_sum FROM " +
       "(SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
@@ -152,7 +152,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinks2(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, false)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, true)
     util.addTableSource[(Int, Long, String, Double, Boolean)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a as a1, b as b1 FROM MyTable WHERE a <= 10")
@@ -178,7 +178,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinks3(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, false)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, true)
     util.addTableSource[(Int, Long, String, Double, Boolean)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a AS a1, b AS b1 FROM MyTable WHERE a <= 10")
@@ -257,7 +257,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksWithUDTF(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
     util.addFunction("split", new TableFunc1)
     val sqlQuery1 =
       """
@@ -301,7 +301,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion1(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
 
     val table = util.tableEnv.sqlQuery(
       "SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1")
@@ -328,7 +328,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery1 =
@@ -368,7 +368,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion3(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery1 = "SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1"
@@ -403,7 +403,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion4(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery =
@@ -510,7 +510,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiLevelViews(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
@@ -553,7 +553,7 @@ class DagOptimizationTest extends TableTestBase {
   def testSharedUnionNode(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, false)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
