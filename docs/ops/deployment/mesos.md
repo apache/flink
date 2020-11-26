@@ -59,9 +59,9 @@ or configuration files. For instance, in non-containerized environments, the
 artifact server will provide the Flink binaries. What files will be served
 depends on the configuration overlay used.
 
-### Flink's Dispatcher and Web Interface
+### Flink's JobManager and Web Interface
 
-The Dispatcher and the web interface provide a central point for monitoring,
+The JobManager and the web interface provide a central point for monitoring,
 job submission, and other client interaction with the cluster
 (see [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)).
 
@@ -225,7 +225,7 @@ For example:
 ### High Availability
 
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
-In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html).
+In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({% link ops/jobmanager_high_availability.md %}).
 
 #### Marathon
 
@@ -245,7 +245,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 ### Configuration parameters
 
-For a list of Mesos specific configuration, refer to the [Mesos section]({{ site.baseurl }}/ops/config.html#mesos)
+For a list of Mesos specific configuration, refer to the [Mesos section]({% link ops/config.md %}#mesos)
 of the configuration documentation.
 
 {% top %}

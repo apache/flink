@@ -103,7 +103,8 @@ import org.apache.flink.util.Collector;
  * <pre>
  * {@code
  * Merges a group of accumulator instances into one accumulator instance. This method must be
- * implemented for unbounded session window grouping aggregates and bounded grouping aggregates.
+ * implemented for unbounded session and hop window grouping aggregates and
+ * bounded grouping aggregates.
  *
  * param: accumulator the accumulator which will keep the merged aggregate results. It should
  *                    be noted that the accumulator may contain the previous aggregated

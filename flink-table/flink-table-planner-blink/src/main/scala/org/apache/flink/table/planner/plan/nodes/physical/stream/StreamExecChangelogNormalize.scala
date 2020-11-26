@@ -93,15 +93,14 @@ class StreamExecChangelogNormalize(
     val tableConfig = planner.getTableConfig
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val stateIdleTime = tableConfig.getIdleStateRetention.toMillis
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
       val processFunction = new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
         rowTypeInfo,
         rowSerializer,
-        // disable state ttl, the changelog normalize should keep all state to have data integrity
-        // we can enable state ttl if this is really needed in some cases
-        -1,
+        stateIdleTime,
         generateUpdateBefore,
         true,   // generateInsert
         false)  // inputInsertOnly
@@ -112,7 +111,7 @@ class StreamExecChangelogNormalize(
     } else {
       val processFunction = new ProcTimeDeduplicateKeepLastRowFunction(
         rowTypeInfo,
-        -1,     // disable state ttl
+        stateIdleTime,
         generateUpdateBefore,
         true,   // generateInsert
         false)  // inputInsertOnly

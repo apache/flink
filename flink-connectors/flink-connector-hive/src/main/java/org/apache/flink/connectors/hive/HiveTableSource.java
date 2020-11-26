@@ -27,7 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
-import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -213,18 +212,6 @@ public class HiveTableSource implements
 		return Boolean.parseBoolean(catalogTable.getOptions().getOrDefault(
 				STREAMING_SOURCE_ENABLE.key(),
 				STREAMING_SOURCE_ENABLE.defaultValue().toString()));
-	}
-
-	@VisibleForTesting
-	HiveTableInputFormat getInputFormat(List<HiveTablePartition> allHivePartitions, boolean useMapRedReader) {
-		return new HiveTableInputFormat(
-				jobConf,
-				catalogTable,
-				allHivePartitions,
-				projectedFields,
-				limit,
-				hiveVersion,
-				useMapRedReader);
 	}
 
 	protected TableSchema getTableSchema() {

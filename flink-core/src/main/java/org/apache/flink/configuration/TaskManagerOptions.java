@@ -39,6 +39,9 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(groups = @ConfigGroup(name = "TaskManagerMemory", keyPrefix = "taskmanager.memory"))
 public class TaskManagerOptions {
 
+	public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
+	public static final String MANAGED_MEMORY_CONSUMER_NAME_PYTHON = "PYTHON";
+
 	// ------------------------------------------------------------------------
 	//  General TaskManager Options
 	// ------------------------------------------------------------------------
@@ -406,20 +409,20 @@ public class TaskManagerOptions {
 	/**
 	 * Weights of managed memory consumers.
 	 */
-	// Do not advertise this option until the feature is completed.
-	@Documentation.ExcludeFromDocumentation
+	@Documentation.Section(Documentation.Sections.COMMON_MEMORY)
 	public static final ConfigOption<Map<String, String>> MANAGED_MEMORY_CONSUMER_WEIGHTS =
 		key("taskmanager.memory.managed.consumer-weights")
 			.mapType()
 			.defaultValue(new HashMap<String, String>() {{
-				put(ManagedMemoryConsumerNames.DATAPROC, "70");
-				put(ManagedMemoryConsumerNames.PYTHON, "30");
+				put(MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "70");
+				put(MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "30");
 			}})
 			.withDescription("Managed memory weights for different kinds of consumers. A slot’s managed memory is"
 				+ " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
 				+ " of the number of consumers from each kind. Currently supported kinds of consumers are "
-				+ ManagedMemoryConsumerNames.DATAPROC + " (for RocksDB state backend in streaming and built-in"
-				+ " algorithms in batch) and " + ManagedMemoryConsumerNames.PYTHON + " (for python processes).");
+				+ MANAGED_MEMORY_CONSUMER_NAME_DATAPROC + " (for RocksDB state backend in streaming and built-in"
+				+ " algorithms in batch) and " + MANAGED_MEMORY_CONSUMER_NAME_PYTHON + " (for Python processes).");
+
 	/**
 	 * Min Network Memory size for TaskExecutors.
 	 */
@@ -567,10 +570,4 @@ public class TaskManagerOptions {
 
 	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}
-
-	/** Valid names of managed memory consumers. */
-	public static class ManagedMemoryConsumerNames {
-		public static final String DATAPROC = "DATAPROC";
-		public static final String PYTHON = "PYTHON";
-	}
 }

@@ -40,7 +40,7 @@ rolling policy. The default policy rolls part files based on size, a timeout tha
 
  <div class="alert alert-info">
      <b>IMPORTANT:</b> Checkpointing needs to be enabled when using the StreamingFileSink. Part files can only be finalized
-     on successful checkpoints. If checkpointing is disabled part files will forever stay in `in-progress` or `pending` state
+     on successful checkpoints. If checkpointing is disabled, part files will forever stay in the `in-progress` or the `pending` state,
      and cannot be safely read by downstream systems.
  </div>
 
@@ -65,7 +65,7 @@ and more documentation about the implementation of the different data formats.
 
 Row-encoded formats need to specify an [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html) that is used for serializing individual rows to the `OutputStream` of the in-progress part files.
 
-In addition to the bucket assigner the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
+In addition to the bucket assigner, the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
 
  - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) : Rolling policy to override the DefaultRollingPolicy
  - bucketCheckInterval (default = 1 min) : Millisecond interval for checking time based rolling policies
@@ -123,18 +123,18 @@ input.addSink(sink)
 </div>
 
 This example creates a simple sink that assigns records to the default one hour time buckets. It also specifies
-a rolling policy that rolls the in-progress part file on either of the following 3 conditions:
+a rolling policy that rolls the in-progress part file on any of the following 3 conditions:
 
  - It contains at least 15 minutes worth of data
  - It hasn't received new records for the last 5 minutes
- - The file size reached 1 GB (after writing the last record)
+ - The file size has reached 1 GB (after writing the last record)
 
 ### Bulk-encoded Formats
 
-Bulk-encoded sinks are created similarly to the row-encoded ones but here instead of
-specifying an `Encoder` we have to specify [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
-The `BulkWriter` logic defines how new elements added, flushed and how the bulk of records
-are finalized for further encoding purposes.
+Bulk-encoded sinks are created similarly to the row-encoded ones, but instead of
+specifying an `Encoder`, we have to specify a [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
+The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
+is finalized for further encoding purposes.
 
 Flink comes with four built-in BulkWriter factories:
 
@@ -767,7 +767,7 @@ in-progress files will not be transitioned to the "finished" state.
 
 <span class="label label-danger">Important Note 3</span>: Flink and the `StreamingFileSink` never overwrites committed data.
 Given this, when trying to restore from an old checkpoint/savepoint which assumes an in-progress file which was committed
-by subsequent successful checkpoints, Flink will refuse to resume and it will throw an exception as it cannot locate the 
+by subsequent successful checkpoints, the `StreamingFileSink` will refuse to resume and it will throw an exception as it cannot locate the 
 in-progress file.
 
 <span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports three filesystems: 

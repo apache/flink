@@ -39,7 +39,7 @@ or ticket cache entry.
 
 The current implementation supports running Flink clusters (JobManager / TaskManager / jobs) with either a configured keytab credential
 or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.   To use a different keytab
-for for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
+for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
 or Mesos environment.
 
 ## How Flink Security works
@@ -83,7 +83,7 @@ Here is some information specific to each deployment mode.
 
 Steps to run a secure Flink cluster in standalone/cluster mode:
 
-1. Add security-related configuration options to the Flink configuration file (on all cluster nodes) (see [here](config.html#auth-with-external-systems)).
+1. Add security-related configuration options to the Flink configuration file (on all cluster nodes) (see [here]({% link ops/config.zh.md %}#auth-with-external-systems)).
 2. Ensure that the keytab file exists at the path indicated by `security.kerberos.login.keytab` on all cluster nodes.
 3. Deploy Flink cluster as normal.
 
@@ -91,7 +91,7 @@ Steps to run a secure Flink cluster in standalone/cluster mode:
 
 Steps to run a secure Flink cluster in YARN/Mesos mode:
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#auth-with-external-systems)).
+1. Add security-related configuration options to the Flink configuration file on the client (see [here]({% link ops/config.zh.md %}#auth-with-external-systems)).
 2. Ensure that the keytab file exists at the path as indicated by `security.kerberos.login.keytab` on the client node.
 3. Deploy Flink cluster as normal.
 
@@ -107,7 +107,7 @@ The main drawback is that the cluster is necessarily short-lived since the gener
 
 Steps to run a secure Flink cluster using `kinit`:
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#auth-with-external-systems)).
+1. Add security-related configuration options to the Flink configuration file on the client (see [here]({% link ops/config.zh.md %}#auth-with-external-systems)).
 2. Login using the `kinit` command.
 3. Deploy Flink cluster as normal.
 

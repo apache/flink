@@ -2,7 +2,7 @@
 title: "HBase SQL Connector"
 nav-title: HBase
 nav-parent_id: sql-connectors
-nav-pos: 6
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -99,7 +99,12 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be <code>'hbase-1.4'</code>.</td>
+      <td>Specify what connector to use, valid values are:
+        <ul>
+            <li><code>hbase-1.4</code>: connect to HBase 1.4.x cluster</li>
+            <li><code>hbase-2.2</code>: connect to HBase 2.2.x cluster</li>
+        </ul>
+      </td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
@@ -159,6 +164,13 @@ Connector Options
       Can be set to <code>'0'</code> to disable it. Note, both <code>'sink.buffer-flush.max-size'</code> and <code>'sink.buffer-flush.max-rows'</code>
       can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.
       </td>
+    </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the HBase sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
     </tbody>
 </table>

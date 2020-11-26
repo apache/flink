@@ -138,7 +138,9 @@ public class SortMergeSubpartitionReader implements ResultSubpartitionView, Buff
 
 	@Override
 	public void recycle(MemorySegment segment) {
-		readBuffers.add(segment);
+		if (!isReleased) {
+			readBuffers.add(segment);
+		}
 
 		// notify data available if the reader is unavailable currently
 		if (!isReleased && readBuffers.size() == NUM_READ_BUFFERS) {
@@ -154,6 +156,9 @@ public class SortMergeSubpartitionReader implements ResultSubpartitionView, Buff
 	@Override
 	public void releaseAllResources() {
 		isReleased = true;
+
+		buffersRead.clear();
+		readBuffers.clear();
 
 		IOUtils.closeQuietly(fileReader);
 		partition.releaseReader(this);

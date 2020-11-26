@@ -53,7 +53,7 @@ import scala.collection.mutable
   * RelNode, the RelNode is the output node of a new block (or named break-point).
   * There are several special cases that a RelNode can not be a break-point.
   * (1). UnionAll is not a break-point
-  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]] is false
   * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
   * with window attribute) are not a break-point because their physical RelNodes are a composite
   * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
@@ -263,8 +263,8 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointDisabled = config.getConfiguration.getBoolean(
-    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
+  private val isUnionAllAsBreakPointEnabled = config.getConfiguration.getBoolean(
+    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -319,7 +319,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
     */
   private def isValidBreakPoint(node: RelNode): Boolean = node match {
     case _: TableFunctionScan | _: Snapshot => false
-    case union: Union if union.all => !isUnionAllAsBreakPointDisabled
+    case union: Union if union.all => isUnionAllAsBreakPointEnabled
     case project: Project => project.getProjects.forall(p => !hasWindowGroup(p))
     case agg: Aggregate =>
       agg.getInput match {
@@ -387,10 +387,12 @@ object RelNodeBlockPlanBuilder {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.union-all-as-breakpoint-disabled")
-        .defaultValue(JBoolean.valueOf(false))
-        .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
+  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.union-all-as-breakpoint-enabled")
+        .defaultValue(JBoolean.valueOf(true))
+        .withDescription("When true, the optimizer will breakup the graph at union-all node " +
+          "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
+          "even it's a breakpoint, and will try find the breakpoint in its inputs.")
 
   // It is a experimental config, will may be removed later.
   @Experimental

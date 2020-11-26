@@ -388,34 +388,58 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		runningJobs.put(jobGraph.getJobID(), dispatcherJob);
 
 		final JobID jobId = jobGraph.getJobID();
-		FutureUtils.assertNoException(
-			dispatcherJob.getResultFuture().handleAsync(
-				(DispatcherJobResult dispatcherJobResult, Throwable throwable) -> {
-					// check if we are still the active DispatcherJob by checking the identity
-					DispatcherJob job = runningJobs.get(jobId);
-					if (job == dispatcherJob) {
-						if (dispatcherJobResult != null) {
-							if (dispatcherJobResult.isInitializationFailure() && executionType == ExecutionType.RECOVERY) {
-								dispatcherJobFailed(jobId, dispatcherJobResult.getInitializationFailure());
-							} else {
-								jobReachedGloballyTerminalState(dispatcherJobResult.getArchivedExecutionGraph());
-							}
-						} else {
-							dispatcherJobFailed(jobId, throwable);
-						}
-					} else {
-						log.debug("Job {} is not registered anymore at dispatcher", jobId);
-					}
-					return null;
-				}, getMainThreadExecutor()));
+
+		final CompletableFuture<CleanupJobState> cleanupJobStateFuture = dispatcherJob.getResultFuture().handleAsync(
+			(dispatcherJobResult, throwable) -> {
+				Preconditions.checkState(runningJobs.get(jobId) == dispatcherJob, "The job entry in runningJobs must be bound to the lifetime of the DispatcherJob.");
+
+				if (dispatcherJobResult != null) {
+					return handleDispatcherJobResult(jobId, dispatcherJobResult, executionType);
+				} else {
+					return dispatcherJobFailed(jobId, throwable);
+				}
+			}, getMainThreadExecutor());
+
+		final CompletableFuture<Void> jobTerminationFuture = cleanupJobStateFuture
+			.thenApply(cleanupJobState -> removeJob(jobId, cleanupJobState))
+			.thenCompose(Function.identity());
+
+		FutureUtils.assertNoException(jobTerminationFuture);
+		registerDispatcherJobTerminationFuture(jobId, jobTerminationFuture);
 	}
 
-	private void dispatcherJobFailed(JobID jobId, Throwable throwable) {
+	private CleanupJobState handleDispatcherJobResult(
+		JobID jobId,
+		DispatcherJobResult dispatcherJobResult,
+		ExecutionType executionType) {
+		if (dispatcherJobResult.isInitializationFailure() && executionType == ExecutionType.RECOVERY) {
+			return dispatcherJobFailed(
+				jobId,
+				dispatcherJobResult.getInitializationFailure());
+		} else {
+			return jobReachedGloballyTerminalState(dispatcherJobResult.getArchivedExecutionGraph());
+		}
+	}
+
+	enum CleanupJobState {
+		LOCAL(false),
+		GLOBAL(true);
+
+		final boolean cleanupHAData;
+
+		CleanupJobState(boolean cleanupHAData) {
+			this.cleanupHAData = cleanupHAData;
+		}
+	}
+
+	private CleanupJobState dispatcherJobFailed(JobID jobId, Throwable throwable) {
 		if (throwable instanceof JobNotFinishedException) {
 			jobNotFinished(jobId);
 		} else {
 			jobMasterFailed(jobId, throwable);
 		}
+
+		return CleanupJobState.LOCAL;
 	}
 
 	CompletableFuture<JobManagerRunner> createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp) {
@@ -631,19 +655,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		return performOperationOnJobMasterGateway(jobId, gateway -> gateway.deliverCoordinationRequestToCoordinator(operatorId, serializedRequest, timeout));
 	}
 
-	/**
-	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
-	 * the data will also be removed from HA.
-	 *
-	 * @param jobId JobID identifying the job to clean up
-	 * @param cleanupHA True iff HA data shall also be cleaned up
-	 */
-	private void removeJobAndRegisterTerminationFuture(JobID jobId, boolean cleanupHA) {
-		final CompletableFuture<Void> cleanupFuture = removeJob(jobId, cleanupHA);
-
-		registerDispatcherJobTerminationFuture(jobId, cleanupFuture);
-	}
-
 	private void registerDispatcherJobTerminationFuture(JobID jobId, CompletableFuture<Void> dispatcherJobTerminationFuture) {
 		Preconditions.checkState(!dispatcherJobTerminationFutures.containsKey(jobId));
 		dispatcherJobTerminationFutures.put(jobId, dispatcherJobTerminationFuture);
@@ -661,18 +672,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			getMainThreadExecutor());
 	}
 
-	private CompletableFuture<Void> removeJob(JobID jobId, boolean cleanupHA) {
-		DispatcherJob job = runningJobs.remove(jobId);
+	private CompletableFuture<Void> removeJob(JobID jobId, CleanupJobState cleanupJobState) {
+		final DispatcherJob job = checkNotNull(runningJobs.remove(jobId));
 
-		final CompletableFuture<Void> dispatcherJobTerminationFuture;
-		if (job != null) {
-			dispatcherJobTerminationFuture = job.closeAsync();
-		} else {
-			dispatcherJobTerminationFuture = CompletableFuture.completedFuture(null);
-		}
-		return dispatcherJobTerminationFuture.thenRunAsync(
-			() -> cleanUpJobData(jobId, cleanupHA),
-			ioExecutor);
+		final CompletableFuture<Void> jobTerminationFuture = job.closeAsync();
+
+		return jobTerminationFuture.thenRunAsync(() -> cleanUpJobData(jobId, cleanupJobState.cleanupHAData), ioExecutor);
 	}
 
 	private void cleanUpJobData(JobID jobId, boolean cleanupHA) {
@@ -714,7 +719,15 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		final HashSet<JobID> jobsToRemove = new HashSet<>(runningJobs.keySet());
 
 		for (JobID jobId : jobsToRemove) {
-			removeJobAndRegisterTerminationFuture(jobId, false);
+			terminateJob(jobId);
+		}
+	}
+
+	private void terminateJob(JobID jobId) {
+		final DispatcherJob dispatcherJob = runningJobs.get(jobId);
+
+		if (dispatcherJob != null) {
+			dispatcherJob.closeAsync();
 		}
 	}
 
@@ -728,7 +741,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		fatalErrorHandler.onFatalError(throwable);
 	}
 
-	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
+	protected CleanupJobState jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 		Preconditions.checkArgument(
 			archivedExecutionGraph.getState().isGloballyTerminalState(),
 			"Job %s is in state %s which is not globally terminal.",
@@ -739,9 +752,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		archiveExecutionGraph(archivedExecutionGraph);
 
-		final JobID jobId = archivedExecutionGraph.getJobID();
-
-		removeJobAndRegisterTerminationFuture(jobId, true);
+		return CleanupJobState.GLOBAL;
 	}
 
 	private void archiveExecutionGraph(ArchivedExecutionGraph archivedExecutionGraph) {
@@ -771,8 +782,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	protected void jobNotFinished(JobID jobId) {
 		log.info("Job {} was not finished by JobManager.", jobId);
-
-		removeJobAndRegisterTerminationFuture(jobId, false);
 	}
 
 	private void jobMasterFailed(JobID jobId, Throwable cause) {
@@ -862,7 +871,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
 		return CompletableFuture.runAsync(
-			() -> removeJobAndRegisterTerminationFuture(jobId, false),
+			() -> terminateJob(jobId),
 			getMainThreadExecutor());
 	}
 }

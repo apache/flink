@@ -44,7 +44,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
@@ -140,9 +139,27 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
 	}
 
-	@Override
-	public void open() throws Exception {
+	/**
+	 * Initializes the reader. The code from this method should ideally happen in the
+	 * constructor or in the operator factory even. It has to happen here at a slightly
+	 * later stage, because of the lazy metric initialization.
+	 *
+	 * <p>Calling this method explicitly is an optional way to have the reader
+	 * initialization a bit earlier than in open(), as needed by the
+	 * {@link org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask}
+	 *
+	 * <p>This code should move to the constructor once the metric groups are available
+	 * at task setup time.
+	 */
+	public void initReader() throws Exception {
+		if (sourceReader != null) {
+			return;
+		}
+
 		final MetricGroup metricGroup = getMetricGroup();
+		assert metricGroup != null;
+
+		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
 		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
@@ -162,7 +179,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 			@Override
 			public int getIndexOfSubtask() {
-				return getRuntimeContext().getIndexOfThisSubtask();
+				return subtaskIndex;
 			}
 
 			@Override
@@ -176,21 +193,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			}
 		};
 
+		sourceReader = readerFactory.apply(context);
+	}
+
+	@Override
+	public void open() throws Exception {
+		initReader();
+
 		// in the future when we this one is migrated to the "eager initialization" operator
 		// (StreamOperatorV2), then we should evaluate this during operator construction.
 		if (emitProgressiveWatermarks) {
 			eventTimeLogic = TimestampsAndWatermarks.createProgressiveEventTimeLogic(
 					watermarkStrategy,
-					metricGroup,
+					getMetricGroup(),
 					getProcessingTimeService(),
 					getExecutionConfig().getAutoWatermarkInterval());
 		} else {
 			eventTimeLogic = TimestampsAndWatermarks.createNoOpEventTimeLogic(
 					watermarkStrategy,
-					metricGroup);
+					getMetricGroup());
 		}
-
-		sourceReader = readerFactory.apply(context);
 
 		// restore the state if necessary.
 		final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
@@ -226,21 +248,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 		// short circuit the common case (every invocation except the first)
 		if (currentMainOutput != null) {
-			return pollNextRecord(output);
+			return sourceReader.pollNext(currentMainOutput);
 		}
 
 		// this creates a batch or streaming output based on the runtime mode
 		currentMainOutput = eventTimeLogic.createMainOutput(output);
 		lastInvokedOutput = output;
-		return pollNextRecord(output);
-	}
-
-	private InputStatus pollNextRecord(DataOutput<OUT> output) throws Exception {
-		InputStatus inputStatus = sourceReader.pollNext(currentMainOutput);
-		if (inputStatus == InputStatus.END_OF_INPUT) {
-			output.emitWatermark(Watermark.MAX_WATERMARK);
-		}
-		return inputStatus;
+		return sourceReader.pollNext(currentMainOutput);
 	}
 
 	@Override

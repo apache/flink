@@ -53,7 +53,7 @@ Note that you can run multiple programs per session.
 $ ./bin/kubernetes-session.sh
 {% endhighlight %}
 
-All the Kubernetes configuration options can be found in our [configuration guide]({{ site.baseurl }}/ops/config.html#kubernetes).
+All the Kubernetes configuration options can be found in our [configuration guide]({% link ops/config.md %}#kubernetes).
 
 **Example**: Issue the following command to start a session cluster with 4 GB of memory and 2 CPUs with 4 slots per TaskManager:
 
@@ -72,7 +72,7 @@ $ ./bin/kubernetes-session.sh \
 {% endhighlight %}
 
 The system will use the configuration in `conf/flink-conf.yaml`.
-Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if you want to change something.
+Please follow our [configuration guide]({% link ops/config.md %}) if you want to change something.
 
 If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name.
 
@@ -83,9 +83,9 @@ Please refer to the following [section](#custom-flink-docker-image).
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation](docker.html),
-[its tags](docker.html#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and [enable plugins](docker.html#using-plugins).
-If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) configuration option:
+If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation]({% link ops/deployment/docker.md %}),
+[its tags]({% link ops/deployment/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link ops/deployment/docker.md %}#customize-flink-image) and [enable plugins]({% link ops/deployment/docker.md %}#using-plugins).
+If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`]({% link ops/config.md %}#kubernetes-container-image) configuration option:
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -118,7 +118,7 @@ Build the image named as **pyflink:latest**:
 sudo docker build -t pyflink:latest .
 {% endhighlight %}
 
-Then you are able to start a PyFlink session cluster by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) 
+Then you are able to start a PyFlink session cluster by setting the [`kubernetes.container.image`]({% link ops/config.md %}#kubernetes-container-image) 
 configuration option value to be the name of custom image:
 
 {% highlight bash %}
@@ -170,7 +170,7 @@ You could find it in your kube config file.
 
 - `LoadBalancer`: Exposes the service externally using a cloud provider’s load balancer.
 Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
-You can use `kubectl get services/<ClusterId>` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
+You can use `kubectl get services/<ClusterId>-rest` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
 
   <span class="label label-warning">Warning!</span> Your JobManager (which can run arbitary jar files) might be exposed to the public internet, without authentication.
 
@@ -208,7 +208,7 @@ $ kubectl delete deployment/<ClusterID>
 
 ### Start Flink Application
 <div class="codetabs" markdown="1">
-Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized](docker.html#customize-flink-image) for any use case.
+Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized]({% link ops/deployment/docker.md %}#customize-flink-image) for any use case.
 <div data-lang="java" markdown="1">
 {% highlight dockerfile %}
 FROM flink
@@ -287,7 +287,7 @@ If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tun
 
 ## Using plugins
 
-In order to use [plugins]({{ site.baseurl }}/ops/plugins.html), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
+In order to use [plugins]({% link ops/plugins.md %}), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
 You can use the built-in plugins without mounting a volume or building a custom Docker image.
 For example, use the following command to pass the environment variable to enable the S3 plugin for your Flink application.
 
@@ -412,7 +412,7 @@ Please reference the official Kubernetes documentation on [RBAC Authorization](h
 
 This section briefly explains how Flink and Kubernetes interact.
 
-<img src="{{ site.baseurl }}/fig/FlinkOnK8s.svg" class="img-responsive">
+<img src="{% link /fig/FlinkOnK8s.svg %}" class="img-responsive">
 
 When creating a Flink Kubernetes session cluster, the Flink client will first connect to the Kubernetes ApiServer to submit the cluster description, including ConfigMap spec, Job Manager Service spec, Job Manager Deployment spec and Owner Reference.
 Kubernetes will then create the JobManager deployment, during which time the Kubelet will pull the image, prepare and mount the volume, and then execute the start command.

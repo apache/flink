@@ -136,7 +136,7 @@ public static class SubstringFunction extends ScalarFunction {
   }
 
   public String eval(String s, Integer begin, Integer end) {
-    return s.substring(a, endInclusive ? end + 1 : end);
+    return s.substring(begin, endInclusive ? end + 1 : end);
   }
 }
 
@@ -1114,9 +1114,9 @@ by Flink's checkpointing mechanism and are restored in case of a failure to ensu
 **The following methods are mandatory for each `AggregateFunction`:**
 
 - `createAccumulator()`
-- `accumulate(...)` 
+- `accumulate(...)`
 - `getValue(...)`
- 
+
 Additionally, there are a few methods that can be optionally implemented. While some of these methods
 allow the system more efficient query execution, others are mandatory for certain use cases. For instance,
 the `merge(...)` method is mandatory if the aggregation function should be applied in the context of a
@@ -1126,7 +1126,7 @@ that "connects" them).
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and session window and hop window aggregations. Besides, this method is also helpful for optimizations. For example, two phase aggregation optimization requires all the `AggregateFunction` support `merge` method.
 
 If the aggregate function can only be applied in an OVER window, this can be declared by returning the
 requirement `FunctionRequirement.OVER_WINDOW_ONLY` in `getRequirements()`.
@@ -1493,7 +1493,7 @@ that "connects" them).
 **The following methods of `TableAggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and unbounded session and hop window aggregations.
 - `emitValue(...)` is required for bounded and window aggregations.
 
 **The following methods of `TableAggregateFunction` are used to improve the performance of streaming jobs:**

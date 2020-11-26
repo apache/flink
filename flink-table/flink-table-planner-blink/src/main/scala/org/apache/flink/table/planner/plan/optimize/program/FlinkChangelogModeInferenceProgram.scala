@@ -630,7 +630,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case ts: StreamExecTableSourceScan =>
         // currently only support BEFORE_AND_AFTER if source produces updates
         val providedTrait = UpdateKindTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
-        createNewNode(rel, Some(List()), providedTrait)
+        val newSource = createNewNode(rel, Some(List()), providedTrait)
+        if (providedTrait.equals(UpdateKindTrait.BEFORE_AND_AFTER) &&
+            requiredTrait.equals(UpdateKindTrait.ONLY_UPDATE_AFTER)) {
+          // requiring only-after, but the source is CDC source, then drop update_before manually
+          val dropUB = new StreamExecDropUpdateBefore(rel.getCluster, rel.getTraitSet, rel)
+          createNewNode(dropUB, newSource.map(s => List(s)), requiredTrait)
+        } else {
+          newSource
+        }
 
       case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
            _: StreamExecValues =>

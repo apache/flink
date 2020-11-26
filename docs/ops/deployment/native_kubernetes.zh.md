@@ -53,7 +53,7 @@ Session 集群将启动所有必需的 Flink 服务（JobManager 和 TaskManager
 $ ./bin/kubernetes-session.sh
 {% endhighlight %}
 
-所有 Kubernetes 配置项都可以在我们的[配置指南]({{ site.baseurl }}/zh/ops/config.html#kubernetes)中找到。
+所有 Kubernetes 配置项都可以在我们的[配置指南]({% link ops/config.zh.md %}#kubernetes)中找到。
 
 **示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
@@ -70,7 +70,7 @@ $ ./bin/kubernetes-session.sh \
 {% endhighlight %}
 
 系统将使用 `conf/flink-conf.yaml` 中的配置。
-如果你更改某些配置，请遵循我们的[配置指南]({{ site.baseurl }}/zh/ops/config.html)。
+如果你更改某些配置，请遵循我们的[配置指南]({% link ops/config.zh.md %})。
 
 如果你未通过 `kubernetes.cluster-id` 为 session 指定特定名称，Flink 客户端将会生成一个 UUID 名称。
 
@@ -81,8 +81,8 @@ $ ./bin/kubernetes-session.sh \
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、[镜像 tags](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
-如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来指定它：
+如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档]({% link ops/deployment/docker.zh.md %})、[镜像 tags]({% link ops/deployment/docker.zh.md %}#image-tags)、[如何自定义 Flink Docker 镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)和[启用插件]({% link ops/deployment/docker.zh.md %}#using-plugins)。
+如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 配置项来指定它：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -114,7 +114,7 @@ RUN pip3 install apache-flink
 {% highlight bash %}
 sudo docker build -t pyflink:latest .
 {% endhighlight %}
-接下来将下面的命令行 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
+接下来将下面的命令行 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -166,7 +166,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 - `LoadBalancer`：使用云提供商的负载均衡器在外部暴露服务。
 由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因为你可能在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
-你可以使用 `kubectl get services/<ClusterId>` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
+你可以使用 `kubectl get services/<ClusterId>-rest` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
   <span class="label label-warning">警告!</span> JobManager 可能会在无需认证的情况下暴露在公网上，同时可以提交任务运行。
 
@@ -205,7 +205,7 @@ $ kubectl delete deployment/<ClusterID>
 ### 启动 Flink Application
 <div class="codetabs" markdown="1">
 
-Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像](docker.html#customize-flink-image)的基础镜像。
+Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)的基础镜像。
 
 <div data-lang="java" markdown="1">
 {% highlight dockerfile %}
@@ -286,7 +286,7 @@ STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodNam
 
 ## 启用插件
 
-为了使用[插件]({{ site.baseurl }}/zh/ops/plugins.html)，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
+为了使用[插件]({% link ops/plugins.zh.md %})，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
 使用内置的插件就不需要再挂载额外的存储卷或者构建自定义镜像。
 例如，可以使用如下命令通过设置环境变量来给你的Flink应用启用S3插件。
 
@@ -412,7 +412,7 @@ $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit 
 
 本节简要解释了 Flink 和 Kubernetes 如何交互。
 
-<img src="{{ site.baseurl }}/fig/FlinkOnK8s.svg" class="img-responsive">
+<img src="{% link /fig/FlinkOnK8s.svg %}" class="img-responsive">
 
 创建 Flink Kubernetes session 集群时，Flink 客户端首先将连接到 Kubernetes ApiServer 提交集群描述信息，包括 ConfigMap 描述信息、Job Manager Service 描述信息、Job Manager Deployment 描述信息和 Owner Reference。
 Kubernetes 将创建 JobManager 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。

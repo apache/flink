@@ -29,7 +29,9 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -64,6 +66,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
@@ -74,12 +77,14 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
@@ -780,8 +785,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			set(
 				TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
 				new HashMap<String, String>() {{
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC, "6");
-					put(TaskManagerOptions.ManagedMemoryConsumerNames.PYTHON, "4");
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "6");
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "4");
 				}});
 		}};
 
@@ -964,6 +969,49 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		// vertices in different regions should be in different slot sharing groups
 		assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+	}
+
+	@Test
+	public void testNamingOfChainedMultipleInputs() {
+		String[] sources = new String[]{"source-1", "source-2", "source-3"};
+		JobGraph graph = createGraphWithMultipleInputs(true, sources);
+		JobVertex head = graph.getVerticesSortedTopologicallyFromSources().iterator().next();
+		Arrays.stream(sources).forEach(source -> assertTrue(head.getName().contains(source)));
+	}
+
+	@Test
+	public void testNamingOfNonChainedMultipleInputs() {
+		String[] sources = new String[]{"source-1", "source-2", "source-3"};
+		JobGraph graph = createGraphWithMultipleInputs(false, sources);
+		JobVertex head = Iterables.find(graph.getVertices(), vertex -> vertex.getInvokableClassName().equals(MultipleInputStreamTask.class.getName()));
+		assertFalse(head.getName(), head.getName().contains("source-1"));
+	}
+
+	public JobGraph createGraphWithMultipleInputs(boolean chain, String ...inputNames) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		MultipleInputTransformation<Long> transform = new MultipleInputTransformation<>("mit", new UnusedOperatorFactory(), Types.LONG, env.getParallelism());
+		Arrays.stream(inputNames)
+			.map(name -> env.fromSource(new NumberSequenceSource(1, 2), WatermarkStrategy.noWatermarks(), name).getTransformation())
+			.forEach(transform::addInput);
+		transform.setChainingStrategy(chain ? ChainingStrategy.HEAD_WITH_SOURCES : ChainingStrategy.NEVER);
+
+		env.addOperator(transform);
+
+		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
+	private static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+
+		@Override
+		public <T extends StreamOperator<Long>> T createStreamOperator(StreamOperatorParameters<Long> parameters) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	private static List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {

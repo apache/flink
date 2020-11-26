@@ -102,9 +102,9 @@ $ cd build-target
 $ ./bin/start-cluster.sh  # Start Flink
 {% endhighlight %}
 
-Check the __Dispatcher's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
+Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
 
-<a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="Dispatcher: Overview"/></a>
+<a href="{% link /page/img/quickstart-setup/jobmanager-1.png %}" ><img class="img-responsive" src="{% link /page/img/quickstart-setup/jobmanager-1.png %}" alt="JobManager: Overview"/></a>
 
 You can also verify that the system is running by checking the log files in the `logs` directory:
 

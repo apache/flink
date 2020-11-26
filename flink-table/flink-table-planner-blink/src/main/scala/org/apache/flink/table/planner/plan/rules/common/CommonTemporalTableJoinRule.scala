@@ -44,20 +44,15 @@ trait CommonTemporalTableJoinRule {
 
     // period specification check
     snapshot.getPeriod match {
-      // it's left table's field, pass
-      case r: RexFieldAccess if r.getReferenceExpr.isInstanceOf[RexCorrelVariable] =>
+      // it should be left table's field and is a time attribute
+      case r: RexFieldAccess
+        if r.getType.isInstanceOf[TimeIndicatorRelDataType] &&
+          r.getReferenceExpr.isInstanceOf[RexCorrelVariable] => // pass
       case _ =>
         throw new TableException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field, doesn't support 'PROCTIME()'")
+          "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
     }
 
-    snapshot.getPeriod.getType match {
-      // supports both event-time and processing time
-      case t: TimeIndicatorRelDataType =>
-      case _ =>
-        throw new TableException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field")
-    }
     true
   }
 

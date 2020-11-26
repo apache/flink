@@ -2,7 +2,7 @@
 title: "DataGen SQL Connector"
 nav-title: DataGen
 nav-parent_id: sql-connectors
-nav-pos: 10
+nav-pos: 12
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -51,26 +51,26 @@ Time types are always the local machines current system time.
 CREATE TABLE Orders (
     order_number BIGINT,
     price        DECIMAL(32,2),
-    buyer        ROW<first_name STRING, last_name STRING>
+    buyer        ROW<first_name STRING, last_name STRING>,
     order_time   TIMESTAMP(3)
 ) WITH (
   'connector' = 'datagen'
 )
 {% endhighlight %}
 
-Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables. 
+Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables.
 
 {% highlight sql %}
 CREATE TABLE Orders (
     order_number BIGINT,
     price        DECIMAL(32,2),
-    buyer        ROW<first_name STRING, last_name STRING>
+    buyer        ROW<first_name STRING, last_name STRING>,
     order_time   TIMESTAMP(3)
 ) WITH (...)
 
 -- create a bounded mock table
-CREATE TEMPORARY TABLE GenOrders 
-WITH ( 
+CREATE TEMPORARY TABLE GenOrders
+WITH (
     'connector' = 'datagen',
     'number-of-rows' = '10'
 )
@@ -118,17 +118,17 @@ Types
             <td>TINYINT</td>
             <td>random / sequence</td>
             <td></td>
-        </tr>  
+        </tr>
         <tr>
             <td>SMALLINT</td>
             <td>random / sequence</td>
             <td></td>
-        </tr> 
+        </tr>
         <tr>
             <td>INT</td>
             <td>random / sequence</td>
             <td></td>
-        </tr> 
+        </tr>
         <tr>
             <td>BIGINT</td>
             <td>random / sequence</td>
@@ -158,12 +158,12 @@ Types
             <td>TIMESTAMP</td>
             <td>random</td>
             <td>Always resolves to the current timestamp of the local machine.</td>
-        </tr>    
+        </tr>
         <tr>
             <td>TIMESTAMP WITH LOCAL TIMEZONE</td>
             <td>random</td>
             <td>Always resolves to the current timestamp of the local machine.</td>
-        </tr>   
+        </tr>
         <tr>
             <td>INTERVAL YEAR TO MONTH</td>
             <td>random</td>

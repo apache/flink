@@ -27,7 +27,6 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
-import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -39,10 +38,7 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -79,23 +75,31 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private RecordEqualiser equaliser;
 
-	private Comparator<RowData> serializableComparator;
+	private final ComparableRecordComparator serializableComparator;
 
 	public RetractableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
 			InternalTypeInfo<RowData> inputRowType,
-			GeneratedRecordComparator generatedRecordComparator,
+			ComparableRecordComparator comparableRecordComparator,
 			RowDataKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
 			GeneratedRecordEqualiser generatedEqualiser,
 			boolean generateUpdateBefore,
 			boolean outputRankNumber) {
-		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateUpdateBefore, outputRankNumber);
+		super(
+			minRetentionTime,
+			maxRetentionTime,
+			inputRowType,
+			comparableRecordComparator.getGeneratedRecordComparator(),
+			sortKeySelector,
+			rankType,
+			rankRange,
+			generateUpdateBefore,
+			outputRankNumber);
 		this.sortKeyType = sortKeySelector.getProducedType();
-		this.serializableComparator = new ComparatorWrapper(generatedRecordComparator);
+		this.serializableComparator = comparableRecordComparator;
 		this.generatedEqualiser = generatedEqualiser;
 	}
 
@@ -156,13 +160,14 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			inputs.add(input);
 			dataState.put(sortKey, inputs);
 		} else {
+			final boolean stateRemoved;
 			// emit updates first
 			if (outputRankNumber || hasOffset()) {
 				// the without-number-algorithm can't handle topN with offset,
 				// so use the with-number-algorithm to handle offset
-				retractRecordWithRowNumber(sortedMap, sortKey, input, out);
+				stateRemoved = retractRecordWithRowNumber(sortedMap, sortKey, input, out);
 			} else {
-				retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
+				stateRemoved = retractRecordWithoutRowNumber(sortedMap, sortKey, input, out);
 			}
 
 			// and then update sortedMap
@@ -186,6 +191,26 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 				}
 			}
 
+			if (!stateRemoved) {
+				// the input record has not been removed from state
+				// should update the data state
+				List<RowData> inputs = dataState.get(sortKey);
+				if (inputs != null) {
+					// comparing record by equaliser
+					Iterator<RowData> inputsIter = inputs.iterator();
+					while (inputsIter.hasNext()) {
+						if (equaliser.equals(inputsIter.next(), input)) {
+							inputsIter.remove();
+							break;
+						}
+					}
+					if (inputs.isEmpty()) {
+						dataState.remove(sortKey);
+					} else {
+						dataState.put(sortKey, inputs);
+					}
+				}
+			}
 		}
 		treeMap.update(sortedMap);
 	}
@@ -294,7 +319,11 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 		}
 	}
 
-	private void retractRecordWithRowNumber(
+	/**
+	 * Retract the input record and emit updated records. This works for outputting with row_number.
+	 * @return true if the input record has been removed from {@link #dataState}.
+	 */
+	private boolean retractRecordWithRowNumber(
 			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
 		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
@@ -354,15 +383,21 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			// there is no enough elements in Top-N, emit DELETE message for the retract record.
 			collectDelete(out, prevRow, currentRank);
 		}
+
+		return findsSortKey;
 	}
 
-	private void retractRecordWithoutRowNumber(
+	/**
+	 * Retract the input record and emit updated records. This works for outputting without row_number.
+	 * @return true if the input record has been removed from {@link #dataState}.
+	 */
+	private boolean retractRecordWithoutRowNumber(
 			SortedMap<RowData, Long> sortedMap, RowData sortKey, RowData inputRow, Collector<RowData> out)
 			throws Exception {
 		Iterator<Map.Entry<RowData, Long>> iterator = sortedMap.entrySet().iterator();
-		long curRank = 0L;
+		long nextRank = 1L; // the next rank number, should be in the rank range
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
+		while (iterator.hasNext() && isInRankEnd(nextRank)) {
 			Map.Entry<RowData, Long> entry = iterator.next();
 			RowData key = entry.getKey();
 			if (!findsSortKey && key.equals(sortKey)) {
@@ -376,20 +411,19 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 					}
 				} else {
 					Iterator<RowData> inputIter = inputs.iterator();
-					while (inputIter.hasNext() && isInRankEnd(curRank)) {
-						curRank += 1;
+					while (inputIter.hasNext() && isInRankEnd(nextRank)) {
 						RowData prevRow = inputIter.next();
 						if (!findsSortKey && equaliser.equals(prevRow, inputRow)) {
-							collectDelete(out, prevRow, curRank);
-							curRank -= 1;
+							collectDelete(out, prevRow, nextRank);
+							nextRank -= 1;
 							findsSortKey = true;
 							inputIter.remove();
 						} else if (findsSortKey) {
-							if (curRank == rankEnd) {
-								collectInsert(out, prevRow, curRank);
-								break;
+							if (nextRank == rankEnd) {
+								collectInsert(out, prevRow, nextRank);
 							}
 						}
+						nextRank += 1;
 					}
 					if (inputs.isEmpty()) {
 						dataState.remove(key);
@@ -400,59 +434,22 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 			} else if (findsSortKey) {
 				long count = entry.getValue();
 				// gets the rank of last record with same sortKey
-				long rankOfLastRecord = curRank + count;
-				// sends the record if there is a record recently upgrades to Top-N
+				long rankOfLastRecord = nextRank + count - 1;
 				if (rankOfLastRecord < rankEnd) {
-					curRank = rankOfLastRecord;
+					nextRank = rankOfLastRecord + 1;
 				} else {
-					int index = Long.valueOf(rankEnd - curRank - 1).intValue();
+					// sends the record if there is a record recently upgrades to Top-N
+					int index = Long.valueOf(rankEnd - nextRank).intValue();
 					List<RowData> inputs = dataState.get(key);
 					RowData toAdd = inputs.get(index);
 					collectInsert(out, toAdd);
 					break;
 				}
 			} else {
-				curRank += entry.getValue();
+				nextRank += entry.getValue();
 			}
 		}
-	}
 
-	/**
-	 * Note: Because it's impossible to restore a RecordComparator instance generated by GeneratedRecordComparator from
-	 * snapshot, We introduce ComparatorWrapper class to wrap the GeneratedRecordComparator, a ComparatorWrapper
-	 * instance is serializable, and a RecordComparator instance could be restored based on the deserialized
-	 * ComparatorWrapper instance.
-	 */
-	private static class ComparatorWrapper implements Comparator<RowData>, Serializable {
-
-		private static final long serialVersionUID = 4386377835781068140L;
-
-		private transient Comparator<RowData> comparator;
-		private GeneratedRecordComparator generatedRecordComparator;
-
-		private ComparatorWrapper(GeneratedRecordComparator generatedRecordComparator) {
-			this.generatedRecordComparator = generatedRecordComparator;
-		}
-
-		@Override
-		public int compare(RowData o1, RowData o2) {
-			if (comparator == null) {
-				comparator = generatedRecordComparator.newInstance(Thread.currentThread().getContextClassLoader());
-			}
-			return comparator.compare(o1, o2);
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof ComparatorWrapper) {
-				ComparatorWrapper o = (ComparatorWrapper) obj;
-				GeneratedRecordComparator oGeneratedComparator = o.generatedRecordComparator;
-				return generatedRecordComparator.getClassName().equals(oGeneratedComparator.getClassName()) &&
-						generatedRecordComparator.getCode().equals(oGeneratedComparator.getCode()) &&
-						Arrays.equals(generatedRecordComparator.getReferences(), oGeneratedComparator.getReferences());
-			} else {
-				return false;
-			}
-		}
+		return findsSortKey;
 	}
 }

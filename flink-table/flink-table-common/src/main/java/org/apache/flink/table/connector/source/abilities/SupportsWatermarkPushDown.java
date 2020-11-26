@@ -28,7 +28,7 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Enables to push down watermarks into a {@link ScanTableSource}.
+ * Enables to push down a watermark strategy into a {@link ScanTableSource}.
  *
  * <p>The concept of watermarks defines when time operations based on an event time attribute will be
  * triggered. A watermark tells operators that no elements with a timestamp older or equal to the watermark
@@ -45,25 +45,30 @@ import org.apache.flink.table.data.RowData;
  * possible in order to be close to the actual data generation within a source's data partition.
  *
  * <p>If the {@link ScanTableSource#getScanRuntimeProvider(ScanTableSource.ScanContext)} returns
- * {@link SourceProvider}, watermarks are automatically pushed into the runtime source operator
- * by the framework. So in this case, this interface is not needed to implemented.
+ * {@link SourceProvider}, watermarks will be automatically pushed into the runtime source operator
+ * by the framework. In this case, this interface does not need to be implemented.
  *
- * <p>However, if the {@link ScanTableSource} does't work with {@link SourceProvider} and this
- * interface is not implemented, watermarks are generated in a subsequent operation after the
- * source. In this case, it is recommended to implement this interface to perform the watermark
- * generation within source's data partition.
+ * <p>If the {@link ScanTableSource} does not return a {@link SourceProvider} and this interface is
+ * not implemented, watermarks are generated in a subsequent operation after the source. In this case,
+ * it is recommended to implement this interface to perform the watermark generation within source's
+ * data partition.
  *
- * <p>This interface provides a {@link WatermarkStrategy} that needs to be applied to a runtime
+ * <p>This interface provides a {@link WatermarkStrategy} that needs to be applied to the runtime
  * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
  */
 @PublicEvolving
 public interface SupportsWatermarkPushDown {
 
 	/**
-	 * Provides {@link WatermarkStrategy} which defines how to generate {@link Watermark}s in
-	 * the stream sources. The {@link WatermarkStrategy} is a builder/factory for the actual
-	 * runtime implementation {@link WatermarkGenerator} that generates the watermarks and the
-	 * {@link TimestampAssigner} which assigns the event time timestamps to each record.
+	 * Provides a {@link WatermarkStrategy} which defines how to generate {@link Watermark}s in
+	 * the stream source.
+	 *
+	 * <p>The {@link WatermarkStrategy} is a builder/factory for the actual runtime implementation
+	 * consisting of {@link TimestampAssigner} (assigns the event-time timestamps to each record) and
+	 * the {@link WatermarkGenerator} (generates the watermarks).
+	 *
+	 * <p>Note: If necessary, the watermark strategy will contain required computed column expressions
+	 * and consider metadata columns (if {@link SupportsReadingMetadata} is implemented).
 	 */
 	void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy);
 

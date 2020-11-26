@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.{ExplainDetail, _}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
 import org.junit.{Before, Test}

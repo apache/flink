@@ -127,6 +127,14 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	 * to {@code Context} methods. For example, Events being sent by the Coordinator after this method
 	 * returns are assumed to take place after the checkpoint that was restored.
 	 *
+	 * <p>This method is called with a null state argument in the following situations:
+	 * <ul>
+	 *   <li>There is a recovery and there was no completed checkpoint yet.</li>
+	 *   <li>There is a recovery from a completed checkpoint/savepoint but it contained no state
+	 *       for the coordinator.</li>
+	 * </ul>
+	 * In both cases, the coordinator should reset to an empty (new) state.
+	 *
 	 * <h2>Restoring implicitly notifies of Checkpoint Completion</h2>
 	 *
 	 * <p>Restoring to a checkpoint is a way of confirming that the checkpoint is complete.
@@ -137,7 +145,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	 * complete (for example when a system failure happened directly after committing the checkpoint,
 	 * before calling the {@link #notifyCheckpointComplete(long)} method).
 	 */
-	void resetToCheckpoint(byte[] checkpointData) throws Exception;
+	void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception;
 
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
@@ -175,6 +183,12 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 		 * Gets the current parallelism with which this operator is executed.
 		 */
 		int currentParallelism();
+
+		/**
+		 * Gets the classloader that contains the additional dependencies, which are not
+		 * part of the JVM's classpath.
+		 */
+		ClassLoader getUserCodeClassloader();
 	}
 
 	// ------------------------------------------------------------------------

@@ -32,6 +32,8 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
@@ -44,6 +46,7 @@ import java.util.function.Supplier;
  */
 public class KafkaSourceFetcherManager<T>
 		extends SingleThreadFetcherManager<Tuple3<T, Long, Long>, KafkaPartitionSplit> {
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceFetcherManager.class);
 
 	/**
 	 * Creates a new SplitFetcherManager with a single I/O threads.
@@ -62,7 +65,25 @@ public class KafkaSourceFetcherManager<T>
 	public void commitOffsets(
 			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
 			OffsetCommitCallback callback) {
+		LOG.debug("Committing offsets {}", offsetsToCommit);
+		if (offsetsToCommit.isEmpty()) {
+			return;
+		}
 		SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher = fetchers.get(0);
+		if (splitFetcher != null) {
+			// The fetcher thread is still running. This should be the majority of the cases.
+			enqueueOffsetsCommitTask(splitFetcher, offsetsToCommit, callback);
+		} else {
+			splitFetcher = createSplitFetcher();
+			enqueueOffsetsCommitTask(splitFetcher, offsetsToCommit, callback);
+			startFetcher(splitFetcher);
+		}
+	}
+
+	private void enqueueOffsetsCommitTask(
+			SplitFetcher<Tuple3<T, Long, Long>, KafkaPartitionSplit> splitFetcher,
+			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
+			OffsetCommitCallback callback) {
 		KafkaPartitionSplitReader<T> kafkaReader =
 			(KafkaPartitionSplitReader<T>) splitFetcher.getSplitReader();
 
@@ -74,7 +95,8 @@ public class KafkaSourceFetcherManager<T>
 			}
 
 			@Override
-			public void wakeUp() {}
+			public void wakeUp() {
+			}
 		});
 	}
 }

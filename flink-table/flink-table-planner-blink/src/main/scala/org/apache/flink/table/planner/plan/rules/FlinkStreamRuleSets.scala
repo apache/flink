@@ -71,6 +71,13 @@ object FlinkStreamRuleSets {
   )
 
   /**
+   * Solid transformations before actual decorrelation.
+   */
+  val PRE_DECORRELATION_RULES: RuleSet = RuleSets.ofList(
+    CorrelateSortToRankRule.INSTANCE
+  )
+
+  /**
     * RuleSet to reduce expressions
     */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
@@ -317,6 +324,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalIntermediateTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
+    FlinkLogicalRank.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalWindowTableAggregate.CONVERTER,
@@ -365,6 +373,10 @@ object FlinkStreamRuleSets {
     PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
+    // remove the trivial calc that is produced by PushWatermarkIntoTableSourceScanAcrossCalcRule.
+    // because [[PushWatermarkIntoTableSourceScanAcrossCalcRule]] will push the rowtime computed
+    // column into the source. After FlinkCalcMergeRule applies, it may produces a trivial calc.
+    FlinkLogicalCalcRemoveRule.INSTANCE,
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
@@ -432,10 +444,18 @@ object FlinkStreamRuleSets {
   )
 
   /**
-    * RuleSet related to watermark assignment.
+   * RuleSet related to transpose watermark to be close to source
+   */
+  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+  )
+
+  /**
+    * RuleSet related to mini-batch.
     */
   val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(
-    // watermark interval infer rule
+    // mini-batch interval infer rule
     MiniBatchIntervalInferRule.INSTANCE
   )
 

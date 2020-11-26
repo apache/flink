@@ -83,6 +83,6 @@ public class ParserImpl implements Parser {
 
 	@Override
 	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException("Computed columns is only supported by the Blink planner.");
 	}
 }

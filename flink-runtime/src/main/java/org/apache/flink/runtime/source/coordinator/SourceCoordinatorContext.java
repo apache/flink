@@ -33,7 +33,13 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.ThrowableCatchingRunnable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -45,9 +51,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -81,6 +87,9 @@ import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerde
 @Internal
 public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorContext.class);
+
 	private final ExecutorService coordinatorExecutor;
 	private final ExecutorNotifier notifier;
 	private final OperatorCoordinator.Context operatorCoordinatorContext;
@@ -95,9 +104,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 			SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
 			int numWorkerThreads,
 			OperatorCoordinator.Context operatorCoordinatorContext,
-			SimpleVersionedSerializer<SplitT> splitSerializser) {
+			SimpleVersionedSerializer<SplitT> splitSerializer) {
 		this(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, operatorCoordinatorContext,
-				splitSerializser, new SplitAssignmentTracker<>());
+				splitSerializer, new SplitAssignmentTracker<>());
 	}
 
 	// Package private method for unit test.
@@ -115,15 +124,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		this.registeredReaders = new ConcurrentHashMap<>();
 		this.assignmentTracker = splitAssignmentTracker;
 		this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
+
+		final Executor errorHandlingCoordinatorExecutor = (runnable) ->
+				coordinatorExecutor.execute(new ThrowableCatchingRunnable(this::handleUncaughtExceptionFromAsyncCall, runnable));
+
 		this.notifier = new ExecutorNotifier(
-				Executors.newScheduledThreadPool(numWorkerThreads, new ThreadFactory() {
-					private int index = 0;
-					@Override
-					public Thread newThread(Runnable r) {
-						return new Thread(r, coordinatorThreadName + "-worker-" + index++);
-					}
-				}),
-				coordinatorExecutor);
+				Executors.newScheduledThreadPool(numWorkerThreads, new ExecutorThreadFactory(coordinatorThreadName + "-worker")),
+				errorHandlingCoordinatorExecutor);
 	}
 
 	@Override
@@ -233,6 +240,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 		operatorCoordinatorContext.failJob(cause);
 	}
 
+	void handleUncaughtExceptionFromAsyncCall(Throwable t) {
+		ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+		LOG.error("Exception while handling result from async call in {}. Triggering job failover.",
+				coordinatorThreadName, t);
+		failJob(t);
+	}
+
 	/**
 	 * Take a snapshot of this SourceCoordinatorContext.
 	 *
@@ -254,7 +268,6 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 * @param in the input from which the states are read.
 	 * @throws Exception when the restoration failed.
 	 */
-	@SuppressWarnings("unchecked")
 	void restoreState(
 			SimpleVersionedSerializer<SplitT> splitSerializer,
 			DataInputStream in) throws Exception {
@@ -299,6 +312,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 */
 	void onCheckpointComplete(long checkpointId) {
 		assignmentTracker.onCheckpointComplete(checkpointId);
+	}
+
+	OperatorCoordinator.Context getCoordinatorContext() {
+		return operatorCoordinatorContext;
 	}
 
 	// ---------------- private helper methods -----------------

@@ -162,7 +162,8 @@ class StreamExecGlobalGroupAggregate(
         recordEqualiser,
         globalAccTypes,
         indexOfCountStar,
-        generateUpdateBefore)
+        generateUpdateBefore,
+        tableConfig.getIdleStateRetention.toMillis)
 
       new KeyedMapBundleOperator(
         aggFunction,

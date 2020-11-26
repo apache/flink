@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -38,9 +37,14 @@ import org.apache.flink.types.RowKind;
 
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -61,7 +65,20 @@ import static org.junit.Assert.assertThat;
 public class Elasticsearch7DynamicSinkITCase {
 
 	@ClassRule
-	public static ElasticsearchResource elasticsearchResource = new ElasticsearchResource("es-dynamic-sink-it-test");
+	public static ElasticsearchContainer elasticsearchContainer =
+			new ElasticsearchContainer(
+					DockerImageName
+							.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
+							.withTag("7.5.1"));
+
+	@SuppressWarnings("deprecation")
+	protected final Client getClient() {
+		TransportAddress transportAddress = new TransportAddress(elasticsearchContainer.getTcpHost());
+		String expectedClusterName = "docker-cluster";
+		Settings settings = Settings.builder().put("cluster.name", expectedClusterName).build();
+		return new PreBuiltTransportClient(settings)
+				.addTransportAddress(transportAddress);
+	}
 
 	@Test
 	public void testWritingDocuments() throws Exception {
@@ -91,7 +108,7 @@ public class Elasticsearch7DynamicSinkITCase {
 			context()
 				.withSchema(schema)
 				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), index)
-				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200")
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), elasticsearchContainer.getHttpHostAddress())
 				.withOption(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
 				.build()
 		).getSinkRuntimeProvider(new MockContext());
@@ -102,7 +119,7 @@ public class Elasticsearch7DynamicSinkITCase {
 		environment.<RowData>fromElements(rowData).addSink(sinkFunction);
 		environment.execute();
 
-		Client client = elasticsearchResource.getClient();
+		Client client = getClient();
 		Map<String, Object> response = client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
@@ -137,7 +154,7 @@ public class Elasticsearch7DynamicSinkITCase {
 			"WITH (\n" +
 			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
-			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), elasticsearchContainer.getHttpHostAddress()) +
 			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
 			")");
 
@@ -152,7 +169,7 @@ public class Elasticsearch7DynamicSinkITCase {
 				LocalDateTime.parse("2012-12-12T12:12:12"))
 		).executeInsert("esTable").await();
 
-		Client client = elasticsearchResource.getClient();
+		Client client = getClient();
 		Map<String, Object> response = client.get(new GetRequest(index, "1_2012-12-12T12:12:12")).actionGet().getSource();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
@@ -185,7 +202,7 @@ public class Elasticsearch7DynamicSinkITCase {
 			"WITH (\n" +
 			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
-			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), elasticsearchContainer.getHttpHostAddress()) +
 			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
 			")");
 
@@ -208,7 +225,7 @@ public class Elasticsearch7DynamicSinkITCase {
 				LocalDateTime.parse("2013-12-12T13:13:13"))
 		).executeInsert("esTable").await();
 
-		Client client = elasticsearchResource.getClient();
+		Client client = getClient();
 
 		// search API does not return documents that were not indexed, we might need to query
 		// the index a few times
@@ -269,14 +286,14 @@ public class Elasticsearch7DynamicSinkITCase {
 			"WITH (\n" +
 			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
 			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
-			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), elasticsearchContainer.getHttpHostAddress()) +
 			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
 			")");
 
 		tableEnvironment.fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
 			.executeInsert("esTable").await();
 
-		Client client = elasticsearchResource.getClient();
+		Client client = getClient();
 		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", "1"))
 			.actionGet()
 			.getSource();

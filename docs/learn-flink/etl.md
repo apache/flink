@@ -149,39 +149,13 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(value -> value.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell)
 {% endhighlight %}
 
 Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
 expensive, since it involves network communication along with serialization and deserialization.
 
 <img src="{% link /fig/keyBy.png %}" alt="keyBy and network shuffle" class="offset" width="45%" />
-
-In the example above, the key has been specified by a field name, "startCell". This style of key
-selection has the drawback that the compiler is unable to infer the type of the field being used for
-keying, and so Flink will pass around the key values as Tuples, which can be awkward. It is
-better to use a properly typed KeySelector, e.g.,
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(
-        new KeySelector<EnrichedRide, int>() {
-
-            @Override
-            public int getKey(EnrichedRide enrichedRide) throws Exception {
-                return enrichedRide.startCell;
-            }
-        })
-{% endhighlight %}
-
-which can be more succinctly expressed with a lambda:
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
-{% endhighlight %}
 
 ### Keys are computed
 

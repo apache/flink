@@ -32,7 +32,10 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The default implementation of the {@link OperatorCoordinator} for the {@link Source}.
@@ -68,7 +72,9 @@ import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerde
  */
 @Internal
 public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements OperatorCoordinator {
+
 	private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinator.class);
+
 	/** The name of the operator this SourceCoordinator is associated with. */
 	private final String operatorName;
 	/** A single-thread executor to handle all the changes to the coordinator. */
@@ -81,7 +87,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	private final SimpleVersionedSerializer<SplitT> splitSerializer;
 	/** The context containing the states of the coordinator. */
 	private final SourceCoordinatorContext<SplitT> context;
-	/** The split enumerator created from the associated Source. */
+	/** The split enumerator created from the associated Source. This one is created either during resetting
+	 * the coordinator to a checkpoint, or when the coordinator is started. */
 	private SplitEnumerator<SplitT, EnumChkT> enumerator;
 	/** A flag marking whether the coordinator has started. */
 	private boolean started;
@@ -90,25 +97,37 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			String operatorName,
 			ExecutorService coordinatorExecutor,
 			Source<?, SplitT, EnumChkT> source,
-			SourceCoordinatorContext<SplitT> context) throws Exception {
+			SourceCoordinatorContext<SplitT> context) {
 		this.operatorName = operatorName;
 		this.coordinatorExecutor = coordinatorExecutor;
 		this.source = source;
 		this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
 		this.splitSerializer = source.getSplitSerializer();
 		this.context = context;
-		this.enumerator = source.createEnumerator(context);
-		this.started = false;
 	}
 
 	@Override
 	public void start() throws Exception {
 		LOG.info("Starting split enumerator for source {}.", operatorName);
+
+		// there are two ways the coordinator can get created:
+		//  (1) Source.restoreEnumerator(), in which case the 'resetToCheckpoint()' method creates it
+		//  (2) Source.createEnumerator, in which case it has not been created, yet, and we create it here
+		if (enumerator == null) {
+			final ClassLoader userCodeClassLoader = context.getCoordinatorContext().getUserCodeClassloader();
+			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(userCodeClassLoader)) {
+				enumerator = source.createEnumerator(context);
+			}
+		}
+
 		// The start sequence is the first task in the coordinator executor.
 		// We rely on the single-threaded coordinator executor to guarantee
 		// the other methods are invoked after the enumerator has started.
-		coordinatorExecutor.execute(() -> enumerator.start());
 		started = true;
+		runInEventLoop(
+			() -> enumerator.start(),
+			"starting the SplitEnumerator."
+		);
 	}
 
 	@Override
@@ -117,7 +136,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		try {
 			if (started) {
 				context.close();
-				enumerator.close();
+				if (enumerator != null) {
+					enumerator.close();
+				}
 			}
 		} finally {
 			coordinatorExecutor.shutdownNow();
@@ -129,10 +150,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+	public void handleEventFromOperator(int subtask, OperatorEvent event) {
+		runInEventLoop(
+			() -> {
 				LOG.debug("Handling event from subtask {} of source {}: {}", subtask, operatorName, event);
 				if (event instanceof RequestSplitEvent) {
 					enumerator.handleSplitRequest(subtask, ((RequestSplitEvent) event).hostName());
@@ -143,87 +163,106 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				} else {
 					throw new FlinkException("Unrecognized Operator Event: " + event);
 				}
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when handling operator event {} from subtask {} " +
-								"of source {}.", event, subtask, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"handling operator event %s from subtask %d", event, subtask
+		);
 	}
 
 	@Override
 	public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Handling subtask {} failure of source {}.", subtaskId, operatorName);
 				List<SplitT> splitsToAddBack = context.getAndRemoveUncheckpointedAssignment(subtaskId);
 				context.unregisterSourceReader(subtaskId);
 				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
 				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when handling subtask {} failure in source {}.",
-						subtaskId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"handling subtask %d failure", subtaskId
+		);
 	}
 
 	@Override
-	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
-		ensureStarted();
-
-		coordinatorExecutor.execute(() -> {
-			try {
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+		runInEventLoop(
+			() -> {
 				LOG.debug("Taking a state snapshot on operator {} for checkpoint {}", operatorName, checkpointId);
-				result.complete(toBytes(checkpointId));
-			} catch (Exception e) {
-				result.completeExceptionally(new CompletionException(
-						String.format("Failed to checkpoint coordinator for source %s due to ", operatorName), e));
-			}
-		});
+				try {
+					result.complete(toBytes(checkpointId));
+				} catch (Throwable e) {
+					ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
+					result.completeExceptionally(new CompletionException(
+						String.format("Failed to checkpoint SplitEnumerator for source %s", operatorName), e));
+				}
+			},
+			"taking checkpoint %d", checkpointId
+		);
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Marking checkpoint {} as completed for source {}.", checkpointId, operatorName);
 				context.onCheckpointComplete(checkpointId);
 				enumerator.notifyCheckpointComplete(checkpointId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when notifying the completion of the "
-					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"notifying the enumerator of completion of checkpoint %d", checkpointId
+		);
 	}
 
 	@Override
 	public void notifyCheckpointAborted(long checkpointId) {
-		ensureStarted();
-		coordinatorExecutor.execute(() -> {
-			try {
+		runInEventLoop(
+			() -> {
 				LOG.info("Marking checkpoint {} as aborted for source {}.", checkpointId, operatorName);
 				enumerator.notifyCheckpointAborted(checkpointId);
-			} catch (Exception e) {
-				LOG.error("Failing the job due to exception when notifying abortion of the "
-					+ "checkpoint {} for source {}.", checkpointId, operatorName, e);
-				context.failJob(e);
-			}
-		});
+			},
+			"calling notifyCheckpointAborted()"
+		);
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
-		if (started) {
-			throw new IllegalStateException(String.format(
-					"The coordinator for source %s has started. The source coordinator state can " +
-					"only be reset to a checkpoint before it starts.", operatorName));
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+		checkState(!started, "The coordinator can only be reset if it was not yet started");
+		assert enumerator == null;
+
+		// the checkpoint data is null if there was no completed checkpoint before
+		// in that case we don't restore here, but let a fresh SplitEnumerator be created
+		// when "start()" is called.
+		if (checkpointData == null) {
+			return;
 		}
-		LOG.info("Resetting coordinator of source {} from checkpoint.", operatorName);
-		fromBytes(checkpointData);
+
+		LOG.info("Restoring SplitEnumerator of source {} from checkpoint.", operatorName);
+
+		final ClassLoader userCodeClassLoader = context.getCoordinatorContext().getUserCodeClassloader();
+		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(userCodeClassLoader)) {
+			final EnumChkT enumeratorCheckpoint = deserializeCheckpointAndRestoreContext(checkpointData);
+			enumerator = source.restoreEnumerator(context, enumeratorCheckpoint);
+		}
+	}
+
+	private void runInEventLoop(
+			final ThrowingRunnable<Throwable> action,
+			final String actionName,
+			final Object... actionNameFormatParameters) {
+
+		ensureStarted();
+		coordinatorExecutor.execute(() -> {
+			try {
+				action.run();
+			} catch (Throwable t) {
+				// if we have a JVM critical error, promote it immediately, there is a good chance the
+				// logging or job failing will not succeed any more
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+
+				final String actionString = String.format(actionName, actionNameFormatParameters);
+				LOG.error("Uncaught exception in the SplitEnumerator for Source {} while {}. Triggering job failover.",
+						operatorName, actionString, t);
+				context.failJob(t);
+			}
+		});
 	}
 
 	// ---------------------------------------------------
@@ -249,16 +288,30 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	 * @throws Exception When something goes wrong in serialization.
 	 */
 	private byte[] toBytes(long checkpointId) throws Exception {
-		EnumChkT enumCkpt = enumerator.snapshotState();
+		return writeCheckpointBytes(
+				checkpointId,
+				enumerator.snapshotState(),
+				context,
+				enumCheckpointSerializer,
+				splitSerializer);
+	}
+
+	static <SplitT extends SourceSplit, EnumChkT> byte[] writeCheckpointBytes(
+			final long checkpointId,
+			final EnumChkT enumeratorCheckpoint,
+			final SourceCoordinatorContext<SplitT> coordinatorContext,
+			final SimpleVersionedSerializer<EnumChkT> checkpointSerializer,
+			final SimpleVersionedSerializer<SplitT> splitSerializer) throws Exception {
 
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
+
 			writeCoordinatorSerdeVersion(out);
-			out.writeInt(enumCheckpointSerializer.getVersion());
-			byte[] serialziedEnumChkpt = enumCheckpointSerializer.serialize(enumCkpt);
+			out.writeInt(checkpointSerializer.getVersion());
+			byte[] serialziedEnumChkpt = checkpointSerializer.serialize(enumeratorCheckpoint);
 			out.writeInt(serialziedEnumChkpt.length);
 			out.write(serialziedEnumChkpt);
-			context.snapshotState(checkpointId, splitSerializer, out);
+			coordinatorContext.snapshotState(checkpointId, splitSerializer, out);
 			out.flush();
 			return baos.toByteArray();
 		}
@@ -270,16 +323,15 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	 * @param bytes The checkpoint bytes that was returned from {@link #toBytes(long)}
 	 * @throws Exception When the deserialization failed.
 	 */
-	private void fromBytes(byte[] bytes) throws Exception {
+	private EnumChkT deserializeCheckpointAndRestoreContext(byte[] bytes) throws Exception {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
 				DataInputStream in = new DataInputViewStreamWrapper(bais)) {
 			readAndVerifyCoordinatorSerdeVersion(in);
 			int enumSerializerVersion = in.readInt();
 			int serializedEnumChkptSize = in.readInt();
 			byte[] serializedEnumChkpt = readBytes(in, serializedEnumChkptSize);
-			EnumChkT enumChkpt = enumCheckpointSerializer.deserialize(enumSerializerVersion, serializedEnumChkpt);
 			context.restoreState(splitSerializer, in);
-			enumerator = source.restoreEnumerator(context, enumChkpt);
+			return enumCheckpointSerializer.deserialize(enumSerializerVersion, serializedEnumChkpt);
 		}
 	}
 
@@ -294,5 +346,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 		if (!started) {
 			throw new IllegalStateException("The coordinator has not started yet.");
 		}
+
+		assert enumerator != null;
 	}
 }

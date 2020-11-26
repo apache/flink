@@ -29,11 +29,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.apache.flink.util.ComponentClosingUtils.closeAsyncWithTimeout;
+import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.closeAsyncWithTimeout;
 
 /**
  * A class that will recreate a new {@link OperatorCoordinator} instance when
@@ -104,7 +105,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
 		// First bump up the coordinator epoch to fence out the active coordinator.
 		LOG.info("Resetting coordinator to checkpoint.");
 		// Replace the coordinator variable with a new DeferrableCoordinator instance.
@@ -226,6 +227,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			return context.currentParallelism();
 		}
 
+		@Override
+		public ClassLoader getUserCodeClassloader() {
+			return context.getUserCodeClassloader();
+		}
+
 		@VisibleForTesting
 		synchronized void quiesce() {
 			quiesced = true;
@@ -318,7 +324,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 				return closeAsyncWithTimeout(
 					"SourceCoordinator for " + operatorId,
 					(ThrowingRunnable<Exception>) internalCoordinator::close,
-					timeoutMs).exceptionally(e -> {
+					Duration.ofMillis(timeoutMs)).exceptionally(e -> {
 						cleanAndFailJob(e);
 						return null;
 					});
@@ -360,7 +366,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			internalCoordinator.start();
 		}
 
-		void resetAndStart(byte[] checkpointData, boolean started) {
+		void resetAndStart(@Nullable byte[] checkpointData, boolean started) {
 			if (failed || closed || internalCoordinator == null) {
 				return;
 			}

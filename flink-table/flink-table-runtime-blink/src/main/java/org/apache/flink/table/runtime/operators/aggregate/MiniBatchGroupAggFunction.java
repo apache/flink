@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,10 +41,13 @@ import org.apache.flink.util.Collector;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isRetractMsg;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate in miniBatch mode.
@@ -85,6 +89,11 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 	private final boolean generateUpdateBefore;
 
 	/**
+	 * State idle retention time which unit is MILLISECONDS.
+	 */
+	private final long stateRetentionTime;
+
+	/**
 	 * Reused output row.
 	 */
 	private transient JoinedRowData resultRow = new JoinedRowData();
@@ -112,6 +121,7 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
 	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
+	 * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
 	 */
 	public MiniBatchGroupAggFunction(
 			GeneratedAggsHandleFunction genAggsHandler,
@@ -119,26 +129,32 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 			LogicalType[] accTypes,
 			RowType inputType,
 			int indexOfCountStar,
-			boolean generateUpdateBefore) {
+			boolean generateUpdateBefore,
+			long stateRetentionTime) {
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
 		this.accTypes = accTypes;
 		this.inputType = inputType;
 		this.generateUpdateBefore = generateUpdateBefore;
+		this.stateRetentionTime = stateRetentionTime;
 	}
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		super.open(ctx);
 		// instantiate function
+		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 		function = genAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
-		function.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+		function.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext(), ttlConfig));
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
 
 		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		if (ttlConfig.isEnabled()){
+			accDesc.enableTimeToLive(ttlConfig);
+		}
 		accState = ctx.getRuntimeContext().getState(accDesc);
 
 		inputRowSerializer = InternalSerializers.create(inputType);
@@ -171,6 +187,21 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<RowData, List<R
 			ctx.setCurrentKey(currentKey);
 			RowData acc = accState.value();
 			if (acc == null) {
+				// Don't create a new accumulator for a retraction message. This
+				// might happen if the retraction message is the first message for the
+				// key or after a state clean up.
+				Iterator<RowData> inputIter = inputRows.iterator();
+				while (inputIter.hasNext()) {
+					RowData current = inputIter.next();
+					if (isRetractMsg(current)) {
+						inputIter.remove(); // remove all the beginning retraction messages
+					} else {
+						break;
+					}
+				}
+				if (inputRows.isEmpty()) {
+					return;
+				}
 				acc = function.createAccumulators();
 				firstRow = true;
 			}

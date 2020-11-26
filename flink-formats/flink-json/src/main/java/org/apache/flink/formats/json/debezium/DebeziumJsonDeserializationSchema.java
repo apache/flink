@@ -284,7 +284,13 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			RowType jsonRowType,
 			ReadableMetadata metadata) {
 		final int pos = findFieldPos(metadata, jsonRowType);
-		return (root, unused) -> metadata.converter.convert(root, pos);
+		return new MetadataConverter() {
+			private static final long serialVersionUID = 1L;
+			@Override
+			public Object convert(GenericRowData root, int unused) {
+				return metadata.converter.convert(root, pos);
+			}
+		};
 	}
 
 	private static MetadataConverter convertInPayload(
@@ -293,9 +299,13 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 			boolean schemaInclude) {
 		if (schemaInclude) {
 			final int pos = findFieldPos(metadata, (RowType) jsonRowType.getChildren().get(0));
-			return (root, unused) -> {
-				final GenericRowData payload = (GenericRowData) root.getField(0);
-				return metadata.converter.convert(payload, pos);
+			return new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData root, int unused) {
+					final GenericRowData payload = (GenericRowData) root.getField(0);
+					return metadata.converter.convert(payload, pos);
+				}
 			};
 		}
 		return convertInRoot(jsonRowType, metadata);

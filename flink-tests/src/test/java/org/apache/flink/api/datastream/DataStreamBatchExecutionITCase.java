@@ -22,8 +22,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -90,6 +88,35 @@ public class DataStreamBatchExecutionITCase {
 		}
 	}
 
+	/**
+	 * We induce a failure in the last mapper. In BATCH execution mode the part of the pipeline
+	 * before the rebalance should not be re-executed. Only the part after that will restart. We
+	 * check that by suffixing the attempt number to records and asserting the correct number.
+	 */
+	@Test
+	public void batchFailoverWithRebalanceBarrier() throws Exception {
+
+		final StreamExecutionEnvironment env = getExecutionEnvironment();
+
+		DataStreamSource<String> source = env.fromElements("foo", "bar");
+
+		SingleOutputStreamOperator<String> mapped = source
+				.map(new SuffixAttemptId("a"))
+				.map(new SuffixAttemptId("b"))
+				.rebalance()
+				.map(new SuffixAttemptId("c"))
+				.map(new OnceFailingMapper("d"));
+
+		try (CloseableIterator<String> result = mapped.executeAndCollect()) {
+
+			// only the operators after the key-by "barrier" are restarted and will have the
+			// "attempt 1" suffix
+			assertThat(
+					iteratorToList(result),
+					containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+		}
+	}
+
 	@Test
 	public void batchReduceSingleResultPerKey() throws Exception {
 		StreamExecutionEnvironment env = getExecutionEnvironment();
@@ -127,12 +154,8 @@ public class DataStreamBatchExecutionITCase {
 	}
 
 	private StreamExecutionEnvironment getExecutionEnvironment() {
-
-		Configuration config = new Configuration();
-		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
-			config);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 		env.setParallelism(1);
 
 		// trick the collecting sink into working even in the face of failures 🙏

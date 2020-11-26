@@ -38,7 +38,7 @@ start and control running Flink jobs/applications, including the communication o
 For more flexibility, security for internal and external connectivity can be enabled and configured separately.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/ssl_internal_external.svg" alt="Internal and External Connectivity" style="width:75%; padding-top:10px; padding-bottom:10px;" />
+  <img src="{% link /fig/ssl_internal_external.svg %}" alt="Internal and External Connectivity" style="width:75%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
 ### Internal Connectivity
@@ -76,7 +76,7 @@ This makes container-based setups easier.*
 All external connectivity is exposed via an HTTP/REST endpoint, used for example by the web UI and the CLI:
 
   - Communication with the *Dispatcher* to submit jobs (session clusters)
-  - Communication with the *JobManager* to inspect and modify a running job/application
+  - Communication with the *JobMaster* to inspect and modify a running job/application
 
 The REST endpoints can be configured to require SSL connections. The server will, however, accept connections from any client by default, meaning the REST endpoint does not authenticate the client.
 

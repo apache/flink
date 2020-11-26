@@ -40,7 +40,7 @@ Users only need to add an extra parameter `func_type="pandas"` in the decorator 
 Vectorized Python scalar functions take `pandas.Series` as the inputs and return a `pandas.Series` of the same length as the output.
 Internally, Flink will split the input elements into batches, convert a batch of input elements into `Pandas.Series`
 and then call user-defined vectorized Python scalar functions for each batch of input elements. Please refer to the config option
-[python.fn-execution.arrow.batch.size]({% link dev/python/table-api-users-guide/python_config.md %}#python-fn-execution-arrow-batch-size) for more details
+[python.fn-execution.arrow.batch.size]({% link dev/python/python_config.md %}#python-fn-execution-arrow-batch-size) for more details
 on how to configure the batch size.
 
 Vectorized Python scalar function could be used in any places where non-vectorized Python scalar functions could be used.
@@ -66,6 +66,8 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 ## Vectorized Aggregate Functions
 
 Vectorized Python aggregate functions takes one or more `pandas.Series` as the inputs and return one scalar value as output.
+
+<span class="label label-info">Note</span> The return type does not support `RowType` and `MapType` for the time being.
 
 Vectorized Python aggregate function could be used in `GroupBy Aggregation`(Batch), `GroupBy Window Aggregation`(Batch and Stream) and 
 `Over Window Aggregation`(Batch and Stream bounded over window). For more details on the usage of Aggregations, you can refer

@@ -32,6 +32,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -226,11 +229,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 
 		eventValve.reset();
+		if (context != null) {
+			context.resetFailed();
+		}
 		coordinator.resetToCheckpoint(checkpointData);
 	}
 
@@ -319,6 +325,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 					provider,
 					eventSender,
 					jobVertex.getName(),
+					jobVertex.getGraph().getUserClassLoader(),
 					jobVertex.getParallelism(),
 					jobVertex.getMaxParallelism());
 		}
@@ -330,13 +337,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			final OperatorCoordinator.Provider coordinatorProvider,
 			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
 			final String operatorName,
+			final ClassLoader userCodeClassLoader,
 			final int operatorParallelism,
 			final int operatorMaxParallelism) throws Exception {
 
 		final OperatorEventValve valve = new OperatorEventValve(eventSender);
 
 		final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(
-				opId, valve, operatorName, operatorParallelism);
+				opId, valve, operatorName, userCodeClassLoader, operatorParallelism);
 
 		final OperatorCoordinator coordinator = coordinatorProvider.create(context);
 
@@ -364,22 +372,29 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	 */
 	private static final class LazyInitializedCoordinatorContext implements OperatorCoordinator.Context {
 
+		private static final Logger LOG = LoggerFactory.getLogger(LazyInitializedCoordinatorContext.class);
+
 		private final OperatorID operatorId;
 		private final OperatorEventValve eventValve;
 		private final String operatorName;
+		private final ClassLoader userCodeClassLoader;
 		private final int operatorParallelism;
 
 		private Consumer<Throwable> globalFailureHandler;
 		private Executor schedulerExecutor;
 
+		private volatile boolean failed;
+
 		public LazyInitializedCoordinatorContext(
 				final OperatorID operatorId,
 				final OperatorEventValve eventValve,
 				final String operatorName,
+				final ClassLoader userCodeClassLoader,
 				final int operatorParallelism) {
 			this.operatorId = checkNotNull(operatorId);
 			this.eventValve = checkNotNull(eventValve);
 			this.operatorName = checkNotNull(operatorName);
+			this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 			this.operatorParallelism = operatorParallelism;
 		}
 
@@ -399,6 +414,10 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 		private void checkInitialized() {
 			checkState(isInitialized(), "Context was not yet initialized");
+		}
+
+		void resetFailed() {
+			failed = false;
 		}
 
 		@Override
@@ -431,6 +450,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public void failJob(final Throwable cause) {
 			checkInitialized();
+			if (failed) {
+				LOG.warn("Ignoring the request to fail job because the job is already failing. "
+							+ "The ignored failure cause is", cause);
+				return;
+			}
+			failed = true;
 
 			final FlinkException e = new FlinkException("Global failure triggered by OperatorCoordinator for '" +
 				operatorName + "' (operator " + operatorId + ").", cause);
@@ -441,6 +466,11 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		@Override
 		public int currentParallelism() {
 			return operatorParallelism;
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassloader() {
+			return userCodeClassLoader;
 		}
 	}
 }

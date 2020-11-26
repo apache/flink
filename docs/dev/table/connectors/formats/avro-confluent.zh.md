@@ -40,11 +40,10 @@ Avro Schema Registry 格式只能与[Apache Kafka SQL连接器]({% link dev/tabl
 依赖
 ------------
 
-为了建立 Avro Schema Registry 格式，下列的表格提供了为项目使用自动化工具（例如 Maven 或者 SBT ）以及 SQL 客户端使用 SQL JAR 包的依赖信息。
-
-| Maven依赖                     | SQL 客户端 JAR         |
-| :----------------------------------- | :----------------------|
-| `flink-avro-confluent-registry`      | {% if site.is_stable %} [下载](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/{{site.version}}/flink-sql-avro-confluent-registry-{{site.version}}.jar) {% else %} 仅适用于稳定版本。 {% endif %} |
+{% assign connector = site.data.sql-connectors['avro-confluent'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何创建使用 Avro-Confluent 格式的表
 ----------------

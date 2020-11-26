@@ -67,8 +67,19 @@ public class FactoryUtilTest {
 			"Could not find any factory for identifier 'FAIL' that implements '" +
 				DynamicTableFactory.class.getName() + "' in the classpath.\n\n" +
 			"Available factory identifiers are:\n\n" +
-			"sink-only\nsource-only\ntest-connector");
+			"conflicting\nsink-only\nsource-only\ntest\ntest-connector");
 		testError(options -> options.put("connector", "FAIL"));
+	}
+
+	@Test
+	public void testConflictingConnector() {
+		expectError(
+			"Multiple factories for identifier 'conflicting' that implement '"
+				+ DynamicTableFactory.class.getName() + "' found in the classpath.\n"
+				+ "\n" + "Ambiguous factory classes are:\n" + "\n"
+				+ TestConflictingDynamicTableFactory1.class.getName() + "\n"
+				+ TestConflictingDynamicTableFactory2.class.getName());
+		testError(options -> options.put("connector", TestConflictingDynamicTableFactory1.IDENTIFIER));
 	}
 
 	@Test
@@ -167,6 +178,29 @@ public class FactoryUtilTest {
 	}
 
 	@Test
+	public void testDiscoveryForSeparateSourceSinkFactory() {
+		final Map<String, String> options = createAllOptions();
+		// the "test" source and sink factory is not in one factory class
+		// see TestDynamicTableSinkFactory and TestDynamicTableSourceFactory
+		options.put("connector", "test");
+
+		final DynamicTableSource actualSource = createTableSource(options);
+		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
+			"MyTarget",
+			new DecodingFormatMock(",", false),
+			new DecodingFormatMock("|", true));
+		assertEquals(expectedSource, actualSource);
+
+		final DynamicTableSink actualSink = createTableSink(options);
+		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
+			"MyTarget",
+			1000L,
+			new EncodingFormatMock(","),
+			new EncodingFormatMock("|"));
+		assertEquals(expectedSink, actualSink);
+	}
+
+	@Test
 	public void testOptionalFormat() {
 		final Map<String, String> options = createAllOptions();
 		options.remove("key.format");
@@ -211,12 +245,12 @@ public class FactoryUtilTest {
 	}
 
 	@Test
-	public void testAvailableFactoryTipsDependencyJarForConnector() {
+	public void testConnectorErrorHint() {
 		try {
 			createTableSource(Collections.singletonMap("connector", "sink-only"));
 			fail();
 		} catch (Exception e) {
-			String errorMsg = "Connector 'sink-only' only supports to be used as sink, can't be used as source.";
+			String errorMsg = "Connector 'sink-only' can only be used as a sink. It cannot be used as a source.";
 			assertThat(e, containsCause(new ValidationException(errorMsg)));
 		}
 
@@ -224,7 +258,7 @@ public class FactoryUtilTest {
 			createTableSink(Collections.singletonMap("connector", "source-only"));
 			fail();
 		} catch (Exception e) {
-			String errorMsg = "Connector 'source-only' only supports to be used as source, can't be used as sink.";
+			String errorMsg = "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
 			assertThat(e, containsCause(new ValidationException(errorMsg)));
 		}
 	}

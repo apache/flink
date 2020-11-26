@@ -86,12 +86,11 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 		FlinkFnApi.TypeInfo.FieldType builtFieldType = PythonTypeUtils.TypeInfoToProtoConverter
 			.getFieldType(typeInformation);
 		return RunnerApi.Coder.newBuilder()
-			.setSpec(
-		RunnerApi.FunctionSpec.newBuilder()
-					.setUrn(this.coderUrn)
-					.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
-		PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(builtFieldType).toByteArray()
-					)).build()
+			.setSpec(RunnerApi.FunctionSpec.newBuilder()
+						.setUrn(this.coderUrn)
+						.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
+							PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(builtFieldType).toByteArray()
+						)).build()
 			).build();
 	}
 }

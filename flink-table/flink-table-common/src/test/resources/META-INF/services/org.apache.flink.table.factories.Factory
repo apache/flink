@@ -15,5 +15,9 @@
 
 org.apache.flink.table.factories.TestDynamicTableFactory
 org.apache.flink.table.factories.TestFormatFactory
+org.apache.flink.table.factories.TestDynamicTableSourceFactory
+org.apache.flink.table.factories.TestDynamicTableSinkFactory
 org.apache.flink.table.factories.TestDynamicTableSinkOnlyFactory
 org.apache.flink.table.factories.TestDynamicTableSourceOnlyFactory
+org.apache.flink.table.factories.TestConflictingDynamicTableFactory1
+org.apache.flink.table.factories.TestConflictingDynamicTableFactory2

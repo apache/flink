@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -286,6 +287,13 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testJoinOnChangelogSourceWithEventsDuplicate(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    verifyJoinOnSource("I,UB,UA")
+  }
+
+  @Test
   def testJoinOnNoUpdateSource(): Unit = {
     verifyJoinOnSource("I,D")
   }
@@ -347,6 +355,29 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testChangelogSourceWithEventsDuplicate(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    // the last node should keep UB because there is a filter on the changelog stream
+    util.verifyPlan("SELECT a, b, c FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testScanOnUpsertSource(): Unit = {
     util.addTable(
       """
@@ -385,6 +416,28 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     // the last node should keep UB because there is a filter on the changelog stream
     util.verifyPlan("SELECT a, b, c FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpsertSourceWithWatermarkPushDown(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b AS a + 1,
+        |  c STRING,
+        |  ts as to_timestamp(c),
+        |  PRIMARY KEY (id) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D',
+        |  'enable-watermark-push-down' = 'true',
+        |  'disable-lookup' = 'true'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT id, ts FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -603,6 +656,29 @@ class TableScanTest extends TableTestBase {
     thrown.expectMessage("Table 'default_catalog.default_database.src' produces a " +
       "changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. " +
       "This requires to define primary key constraint on the table.")
+    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testMissingPrimaryKeyForEventsDuplicate(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Configuration 'table.exec.source.cdc-events-duplicate' is enabled " +
+      "which requires the changelog sources to define a PRIMARY KEY. " +
+      "However, table 'default_catalog.default_database.src' doesn't have a primary key.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 

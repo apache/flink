@@ -135,74 +135,109 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
 	 */
 	enum ReadableMetadata {
 		SCHEMA(
-				"schema",
-				DataTypes.STRING().nullable(),
-				false,
-				DataTypes.FIELD("schema", DataTypes.STRING()),
-				GenericRowData::getString
+			"schema",
+			DataTypes.STRING().nullable(),
+			false,
+			DataTypes.FIELD("schema", DataTypes.STRING()),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
+					return row.getString(pos);
+				}
+			}
 		),
 
 		INGESTION_TIMESTAMP(
-				"ingestion-timestamp",
-				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
-				true,
-				DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
-				(row, pos) -> {
+			"ingestion-timestamp",
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
+			true,
+			DataTypes.FIELD("ts_ms", DataTypes.BIGINT()),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
+					if (row.isNullAt(pos)) {
+						return null;
+					}
 					return TimestampData.fromEpochMillis(row.getLong(pos));
 				}
+			}
 		),
 
 		SOURCE_TIMESTAMP(
-				"source.timestamp",
-				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-				true,
-				DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-				(row, pos) -> {
+			"source.timestamp",
+			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
+			true,
+			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
 					final StringData timestamp = (StringData) readProperty(row, pos, KEY_SOURCE_TIMESTAMP);
 					if (timestamp == null) {
 						return null;
 					}
 					return TimestampData.fromEpochMillis(Long.parseLong(timestamp.toString()));
 				}
+			}
 		),
 
 		SOURCE_DATABASE(
-				"source.database",
-				DataTypes.STRING().nullable(),
-				true,
-				DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-				(row, pos) -> {
+			"source.database",
+			DataTypes.STRING().nullable(),
+			true,
+			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
 					return readProperty(row, pos, KEY_SOURCE_DATABASE);
 				}
+			}
 		),
 
 		SOURCE_SCHEMA(
-				"source.schema",
-				DataTypes.STRING().nullable(),
-				true,
-				DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-				(row, pos) -> {
+			"source.schema",
+			DataTypes.STRING().nullable(),
+			true,
+			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
 					return readProperty(row, pos, KEY_SOURCE_SCHEMA);
 				}
+			}
 		),
 
 		SOURCE_TABLE(
-				"source.table",
-				DataTypes.STRING().nullable(),
-				true,
-				DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-				(row, pos) -> {
+			"source.table",
+			DataTypes.STRING().nullable(),
+			true,
+			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
 					return readProperty(row, pos, KEY_SOURCE_TABLE);
 				}
+			}
 		),
 
 		SOURCE_PROPERTIES(
-				"source.properties",
-				// key and value of the map are nullable to make handling easier in queries
-				DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable()).nullable(),
-				true,
-				DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-				GenericRowData::getMap
+			"source.properties",
+			// key and value of the map are nullable to make handling easier in queries
+			DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable()).nullable(),
+			true,
+			DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object convert(GenericRowData row, int pos) {
+					return row.getMap(pos);
+				}
+			}
 		);
 
 		final String key;

@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -36,11 +37,12 @@ import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.data.util.RowDataUtil.isRetractMsg;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate.
  */
-public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowData, RowData, RowData> {
+public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -4767158666069797704L;
 
@@ -70,6 +72,11 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 	private final boolean generateUpdateBefore;
 
 	/**
+	 * State idle retention time which unit is MILLISECONDS.
+	 */
+	private final long stateRetentionTime;
+
+	/**
 	 * Reused output row.
 	 */
 	private transient JoinedRowData resultRow = null;
@@ -86,8 +93,6 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 	/**
 	 * Creates a {@link GroupAggFunction}.
 	 *
-	 * @param minRetentionTime minimal state idle retention time.
-	 * @param maxRetentionTime maximal state idle retention time.
 	 * @param genAggsHandler The code generated function used to handle aggregates.
 	 * @param genRecordEqualiser The code generated equaliser used to equal RowData.
 	 * @param accTypes The accumulator types.
@@ -95,49 +100,46 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
 	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
+	 * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
 	 */
 	public GroupAggFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateUpdateBefore) {
-		super(minRetentionTime, maxRetentionTime);
+			boolean generateUpdateBefore,
+			long stateRetentionTime) {
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
 		this.generateUpdateBefore = generateUpdateBefore;
+		this.stateRetentionTime = stateRetentionTime;
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		// instantiate function
+		StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
+		function.open(new PerKeyStateDataViewStore(getRuntimeContext(), ttlConfig));
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
 		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		if (ttlConfig.isEnabled()){
+			accDesc.enableTimeToLive(ttlConfig);
+		}
 		accState = getRuntimeContext().getState(accDesc);
-
-		initCleanupTimeState("GroupAggregateCleanupTime");
 
 		resultRow = new JoinedRowData();
 	}
 
 	@Override
 	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		long currentTime = ctx.timerService().currentProcessingTime();
-		// register state-cleanup timer
-		registerProcessingCleanupTimer(ctx, currentTime);
-
 		RowData currentKey = ctx.getCurrentKey();
-
 		boolean firstRow;
 		RowData accumulators = accState.value();
 		if (null == accumulators) {
@@ -180,7 +182,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 
 			// if this was not the first row and we have to emit retractions
 			if (!firstRow) {
-				if (!stateCleaningEnabled && equaliser.equals(prevAggValue, newAggValue)) {
+				if (stateRetentionTime <= 0 && equaliser.equals(prevAggValue, newAggValue)) {
 					// newRow is the same as before and state cleaning is not enabled.
 					// We do not emit retraction and acc message.
 					// If state cleaning is enabled, we have to emit messages to prevent too early
@@ -215,14 +217,6 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowDa
 			// and clear all state
 			accState.clear();
 			// cleanup dataview under current key
-			function.cleanup();
-		}
-	}
-
-	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
-		if (stateCleaningEnabled) {
-			cleanupState(accState);
 			function.cleanup();
 		}
 	}

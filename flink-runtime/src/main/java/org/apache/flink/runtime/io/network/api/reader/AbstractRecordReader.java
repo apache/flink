@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
@@ -88,6 +89,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				Optional<BufferOrEvent> polled = inputGate.pollNext();
 				Preconditions.checkState(!polled.isPresent());
 			}
+			inputGate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 			inputGate.requestPartitions();
 			requestedPartitions = true;
 		}

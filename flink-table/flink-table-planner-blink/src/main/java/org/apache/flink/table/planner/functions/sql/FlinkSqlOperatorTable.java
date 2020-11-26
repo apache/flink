@@ -561,7 +561,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
 		@Override
 		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-			return SqlMonotonicity.INCREASING;
+			if (call.getOperandCount() == 0) {
+				return SqlMonotonicity.INCREASING;
+			} else {
+				return SqlMonotonicity.NOT_MONOTONIC;
+			}
 		}
 	};
 
@@ -629,11 +633,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		@Override
 		public boolean isDeterministic() {
 			return false;
-		}
-
-		@Override
-		public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-			return SqlMonotonicity.INCREASING;
 		}
 	};
 

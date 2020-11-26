@@ -186,8 +186,8 @@ public final class FactoryUtil {
 	 *     // in createDynamicTableSource()
 	 *     helper = FactoryUtil.createTableFactoryHelper(this, context);
 	 *
-	 *     keyFormat = helper.discoverEncodingFormat(DeserializationFormatFactory.class, KEY_FORMAT);
-	 *     valueFormat = helper.discoverEncodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
+	 *     keyFormat = helper.discoverDecodingFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+	 *     valueFormat = helper.discoverDecodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
 	 *
 	 *     helper.validate();
 	 *
@@ -250,6 +250,7 @@ public final class FactoryUtil {
 					factoryClass.getName(),
 					foundFactories.stream()
 						.map(Factory::factoryIdentifier)
+						.distinct()
 						.sorted()
 						.collect(Collectors.joining("\n"))));
 		}
@@ -261,8 +262,8 @@ public final class FactoryUtil {
 					"%s",
 					factoryIdentifier,
 					factoryClass.getName(),
-					foundFactories.stream()
-						.map(f -> factories.getClass().getName())
+					matchingFactories.stream()
+						.map(f -> f.getClass().getName())
 						.sorted()
 						.collect(Collectors.joining("\n"))));
 		}
@@ -365,40 +366,47 @@ public final class FactoryUtil {
 					"Table options do not contain an option key '%s' for discovering a connector.",
 					CONNECTOR.key()));
 		}
+		try {
+			return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
+		} catch (ValidationException e) {
+			throw enrichNoMatchingConnectorError(factoryClass, context, connectorOption);
+		}
+	}
+
+	private static ValidationException enrichNoMatchingConnectorError(
+			Class<?> factoryClass,
+			DefaultDynamicTableContext context,
+			String connectorOption) {
 		final DynamicTableFactory factory;
 		try {
 			factory = discoverFactory(context.getClassLoader(), DynamicTableFactory.class, connectorOption);
 		} catch (ValidationException e) {
-			throw new ValidationException(
+			return new ValidationException(
 				String.format(
-					"Cannot discover a connector using option '%s'.",
+					"Cannot discover a connector using option: %s",
 					stringifyOption(CONNECTOR.key(), connectorOption)),
 				e);
 		}
 
-		if (factoryClass.isAssignableFrom(factory.getClass())) {
-			return (T) factory;
+		final Class<?> sourceFactoryClass = DynamicTableSourceFactory.class;
+		final Class<?> sinkFactoryClass = DynamicTableSinkFactory.class;
+		// for a better exception message
+		if (sourceFactoryClass.equals(factoryClass) && sinkFactoryClass.isAssignableFrom(factory.getClass())) {
+			// discovering source, but not found, and this is a sink connector.
+			return new ValidationException(String.format(
+				"Connector '%s' can only be used as a sink. It cannot be used as a source.",
+				connectorOption));
+		} else if (sinkFactoryClass.equals(factoryClass) && sourceFactoryClass.isAssignableFrom(factory.getClass())) {
+			// discovering sink, but not found, and this is a source connector.
+			return new ValidationException(String.format(
+				"Connector '%s' can only be used as a source. It cannot be used as a sink.",
+				connectorOption));
 		} else {
-			final Class<?> sourceFactoryClass = DynamicTableSourceFactory.class;
-			final Class<?> sinkFactoryClass = DynamicTableSinkFactory.class;
-			// for a better exception message
-			if (sourceFactoryClass.equals(factoryClass) && sinkFactoryClass.isAssignableFrom(factory.getClass())) {
-				// discovering source, but not found, and this is a sink connector.
-				throw new ValidationException(String.format(
-					"Connector '%s' only supports to be used as sink, can't be used as source.",
-					connectorOption));
-			} else if (sinkFactoryClass.equals(factoryClass) && sourceFactoryClass.isAssignableFrom(factory.getClass())) {
-				// discovering sink, but not found, and this is a a source connector.
-				throw new ValidationException(String.format(
-					"Connector '%s' only supports to be used as source, can't be used as sink.",
-					connectorOption));
-			} else {
-				throw new ValidationException(String.format(
-					"Connector '%s' should at least implements '%s' or '%s' interface.",
-					connectorOption,
-					sourceFactoryClass.getName(),
-					sinkFactoryClass.getName()));
-			}
+			return new ValidationException(String.format(
+				"Connector '%s' does neither implement the '%s' nor the '%s' interface.",
+				connectorOption,
+				sourceFactoryClass.getName(),
+				sinkFactoryClass.getName()));
 		}
 	}
 

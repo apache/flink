@@ -34,12 +34,10 @@ under the License.
 依赖
 ------------
 
-
-为了建立CSV格式，下列的表格提供了为项目使用自动化工具（例如Maven或者SBT）以及SQL客户端使用SQL JAR包的依赖信息。
-
-| Maven依赖           | SQL 客户端 JAR        |
-| :----------------- | :----------------------|
-| `flink-csv`        | 内置               |
+{% assign connector = site.data.sql-connectors['csv'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何创建使用 CSV 格式的表
 ----------------
@@ -95,11 +93,8 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
-      <td>字段分隔符 (默认<code>','</code>)。注意 <code>\n</code> 和 <code>\r</code> 是不可见的特殊符号, 在显式的 SQL 语句中必须使用 unicode 编码。
-          <ul>
-           <li>例如 <code>'csv.field-delimiter' = U&'\000D'</code> 使用回车符号 <code>\r</code> 作为字段分隔符。</li>
-           <li>例如 <code>'csv.field-delimiter' = U&'\000A'</code> 使用换行符号 <code>\n</code> 作为字段分隔符。</li>
-          </ul>
+      <td>字段分隔符 (默认<code>','</code>)，必须为单字符。你可以使用反斜杠字符指定一些特殊字符，例如 <code>'\t'</code> 代表制表符。
+      你也可以通过 unicode 编码在纯 SQL 文本中指定一些特殊字符，例如 <code>'csv.field-delimiter' = U&'\0001'</code> 代表 <code>0x01</code> 字符。
       </td>
     </tr>
     <tr>

@@ -222,7 +222,7 @@ public class StreamExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userClassloader) {
 		this.executorServiceLoader = checkNotNull(executorServiceLoader);
-		this.configuration = checkNotNull(configuration);
+		this.configuration = new Configuration(checkNotNull(configuration));
 		this.userClassloader = userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
 		// the configuration of a job or an operator can be specified at the following places:
@@ -281,6 +281,26 @@ public class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment setParallelism(int parallelism) {
 		config.setParallelism(parallelism);
+		return this;
+	}
+
+	/**
+	 * Sets the runtime execution mode for the application (see {@link RuntimeExecutionMode}).
+	 * This is equivalent to setting the {@code execution.runtime-mode} in your application's
+	 * configuration file.
+	 *
+	 * <p>We recommend users to NOT use this method but set the {@code execution.runtime-mode}
+	 * using the command-line when submitting the application. Keeping the application code
+	 * configuration-free allows for more flexibility as the same application will be able to
+	 * be executed in any execution mode.
+	 *
+	 * @param executionMode the desired execution mode.
+	 * @return The execution environment of your application.
+	 */
+	@PublicEvolving
+	public StreamExecutionEnvironment setRuntimeMode(final RuntimeExecutionMode executionMode) {
+		checkNotNull(executionMode);
+		configuration.set(ExecutionOptions.RUNTIME_MODE, executionMode);
 		return this;
 	}
 

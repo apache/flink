@@ -166,7 +166,8 @@ class StreamExecIncrementalGroupAggregate(
     val aggFunction = new MiniBatchIncrementalGroupAggFunction(
       partialAggsHandler,
       finalAggsHandler,
-      finalKeySelector)
+      finalKeySelector,
+      config.getIdleStateRetention.toMillis)
 
     val operator = new KeyedMapBundleOperator(
       aggFunction,

@@ -2,7 +2,7 @@
 title: "Print SQL Connector"
 nav-title: Print
 nav-parent_id: sql-connectors
-nav-pos: 11
+nav-pos: 13
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

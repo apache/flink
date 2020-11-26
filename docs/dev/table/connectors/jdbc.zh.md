@@ -2,7 +2,7 @@
 title: "JDBC SQL Connector"
 nav-title: JDBC
 nav-parent_id: sql-connectors
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,11 +38,10 @@ The JDBC sink operate in upsert mode for exchange UPDATE/DELETE messages with th
 Dependencies
 ------------
 
-In order to setup the JDBC connector, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-|  Maven dependency                                  |  SQL Client JAR                                           |
-| :------------------------------------------------- | :-------------------------------------------------------- |
-| `flink-connector-jdbc{{site.scala_version_suffix}}`| {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-jdbc{{site.scala_version_suffix}}/{{site.version}}/flink-connector-jdbc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/jdbc.html) {% endif %}|
+{% assign connector = site.data.sql-connectors['jdbc'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 <br>
 A driver dependency is also required to connect to a specified database. Here are drivers currently supported:

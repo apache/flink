@@ -39,7 +39,7 @@ under the License.
 向量化Python标量函数以`pandas.Series`类型的参数作为输入，并返回与输入长度相同的`pandas.Series`。
 在内部实现中，Flink会将输入数据拆分为多个批次，并将每一批次的输入数据转换为`Pandas.Series`类型，
 然后为每一批输入数据调用用户自定义的向量化Python标量函数。请参阅配置选项
-[python.fn-execution.arrow.batch.size，]({% link dev/python/table-api-users-guide/python_config.zh.md %}#python-fn-execution-arrow-batch-size)
+[python.fn-execution.arrow.batch.size，]({% link dev/python/python_config.zh.md %}#python-fn-execution-arrow-batch-size)
 以获取有关如何配置批次大小的更多详细信息。
 
 向量化Python标量函数可以在任何可以使用非向量化Python标量函数的地方使用。
@@ -64,6 +64,8 @@ table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 ## 向量化聚合函数
 
 向量化Python聚合函数以一个或多个`pandas.Series`类型的参数作为输入，并返回一个标量值作为输出。
+
+<span class="label label-info">注意</span> 现在返回类型还不支持 `RowType` 和 `MapType`。
 
 向量化Python聚合函数能够用在`GroupBy Aggregation`（Batch），`GroupBy Window Aggregation`(Batch and Stream) 和 
 `Over Window Aggregation`(Batch and Stream bounded over window)。关于聚合的更多使用细节，你可以参考

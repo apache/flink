@@ -1116,4 +1116,30 @@ public class SqlFunctionUtils {
 	public static float struncate(float b0, int b1) {
 		return (float) doubleValue(struncate(castFrom((double) b0, 38, 18), b1));
 	}
+
+	/**
+	 * Compares two byte arrays in lexicographical order.
+	 *
+	 * <p>The result is
+	 * positive if {@code array1} is great than {@code array2},
+	 * negative if {@code array1} is less than {@code array2} and
+	 * 0 if {@code array1} is equal to {@code array2}.
+	 *
+	 * <p>Note: Currently, this is used in {@code ScalarOperatorGens}
+	 * for comparing two fields of binary or varbinary type.
+	 *
+	 * @param array1 byte array to compare.
+	 * @param array2 byte array to compare.
+	 * @return an Integer indicating which one is bigger
+	 */
+	public static int byteArrayCompare(byte[] array1, byte[] array2) {
+		for (int i = 0, j = 0; i < array1.length && j < array2.length; i++, j++) {
+			int a = (array1[i] & 0xff);
+			int b = (array2[j] & 0xff);
+			if (a != b) {
+				return a - b;
+			}
+		}
+		return array1.length - array2.length;
+	}
 }

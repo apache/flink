@@ -409,48 +409,90 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 		TOPIC(
 			"topic",
 			DataTypes.STRING().notNull(),
-			record -> StringData.fromString(record.topic())
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return StringData.fromString(record.topic());
+				}
+			}
 		),
 
 		PARTITION(
 			"partition",
 			DataTypes.INT().notNull(),
-			ConsumerRecord::partition
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return record.partition();
+				}
+			}
 		),
 
 		HEADERS(
 			"headers",
 			// key and value of the map are nullable to make handling easier in queries
 			DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.BYTES().nullable()).notNull(),
-			record -> {
-				final Map<StringData, byte[]> map = new HashMap<>();
-				for (Header header : record.headers()) {
-					map.put(StringData.fromString(header.key()), header.value());
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					final Map<StringData, byte[]> map = new HashMap<>();
+					for (Header header : record.headers()) {
+						map.put(StringData.fromString(header.key()), header.value());
+					}
+					return new GenericMapData(map);
 				}
-				return new GenericMapData(map);
 			}
 		),
 
 		LEADER_EPOCH(
 			"leader-epoch",
 			DataTypes.INT().nullable(),
-			record -> record.leaderEpoch().orElse(null)
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return record.leaderEpoch().orElse(null);
+				}
+			}
 		),
 
 		OFFSET(
 			"offset",
 			DataTypes.BIGINT().notNull(),
-			ConsumerRecord::offset),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return record.offset();
+				}
+			}
+		),
 
 		TIMESTAMP(
 			"timestamp",
 			DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
-			record -> TimestampData.fromEpochMillis(record.timestamp())),
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return TimestampData.fromEpochMillis(record.timestamp());
+				}
+			}
+		),
 
 		TIMESTAMP_TYPE(
 			"timestamp-type",
 			DataTypes.STRING().notNull(),
-			record -> StringData.fromString(record.timestampType().toString())
+			new MetadataConverter() {
+				private static final long serialVersionUID = 1L;
+				@Override
+				public Object read(ConsumerRecord<?, ?> record) {
+					return StringData.fromString(record.timestampType().toString());
+				}
+			}
 		);
 
 		final String key;

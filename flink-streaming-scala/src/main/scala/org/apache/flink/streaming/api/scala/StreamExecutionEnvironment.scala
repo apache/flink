@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
@@ -73,6 +74,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+    * Sets the runtime execution mode for the application (see [[RuntimeExecutionMode]]).
+    * This is equivalent to setting the "execution.runtime-mode" in your application's
+    * configuration file.
+    *
+    * We recommend users to NOT use this method but set the "execution.runtime-mode"
+    * using the command-line when submitting the application. Keeping the application code
+    * configuration-free allows for more flexibility as the same application will be able to
+    * be executed in any execution mode.
+    *
+    * @param executionMode the desired execution mode.
+    * @return The execution environment of your application.
+    */
+  @PublicEvolving
+  def setRuntimeMode(executionMode: RuntimeExecutionMode): StreamExecutionEnvironment = {
+    javaEnv.setRuntimeMode(executionMode)
+    this
   }
 
   /**

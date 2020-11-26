@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -138,9 +139,11 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 						final DiskFileUpload fileUpload = (DiskFileUpload) data;
 						checkState(fileUpload.isCompleted());
 
-						final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
+						// wrapping around another File instantiation is a simple way to remove any path information - we're
+						// solely interested in the filename
+						final Path dest = currentUploadDir.resolve(new File(fileUpload.getFilename()).getName());
 						fileUpload.renameTo(dest.toFile());
-						LOG.trace("Upload of file {} complete.", fileUpload.getFilename());
+						LOG.trace("Upload of file {} into destination {} complete.", fileUpload.getFilename(), dest.toString());
 					} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
 						final Attribute request = (Attribute) data;
 						// this could also be implemented by using the first found Attribute as the payload

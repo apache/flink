@@ -107,9 +107,9 @@ $ cd build-target
 $ ./bin/start-cluster.sh  # 启动 Flink
 {% endhighlight %}
 
-你可以检查 __Dispatcher 的 web 页面__  [http://localhost:8081](http://localhost:8081) 以确认本地集群正常启动并运行着。web 页面应该会显示有一个可用的 TaskManager。
+你可以检查 __JobManager 的 web 页面__  [http://localhost:8081](http://localhost:8081) 以确认本地集群正常启动并运行着。web 页面应该会显示有一个可用的 TaskManager。
 
-<a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="Dispatcher: Overview"/></a>
+<a href="{% link /page/img/quickstart-setup/jobmanager-1.png %}" ><img class="img-responsive" src="{% link /page/img/quickstart-setup/jobmanager-1.png %}" alt="JobManager: Overview"/></a>
 
 你也可以通过检查 `logs` 目录中的日志文件来确认系统正在运行。
 

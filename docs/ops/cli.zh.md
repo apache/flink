@@ -36,7 +36,7 @@ The command line can be used to
 - cancel a running job,
 - provide information about a job,
 - list running and waiting jobs,
-- trigger and dispose savepoints, and
+- trigger and dispose savepoints
 
 A prerequisite to using the command line interface is that the
 JobManager has been started (via
@@ -111,7 +111,7 @@ option.
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({% link ops/deployment/yarn_setup.zh.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster \
                                ./examples/batch/WordCount.jar \
@@ -162,7 +162,7 @@ $ python --version
         ./bin/flink run -m myJMHost:8081 \
                             -py examples/python/table/batch/word_count.py
 
--   提交一个运行在有两个TaskManager的[per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
+-   提交一个运行在有两个TaskManager的[per-job YARN cluster]({% link ops/deployment/yarn_setup.zh.md %}#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
 
         ./bin/flink run -m yarn-cluster \
                                  -py examples/python/table/batch/word_count.py
@@ -211,7 +211,7 @@ $ python --version
 
 ### Savepoints
 
-[Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the command line client:
+[Savepoints]({% link ops/state/savepoints.zh.md %}) are controlled via the command line client:
 
 #### Trigger a Savepoint
 
@@ -224,7 +224,7 @@ This will trigger a savepoint for the job with ID `jobId`, and returns the path 
 
 Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
 
-If you don't specify a target directory, you need to have [configured a default directory]({{site.baseurl}}/ops/state/savepoints.html#configuration). Otherwise, triggering the savepoint will fail.
+If you don't specify a target directory, you need to have [configured a default directory]({% link ops/state/savepoints.zh.md %}#configuration). Otherwise, triggering the savepoint will fail.
 
 #### Trigger a Savepoint with YARN
 
@@ -261,7 +261,7 @@ You can atomically trigger a savepoint and cancel a job.
 ./bin/flink cancel -s [savepointDirectory] <jobID>
 {% endhighlight %}
 
-If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
+If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({% link ops/state/savepoints.zh.md %}#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
 

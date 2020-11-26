@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
@@ -27,18 +28,14 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.types.Row;
 
-import java.util.Collections;
+import java.util.LinkedList;
 
 /**
  * A stream operator that may do one or both of the following: extract timestamps from
@@ -51,35 +48,29 @@ import java.util.Collections;
  *
  * @param <IN> The type of the input elements
  */
-public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInputPythonFunctionOperator<IN, IN>
+@Internal
+public class PythonTimestampsAndWatermarksOperator<IN> extends OneInputPythonFunctionOperator<IN, IN, Row, Long>
 	implements ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME =
+		"_timestamp_and_watermark_operator";
+
+	private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
 	/**
 	 * A user specified watermarkStrategy.
 	 */
 	private final WatermarkStrategy<IN> watermarkStrategy;
 
-	/**
-	 * The TypeInformation of python worker input data.
-	 */
-	private final TypeInformation runnerInputTypeInfo;
+	private final TypeInformation<IN> inputTypeInfo;
 
 	/**
-	 * The TypeInformation of python worker output data.
+	 * Whether to emit intermediate watermarks or only one final watermark at the end of
+	 * input.
 	 */
-	private final TypeInformation runnerOutputTypeInfo;
-
-	/**
-	 * Serializer to serialize input data for python worker.
-	 */
-	private transient TypeSerializer runnerInputSerializer;
-
-	/**
-	 * Serializer to deserialize output data from python worker.
-	 */
-	private transient TypeSerializer runnerOutputSerializer;
+	private boolean emitProgressiveWatermarks = true;
 
 	/**
 	 * The watermark generator, initialized during runtime.
@@ -106,31 +97,26 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 	 */
 	private transient StreamRecord<IN> reusableStreamRecord;
 
-	/**
-	 * Whether to emit intermediate watermarks or only one final watermark at the end of
-	 * input.
-	 */
-	private boolean emitProgressiveWatermarks = true;
+	private transient TypeSerializer<IN> inputValueSerializer;
+
+	private transient LinkedList<IN> bufferedInputs;
 
 	public PythonTimestampsAndWatermarksOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		DataStreamPythonFunctionInfo pythonFunctionInfo,
 		WatermarkStrategy<IN> watermarkStrategy) {
-		super(config, inputTypeInfo, inputTypeInfo, pythonFunctionInfo);
-
+		super(config, Types.ROW(Types.LONG, inputTypeInfo), Types.LONG, pythonFunctionInfo);
 		this.watermarkStrategy = watermarkStrategy;
-		this.runnerInputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
-		this.runnerOutputTypeInfo = Types.ROW(Types.LONG, inputTypeInfo);
+		this.inputTypeInfo = inputTypeInfo;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
-		runnerInputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(runnerInputTypeInfo);
-		runnerOutputSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
-			.typeInfoSerializerConverter(runnerOutputTypeInfo);
+		inputValueSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(inputTypeInfo);
+		bufferedInputs = new LinkedList<>();
 		reusableInput = new Row(2);
 		reusableStreamRecord = new StreamRecord<>(null);
 		watermarkGenerator = emitProgressiveWatermarks ?
@@ -148,14 +134,20 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		IN value = element.getValue();
+		final IN value;
+		if (getExecutionConfig().isObjectReuseEnabled()) {
+			value = inputValueSerializer.copy(element.getValue());
+		} else {
+			value = element.getValue();
+		}
+		bufferedInputs.offer(value);
 		final long previousTimestamp = element.hasTimestamp() ?
 			element.getTimestamp() : Long.MIN_VALUE;
 
 		reusableInput.setField(0, previousTimestamp);
 		reusableInput.setField(1, value);
 
-		runnerInputSerializer.serialize(reusableInput, baosWrapper);
+		runnerInputTypeSerializer.serialize(reusableInput, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
 		elementCount++;
@@ -168,34 +160,16 @@ public class PythonTimestampsAndWatermarksOperator<IN> extends StatelessOneInput
 		byte[] rawResult = resultTuple.f0;
 		int length = resultTuple.f1;
 		bais.setBuffer(rawResult, 0, length);
-		Row runnerOutput = (Row) runnerOutputSerializer.deserialize(baisWrapper);
-		long newTimestamp = (Long) runnerOutput.getField(0);
-		IN originalData = (IN) runnerOutput.getField(1);
-		reusableStreamRecord.replace(originalData, newTimestamp);
+		long newTimestamp = runnerOutputTypeSerializer.deserialize(baisWrapper);
+		IN bufferedInput = bufferedInputs.poll();
+		reusableStreamRecord.replace(bufferedInput, newTimestamp);
 		output.collect(reusableStreamRecord);
-		watermarkGenerator.onEvent(originalData, newTimestamp, watermarkOutput);
+		watermarkGenerator.onEvent(bufferedInput, newTimestamp, watermarkOutput);
 	}
 
 	@Override
-	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		return new BeamDataStreamPythonFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			createPythonEnvironmentManager(),
-			runnerInputTypeInfo,
-			runnerOutputTypeInfo,
-			DATA_STREAM_STATELESS_FUNCTION_URN,
-			PythonOperatorUtils.getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
-			MAP_CODER_URN,
-			jobOptions,
-			getFlinkMetricContainer(),
-			null,
-			null,
-			getContainingTask().getEnvironment().getMemoryManager(),
-			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
-				ManagedMemoryUseCase.PYTHON,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
-				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
-		);
+	public String getCoderUrn() {
+		return MAP_CODER_URN;
 	}
 
 	public void configureEmitProgressiveWatermarks(boolean emitProgressiveWatermarks) {

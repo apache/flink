@@ -920,6 +920,8 @@ under the License.
 									<include>org.apache.parquet:parquet-column</include>
 									<include>org.apache.parquet:parquet-common</include>
 									<include>org.apache.parquet:parquet-encoding</include>
+									<include>org.apache.parquet:parquet-format-structures</include>
+									<include>org.apache.parquet:parquet-jackson</include>
 								</includes>
 							</artifactSet>
 							<relocations>
