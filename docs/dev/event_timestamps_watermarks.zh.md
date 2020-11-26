@@ -382,7 +382,7 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 </div>
 </div>
 
-<img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
+<img src="{% link /fig/parallel_kafka_watermarks.svg %}" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
 
 <a name="how-operators-process-watermarks"></a>
 

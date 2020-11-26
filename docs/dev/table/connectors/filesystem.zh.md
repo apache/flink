@@ -24,7 +24,7 @@ under the License.
 -->
 
 This connector provides access to partitioned files in filesystems
-supported by the [Flink FileSystem abstraction]({{ site.baseurl}}/deployment/filesystems/index.html).
+supported by the [Flink FileSystem abstraction]({% link deployment/filesystems/index.zh.md %}).
 
 * This will be replaced by the TOC
 {:toc}
@@ -61,7 +61,7 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/deployment/filesystems/index.html).
+<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({% link deployment/filesystems/index.zh.md %}).
 
 <span class="label label-danger">Attention</span> File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
 
@@ -85,7 +85,7 @@ path
         ├── part-0.parquet
 ```
 
-The file system table supports both partition inserting and overwrite inserting. See [INSERT Statement]({{ site.baseurl }}/dev/table/sql/insert.html). When you insert overwrite to a partitioned table, only the corresponding partition will be overwritten, not the entire table.
+The file system table supports both partition inserting and overwrite inserting. See [INSERT Statement]({% link dev/table/sql/insert.zh.md %}). When you insert overwrite to a partitioned table, only the corresponding partition will be overwritten, not the entire table.
 
 ## File Formats
 
@@ -102,7 +102,7 @@ The file system connector supports multiple formats:
 
 ## Streaming Sink
 
-The file system connector supports streaming writes, based on Flink's [Streaming File Sink]({{ site.baseurl }}/dev/connectors/streamfile_sink.html)
+The file system connector supports streaming writes, based on Flink's [Streaming File Sink]({% link dev/connectors/streamfile_sink.zh.md %})
 to write records to file. Row-encoded Formats are csv and json. Bulk-encoded Formats are parquet, orc and avro.
 
 You can write SQL directly, insert the stream data into the non-partitioned table.

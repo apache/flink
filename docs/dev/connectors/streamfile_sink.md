@@ -27,7 +27,7 @@ under the License.
 {:toc}
 
 This connector provides a Sink that writes partitioned files to filesystems
-supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/deployment/filesystems/index.html).
+supported by the [Flink `FileSystem` abstraction]({% link deployment/filesystems/index.md %}).
 
 The streaming file sink writes incoming data into buckets. Given that the incoming streams can be unbounded,
 data in each bucket are organized into part files of finite size. The bucketing behaviour is fully configurable
@@ -44,7 +44,7 @@ rolling policy. The default policy rolls part files based on size, a timeout tha
      and cannot be safely read by downstream systems.
  </div>
 
- <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
+ <img src="{% link /fig/streamfilesink_bucketing.png %}" class="center" style="width: 100%;" />
 
 
 ## File Formats

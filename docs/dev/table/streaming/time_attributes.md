@@ -28,7 +28,7 @@ Flink is able to process streaming data based on different notions of *time*.
 - *Event time* refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
 - *Ingestion time* is the time that events enter Flink; internally, it is treated similarly to event time.
 
-For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/dev/event_time.html).
+For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({% link dev/event_time.md %}).
 
 This page explains how time attributes can be defined for time-based operations in Flink's Table API & SQL.
 
@@ -38,7 +38,7 @@ This page explains how time attributes can be defined for time-based operations 
 Introduction to Time Attributes
 -------------------------------
 
-Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
+Time-based operations such as windows in both the [Table API]({% link dev/table/tableApi.md %}#group-windows) and [SQL]({% link dev/table/sql/queries.md %}#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
 
 Time attributes can be part of every table schema. They are defined when creating a table from a CREATE TABLE DDL or a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can be used in time-based operations.
 
@@ -91,7 +91,7 @@ There are three ways to define a processing time attribute.
 
 ### Defining in create table DDL
 
-The processing time attribute is defined as a computed column in create table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about computed column.
+The processing time attribute is defined as a computed column in create table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({% link dev/table/sql/create.md %}#create-table) for more information about computed column.
 
 {% highlight sql %}
 
@@ -222,13 +222,13 @@ Event time allows a table program to produce results based on the time that is c
 
 Additionally, event time allows for unified syntax for table programs in both batch and streaming environments. A time attribute in a streaming environment can be a regular field of a record in a batch environment.
 
-In order to handle out-of-order events and distinguish between on-time and late events in streaming, Flink needs to extract timestamps from events and make some kind of progress in time (so-called [watermarks]({{ site.baseurl }}/dev/event_time.html)).
+In order to handle out-of-order events and distinguish between on-time and late events in streaming, Flink needs to extract timestamps from events and make some kind of progress in time (so-called [watermarks]({% link dev/event_time.md %})).
 
 An event time attribute can be defined either in create table DDL or during DataStream-to-Table conversion or by using a TableSource.
 
 ### Defining in create table DDL
 
-The event time attribute is defined using WATERMARK statement in CREATE TABLE DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as event time attribute. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about watermark statement and watermark strategies.
+The event time attribute is defined using WATERMARK statement in CREATE TABLE DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as event time attribute. Please see [CREATE TABLE DDL]({% link dev/table/sql/create.md %}#create-table) for more information about watermark statement and watermark strategies.
 
 {% highlight sql %}
 
@@ -251,7 +251,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ### During DataStream-to-Table Conversion
 
-The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{ site.baseurl }}/dev/event_time.html) must have been assigned in the `DataStream` that is converted.
+The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({% link dev/event_time.md %}) must have been assigned in the `DataStream` that is converted.
 
 There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream` or not, the timestamp field is either
 
