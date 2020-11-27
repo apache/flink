@@ -29,10 +29,10 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconciler;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentReconciler;
-import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentReconciler;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
@@ -42,8 +42,11 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -76,6 +79,9 @@ public class JobMasterBuilder {
 	private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 
 	private ResourceID jmResourceId = ResourceID.generate();
+
+	@Nullable
+	private SchedulerNGFactory schedulerFactory = null;
 
 	private FatalErrorHandler fatalErrorHandler = error -> {
 	};
@@ -157,6 +163,11 @@ public class JobMasterBuilder {
 		return this;
 	}
 
+	public JobMasterBuilder withSchedulerFactory(SchedulerNGFactory schedulerFactory) {
+		this.schedulerFactory = schedulerFactory;
+		return this;
+	}
+
 	public JobMaster createJobMaster() throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
@@ -173,7 +184,7 @@ public class JobMasterBuilder {
 			onCompletionActions,
 			fatalErrorHandler,
 			JobMasterBuilder.class.getClassLoader(),
-			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
+			schedulerFactory != null ? schedulerFactory : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
 			shuffleMaster,
 			partitionTrackerFactory,
 			executionDeploymentTracker,
