@@ -231,4 +231,22 @@ class DeadlockBreakupTest extends TableTestBase {
          |""".stripMargin
     util.verifyPlan(sqlQuery)
   }
+
+  @Test
+  def testSubplanReuse_DeadlockCausedByReusingExchangeInAncestor(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sqlQuery =
+      """
+        |WITH T1 AS (
+        |  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+        |  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+        |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+        |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }
