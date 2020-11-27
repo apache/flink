@@ -85,10 +85,6 @@ public class FileWriter<IN> implements
 
 	private final OutputFileConfig outputFileConfig;
 
-	// --------------------------- State Related Fields -----------------------------
-
-	private final FileWriterBucketStateSerializer bucketStateSerializer;
-
 	/**
 	 * A constructor creating a new empty bucket manager.
 	 *
@@ -118,9 +114,6 @@ public class FileWriter<IN> implements
 
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new BucketerContext();
-
-		this.bucketStateSerializer = new FileWriterBucketStateSerializer(
-				bucketWriter.getProperties().getInProgressFileRecoverableSerializer());
 
 		this.processingTimeService = checkNotNull(processingTimeService);
 		checkArgument(
@@ -216,7 +209,7 @@ public class FileWriter<IN> implements
 	@Override
 	public List<FileWriterBucketState> snapshotState() throws IOException {
 		checkState(
-				bucketWriter != null && bucketStateSerializer != null,
+				bucketWriter != null,
 				"sink has not been initialized");
 
 		List<FileWriterBucketState> state = new ArrayList<>();
