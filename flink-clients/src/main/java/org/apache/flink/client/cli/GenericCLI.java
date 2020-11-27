@@ -54,8 +54,7 @@ public class GenericCLI implements CustomCommandLine {
 	private final Option targetOption = new Option("t", "target", true,
 			"The deployment target for the given application, which is equivalent " +
 					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
-					"currently available targets are: " + getExecutorFactoryNames() +
-					", \"yarn-application\" and \"kubernetes-application\".");
+					"currently available targets are: " + getExecutorFactoryNames() + ".");
 
 	private final Configuration configuration;
 
