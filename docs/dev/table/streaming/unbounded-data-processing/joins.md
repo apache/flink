@@ -22,17 +22,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Joins are a common and well-understood operation in batch data processing to connect the rows of two relations. However, the semantics of joins on [dynamic tables](dynamic_tables.html) are much less obvious or even confusing.
+Joins are a common and well-understood operation in batch data processing to connect the rows of two relations. However, the semantics of joins on [dynamic tables](dynamic_tables.html) representing unbounded data are fairly non-trivial. 
 
-Because of that, there are a couple of ways to actually perform a join using either Table API or SQL.
+However there are a couple of ways to actually perform a join using either Table API or SQL.
 
 For more information regarding the syntax, please check the join sections in [Table API](../tableApi.html#joins) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
 
+//TODO: Explain the complications of unbounded joins
 * This will be replaced by the TOC
 {:toc}
 
-Regular Joins
--------------
+Regular Joins and its challenges
+---------------------------------------
 
 Regular joins are the most generic type of join in which any new records or changes to either side of the join input are visible and are affecting the whole join result.
 For example, if there is a new record on the left side, it will be joined with all of the previous and future records on the right side.
@@ -45,11 +46,19 @@ ON Orders.productId = Product.id
 
 These semantics allow for any kind of updating (insert, update, delete) input tables.
 
-However, this operation has an important implication: it requires to keep both sides of the join input in Flink's state forever.
-Thus, the resource usage will grow indefinitely as well, if one or both input tables are continuously growing.
+The regular joins present a lot of challenges though. Let's assume all the rows in table are represented as `(t, k, v)` where t is the timestamp of arrival, k is the key of the row which may or may not be unique and v represents the value to be joined. All of them can be followed by suffix `l` or `r` where l implies the left side of the join and r the right side of the join.
+
+Taking a case for a single key K, we can have the following cases - 
+* **tl != tr** - This implies that to do a join you have to keep the value in left table in the state until the value in the right table arrives for the same key. The question is how to decide for how long to hold the key, since the delay between the streams is generally not constant.
+
+* **tl = Infinity or tr = Infinity**  - what if one of the streams doesn't contain any values for the key. Do you keep on holding to value from one of the streams indefinitely or do you discard it after some time? If you want to discard it, what should be the right interval after which it can be considered safe to discard the key.
+
+The only solution is to keep both sides of the join input in Flink's state forever.
+Thus, the resource usage will grow indefinitely as well, if one or both input tables are continuously growing. 
+Flink offers `Interval Joins` to tackle the indefinitely growing state problem. Let's take a look at these in the next section.
 
 Interval Joins
--------------------
+-----------------
 
 A interval join is defined by a join predicate, that checks if the [time attributes](time_attributes.html) of the input
 records are within certain time constraints, i.e., a time window.
@@ -69,7 +78,7 @@ Join with a Temporal Table Function
 --------------------------
 
 A join with a temporal table function joins an append-only table (left input/probe side) with a temporal table (right input/build side),
-i.e., a table that changes over time and tracks its changes. Please check the corresponding page for more information about [temporal tables](temporal_tables.html).
+i.e., a table that changes over time and tracks its changes. Please check the [temporal tables](temporal_tables.html) page for more information.
 
 The following example shows an append-only table `Orders` that should be joined with the continuously changing currency rates table `RatesHistory`.
 
@@ -114,7 +123,7 @@ rowtime amount currency
 10:15        2 Euro
 {% endhighlight %}
 
-Without using the concept of [temporal tables](temporal_tables.html), one would need to write a query like:
+Without using the concept of [temporal tables](../temporal_tables.html), one would need to write a query like:
 
 {% highlight sql %}
 SELECT
@@ -129,7 +138,10 @@ AND r.rowtime = (
   AND r2.rowtime <= o.rowtime);
 {% endhighlight %}
 
-With the help of a temporal table function `Rates` over `RatesHistory`, we can express such a query in SQL as:
+To simplify such queries, Flink offers [Temporal Functions](../temporal_tables.html). For this example, we define a temporal function `Rates` as follows :
+ //TODO
+
+With the help of a temporal table function `Rates` over `RatesHistory`, we can simplify the previous SQL query as:
 
 {% highlight sql %}
 SELECT
@@ -140,7 +152,7 @@ FROM
 WHERE r.currency = o.currency
 {% endhighlight %}
 
-Each record from the probe side will be joined with the version of the build side table at the time of the correlated time attribute of the probe side record.
+In temporal joins, the table on which the `Temporal Function` is defined is known as the Build side and the other append-only table is known as the Probe side. Each record from the probe side will be joined with the version of the build side table at the time of the correlated time attribute of the probe side record. In other words, a value in table A for key K and timestamp T will be joined with the latest value in table B for key K with timestamp T' <= T.
 In order to support updates (overwrites) of previous values on the build side table, the table must define a primary key.
 
 In our example, each record from `Orders` will be joined with the version of `Rates` at time `o.rowtime`. The `currency` field has been defined as the primary key of `Rates` before and is used to connect both tables in our example. If the query were using a processing-time notion, a newly appended order would always be joined with the most recent version of `Rates` when executing the operation.
