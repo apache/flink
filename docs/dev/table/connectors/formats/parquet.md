@@ -2,7 +2,7 @@
 title: "Parquet Format"
 nav-title: Parquet
 nav-parent_id: sql-formats
-nav-pos: 5
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,8 +34,8 @@ The [Apache Parquet](https://parquet.apache.org/) format allows to read and writ
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['parquet'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['parquet'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 
