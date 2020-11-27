@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -33,7 +34,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test base class with common tests for the {@link CheckpointIDCounter} implementations.
@@ -43,6 +46,24 @@ public abstract class CheckpointIDCounterTestBase extends TestLogger {
 	protected abstract CheckpointIDCounter createCheckpointIdCounter() throws Exception;
 
 	// ---------------------------------------------------------------------------------------------
+
+	/**
+	 * This test guards an assumption made in the notifications in the
+	 * {@link org.apache.flink.runtime.operators.coordination.OperatorCoordinator}.
+	 * The coordinator is notified of a reset/restore and if no checkpoint yet exists (failure
+	 * was before the first checkpoint), a negative ID is passed.
+	 */
+	@Test
+	public void testCounterIsNeverNegative() throws Exception {
+		final CheckpointIDCounter counter = createCheckpointIdCounter();
+
+		try {
+			counter.start();
+			assertThat(counter.get(), greaterThanOrEqualTo(0L));
+		} finally {
+			counter.shutdown(JobStatus.FINISHED);
+		}
+	}
 
 	/**
 	 * Tests serial increment and get calls.

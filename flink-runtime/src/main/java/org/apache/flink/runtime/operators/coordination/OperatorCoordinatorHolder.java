@@ -229,7 +229,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
 		// ideally we would like to check this here, however this method is called early during
 		// execution graph construction, before the main thread executor is set
 
@@ -237,7 +237,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		if (context != null) {
 			context.resetFailed();
 		}
-		coordinator.resetToCheckpoint(checkpointData);
+		coordinator.resetToCheckpoint(checkpointId, checkpointData);
 	}
 
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {

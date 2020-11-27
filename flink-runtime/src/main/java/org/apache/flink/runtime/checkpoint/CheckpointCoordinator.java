@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -1395,8 +1396,10 @@ public class CheckpointCoordinator {
 					LOG.debug("Resetting the master hooks.");
 					MasterHooks.reset(masterHooks.values(), LOG);
 
-					LOG.info("Resetting the Coordinators to an empty state.");
-					restoreStateToCoordinators(Collections.emptyMap());
+					LOG.info("Resetting the Operator Coordinators to an empty state.");
+					restoreStateToCoordinators(
+							OperatorCoordinator.NO_CHECKPOINT,
+							Collections.emptyMap());
 				}
 
 				return OptionalLong.empty();
@@ -1424,7 +1427,7 @@ public class CheckpointCoordinator {
 					LOG);
 
 			if (operatorCoordinatorRestoreBehavior != OperatorCoordinatorRestoreBehavior.SKIP) {
-				restoreStateToCoordinators(operatorStates);
+				restoreStateToCoordinators(latest.getCheckpointID(), operatorStates);
 			}
 
 			// update metrics
@@ -1641,12 +1644,15 @@ public class CheckpointCoordinator {
 			initDelay, baseInterval, TimeUnit.MILLISECONDS);
 	}
 
-	private void restoreStateToCoordinators(final Map<OperatorID, OperatorState> operatorStates) throws Exception {
+	private void restoreStateToCoordinators(
+			final long checkpointId,
+			final Map<OperatorID, OperatorState> operatorStates) throws Exception {
+
 		for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
 			final OperatorState state = operatorStates.get(coordContext.operatorId());
 			final ByteStreamStateHandle coordinatorState = state == null ? null : state.getCoordinatorState();
 			final byte[] bytes = coordinatorState == null ? null : coordinatorState.getData();
-			coordContext.resetToCheckpoint(bytes);
+			coordContext.resetToCheckpoint(checkpointId, bytes);
 		}
 	}
 

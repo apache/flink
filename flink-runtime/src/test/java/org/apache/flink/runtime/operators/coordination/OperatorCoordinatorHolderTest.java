@@ -172,7 +172,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
 
 		triggerAndCompleteCheckpoint(holder, 1000L);
-		holder.resetToCheckpoint(new byte[0]);
+		holder.resetToCheckpoint(1L, new byte[0]);
 		getCoordinator(holder).getContext().sendEvent(new TestOperatorEvent(999), 1);
 
 		assertThat(sender.events, contains(
@@ -188,7 +188,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		triggerAndCompleteCheckpoint(holder, 1000L);
 		getCoordinator(holder).getContext().sendEvent(new TestOperatorEvent(0), 0);
 		getCoordinator(holder).getContext().sendEvent(new TestOperatorEvent(1), 1);
-		holder.resetToCheckpoint(new byte[0]);
+		holder.resetToCheckpoint(2L, new byte[0]);
 
 		assertTrue(sender.events.isEmpty());
 	}
@@ -302,7 +302,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 						+ "should only take the first request from the coordinator to fail the job.",
 				firstGlobalFailure, globalFailure);
 
-		holder.resetToCheckpoint(new byte[0]);
+		holder.resetToCheckpoint(0L, new byte[0]);
 		holder.handleEventFromOperator(1, new TestOperatorEvent());
 		assertNotEquals("The new failures should be propagated after the coordinator "
 							+ "is reset.", firstGlobalFailure, globalFailure);
@@ -566,7 +566,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		public void notifyCheckpointComplete(long checkpointId) {}
 
 		@Override
-		public void resetToCheckpoint(byte[] checkpointData) throws Exception {}
+		public void resetToCheckpoint(long checkpointId, byte[] checkpointData) throws Exception {}
 
 		@Override
 		public void run() {

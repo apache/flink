@@ -105,7 +105,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
+	public void resetToCheckpoint(final long checkpointId, @Nullable final byte[] checkpointData) {
 		// First bump up the coordinator epoch to fence out the active coordinator.
 		LOG.info("Resetting coordinator to checkpoint.");
 		// Replace the coordinator variable with a new DeferrableCoordinator instance.
@@ -123,7 +123,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			if (!closed) {
 				// The previous coordinator has closed. Create a new one.
 				newCoordinator.createNewInternalCoordinator(context, provider);
-				newCoordinator.resetAndStart(checkpointData, started);
+				newCoordinator.resetAndStart(checkpointId, checkpointData, started);
 				newCoordinator.processPendingCalls();
 			}
 		});
@@ -248,7 +248,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	/**
-	 * A class that helps realize the fully async {@link #resetToCheckpoint(byte[])} behavior.
+	 * A class that helps realize the fully async {@link #resetToCheckpoint(long, byte[])} behavior.
 	 * The class wraps an {@link OperatorCoordinator} instance. It is going to be accessed
 	 * by two different thread: the scheduler thread and the closing thread created in
 	 * {@link #closeAsync(long)}. A DeferrableCoordinator could be in three states:
@@ -366,12 +366,16 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 			internalCoordinator.start();
 		}
 
-		void resetAndStart(@Nullable byte[] checkpointData, boolean started) {
+		void resetAndStart(
+				final long checkpointId,
+				@Nullable final byte[] checkpointData,
+				final boolean started) {
+
 			if (failed || closed || internalCoordinator == null) {
 				return;
 			}
 			try {
-				internalCoordinator.resetToCheckpoint(checkpointData);
+				internalCoordinator.resetToCheckpoint(checkpointId, checkpointData);
 				// Start the new coordinator if this coordinator has been started before reset to the checkpoint.
 				if (started) {
 					internalCoordinator.start();

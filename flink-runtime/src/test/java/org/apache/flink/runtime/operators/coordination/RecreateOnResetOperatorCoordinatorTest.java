@@ -84,7 +84,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		TestingOperatorCoordinator internalCoordinatorBeforeReset = getInternalCoordinator(coordinator);
 
 		byte[] stateToRestore = new byte[0];
-		coordinator.resetToCheckpoint(stateToRestore);
+		coordinator.resetToCheckpoint(1L, stateToRestore);
 
 		// Use the checkpoint to ensure all the previous method invocation has succeeded.
 		coordinator.waitForAllAsyncCallsFinish();
@@ -105,7 +105,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		RecreateOnResetOperatorCoordinator coordinator =
 				(RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
 
-		coordinator.resetToCheckpoint(new byte[0]);
+		coordinator.resetToCheckpoint(2L, new byte[0]);
 		CommonTestUtils.waitUtil(
 			context::isJobFailed,
 			Duration.ofSeconds(5),
@@ -130,7 +130,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 		// Reset the coordinator which closes the current internal coordinator
 		// and then create a new one. The closing of the current internal
 		// coordinator will block until the blockOnCloseLatch is pulled.
-		coordinator.resetToCheckpoint(restoredState);
+		coordinator.resetToCheckpoint(2L, restoredState);
 
 		// The following method calls should be applied to the new internal
 		// coordinator asynchronously because the current coordinator has not
@@ -189,7 +189,7 @@ public class RecreateOnResetOperatorCoordinatorTest {
 			future.thenRun(() -> coordinator.notifyCheckpointComplete(loop));
 			// The reset bytes has a length of i+1 here because this will be reset to the
 			// next internal coordinator.
-			coordinator.resetToCheckpoint(new byte[i + 1]);
+			coordinator.resetToCheckpoint(i, new byte[i + 1]);
 		}
 
 		coordinator.waitForAllAsyncCallsFinish();

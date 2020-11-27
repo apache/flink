@@ -89,7 +89,7 @@ public class SourceCoordinatorProviderTest {
 		}
 
 		// reset the coordinator to the checkpoint which only contains reader 0.
-		coordinator.resetToCheckpoint(bytes);
+		coordinator.resetToCheckpoint(0L, bytes);
 		final SourceCoordinator<?, ?> restoredSourceCoordinator =
 				(SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
 		assertNotEquals("The restored source coordinator should be a different instance",

@@ -89,7 +89,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 	public void testRestCheckpointAfterCoordinatorStarted() throws Exception {
 		// The following methods should only be invoked after the source coordinator has started.
 		sourceCoordinator.start();
-		verifyException(() -> sourceCoordinator.resetToCheckpoint(null),
+		verifyException(() -> sourceCoordinator.resetToCheckpoint(0L, null),
 				"Reset to checkpoint should fail after the coordinator has started",
 				"The coordinator can only be reset if it was not yet started");
 	}
@@ -146,7 +146,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
 		// restore from the checkpoints.
 		SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
-		restoredCoordinator.resetToCheckpoint(bytes);
+		restoredCoordinator.resetToCheckpoint(100L, bytes);
 		MockSplitEnumerator restoredEnumerator = (MockSplitEnumerator) restoredCoordinator.getEnumerator();
 		SourceCoordinatorContext restoredContext = restoredCoordinator.getContext();
 		assertEquals("2 splits should have been assigned to reader 0",
@@ -328,7 +328,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 				"testOperator", context.getOperatorId(), source, 1);
 
 		final OperatorCoordinator coordinator = provider.getCoordinator(context);
-		coordinator.resetToCheckpoint(createEmptyCheckpoint(1L));
+		coordinator.resetToCheckpoint(1L, createEmptyCheckpoint(1L));
 		coordinator.start();
 
 		final ClassLoaderTestEnumerator enumerator = source.restoreEnumeratorFuture.get();
