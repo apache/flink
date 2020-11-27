@@ -202,6 +202,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		mainThreadExecutor.assertRunningInMainThread();
+		coordinator.subtaskReset(subtask, checkpointId);
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
