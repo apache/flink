@@ -45,6 +45,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	@Nullable
 	private byte[] lastRestoredCheckpointState;
+	private long lastRestoredCheckpointId;
 
 	private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
 
@@ -106,7 +107,8 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {
+		lastRestoredCheckpointId = checkpointId;
 		lastRestoredCheckpointState = checkpointData == null
 				? NULL_RESTORE_VALUE
 				: checkpointData;
@@ -133,6 +135,10 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	@Nullable
 	public byte[] getLastRestoredCheckpointState() {
 		return lastRestoredCheckpointState;
+	}
+
+	public long getLastRestoredCheckpointId() {
+		return lastRestoredCheckpointId;
 	}
 
 	public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {

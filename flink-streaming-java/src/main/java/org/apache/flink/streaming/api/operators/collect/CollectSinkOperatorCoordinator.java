@@ -197,7 +197,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
 		if (checkpointData == null) {
 			// restore before any checkpoint completed
 			closeConnection();
