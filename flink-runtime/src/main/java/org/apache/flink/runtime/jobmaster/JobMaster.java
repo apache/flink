@@ -898,7 +898,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			);
 		}
 
-		schedulerAssignedFuture.thenRun(this::startScheduling);
+		FutureUtils.assertNoException(schedulerAssignedFuture.thenRun(this::startScheduling));
 	}
 
 	private void startScheduling() {

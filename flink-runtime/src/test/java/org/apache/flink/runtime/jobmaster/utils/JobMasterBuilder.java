@@ -41,8 +41,11 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -77,6 +80,9 @@ public class JobMasterBuilder {
 	private PartitionTrackerFactory partitionTrackerFactory = NoOpJobMasterPartitionTracker.FACTORY;
 
 	private ResourceID jmResourceId = ResourceID.generate();
+
+	@Nullable
+	private SchedulerNGFactory schedulerNGFactory = null;
 
 	private FatalErrorHandler fatalErrorHandler = error -> {
 	};
@@ -125,7 +131,7 @@ public class JobMasterBuilder {
 		return this;
 	}
 
-	public JobMasterBuilder withSchedulerFactory(SchedulerFactory schedulerFactory) {
+	public JobMasterBuilder withSchedulerNGFactory(SchedulerFactory schedulerFactory) {
 		this.schedulerFactory = schedulerFactory;
 		return this;
 	}
@@ -150,6 +156,11 @@ public class JobMasterBuilder {
 		return this;
 	}
 
+	public JobMasterBuilder withSchedulerNGFactory(SchedulerNGFactory schedulerFactory) {
+		this.schedulerNGFactory = schedulerFactory;
+		return this;
+	}
+
 	public JobMaster createJobMaster() throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
@@ -167,7 +178,7 @@ public class JobMasterBuilder {
 			onCompletionActions,
 			fatalErrorHandler,
 			JobMasterBuilder.class.getClassLoader(),
-			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
+			schedulerNGFactory != null ? schedulerNGFactory : SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
 			shuffleMaster,
 			partitionTrackerFactory);
 	}
