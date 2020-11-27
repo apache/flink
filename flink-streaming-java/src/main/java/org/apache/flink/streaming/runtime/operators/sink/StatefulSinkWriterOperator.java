@@ -59,13 +59,21 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT> extends Abst
 	/** The writer operator's state serializer. */
 	private final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer;
 
-	/** The previous sink operator's state name. */
+	/**
+	 * The previous sink operator's state name. We allow restoring state from a different
+	 * (compatible) sink implementation such as {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}.
+	 * This allows migration to newer Sink implementations.
+	 */
 	@Nullable
 	private final String previousSinkStateName;
 
 	// ------------------------------- runtime fields ---------------------------------------
 
-	/** The previous sink operator's state. */
+	/**
+	 * The previous sink operator's state. We allow restoring state from a different (compatible)
+	 * sink implementation such as {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}.
+	 * This allows migration to newer Sink implementations.
+	 */
 	@Nullable
 	private ListState<WriterStateT> previousSinkState;
 
@@ -87,8 +95,12 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT> extends Abst
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 
-		final ListState<byte[]> rawState = context.getOperatorStateStore().getListState(WRITER_RAW_STATES_DESC);
-		writerState = new SimpleVersionedListState<>(rawState, writerStateSimpleVersionedSerializer);
+		final ListState<byte[]> rawState = context
+				.getOperatorStateStore()
+				.getListState(WRITER_RAW_STATES_DESC);
+		writerState = new SimpleVersionedListState<>(
+				rawState,
+				writerStateSimpleVersionedSerializer);
 
 		if (previousSinkStateName != null) {
 			final ListStateDescriptor<byte[]> preSinkStateDesc = new ListStateDescriptor<>(
