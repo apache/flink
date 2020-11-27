@@ -502,8 +502,21 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 				+ "class 'abc'")));
 
 		final Map<String, String> modifiedOptions = getModifiedOptions(
-				getBasicSourceOptions(),
+				getBasicSinkOptions(),
 				options -> options.put("sink.partitioner", "abc"));
+
+		createTableSink(SCHEMA, modifiedOptions);
+	}
+
+	@Test
+	public void testInvalidRoundRobinPartitionerWithKeyFields() {
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Currently 'round-robin' partitioner only works " +
+				"when option 'key.fields' is not specified.")));
+
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+				getKeyValueOptions(),
+				options -> options.put("sink.partitioner", "round-robin"));
 
 		createTableSink(SCHEMA, modifiedOptions);
 	}
