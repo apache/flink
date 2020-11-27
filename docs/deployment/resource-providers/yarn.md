@@ -1,7 +1,7 @@
 ---
 title:  "Apache Hadoop YARN"
 nav-title: YARN
-nav-parent_id: deployment
+nav-parent_id: resource_providers
 nav-pos: 4
 ---
 <!--
