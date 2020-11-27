@@ -25,47 +25,158 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-When deciding how and where to run Flink, there's a wide range of options available.
+Flink is a versatile framework, supporting many different deployment scenarios in a mix and match fashion.
+
+Below, we briefly explain the building blocks of a Flink cluster, their purpose and available implementations.
+If you just want to start Flink locally, we recommend setting up a [Standalone Cluster]({% link deployment/resource-providers/standalone/index.md %}).
 
 * This will be replaced by the TOC
 {:toc}
 
+
+## Overview and Reference Architecture
+
+The figure below shows the building blocks of every Flink cluster. There is always somewhere a client running. It takes the code of the Flink applications, transforms it into a JobGraph and submits it to the JobManager.
+
+The JobManager distributes the work onto the TaskManagers, where the actual operators (such as sources, transformations and sinks) are running.
+
+When deploying Flink, there are often multiple options available for each building block. We have listed them in the table below the figure.
+
+
+<!-- Image source: https://docs.google.com/drawings/d/1s_ZlXXvADqxWfTMNRVwQeg7HZ3hN1Xb7goxDPjTEPrI/edit?usp=sharing -->
+<img class="img-fluid" style="margin: 15px" width="100%" src="{% link fig/deployment_overview.svg %}" alt="Figure for Overview and Reference Architecture" />
+
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Component</th>
+      <th class="text-left" style="width: 50%">Purpose</th>
+      <th class="text-left">Implementations</th>
+    </tr>
+   </thead>
+   <tbody>
+        <tr>
+            <td>Flink Client</td>
+            <td>
+              Compiles batch or streaming applications into a dataflow graph, which it then submits to the JobManager.
+            </td>
+            <td>
+                <ul>
+                    <li><a href="{% link deployment/cli.md %}">Command Line Interface</a></li>
+                    <li><a href="{% link ops/rest_api.md %}">REST Endpoint</a></li>
+                    <li><a href="{% link dev/table/sqlClient.md %}">SQL Client</a></li>
+                    <li><a href="{% link deployment/repls/python_shell.md %}">Python REPL</a></li>
+                    <li><a href="{% link deployment/repls/scala_shell.md %}">Scala REPL</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>JobManager</td>
+            <td>
+                JobManager is the name of the central work coordination component of Flink. It has implementations for different resource providers, which differ on high-availability, resource allocation behavior and supported job submission modes. <br />
+                JobManager <a href="#deployment-modes">modes for job submissions</a>:
+                <ul>
+                    <li><b>Application Mode</b>: runs the cluster exclusively for one application. The job's main method (or client) gets executed on the JobManager. Calling `execute`/`executeAsync` multiple times in an application is supported.</li>
+                    <li><b>Per-Job Mode</b>: runs the cluster exclusively for one job. The job's main method (or client) runs only prior to the cluster creation.</li>
+                    <li><b>Session Mode</b>: one JobManager instance manages multiple jobs sharing the same cluster of TaskManagers</li>
+                </ul>
+            </td>
+            <td>
+                <ul id="jmimpls">
+                    <li><a href="{% link deployment/resource-providers/standalone/index.md %}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{% link deployment/resource-providers/standalone/docker.md %}">Docker, Docker Swarm / Compose</a>, <a href="{% link deployment/resource-providers/standalone/kubernetes.md %}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
+                    </li>
+                    <li><a href="{% link deployment/resource-providers/native_kubernetes.md %}">Kubernetes</a></li>
+                    <li><a href="{% link deployment/resource-providers/yarn_setup.md %}">YARN</a></li>
+                    <li><a href="{% link deployment/resource-providers/mesos.md %}">Mesos</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>TaskManager</td>
+            <td>
+                TaskManagers are the services actually performing the work of a Flink job.
+            </td>
+            <td>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" class="text-center">
+                <b>External Components</b> (all optional)
+            </td>
+        </tr>
+        <tr>
+            <td>High Availability Service Provider</td>
+            <td>
+                Flink's JobManager can be run in high availability mode which allows Flink to recover from JobManager faults. In order to failover faster, multiple standby JobManagers can be started to act as backups.
+            </td>
+            <td>
+                <ul>
+                    <li><a href="{% link deployment/ha/zookeeper_ha.md %}">Zookeeper</a></li>
+                    <li><a href="{% link deployment/ha/kubernetes_ha.md %}">Kubernetes HA</a></li>
+                </ul>
+            </td>
+        </tr>
+        <tr>
+            <td>File Storage and Persistency</td>
+            <td>
+                For checkpointing (recovery mechanism for streaming jobs) Flink relies on external file storage systems
+            </td>
+            <td>See <a href="{% link deployment/filesystems/index.md %}">FileSystems</a> page.</td>
+        </tr>
+        <tr>
+            <td>Resource Provider</td>
+            <td>
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes, YARN or Mesos.
+            </td>
+            <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
+        </tr>
+        <tr>
+            <td>Metrics Storage</td>
+            <td>
+                Flink components report internal metrics and Flink jobs can report additional, job specific metrics as well.
+            </td>
+            <td>See <a href="{% link deployment/metric_reporters.md %}">Metrics Reporter</a> page.</td>
+        </tr>
+        <tr>
+            <td>Application-level data sources and sinks</td>
+            <td>
+                While application-level data sources and sinks are not technically part of the deployment of Flink cluster components, they should be considered when planning a new Flink production deployment. Colocating frequently used data with Flink can have significant performance benefits
+            </td>
+            <td>
+                For example:
+                <ul>
+                    <li>Apache Kafka</li>
+                    <li>Amazon S3</li>
+                    <li>ElasticSearch</li>
+                    <li>Apache Cassandra</li>
+                </ul>
+                See <a href="{% link dev/connectors/index.md %}">Connectors</a> page.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+
+
 ## Deployment Modes
 
 Flink can execute applications in one of three ways:
- - in Session Mode, 
- - in a Per-Job Mode, or
- - in Application Mode.
+- in Application Mode,
+- in a Per-Job Mode,
+- in Session Mode.
 
  The above modes differ in:
  - the cluster lifecycle and resource isolation guarantees
  - whether the application's `main()` method is executed on the client or on the cluster.
 
-#### Session Mode
 
-*Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
-submitted application. Applications executed in the same (session) cluster use, and consequently compete
-for, the same resources. This has the advantage that you do not pay the resource overhead of spinning up
-a full cluster for every submitted job. But, if one of the jobs misbehaves or brings down a Task Manager,
-then all jobs running on that Task Manager will be affected by the failure. This, apart from a negative
-impact on the job that caused the failure, implies a potential massive recovery process with all the 
-restarting jobs accessing the filesystem concurrently and making it unavailable to other services. 
-Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
-is responsible for the book-keeping of all the jobs in the cluster.
-
-#### Per-Job Mode
-
-Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available cluster manager
-framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
-that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
-cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own 
-Task Managers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is 
-one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
-production reasons.
+<!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
+<img class="img-fluid" width="100%" style="margin: 15px" src="{% link fig/deployment_modes.svg %}" alt="Figure for Deployment Modes" />
 
 #### Application Mode
     
-In all the above modes, the application's `main()` method is executed on the client side. This process 
+In all the other modes, the application's `main()` method is executed on the client side. This process 
 includes downloading the application's dependencies locally, executing the `main()` to extract a representation
 of the application that Flink's runtime can understand (i.e. the `JobGraph`) and ship the dependencies and
 the `JobGraph(s)` to the cluster. This makes the Client a heavy resource consumer as it may need substantial
@@ -78,7 +189,7 @@ seen as creating a session cluster shared only among the jobs of a particular ap
 the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
 and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application. Executing 
 the `main()` on the JobManager allows for saving the CPU cycles required, but also save the bandwidth required
-for downloading the dependencies locally. Furthermore, it allows for more even spread of the network load of
+for downloading the dependencies locally. Furthermore, it allows for more even spread of the network load for
 downloading the dependencies of the applications in the cluster, as there is one JobManager per application.
 
 <div class="alert alert-info" markdown="span">
@@ -99,6 +210,29 @@ non-blocking, will lead to the "next" job starting before "this" job finishes.
   supported for single-`execute()` applications.
 </div>
 
+#### Per-Job Mode
+
+Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
+framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
+that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
+cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own 
+TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is 
+one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
+production reasons.
+
+#### Session Mode
+
+*Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
+submitted application. Applications executed in the same (session) cluster use, and consequently compete
+for, the same resources. This has the advantage that you do not pay the resource overhead of spinning up
+a full cluster for every submitted job. But, if one of the jobs misbehaves or brings down a TaskManager,
+then all jobs running on that TaskManager will be affected by the failure. This, apart from a negative
+impact on the job that caused the failure, implies a potential massive recovery process with all the 
+restarting jobs accessing the filesystem concurrently and making it unavailable to other services. 
+Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
+is responsible for the book-keeping of all the jobs in the cluster.
+
+
 #### Summary
 
 In *Session Mode*, the cluster lifecycle is independent of that of any job running on the cluster
@@ -108,80 +242,7 @@ across jobs. In this case, the lifecycle of the cluster is bound to that of the 
 *Application Mode* creates a session cluster per application and executes the application's `main()` 
 method on the cluster.
 
-## Deployment Targets
 
-Apache Flink ships with first class support for a number of common deployment targets.
-
-<div class="row">
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Local</b>
-      </div>
-      <div class="panel-body">
-        Run Flink locally for basic testing and experimentation
-        <br><a href="{% link deployment/resource-providers/standalone/local.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Standalone</b>
-      </div>
-      <div class="panel-body">
-        A simple solution for running Flink on bare metal or VM's 
-        <br><a href="{% link deployment/resource-providers/standalone/index.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Yarn</b>
-      </div>
-      <div class="panel-body">
-        Deploy Flink on-top of Apache Hadoop's resource manager 
-        <br><a href="{% link deployment/resource-providers/yarn_setup.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="row">
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Mesos</b>
-      </div>
-      <div class="panel-body">
-        A generic resource manager for running distriubted systems
-        <br><a href="{% link deployment/resource-providers/mesos.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Docker</b>
-      </div>
-      <div class="panel-body">
-        A popular solution for running Flink within a containerized environment
-        <br><a href="{% link deployment/resource-providers/standalone/docker.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <b>Kubernetes</b>
-      </div>
-      <div class="panel-body">
-        An automated system for deploying containerized applications
-        <br><a href="{% link deployment/resource-providers/standalone/kubernetes.zh.md %}">Learn more</a>
-      </div>
-    </div>
-  </div>
-</div>
 
 ## Vendor Solutions
 
@@ -207,16 +268,16 @@ Supported Environments:
 Supported Environments:
 <span class="label label-primary">AWS</span>
 
-#### Amazon Kinesis Data Analytics For Java 
+#### Amazon Kinesis Data Analytics for Apache Flink
 
 [Website](https://docs.aws.amazon.com/kinesisanalytics/latest/java/what-is.html)
 
 Supported Environments:
 <span class="label label-primary">AWS</span>
 
-#### Cloudera
+#### Cloudera DataFlow
 
-[Website](https://www.cloudera.com/)
+[Website](https://www.cloudera.com/products/cdf.html)
 
 Supported Environment:
 <span class="label label-primary">AWS</span>
@@ -249,57 +310,4 @@ Supported Environments:
 <span class="label label-primary">Google Cloud</span>
 <span class="label label-primary">On-Premise</span>
 
-## Deployment Best Practices
-
-### How to provide dependencies in the classpath
-
-Flink provides several approaches for providing dependencies (such as `*.jar` files or static data) to Flink or user-provided
-applications. These approaches differ based on the deployment mode and target, but also have commonalities, which are described here.
-
-To provide a dependency, there are the following options:
-- files in the **`lib/` folder** are added to the classpath used to start Flink. It is suitable for libraries such as Hadoop or file systems not available as plugins. Beware that classes added here can potentially interfere with Flink, for example if you are adding a different version of a library already provided by Flink.
-
-- **`plugins/<name>/`** are loaded at runtime by Flink through separate classloaders to avoid conflicts with classes loaded and used by Flink. Only jar files which are prepared as [plugins]({% link deployment/filesystems/plugins.zh.md %}) can be added here.
-
-### Download Maven dependencies locally
-
-If you need to extend the Flink with a Maven dependency (and its transitive dependencies),
-you can use an [Apache Maven](https://maven.apache.org) *pom.xml* file to download all required files into a local folder:
-
-*pom.xml*:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>docker-dependencies</artifactId>
-  <version>1.0-SNAPSHOT</version>
-
-  <dependencies>
-        <!-- Put your dependency here, for example a Hadoop GCS connector -->
-  </dependencies>
-
-  <build>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.1.2</version>
-          <executions>
-            <execution>
-              <id>copy-dependencies</id>
-              <phase>package</phase>
-              <goals><goal>copy-dependencies</goal></goals>
-              <configuration><outputDirectory>jars</outputDirectory></configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-  </build>
-</project>
-```
-
-Running `mvn package` in the same directory will create a `jars/` folder containing all the jar files, 
-which you can add to the desired folder, Docker image etc.
+{% top %}
