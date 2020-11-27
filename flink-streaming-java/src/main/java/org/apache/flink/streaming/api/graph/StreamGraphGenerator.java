@@ -284,7 +284,7 @@ public class StreamGraphGenerator {
 				checkpointConfig.disableCheckpointing();
 			}
 
-			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
+			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 			setDefaultBufferTimeout(-1);
 			setBatchStateBackendAndTimerService(graph);

@@ -126,7 +126,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertThat(
 				streamGraph,
 				hasProperties(
-						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
 						false));
 	}
@@ -189,7 +189,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertThat(
 				graph,
 				hasProperties(
-						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
 						false));
 	}
@@ -238,7 +238,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertThat(
 				graph,
 				hasProperties(
-						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
 						false));
 
@@ -298,6 +298,18 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 						.appendText("' and scheduleMode='")
 						.appendValue(scheduleMode)
 						.appendText("'");
+			}
+
+			@Override
+			protected void describeMismatchSafely(
+					StreamGraph item,
+					Description mismatchDescription) {
+				mismatchDescription.appendText("was ")
+					.appendText("a StreamGraph with exchangeMode='")
+					.appendValue(item.getGlobalDataExchangeMode())
+					.appendText("' and scheduleMode='")
+					.appendValue(item.getScheduleMode())
+					.appendText("'");
 			}
 		};
 	}
