@@ -19,8 +19,8 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.sql.Connection;
@@ -45,7 +45,6 @@ import static org.junit.Assert.assertEquals;
 public class JdbcITCase extends JdbcTestBase {
 
     @Test
-    @Ignore
     public void testInsert() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
@@ -86,11 +85,11 @@ public class JdbcITCase extends JdbcTestBase {
                     while (rs.next()) {
                         result.add(
                                 new TestEntry(
-                                        rs.getInt(1),
-                                        rs.getString(2),
-                                        rs.getString(3),
-                                        rs.getDouble(4),
-                                        rs.getInt(5)));
+                                        getNullable(rs, r -> r.getInt(1)),
+                                        getNullable(rs, r -> r.getString(2)),
+                                        getNullable(rs, r -> r.getString(3)),
+                                        getNullable(rs, r -> r.getDouble(4)),
+                                        getNullable(rs, r -> r.getInt(5))));
                     }
                 }
             }
@@ -101,5 +100,12 @@ public class JdbcITCase extends JdbcTestBase {
     @Override
     protected DbMetadata getDbMetadata() {
         return DERBY_EBOOKSHOP_DB;
+    }
+
+    private static <T> T getNullable(
+            ResultSet rs, FunctionWithException<ResultSet, T, SQLException> get)
+            throws SQLException {
+        T value = get.apply(rs);
+        return rs.wasNull() ? null : value;
     }
 }
