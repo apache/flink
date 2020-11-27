@@ -374,6 +374,28 @@ $ ./bin/kubernetes-session.sh \
 
 For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
 
+## High-Availability with Native Kubernetes
+
+For high availability on Kubernetes, you can use the [existing high availability services]({% link deployment/ha/index.zh.md %}).
+
+### How to configure Kubernetes HA Services
+
+Using the following command to start a native Flink application cluster on Kubernetes with high availability configured.
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dhigh-availability=org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory \
+  -Dhigh-availability.storageDir=s3://flink/flink-ha \
+  -Drestart-strategy=fixed-delay -Drestart-strategy.fixed-delay.attempts=10 \
+  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  local:///opt/flink/examples/streaming/StateMachineExample.jar
+{% endhighlight %}
+
 ## Kubernetes 概念
 
 ### 命名空间
