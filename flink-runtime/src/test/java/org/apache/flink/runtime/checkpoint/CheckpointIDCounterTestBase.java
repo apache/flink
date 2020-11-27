@@ -19,13 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-
-import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -39,73 +34,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
-public abstract class CheckpointIDCounterTest extends TestLogger {
+/**
+ * Test base class with common tests for the {@link CheckpointIDCounter} implementations.
+ */
+public abstract class CheckpointIDCounterTestBase extends TestLogger {
 
-	protected abstract CheckpointIDCounter createCompletedCheckpoints() throws Exception;
-
-	public static class StandaloneCheckpointIDCounterTest extends CheckpointIDCounterTest {
-
-		@Override
-		protected CheckpointIDCounter createCompletedCheckpoints() throws Exception {
-			return new StandaloneCheckpointIDCounter();
-		}
-	}
-
-	public static class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTest {
-
-		private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
-
-		@AfterClass
-		public static void tearDown() throws Exception {
-			ZooKeeper.shutdown();
-		}
-
-		@Before
-		public void cleanUp() throws Exception {
-			ZooKeeper.deleteAll();
-		}
-
-		/**
-		 * Tests that counter node is removed from ZooKeeper after shutdown.
-		 */
-		@Test
-		public void testShutdownRemovesState() throws Exception {
-			CheckpointIDCounter counter = createCompletedCheckpoints();
-			counter.start();
-
-			CuratorFramework client = ZooKeeper.getClient();
-			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
-
-			counter.shutdown(JobStatus.FINISHED);
-			assertNull(client.checkExists().forPath("/checkpoint-id-counter"));
-		}
-
-		/**
-		 * Tests that counter node is NOT removed from ZooKeeper after suspend.
-		 */
-		@Test
-		public void testSuspendKeepsState() throws Exception {
-			CheckpointIDCounter counter = createCompletedCheckpoints();
-			counter.start();
-
-			CuratorFramework client = ZooKeeper.getClient();
-			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
-
-			counter.shutdown(JobStatus.SUSPENDED);
-			assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
-		}
-
-		@Override
-		protected CheckpointIDCounter createCompletedCheckpoints() throws Exception {
-			return new ZooKeeperCheckpointIDCounter(
-				ZooKeeper.getClient(),
-				"/checkpoint-id-counter",
-				new DefaultLastStateConnectionStateListener());
-		}
-	}
+	protected abstract CheckpointIDCounter createCheckpointIdCounter() throws Exception;
 
 	// ---------------------------------------------------------------------------------------------
 
@@ -114,7 +49,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 	 */
 	@Test
 	public void testSerialIncrementAndGet() throws Exception {
-		final CheckpointIDCounter counter = createCompletedCheckpoints();
+		final CheckpointIDCounter counter = createCheckpointIdCounter();
 
 		try {
 			counter.start();
@@ -143,7 +78,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		// Setup
 		final CountDownLatch startLatch = new CountDownLatch(1);
-		final CheckpointIDCounter counter = createCompletedCheckpoints();
+		final CheckpointIDCounter counter = createCheckpointIdCounter();
 		counter.start();
 
 		ExecutorService executor = null;
@@ -166,10 +101,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			// Get the counts
 			for (Future<List<Long>> result : resultFutures) {
 				List<Long> counts = result.get();
-
-				for (long val : counts) {
-					all.add(val);
-				}
+				all.addAll(counts);
 			}
 
 			// Verify
@@ -201,7 +133,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 	 */
 	@Test
 	public void testSetCount() throws Exception {
-		final CheckpointIDCounter counter = createCompletedCheckpoints();
+		final CheckpointIDCounter counter = createCheckpointIdCounter();
 		counter.start();
 
 		// Test setCount
@@ -220,7 +152,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 	private static class Incrementer implements Callable<List<Long>> {
 
 		/** Total number of {@link CheckpointIDCounter#getAndIncrement()} calls. */
-		private final static int NumIncrements = 128;
+		private static final int NumIncrements = 128;
 
 		private final CountDownLatch startLatch;
 
