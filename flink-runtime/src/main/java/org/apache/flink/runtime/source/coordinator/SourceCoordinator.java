@@ -223,7 +223,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception {
+	public void resetToCheckpoint(
+			final long checkpointId,
+			@Nullable final byte[] checkpointData) throws Exception {
+
 		checkState(!started, "The coordinator can only be reset if it was not yet started");
 		assert enumerator == null;
 
