@@ -29,7 +29,7 @@ under the License.
 
 A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({% link learn-flink/fault_tolerance.md %}). You can use Savepoints to stop-and-resume, fork,
 or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
-image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of absolute paths.
+image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of relative paths(see <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> for details).
 
 <div class="alert alert-warning">
 <strong>Attention:</strong> In order to allow upgrades between programs and Flink versions, it is important to check out the following section about <a href="#assigning-operator-ids">assigning IDs to your operators</a>.
@@ -110,9 +110,10 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-After <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> savepoint is self-contained and relocatable now, you can move the file and restore from any location.
+Since Flink 1.11.0, savepoints are self-contained and relocatable (see <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> for details). You can move the file and restore from any location.
+
 <div class="alert alert-info">
-<strong>Note: </strong>savepoint relocatable does not support taskowned state(such as GenericWriteAhreadLog sink) and <a href="{% link ops/filesystems/s3.md %}#entropy-injection-for-s3-file-systems">entropy injection</a> currently.
+<strong>Note: </strong>relocatable savepoints currently do not support task-owned state(such as `GenericWriteAhreadLog` sink) or <a href="{% link ops/filesystems/s3.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>.
 </div>
 
 <div class="alert alert-warning">
@@ -227,8 +228,6 @@ If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now d
 
 ### Can I move the Savepoint files on stable storage?
 
-The quick answer to this question is currently "no" because the meta data file references the files on stable storage as absolute paths for technical reasons. The longer answer is: if you MUST move the files for some reason there are two
-potential approaches as workaround. First, simpler but potentially more dangerous, you can use an editor to find the old path in the meta data file and replace them with the new path. Second, you can use the class
-SavepointV2Serializer as starting point to programmatically read, manipulate, and rewrite the meta data file with the new paths.
+The quick answer to this question is currently "yes". Sink Flink 1.11.0, savepoints are self-contained and relocatable(see <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> for details). You can move the file and restore from any location.
 
 {% top %}
