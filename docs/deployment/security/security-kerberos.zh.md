@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document briefly describes how Flink security works in the context of various deployment mechanisms (Standalone, YARN, or Mesos), 
+This document briefly describes how Flink security works in the context of various deployment mechanisms (Standalone, native Kubernetes, YARN, or Mesos),
 filesystems, connectors, and state backends.
 
 ## Objective
@@ -39,7 +39,7 @@ or ticket cache entry.
 
 The current implementation supports running Flink clusters (JobManager / TaskManager / jobs) with either a configured keytab credential
 or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.   To use a different keytab
-for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a YARN
+for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a Kubernetes, YARN
 or Mesos environment.
 
 ## How Flink Security works
@@ -87,15 +87,19 @@ Steps to run a secure Flink cluster in standalone/cluster mode:
 2. Ensure that the keytab file exists at the path indicated by `security.kerberos.login.keytab` on all cluster nodes.
 3. Deploy Flink cluster as normal.
 
-### YARN/Mesos Mode
+### Native Kubernetes, YARN and Mesos Mode
 
-Steps to run a secure Flink cluster in YARN/Mesos mode:
+Steps to run a secure Flink cluster in native Kubernetes, YARN and Mesos mode:
 
 1. Add security-related configuration options to the Flink configuration file on the client (see [here]({% link deployment/config.zh.md %}#auth-with-external-systems)).
 2. Ensure that the keytab file exists at the path as indicated by `security.kerberos.login.keytab` on the client node.
 3. Deploy Flink cluster as normal.
 
-In YARN/Mesos mode, the keytab is automatically copied from the client to the Flink containers.
+In YARN, Mesos and native Kubernetes mode, the keytab is automatically copied from the client to the Flink containers.
+
+To enable Kerberos authentication, the Kerberos configuration file is also required. This file can be either fetched from the cluster environment or uploaded by Flink. In the latter case, you need to configure the `security.kerberos.krb5-conf.path` to indicate the path of the Kerberos configuration file and Flink will copy this file to its containers/pods.
+
+Note that the property `java.security.krb5.conf`, which was available in Mesos mode previously, has been deprecated. Despite it's still taking effect for backward compatibility, please be aware this property can be removed in future releases.
 
 For more information, see <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> documentation.
 
