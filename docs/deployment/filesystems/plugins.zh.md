@@ -70,7 +70,7 @@ possible across Flink core, plugins, and user code.
 
 ## File Systems
 
-All [file systems]({%link deployment/filesystems/index.md %}) **except MapR** are pluggable. That means they can and should
+All [file systems]({%link deployment/filesystems/index.zh.md %}) **except MapR** are pluggable. That means they can and should
 be used as plugins. To use a pluggable file system, copy the corresponding JAR file from the `opt`
 directory to a directory under `plugins` directory of your Flink distribution before starting Flink,
 e.g.
@@ -116,7 +116,7 @@ Furthermore, loggers are whitelisted, so that they are configured properly.
 
 ## Metric Reporters
 
-All [metric reporters]({% link deployment/metric_reporters.md %}) that Flink provides can be used as plugins.
-See the [metrics]({% link ops/metrics.md %}) documentation for more details.
+All [metric reporters]({% link deployment/metric_reporters.zh.md %}) that Flink provides can be used as plugins.
+See the [metrics]({% link ops/metrics.zh.md %}) documentation for more details.
 
 {% top %}

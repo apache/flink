@@ -555,7 +555,7 @@ counter = getRuntimeContext()
 
 ## Reporter
 
-For information on how to set up Flink's metric reporters please take a look at the [metric reporters documentation]({% link deployment/metric_reporters.md %}).
+For information on how to set up Flink's metric reporters please take a look at the [metric reporters documentation]({% link deployment/metric_reporters.zh.md %}).
 
 ## System metrics
 
