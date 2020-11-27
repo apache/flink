@@ -72,14 +72,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Called when one of the subtasks of the task running the coordinated operator failed.
-	 */
-	void subtaskFailed(int subtask, @Nullable Throwable reason);
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Takes a checkpoint or the coordinator. The checkpoint is identified by the given ID.
+	 * Takes a checkpoint of the coordinator. The checkpoint is identified by the given ID.
 	 *
 	 * <p>To confirm the checkpoint and store state in it, the given {@code CompletableFuture}
 	 * must be completed with the state. To abort or dis-confirm the checkpoint, the given
@@ -146,6 +139,23 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	 * before calling the {@link #notifyCheckpointComplete(long)} method).
 	 */
 	void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception;
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Called when one of the subtasks of the task running the coordinated operator goes
+	 * through a failover (failure / recovery cycle).
+	 *
+	 * <p>This method is called in case of a <i>partial failover</i> meaning a failover handled
+	 * by the scheduler's failover strategy (by default recovering a pipelined region).
+	 * The method is invoked for each subtask involved in that partial failover.
+	 *
+	 * <p>In contrast to this method, the {@link #resetToCheckpoint(byte[])} method is called in
+	 * the case of a global failover, which is the case when the coordinator (JobManager) fails
+	 * or the scheduler invokes its safety net where the whole system is reset to the latest
+	 * complete checkpoint.
+	 */
+	void subtaskFailed(int subtask, @Nullable Throwable reason);
 
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
