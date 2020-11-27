@@ -237,6 +237,9 @@ public class TestingSchedulerNG implements SchedulerNG {
 		return new Builder();
 	}
 
+	/**
+	 * Builder for the TestingSchedulerNG.
+	 */
 	public static final class Builder {
 		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 		private Runnable startSchedulingRunnable = () -> {};
