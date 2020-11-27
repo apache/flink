@@ -28,6 +28,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -101,6 +102,27 @@ public class JdbcTestFixture {
                     + ", qty="
                     + qty
                     + '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof TestEntry)) {
+                return false;
+            }
+            TestEntry testEntry = (TestEntry) o;
+            return Objects.equals(id, testEntry.id)
+                    && Objects.equals(title, testEntry.title)
+                    && Objects.equals(author, testEntry.author)
+                    && Objects.equals(price, testEntry.price)
+                    && Objects.equals(qty, testEntry.qty);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, title, author, price, qty);
         }
     }
 
