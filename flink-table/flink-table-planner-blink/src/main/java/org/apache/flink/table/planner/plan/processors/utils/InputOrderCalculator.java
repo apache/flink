@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.processors.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -167,6 +168,10 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
 
 	@Override
 	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput) {
-		throw new IllegalStateException("A conflict is detected. This is unexpected.");
+		throw new IllegalStateException(
+			"A conflict is detected. This is a bug. Please file an issue.\n" +
+				"To work around this bug, please set " +
+				OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED.key() +
+				" to false to disable multiple input operator.");
 	}
 }

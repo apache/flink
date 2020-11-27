@@ -405,6 +405,78 @@ Union(all=[true], union=[a, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EDGES_BLOCKING]">
+    <Resource name="sql">
+      <![CDATA[
+WITH T1 AS (
+  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
++- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
+   +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], k=[$4], v=[+($1, $5)])
+         +- LogicalFilter(condition=[>($4, 0)])
+            +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
++- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[AND(=(a, a0), =(+(b, b0), 0:BIGINT))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a, b], where=[>(a, 0)], reuse_id=[2])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx], reuse_id=[1])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Reused(reference_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EDGES_PIPELINED]">
+    <Resource name="sql">
+      <![CDATA[
+WITH T1 AS (
+  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
++- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
+   +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], k=[$4], v=[+($1, $5)])
+         +- LogicalFilter(condition=[>($4, 0)])
+            +- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
++- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[AND(=(a, a0), =(+(b, b0), 0:BIGINT))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a, b], where=[>(a, 0)], reuse_id=[2])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx], reuse_id=[1])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Reused(reference_id=[1])
+   +- Exchange(distribution=[hash[a]])
+      +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EDGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[

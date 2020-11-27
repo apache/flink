@@ -170,6 +170,18 @@ class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
     )
   }
 
+  @Test
+  def testDeadlockCausedByExchangeInAncestor(): Unit = {
+    checkMultipleInputResult(
+      """
+        |WITH T1 AS (
+        |  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+        |  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+        |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+        |""".stripMargin
+    )
+  }
+
   def checkMultipleInputResult(sql: String): Unit = {
     tEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
