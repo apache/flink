@@ -848,6 +848,9 @@ public class CheckpointCoordinatorTestingUtils {
 		public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {}
 
 		@Override
+		public void subtaskReset(int subtask, long checkpointId) {}
+
+		@Override
 		public OperatorID operatorId() {
 			return operatorID;
 		}
