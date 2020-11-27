@@ -91,6 +91,13 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		coordinator.applyCall(
+			"subtaskReset",
+			c -> c.subtaskReset(subtask, checkpointId));
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> resultFuture) throws Exception {
 		coordinator.applyCall(
 				"checkpointCoordinator",
