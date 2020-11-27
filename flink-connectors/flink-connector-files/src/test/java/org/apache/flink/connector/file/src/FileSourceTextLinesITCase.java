@@ -57,6 +57,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -133,6 +134,19 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	 */
 	@Test
 	public void testBoundedTextFileSource() throws Exception {
+		testBoundedTextFileSource(FailoverType.NONE);
+	}
+
+	/**
+	 * This test runs a job reading bounded input with a stream record format (text lines)
+	 * and restarts TaskManager.
+	 */
+	@Test
+	public void testBoundedTextFileSourceWithTaskManagerFailover() throws Exception {
+		testBoundedTextFileSource(FailoverType.TM);
+	}
+
+	private void testBoundedTextFileSource(FailoverType failoverType) throws Exception {
 		final File testDir = TMP_FOLDER.newFolder();
 
 		// our main test data
@@ -147,13 +161,24 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
 		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
 		env.setParallelism(PARALLELISM);
+		env.enableCheckpointing(10L);
 
 		final DataStream<String> stream = env.fromSource(
 			source,
 			WatermarkStrategy.noWatermarks(),
 			"file-source");
 
-		final List<String> result = DataStreamUtils.collectBoundedStream(stream, "Bounded TextFiles Test");
+		final ClientAndIterator<String> client =
+			DataStreamUtils.collectWithClient(stream, "Bounded TextFiles Test");
+
+		if (failoverType == FailoverType.TM) {
+			restartTaskManager();
+		}
+
+		final List<String> result = new ArrayList<>();
+		while (client.iterator.hasNext()) {
+			result.add(client.iterator.next());
+		}
 
 		verifyResult(result);
 	}
