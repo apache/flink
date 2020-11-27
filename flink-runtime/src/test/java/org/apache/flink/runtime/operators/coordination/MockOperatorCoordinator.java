@@ -59,7 +59,7 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) {
+	public void resetToCheckpoint(long checkpointId, byte[] checkpointData) {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -60,6 +60,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import com.google.inject.internal.util.$Nullable;
 import org.junit.Assert;
 import org.mockito.invocation.InvocationOnMock;
 
@@ -845,9 +846,7 @@ public class CheckpointCoordinatorTestingUtils {
 		}
 
 		@Override
-		public void resetToCheckpoint(byte[] checkpointData) throws Exception {
-
-		}
+		public void resetToCheckpoint(long checkpointId, @$Nullable byte[] checkpointData) throws Exception {}
 
 		@Override
 		public OperatorID operatorId() {
