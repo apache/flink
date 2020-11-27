@@ -224,8 +224,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
 			@Override
 			public void notifyCheckpointComplete(long checkpointId) {
-				LOG.info("notifyCheckpointComplete {} @ {} subtask (? attempt)", split.numCompletedCheckpoints, split.nextNumber % split.increment);
 				if (split != null) {
+					LOG.info("notifyCheckpointComplete {} @ {} subtask (? attempt)", split.numCompletedCheckpoints, split.nextNumber % split.increment);
 					split.numCompletedCheckpoints++;
 				}
 			}
@@ -328,6 +328,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 					context.assignSplits(new SplitsAssignment<>(assignment));
 					unassignedSplits.clear();
 				}
+			}
+
+			@Override
+			public void notifyCheckpointComplete(long checkpointId) {
+				unassignedSplits.forEach(s -> s.numCompletedCheckpoints++);
 			}
 
 			@Override
@@ -673,6 +678,5 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 			LOG.info("Last state {} @ {} subtask ({} attempt)", state, getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getAttemptNumber());
 			super.close();
 		}
-
 	}
 }
