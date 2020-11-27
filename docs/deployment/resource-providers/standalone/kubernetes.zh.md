@@ -162,6 +162,35 @@ with the `kubectl` command:
     kubectl delete -f jobmanager-job.yaml
 ```
 
+## High-Availability with Standalone Kubernetes
+
+For high availability on Kubernetes, you can use the [existing high availability services]({% link deployment/ha/index.zh.md %}).
+
+### How to configure Kubernetes HA Services
+
+Session Mode, Per-Job Mode, and Application Mode clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions). All other yamls do not need to be updated.
+
+<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.zh.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.zh.md %}#using-plugins) for more information.
+
+{% highlight yaml %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+  ...
+    kubernetes.cluster-id: <cluster-id>
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    high-availability.storageDir: hdfs:///flink/recovery
+    restart-strategy: fixed-delay
+    restart-strategy.fixed-delay.attempts: 10
+  ...
+{% endhighlight %}
+
+
 ## Appendix
 
 ### Common cluster resource definitions
