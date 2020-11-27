@@ -288,22 +288,13 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {
-            LOG.info("Allocation ID {} is already allocated in {}.", allocationId, taskSlot);
-            return false;
-        }
-
-        if (taskSlots.containsKey(index)) {
-            TaskSlot<T> duplicatedTaskSlot = taskSlots.get(index);
+            return isDuplicatedSlot(taskSlot, jobId, resourceProfile, index);
+        } else if (isIndexAlreadyTaken(index)) {
             LOG.info(
-                    "Slot with index {} already exist, with resource profile {}, job id {} and allocation id {}.",
+                    "The slot with index {} is already assigned to another allocation with id {}.",
                     index,
-                    duplicatedTaskSlot.getResourceProfile(),
-                    duplicatedTaskSlot.getJobId(),
-                    duplicatedTaskSlot.getAllocationId());
-            return duplicatedTaskSlot.getJobId().equals(jobId)
-                    && duplicatedTaskSlot.getAllocationId().equals(allocationId);
-        } else if (allocatedSlots.containsKey(allocationId)) {
-            return true;
+                    taskSlots.get(index).getAllocationId());
+            return false;
         }
 
         resourceProfile = index >= 0 ? defaultSlotResourceProfile : resourceProfile;
@@ -347,6 +338,24 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         slots.add(allocationId);
 
         return true;
+    }
+
+    private boolean isDuplicatedSlot(
+            TaskSlot taskSlot, JobID jobId, ResourceProfile resourceProfile, int index) {
+        LOG.info(
+                "Slot with allocationId {} already exist, with resource profile {}, job id {} and index {}. The required index is {}.",
+                taskSlot.getAllocationId(),
+                taskSlot.getResourceProfile(),
+                taskSlot.getJobId(),
+                taskSlot.getIndex(),
+                index);
+        return taskSlot.getJobId().equals(jobId)
+                && taskSlot.getResourceProfile().equals(resourceProfile)
+                && (index < 0 || taskSlot.getIndex() == index);
+    }
+
+    private boolean isIndexAlreadyTaken(int index) {
+        return taskSlots.get(index) != null;
     }
 
     @Override
