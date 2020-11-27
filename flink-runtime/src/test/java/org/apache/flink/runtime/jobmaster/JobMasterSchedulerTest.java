@@ -36,6 +36,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
@@ -81,7 +82,7 @@ public class JobMasterSchedulerTest extends TestLogger {
 		try {
 			startFuture.join();
 
-			assertThat(trackingSecurityManager.getSystemExitFuture().join(), is(-17));
+			assertThat(trackingSecurityManager.getSystemExitFuture().join(), is(FatalExitExceptionHandler.EXIT_CODE));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, Time.milliseconds(testingTimeout.toMillis()));
 			System.setSecurityManager(null);
