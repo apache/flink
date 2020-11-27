@@ -351,8 +351,7 @@ overwrite is not supported for streaming write.
 The below shows how the streaming sink can be used to write a streaming query to write data from Kafka into a Hive table with partition-commit,
 and runs a batch query to read that data back out. 
 
-Please see the [StreamingFileSink]({% link dev/connectors/streamfile_sink.zh.md %}) for 
-a full list of available configurations. 
+Please see the [streaming sink]({% link dev/table/connectors/filesystem.zh.md %}#streaming-sink) for a full list of available configurations. 
 
 {% highlight sql %}
 
