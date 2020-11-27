@@ -173,6 +173,9 @@ Common causes for class leaks and suggested fixes:
   - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
    you should either add the driver jars to Flink's `lib/` folder, or add the driver classes to the list of parent-first loaded class via [`classloader.parent-first-patterns-additional`]({% link deployment/config.md %}#classloader-parent-first-patterns-additional).
 
+A helpful tool for unloading dynamically loaded classes are the user code class loader release hooks. These are hooks which are executed prior to the unloading of a classloader. It is generally recommended to shutdown and unload resources as part of the regular function lifecycle (typically the `close()` methods). But in some cases (for example for static fields), it is better to unload once a classloader is certainly not needed anymore.
+
+Class loader release hooks can be registered via the `RuntimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent()` method.
 
 ## Resolving Dependency Conflicts with Flink using the maven-shade-plugin.
 
