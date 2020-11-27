@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive.write;
 
+import org.apache.flink.connectors.hive.CachedSerializedValue;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.table.api.TableSchema;
@@ -52,6 +53,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +70,7 @@ public class HiveWriterFactory implements Serializable {
 
 	private final Class hiveOutputFormatClz;
 
-	private final SerDeInfo serDeInfo;
+	private final CachedSerializedValue<SerDeInfo> serDeInfo;
 
 	private final String[] allColumns;
 
@@ -115,7 +117,11 @@ public class HiveWriterFactory implements Serializable {
 				"The output format should be an instance of HiveOutputFormat");
 		this.confWrapper = new JobConfWrapper(jobConf);
 		this.hiveOutputFormatClz = hiveOutputFormatClz;
-		this.serDeInfo = serDeInfo;
+		try {
+			this.serDeInfo = new CachedSerializedValue<>(serDeInfo);
+		} catch (IOException e) {
+			throw new FlinkHiveException("Failed to serialize SerDeInfo", e);
+		}
 		this.allColumns = schema.getFieldNames();
 		this.allTypes = schema.getFieldDataTypes();
 		this.partitionColumns = partitionColumns;
@@ -170,7 +176,7 @@ public class HiveWriterFactory implements Serializable {
 		}
 
 		JobConf jobConf = confWrapper.conf();
-		Object serdeLib = Class.forName(serDeInfo.getSerializationLib()).newInstance();
+		Object serdeLib = Class.forName(serDeInfo.deserializeValue().getSerializationLib()).newInstance();
 		Preconditions.checkArgument(serdeLib instanceof Serializer && serdeLib instanceof Deserializer,
 				"Expect a SerDe lib implementing both Serializer and Deserializer, but actually got "
 						+ serdeLib.getClass().getName());
