@@ -126,7 +126,9 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	 * All subtasks will also have been reset to the same checkpoint.
 	 *
 	 * <p>This method is called in the case of a <i>global failover</i> of the system, which means
-	 * a failover of the coordinator (JobManager).
+	 * a failover of the coordinator (JobManager). This method is not invoked on a <i>partial
+	 * failover</i>; partial failovers call the {@link #subtaskReset(int, long)} method for the
+	 * involved subtasks.
 	 *
 	 * <p>This method is expected to behave synchronously with respect to other method calls and calls
 	 * to {@code Context} methods. For example, Events being sent by the Coordinator after this method
@@ -158,15 +160,21 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 	 * Called when one of the subtasks of the task running the coordinated operator goes
 	 * through a failover (failure / recovery cycle).
 	 *
-	 * <p>This method is called in case of a <i>partial failover</i> meaning a failover handled
-	 * by the scheduler's failover strategy (by default recovering a pipelined region).
+	 * <p>This method is called every time there is a failover of a subtasks, regardless of
+	 * whether there it is a partial failover or a global failover.
+	 */
+	void subtaskFailed(int subtask, @Nullable Throwable reason);
+
+	/**
+	 * Called if a task is recovered as part of a <i>partial failover</i>, meaning a failover
+	 * handled by the scheduler's failover strategy (by default recovering a pipelined region).
 	 * The method is invoked for each subtask involved in that partial failover.
 	 *
 	 * <p>In contrast to this method, the {@link #resetToCheckpoint(long, byte[])} method is called in
 	 * the case of a global failover, which is the case when the coordinator (JobManager) is
 	 * recovered.
 	 */
-	void subtaskFailed(int subtask, @Nullable Throwable reason);
+	void subtaskReset(int subtask, long checkpointId);
 
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
