@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.utils
+package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil._
 
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.apache.calcite.rex.RexBuilder
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.junit.Assert.{assertEquals, assertNull}
 import org.junit.Test
 
 import java.lang
@@ -189,4 +193,85 @@ class ColumnIntervalUtilTest {
     )
   }
 
+  @Test
+  def testGetColumnIntervalWithFilter(): Unit = {
+    val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rexBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
+
+    // ($1 >= 1 and $1 < 10) or (not($1 > 5)
+    val predicate = rexBuilder.makeCall(
+      SqlStdOperatorTable.OR,
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.AND,
+        rexBuilder.makeCall(
+          SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+          rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.BIGINT), 1),
+          rexBuilder.makeBigintLiteral(java.math.BigDecimal.valueOf(1))),
+        rexBuilder.makeCall(
+          SqlStdOperatorTable.LESS_THAN,
+          rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.BIGINT), 1),
+          rexBuilder.makeBigintLiteral(java.math.BigDecimal.valueOf(10)))),
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.NOT,
+        rexBuilder.makeCall(
+          SqlStdOperatorTable.GREATER_THAN,
+          rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.BIGINT), 1),
+          rexBuilder.makeBigintLiteral(java.math.BigDecimal.valueOf(5))))
+    )
+
+    assertEquals(
+      toBigDecimalInterval(ValueInterval.apply(null, 10L, includeUpper = false)),
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        None,
+        predicate,
+        1,
+        rexBuilder))
+
+    assertEquals(
+      toBigDecimalInterval(ValueInterval.apply(3L, 8L, includeLower = false, includeUpper = false)),
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        Some(toBigDecimalInterval(
+          ValueInterval.apply(3L, 8L, includeLower = false, includeUpper = false))),
+        predicate,
+        1,
+        rexBuilder))
+
+    assertEquals(
+      ValueInterval.empty,
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        None,
+        rexBuilder.makeLiteral(false),
+        0,
+        rexBuilder))
+
+    assertEquals(
+      ValueInterval.empty,
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        Some(ValueInterval.apply(1L, 10L)),
+        rexBuilder.makeLiteral(false),
+        0,
+        rexBuilder))
+
+    assertNull(
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        None,
+        rexBuilder.makeLiteral(true),
+        0,
+        rexBuilder))
+
+    assertEquals(
+      ValueInterval.apply(1L, 10L),
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        Some(ValueInterval.apply(1L, 10L)),
+        rexBuilder.makeLiteral(true),
+        0,
+        rexBuilder))
+
+    assertNull(
+      ColumnIntervalUtil.getColumnIntervalWithFilter(
+        None,
+        rexBuilder.makeBigintLiteral(java.math.BigDecimal.ONE),
+        0,
+        rexBuilder))
+  }
 }
