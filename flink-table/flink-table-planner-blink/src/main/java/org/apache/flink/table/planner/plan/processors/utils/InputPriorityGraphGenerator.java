@@ -156,7 +156,7 @@ public abstract class InputPriorityGraphGenerator {
 	private void addTopologyEdges(ExecNode<?, ?> node, int higherInput, int lowerInput) {
 		ExecNode<?, ?> higherNode = node.getInputNodes().get(higherInput);
 		ExecNode<?, ?> lowerNode = node.getInputNodes().get(lowerInput);
-		List<ExecNode<?, ?>> lowerAncestors = calculateAncestors(lowerNode);
+		List<ExecNode<?, ?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
 
 		List<Tuple2<ExecNode<?, ?>, ExecNode<?, ?>>> linkedEdges = new ArrayList<>();
 		for (ExecNode<?, ?> ancestor : lowerAncestors) {
@@ -177,7 +177,7 @@ public abstract class InputPriorityGraphGenerator {
 	 * Find the ancestors by going through PIPELINED edges.
 	 */
 	@VisibleForTesting
-	List<ExecNode<?, ?>> calculateAncestors(ExecNode<?, ?> node) {
+	List<ExecNode<?, ?>> calculatePipelinedAncestors(ExecNode<?, ?> node) {
 		List<ExecNode<?, ?>> ret = new ArrayList<>();
 		AbstractExecNodeExactlyOnceVisitor ancestorVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override

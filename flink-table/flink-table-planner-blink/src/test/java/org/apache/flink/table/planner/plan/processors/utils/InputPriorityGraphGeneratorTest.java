@@ -36,7 +36,7 @@ import java.util.Set;
 public class InputPriorityGraphGeneratorTest {
 
 	@Test
-	public void testCalculateAncestors() {
+	public void testCalculatePipelinedAncestors() {
 		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
 		//
 		// 0 ------P----> 1 -E--> 2
@@ -59,14 +59,14 @@ public class InputPriorityGraphGeneratorTest {
 			Collections.singletonList(nodes[2]),
 			Collections.emptySet(),
 			ExecEdge.DamBehavior.END_INPUT);
-		List<ExecNode<?, ?>> ancestors = resolver.calculateAncestors(nodes[2]);
+		List<ExecNode<?, ?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
 		Assert.assertEquals(2, ancestors.size());
 		Assert.assertTrue(ancestors.contains(nodes[0]));
 		Assert.assertTrue(ancestors.contains(nodes[5]));
 	}
 
 	@Test
-	public void testCalculateBoundedAncestors() {
+	public void testCalculateBoundedPipelinedAncestors() {
 		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
 		//
 		// 0 -P-> 1 -P-> 2
@@ -84,7 +84,7 @@ public class InputPriorityGraphGeneratorTest {
 			Collections.singletonList(nodes[2]),
 			new HashSet<>(Collections.singleton(nodes[1])),
 			ExecEdge.DamBehavior.END_INPUT);
-		List<ExecNode<?, ?>> ancestors = resolver.calculateAncestors(nodes[2]);
+		List<ExecNode<?, ?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
 		Assert.assertEquals(1, ancestors.size());
 		Assert.assertTrue(ancestors.contains(nodes[1]));
 	}
