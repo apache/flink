@@ -74,8 +74,8 @@ WHERE o.id = s.orderId AND
 
 Compared to a regular join operation, this kind of join only supports append-only tables with time attributes. Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
-Join with a Temporal Table Function
---------------------------
+Join using a Temporal Table Function
+-----------------------------------
 
 A join with a temporal table function joins an append-only table (left input/probe side) with a temporal table (right input/build side),
 i.e., a table that changes over time and tracks its changes. Please check the [temporal tables](temporal_tables.html) page for more information.
@@ -143,36 +143,6 @@ To simplify such queries, Flink offers [Temporal Functions](../temporal_tables.h
 
 With the help of a temporal table function `Rates` over `RatesHistory`, we can simplify the previous SQL query as:
 
-{% highlight sql %}
-SELECT
-  o.amount * r.rate AS amount
-FROM
-  Orders AS o,
-  LATERAL TABLE (Rates(o.rowtime)) AS r
-WHERE r.currency = o.currency
-{% endhighlight %}
-
-In temporal joins, the table on which the `Temporal Function` is defined is known as the Build side and the other append-only table is known as the Probe side. Each record from the probe side will be joined with the version of the build side table at the time of the correlated time attribute of the probe side record. In other words, a value in table A for key K and timestamp T will be joined with the latest value in table B for key K with timestamp T' <= T.
-In order to support updates (overwrites) of previous values on the build side table, the table must define a primary key.
-
-In our example, each record from `Orders` will be joined with the version of `Rates` at time `o.rowtime`. The `currency` field has been defined as the primary key of `Rates` before and is used to connect both tables in our example. If the query were using a processing-time notion, a newly appended order would always be joined with the most recent version of `Rates` when executing the operation.
-
-In contrast to [regular joins](#regular-joins), this means that if there is a new record on the build side, it will not affect the previous results of the join.
-This again allows Flink to limit the number of elements that must be kept in the state.
-
-Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which bounds the records will be joined.
-Records from the probe side are always joined with the build side's version at the time specified by the time attribute. Thus, records on the build side might be arbitrarily old.
-As time passes, the previous and no longer needed versions of the record (for the given primary key) will be removed from the state.
-
-Such behaviour makes a temporal table join a good candidate to express stream enrichment in relational terms.
-
-### Usage
-
-After [defining temporal table function](temporal_tables.html#defining-temporal-table-function), we can start using it.
-Temporal table functions can be used in the same way as normal table functions would be used.
-
-The following code snippet solves our motivating problem of converting currencies from the `Orders` table:
-
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
@@ -201,38 +171,58 @@ val result = orders
 </div>
 </div>
 
+In temporal joins, the table on which the `Temporal Function` is defined is known as the Build side and the other append-only table is known as the Probe side. Each record from the probe side will be joined with the version of the build side table at the time of the correlated time attribute of the probe side record. In other words, a value in table A for key K and timestamp T will be joined with the latest value in table B for key K with timestamp T' <= T.
+In order to support updates (overwrites) of previous values on the build side table, the table must define a primary key.
+
+In our example, each record from `Orders` will be joined with the version of `Rates` at time `o.rowtime`. The `currency` field has been defined as the primary key of `Rates` before and is used to connect both tables in our example. If the query were using a processing-time notion, a newly appended order would always be joined with the most recent version of `Rates` when executing the operation.
+
+### Improvements over different joins
+
+In contrast to [regular joins](#regular-joins), this means that if there is a new record on the build side, it will not affect the previous results of the join.
+This again allows Flink to limit the number of elements that must be kept in the state.
+
+Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which bounds the records will be joined.
+Records from the probe side are always joined with the build side's version at the time specified by the time attribute. Thus, records on the build side might be arbitrarily old.
+As time passes, the previous and no longer needed versions of the record (for the given primary key) will be removed from the state.
+
+Such behaviour makes a temporal table join a good candidate to express stream enrichment in relational terms.
+
 **Note**: State retention defined in a [query configuration](query_configuration.html) is not yet implemented for temporal joins.
 This means that the required state to compute the query result might grow infinitely depending on the number of distinct primary keys for the history table.
 
-### Processing-time Temporal Joins
+It is possible to use either processing time or event time as the time attribute in the temporal joins. Let's take a look at how using different time attributes affect the processing and the result.
 
-With a processing-time time attribute, it is impossible to pass _past_ time attributes as an argument to the temporal table function.
-By definition, it is always the current timestamp. Thus, invocations of a processing-time temporal table function will always return the latest known versions of the underlying table
-and any updates in the underlying history table will also immediately overwrite the current values.
+### Time Attributes in Temporal Joins
 
-Only the latest versions (with respect to the defined primary key) of the build side records are kept in the state.
-Updates of the build side will have no effect on previously emitted join results.
+<table class="table table-bordered">
+	<tr>
+		<th>Processing Time</th>
+		<th>Event Time</th>
+	</tr>
+	<tr>
+		<td>The time attribute can only be current timestamp and hence, the latest known versions of the key are returned always</td>
+		<td>It is possible to pass _past_ time attributes to the temporal table function. This allows for joining the two tables at a common point in time</td>
+	</tr>
+	<tr>
+		<td>Only the latest versions (with respect to the defined primary key) of the build side records are kept in the state.</td>
+		<td>The build side stores all versions (identified by time) since the last watermark.</td>
+	</tr>
+	<tr>
+		<td>One can think about a processing-time temporal join as a simple <b>HashMap<K, V></b> that stores all of the records from the build side.
+            When a new record from the build side has the same key as some previous record, the old value is just simply overwritten.
+         </td>
+		<td><b>Watermarks</b> allow the join operation to move
+            forward in time and discard versions of the build table that are no longer necessary because no incoming row with
+            lower or equal timestamp is expected.</td>
+	</tr>
+</table>
 
-One can think about a processing-time temporal join as a simple `HashMap<K, V>` that stores all of the records from the build side.
-When a new record from the build side has the same key as some previous record, the old value is just simply overwritten.
-Every record from the probe side is always evaluated against the most recent/current state of the `HashMap`.
-
-### Event-time Temporal Joins
-
-With an event-time time attribute (i.e., a rowtime attribute), it is possible to pass _past_ time attributes to the temporal table function.
-This allows for joining the two tables at a common point in time.
-
-Compared to processing-time temporal joins, the temporal table does not only keep the latest version (with respect to the defined primary key) of the build side records in the state
-but stores all versions (identified by time) since the last watermark.
-
-For example, an incoming row with an event-time timestamp of `12:30:00` that is appended to the probe side table
+For example, in case of event time, an incoming row with an event-time timestamp of `12:30:00` that is appended to the probe side table
 is joined with the version of the build side table at time `12:30:00` according to the [concept of temporal tables](temporal_tables.html).
 Thus, the incoming row is only joined with rows that have a timestamp lower or equal to `12:30:00` with
 applied updates according to the primary key until this point in time.
 
-By definition of event time, [watermarks]({{ site.baseurl }}/dev/event_time.html) allow the join operation to move
-forward in time and discard versions of the build table that are no longer necessary because no incoming row with
-lower or equal timestamp is expected.
+In case of processing time, the incoming row with timestamp of `12:30:00` will only be joined with the latest row with timestamp less than or equal to `12:30:00`.
 
 Join with a Temporal Table
 --------------------------
@@ -314,23 +304,9 @@ FROM
 
 Each record from the probe side will be joined with the current version of the build side table. In our example, the query is using the processing-time notion, so a newly appended order would always be joined with the most recent version of `LatestRates` when executing the operation. Note that the result is not deterministic for processing-time.
 
-In contrast to [regular joins](#regular-joins), the previous results of the temporal table join will not be affected despite the changes on the build side. Also, the temporal table join operator is very lightweight and does not keep any state.
-
-Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records will be joined.
-Records from the probe side are always joined with the build side's latest version at processing time. Thus, records on the build side might be arbitrarily old.
-
-Both [temporal table function join](#join-with-a-temporal-table-function) and temporal table join come from the same motivation but have different SQL syntax and runtime implementations:
-* The SQL syntax of the temporal table function join is a join UDTF, while the temporal table join uses the standard temporal table syntax introduced in SQL:2011.
-* The implementation of temporal table function joins actually joins two streams and keeps them in state, while temporal table joins just receive the only input stream and look up the external database according to the key in the record.
-* The temporal table function join is usually used to join a changelog stream, while the temporal table join is usually used to join an external table (i.e. dimension table).
-
-Such behaviour makes a temporal table join a good candidate to express stream enrichment in relational terms.
-
-In the future, the temporal table join will support the features of temporal table function joins, i.e. support to temporal join a changelog stream.
-
 ### Usage
 
-The syntax of temporal table join is as follows:
+You can use the temporal joins using the following syntax:
 
 {% highlight sql %}
 SELECT [column_list]
@@ -339,10 +315,10 @@ FROM table1 [AS <alias1>]
 ON table1.column-name1 = table2.column-name1
 {% endhighlight %}
 
-Currently, only support INNER JOIN and LEFT JOIN. The `FOR SYSTEM_TIME AS OF table1.proctime` should be followed after temporal table. `proctime` is a [processing time attribute](time_attributes.html#processing-time) of `table1`.
+Currently, only supports INNER JOIN and LEFT JOIN. The `FOR SYSTEM_TIME AS OF table1.proctime` should be followed after temporal table. `proctime` is a [processing time attribute](time_attributes.html#processing-time) of `table1`.
 This means that it takes a snapshot of the temporal table at processing time when joining every record from left table.
 
-For example, after [defining temporal table](temporal_tables.html#defining-temporal-table), we can use it as following.
+For example, after [defining temporal table](temporal_tables.html#defining-temporal-table), we can use it in the join as follows.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -362,5 +338,21 @@ FROM
 <span class="label label-danger">Attention</span> It is only supported in SQL, and not supported in Table API yet.
 
 <span class="label label-danger">Attention</span> Flink does not support event time temporal table joins currently.
+
+### Temporal Table joins vs other joins
+
+In contrast to [regular joins](#regular-joins), the previous results of the temporal table join will not be affected despite the changes on the build side. Also, the temporal table join operator is very lightweight and does not keep any state.
+
+Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records will be joined.
+Records from the probe side are always joined with the build side's latest version at processing time. Thus, records on the build side might be arbitrarily old.
+
+Both [temporal table function join](#join-with-a-temporal-table-function) and temporal table join come from the same motivation but have different SQL syntax and runtime implementations:
+* The SQL syntax of the temporal table function join is a join UDTF, while the temporal table join uses the standard temporal table syntax introduced in SQL:2011.
+* The implementation of temporal table function joins actually combines two streams and keeps them in state, while temporal table joins only receives the input stream and look up the external database according to the key in the record.
+* The temporal table function join is usually used to join a changelog stream, while the temporal table join is used to join an external table (i.e. dimension table).
+
+Such behaviour makes a temporal table join a good candidate to express stream enrichment in relational terms.
+
+In the future, the temporal table join will support the features of temporal table function joins, i.e. support to temporal join a changelog stream.
 
 {% top %}
