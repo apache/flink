@@ -24,7 +24,7 @@ under the License.
 -->
 
 ## Kubernetes Cluster High Availability
-Kubernetes high availability service could support both [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}).
+Kubernetes high availability service could support both [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}) and [native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.zh.md %}).
 
 When running Flink JobManager as a Kubernetes deployment, the replica count should be configured to 1 or greater.
 * The value `1` means that a new JobManager will be launched to take over leadership if the current one terminates exceptionally.
@@ -38,9 +38,9 @@ high-availability.storageDir: hdfs:///flink/recovery
 {% endhighlight %}
 
 #### Example: Highly Available Standalone Flink Cluster on Kubernetes
-Both session and job/application clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml]({% link deployment/resource-providers/standalone/kubernetes.md %}#common-cluster-resource-definitions). All other yamls do not need to be updated.
+Both session and job/application clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml]({% link deployment/resource-providers/standalone/kubernetes.zh.md %}#common-cluster-resource-definitions). All other yamls do not need to be updated.
 
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-plugins) for more information.
+<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.zh.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.zh.md %}#using-plugins) for more information.
 
 {% highlight yaml %}
 apiVersion: v1
