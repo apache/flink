@@ -331,6 +331,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		assertSame("coordinator should have null restored state",
 			TestingOperatorCoordinator.NULL_RESTORE_VALUE, coordinator.getLastRestoredCheckpointState());
+		assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
 	}
 
 	@Test

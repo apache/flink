@@ -65,5 +65,5 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
 	 * </ul>
 	 * In both cases, the coordinator should reset to an empty (new) state.
 	 */
-	void resetToCheckpoint(@Nullable byte[] checkpointData) throws Exception;
+	void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception;
 }
