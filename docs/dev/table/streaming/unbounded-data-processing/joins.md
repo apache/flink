@@ -339,7 +339,7 @@ FROM
 
 <span class="label label-danger">Attention</span> Flink does not support event time temporal table joins currently.
 
-### Temporal Table joins vs other joins
+### Temporal Table joins vs Other joins
 
 In contrast to [regular joins](#regular-joins), the previous results of the temporal table join will not be affected despite the changes on the build side. Also, the temporal table join operator is very lightweight and does not keep any state.
 
