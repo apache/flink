@@ -268,6 +268,17 @@ The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names sep
 
 There are also more [advanced ways](#advanced-customization) for customizing the Flink image.
 
+### Switch memory allocator
+
+Flink introduced `jemalloc` as default memory allocator to resolve memory fragmentation problem (please refer to [FLINK-19125](https://issues.apache.org/jira/browse/FLINK-19125)).
+
+You could switch back to use `glibc` as memory allocator to restore the old behavior or if any unexpected memory consumption or problem observed
+(and please report the issue via JIRA or mailing list if you found any), by passing `disable-jemalloc` parameter:
+
+```sh
+    docker run <jobmanager|standalone-job|taskmanager> disable-jemalloc
+```
+
 ### Advanced customization
 
 There are several ways in which you can further customize the Flink image:
