@@ -23,77 +23,52 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Kubernetes Cluster High Availability
-Kubernetes high availability service could support both [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) and [native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %}).
+Flink's Kubernetes HA services use [Kubernetes](https://kubernetes.io/) for high availability services.
 
-When running Flink JobManager as a Kubernetes deployment, the replica count should be configured to 1 or greater.
-* The value `1` means that a new JobManager will be launched to take over leadership if the current one terminates exceptionally.
-* The value `N` (greater than 1) means that multiple JobManagers will be launched simultaneously while one is active and others are standby. Starting more than one JobManager will make the recovery faster.
+* Toc
+{:toc}
 
-### Configuration
-{% highlight yaml %}
-kubernetes.cluster-id: <ClusterId>
+Kubernetes high availability services can only be used when deploying to Kubernetes.
+Consequently, they can be configured when using [standalone Flink on Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or the [native Kubernetes integration]({% link deployment/resource-providers/native_kubernetes.md %})
+
+## Configuration
+
+In order to start an HA-cluster you have to configure the following configuration keys:
+
+- [high-availability]({% link deployment/config.md %}#high-availability-1) (required): 
+The `high-availability` option has to be set to `KubernetesHaServicesFactory`.
+
+  <pre>high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory</pre>
+
+- [high-availability.storageDir]({% link deployment/config.md %}#high-availability-storagedir) (required): 
+JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in Kubernetes.
+
+  <pre>high-availability.storageDir: s3:///flink/recovery</pre>
+
+  The `storageDir` stores all metadata needed to recover a JobManager failure.
+  
+- [kubernetes.cluster-id]({% link deployment/config.md %}#kubernetes-cluster-id) (required):
+In order to identify the Flink cluster, you have to specify a `kubernetes.cluster-id`.
+
+  <pre>kubernetes.cluster-id: cluster1337</pre>
+
+### Example configuration
+
+Configure high availability mode in `conf/flink-conf.yaml`:
+
+{% highlight bash %}
+kubernetes.cluster-id: <cluster-id>
 high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
 high-availability.storageDir: hdfs:///flink/recovery
 {% endhighlight %}
 
-#### Example: Highly Available Standalone Flink Cluster on Kubernetes
-Both session and job/application clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml]({% link deployment/resource-providers/standalone/kubernetes.md %}#common-cluster-resource-definitions). All other yamls do not need to be updated.
+{% top %}
 
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-plugins) for more information.
+## High availability data clean up
 
-{% highlight yaml %}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: flink-config
-  labels:
-    app: flink
-data:
-  flink-conf.yaml: |+
-  ...
-    kubernetes.cluster-id: <ClusterId>
-    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
-    high-availability.storageDir: hdfs:///flink/recovery
-    restart-strategy: fixed-delay
-    restart-strategy.fixed-delay.attempts: 10
-  ...
-{% endhighlight %}
-
-#### Example: Highly Available Native Kubernetes Cluster
-Using the following command to start a native Flink application cluster on Kubernetes with high availability configured.
-{% highlight bash %}
-$ ./bin/flink run-application -p 8 -t kubernetes-application \
-  -Dkubernetes.cluster-id=<ClusterId> \
-  -Dtaskmanager.memory.process.size=4096m \
-  -Dkubernetes.taskmanager.cpu=2 \
-  -Dtaskmanager.numberOfTaskSlots=4 \
-  -Dkubernetes.container.image=<CustomImageName> \
-  -Dhigh-availability=org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory \
-  -Dhigh-availability.storageDir=s3://flink/flink-ha \
-  -Drestart-strategy=fixed-delay -Drestart-strategy.fixed-delay.attempts=10 \
-  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
-  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
-  local:///opt/flink/examples/streaming/StateMachineExample.jar
-{% endhighlight %}
-
-### High Availability Data Clean Up
-Currently, when a Flink job reached the terminal state (`FAILED`, `CANCELED`, `FINISHED`), all the HA data, including metadata in Kubernetes ConfigMap and HA state on DFS, will be cleaned up.
-
-So the following command will only shut down the Flink session cluster and leave all the HA related ConfigMaps, state untouched.
-{% highlight bash %}
-$ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> -Dexecution.attached=true
-{% endhighlight %}
-
-The following commands will cancel the job in application or session cluster and effectively remove all its HA data.
-{% highlight bash %}
-# Cancel a Flink job in the existing session
-$ ./bin/flink cancel -t kubernetes-session -Dkubernetes.cluster-id=<ClusterID> <JobID>
-# Cancel a Flink application
-$ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
-{% endhighlight %}
-
-To keep HA data while restarting the Flink cluster, simply delete the deployment (via `kubectl delete deploy <ClusterID>`). 
+To keep HA data while restarting the Flink cluster, simply delete the deployment (via `kubectl delete deploy <cluster-id>`). 
 All the Flink cluster related resources will be deleted (e.g. JobManager Deployment, TaskManager pods, services, Flink conf ConfigMap). 
 HA related ConfigMaps will be retained because they do not set the owner reference. 
-When restarting the session / application using `kubernetes-session.sh` or `flink run-application`,  all previously running jobs will be recovered and restarted from the latest successful checkpoint.
+When restarting the cluster, all previously running jobs will be recovered and restarted from the latest successful checkpoint.
+
+{% top %} 
