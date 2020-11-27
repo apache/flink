@@ -100,6 +100,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -120,6 +121,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -347,7 +349,17 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected void restoreState(final Set<ExecutionVertexID> vertices, final boolean isGlobalRecovery) throws Exception {
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+
 		if (checkpointCoordinator == null) {
+			// batch failover case - we only need to notify the OperatorCoordinators,
+			// not do any actual state restore
+			if (isGlobalRecovery) {
+				notifyCoordinatorsOfEmptyGlobalRestore();
+			} else {
+				notifyCoordinatorsOfSubtaskRestore(
+					getInvolvedExecutionJobVerticesAndSubtasks(vertices),
+					OperatorCoordinator.NO_CHECKPOINT);
+			}
 			return;
 		}
 
@@ -359,11 +371,60 @@ public abstract class SchedulerBase implements SchedulerNG {
 		checkpointCoordinator.abortPendingCheckpoints(
 				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
-		final Set<ExecutionJobVertex> jobVerticesToRestore = getInvolvedExecutionJobVertices(vertices);
 		if (isGlobalRecovery) {
+			final Set<ExecutionJobVertex> jobVerticesToRestore = getInvolvedExecutionJobVertices(vertices);
+
+			// a global restore restores all Job Vertices
+			assert jobVerticesToRestore.size() == getExecutionGraph().getAllVertices().size();
+
 			checkpointCoordinator.restoreLatestCheckpointedStateToAll(jobVerticesToRestore, true);
+
 		} else {
-			checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(jobVerticesToRestore);
+			final Map<ExecutionJobVertex, IntArrayList> subtasksToRestore =
+					getInvolvedExecutionJobVerticesAndSubtasks(vertices);
+
+			final OptionalLong restoredCheckpointId =
+					checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(subtasksToRestore.keySet());
+
+			// Ideally, the Checkpoint Coordinator would call OperatorCoordinator.resetSubtask, but
+			// the Checkpoint Coordinator is not aware of subtasks in a local failover. It always
+			// assigns state to all subtasks, and for the subtask execution attempts that are still
+			// running (or not waiting to be deployed) the state assignment has simply no effect.
+			// Because of that, we need to do the "subtask restored" notification here.
+			// Once the Checkpoint Coordinator is properly aware of partial (region) recovery,
+			// this code should move into the Checkpoint Coordinator.
+			final long checkpointId = restoredCheckpointId.orElse(OperatorCoordinator.NO_CHECKPOINT);
+			notifyCoordinatorsOfSubtaskRestore(subtasksToRestore, checkpointId);
+		}
+	}
+
+	private void notifyCoordinatorsOfSubtaskRestore(
+			final Map<ExecutionJobVertex, IntArrayList> restoredSubtasks,
+			final long checkpointId) {
+
+		for (final Map.Entry<ExecutionJobVertex, IntArrayList> vertexSubtasks : restoredSubtasks.entrySet()) {
+			final ExecutionJobVertex jobVertex = vertexSubtasks.getKey();
+			final IntArrayList subtasks = vertexSubtasks.getValue();
+
+			final Collection<OperatorCoordinatorHolder> coordinators = jobVertex.getOperatorCoordinators();
+			if (coordinators.isEmpty()) {
+				continue;
+			}
+
+			while (!subtasks.isEmpty()) {
+				final int subtask = subtasks.removeLast(); // this is how IntArrayList implements iterations
+				for (final OperatorCoordinatorHolder opCoordinator : coordinators) {
+					opCoordinator.subtaskReset(subtask, checkpointId);
+				}
+			}
+		}
+	}
+
+	private void notifyCoordinatorsOfEmptyGlobalRestore() throws Exception {
+		for (final ExecutionJobVertex ejv : getExecutionGraph().getAllVertices().values()) {
+			for (final OperatorCoordinator coordinator : ejv.getOperatorCoordinators()) {
+				coordinator.resetToCheckpoint(OperatorCoordinator.NO_CHECKPOINT, null);
+			}
 		}
 	}
 
@@ -376,6 +437,22 @@ public abstract class SchedulerBase implements SchedulerNG {
 			tasks.add(executionVertex.getJobVertex());
 		}
 		return tasks;
+	}
+
+	private Map<ExecutionJobVertex, IntArrayList> getInvolvedExecutionJobVerticesAndSubtasks(
+			final Set<ExecutionVertexID> executionVertices) {
+
+		final HashMap<ExecutionJobVertex, IntArrayList> result = new HashMap<>();
+
+		for (ExecutionVertexID executionVertexID : executionVertices) {
+			final ExecutionVertex executionVertex = getExecutionVertex(executionVertexID);
+			final IntArrayList subtasks = result.computeIfAbsent(
+					executionVertex.getJobVertex(),
+					(key) -> new IntArrayList(32));
+			subtasks.add(executionVertex.getParallelSubtaskIndex());
+		}
+
+		return result;
 	}
 
 	protected void transitionToScheduled(final List<ExecutionVertexID> verticesToDeploy) {

@@ -183,6 +183,11 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		// TODO - move the split reset logic here
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		runInEventLoop(
 			() -> {

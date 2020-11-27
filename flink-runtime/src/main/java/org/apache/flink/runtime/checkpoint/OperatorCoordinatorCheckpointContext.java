@@ -66,4 +66,15 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
 	 * In both cases, the coordinator should reset to an empty (new) state.
 	 */
 	void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception;
+
+	/**
+	 * Called if a task is recovered as part of a <i>partial failover</i>, meaning a failover
+	 * handled by the scheduler's failover strategy (by default recovering a pipelined region).
+	 * The method is invoked for each subtask involved in that partial failover.
+	 *
+	 * <p>In contrast to this method, the {@link #resetToCheckpoint(long, byte[])} method is called in
+	 * the case of a global failover, which is the case when the coordinator (JobManager) is
+	 * recovered.
+	 */
+	void subtaskReset(int subtask, long checkpointId);
 }

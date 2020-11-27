@@ -560,6 +560,9 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		public void subtaskFailed(int subtask, @Nullable Throwable reason) {}
 
 		@Override
+		public void subtaskReset(int subtask, long checkpointId) {}
+
+		@Override
 		public abstract void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
 		@Override
