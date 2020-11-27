@@ -19,6 +19,8 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connector.file.src.reader.BulkFormat;
+import org.apache.flink.connectors.hive.CachedSerializedValue;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.core.fs.FileSystem;
@@ -53,7 +55,7 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
 
 	private static final long serialVersionUID = 1L;
 
-	private final StorageDescriptor sd;
+	private final CachedSerializedValue<StorageDescriptor> sd;
 	private final Properties properties;
 	private final JobConfWrapper jobConfWrapper;
 	private final List<String> partitionKeys;
@@ -72,7 +74,11 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
 			String hiveVersion,
 			RowType producedRowType,
 			boolean useMapRedReader) {
-		this.sd = sd;
+		try {
+			this.sd = new CachedSerializedValue<>(sd);
+		} catch (IOException e) {
+			throw new FlinkHiveException("Failed to serialize StorageDescriptor", e);
+		}
 		this.properties = properties;
 		this.jobConfWrapper = new JobConfWrapper(jobConf);
 		this.partitionKeys = catalogTable.getPartitionKeys();
@@ -110,6 +116,10 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
 			partitionSpec.put(entry.getKey(), partitionValue);
 		}
 
-		return new HiveTablePartition(sd, partitionSpec, properties);
+		try {
+			return new HiveTablePartition(sd.deserializeValue(), partitionSpec, properties);
+		} catch (IOException | ClassNotFoundException e) {
+			throw new FlinkHiveException("Failed to deserialize StorageDescriptor", e);
+		}
 	}
 }
