@@ -92,7 +92,7 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 		}
 
 		env.addSource(new StreamingExecutionTestSource(latchId, NUM_RECORDS, triggerFailover))
-				.setParallelism(NUM_BUCKETS)
+				.setParallelism(NUM_SOURCES)
 				.sinkTo(createFileSink(path))
 				.setParallelism(NUM_SINKS);
 
