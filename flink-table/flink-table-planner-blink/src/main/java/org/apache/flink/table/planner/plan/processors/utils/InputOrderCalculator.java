@@ -169,7 +169,7 @@ public class InputOrderCalculator extends InputPriorityGraphGenerator {
 	@Override
 	protected void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput) {
 		throw new IllegalStateException(
-			"A conflict is detected. This is a bug. Please consider filing an issue.\n" +
+			"A conflict is detected. This is a bug. Please file an issue.\n" +
 				"To work around this bug, please set " +
 				OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED.key() +
 				" to false to disable multiple input operator.");
