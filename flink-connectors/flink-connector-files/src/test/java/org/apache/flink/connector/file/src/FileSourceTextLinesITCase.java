@@ -61,7 +61,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
@@ -146,6 +149,15 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		testBoundedTextFileSource(FailoverType.TM);
 	}
 
+	/**
+	 * This test runs a job reading bounded input with a stream record format (text lines)
+	 * and triggers JobManager failover.
+	 */
+	@Test
+	public void testBoundedTextFileSourceWithJobManagerFailover() throws Exception {
+		testBoundedTextFileSource(FailoverType.JM);
+	}
+
 	private void testBoundedTextFileSource(FailoverType failoverType) throws Exception {
 		final File testDir = TMP_FOLDER.newFolder();
 
@@ -168,12 +180,16 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			WatermarkStrategy.noWatermarks(),
 			"file-source");
 
-		final ClientAndIterator<String> client =
-			DataStreamUtils.collectWithClient(stream, "Bounded TextFiles Test");
+		final DataStream<String> streamFailingInTheMiddleOfReading =
+			RecordCounterToFail.wrapWithFailureAfter(stream, LINES.length / 2);
 
-		if (failoverType == FailoverType.TM) {
-			restartTaskManager();
-		}
+		final ClientAndIterator<String> client = DataStreamUtils.collectWithClient(
+			streamFailingInTheMiddleOfReading,
+			"Bounded TextFiles Test");
+		final JobID jobId = client.client.getJobID();
+
+		RecordCounterToFail.waitToFail();
+		triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing);
 
 		final List<String> result = new ArrayList<>();
 		while (client.iterator.hasNext()) {
@@ -247,7 +263,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			writeFile(testDir, i);
 			final boolean failAfterHalfOfInput = i == LINES_PER_FILE.length / 2;
 			if (failAfterHalfOfInput) {
-				triggerFailover(type, jobId);
+				triggerFailover(type, jobId, () -> {});
 			}
 		}
 
@@ -262,28 +278,36 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		verifyResult(result1);
 	}
 
-	private static void triggerFailover(FailoverType type, JobID jobId) throws Exception {
+	private static void triggerFailover(
+			FailoverType type,
+			JobID jobId,
+			Runnable afterFailAction) throws Exception {
 		switch (type) {
 			case NONE:
+				afterFailAction.run();
 				break;
 			case TM:
-				restartTaskManager();
+				restartTaskManager(afterFailAction);
 				break;
 			case JM:
-				triggerJobManagerFailover(jobId);
+				triggerJobManagerFailover(jobId, afterFailAction);
 				break;
 		}
 	}
 
-	private static void triggerJobManagerFailover(JobID jobId) throws Exception {
+	private static void triggerJobManagerFailover(JobID jobId, Runnable afterFailAction) throws Exception {
 		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
-		Thread.sleep(100);
+		Thread.sleep(50);
+		afterFailAction.run();
+		Thread.sleep(50);
 		highAvailabilityServices.grantJobMasterLeadership(jobId).get();
 	}
 
-	private static void restartTaskManager() throws Exception {
+	private static void restartTaskManager(Runnable afterFailAction) throws Exception {
 		miniCluster.terminateTaskExecutor(0).get();
-		Thread.sleep(100);
+		Thread.sleep(50);
+		afterFailAction.run();
+		Thread.sleep(50);
 		miniCluster.startTaskExecutor();
 	}
 
@@ -496,6 +520,38 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		@Override
 		public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
 			return checkpointIDCounter;
+		}
+	}
+
+	private enum RecordCounterToFail {
+		;
+
+		private static AtomicInteger records;
+		private static CompletableFuture<Void> fail;
+		private static CompletableFuture<Void> continueProcessing;
+
+		private static <T> DataStream<T> wrapWithFailureAfter(
+				DataStream<T> stream, int failAfter) {
+			records = new AtomicInteger();
+			fail = new CompletableFuture<>();
+			continueProcessing = new CompletableFuture<>();
+			return stream.map(record -> {
+				final boolean halfOfInputIsRead = records.incrementAndGet() > failAfter;
+				final boolean notFailedYet = !fail.isDone();
+				if (notFailedYet && halfOfInputIsRead) {
+					fail.complete(null);
+					continueProcessing.get();
+				}
+				return record;
+			});
+		}
+
+		private static void waitToFail() throws ExecutionException, InterruptedException {
+			fail.get();
+		}
+
+		private static void continueProcessing() {
+			continueProcessing.complete(null);
 		}
 	}
 }
