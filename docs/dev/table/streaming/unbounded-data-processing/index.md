@@ -38,4 +38,3 @@ Where to go next?
 * [Dynamic Tables]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/dynamic_tables.html): Describes the concept of dynamic tables.
 * [Time attributes]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/time_attributes.html): Explains time attributes and how time attributes are handled in Table API & SQL.
 * [Joins in Continuous Queries]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/joins.html): Different supported types of Joins in Continuous Queries.
-* [Query configuration]({{ site.baseurl }}/dev/table/streaming/unbounded-data-processing/query_configuration.html): Lists Table API & SQL specific configuration options.

@@ -204,6 +204,111 @@ Most of the semantically valid queries can be evaluated as continuous queries on
     );
     {% endhighlight %}
 
-The [Query Configuration](query_configuration.html) page discusses parameters to control the execution of continuous queries. Some parameters can be used to trade the size of maintained state for result accuracy.
+Tuning Query State
+----------------------
+
+As discussed in previous section, for some continuous queries you have to limit the size of the state they are maintaining in order to avoid to run out of storage. It depends on the characteristics of the input data and the query itself whether you need to limit the state size and if how it affects the accuracy of the computed results.
+
+Flink's Table API and SQL interface provide parameters to tune the accuracy and resource consumption of continuous queries. The parameters are specified via a `TableConfig` object, which can be obtained from the `TableEnvironment`.
+
+Currently, you can tune the Idle state retention time in Flink. By removing the state of a key, the continuous query completely forgets that it has seen this key before. If a record with a key, whose state has been removed before, is processed, the record will be treated as if it was the first record with the respective key. e.g. In the queries mentioned in the [Challenges in Unbounded Data Processing](#challenges-in-unbounded-data-processing) section, we can allow flink to forget about an `user` after 1 hour. If a new event, arrives for the same user after the state has been cleared up, the count will be initiated to `0`
+
+There are two parameters to configure the idle state retention time:
+- The **minimum idle state retention time** defines how long the state of an inactive key is at least kept before it is removed.
+- The **maximum idle state retention time** defines how long the state of an inactive key is at most kept before it is removed.
+
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// obtain query configuration from TableEnvironment
+TableConfig tConfig = tableEnv.getConfig();
+// set query parameters
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24));
+
+// define query
+Table result = ...
+
+// create TableSink
+TableSink<Row> sink = ...
+
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",               // table name
+  new String[]{...},           // field names
+  new TypeInformation[]{...},  // field types
+  sink);                       // table sink
+
+// emit result Table via a TableSink
+result.executeInsert("outputTable");
+
+// convert result Table into a DataStream<Row>
+DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env)
+
+// obtain query configuration from TableEnvironment
+val tConfig: TableConfig = tableEnv.getConfig
+// set query parameters
+tConfig.setIdleStateRetentionTime(Time.hours(12), Time.hours(24))
+
+// define query
+val result: Table = ???
+
+// create TableSink
+val sink: TableSink[Row] = ???
+
+// register TableSink
+tableEnv.registerTableSink(
+  "outputTable",                  // table name
+  Array[String](...),             // field names
+  Array[TypeInformation[_]](...), // field types
+  sink)                           // table sink
+
+// emit result Table via a TableSink
+result.executeInsert("outputTable")
+
+// convert result Table into a DataStream[Row]
+val stream: DataStream[Row] = result.toAppendStream[Row]
+
+{% endhighlight %}
+</div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# use TableConfig in python API
+t_config = TableConfig()
+# set query parameters
+t_config.set_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
+
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env, t_config)
+
+# define query
+result = ...
+
+# create TableSink
+sink = ...
+
+# register TableSink
+table_env.register_table_sink("outputTable",  # table name
+                              sink)  # table sink
+
+# emit result Table via a TableSink
+result.insert_into("outputTable")
+
+{% endhighlight %}
+</div>
+</div>
+
+Cleaning up state requires additional bookkeeping which becomes less expensive for larger differences of `minTime` and `maxTime`. The difference between `minTime` and `maxTime` must be at least 5 minutes.
 
 {% top %}
