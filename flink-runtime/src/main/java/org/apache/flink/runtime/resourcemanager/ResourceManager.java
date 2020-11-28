@@ -145,7 +145,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private final ClusterInformation clusterInformation;
 
-    private final ResourceManagerMetricGroup resourceManagerMetricGroup;
+    protected final ResourceManagerMetricGroup resourceManagerMetricGroup;
 
     protected final Executor ioExecutor;
 
@@ -247,7 +247,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             leaderElectionService.start(this);
             jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
-            registerTaskExecutorMetrics();
+            registerMetrics();
         } catch (Exception e) {
             handleStartResourceManagerServicesException(e);
         }
@@ -980,7 +980,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    private void registerTaskExecutorMetrics() {
+    protected void registerMetrics() {
         resourceManagerMetricGroup.gauge(
                 MetricNames.NUM_REGISTERED_TASK_MANAGERS, () -> (long) taskExecutors.size());
     }

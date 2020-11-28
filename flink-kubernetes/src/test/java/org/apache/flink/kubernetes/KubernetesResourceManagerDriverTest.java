@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
@@ -38,17 +37,14 @@ import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTest
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -59,11 +55,9 @@ public class KubernetesResourceManagerDriverTest
         extends ResourceManagerDriverTestBase<KubernetesWorkerNode> {
 
     private static final String CLUSTER_ID = "testing-flink-cluster";
-    private static final Time POD_CREATION_INTERVAL = Time.milliseconds(50L);
     private static final KubernetesResourceManagerDriverConfiguration
             KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
-                    new KubernetesResourceManagerDriverConfiguration(
-                            CLUSTER_ID, POD_CREATION_INTERVAL);
+                    new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID);
 
     @Test
     public void testOnPodAdded() throws Exception {
@@ -153,51 +147,6 @@ public class KubernetesResourceManagerDriverTest
                             assertThat(
                                     onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     is(testingError));
-                        });
-            }
-        };
-    }
-
-    @Test
-    public void testPodCreationInterval() throws Exception {
-        new Context() {
-            {
-                final AtomicInteger createPodCount = new AtomicInteger(0);
-                final List<CompletableFuture<Long>> createPodTimeFutures = new ArrayList<>();
-                createPodTimeFutures.add(new CompletableFuture<>());
-                createPodTimeFutures.add(new CompletableFuture<>());
-
-                flinkKubeClientBuilder.setCreateTaskManagerPodFunction(
-                        (ignore) -> {
-                            int idx = createPodCount.getAndIncrement();
-                            if (idx < createPodTimeFutures.size()) {
-                                createPodTimeFutures.get(idx).complete(System.currentTimeMillis());
-                            }
-                            return FutureUtils.completedExceptionally(
-                                    new Throwable("testing error"));
-                        });
-
-                runTest(
-                        () -> {
-                            // re-request resource on pod creation failed
-                            runInMainThread(
-                                    () ->
-                                            getDriver()
-                                                    .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
-                                                    .whenComplete(
-                                                            (ignore1, ignore2) ->
-                                                                    getDriver()
-                                                                            .requestResource(
-                                                                                    TASK_EXECUTOR_PROCESS_SPEC)));
-
-                            // validate trying creating pod twice, with proper interval
-                            long t1 =
-                                    createPodTimeFutures.get(0).get(TIMEOUT_SEC, TimeUnit.SECONDS);
-                            long t2 =
-                                    createPodTimeFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
-                            assertThat(
-                                    (t2 - t1),
-                                    greaterThanOrEqualTo(POD_CREATION_INTERVAL.toMilliseconds()));
                         });
             }
         };
