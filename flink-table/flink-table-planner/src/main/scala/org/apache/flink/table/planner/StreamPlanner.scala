@@ -171,17 +171,14 @@ class StreamPlanner(
       s"$optimizedPlan" +
       System.lineSeparator +
       s"== Physical Execution Plan ==" +
-      System.lineSeparator +
-      s"$sqlPlan"
+      System.lineSeparator
 
     if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
       s"$explanation" +
-      System.lineSeparator +
-      s"== Streaming Execution Plan ==" +
-      System.lineSeparator +
       s"$jsonSqlPlan"
     } else {
-      s"$explanation"
+      s"$explanation" +
+      s"$sqlPlan"
     }
   }
 
