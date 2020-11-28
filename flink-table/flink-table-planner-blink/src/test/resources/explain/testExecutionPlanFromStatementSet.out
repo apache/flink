@@ -1,0 +1,142 @@
+== Abstract Syntax Tree ==
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
++- LogicalProject(first=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[last])
++- LogicalProject(last=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+
+== Optimized Logical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[last])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" :
+    "type" : "Source: Custom File source",
+    "pact" : "Data Source",
+    "contents" : "Source: Custom File source",
+    "parallelism" : 1
+  }, {
+    "id" :
+    "type" : "CsvTableSource(read fields: first)",
+    "pact" : "Operator",
+    "contents" : "CsvTableSource(read fields: first)",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: first)]], fields=[first])",
+    "pact" : "Operator",
+    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: first)]], fields=[first])",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "SinkConversionToRow",
+    "pact" : "Operator",
+    "contents" : "SinkConversionToRow",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "Map",
+    "pact" : "Operator",
+    "contents" : "Map",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "Source: Custom File source",
+    "pact" : "Data Source",
+    "contents" : "Source: Custom File source",
+    "parallelism" : 1
+  }, {
+    "id" :
+    "type" : "CsvTableSource(read fields: last)",
+    "pact" : "Operator",
+    "contents" : "CsvTableSource(read fields: last)",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
+    "pact" : "Operator",
+    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "SinkConversionToRow",
+    "pact" : "Operator",
+    "contents" : "SinkConversionToRow",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "Map",
+    "pact" : "Operator",
+    "contents" : "Map",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "Sink: CsvTableSink(first)",
+    "pact" : "Data Sink",
+    "contents" : "Sink: CsvTableSink(first)",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" :
+    "type" : "Sink: CsvTableSink(last)",
+    "pact" : "Data Sink",
+    "contents" : "Sink: CsvTableSink(last)",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" :
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}

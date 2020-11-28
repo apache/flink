@@ -27,7 +27,7 @@ import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaS
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
-import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils, TestLogger}
@@ -427,6 +427,23 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
+  }
+
+  @Test
+  def testExecutionPlanFromStatementSet(): Unit = {
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
+
+    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("last"), Array(STRING)), "MySink2")
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsert("MySink1", tEnv.sqlQuery("select first from MyTable"))
+        .addInsertSql("insert into MySink2 select last from MyTable")
+
+    val actual = stmtSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
+    val expected = TableTestUtil.readFromResource("/explain/testExecutionPlanFromStatementSet.out")
+    assertEquals(replaceStreamNodeId(expected), replaceStreamNodeId(actual))
   }
 
   @Test
