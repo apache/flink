@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.metrics.ThresholdMeter;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -37,6 +40,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /**
@@ -98,6 +102,9 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             Executor ioExecutor)
             throws Exception {
 
+        final ThresholdMeter failureRater = createStartWorkerFailureRater(configuration);
+        final Duration retryInterval =
+                configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
         return new ActiveResourceManager<>(
                 createResourceManagerDriver(
                         configuration, webInterfaceUrl, rpcService.getAddress()),
@@ -112,10 +119,23 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
+                failureRater,
+                retryInterval,
                 ioExecutor);
     }
 
     protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
             Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress)
             throws Exception;
+
+    public static ThresholdMeter createStartWorkerFailureRater(Configuration configuration) {
+        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
+        if (rate <= 0) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "Configured max start worker failure rate ('%s') must be larger than 0. Current: %f",
+                            ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE.key(), rate));
+        }
+        return new ThresholdMeter(rate, Duration.ofMinutes(1));
+    }
 }
