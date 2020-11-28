@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 /** The set of configuration options relating to the ResourceManager. */
 @PublicEvolving
 public class ResourceManagerOptions {
@@ -78,6 +80,37 @@ public class ResourceManagerOptions {
                             "The number of redundant task managers. Redundant task managers are extra task managers "
                                     + "started by Flink, in order to speed up job recovery in case of failures due to task manager lost. "
                                     + "Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
+
+    /**
+     * Defines the maximum number of worker (YARN / Mesos / Kubernetes) failures per minute before
+     * rejecting subsequent worker requests until the failure rate falls below the maximum. It is to
+     * quickly catch external dependency caused workers failure and wait for retry interval before
+     * sending new request. By default, the value is set to 10/min.
+     */
+    public static final ConfigOption<Double> MAXIMUM_WORKERS_FAILURE_RATE =
+            ConfigOptions.key("resourcemanager.start-worker.max-failure-rate")
+                    .doubleType()
+                    .defaultValue(10.0)
+                    .withDescription(
+                            "Defines the maximum number of worker (YARN / Mesos) failures per minute before rejecting"
+                                    + " subsequent worker requests until the failure rate falls below the maximum. It is to quickly catch"
+                                    + " external dependency caused workers failure and terminate job accordingly."
+                                    + " By default, the value is set to 10/min.");
+
+    /**
+     * Defines the worker creation interval in milliseconds. In case of worker creation failures, we
+     * should wait for an interval before trying to create new workers when the failure rate
+     * exceeds. Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps
+     * the main thread busy.
+     */
+    public static final ConfigOption<Duration> WORKER_CREATION_RETRY_INTERVAL =
+            ConfigOptions.key("resourcemanager.start-worker.retry-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(3))
+                    .withDescription(
+                            "Defines the worker creation interval in milliseconds. In case of worker creation failures,"
+                                    + " we should wait for an interval before trying to create new workers when the failure rate exceeds."
+                                    + " Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps the main thread busy.");
 
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
