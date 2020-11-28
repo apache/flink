@@ -325,7 +325,7 @@ class RowTypeInfo(WrapperTypeInfo):
     TypeInformation for Row.
     """
 
-    def __init__(self, types: List[WrapperTypeInfo], field_names: List[str] = None):
+    def __init__(self, types: List[TypeInformation], field_names: List[str] = None):
         self.types = types
         self.field_names = field_names
         self.j_types_array = get_gateway().new_array(
@@ -358,7 +358,7 @@ class RowTypeInfo(WrapperTypeInfo):
     def get_field_index(self, field_name: str) -> int:
         return self._j_typeinfo.getFieldIndex(field_name)
 
-    def get_field_types(self) -> List[WrapperTypeInfo]:
+    def get_field_types(self) -> List[TypeInformation]:
         return self.types
 
     def __eq__(self, other) -> bool:
@@ -428,7 +428,7 @@ class TupleTypeInfo(WrapperTypeInfo):
     TypeInformation for Tuple.
     """
 
-    def __init__(self, types: List[WrapperTypeInfo]):
+    def __init__(self, types: List[TypeInformation]):
         self.types = types
         j_types_array = get_gateway().new_array(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation, len(types))
@@ -442,7 +442,7 @@ class TupleTypeInfo(WrapperTypeInfo):
             .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
         super(TupleTypeInfo, self).__init__(j_typeinfo=j_typeinfo)
 
-    def get_field_types(self) -> List[WrapperTypeInfo]:
+    def get_field_types(self) -> List[TypeInformation]:
         return self.types
 
     def __eq__(self, other) -> bool:
@@ -558,7 +558,7 @@ class Types(object):
     PICKLED_BYTE_ARRAY = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO
 
     @staticmethod
-    def ROW(types: List[WrapperTypeInfo]):
+    def ROW(types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types. A row itself must not be
         null.
@@ -568,7 +568,7 @@ class Types(object):
         return RowTypeInfo(types)
 
     @staticmethod
-    def ROW_NAMED(names: List[str], types: List[WrapperTypeInfo]):
+    def ROW_NAMED(names: List[str], types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types and with given names. A row
         must not be null.
@@ -579,7 +579,7 @@ class Types(object):
         return RowTypeInfo(types, names)
 
     @staticmethod
-    def TUPLE(types: List[WrapperTypeInfo]):
+    def TUPLE(types: List[TypeInformation]):
         """
         Returns type information for Tuple with fields of the given types. A Tuple itself must not
         be null.
@@ -617,7 +617,7 @@ class Types(object):
             raise TypeError("Invalid element type for a primitive array.")
 
     @staticmethod
-    def BASIC_ARRAY(element_type: TypeInformation) -> WrapperTypeInfo:
+    def BASIC_ARRAY(element_type: TypeInformation) -> TypeInformation:
         """
         Returns type information for arrays of boxed primitive type (such as Integer[]).
 
@@ -647,7 +647,7 @@ class Types(object):
                             str(element_type))
 
 
-def _from_java_type(j_type_info: JavaObject) -> WrapperTypeInfo:
+def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     gateway = get_gateway()
     JBasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
 

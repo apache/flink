@@ -124,7 +124,7 @@ class DataStream(object):
         self._j_data_stream.setMaxParallelism(max_parallelism)
         return self
 
-    def get_type(self) -> WrapperTypeInfo:
+    def get_type(self) -> TypeInformation:
         """
         Gets the type of the stream.
 
@@ -213,7 +213,7 @@ class DataStream(object):
         self._j_data_stream.slotSharingGroup(slot_sharing_group)
         return self
 
-    def map(self, func: Union[Callable, MapFunction], output_type: WrapperTypeInfo = None) \
+    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
@@ -605,14 +605,14 @@ class DataStream(object):
         the elements of the given DataStream.
 
         The DataStream application is executed in the regular distributed manner on the target
-         environment, and the events from the stream are polled back to this application process and
-         thread through Flink's REST API.
+        environment, and the events from the stream are polled back to this application process and
+        thread through Flink's REST API.
 
-         The returned iterator must be closed to free all cluster resources.
+        The returned iterator must be closed to free all cluster resources.
 
-         :param job_execution_name: The name of the job execution.
-         :param limit: The limit for the collected elements.
-         """
+        :param job_execution_name: The name of the job execution.
+        :param limit: The limit for the collected elements.
+        """
         if job_execution_name is None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
         elif job_execution_name is not None and limit is None:
@@ -787,7 +787,7 @@ class KeyedStream(DataStream):
         self._original_data_type_info = original_data_type_info
         self._origin_stream = origin_stream
 
-    def map(self, func: Union[Callable, MapFunction], output_type: WrapperTypeInfo = None) \
+    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
         return self._values().map(func, output_type)
 

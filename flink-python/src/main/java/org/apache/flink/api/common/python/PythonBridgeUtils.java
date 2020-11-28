@@ -24,8 +24,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
@@ -321,35 +322,23 @@ public final class PythonBridgeUtils {
 						tmpRowFieldTypes[i]));
 				}
 				return rowFieldBytes;
-			} else if (dataType instanceof MapTypeInfo) {
-				List<List<Object>> serializedMapKV = new ArrayList<>(2);
-				MapTypeInfo<?, ?> mapType = (MapTypeInfo) dataType;
-				TypeInformation<?> keyType = mapType.getKeyTypeInfo();
-				TypeInformation<?> valueType = mapType.getValueTypeInfo();
-				List<Object> keyBytesList = new ArrayList<>();
-				List<Object> valueBytesList = new ArrayList<>();
-				Map<Object, Object> mapObj = (Map) obj;
-				for (Map.Entry<?, ?> entry : mapObj.entrySet()) {
-					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), keyType));
-					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), valueType));
+			} else if (dataType instanceof TupleTypeInfo) {
+				Tuple tmpTuple = (Tuple) obj;
+				TypeInformation<?>[] tmpTupleFieldTypes = ((TupleTypeInfo<?>) dataType).getFieldTypes();
+				List<Object> tupleFieldBytes = new ArrayList<>(tmpTuple.getArity() + 1);
+				for (int i = 0; i < tmpTuple.getArity(); i++) {
+					tupleFieldBytes.add(getPickledBytesFromJavaObject(
+						tmpTuple.getField(i),
+						tmpTupleFieldTypes[i]));
 				}
-				serializedMapKV.add(keyBytesList);
-				serializedMapKV.add(valueBytesList);
-				return pickler.dumps(serializedMapKV);
-			} else if (dataType instanceof BasicArrayTypeInfo) {
+				return tupleFieldBytes;
+			} else if (dataType instanceof BasicArrayTypeInfo
+				|| dataType instanceof PrimitiveArrayTypeInfo) {
 				List<Object> serializedElements = new ArrayList<>();
 				Object[] objects = (Object[]) obj;
-				BasicArrayTypeInfo<?, ?> arrayType = (BasicArrayTypeInfo) dataType;
-				TypeInformation<?> elementType = arrayType.getComponentInfo();
-				for (Object object : objects) {
-					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
-				}
-				return pickler.dumps(serializedElements);
-			} else if (dataType instanceof PrimitiveArrayTypeInfo) {
-				List<Object> serializedElements = new ArrayList<>();
-				Object[] objects = (Object[]) obj;
-				PrimitiveArrayTypeInfo<?> arrayType = (PrimitiveArrayTypeInfo) dataType;
-				TypeInformation<?> elementType = arrayType.getComponentType();
+				TypeInformation<?> elementType = dataType instanceof BasicArrayTypeInfo ?
+					((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo() :
+					((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
 				for (Object object : objects) {
 					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
 				}

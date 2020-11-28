@@ -81,7 +81,11 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	public int getArity() {
 		return types.length;
 	}
-	
+
+	public TypeInformation<?>[] getFieldTypes() {
+		return types;
+	}
+
 	@Override
 	public int getTotalFields() {
 		return totalFields;

@@ -20,7 +20,7 @@ import datetime
 import pickle
 
 from pyflink.common import typeinfo
-from pyflink.common.typeinfo import WrapperTypeInfo, RowTypeInfo, TupleTypeInfo, Types, \
+from pyflink.common.typeinfo import RowTypeInfo, TupleTypeInfo, Types, \
     BasicArrayTypeInfo, PrimitiveArrayTypeInfo
 from pyflink.java_gateway import get_gateway
 
@@ -45,7 +45,7 @@ def convert_to_python_obj(data, type_info):
             return pickled_bytes_to_python_converter(pickle_bytes, type_info)
 
 
-def pickled_bytes_to_python_converter(data, field_type: WrapperTypeInfo):
+def pickled_bytes_to_python_converter(data, field_type):
     if isinstance(field_type, RowTypeInfo):
         data = zip(list(data[1:]), field_type.get_field_types())
         fields = []
