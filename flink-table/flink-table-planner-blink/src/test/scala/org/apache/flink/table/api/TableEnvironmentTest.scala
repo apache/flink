@@ -114,6 +114,7 @@ class TableEnvironmentTest {
     TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
 
+    execEnv.setParallelism(1)
     val expected =
       TableTestUtil.readFromResource("/explain/testStreamTableEnvironmentExecutionExplain.out")
     val actual = tEnv.explainSql("insert into MySink select first from MyTable",
