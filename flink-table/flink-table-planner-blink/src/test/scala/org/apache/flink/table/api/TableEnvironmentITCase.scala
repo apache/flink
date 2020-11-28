@@ -442,7 +442,9 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
         .addInsertSql("insert into MySink2 select last from MyTable")
 
     val actual = stmtSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
-    val expected = TableTestUtil.readFromResource("/explain/testExecutionPlanFromStatementSet.out")
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExecutionPlanFromStatementSet.out")
+
     assertEquals(replaceStreamNodeId(expected), replaceStreamNodeId(actual))
   }
 
