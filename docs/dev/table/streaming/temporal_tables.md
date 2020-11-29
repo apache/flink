@@ -151,7 +151,7 @@ The example above was used to provide an intuition about what the function `Rate
 
 See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
 
-### Defining Temporal Table Function
+### Usage
 
 The following code snippet illustrates how to create a temporal table function from an append-only table.
 
@@ -252,7 +252,7 @@ Yen           1
 
 See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
 
-### Defining Temporal Table
+### Usage
 
 
 <div class="codetabs" markdown="1">

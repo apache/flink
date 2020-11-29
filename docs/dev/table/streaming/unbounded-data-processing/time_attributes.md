@@ -24,9 +24,9 @@ under the License.
 
 Flink is able to process streaming data based on different notions of *time*. 
 
-- *Processing time* refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
-- *Event time* refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
-- *Ingestion time* is the time that events enter Flink; internally, it is treated similarly to event time.
+- **Processing time** refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
+- **Event time** refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
+- **Ingestion time** is the time that events enter Flink; internally, it is treated similarly to event time.
 
 For more information about time handling in Flink, see the introduction about [Event Time and Watermarks]({{ site.baseurl }}/dev/event_time.html).
 
@@ -89,7 +89,7 @@ Processing time allows a table program to produce results based on the time of t
 
 There are three ways to define a processing time attribute.
 
-### Defining in create table DDL
+### Define in create table DDL
 
 The processing time attribute is defined as a computed column in create table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about computed column.
 
@@ -110,7 +110,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 {% endhighlight %}
 
 
-### During DataStream-to-Table Conversion
+### Define during DataStream-to-Table Conversion
 
 The processing time attribute is defined with the `.proctime` property during schema definition. The time attribute must only extend the physical schema by an additional logical field. Thus, it can only be defined at the end of the schema definition.
 
@@ -140,7 +140,7 @@ val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" a
 </div>
 </div>
 
-### Using a TableSource
+### Define using a TableSource
 
 The processing time attribute is defined by a `TableSource` that implements the `DefinedProctimeAttribute` interface. The logical time attribute is appended to the physical schema defined by the return type of the `TableSource`.
 
@@ -226,7 +226,7 @@ In order to handle out-of-order events and distinguish between on-time and late 
 
 An event time attribute can be defined either in create table DDL or during DataStream-to-Table conversion or by using a TableSource.
 
-### Defining in create table DDL
+### Define in create table DDL
 
 The event time attribute is defined using WATERMARK statement in CREATE TABLE DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as event time attribute. Please see [CREATE TABLE DDL]({{ site.baseurl }}/dev/table/sql/create.html#create-table) for more information about watermark statement and watermark strategies.
 
@@ -249,7 +249,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 {% endhighlight %}
 
 
-### During DataStream-to-Table Conversion
+### Define during DataStream-to-Table Conversion
 
 The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{ site.baseurl }}/dev/event_time.html) must have been assigned in the `DataStream` that is converted.
 
@@ -318,7 +318,7 @@ val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" a
 </div>
 </div>
 
-### Using a TableSource
+### Define using a TableSource
 
 The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttributes` interface. The `getRowtimeAttributeDescriptors()` method returns a list of `RowtimeAttributeDescriptor` for describing the final name of a time attribute, a timestamp extractor to derive the values of the attribute, and the watermark strategy associated with the attribute.
 
