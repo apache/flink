@@ -186,7 +186,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 	// ------------------------------------------
 
 	@Override
-	protected SourceReader<Integer, KafkaPartitionSplit> createReader() {
+	protected SourceReader<Integer, KafkaPartitionSplit> createReader() throws Exception {
 		return createReader(Boundedness.BOUNDED, "KafkaSourceReaderTestGroup");
 	}
 
@@ -218,7 +218,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
 	private SourceReader<Integer, KafkaPartitionSplit> createReader(
 			Boundedness boundedness,
-			String groupId) {
+			String groupId) throws Exception {
 		KafkaSourceBuilder<Integer> builder = KafkaSource.<Integer>builder()
 			.setClientIdPrefix("KafkaSourceReaderTest")
 			.setDeserializer(KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class))
