@@ -35,6 +35,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.junit.After;
 import org.junit.Test;
@@ -210,6 +212,11 @@ public class FileSourceHeavyThroughputTest {
 
 		@Override
 		public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {}
+
+		@Override
+		public UserCodeClassLoader getUserCodeClassLoader() {
+			return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
+		}
 	}
 
 	private static final class NoOpReaderOutput<E> implements ReaderOutput<E> {
