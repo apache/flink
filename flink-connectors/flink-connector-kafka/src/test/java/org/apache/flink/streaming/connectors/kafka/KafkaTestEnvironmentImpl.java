@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -172,6 +175,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			throws Exception {
 		try {
 			adminClient.deleteTopics(Collections.singleton(topic)).all().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+			for (KafkaServer kafkaServer : brokers) {
+				CommonTestUtils.waitUtil(
+					() -> !kafkaServer.metadataCache().contains(topic),
+					Duration.ofSeconds(10),
+					"The topic metadata failed to propagate to Kafka broker for deleted topics.");
+			}
 		} catch (TimeoutException e) {
 			LOG.info("Did not receive delete topic response within {} seconds. Checking if it succeeded",
 				DELETE_TIMEOUT_SECONDS);
@@ -238,6 +247,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer<T>(topics, readSchema, props);
+	}
+
+	@Override
+	public <T> KafkaSourceBuilder<T> getSourceBuilder(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
+		return KafkaSource
+				.<T>builder()
+				.setTopics(topics).setDeserializer(KafkaRecordDeserializer.of(readSchema))
+				.setProperties(props);
 	}
 
 	@Override
