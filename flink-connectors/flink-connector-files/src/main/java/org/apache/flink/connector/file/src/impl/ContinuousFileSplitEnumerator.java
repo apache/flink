@@ -125,7 +125,11 @@ public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSource
 
 	@Override
 	public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() throws Exception {
-		return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits(), pathsAlreadyProcessed);
+		final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
+				PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits(), pathsAlreadyProcessed);
+
+		LOG.debug("Source Checkpoint is {}", checkpoint);
+		return checkpoint;
 	}
 
 	// ------------------------------------------------------------------------

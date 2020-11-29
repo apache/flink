@@ -64,6 +64,16 @@ public class PendingSplitsCheckpoint<SplitT extends FileSourceSplit> {
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Override
+	public String toString() {
+		return "PendingSplitsCheckpoint:\n" +
+				"\t\t Pending Splits: " + splits + '\n' +
+				"\t\t Processed Paths: " + alreadyProcessedPaths + '\n';
+	}
+
+
+	// ------------------------------------------------------------------------
 	//  factories
 	// ------------------------------------------------------------------------
 
