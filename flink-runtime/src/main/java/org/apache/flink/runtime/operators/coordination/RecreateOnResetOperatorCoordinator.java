@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -47,7 +48,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 	private final long closingTimeoutMs;
 	private final OperatorCoordinator.Context context;
 	private DeferrableCoordinator coordinator;
-	private volatile boolean started;
+	private  boolean started;
 	private volatile boolean closed;
 
 	private RecreateOnResetOperatorCoordinator(
@@ -66,8 +67,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
 	@Override
 	public void start() throws Exception {
-		coordinator.start();
+		Preconditions.checkState(!started, "coordinator already started");
 		started = true;
+		coordinator.applyCall(
+			"start",
+			OperatorCoordinator::start);
 	}
 
 	@Override
@@ -125,12 +129,16 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 		// Close the old coordinator asynchronously in a separate closing thread.
 		// The future will be completed when the old coordinator closes.
 		CompletableFuture<Void> closingFuture = oldCoordinator.closeAsync(closingTimeoutMs);
-		// Create and
+
+		// Create and possibly start the coordinator and apply all meanwhile deferred calls
+		// capture the status whether the coordinator was started when this method was called
+		final boolean wasStarted = this.started;
+
 		closingFuture.thenRun(() -> {
 			if (!closed) {
 				// The previous coordinator has closed. Create a new one.
 				newCoordinator.createNewInternalCoordinator(context, provider);
-				newCoordinator.resetAndStart(checkpointId, checkpointData, started);
+				newCoordinator.resetAndStart(checkpointId, checkpointData, wasStarted);
 				newCoordinator.processPendingCalls();
 			}
 		});

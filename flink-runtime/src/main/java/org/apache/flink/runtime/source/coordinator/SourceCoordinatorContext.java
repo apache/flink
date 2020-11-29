@@ -298,11 +298,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	/**
 	 * Get the split to put back. This only happens when a source reader subtask has failed.
 	 *
-	 * @param failedSubtaskId the failed subtask id.
+	 * @param subtaskId the failed subtask id.
+	 * @param restoredCheckpointId the checkpoint that the task is recovered to.
 	 * @return A list of splits that needs to be added back to the {@link SplitEnumerator}.
 	 */
-	List<SplitT> getAndRemoveUncheckpointedAssignment(int failedSubtaskId) {
-		return assignmentTracker.getAndRemoveUncheckpointedAssignment(failedSubtaskId);
+	List<SplitT> getAndRemoveUncheckpointedAssignment(int subtaskId, long restoredCheckpointId) {
+		return assignmentTracker.getAndRemoveUncheckpointedAssignment(subtaskId, restoredCheckpointId);
 	}
 
 	/**
