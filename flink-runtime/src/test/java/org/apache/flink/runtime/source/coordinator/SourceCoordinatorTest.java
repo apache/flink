@@ -201,6 +201,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
 		// Fail reader 0.
 		sourceCoordinator.subtaskFailed(0, null);
+		sourceCoordinator.subtaskReset(0, 99L); // checkpoint ID before the triggered checkpoints
 
 		// check the state again.
 		check(() -> {
