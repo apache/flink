@@ -1,5 +1,5 @@
 ---
-title:  "Mesos Setup"
+title:  "Flink on Mesos"
 nav-title: Mesos
 nav-parent_id: resource_providers
 nav-pos: 5
@@ -26,226 +26,255 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Background
+## Getting Started
 
-The Mesos implementation consists of two components: The Application Master and
-the Worker. The workers are simple TaskManagers which are parameterized by the environment
-set up by the application master. The most sophisticated component of the Mesos
-implementation is the application master. The application master currently hosts
-the following components:
+This *Getting Started* section guides you through setting up a fully functional Flink Cluster on Mesos.
 
-### Mesos Scheduler
+### Introduction
 
-The scheduler is responsible for registering the framework with Mesos,
-requesting resources, and launching worker nodes. The scheduler continuously
-needs to report back to Mesos to ensure the framework is in a healthy state. To
-verify the health of the cluster, the scheduler monitors the spawned workers and
-marks them as failed and restarts them if necessary.
+[Apache Mesos](http://mesos.apache.org/) is another resource provider supported by 
+Apache Flink. Flink utilizes the worker's provided by Mesos to run its TaskManagers.
+Apache Flink provides the script `bin/mesos-appmaster.sh` to initiate the Flink 
+on Mesos cluster.
 
-Flink's Mesos scheduler itself is currently not highly available. However, it
-persists all necessary information about its state (e.g. configuration, list of
-workers) in Zookeeper. In the presence of a failure, it relies on an external
-system to bring up a new scheduler. The scheduler will then register with Mesos
-again and go through the reconciliation phase. In the reconciliation phase, the
-scheduler receives a list of running workers nodes. It matches these against the
-recovered information from Zookeeper and makes sure to bring back the cluster in
-the state before the failure.
+### Preparation
 
-### Artifact Server
+Flink on Mesos expects a Mesos cluster to be around. It also requires the Flink binaries being 
+deployed. Additionally, Hadoop needs to be installed on the very same machine.
 
-The artifact server is responsible for providing resources to the worker
-nodes. The resources can be anything from the Flink binaries to shared secrets
-or configuration files. For instance, in non-containerized environments, the
-artifact server will provide the Flink binaries. What files will be served
-depends on the configuration overlay used.
+Flink provides `bin/mesos-appmaster.sh` to initiate a Flink on Mesos cluster. A Mesos application master 
+will be created (i.e. a JobManager process with Mesos support) which will utilize the Mesos workers to 
+run Flink's TaskManager processes.
 
-### Flink's JobManager and Web Interface
+For `bin/mesos-appmaster.sh` to work, you have to set the two variables `HADOOP_CLASSPATH` and 
+`MESOS_NATIVE_JAVA_LIBRARY`:
 
-The JobManager and the web interface provide a central point for monitoring,
-job submission, and other client interaction with the cluster
-(see [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)).
+{% highlight bash %}
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
+{% endhighlight %}
 
-### Startup script and configuration overlays
+`MESOS_NATIVE_JAVA_LIBRARY` needs to point to Mesos' native Java library. The library name `libmesos.so` 
+used above refers to Mesos' Linux library. Running Mesos on MacOS would require you to use 
+`libmesos.dylib` instead.
 
-The startup script provide a way to configure and start the application
-master. All further configuration is then inherited by the workers nodes. This
-is achieved using configuration overlays. Configuration overlays provide a way
-to infer configuration from environment variables and config files which are
-shipped to the worker nodes.
+### Starting a Flink Session on Mesos
 
+Connect to the machine which matches all the requirements listed in the [Preparation section](#preparation).
+Change into Flink's home directory and call `bin/mesos-appmaster.sh`:
 
-## DC/OS
+{% highlight bash %}
+# (0) set required environment variables
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
-This section refers to [DC/OS](https://dcos.io) which is a Mesos distribution
-with a sophisticated application management layer. It comes pre-installed with
-Marathon, a service to supervise applications and maintain their state in case
-of failures.
+# (1) create Flink on Mesos cluster
+$ ./bin/mesos-appmaster.sh \
+      -Dmesos.master=<mesos-master>:5050 \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
+      -Dmesos.resourcemanager.tasks.cpus=6
 
-If you don't have a running DC/OS cluster, please follow the
-[instructions on how to install DC/OS on the official website](https://dcos.io/install/).
+# (2) execute Flink job passing the relevant configuration parameters
+$ ./bin/flink run \
+      --detached \
+      --target remote \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
+      -Dmesos.master=<mesos-master>:5050 \
+      examples/streaming/WindowJoin.jar
+{% endhighlight %}
 
-Once you have a DC/OS cluster, you may install Flink through the DC/OS
-Universe. In the search prompt, just search for Flink. Alternatively, you can use the DC/OS CLI:
+The commands above use a few placeholders that need to be substituted by settings of the actual 
+underlying cluster:
+* `<mesos-master>` refers to the Mesos master's IP address or hostname. 
+* `<jobmanager-host>` refers to the host that executes `bin/mesos-appmaster.sh` which is starting 
+  Flink's JobManager process. It's important to not use `localhost` or `127.0.0.1` as this parameter 
+  is being shared with the Mesos cluster and the TaskManagers.
+* `<flink-user>` refers to the user that owns the Mesos master's Flink installation directory (see Mesos' 
+  documentation on [specifying a user](http://mesos.apache.org/documentation/latest/fetcher/#specifying-a-user-name)
+  for further details).
 
-    dcos package install flink
+The `run` action requires `--target` to be set to `remote`. Refer to the [CLI documentation]({% link deployment/cli.md %}) 
+for further details on that parameter.
 
-Further information can be found in the
-[DC/OS examples documentation](https://github.com/dcos/examples/tree/master/1.8/flink).
+The Flink on Mesos cluster is now deployed in [Session Mode]({% link deployment/index.md %}#session-mode).
+Note that you can run multiple Flink jobs on a Session cluster. Each job needs to be submitted to the 
+cluster. TaskManagers are deployed on the Mesos workers as needed. Keep in mind that you can only run as 
+many jobs as the Mesos cluster allows in terms of resources provided by the Mesos workers. Play around 
+with Flink's parameters to find the right resource utilization for your needs.
 
+Check out [Flink's Mesos configuration]({% link deployment/config.md %}#mesos) to further influence 
+the resources Flink on Mesos is going to allocate.
 
-## Mesos without DC/OS
+## Deployment Modes
 
-You can also run Mesos without DC/OS.
+For production use, we recommend deploying Flink Applications in the 
+[Per-Job Mode]({% link deployment/index.md %}#per-job-mode), as it provides a better isolation 
+for each job.
 
-### Installing Mesos
+### Application Mode
 
-Please follow the [instructions on how to setup Mesos on the official website](http://mesos.apache.org/getting-started/).
+Flink on Mesos does not support [Application Mode]({% link deployment/index.md %}#application-mode).
 
-After installation you have to configure the set of master and agent nodes by creating the files `MESOS_HOME/etc/mesos/masters` and `MESOS_HOME/etc/mesos/slaves`.
-These files contain in each row a single hostname on which the respective component will be started (assuming SSH access to these nodes).
+### Per-Job Cluster Mode
 
-Next you have to create `MESOS_HOME/etc/mesos/mesos-master-env.sh` or use the template found in the same directory.
-In this file, you have to define
-
-    export MESOS_work_dir=WORK_DIRECTORY
-
-and it is recommended to uncommment
-
-    export MESOS_log_dir=LOGGING_DIRECTORY
-
-
-In order to configure the Mesos agents, you have to create `MESOS_HOME/etc/mesos/mesos-agent-env.sh` or use the template found in the same directory.
-You have to configure
-
-    export MESOS_master=MASTER_HOSTNAME:MASTER_PORT
-
-and uncomment
-
-    export MESOS_log_dir=LOGGING_DIRECTORY
-    export MESOS_work_dir=WORK_DIRECTORY
-
-#### Mesos Library
-
-In order to run Java applications with Mesos you have to export `MESOS_NATIVE_JAVA_LIBRARY=MESOS_HOME/lib/libmesos.so` on Linux.
-Under Mac OS X you have to export `MESOS_NATIVE_JAVA_LIBRARY=MESOS_HOME/lib/libmesos.dylib`.
-
-#### Deploying Mesos
-
-In order to start your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-start-cluster.sh`.
-In order to stop your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-stop-cluster.sh`.
-More information about the deployment scripts can be found [here](http://mesos.apache.org/documentation/latest/deploy-scripts/).
-
-### Installing Marathon
-
-Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which enables you to run Flink in [high availability (HA) mode](#high-availability).
-
-### Pre-installing Flink vs Docker/Mesos containers
-
-You may install Flink on all of your Mesos Master and Agent nodes.
-You can also pull the binaries from the Flink web site during deployment and apply your custom configuration before launching the application master.
-A more convenient and easier to maintain approach is to use Docker containers to manage the Flink binaries and configuration.
-
-This is controlled via the following configuration entries:
-
-    mesos.resourcemanager.tasks.container.type: mesos _or_ docker
-
-If set to 'docker', specify the image name:
-
-    mesos.resourcemanager.tasks.container.image.name: image_name
-
-
-### Flink session cluster on Mesos
-
-A Flink session cluster is executed as a long-running Mesos Deployment. Note that you can run multiple Flink jobs on a session cluster. Each job needs to be submitted to the cluster after the cluster has been deployed.
-
-In the `/bin` directory of the Flink distribution, you find two startup scripts
-which manage the Flink processes in a Mesos cluster:
-
-1. `mesos-appmaster.sh`
-   This starts the Mesos application master which will register the Mesos scheduler.
-   It is also responsible for starting up the worker nodes.
-
-2. `mesos-taskmanager.sh`
-   The entry point for the Mesos worker processes.
-   You don't need to explicitly execute this script.
-   It is automatically launched by the Mesos worker node to bring up a new TaskManager.
-
-In order to run the `mesos-appmaster.sh` script you have to define `mesos.master` in the `flink-conf.yaml` or pass it via `-Dmesos.master=...` to the Java process.
-
-When executing `mesos-appmaster.sh`, it will create a job manager on the machine where you executed the script.
-In contrast to that, the task managers will be run as Mesos tasks in the Mesos cluster.
-
-### Flink job cluster on Mesos
-
-A Flink job cluster is a dedicated cluster which runs a single job.
-There is no extra job submission needed.
-
-In the `/bin` directory of the Flink distribution, you find one startup script
-which manage the Flink processes in a Mesos cluster:
-
-1. `mesos-appmaster-job.sh`
-   This starts the Mesos application master which will register the Mesos scheduler, retrieve the job graph and then launch the task managers accordingly.
-
-In order to run the `mesos-appmaster-job.sh` script you have to define `mesos.master` and `internal.jobgraph-path` in the `flink-conf.yaml`
-or pass it via `-Dmesos.master=... -Dinterval.jobgraph-path=...` to the Java process.
-
-The job graph file may be generated like this way:
-
+A job which is executed in [Per-Job Cluster Mode]({% link deployment/index.md %}#per-job-mode) spins 
+up a dedicated Flink cluster that is only used for that specific job. No extra job submission is 
+needed. `bin/mesos-appmaster-job.sh` is used as the startup script. It will start a Flink cluster 
+for a dedicated job which is passed as a JobGraph file. This file can be created by applying the 
+following code to your Job source code:
 {% highlight java %}
 final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 final String jobGraphFilename = "job.graph";
 File jobGraphFile = new File(jobGraphFilename);
 try (FileOutputStream output = new FileOutputStream(jobGraphFile);
-	ObjectOutputStream obOutput = new ObjectOutputStream(output)){
-	obOutput.writeObject(jobGraph);
+    ObjectOutputStream obOutput = new ObjectOutputStream(output)){
+    obOutput.writeObject(jobGraph);
 }
 {% endhighlight %}
 
-<span class="label label-info">Note</span> Make sure that all Mesos processes have the user code jar on the classpath. There are two ways:
+Flink on Mesos Per-Job cluster can be started in the following way:
+{% highlight bash %}
+# (0) set required environment variables
+$ export HADOOP_CLASSPATH=$(hadoop classpath)
+$ export MESOS_NATIVE_JAVA_LIBRARY=/path/to/lib/libmesos.so
 
-1. One way is putting them in the `lib/` directory, which will result in the user code jar being loaded by the system classloader.
-1. The other way is creating a `usrlib/` directory in the parent directory of `lib/` and putting the user code jar in the `usrlib/` directory.
-After launching a job cluster via `bin/mesos-appmaster-job.sh ...`, the user code jar will be loaded by the user code classloader.
+# (1) create Per-Job Flink on Mesos cluster
+$ ./bin/mesos-appmaster-job.sh \
+      -Dmesos.master=<mesos-master>:5050 \
+      -Djobmanager.rpc.address=<jobmanager-host> \
+      -Dmesos.resourcemanager.framework.user=<flink-user> \
+      -Dinternal.jobgraph-path=<job-graph-file>
+{% endhighlight %} 
 
-#### General configuration
+`<job-graph-file>` refers to the path of the uploaded JobGraph file defining the job that shall be 
+executed on the Per-Job Flink cluster in the command above. The meaning of `<mesos-master>`, 
+`<jobmanager-host>` and `<flink-user>` are described in the 
+[Getting Started](#starting-a-flink-session-on-mesos) guide of this page.
 
-It is possible to completely parameterize a Mesos application through Java properties passed to the Mesos application master.
-This also allows to specify general Flink configuration parameters.
-For example:
+### Session Mode
 
-    bin/mesos-appmaster.sh \
-        -Dmesos.master=master.foobar.org:5050 \
-        -Djobmanager.memory.process.size=1472m \
-        -Djobmanager.rpc.port=6123 \
-        -Drest.port=8081 \
-        -Dtaskmanager.memory.process.size=3500m \
-        -Dtaskmanager.numberOfTaskSlots=2 \
-        -Dparallelism.default=10
+The [Getting Started](#starting-a-flink-session-on-mesos) guide at the top of this page describes 
+deploying Flink in Session Mode.
 
-### High Availability
+## Flink on Mesos Reference
 
-You will need to run a service like Marathon or Apache Aurora which takes care of restarting the JobManager process in case of node or process failures.
-In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({% link deployment/ha/index.md %}).
+### Deploying User Libraries
+
+User libraries can be passed to the Mesos workers by placing them in Flink's `lib/` folder. This way, 
+they will be picked by Mesos' Fetcher and copied over into the worker's sandbox folders. Alternatively, 
+Docker containerization can be used as described in [Installing Flink on the Workers](#installing-flink-on-the-workers).
+
+### Installing Flink on the Workers
+
+Flink on Mesos offers two ways to distribute the Flink and user binaries within the Mesos cluster:
+1. **Using Mesos' Artifact Server**: The Artifact Server provides the resources which are moved by 
+   [Mesos' Fetcher](http://mesos.apache.org/documentation/latest/fetcher/) into the Mesos worker's 
+   [sandbox folders](http://mesos.apache.org/documentation/latest/sandbox/). It can be explicitly 
+   specified by setting [mesos.resourcemanager.tasks.container.type]({% link deployment/config.md %}#mesos-resourcemanager-tasks-container-type) 
+   to `mesos`. This is the default option and is used in the example commands of this page.
+2. **Using Docker containerization**: This enables the user to provide user libraries and other 
+   customizations as part of a Docker image. Docker utilization can be enabled by setting 
+   [mesos.resourcemanager.tasks.container.type]({% link deployment/config.md %}#mesos-resourcemanager-tasks-container-type) 
+   to `docker` and by providing the image name through [mesos.resourcemanager.tasks.container.image.name]({% link deployment/config.md %}#mesos-resourcemanager-tasks-container-image-name).
+
+### High Availability on Mesos
+
+You will need to run a service like Marathon or Apache Aurora which takes care of restarting the 
+JobManager process in case of node or process failures. In addition, Zookeeper needs to be configured 
+as described in the [High Availability section of the Flink docs]({% link deployment/ha/index.md %}).
 
 #### Marathon
 
-Marathon needs to be set up to launch the `bin/mesos-appmaster.sh` script.
-In particular, it should also adjust any configuration parameters for the Flink cluster.
+Marathon needs to be set up to launch the `bin/mesos-appmaster.sh` script. In particular, it should 
+also adjust any configuration parameters for the Flink cluster.
 
 Here is an example configuration for Marathon:
-
+{% highlight javascript %}
+{
+  "id": "flink",
+  "cmd": "/opt/flink-{{ site.version }}/bin/mesos-appmaster.sh -Djobmanager.rpc.address=$HOST -Dmesos.resourcemanager.framework.user=<flink-user> -Dmesos.master=<mesos-master>:5050 -Dparallelism.default=2",
+  "user": "<flink-user>",
+  "cpus": 2,
+  "mem": 2048,
+  "instances": 1,
+  "env": {
+    "MESOS_NATIVE_JAVA_LIBRARY": "/usr/lib/libmesos.so"
+  },
+  "healthChecks": [
     {
-        "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.memory.process.size=1472m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dtaskmanager.memory.process.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
-        "cpus": 1.0,
-        "mem": 1024
+      "protocol": "HTTP",
+      "path": "/",
+      "port": 8081,
+      "gracePeriodSeconds": 300,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 20,
+      "maxConsecutiveFailures": 3
     }
+  ]
+}
+{% endhighlight %}
 
-When running Flink with Marathon, the whole Flink cluster including the job manager will be run as Mesos tasks in the Mesos cluster.
+Flink is installed into `/opt/flink-{{ site.version }}` having `<flink-user>` as the owner of the Flink 
+directory (notice that the user is used twice: once as a Marathon and another time as a Mesos 
+parameter) for the example configuration above to work. Additionally, we have the bundled Hadoop jar 
+saved in Flink's `lib/` folder for the sake of simplicity here. This way, we don't have to set 
+`HADOOP_CLASSPATH` as a environment variable next to `MESOS_NATIVE_JAVA_LIBRARY`.
 
-### Configuration parameters
+`<mesos-master>` needs to be set to the hostname or IP of Mesos' master node. `$HOST` is a Marathon 
+environment variable referring to the hostname of the machine the script is executed on. `$HOST` should 
+not be replaced in the config above!
 
-For a list of Mesos specific configuration, refer to the [Mesos section]({% link deployment/config.md %}#mesos)
-of the configuration documentation.
+The whole Flink cluster including the JobManager will be run as Mesos tasks in the Mesos cluster when 
+deploying Flink using Marathon. Flink's binaries have to be installed on all Mesos workers for the 
+above Marathon config to work.
+
+### Supported Hadoop versions
+
+Flink on Mesos is compiled against Hadoop 2.4.1, and all Hadoop versions >= 2.4.1 are supported, 
+including Hadoop 3.x.
+
+For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` 
+environment variable already introduced in the [Getting Started / Preparation](#preparation) section.
+
+If that is not possible, the dependencies can also be put into the `lib/` folder of Flink. 
+
+Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the 
+[Downloads / Additional Components]({{site.download_url}}#additional-components) section of the website. 
+These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink 
+community is not testing the Mesos integration against these pre-bundled jars.
+
+### Flink on Mesos Architecture
+
+The Flink on Mesos implementation consists of two components: The application master and the workers. 
+The workers are simple TaskManagers parameterized by the environment which is set up through the 
+application master. The most sophisticated component of the Flink on Mesos implementation is the 
+application master. The application master currently hosts the following components:
+- **Mesos Scheduler**: The Scheduler is responsible for registering a framework with Mesos, requesting 
+  resources, and launching worker nodes. The Scheduler continuously needs to report back to Mesos to 
+  ensure the framework is in a healthy state. To verify the health of the cluster, the Scheduler 
+  monitors the spawned workers, marks them as failed and restarts them if necessary.
+
+  Flink's Mesos Scheduler itself is currently not highly available. However, it persists all necessary 
+  information about its state (e.g. configuration, list of workers) in [ZooKeeper](#high-availability-on-mesos). 
+  In the presence of a failure, it relies on an external system to bring up a new Scheduler (see the 
+  [Marathon subsection](#marathon) for further details). The Scheduler will then register with Mesos 
+  again and go through the reconciliation phase. In the reconciliation phase, the Scheduler receives 
+  a list of running workers nodes. It matches these against the recovered information from ZooKeeper 
+  and makes sure to bring back the cluster in the state before the failure.
+- **Artifact Server**: The Artifact Server is responsible for providing resources to the worker nodes. 
+  The resources can be anything from the Flink binaries to shared secrets or configuration files. 
+  For instance, in non-containerized environments, the Artifact Server will provide the Flink binaries. 
+  What files will be served depends on the configuration overlay used.
+
+Flink's Mesos startup scripts `bin/mesos-appmaster.sh` and `bin/mesos-appmaster-job.sh` provide a way 
+to configure and start the application master. The worker nodes inherit all further configuration. 
+They are deployed through `bin/mesos-taskmanager.sh`. The configuration inheritance is achieved using 
+configuration overlays. Configuration overlays provide a way to infer a configuration from environment 
+variables and config files which are shipped to the worker nodes.
+
+See [Mesos Architecture](http://mesos.apache.org/documentation/latest/architecture/) for a more details 
+on how frameworks are handled by Mesos.
 
 {% top %}
