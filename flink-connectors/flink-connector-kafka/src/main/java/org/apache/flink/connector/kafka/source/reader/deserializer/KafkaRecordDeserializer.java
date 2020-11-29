@@ -18,8 +18,10 @@
 
 package org.apache.flink.connector.kafka.source.reader.deserializer;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.GenericDeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Configurable;
@@ -32,15 +34,42 @@ import java.util.Map;
 /**
  * An interface for the deserialization of Kafka records.
  */
-public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQueryable<T> {
+public interface KafkaRecordDeserializer<T>
+	extends GenericDeserializationSchema<ConsumerRecord<byte[], byte[]>, T>, Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Deserialize a consumer record into the given collector.
+	 * Wraps a legacy {@link KafkaDeserializationSchema} as the deserializer of the
+	 * {@link ConsumerRecord ConsumerRecords}.
 	 *
-	 * @param record the {@code ConsumerRecord} to deserialize.
-	 * @throws Exception if the deserialization failed.
+	 * <p>Note that the {@link KafkaDeserializationSchema#isEndOfStream(Object)} method will
+	 * no longer be used to determin the end of the stream.
+	 *
+	 * @param kafkaDeserializationSchema the legacy {@link KafkaDeserializationSchema} to use.
+	 * @param <V> the return type of the deserialized record.
+	 * @return A {@link KafkaRecordDeserializer} that uses the given {@link KafkaDeserializationSchema}
+	 * to deserialize the {@link ConsumerRecord ConsumerRecords}.
 	 */
-	void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> collector) throws Exception;
+	static <V> KafkaRecordDeserializer<V> of(KafkaDeserializationSchema<V> kafkaDeserializationSchema) {
+		return new KafkaDeserializationSchemaWrapper<>(kafkaDeserializationSchema);
+	}
+
+	/**
+	 * Wraps a {@link DeserializationSchema} as the value deserialization schema of the
+	 * {@link ConsumerRecord ConsumerRecords}. The other fields such as key, headers, timestamp
+	 * are ignored.
+	 *
+	 * <p>Note that the {@link DeserializationSchema#isEndOfStream(Object)} method will no
+	 * longer be used to determine the end of the stream.
+	 *
+	 * @param valueDeserializationSchema the {@link DeserializationSchema} used to deserialized the
+	 * value of a {@link ConsumerRecord}.
+	 * @param <V> the type of the deserialized record.
+	 * @return A {@link KafkaRecordDeserializer} that uses the given {@link DeserializationSchema}
+	 * to deserialize a {@link ConsumerRecord} from its value.
+	 */
+	static <V> KafkaRecordDeserializer<V> valueOnly(DeserializationSchema<V> valueDeserializationSchema) {
+		return new KafkaValueOnlyDeserializationSchemaWrapper<>(valueDeserializationSchema);
+	}
 
 	/**
 	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
@@ -50,7 +79,7 @@ public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQuer
 	 */
 	static <V> KafkaRecordDeserializer<V> valueOnly(
 			Class<? extends Deserializer<V>> valueDeserializerClass) {
-		return new ValueDeserializerWrapper<>(valueDeserializerClass, Collections.emptyMap());
+		return new KafkaValueOnlyDeserializerWrapper<>(valueDeserializerClass, Collections.emptyMap());
 	}
 
 	/**
@@ -65,6 +94,6 @@ public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQuer
 	static <V, D extends Configurable & Deserializer<V>> KafkaRecordDeserializer<V> valueOnly(
 			Class<D> valueDeserializerClass,
 			Map<String, String> config) {
-		return new ValueDeserializerWrapper<>(valueDeserializerClass, config);
+		return new KafkaValueOnlyDeserializerWrapper<>(valueDeserializerClass, config);
 	}
 }
