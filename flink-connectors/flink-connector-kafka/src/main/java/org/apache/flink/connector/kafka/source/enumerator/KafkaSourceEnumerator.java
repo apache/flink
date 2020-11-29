@@ -361,7 +361,11 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 						.partitionsToOffsetAndMetadata()
 						.thenApply(result -> {
 							Map<TopicPartition, Long> offsets = new HashMap<>();
-							result.forEach((tp, oam) -> offsets.put(tp, oam.offset()));
+							result.forEach((tp, oam) -> {
+								if (oam != null) {
+									offsets.put(tp, oam.offset());
+								}
+							});
 							return offsets;
 						}).get();
 			} catch (InterruptedException e) {
