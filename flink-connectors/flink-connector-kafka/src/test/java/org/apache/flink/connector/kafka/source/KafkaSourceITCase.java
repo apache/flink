@@ -37,6 +37,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -106,7 +107,7 @@ public class KafkaSourceITCase {
 		@Override
 		public void deserialize(
 				ConsumerRecord<byte[], byte[]> record,
-				Collector<PartitionAndValue> collector) throws Exception {
+				Collector<PartitionAndValue> collector) throws IOException {
 			if (deserializer == null) {
 				deserializer = new IntegerDeserializer();
 			}
