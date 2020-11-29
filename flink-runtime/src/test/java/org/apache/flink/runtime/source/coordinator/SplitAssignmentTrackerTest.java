@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -144,8 +145,27 @@ public class SplitAssignmentTrackerTest {
 		takeSnapshot(tracker, checkpointId2);
 
 		// Now assume subtask 0 has failed.
-		List<MockSourceSplit> splitsToPutBack = tracker.getAndRemoveUncheckpointedAssignment(0);
+		List<MockSourceSplit> splitsToPutBack = tracker.getAndRemoveUncheckpointedAssignment(0, checkpointId1 - 1);
 		verifyAssignment(Arrays.asList("0", "3"), splitsToPutBack);
+	}
+
+	@Test
+	public void testGetAndRemoveSplitsAfterSomeCheckpoint() throws Exception {
+		final long checkpointId1 = 100L;
+		final long checkpointId2 = 101L;
+		SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>();
+
+		// Assign some splits and take snapshot 1.
+		tracker.recordSplitAssignment(getSplitsAssignment(2, 0));
+		takeSnapshot(tracker, checkpointId1);
+
+		// Assign some more splits and take snapshot 2.
+		tracker.recordSplitAssignment(getSplitsAssignment(2, 3));
+		takeSnapshot(tracker, checkpointId2);
+
+		// Now assume subtask 0 has failed.
+		List<MockSourceSplit> splitsToPutBack = tracker.getAndRemoveUncheckpointedAssignment(0, checkpointId1);
+		verifyAssignment(Collections.singletonList("3"), splitsToPutBack);
 	}
 
 	// ---------------------
