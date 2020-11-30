@@ -36,6 +36,14 @@ For the changing dimension table, Flink allows for accessing the content of the 
 Motivation
 ----------
 
+There are certain cases in Flink where doing a join is non-trivial and complex. Temporal tables aims to solve the problem in two of those case - 
+
+* **Correlate with a changing history table** - Join a Dynamic Table with the snapshot of another table with changing values a point of time in the past.
+
+* **Correlate with a changing dimension table** - Join a Dynamic Table with a table having new dimensions/keys at different points in time.
+
+Let's explain both of these use case in a bit more detail.
+
 ### Correlate with a changing history table
 
 Let's assume that we have the following table `RatesHistory`.
@@ -118,40 +126,14 @@ In Flink, this is represented by a [*Temporal Table*](#temporal-table).
 Temporal Table Function
 ------------------------
 
-In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
-Flink uses the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions) to provide a way to express it.
+You need a SQL function in order to access the version of table at a specific point in time. These functions are known as *Temporal Table Functions*.
+You can define the temporal table function using the SQL syntax of [table functions]({{ site.baseurl }}/dev/table/functions/udfs.html#table-functions).
 
-Once defined, a *Temporal Table Function* takes a single time argument `timeAttribute` and returns a set of rows.
+Once defined, a Temporal table function takes a single time argument `timeAttribute` and returns a set of rows.
 This set contains the latest versions of the rows for all of the existing primary keys with respect to the given time attribute.
 
-Assuming that we defined a temporal table function `Rates(timeAttribute)` based on `RatesHistory` table, we could query such a function in the following way:
+### Define Temporal Table Function
 
-{% highlight sql %}
-SELECT * FROM Rates('10:15');
-
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-09:00   Euro        114
-09:00   Yen           1
-
-SELECT * FROM Rates('11:00');
-
-rowtime currency   rate
-======= ======== ======
-09:00   US Dollar   102
-10:45   Euro        116
-09:00   Yen           1
-{% endhighlight %}
-
-Each query to `Rates(timeAttribute)` would return the state of the `Rates` for the given `timeAttribute`.
-
-**Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
-The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
-
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
-
-### Usage
 
 The following code snippet illustrates how to create a temporal table function from an append-only table.
 
@@ -222,37 +204,43 @@ which allows us to use the function `rates` in the [Table API](../tableApi.html#
 Line `(2)` registers this function under the name `Rates` in our table environment,
 which allows us to use the `Rates` function in [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
 
-## Temporal Table
+### Usage 
 
-<span class="label label-danger">Attention</span> This is only supported in Blink planner.
 
-In order to access data in temporal table, currently one must define a `TableSource` with `LookupableTableSource`. Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011.
-
-Assuming that we defined a temporal table called `LatestRates`, we can query such a table in the following way:
+Now, that we defined a temporal table function `Rates(timeAttribute)` based on `RatesHistory` table, we can query it in the following way:
 
 {% highlight sql %}
-SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '10:15';
+SELECT * FROM Rates('10:15');
 
-currency   rate
-======== ======
-US Dollar   102
-Euro        114
-Yen           1
+rowtime currency   rate
+======= ======== ======
+09:00   US Dollar   102
+09:00   Euro        114
+09:00   Yen           1
 
-SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '11:00';
+SELECT * FROM Rates('11:00');
 
-currency   rate
-======== ======
-US Dollar   102
-Euro        116
-Yen           1
+rowtime currency   rate
+======= ======== ======
+09:00   US Dollar   102
+10:45   Euro        116
+09:00   Yen           1
 {% endhighlight %}
 
-**Note**: Currently, Flink doesn't support directly querying the temporal table with a constant time. At the moment, temporal table can only be used in joins. The example above is used to provide an intuition about what the temporal table `LatestRates` returns.
+Each query to `Rates(timeAttribute)` would return the state of the `Rates` for the given `timeAttribute`.
 
-See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
+**Note**: Currently, Flink doesn't support directly querying the temporal table functions with a constant time attribute parameter. At the moment, temporal table functions can only be used in joins.
+The example above was used to provide an intuition about what the function `Rates(timeAttribute)` returns.
 
-### Usage
+
+## Temporal Table
+
+
+In order to access data in temporal table, one should define a `TableSource` with `LookupableTableSource`. Once that is done, you can use the SQL syntax of `FOR SYSTEM_TIME AS OF`, which is proposed in SQL:2011, to query temporal table.
+
+<span class="label label-danger">Attention</span> Only Blink Planner supports the Temporal Tables.
+
+### Define Temporal Table
 
 
 <div class="codetabs" markdown="1">
@@ -303,6 +291,35 @@ tEnv.executeSql(
 </div>
 </div>
 
-See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-for-lookups).
+See [How to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-for-lookups) for more details.
+
+### Usage
+
+
+After defining the temporal table  `LatestRates`, we can query it in the following way:
+
+{% highlight sql %}
+SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '10:15';
+
+currency   rate
+======== ======
+US Dollar   102
+Euro        114
+Yen           1
+
+SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '11:00';
+
+currency   rate
+======== ======
+US Dollar   102
+Euro        116
+Yen           1
+{% endhighlight %}
+
+**Note**: Currently, Flink doesn't support directly querying the temporal table with a constant time. At the moment, temporal table can only be used in joins. The example above is used to provide an intuition about what the temporal table `LatestRates` returns.
+
+See [joins for continuous queries](joins.html) for information on how to perform a join with a temporal table and temporal table functions.
+
+
 
 {% top %}
