@@ -140,7 +140,7 @@ public class HBaseWriteOptions implements Serializable {
 		}
 
 		/**
-		 * Optional. Defines the parallelism of the JDBC sink operator.
+		 * Optional. Defines the parallelism of the HBase sink operator.
 		 * By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.
 		 */
 		public Builder setParallelism(Integer parallelism) {
