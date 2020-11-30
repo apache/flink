@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
@@ -288,52 +289,27 @@ public final class PythonBridgeUtils {
 			if (dataType instanceof SqlTimeTypeInfo) {
 				SqlTimeTypeInfo<?> sqlTimeTypeInfo = SqlTimeTypeInfo.getInfoFor(dataType.getTypeClass());
 				if (sqlTimeTypeInfo == DATE) {
-					long time;
-					if (obj instanceof LocalDate) {
-						time = ((LocalDate) (obj)).toEpochDay();
-					} else {
-						time = ((Date) obj).toLocalDate().toEpochDay();
-					}
-					return pickler.dumps(time);
+					return pickler.dumps(((Date) obj).toLocalDate().toEpochDay());
 				} else if (sqlTimeTypeInfo == TIME) {
-					long time;
-					if (obj instanceof LocalTime) {
-						time = ((LocalTime) obj).toNanoOfDay();
-					} else {
-						time = ((Time) obj).toLocalTime().toNanoOfDay();
-					}
-					time = time / 1000;
-					return pickler.dumps(time);
-				} else if (sqlTimeTypeInfo == TIMESTAMP) {
-					if (obj instanceof LocalDateTime) {
-						return pickler.dumps(Timestamp.valueOf((LocalDateTime) obj));
-					} else {
-						return pickler.dumps(obj);
-					}
+					return pickler.dumps(((Time) obj).toLocalTime().toNanoOfDay() / 1000);
 				}
-			} else if (dataType instanceof RowTypeInfo) {
-				Row tmpRow = (Row) obj;
-				TypeInformation<?>[] tmpRowFieldTypes = ((RowTypeInfo) dataType).getFieldTypes();
-				List<Object> rowFieldBytes = new ArrayList<>(tmpRow.getArity() + 1);
-				rowFieldBytes.add(new byte[]{tmpRow.getKind().toByteValue()});
-				for (int i = 0; i < tmpRow.getArity(); i++) {
-					rowFieldBytes.add(getPickledBytesFromJavaObject(
-						tmpRow.getField(i),
-						tmpRowFieldTypes[i]));
+			} else if (dataType instanceof RowTypeInfo ||
+				dataType instanceof TupleTypeInfo) {
+				TypeInformation<?>[] tmpFieldTypes = ((TupleTypeInfoBase<?>) dataType).getFieldTypes();
+				int arity = dataType instanceof RowTypeInfo ? ((Row) obj).getArity() :
+					((Tuple) obj).getArity();
+				List<Object> fieldBytes = new ArrayList<>(arity + 1);
+				if (dataType instanceof RowTypeInfo) {
+					fieldBytes.add(new byte[]{((Row) obj).getKind().toByteValue()});
 				}
-				return rowFieldBytes;
-			} else if (dataType instanceof TupleTypeInfo) {
-				Tuple tmpTuple = (Tuple) obj;
-				TypeInformation<?>[] tmpTupleFieldTypes = ((TupleTypeInfo<?>) dataType).getFieldTypes();
-				List<Object> tupleFieldBytes = new ArrayList<>(tmpTuple.getArity() + 1);
-				for (int i = 0; i < tmpTuple.getArity(); i++) {
-					tupleFieldBytes.add(getPickledBytesFromJavaObject(
-						tmpTuple.getField(i),
-						tmpTupleFieldTypes[i]));
+				for (int i = 0; i < arity; i++) {
+					Object field = dataType instanceof RowTypeInfo ? ((Row) obj).getField(i) :
+						((Tuple) obj).getField(i);
+					fieldBytes.add(getPickledBytesFromJavaObject(field, tmpFieldTypes[i]));
 				}
-				return tupleFieldBytes;
-			} else if (dataType instanceof BasicArrayTypeInfo
-				|| dataType instanceof PrimitiveArrayTypeInfo) {
+				return fieldBytes;
+			} else if (dataType instanceof BasicArrayTypeInfo ||
+				dataType instanceof PrimitiveArrayTypeInfo) {
 				List<Object> serializedElements = new ArrayList<>();
 				Object[] objects = (Object[]) obj;
 				TypeInformation<?> elementType = dataType instanceof BasicArrayTypeInfo ?
@@ -346,6 +322,7 @@ public final class PythonBridgeUtils {
 			}
 			if (dataType instanceof BasicTypeInfo &&
 				BasicTypeInfo.getInfoFor(dataType.getTypeClass()) == FLOAT_TYPE_INFO) {
+				// Serialization of float type with pickler loses precision.
 				return pickler.dumps(String.valueOf(obj));
 			} else {
 				return pickler.dumps(obj);
