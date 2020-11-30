@@ -32,7 +32,7 @@ import org.apache.commons.cli.CommandLine;
 public class FallbackYarnSessionCli extends AbstractYarnCli {
 
 	public FallbackYarnSessionCli(Configuration configuration) {
-		super(configuration);
+		super(configuration, "y", "yarn");
 	}
 
 	@Override
