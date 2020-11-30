@@ -171,7 +171,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 			String shortPrefix,
 			String longPrefix,
 			boolean acceptInteractiveInput) throws FlinkException {
-		super(configuration);
+		super(configuration, shortPrefix, longPrefix);
 		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
 		this.configurationDirectory = checkNotNull(configurationDirectory);
 		this.acceptInteractiveInput = acceptInteractiveInput;

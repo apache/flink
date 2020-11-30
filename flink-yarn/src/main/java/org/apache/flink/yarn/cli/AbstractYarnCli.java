@@ -33,16 +33,16 @@ abstract class AbstractYarnCli extends AbstractCustomCommandLine {
 
 	public static final String ID = "yarn-cluster";
 
-	protected Option applicationId =
-		new Option("yid", "yarnapplicationId", true, "Attach to running YARN session");
+	protected final Option applicationId;
 
-	protected Option addressOption =
+	protected final Option addressOption =
 		new Option("m", "jobmanager", true, "Set to " + ID + " to use YARN execution mode.");
 
 	protected final Configuration configuration;
 
-	protected AbstractYarnCli(Configuration configuration) {
+	protected AbstractYarnCli(Configuration configuration, String shortPrefix, String longPrefix) {
 		this.configuration = configuration;
+		this.applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
 	}
 
 	@Override
