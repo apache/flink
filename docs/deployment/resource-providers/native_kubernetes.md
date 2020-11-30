@@ -30,7 +30,7 @@ This page describes how to deploy a Flink session cluster natively on [Kubernete
 {:toc}
 
 <div class="alert alert-warning">
-Flink's native Kubernetes integration is still experimental. There may be changes in the configuration and CLI flags in latter versions.
+Flink's native Kubernetes integration is still experimental. There may be changes in the configuration and CLI flags in later versions.
 </div>
 
 ## Requirements
