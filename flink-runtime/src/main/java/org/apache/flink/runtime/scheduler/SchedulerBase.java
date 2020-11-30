@@ -1020,7 +1020,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		catch (Throwable t) {
 			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 			coordinators.forEach(IOUtils::closeQuietly);
-			failJob(new FlinkRuntimeException("Failed to start the operator coordinators", t));
+			throw new FlinkRuntimeException("Failed to start the operator coordinators", t);
 		}
 	}
 

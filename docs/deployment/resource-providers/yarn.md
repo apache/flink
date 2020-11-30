@@ -69,7 +69,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 ./bin/flink run ./examples/streaming/TopSpeedWindowing.jar
 
 # (4) Stop YARN session (replace the application id based on the output of the yarn-session.sh command)
-echo "stop" | ./bin/yarn-session.sh -yid application_XXXXX_XXX
+echo "stop" | ./bin/yarn-session.sh -id application_XXXXX_XXX
 {% endhighlight %}
 
 Congratulations! You have successfully run a Flink application by deploying Flink on YARN.
@@ -156,7 +156,7 @@ You can also **manually specifiy the target YARN cluster** in the command line i
 You can **re-attach to a YARN session** using the following command:
 
 ```
-./bin/yarn-session.sh -yid application_XXXX_YY
+./bin/yarn-session.sh -id application_XXXX_YY
 ```
 
 Besides passing [configuration]({% link deployment/config.md %}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
@@ -180,7 +180,7 @@ If you need to pass additional Hadoop configuration files to Flink, you can do s
 
 ### Resource Allocation Behavior
 
-A JobManager running on YARN will request additional TaskManagers, if it can not run all submitted jobs with the existing resources. In particular when running in Session Mode, the JobManager will, if needed, allocate additional TaskManagers as additional jobs are submitted. Unused TaskManagers are freeed up again after a timeout.
+A JobManager running on YARN will request additional TaskManagers, if it can not run all submitted jobs with the existing resources. In particular when running in Session Mode, the JobManager will, if needed, allocate additional TaskManagers as additional jobs are submitted. Unused TaskManagers are freed up again after a timeout.
 
 The memory configurations for JobManager and TaskManager processes will be respected by the YARN implementation. The number of reported VCores is by default equal to the number of configured slots per TaskManager. The [yarn.containers.vcores]({% link deployment/config.md %}#yarn-containers-vcores) allows overwriting the number of vcores with a custom value. In order for this parameter to work you should enable CPU scheduling in your YARN cluster.
 
