@@ -441,6 +441,7 @@ public class KafkaSourceBuilder<OUT> {
 		maybeOverride(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(), true);
 		maybeOverride(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(), true);
 		maybeOverride(ConsumerConfig.GROUP_ID_CONFIG, "KafkaSource-" + new Random().nextLong(), false);
+		maybeOverride(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false", false);
 		maybeOverride(
 				ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
 				startingOffsetsInitializer.getAutoOffsetResetStrategy().name().toLowerCase(),
