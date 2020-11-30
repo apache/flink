@@ -27,7 +27,7 @@ import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaS
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
-import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId, replaceStreamNodeIdAndParallelism}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils, TestLogger}
@@ -445,7 +445,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val expected =
       TableTestUtil.readFromResource("/explain/testExecutionPlanFromStatementSet.out")
 
-    assertEquals(replaceStreamNodeId(expected), replaceStreamNodeId(actual))
+    assertEquals(replaceStreamNodeIdAndParallelism(expected),
+      replaceStreamNodeIdAndParallelism(actual))
   }
 
   @Test
