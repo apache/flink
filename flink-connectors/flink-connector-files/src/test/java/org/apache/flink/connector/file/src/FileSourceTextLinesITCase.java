@@ -20,8 +20,6 @@ package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -89,16 +87,13 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	private static CompletedCheckpointStore checkpointStore;
 
 	@BeforeClass
-	public static void setupClass() throws Exception  {
+	public static void setupMiniCluster() throws Exception  {
 		highAvailabilityServices = new HaServices(TestingUtils.defaultExecutor(),
 			() -> checkpointStore,
 			new StandaloneCheckpointIDCounter());
 
-		final Configuration configuration = createConfiguration();
-
 		miniCluster = new TestingMiniCluster(
 			new TestingMiniClusterConfiguration.Builder()
-				.setConfiguration(configuration)
 				.setNumTaskManagers(1)
 				.setNumSlotsPerTaskManager(PARALLELISM)
 				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
@@ -108,21 +103,13 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		miniCluster.start();
 	}
 
-	private static Configuration createConfiguration() throws IOException {
-		final Configuration configuration = new Configuration();
-		configuration.set(CheckpointingOptions.STATE_BACKEND, "filesystem");
-		final String checkPointDir = Path.fromLocalFile(TMP_FOLDER.newFolder()).toUri().toString();
-		configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkPointDir);
-		return configuration;
-	}
-
 	@Before
-	public void setup() {
+	public void setupCheckpointStore() {
 		checkpointStore = new RecoverableCompletedCheckpointStore();
 	}
 
 	@AfterClass
-	public static void teardownClass() throws Exception {
+	public static void teardownMiniCluser() throws Exception {
 		if (miniCluster != null) {
 			miniCluster.close();
 		}
@@ -173,7 +160,6 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
 		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
 		env.setParallelism(PARALLELISM);
-		env.enableCheckpointing(10L);
 
 		final DataStream<String> stream = env.fromSource(
 			source,
@@ -523,8 +509,9 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		}
 	}
 
-	private enum RecordCounterToFail {
-		;
+	private static class RecordCounterToFail {
+		private RecordCounterToFail() {
+		}
 
 		private static AtomicInteger records;
 		private static CompletableFuture<Void> fail;
