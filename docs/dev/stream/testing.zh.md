@@ -62,7 +62,7 @@ class IncrementMapFunction extends MapFunction[Long, Long] {
 </div>
 </div>
 
-通过传递合适的参数并验证输出，可以很容易的使用你喜欢的测试框架对这样的函数进行单元测试。
+通过传递合适地参数并验证输出，你可以很容易的使用你喜欢的测试框架对这样的函数进行单元测试。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -97,7 +97,7 @@ class IncrementMapFunctionTest extends FlatSpec with Matchers {
 </div>
 </div>
 
-类似地，使用 `org.apache.flink.util.Collector` 的用户自定义函数（例如`FlatMapFunction` 或者 `ProcessFunction`），可以通过提供模拟对象而不是真正的 collector 来轻松测试。具有与 `IncrementMapFunction` 相同功能的 `FlatMapFunction` 可以按照以下方式进行单元测试。
+类似地，对于使用 `org.apache.flink.util.Collector` 的用户自定义函数（例如`FlatMapFunction` 或者 `ProcessFunction`），可以通过提供模拟对象而不是真正的 collector 来轻松测试。具有与 `IncrementMapFunction` 相同功能的 `FlatMapFunction` 可以按照以下方式进行单元测试。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -144,7 +144,7 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 
 ### 对有状态或及时 UDF 和自定义算子进行单元测试
 
-测试使用管理状态或定时器的用户自定义函数的功能更加困难，因为它涉及到测试用户代码和 Flink 运行时的交互。
+对使用管理状态或定时器的用户自定义函数的功能测试会更加困难，因为它涉及到测试用户代码和 Flink 运行时的交互。
 为此，Flink 提供了一组所谓的测试工具，可用于测试用户自定义函数和自定义算子：
 
 * `OneInputStreamOperatorTestHarness` (适用于 `DataStream` 上的算子)
@@ -177,7 +177,7 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 </dependency>
 {% endhighlight %}
 
-现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行断言。
+现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -270,7 +270,7 @@ class StatefulFlatMapFunctionTest extends FlatSpec with Matchers with BeforeAndA
 </div>
 </div>
 
-`KeyedOneInputStreamOperatorTestHarness` 和 `KeyedTwoInputStreamOperatorTestHarness` 可以通过为键类另外提供一个包含 `TypeInformation` 的 `KeySelector` 来实例化。
+`KeyedOneInputStreamOperatorTestHarness` 和 `KeyedTwoInputStreamOperatorTestHarness` 可以通过为键的类另外提供一个包含 `TypeInformation` 的 `KeySelector` 来实例化。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -330,13 +330,13 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
 * `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` 是测试算子和用户自定义函数（取决于处理时间和事件时间）的一个很好的例子。
 * `org.apache.flink.streaming.api.functions.sink.filesystem.LocalStreamingFileSinkTest` 展示了如何使用 `AbstractStreamOperatorTestHarness` 测试自定义 sink。具体来说，它使用 `AbstractStreamOperatorTestHarness.snapshot` 和 `AbstractStreamOperatorTestHarness.initializeState` 来测试它与 Flink checkpoint 机制的交互。
 
-<span class="label label-info">注意</span> 请注意，`AbstractStreamOperatorTestHarness` 及其派生类目前不属于公共 API，可以进行更改。
+<span class="label label-info">注意</span> `AbstractStreamOperatorTestHarness` 及其派生类目前不属于公共 API，可以进行更改。
 
 #### 单元测试 Process Function
 
 考虑到它的重要性，除了之前可以直接用于测试 `ProcessFunction` 的测试工具之外，Flink 还提供了一个名为 `ProcessFunctionTestHarnesses` 的测试工具工厂类，可以简化测试工具的实例化。考虑以下示例：
 
-<span class="label label-info">˙注意</span> 请注意，要使用此测试工具，还需要引入上一节中介绍的依赖项。
+<span class="label label-info">注意</span> 要使用此测试工具，还需要引入上一节中介绍的依赖项。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -364,7 +364,7 @@ class PassThroughProcessFunction extends ProcessFunction[Integer, Integer] {
 </div>
 </div>
 
-通过传递合适的参数并验证输出，对使用 `ProcessFunctionTestHarnesses` 这样的函数进行单元测试是非常容易的。
+通过传递合适的参数并验证输出，对使用 `ProcessFunctionTestHarnesses` 是很容易进行单元测试并验证输出。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -570,10 +570,10 @@ object CollectSink {
 
 关于使用 `MiniClusterWithClientResource` 进行集成测试的几点备注：
 
-* 为了不将整个 pipeline 代码从生产复制到测试，请将 source 和 sink 插入到生产代码中，并在测试中注入特殊的测试 source 和测试 sink。
+* 为了不将整个 pipeline 代码从生产复制到测试，请将你的 source 和 sink 在生产代码中设置成可插拔的，并在测试中注入特殊的测试 source 和测试 sink。
 
 * 这里使用 `CollectSink` 中的静态变量，是因为Flink 在将所有算子分布到整个集群之前先对其进行了序列化。
-解决此问题的一种方法是与本地 Flink 小型集群通过静态变量实例化的算子进行通信。
+解决此问题的一种方法是与本地 Flink 小型集群通过实例化算子的静态变量进行通信。
 或者，你可以使用测试的 sink 将数据写入临时目录的文件中。
 
 * 如果你的作业使用事件时间计时器，则可以实现自定义的 *并行* 源函数来发出 watermark。
