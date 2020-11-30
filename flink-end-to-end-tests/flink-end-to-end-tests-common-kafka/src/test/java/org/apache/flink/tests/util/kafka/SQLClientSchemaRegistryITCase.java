@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.kafka;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
@@ -26,6 +27,7 @@ import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import org.apache.avro.Schema;
@@ -42,6 +44,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -192,7 +195,7 @@ public class SQLClientSchemaRegistryITCase {
 
 		executeSqlStatements(sqlLines);
 
-		List<Integer> versions = registryClient.getAllVersions(behaviourSubject);
+		List<Integer> versions = getAllVersions(behaviourSubject);
 		assertThat(versions.size(), equalTo(1));
 		List<Object> userBehaviors = kafkaClient.readMessages(
 			1,
@@ -215,6 +218,20 @@ public class SQLClientSchemaRegistryITCase {
 					.build()
 			)
 		));
+	}
+
+	private List<Integer> getAllVersions(String behaviourSubject) throws Exception {
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
+		Exception ex = new IllegalStateException(
+			"Could not query schema registry. Negative deadline provided.");
+		while (deadline.hasTimeLeft()) {
+			try {
+				return registryClient.getAllVersions(behaviourSubject);
+			} catch (RestClientException e) {
+				ex = e;
+			}
+		}
+		throw ex;
 	}
 
 	private void executeSqlStatements(List<String> sqlLines) throws Exception {
