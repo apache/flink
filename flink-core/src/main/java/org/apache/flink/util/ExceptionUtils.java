@@ -656,6 +656,87 @@ public final class ExceptionUtils {
 		}
 	}
 
+	/**
+	 * Throws {@code throwable} if it is an instance of {@code declaredType}. Example usage:
+	 *
+	 * <pre>
+	 * for (Foo foo : foos) {
+	 *   try {
+	 *     foo.bar();
+	 *   } catch (BarException | RuntimeException | Error t) {
+	 *     failure = t;
+	 *   }
+	 * }
+	 * if (failure != null) {
+	 *   throwIfInstanceOf(failure, BarException.class);
+	 *   throwIfUnchecked(failure);
+	 *   throw new AssertionError(failure);
+	 * }
+	 * </pre>
+	 */
+	public static <X extends Throwable> void throwIfInstanceOf(
+		Throwable throwable, Class<X> declaredType) throws X {
+		checkNotNull(throwable);
+		if (declaredType.isInstance(throwable)) {
+			throw declaredType.cast(throwable);
+		}
+	}
+
+	/**
+	 * Throws another {@code anotherType} if it is an instance of {@code declaredType}. Example usage:
+	 *
+	 * <pre>
+	 * for (Foo foo : foos) {
+	 *   try {
+	 *     foo.bar();
+	 *   } catch (BarException | RuntimeException | Error t) {
+	 *     failure = t;
+	 *   }
+	 * }
+	 * if (failure != null) {
+	 *   throwAnotherIfInstanceOf(failure, BarException.class, AnotherException.class);
+	 *   throwIfUnchecked(failure);
+	 *   throw new AssertionError(failure);
+	 * }
+	 * </pre>
+	 */
+	public static <X extends Throwable, A extends Throwable> void throwAnotherIfInstanceOf(
+			Throwable throwable,
+			Class<X> declaredType,
+			Class<A> anotherType) throws A {
+		checkNotNull(throwable);
+		if (declaredType.isInstance(throwable)) {
+			throw anotherType.cast(throwable);
+		}
+	}
+
+	/**
+	 * Throws {@code throwable} if it is a {@link RuntimeException} or {@link Error}. Example usage:
+	 *
+	 * <pre>
+	 * for (Foo foo : foos) {
+	 *   try {
+	 *     foo.bar();
+	 *   } catch (RuntimeException | Error t) {
+	 *     failure = t;
+	 *   }
+	 * }
+	 * if (failure != null) {
+	 *   throwIfUnchecked(failure);
+	 *   throw new AssertionError(failure);
+	 * }
+	 * </pre>
+	 */
+	public static void throwIfUnchecked(Throwable throwable) {
+		checkNotNull(throwable);
+		if (throwable instanceof RuntimeException) {
+			throw (RuntimeException) throwable;
+		}
+		if (throwable instanceof Error) {
+			throw (Error) throwable;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	/** Private constructor to prevent instantiation. */
