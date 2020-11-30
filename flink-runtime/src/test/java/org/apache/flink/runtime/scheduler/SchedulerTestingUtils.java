@@ -146,27 +146,27 @@ public class SchedulerTestingUtils {
 
 	public static DefaultSchedulerBuilder createSchedulerBuilder(
 			JobGraph jobGraph,
-			ManuallyTriggeredScheduledExecutorService asyncExecutor) throws Exception {
+			ManuallyTriggeredScheduledExecutorService asyncExecutor) {
 
-		return createScheduler(jobGraph, asyncExecutor, new SimpleAckingTaskManagerGateway());
+		return createSchedulerBuilder(jobGraph, asyncExecutor, new SimpleAckingTaskManagerGateway());
 	}
 
 	public static DefaultSchedulerBuilder createSchedulerBuilder(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor,
-			TaskExecutorOperatorEventGateway operatorEventGateway) throws Exception {
+			TaskExecutorOperatorEventGateway operatorEventGateway) {
 
 		final TaskManagerGateway gateway = operatorEventGateway instanceof TaskManagerGateway
 				? (TaskManagerGateway) operatorEventGateway
 				: new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
 
-		return createScheduler(jobGraph, asyncExecutor, gateway);
+		return createSchedulerBuilder(jobGraph, asyncExecutor, gateway);
 	}
 
-	public static DefaultSchedulerBuilder createScheduler(
+	public static DefaultSchedulerBuilder createSchedulerBuilder(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor,
-			TaskManagerGateway taskManagerGateway) throws Exception {
+			TaskManagerGateway taskManagerGateway) {
 
 		return newSchedulerBuilder(jobGraph)
 			.setFutureExecutor(asyncExecutor)
