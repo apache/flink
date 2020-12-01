@@ -133,6 +133,27 @@ of all available metadata fields.
       <td>以逗号分隔的 Kafka brokers 列表。</td>
     </tr>
     <tr>
+      <td><h5>properties.sasl.kerberos.service.name</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Kafka 运行使用的 Kerberos 的主体名称。 </td>
+    </tr>
+    <tr>
+      <td><h5>properties.security.mechanism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>用于客户端连接的 SASL mechanism。 可以是安全提供者提供的任何 mechanism。</td>
+    </tr>
+    <tr>
+      <td><h5>properties.security.protocol</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>用于和 Kafka brokers 交流的任何协议。 可选的值有: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL。</td>
+    </tr>
+    <tr>
       <td><h5>key.format</h5></td>
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
@@ -237,6 +258,14 @@ consumer 负责的部分分区是 idle 的，那么整体的 watermark 并不会
 来缓解这个问题。
 
 如想获得更多细节，请查阅 [Kafka watermark strategies]({% link dev/event_timestamps_watermarks.zh.md %}#watermark-strategies-and-the-kafka-connector).
+
+### 使用 `'properties.*'` 来传递 Kafka 设置
+
+Flink 可以通过选项 `'properties.*'` 灵活地传递 Kafka 参数。 当前，Flink 会提取以 `'properties.'` 作为开头的选项的值，
+并以简化的选项的名字作为键，插入到 Kafka 设置之中。例如，选项 `'properties.bootstrap.servers'` 会被认为是 Kafka设置
+中的 `'bootstrap.servers'`。 但是，某些选项，例如`'key.deserializer'` 和 `'value.deserializer'` 是不允许通过
+该方式传递参数，因为 Flink 会根据自己的实现重写这些参数的值。 因此，请将 [Connector Options]({% link dev/table/connectors/upsert-kafka.zh.md %}#connector-options)
+的参数作为第一选项，而不是通过 `'properties.*'` 来传递参数。
 
 数据类型映射
 ----------------
