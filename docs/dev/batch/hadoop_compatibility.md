@@ -64,7 +64,17 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
-See also **[how to configure hadoop dependencies]({{ site.baseurl }}/deployment/resource-providers/hadoop.html#add-hadoop-classpaths)**.
+If you want to run your Flink application locally (from your IDE), you also need to add 
+a `hadoop-client` dependency such as:
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-client</artifactId>
+    <version>2.8.3</version>
+    <scope>provided</scope>
+</dependency>
+{% endhighlight %}
 
 ### Using Hadoop InputFormats
 

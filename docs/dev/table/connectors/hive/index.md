@@ -92,8 +92,11 @@ to make the integration work in Table API program or SQL in SQL Client.
 Alternatively, you can put these dependencies in a dedicated folder, and add them to classpath with the `-C`
 or `-l` option for Table API program or SQL Client respectively.
 
-Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refer to
-[Providing Hadoop classes]({{ site.baseurl }}/deployment/resource-providers/hadoop.html#providing-hadoop-classes).
+Apache Hive is built on Hadoop, so you need to provide Hadoop dependenies, by setting the `HADOOP_CLASSPATH` 
+environment variable:
+```
+export HADOOP_CLASSPATH=`hadoop classpath`
+```
 
 There are two ways to add Hive dependencies. First is to use Flink's bundled Hive jars. You can choose a bundled Hive jar according to the version of the metastore you use. Second is to add each of the required jars separately. The second way can be useful if the Hive version you're using is not listed here.
 
