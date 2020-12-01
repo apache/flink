@@ -92,7 +92,7 @@ to make the integration work in Table API program or SQL in SQL Client.
 Alternatively, you can put these dependencies in a dedicated folder, and add them to classpath with the `-C`
 or `-l` option for Table API program or SQL Client respectively.
 
-Apache Hive is built on Hadoop, so you need to provide Hadoop dependenies, by setting the `HADOOP_CLASSPATH` 
+Apache Hive is built on Hadoop, so you need to provide Hadoop dependencies, by setting the `HADOOP_CLASSPATH` 
 environment variable:
 ```
 export HADOOP_CLASSPATH=`hadoop classpath`

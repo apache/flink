@@ -153,7 +153,11 @@ for details on how to build Flink for a specific Scala version.
 
 If you want to use Flink with Hadoop, you need to have a Flink setup that includes the Hadoop dependencies, rather than
 adding Hadoop as an application dependency. Flink will use the Hadoop dependencies specified by the `HADOOP_CLASSPATH`
-environment variable, which can usually be set by calling `export HADOOP_CLASSPATH=``hadoop classpath```
+environment variable, which can be set in the following way:
+
+{% highlight bash %}
+export HADOOP_CLASSPATH=`hadoop classpath`
+{% endhighlight %}
 
 There are two main reasons for that design:
 

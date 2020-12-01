@@ -71,7 +71,7 @@ WHERE o.id = s.orderId AND
 时态表 Join
 --------------------------
 <span class="label label-danger">注意</span> 只在 Blink planner 中支持。
-<span class="label label-danger">注意</span> 时态表有两种方式去定义，即 [时态表函数]({% link dev/table/streaming/temporal_tables.zh.md %})#时态表函数) 和 [时态表 DDL]({% link dev/table/streaming/temporal_tables.zh.md %}#时态表)，使用时态表函数的时态表 join 只支持在 Table API 中使用，使用时态表 DDL 的时态表 join 只支持在 SQL 中使用。
+<span class="label label-danger">注意</span> 时态表有两种方式去定义，即 [时态表函数]({% link dev/table/streaming/temporal_tables.zh.md %}#时态表函数) 和 [时态表 DDL]({% link dev/table/streaming/temporal_tables.zh.md %}#时态表)，使用时态表函数的时态表 join 只支持在 Table API 中使用，使用时态表 DDL 的时态表 join 只支持在 SQL 中使用。
 请参考[时态表]({% link dev/table/streaming/temporal_tables.zh.md %})页面获取更多关于时态表和时态表函数的区别。
 
 时态表 Join 意味着对任意表（左输入/探针侧）去关联一个时态表（右输入/构建侧）的版本，时态表可以是一张跟踪所有变更记录的表（例如数据库表的 changelog，包含多个表快照），也可以是物化所有变更之后的表（例如数据库表，只有最新表快照）。
@@ -88,17 +88,17 @@ ON table1.column-name1 = table2.column-name1
 <a name="processing-time-temporal-joins"></a>
 
 ### 基于事件时间的时态 Join
-基于事件时间的时态表 join 使用(左侧输入/探针侧) 的 事件时间 去关联(右侧输入/构建侧) [版本表](temporal_tables.html#声明版本表) 对应的版本。
+基于事件时间的时态表 join 使用(左侧输入/探针侧) 的 事件时间 去关联(右侧输入/构建侧) [版本表]({% link dev/table/streaming/temporal_tables.zh.md %}#声明版本表) 对应的版本。
 基于事件时间的时态表 join 仅支持关版本表或版本视图，版本表或版本视图只能是一个 changelog 流。 但是，Flink 支持将 append-only 流转换成 changelog 流，因此版本表也可以来自一个 append-only 流。
-查看[声明版本视图](temporal_tables.html#声明版本视图) 获取更多的信息关于如何声明一张来自 append-only 流的版本表。
+查看[声明版本视图]({% link dev/table/streaming/temporal_tables.zh.md %}#声明版本视图) 获取更多的信息关于如何声明一张来自 append-only 流的版本表。
 
 将事件时间作为时间属性时，可将 _过去_ 时间属性与时态表一起使用。这允许对两个表中在相同时间点的记录执行 Join 操作。
 与基于处理时间的时态 Join 相比，时态表不仅将构建侧记录的最新版本（是否最新由所定义的主键所决定）保存在 state 中，同时也会存储自上一个 watermarks 以来的所有版本（按时间区分）。
 
-例如，在探针侧表新插入一条事件时间时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[时态表的概念](temporal_tables.html)进行 Join 运算。
+例如，在探针侧表新插入一条事件时间时间为 `12:30:00` 的记录，它将和构建侧表时间点为 `12:30:00` 的版本根据[时态表的概念]({% link dev/table/streaming/temporal_tables.zh.md %})进行 Join 运算。
 因此，新插入的记录仅与时间戳小于等于 `12:30:00` 的记录进行 Join 计算（由主键决定哪些时间点的数据将参与计算）。
 
-通过定义事件时间，[watermarks]({{ site.baseurl }}/dev/event_time.html) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
+通过定义事件时间，[watermarks]({% link  dev/event_time.zh.md %}) 允许 Join 运算不断向前滚动，丢弃不再需要的构建侧快照。因为不再需要时间戳更低或相等的记录。
 
 下面的例子展示了订单流关联产品表这个场景举例，`orders` 表包含了来自 Kafka 的实时订单流，`product_changelog` 表来自数据库表 `products` 的 changelog , 产品的价格在数据库表 `products` 中是随时间实时变化的。
 
@@ -192,7 +192,7 @@ o_005    18:00:00   NULL         NULL         NULL
 
 ### 基于处理时间的时态 Join
 
-基于处理时间的时态表 join 使用任意表 (左侧输入/探针侧) 的 处理时间 去关联 (右侧输入/构建侧) [普通表](temporal_tables.html#声明普通表)的最新版本.
+基于处理时间的时态表 join 使用任意表 (左侧输入/探针侧) 的 处理时间 去关联 (右侧输入/构建侧) [普通表]({% link dev/table/streaming/temporal_tables.zh.md %}#声明普通表)的最新版本.
 基于处理时间的时态表 join 当前只支持关联普通表或普通视图，且支持普通表或普通视图当前只能是 append-only 流。
 
 如果将处理时间作为时间属性，_过去_ 时间属性将无法与时态表一起使用。根据定义，处理时间总会是当前时间戳。
@@ -254,7 +254,7 @@ FROM
 时态表函数 Join
 --------------------------
 
-时态表函数 Join 连接了一个递增表（左输入/探针侧）和一个时态表（右输入/构建侧），即一个随时间变化且不断追踪其改动的表。请参考[时态表](temporal_tables.html)的相关章节查看更多细节。
+时态表函数 Join 连接了一个递增表（左输入/探针侧）和一个时态表（右输入/构建侧），即一个随时间变化且不断追踪其改动的表。请参考[时态表]({% link dev/table/streaming/temporal_tables.zh.md %})的相关章节查看更多细节。
 
 下方示例展示了一个递增表 `Orders` 与一个不断改变的汇率表 `RatesHistory` 的 Join 操作。
 
@@ -295,7 +295,7 @@ rowtime amount currency
 10:15        2 Euro
 {% endhighlight %}
 
-如果没有[时态表](temporal_tables.html)概念，则需要写一段这样的查询：
+如果没有[时态表]({% link dev/table/streaming/temporal_tables.zh.md %})概念，则需要写一段这样的查询：
 
 {% highlight sql %}
 SELECT
