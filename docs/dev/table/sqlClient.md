@@ -380,7 +380,7 @@ CLI commands > session environment file > defaults environment file
 
 #### Restart Strategies
 
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link redirects/restart_strategies.md %}) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link dev/task_failure_recovery.html %}#restart-strategies) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
 
 The following strategies are supported:
 
@@ -633,7 +633,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({% link redirects/restart_strategies.md %}) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({% link dev/task_failure_recovery.md %}#restart-strategies) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 
