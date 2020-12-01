@@ -182,8 +182,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setMainThreadExecutor(ComponentMainThreadExecutor mainThreadExecutor) {
-		super.setMainThreadExecutor(mainThreadExecutor);
+	public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
+		super.initialize(mainThreadExecutor);
 		startUpAction.accept(mainThreadExecutor);
 	}
 

@@ -256,7 +256,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
 		final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(producerVertex.getID());
 		final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];

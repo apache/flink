@@ -71,7 +71,8 @@ public class TestingSchedulerNG implements SchedulerNG {
 	}
 
 	@Override
-	public void setMainThreadExecutor(ComponentMainThreadExecutor mainThreadExecutor) {}
+	public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
+	}
 
 	@Override
 	public void registerJobStatusListener(JobStatusListener jobStatusListener) {}

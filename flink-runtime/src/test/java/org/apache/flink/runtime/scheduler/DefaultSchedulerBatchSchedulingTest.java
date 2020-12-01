@@ -169,7 +169,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
 	}
 
 	private void startScheduling(SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
-		scheduler.setMainThreadExecutor(mainThreadExecutor);
+		scheduler.initialize(mainThreadExecutor);
 		CompletableFuture.runAsync(
 			scheduler::startScheduling,
 			mainThreadExecutor)

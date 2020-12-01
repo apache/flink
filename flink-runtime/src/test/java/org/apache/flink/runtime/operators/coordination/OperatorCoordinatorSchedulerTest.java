@@ -601,7 +601,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		final ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(
 			(ScheduledExecutorService) executor, Thread.currentThread());
-		scheduler.setMainThreadExecutor(mainThreadExecutor);
+		scheduler.initialize(mainThreadExecutor);
 
 		this.createdScheduler = scheduler;
 		return scheduler;

@@ -784,7 +784,7 @@ public class DefaultSchedulerTest extends TestLogger {
 	}
 
 	private void startScheduling(final SchedulerNG scheduler) {
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		scheduler.startScheduling();
 	}
 

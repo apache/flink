@@ -548,7 +548,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setMainThreadExecutor(final ComponentMainThreadExecutor mainThreadExecutor) {
+	public void initialize(final ComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
 		initializeOperatorCoordinators(mainThreadExecutor);
 		executionGraph.setInternalTaskFailuresListener(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
