@@ -101,14 +101,14 @@ public abstract class AggFunctionTestBase<T, ACC> {
                 List<T> inputValues = inputValueSets.get(i);
                 T expected = expectedResults.get(i);
                 // equally split the vals sequence into two sequences
-                Tuple2<List<T>, List<T>> splitValues = splitValues(inputValues);
+                Tuple2<List, List> splitValues = splitValues(inputValues);
                 List<T> firstValues = splitValues.f0;
                 List<T> secondValues = splitValues.f1;
+
                 // 1. verify merge with accumulate
+                ACC acc = accumulateValues(firstValues);
                 List<ACC> accumulators = new ArrayList<>();
                 accumulators.add(accumulateValues(secondValues));
-
-                ACC acc = accumulateValues(firstValues);
 
                 mergeFunc.invoke(aggregator, acc, accumulators);
 
@@ -244,13 +244,13 @@ public abstract class AggFunctionTestBase<T, ACC> {
         }
     }
 
-    protected Tuple2<List<T>, List<T>> splitValues(List<T> values) {
+    protected Tuple2<List, List> splitValues(List values) {
         return splitValues(values, values.size() / 2);
     }
 
-    protected Tuple2<List<T>, List<T>> splitValues(List<T> values, int index) {
-        List<T> firstValues = new ArrayList<>();
-        List<T> secondValues = new ArrayList<>();
+    protected Tuple2<List, List> splitValues(List values, int index) {
+        List firstValues = new ArrayList<>();
+        List secondValues = new ArrayList<>();
         int i;
         for (i = 0; i < values.size(); ++i) {
             if (i < index) {

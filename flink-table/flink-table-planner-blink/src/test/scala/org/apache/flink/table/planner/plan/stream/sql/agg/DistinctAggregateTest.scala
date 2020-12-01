@@ -76,13 +76,11 @@ class DistinctAggregateTest(
 
   @Test
   def testSingleFirstValueWithDistinctAgg(): Unit = {
-    // FIRST_VALUE is not mergeable, so the final plan does not contain local agg
     util.verifyExecPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
-    // LAST_VALUE is not mergeable, so the final plan does not contain local agg
     util.verifyExecPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 

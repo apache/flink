@@ -82,7 +82,7 @@ public final class FirstValueAggFunction<T> extends InternalAggregateFunction<T,
         GenericRowData acc = (GenericRowData) rowData;
         if (value != null && acc.getLong(1) == Long.MAX_VALUE) {
             acc.setField(0, value);
-            acc.setField(1, System.currentTimeMillis());
+            acc.setField(1, System.nanoTime());
         }
     }
 
@@ -103,6 +103,27 @@ public final class FirstValueAggFunction<T> extends InternalAggregateFunction<T,
     public void accumulate(RowData rowData, StringData value, Long order) {
         if (value != null) {
             accumulate(rowData, (Object) ((BinaryStringData) value).copy(), order);
+        }
+    }
+
+    public void merge(RowData acc, Iterable<RowData> its) {
+        GenericRowData accRowData = (GenericRowData) acc;
+        long accOrder = accRowData.getLong(1);
+        GenericRowData firstAcc = accRowData;
+        boolean needUpdate = false;
+
+        for (RowData rowData : its) {
+            long order = rowData.getLong(1);
+            // if there is a lower order
+            if (accOrder > order) {
+                needUpdate = true;
+                firstAcc = (GenericRowData) rowData;
+            }
+        }
+
+        if (needUpdate) {
+            accRowData.setField(0, firstAcc.getField(0));
+            accRowData.setField(1, firstAcc.getField(1));
         }
     }
 

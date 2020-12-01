@@ -157,7 +157,7 @@ public final class ListAggWsWithRetractAggFunctionTest
     }
 
     @Override
-    protected Tuple2<List<StringData>, List<StringData>> splitValues(List<StringData> values) {
+    protected Tuple2<List, List> splitValues(List values) {
         Preconditions.checkArgument(
                 values.size() % 2 == 0, "number of values must be an integer multiple of 2.");
         int index = values.size() / 2;

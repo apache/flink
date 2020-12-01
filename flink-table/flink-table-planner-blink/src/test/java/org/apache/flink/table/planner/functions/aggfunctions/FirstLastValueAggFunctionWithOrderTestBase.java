@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
@@ -27,6 +28,8 @@ import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -75,6 +78,115 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
                 // The two accumulators should be exactly same
                 validateResult(expectedAcc, acc);
             }
+        }
+    }
+
+    @Test
+    public void testAggregateWithMerge()
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        AggregateFunction<T, ACC> aggregator = getAggregator();
+        if (UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator)) {
+            Method mergeFunc =
+                    aggregator.getClass().getMethod("merge", getAccClass(), Iterable.class);
+            List<List<T>> inputValueSets = getInputValueSets();
+            List<List<Long>> inputOrderSets = getInputOrderSets();
+            List<T> expectedResults = getExpectedResults();
+            Preconditions.checkArgument(inputValueSets.size() == expectedResults.size());
+            int size = getInputValueSets().size();
+            // iterate over input sets
+            for (int i = 0; i < size; ++i) {
+                List<T> inputValues = inputValueSets.get(i);
+                List<Long> inputOrders = inputOrderSets.get(i);
+                T expected = expectedResults.get(i);
+                // equally split the vals sequence into two sequences
+                Tuple2<List, List> splitValues = splitValues(inputValues);
+                Tuple2<List, List> splitOrders = splitValues(inputOrders);
+                List<T> firstValues = splitValues.f0;
+                List<Long> firstOrders = splitOrders.f0;
+                List<T> secondValues = splitValues.f1;
+                List<Long> secondOrders = splitOrders.f1;
+
+                // 1. verify merge with accumulate
+                ACC acc = accumulateValues(firstValues, firstOrders);
+                List<ACC> accumulators = new ArrayList<>();
+                accumulators.add(accumulateValues(secondValues, secondOrders));
+
+                mergeFunc.invoke(aggregator, acc, accumulators);
+
+                T result = aggregator.getValue(acc);
+                validateResult(expected, result);
+
+                // 2. verify merge with accumulate & retract
+                if (UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator)) {
+                    retractValues(acc, inputValues, inputOrders);
+                    ACC expectedAcc = aggregator.createAccumulator();
+                    // The two accumulators should be exactly same
+                    validateResult(expectedAcc, acc);
+                }
+            }
+
+            // iterate over input sets
+            for (int i = 0; i < size; ++i) {
+                List<T> inputValues = inputValueSets.get(i);
+                List<Long> inputOrders = inputOrderSets.get(i);
+
+                T expected = expectedResults.get(i);
+                // 3. test partial merge with an empty accumulator
+                List<ACC> accumulators = new ArrayList<>();
+                accumulators.add(aggregator.createAccumulator());
+
+                ACC acc = accumulateValues(inputValues, inputOrders);
+                mergeFunc.invoke(aggregator, acc, accumulators);
+
+                T result = aggregator.getValue(acc);
+                validateResult(expected, result);
+            }
+        }
+    }
+
+    @Test
+    public void testMergeReservedAccumulator()
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        AggregateFunction<T, ACC> aggregator = getAggregator();
+        boolean hasMerge = UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator);
+        boolean hasRetract =
+                UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator);
+        if (!hasMerge || !hasRetract) {
+            // this test only verify AggregateFunctions which has merge() and retract() method
+            return;
+        }
+
+        Method mergeFunc = aggregator.getClass().getMethod("merge", getAccClass(), Iterable.class);
+        List<List<T>> inputValueSets = getInputValueSets();
+        List<List<Long>> inputOrderSets = getInputOrderSets();
+        int size = getInputValueSets().size();
+
+        // iterate over input sets
+        for (int i = 0; i < size; ++i) {
+            List<T> inputValues = inputValueSets.get(i);
+            List<Long> inputOrders = inputOrderSets.get(i);
+            List<ACC> accumulators = new ArrayList<>();
+            List<ACC> reversedAccumulators = new ArrayList<>();
+            // prepare accumulators
+            accumulators.add(accumulateValues(inputValues, inputOrders));
+            // prepare reversed accumulators
+            ACC retractedAcc = aggregator.createAccumulator();
+            retractValues(retractedAcc, inputValues, inputOrders);
+            reversedAccumulators.add(retractedAcc);
+            // prepare accumulator only contain two elements
+            ACC accWithSubset =
+                    accumulateValues(inputValues.subList(0, 2), inputOrders.subList(0, 2));
+            T expectedValue = aggregator.getValue(accWithSubset);
+
+            // merge
+            ACC acc = aggregator.createAccumulator();
+            mergeFunc.invoke(aggregator, acc, accumulators);
+            mergeFunc.invoke(aggregator, acc, reversedAccumulators);
+            mergeFunc.invoke(aggregator, accWithSubset, Collections.singleton(acc));
+
+            // getValue
+            T result = aggregator.getValue(accWithSubset);
+            validateResult(expectedValue, result);
         }
     }
 

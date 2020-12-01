@@ -23,7 +23,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.LastValueWithRetractAccumulator;
+import org.apache.flink.table.planner.functions.aggfunctions.FirstLastValueWithRetractAggFunctionBase.FirstLastValueWithRetractAccumulator;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -66,7 +66,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Byte, LastValueWithRetractAccumulator<Byte>> getAggregator() {
+        protected AggregateFunction<Byte, FirstLastValueWithRetractAccumulator<Byte>>
+                getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.TINYINT().getLogicalType());
         }
     }
@@ -81,7 +82,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Short, LastValueWithRetractAccumulator<Short>> getAggregator() {
+        protected AggregateFunction<Short, FirstLastValueWithRetractAccumulator<Short>>
+                getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.SMALLINT().getLogicalType());
         }
     }
@@ -96,7 +98,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Integer, LastValueWithRetractAccumulator<Integer>>
+        protected AggregateFunction<Integer, FirstLastValueWithRetractAccumulator<Integer>>
                 getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.INT().getLogicalType());
         }
@@ -112,7 +114,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Long, LastValueWithRetractAccumulator<Long>> getAggregator() {
+        protected AggregateFunction<Long, FirstLastValueWithRetractAccumulator<Long>>
+                getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.BIGINT().getLogicalType());
         }
     }
@@ -127,7 +130,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Float, LastValueWithRetractAccumulator<Float>> getAggregator() {
+        protected AggregateFunction<Float, FirstLastValueWithRetractAccumulator<Float>>
+                getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.FLOAT().getLogicalType());
         }
     }
@@ -142,7 +146,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Double, LastValueWithRetractAccumulator<Double>>
+        protected AggregateFunction<Double, FirstLastValueWithRetractAccumulator<Double>>
                 getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.DOUBLE().getLogicalType());
         }
@@ -178,7 +182,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<Boolean, LastValueWithRetractAccumulator<Boolean>>
+        protected AggregateFunction<Boolean, FirstLastValueWithRetractAccumulator<Boolean>>
                 getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
         }
@@ -225,7 +229,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<DecimalData, LastValueWithRetractAccumulator<DecimalData>>
+        protected AggregateFunction<DecimalData, FirstLastValueWithRetractAccumulator<DecimalData>>
                 getAggregator() {
             return new LastValueWithRetractAggFunction<>(
                     DataTypes.DECIMAL(precision, scale).getLogicalType());
@@ -274,7 +278,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
         }
 
         @Override
-        protected AggregateFunction<StringData, LastValueWithRetractAccumulator<StringData>>
+        protected AggregateFunction<StringData, FirstLastValueWithRetractAccumulator<StringData>>
                 getAggregator() {
             return new LastValueWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
         }
@@ -289,11 +293,11 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     /** Test base for {@link LastValueWithRetractAggFunction} with order. */
     public abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
             extends FirstLastValueAggFunctionWithOrderTestBase<
-                    T, LastValueWithRetractAccumulator<T>> {
+                    T, FirstLastValueWithRetractAccumulator<T>> {
 
         @Override
         protected Class<?> getAccClass() {
-            return LastValueWithRetractAccumulator.class;
+            return FirstLastValueWithRetractAccumulator.class;
         }
 
         @Override
