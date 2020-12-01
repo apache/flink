@@ -73,7 +73,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 
 		stopWithSavepointLatch.await();
 	}
@@ -93,7 +93,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 
 		stopWithSavepointLatch.await();
 	}
@@ -113,7 +113,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 		stopWithSavepointLatch.await();
 	}
 
@@ -132,7 +132,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 
 		stopWithSavepointLatch.await();
 	}
@@ -152,7 +152,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 
 		stopWithSavepointLatch.await();
 	}
@@ -172,7 +172,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 			return CompletableFuture.completedFuture(savepointDirectory);
 		});
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 
 		stopWithSavepointLatch.await();
 	}
@@ -185,7 +185,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -196,7 +196,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -204,7 +204,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		JobID jid = new JobID();
 		String[] parameters = { "-s", "-d", "test-target-dir", jid.toString() };
 		MockedCliFrontend testFrontend = new MockedCliFrontend(new TestingClusterClient());
-		testFrontend.stop(parameters);
+		testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 	}
 
 	@Test
@@ -220,7 +220,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 		try {
-			testFrontend.stop(parameters);
+			testAction(testFrontend, testFrontend.new ActionStop(), parameters);
 			fail("Should have failed.");
 		} catch (FlinkException e) {
 			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());

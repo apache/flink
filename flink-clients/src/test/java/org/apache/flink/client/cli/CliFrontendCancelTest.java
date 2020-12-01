@@ -67,7 +67,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		});
 
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.cancel(parameters);
+		testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 		cancelLatch.await();
 	}
 
@@ -78,7 +78,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.cancel(parameters);
+		testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -88,7 +88,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.cancel(parameters);
+		testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 	}
 
 	/**
@@ -110,7 +110,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 				return CompletableFuture.completedFuture(savepointDirectory);
 			});
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			testFrontend.cancel(parameters);
+			testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 			cancelWithSavepointLatch.await();
 		}
 
@@ -128,7 +128,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 				return CompletableFuture.completedFuture(savepointDirectory);
 			});
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			testFrontend.cancel(parameters);
+			testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 			cancelWithSavepointLatch.await();
 		}
 	}
@@ -141,7 +141,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.cancel(parameters);
+		testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -152,6 +152,6 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.cancel(parameters);
+		testAction(testFrontend, testFrontend.new ActionCancel(), parameters);
 	}
 }

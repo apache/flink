@@ -28,7 +28,6 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
@@ -56,7 +55,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the RUN command with {@link PackagedProgram PackagedPrograms}.
  */
-public class CliFrontendPackageProgramTest extends TestLogger {
+public class CliFrontendPackageProgramTest extends CliFrontendTestBase {
 
 	private CliFrontend frontend;
 
@@ -178,7 +177,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 	@Test(expected = CliArgsException.class)
 	public void testNoJarNoArgumentsAtAll() throws Exception {
-		frontend.run(new String[0]);
+		testAction(frontend, frontend.new ActionRun(), new String[0]);
 	}
 
 	@Test

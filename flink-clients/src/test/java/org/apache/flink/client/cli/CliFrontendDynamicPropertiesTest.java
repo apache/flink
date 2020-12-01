@@ -121,7 +121,7 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
 			String userCodeClassLoaderClassName) throws Exception {
 		TestingCliFrontend testFrontend =
 			new TestingCliFrontend(configuration, cliUnderTest, expectedResolveOrderOption, userCodeClassLoaderClassName);
-		testFrontend.run(parameters); // verifies the expected values (see below)
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters); // verifies the expected values (see below)
 	}
 
 	private static final class TestingCliFrontend extends CliFrontend {

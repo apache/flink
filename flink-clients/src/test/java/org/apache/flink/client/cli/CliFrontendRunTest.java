@@ -130,7 +130,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.run(parameters);
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -141,7 +141,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.run(parameters);
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -152,7 +152,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
 			Collections.singletonList(getCli()));
-		testFrontend.run(parameters);
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 						cli,
 						expectedParallelism,
 						isDetached);
-		testFrontend.run(parameters); // verifies the expected values (see below)
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters); // verifies the expected values (see below)
 	}
 
 	public static void verifyCliFrontend(
@@ -187,7 +187,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 						cli,
 						expectedParallelism,
 						isDetached);
-		testFrontend.run(parameters); // verifies the expected values (see below)
+		testAction(testFrontend, testFrontend.new ActionRun(), parameters); // verifies the expected values (see below)
 	}
 
 	private static final class RunTestingCliFrontend extends CliFrontend {
