@@ -430,16 +430,26 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Returns whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
 	 *
 	 * @return <code>true</code> if a job recovery should fallback to checkpoint.
+	 *
+	 * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
+	 * and duplicate output. This option will soon be removed. See <a href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a>
+	 * for more information.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public boolean isPreferCheckpointForRecovery() {
 		return preferCheckpointForRecovery;
 	}
 
 	/**
 	 * Sets whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 *
+	 * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
+	 * and duplicate output. This option will soon be removed. See <a href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a>
+	 * for more information.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
 		this.preferCheckpointForRecovery = preferCheckpointForRecovery;
 	}
