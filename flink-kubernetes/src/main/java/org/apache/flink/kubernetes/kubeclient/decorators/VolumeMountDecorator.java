@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -50,6 +51,11 @@ import java.util.List;
  */
 
 public class VolumeMountDecorator extends AbstractKubernetesStepDecorator{
+
+	public static final String KUBERNETES_VOLUMES_PVC = "pvc";
+	public static final String KUBERNETES_VOLUMES_EMPTYDIR = "emptydir";
+	public static final String KUBERNETES_VOLUMES_HOSTPATH = "hostpath";
+	public static final String EMPTYDIRDEFAULT = "default";
 
 	private static final Logger LOG = LoggerFactory.getLogger(VolumeMountDecorator.class);
 
@@ -103,7 +109,7 @@ public class VolumeMountDecorator extends AbstractKubernetesStepDecorator{
 			String[] mountInfo = mount.split(":");
 			if (mountInfo.length > 0) {
 				switch (mountInfo[0]){
-					case "pvc":
+					case KUBERNETES_VOLUMES_PVC:
 						// pvc
 						if (mountInfo.length >= 5){
 							List<SubpathToPath> subpaths = (mountInfo.length == 6) ? buildsubpaths(mountInfo[5]) : Arrays.asList(new SubpathToPath(null, mountInfo[2]));
@@ -129,20 +135,24 @@ public class VolumeMountDecorator extends AbstractKubernetesStepDecorator{
 							LOG.error("Not enough parameters for pvc volume mount {}", mount);
 						}
 						break;
-					case "emptydir":
-						if (mountInfo.length == 3) {
+					case KUBERNETES_VOLUMES_EMPTYDIR:
+						if (mountInfo.length >= 4) {
 							volumemounts.add(buildVolumeMount(mountInfo[1], mountInfo[2], null));
+							Quantity sizeLimit = (mountInfo.length == 5) ? new Quantity(mountInfo[4]) : null;
+							String medium = (mountInfo[3].equals(EMPTYDIRDEFAULT)) ? "" : mountInfo[3];
 							volumes.add(new VolumeBuilder()
-									.withName(mountInfo[1])
-									.withNewEmptyDir()
-									.endEmptyDir()
-									.build());
+								.withName(mountInfo[1])
+								.withNewEmptyDir()
+									.withMedium(medium)
+									.withSizeLimit(sizeLimit)
+								.endEmptyDir()
+								.build());
 						}
 						else {
 							LOG.error("Not enough parameters for emptydir volume mount {}", mount);
 						}
 						break;
-					case "hostpath":
+					case KUBERNETES_VOLUMES_HOSTPATH:
 						if (mountInfo.length == 5) {
 							volumemounts.add(buildVolumeMount(mountInfo[1], mountInfo[2], null));
 							volumes.add(new VolumeBuilder()

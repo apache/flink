@@ -40,7 +40,10 @@ public class VolumeMountDecoratorTest extends KubernetesJobManagerTestBase {
 		super.setupFlinkConfig();
 
 		this.flinkConfig.setString(KubernetesConfigOptions.JOBMANAGER_VOLUME_MOUNT.key(),
-			"pvc:pvc-mount1:/opt/pvcclaim/tes1/:testclaim1:false,pvc:pvc-mount2::testclaim:false:path1->/opt/pvcclaim/test/path1;path2->/opt/pvcclaim/test/path2,emptydir:edir-mount:/emptydirclaim,hostpath:hp-mount:/var/local/hp:/var/local/hp:DirectoryOrCreate");
+			VolumeMountDecorator.KUBERNETES_VOLUMES_PVC + ":pvc-mount1:/opt/pvcclaim/tes1/:testclaim1:false,"
+				+ VolumeMountDecorator.KUBERNETES_VOLUMES_PVC + ":pvc-mount2::testclaim:false:path1->/opt/pvcclaim/test/path1;path2->/opt/pvcclaim/test/path2,"
+				+ VolumeMountDecorator.KUBERNETES_VOLUMES_EMPTYDIR + ":edir-mount:/emptydirclaim:" + VolumeMountDecorator.EMPTYDIRDEFAULT + ","
+				+ VolumeMountDecorator.KUBERNETES_VOLUMES_HOSTPATH + ":hp-mount:/var/local/hp:/var/local/hp:DirectoryOrCreate");
 	}
 
 	@Override
