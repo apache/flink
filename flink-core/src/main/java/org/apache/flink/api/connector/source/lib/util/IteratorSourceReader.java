@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
@@ -129,8 +130,12 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 
 	@Override
 	public List<SplitT> snapshotState(long checkpointId) {
+		if (remainingSplits == null) {
+			// no assignment yet
+			return Collections.emptyList();
+		}
 		final ArrayList<SplitT> allSplits = new ArrayList<>(1 + remainingSplits.size());
-		if (iterator != null) {
+		if (iterator != null && iterator.hasNext()) {
 			@SuppressWarnings("unchecked")
 			final SplitT inProgressSplit = (SplitT) currentSplit.getUpdatedSplitForIterator(iterator);
 			allSplits.add(inProgressSplit);
