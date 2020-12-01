@@ -256,7 +256,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		if (obj == this) {
 			return true;
 		}
-		else if (obj != null && obj.getClass() == TaskManagerLocation.class) {
+		else if (obj != null && obj.getClass() == getClass()) {
 			TaskManagerLocation that = (TaskManagerLocation) obj;
 			return this.resourceID.equals(that.resourceID) &&
 					this.inetAddress.equals(that.inetAddress) &&

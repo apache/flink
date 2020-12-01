@@ -24,14 +24,9 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
-import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -39,7 +34,9 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -48,11 +45,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -60,7 +55,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link ArchivedExecutionGraph}.
@@ -98,23 +92,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 
 		jobGraph.setExecutionConfig(config);
 
-		runtimeGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(jobGraph)
-			.build();
-
-		runtimeGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
-		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
-		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
-
-		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
-				0,
-				jobVertices,
-				mock(CheckpointCoordinatorConfiguration.class),
-				new UnregisteredMetricsGroup());
-
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100,
 			100,
@@ -125,21 +102,21 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			false,
 			false,
 			0);
-
-		runtimeGraph.enableCheckpointing(
+		JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
+			Arrays.asList(v1ID, v2ID),
+			Arrays.asList(v1ID, v2ID),
+			Arrays.asList(v1ID, v2ID),
 			chkConfig,
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<ExecutionJobVertex>emptyList(),
-			Collections.<MasterTriggerRestoreHook<?>>emptyList(),
-			new StandaloneCheckpointIDCounter(),
-			new StandaloneCompletedCheckpointStore(1),
-			new MemoryStateBackend(),
-			statsTracker);
+			null);
+		jobGraph.setSnapshotSettings(checkpointingSettings);
 
-		runtimeGraph.setJsonPlan("{}");
+		SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(jobGraph);
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
+		runtimeGraph = scheduler.getExecutionGraph();
+
+		scheduler.startScheduling();
+		scheduler.handleGlobalFailure(new RuntimeException("This exception was thrown on purpose."));
 	}
 
 	@Test

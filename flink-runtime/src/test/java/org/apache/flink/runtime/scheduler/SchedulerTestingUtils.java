@@ -128,6 +128,10 @@ public class SchedulerTestingUtils {
 				createDefaultExecutionSlotAllocatorFactory(jobGraph.getScheduleMode(), slotProvider, slotRequestTimeout));
 	}
 
+	public static DefaultScheduler createScheduler(final JobGraph jobGraph) throws Exception {
+		return newSchedulerBuilder(jobGraph).build();
+	}
+
 	public static DefaultScheduler createScheduler(
 			final JobGraph jobGraph,
 			final SlotProvider slotProvider) throws Exception {
