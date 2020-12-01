@@ -30,7 +30,6 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
-import org.apache.flink.core.io.InputStatus;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -106,22 +105,15 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 				0,
 				NUM_RECORDS_PER_SPLIT);
 			reader.addSplits(Collections.singletonList(split));
-			reader.notifyNoMoreSplits();
 			ReaderOutput<Integer> output = new TestingReaderOutput<>();
-			InputStatus status;
-			do {
-				status = reader.pollNext(output);
-			} while (status != InputStatus.NOTHING_AVAILABLE);
+			// Poll until the fetcher thread exits. At this point all the records should have
+			// been consumed.
 			pollUntil(reader, output, () -> reader.getNumAliveFetchers() == 0,
 				"The split fetcher did not exit before timeout.");
+			// Take a snapshot to trigger the offset commit.
 			reader.snapshotState(100L);
 			reader.notifyCheckpointComplete(100L);
-			// Due to a bug in KafkaConsumer, when the consumer closes, the offset commit callback
-			// won't be fired, so the offsetsToCommit map won't be cleaned. To make the test
-			// stable, we add a split whose starting offset is the log end offset, so the
-			// split fetcher won't become idle and exit after commitOffsetAsync is invoked from
-			// notifyCheckpointComplete().
-			reader.addSplits(Collections.singletonList(new KafkaPartitionSplit(new TopicPartition(TOPIC, 0), NUM_RECORDS_PER_SPLIT)));
+			// Poll until the offsets are committed.
 			pollUntil(reader, output, () -> reader.getOffsetsToCommit().isEmpty(),
 				"The offset commit did not finish before timeout.");
 		}
