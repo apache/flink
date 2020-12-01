@@ -1202,11 +1202,8 @@ public class CliFrontend {
 		} catch (Exception e) {
 			return handleError(e);
 		} catch (Throwable t) {
-			final Throwable strippedThrowable = ExceptionUtils.stripException(
-				t,
-				UndeclaredThrowableException.class);
-			LOG.error("Fatal error while running command line interface.", strippedThrowable);
-			strippedThrowable.printStackTrace();
+			LOG.error("Fatal error while running command line interface.", t);
+			t.printStackTrace();
 			return 31;
 		}
 	}
