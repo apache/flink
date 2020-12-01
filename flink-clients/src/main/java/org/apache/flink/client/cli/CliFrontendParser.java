@@ -31,6 +31,8 @@ import org.apache.commons.cli.ParseException;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command
@@ -347,6 +349,7 @@ public class CliFrontendParser {
 		System.out.println("The following actions are available:");
 
 		printHelpForRun(customCommandLines);
+		printHelpForRunApplication(customCommandLines);
 		printHelpForInfo();
 		printHelpForList(customCommandLines);
 		printHelpForStop(customCommandLines);
@@ -368,6 +371,26 @@ public class CliFrontendParser {
 
 		printCustomCliOptions(customCommandLines, formatter, true);
 
+		System.out.println();
+	}
+
+	public static void printHelpForRunApplication(Collection<CustomCommandLine> customCommandLines) {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
+		System.out.println("\n  Syntax: run-application [OPTIONS] <jar-file> <arguments>");
+		formatter.setSyntaxPrefix("  \"run-application\" action options:");
+
+		// Only GenericCLI works with application mode, the other CLIs will be phased out
+		// in the future
+		List<CustomCommandLine> filteredCommandLines = customCommandLines
+				.stream()
+				.filter((cli) -> cli instanceof GenericCLI)
+				.collect(Collectors.toList());
+
+		printCustomCliOptions(filteredCommandLines, formatter, true);
 		System.out.println();
 	}
 

@@ -256,7 +256,7 @@ public class CliFrontend {
 
 		@Override
 		public void printHelp() {
-			CliFrontendParser.printHelpForRun(customCommandLines);
+      CliFrontendParser.printHelpForRunApplication(customCommandLines);
 		}
 	}
 

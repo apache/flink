@@ -23,113 +23,110 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ZooKeeper HA Services
+Flink's ZooKeeper HA services use [ZooKeeper](http://zookeeper.apache.org) for high availability services.
 
-One high availability services implementation uses ZooKeeper.
+* Toc
+{:toc}
 
-### Configuration
+Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. 
+ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. 
+Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/current/zookeeperStarted.html) for more information about ZooKeeper. 
+Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
 
-To enable JobManager High Availability you have to set the **high-availability mode** to *zookeeper*, configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts and their web UI ports.
+## Configuration
 
-Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/current/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
+In order to start an HA-cluster you have to configure the following configuration keys:
 
-#### Masters File (masters)
-
-In order to start an HA-cluster configure the *masters* file in `conf/masters`:
-
-- **masters file**: The *masters file* contains all hosts, on which JobManagers are started, and the ports to which the web user interface binds.
-
-  <pre>
-jobManagerAddress1:webUIPort1
-[...]
-jobManagerAddressX:webUIPortX
-  </pre>
-
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the **`high-availability.jobmanager.port`** key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
-
-#### Config File (flink-conf.yaml)
-
-In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
-
-- **high-availability mode** (required): The *high-availability mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
-Alternatively this option can be set to FQN of factory class Flink should use to create HighAvailabilityServices instance. 
+- [high-availability]({% link deployment/config.zh.md %}#high-availability-1) (required): 
+The `high-availability` option has to be set to `zookeeper`.
 
   <pre>high-availability: zookeeper</pre>
 
-- **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
+- [high-availability.storageDir]({% link deployment/config.zh.md %}#high-availability-storagedir) (required): 
+JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in ZooKeeper.
+
+  <pre>high-availability.storageDir: hdfs:///flink/recovery</pre>
+
+  The `storageDir` stores all metadata needed to recover a JobManager failure.
+
+- [high-availability.zookeeper.quorum]({%link deployment/config.zh.md %}#high-availability-zookeeper-quorum) (required): 
+A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
   <pre>high-availability.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
 
-  Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
+  Each `addressX:port` refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
-- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all cluster nodes are placed.
+- [high-availability.zookeeper.path.root]({% link deployment/config.zh.md %}#high-availability-zookeeper-path-root) (recommended): 
+The *root ZooKeeper node*, under which all cluster nodes are placed.
 
-  <pre>high-availability.zookeeper.path.root: /flink
+  <pre>high-availability.zookeeper.path.root: /flink</pre>
 
-- **ZooKeeper cluster-id** (recommended): The *cluster-id ZooKeeper node*, under which all required coordination data for a cluster is placed.
+- [high-availability.cluster-id]({% link deployment/config.zh.md %}#high-availability-cluster-id) (recommended): 
+The *cluster-id ZooKeeper node*, under which all required coordination data for a cluster is placed.
 
   <pre>high-availability.cluster-id: /default_ns # important: customize per cluster</pre>
 
-  **Important**: You should not set this value manually when running a YARN
-  cluster, a per-job YARN session, or on another cluster manager. In those
-  cases a cluster-id is automatically being generated based on the application
-  id. Manually setting a cluster-id overrides this behaviour in YARN.
-  Specifying a cluster-id with the -z CLI option, in turn, overrides manual
-  configuration. If you are running multiple Flink HA clusters on bare metal,
-  you have to manually configure separate cluster-ids for each cluster.
+  **Important**: 
+  You should not set this value manually when running on YARN, native Kubernetes or on another cluster manager. 
+  In those cases a cluster-id is being automatically generated. 
+  If you are running multiple Flink HA clusters on bare metal, you have to manually configure separate cluster-ids for each cluster.
 
-- **Storage directory** (required): JobManager metadata is persisted in the file system *storageDir* and only a pointer to this state is stored in ZooKeeper.
+### Example configuration
 
-    <pre>
-high-availability.storageDir: hdfs:///flink/recovery
-    </pre>
+Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
-    The `storageDir` stores all metadata needed to recover a JobManager failure.
-
-After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start an HA-cluster. Keep in mind that the **ZooKeeper quorum has to be running** when you call the scripts and make sure to **configure a separate ZooKeeper root path** for each HA cluster you are starting.
-
-#### Example: Standalone Cluster with 2 JobManagers
-
-1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
-
-   <pre>
+{% highlight bash %}
 high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
-high-availability.storageDir: hdfs:///flink/recovery</pre>
+high-availability.storageDir: hdfs:///flink/recovery
+{% endhighlight %}
 
-2. **Configure masters** in `conf/masters`:
+{% top %}
 
-   <pre>
-localhost:8081
-localhost:8082</pre>
+## Configuring for ZooKeeper Security
 
-3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
+If ZooKeeper is running in secure mode with Kerberos, you can override the following configurations in `flink-conf.yaml` as necessary:
 
-   <pre>server.0=localhost:2888:3888</pre>
+{% highlight bash %}
+zookeeper.sasl.service-name: zookeeper     # default is "zookeeper". If the ZooKeeper quorum is configured
+                                           # with a different service name then it can be supplied here.
+zookeeper.sasl.login-context-name: Client  # default is "Client". The value needs to match one of the values
+                                           # configured in "security.kerberos.login.contexts".
+{% endhighlight %}
 
-4. **Start ZooKeeper quorum**:
+For more information on Flink configuration for Kerberos security, please refer to the [security section of the Flink configuration page]({% link deployment/config.md %}#security).
+You can also find further details on [how Flink sets up Kerberos-based security internally]({% link deployment/security/security-kerberos.md %}).
 
-   <pre>
-$ bin/start-zookeeper-quorum.sh
-Starting zookeeper daemon on host localhost.</pre>
+{% top %}
 
-5. **Start an HA-cluster**:
+## ZooKeeper Versions
 
-   <pre>
-$ bin/start-cluster.sh
-Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
-Starting standalonesession daemon on host localhost.
-Starting standalonesession daemon on host localhost.
-Starting taskexecutor daemon on host localhost.</pre>
+Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
+and thus used by default, whereas 3.5 is placed in the `opt` directory.
 
-6. **Stop ZooKeeper quorum and cluster**:
+The 3.5 client allows you to secure the ZooKeeper connection via SSL, but _may_ not work with 3.4- ZooKeeper installations.
 
-   <pre>
-$ bin/stop-cluster.sh
-Stopping taskexecutor daemon (pid: 7647) on localhost.
-Stopping standalonesession daemon (pid: 7495) on host localhost.
-Stopping standalonesession daemon (pid: 7349) on host localhost.
-$ bin/stop-zookeeper-quorum.sh
-Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
+You can control which version is used by Flink by placing either jar in the `lib` directory.
+
+{% top %}
+
+## Bootstrap ZooKeeper
+
+If you don't have a running ZooKeeper installation, you can use the helper scripts, which ship with Flink.
+
+There is a ZooKeeper configuration template in `conf/zoo.cfg`. 
+You can configure the hosts to run ZooKeeper on with the `server.X` entries, where X is a unique ID of each server:
+
+{% highlight bash %}
+server.X=addressX:peerPort:leaderPort
+[...]
+server.Y=addressY:peerPort:leaderPort
+{% endhighlight %}
+
+The script `bin/start-zookeeper-quorum.sh` will start a ZooKeeper server on each of the configured hosts. 
+The started processes start ZooKeeper servers via a Flink wrapper, which reads the configuration from `conf/zoo.cfg` and makes sure to set some required configuration values for convenience. 
+In production setups, it is recommended to manage your own ZooKeeper installation.
+
+{% top %} 
