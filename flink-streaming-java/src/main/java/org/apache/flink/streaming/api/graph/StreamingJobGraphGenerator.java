@@ -800,7 +800,7 @@ public class StreamingJobGraphGenerator {
 		// yielding operators cannot be chained to legacy sources
 		// unfortunately the information that vertices have been chained is not preserved at this point
 		if (downStreamOperator instanceof YieldingOperatorFactory &&
-				getHeadOperator(upStreamVertex, streamGraph).isStreamSource()) {
+				getHeadOperator(upStreamVertex, streamGraph).isLegacySource()) {
 			return false;
 		}
 
