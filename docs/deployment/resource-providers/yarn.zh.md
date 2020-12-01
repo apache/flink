@@ -42,7 +42,7 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 This *Getting Started* section assumes a functional YARN environment, starting from version 2.4.1. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
-- Download a recent Flink distribution from the [download page]({{ site.download_url }}) and unpack it.
+- Download a recent Flink distribution from the [download page]({{ site.zh_download_url }}) and unpack it.
 - **Important** Make sure that the `HADOOP_CLASSPATH` environment variable is set up (it can be checked by running `echo $HADOOP_CLASSPATH`). If not, set it up using 
 
 {% highlight bash %}
@@ -78,7 +78,7 @@ Congratulations! You have successfully run a Flink application by deploying Flin
 
 ## Deployment Modes Supported by Flink on YARN
 
-For production use, we recommend deploying Flink Applications in the [Per-job or Application Mode]({% link deployment/index.md %}#deployment-modes), as these modes provide a better isolation for the Applications.
+For production use, we recommend deploying Flink Applications in the [Per-Job or Application Mode]({% link deployment/index.zh.md %}#deployment-modes), as these modes provide a better isolation for the Applications.
 
 ### Application Mode
 
@@ -117,7 +117,7 @@ client.
 
 ### Per-Job Cluster Mode
 
-The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
+The Per-Job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
 
 The YARN cluster will stop once the job has stopped.
 
@@ -159,7 +159,7 @@ You can **re-attach to a YARN session** using the following command:
 ./bin/yarn-session.sh -id application_XXXX_YY
 ```
 
-Besides passing [configuration]({% link deployment/config.md %}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
+Besides passing [configuration]({% link deployment/config.zh.md %}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
 
 The YARN session client also has a few "shortcut arguments" for commonly used settings. They can be listed with `./bin/yarn-session.sh -h`.
 
@@ -169,7 +169,7 @@ The YARN session client also has a few "shortcut arguments" for commonly used se
 
 ### Configuring Flink on YARN
 
-The YARN-specific configurations are listed on the [configuration page]({% link deployment/config.md %}#yarn).
+The YARN-specific configurations are listed on the [configuration page]({% link deployment/config.zh.md %}#yarn).
 
 The following configuration parameters are managed by Flink on YARN, as they might get overwritten by the framework at runtime:
 - `jobmanager.rpc.address` (dynamically set to the address of the JobManager container by Flink on YARN)
@@ -182,17 +182,17 @@ If you need to pass additional Hadoop configuration files to Flink, you can do s
 
 A JobManager running on YARN will request additional TaskManagers, if it can not run all submitted jobs with the existing resources. In particular when running in Session Mode, the JobManager will, if needed, allocate additional TaskManagers as additional jobs are submitted. Unused TaskManagers are freed up again after a timeout.
 
-The memory configurations for JobManager and TaskManager processes will be respected by the YARN implementation. The number of reported VCores is by default equal to the number of configured slots per TaskManager. The [yarn.containers.vcores]({% link deployment/config.md %}#yarn-containers-vcores) allows overwriting the number of vcores with a custom value. In order for this parameter to work you should enable CPU scheduling in your YARN cluster.
+The memory configurations for JobManager and TaskManager processes will be respected by the YARN implementation. The number of reported VCores is by default equal to the number of configured slots per TaskManager. The [yarn.containers.vcores]({% link deployment/config.zh.md %}#yarn-containers-vcores) allows overwriting the number of vcores with a custom value. In order for this parameter to work you should enable CPU scheduling in your YARN cluster.
 
-Failed containers (including the JobManager) are replaced by YARN. The maximum number of JobManager container restarts is configured via [yarn.application-attempts]({% link deployment/config.md %}#yarn-application-attempts) (default 1). The YARN Application will fail once all attempts are exhausted.
+Failed containers (including the JobManager) are replaced by YARN. The maximum number of JobManager container restarts is configured via [yarn.application-attempts]({% link deployment/config.zh.md %}#yarn-application-attempts) (default 1). The YARN Application will fail once all attempts are exhausted.
 
 ### High-Availability on YARN
 
-High-Availability on YARN is achieved through a combination of YARN and a [high availability service]({% link deployment/ha/index.md %}).
+High-Availability on YARN is achieved through a combination of YARN and a [high availability service]({% link deployment/ha/index.zh.md %}).
 
 Once a HA service is configured, it will persist JobManager metadata and perform leader elections.
 
-YARN is taking care of restarting failed JobManagers. The maximum number of JobManager restarts is defined through two configuration parameters. First Flink's [yarn.application-attempts]({% link deployment/config.md %}#yarn-application-attempts) configuration will default 2. This value is limited by YARN's [yarn.resourcemanager.am.max-attempts](https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml), which also defaults to 2.
+YARN is taking care of restarting failed JobManagers. The maximum number of JobManager restarts is defined through two configuration parameters. First Flink's [yarn.application-attempts]({% link deployment/config.zh.md %}#yarn-application-attempts) configuration will default 2. This value is limited by YARN's [yarn.resourcemanager.am.max-attempts](https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml), which also defaults to 2.
 
 Note that Flink is managing the `high-availability.cluster-id` configuration parameter when running on YARN. **You should not overwrite this parameter when running an HA cluster on YARN**. The cluster ID is used to distinguish multiple HA clusters in the HA backend (for example Zookeeper). Overwriting this configuration parameter can lead to multiple YARN clusters affecting each other.
 
@@ -213,7 +213,7 @@ For providing Flink with the required Hadoop dependencies, we recommend setting 
 
 If that is not possible, the dependencies can also be put into the `lib/` folder of Flink. 
 
-Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{site.download_url}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
+Flink also offers pre-bundled Hadoop fat jars for placing them in the `lib/` folder, on the [Downloads / Additional Components]({{site.zh_download_url}}#additional-components) section of the website. These pre-bundled fat jars are shaded to avoid dependency conflicts with common libraries. The Flink community is not testing the YARN integration against these pre-bundled jars. 
 
 ### Running Flink on YARN behind Firewalls
 
@@ -221,11 +221,11 @@ Some YARN clusters use firewalls for controlling the network traffic between the
 In those setups, Flink jobs can only be submitted to a YARN session from within the cluster's network (behind the firewall).
 If this is not feasible for production use, Flink allows to configure a port range for its REST endpoint, used for the client-cluster communication. With this range configured, users can also submit jobs to Flink crossing the firewall.
 
-The configuration parameter for specifying the REST endpoint port is [rest.bind-port]({% link deployment/config.md %}#rest-bind-port). This configuration option accepts single ports (for example: "50010"), ranges ("50000-50025"), or a combination of both.
+The configuration parameter for specifying the REST endpoint port is [rest.bind-port]({% link deployment/config.zh.md %}#rest-bind-port). This configuration option accepts single ports (for example: "50010"), ranges ("50000-50025"), or a combination of both.
 
 ### User jars & Classpath
 
-By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the [yarn.per-job-cluster.include-user-jar]({% link deployment/config.md %}#yarn-per-job-cluster-include-user-jar) parameter.
+By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the [yarn.per-job-cluster.include-user-jar]({% link deployment/config.zh.md %}#yarn-per-job-cluster-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.
 

@@ -28,7 +28,7 @@ under the License.
 Flink is a versatile framework, supporting many different deployment scenarios in a mix and match fashion.
 
 Below, we briefly explain the building blocks of a Flink cluster, their purpose and available implementations.
-If you just want to start Flink locally, we recommend setting up a [Standalone Cluster]({% link deployment/resource-providers/standalone/index.md %}).
+If you just want to start Flink locally, we recommend setting up a [Standalone Cluster]({% link deployment/resource-providers/standalone/index.zh.md %}).
 
 * This will be replaced by the TOC
 {:toc}
@@ -63,11 +63,11 @@ When deploying Flink, there are often multiple options available for each buildi
             </td>
             <td>
                 <ul>
-                    <li><a href="{% link deployment/cli.md %}">Command Line Interface</a></li>
-                    <li><a href="{% link ops/rest_api.md %}">REST Endpoint</a></li>
-                    <li><a href="{% link dev/table/sqlClient.md %}">SQL Client</a></li>
-                    <li><a href="{% link deployment/repls/python_shell.md %}">Python REPL</a></li>
-                    <li><a href="{% link deployment/repls/scala_shell.md %}">Scala REPL</a></li>
+                    <li><a href="{% link deployment/cli.zh.md %}">Command Line Interface</a></li>
+                    <li><a href="{% link ops/rest_api.zh.md %}">REST Endpoint</a></li>
+                    <li><a href="{% link dev/table/sqlClient.zh.md %}">SQL Client</a></li>
+                    <li><a href="{% link deployment/repls/python_shell.zh.md %}">Python REPL</a></li>
+                    <li><a href="{% link deployment/repls/scala_shell.zh.md %}">Scala REPL</a></li>
                 </ul>
             </td>
         </tr>
@@ -84,11 +84,11 @@ When deploying Flink, there are often multiple options available for each buildi
             </td>
             <td>
                 <ul id="jmimpls">
-                    <li><a href="{% link deployment/resource-providers/standalone/index.md %}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{% link deployment/resource-providers/standalone/docker.md %}">Docker, Docker Swarm / Compose</a>, <a href="{% link deployment/resource-providers/standalone/kubernetes.md %}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
+                    <li><a href="{% link deployment/resource-providers/standalone/index.zh.md %}">Standalone</a> (this is the barebone mode that requires just JVMs to be launched. Deployment with <a href="{% link deployment/resource-providers/standalone/docker.zh.md %}">Docker, Docker Swarm / Compose</a>, <a href="{% link deployment/resource-providers/standalone/kubernetes.zh.md %}">non-native Kubernetes</a> and other models is possible through manual setup in this mode)
                     </li>
-                    <li><a href="{% link deployment/resource-providers/native_kubernetes.md %}">Kubernetes</a></li>
-                    <li><a href="{% link deployment/resource-providers/yarn.md %}">YARN</a></li>
-                    <li><a href="{% link deployment/resource-providers/mesos.md %}">Mesos</a></li>
+                    <li><a href="{% link deployment/resource-providers/native_kubernetes.zh.md %}">Kubernetes</a></li>
+                    <li><a href="{% link deployment/resource-providers/yarn.zh.md %}">YARN</a></li>
+                    <li><a href="{% link deployment/resource-providers/mesos.zh.md %}">Mesos</a></li>
                 </ul>
             </td>
         </tr>
@@ -112,8 +112,8 @@ When deploying Flink, there are often multiple options available for each buildi
             </td>
             <td>
                 <ul>
-                    <li><a href="{% link deployment/ha/zookeeper_ha.md %}">Zookeeper</a></li>
-                    <li><a href="{% link deployment/ha/kubernetes_ha.md %}">Kubernetes HA</a></li>
+                    <li><a href="{% link deployment/ha/zookeeper_ha.zh.md %}">Zookeeper</a></li>
+                    <li><a href="{% link deployment/ha/kubernetes_ha.zh.md %}">Kubernetes HA</a></li>
                 </ul>
             </td>
         </tr>
@@ -122,7 +122,7 @@ When deploying Flink, there are often multiple options available for each buildi
             <td>
                 For checkpointing (recovery mechanism for streaming jobs) Flink relies on external file storage systems
             </td>
-            <td>See <a href="{% link deployment/filesystems/index.md %}">FileSystems</a> page.</td>
+            <td>See <a href="{% link deployment/filesystems/index.zh.md %}">FileSystems</a> page.</td>
         </tr>
         <tr>
             <td>Resource Provider</td>
@@ -136,7 +136,7 @@ When deploying Flink, there are often multiple options available for each buildi
             <td>
                 Flink components report internal metrics and Flink jobs can report additional, job specific metrics as well.
             </td>
-            <td>See <a href="{% link deployment/metric_reporters.md %}">Metrics Reporter</a> page.</td>
+            <td>See <a href="{% link deployment/metric_reporters.zh.md %}">Metrics Reporter</a> page.</td>
         </tr>
         <tr>
             <td>Application-level data sources and sinks</td>
@@ -151,7 +151,7 @@ When deploying Flink, there are often multiple options available for each buildi
                     <li>ElasticSearch</li>
                     <li>Apache Cassandra</li>
                 </ul>
-                See <a href="{% link dev/connectors/index.md %}">Connectors</a> page.
+                See <a href="{% link dev/connectors/index.zh.md %}">Connectors</a> page.
             </td>
         </tr>
     </tbody>
