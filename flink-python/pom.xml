@@ -339,6 +339,21 @@ under the License.
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>org.apache.beam:beam-vendor-grpc-1_26_0</artifact>
+									<excludes>
+										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/jboss/**</exclude>
+										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/eclipse/jetty/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>LICENSE-junit.txt</exclude>
+										<exclude>LICENSE.txt</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<relocations combine.children="append">
 								<relocation>
