@@ -24,7 +24,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-runners-java-fn-execution:2.23.0
 - org.apache.beam:beam-sdks-java-core:2.23.0
 - org.apache.beam:beam-sdks-java-fn-execution:2.23.0
-- org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1
 - org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.23.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_26_0:0.3
@@ -42,9 +41,11 @@ See bundled license files for details.
 
 The bundled Apache Beam dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
+- com.github.jponge:lzma-java:1.3
 - com.google.api.grpc:proto-google-common-protos:1.12.0
 - com.google.code.gson:gson:2.8.6
 - com.google.guava:guava:26.0-jre
+- com.ning:compress-lzf:1.0.3
 - io.grpc:grpc-auth:1.26.0
 - io.grpc:grpc-core:1.26.0
 - io.grpc:grpc-context:1.26.0
@@ -67,11 +68,20 @@ The bundled Apache Beam dependencies bundle the following dependencies under the
 - io.netty:netty-tcnative-boringssl-static:2.0.26.Final
 - io.opencensus:opencensus-api:0.24.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.24.0
-- net.bytebuddy:1.10.8
+- io.perfmark:perfmark-api:0.19.0
+- net.jpountz.lz4:lz4:1.3.0
 
 The bundled Apache Beam dependencies bundle the following dependencies under the BSD license.
 See bundled license files for details
 
 - com.google.auth:google-auth-library-credentials:0.18.0
+- com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-5
 - com.google.protobuf:protobuf-java:3.11.0
 - com.google.protobuf:protobuf-java-util:3.11.0
+- com.jcraft:jzlib:1.1.3
+
+The bundled Apache Beam dependencies bundle the following dependencies under the Bouncy Castle license.
+See bundled license files for details
+
+- org.bouncycastle:bcpkix-jdk15on:1.54
+- org.bouncycastle:bcprov-jdk15on:1.54
