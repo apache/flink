@@ -64,6 +64,9 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
+If you want to run your Flink application locally (from your IDE), you also need to add 
+a `hadoop-client` dependency such as:
+
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.hadoop</groupId>
