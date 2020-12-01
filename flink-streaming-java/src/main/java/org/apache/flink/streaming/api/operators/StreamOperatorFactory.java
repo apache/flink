@@ -55,6 +55,10 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
 		return false;
 	}
 
+	default boolean isLegacySource() {
+		return false;
+	}
+
 	/**
 	 * If the stream operator need access to the output type information at {@link StreamGraph}
 	 * generation. This can be useful for cases where the output type is specified by the returns

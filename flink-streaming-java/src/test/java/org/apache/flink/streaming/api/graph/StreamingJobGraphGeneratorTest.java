@@ -789,7 +789,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 * sources, see FLINK-16219.
 	 */
 	@Test
-	public void testYieldingOperatorProperlyChained() {
+	public void testYieldingOperatorProperlyChainedOnLegacySources() {
 		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		chainEnv.fromElements(1)
@@ -807,6 +807,26 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		Assert.assertEquals(2, vertices.size());
 		assertEquals(2, vertices.get(0).getOperatorIDs().size());
 		assertEquals(5, vertices.get(1).getOperatorIDs().size());
+	}
+
+	/**
+	 * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are chained to new sources,
+	 * see FLINK-20444.
+	 */
+	@Test
+	public void testYieldingOperatorProperlyChainedOnNewSources() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromSource(new NumberSequenceSource(0, 10), WatermarkStrategy.noWatermarks(), "input")
+			.map((x) -> x)
+			.transform("test", BasicTypeInfo.LONG_TYPE_INFO, new YieldingTestOperatorFactory<>())
+			.addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		Assert.assertEquals(1, vertices.size());
+		assertEquals(4, vertices.get(0).getOperatorIDs().size());
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
