@@ -225,6 +225,22 @@ public class KubernetesConfigOptions {
 			.withDescription("The user-specified annotations that are set to the rest Service. The value should be " +
 				"in the form of a1:v1,a2:v2");
 
+	public static final ConfigOption<String> JOBMANAGER_CONFIGURATION_MOUNT =
+		key("kubernetes.jobmanager.configurationmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Configuration (secrets and config maps) mount information for the Job manager. " +
+				"Value can contain several comma-separated configuration mounts. Each mount is defined by several : separated " +
+				"parameters - name used for mount, mounting path and configuration specific parameters");
+
+	public static final ConfigOption<String> TASKMANAGER_CONFIGURATION_MOUNT =
+		key("kubernetes.taskmanager.configurationmount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Configuration (secrets and config maps) mount information for the Task manager. " +
+				"Value can contain several comma-separated configuration mounts. Each mount is defined by several : separated " +
+				"parameters - name used for mount, mounting path and configuration specific parameters");
+
 	/** Defines the configuration key of that external resource in Kubernetes. This is used as a suffix in an actual config. */
 	public static final String EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX = "kubernetes.config-key";
 
