@@ -256,7 +256,7 @@ public class CliFrontend {
 
 		@Override
 		public void printHelp() {
-      CliFrontendParser.printHelpForRunApplication(customCommandLines);
+			CliFrontendParser.printHelpForRunApplication(customCommandLines);
 		}
 	}
 
@@ -1193,8 +1193,8 @@ public class CliFrontend {
 				throw ute.getCause();
 			}
 
-		} catch (CliArgsException e) {
-			return handleArgException(e);
+		} catch (CliArgsException ce) {
+			return handleArgException(ce);
 		} catch (ProgramParametrizationException ppe) {
 			return handleParametrizationException(ppe);
 		} catch (ProgramMissingJobException pmje) {
@@ -1215,7 +1215,7 @@ public class CliFrontend {
 	 * Parses the command line arguments.
 	 *
 	 * @param args command line arguments of the client.
-	 * @return parsed CommandAction, or null if no executable action found.
+	 * @return parsed CommandAction.
 	 */
 	public CommandAction parseAction(String[] args) {
 
