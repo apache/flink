@@ -36,7 +36,7 @@ import java.util.Optional;
 /**
  * Common interface for the runtime {@link ExecutionGraph} and {@link ArchivedExecutionGraph}.
  */
-public interface AccessExecutionGraph {
+public interface AccessExecutionGraph extends JobStatusProvider {
 	/**
 	 * Returns the job plan as a JSON string.
 	 *
