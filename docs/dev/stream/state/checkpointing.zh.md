@@ -95,8 +95,6 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 // 开启在 job 中止后仍然保留的 externalized checkpoints
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// 允许在有更近 savepoint 时回退到 checkpoint
-env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
