@@ -71,7 +71,7 @@ WHERE o.id = s.orderId AND
 时态表 Join
 --------------------------
 <span class="label label-danger">注意</span> 只在 Blink planner 中支持。
-<span class="label label-danger">注意</span> 时态表有两种方式去定义，即 [时态表函数]({% link dev/table/streaming/temporal_tables.zh.md %)#时态表函数) 和 [时态表 DDL]({% link dev/table/streaming/temporal_tables.zh.md %}#时态表)，使用时态表函数的时态表 join 只支持在 Table API 中使用，使用时态表 DDL 的时态表 join 只支持在 SQL 中使用。
+<span class="label label-danger">注意</span> 时态表有两种方式去定义，即 [时态表函数]({% link dev/table/streaming/temporal_tables.zh.md %})#时态表函数) 和 [时态表 DDL]({% link dev/table/streaming/temporal_tables.zh.md %}#时态表)，使用时态表函数的时态表 join 只支持在 Table API 中使用，使用时态表 DDL 的时态表 join 只支持在 SQL 中使用。
 请参考[时态表]({% link dev/table/streaming/temporal_tables.zh.md %})页面获取更多关于时态表和时态表函数的区别。
 
 时态表 Join 意味着对任意表（左输入/探针侧）去关联一个时态表（右输入/构建侧）的版本，时态表可以是一张跟踪所有变更记录的表（例如数据库表的 changelog，包含多个表快照），也可以是物化所有变更之后的表（例如数据库表，只有最新表快照）。
