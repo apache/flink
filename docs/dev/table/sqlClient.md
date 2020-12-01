@@ -380,7 +380,7 @@ CLI commands > session environment file > defaults environment file
 
 #### Restart Strategies
 
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link dev/task_failure_recovery.html %}#restart-strategies) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link dev/task_failure_recovery.md %}#restart-strategies) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
 
 The following strategies are supported:
 
