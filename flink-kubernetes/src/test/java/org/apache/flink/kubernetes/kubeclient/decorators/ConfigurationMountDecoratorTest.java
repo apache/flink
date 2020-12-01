@@ -40,7 +40,9 @@ public class ConfigurationMountDecoratorTest extends KubernetesJobManagerTestBas
 		super.setupFlinkConfig();
 
 		this.flinkConfig.setString(KubernetesConfigOptions.JOBMANAGER_CONFIGURATION_MOUNT.key(),
-			"secret:secret-mount1:/opt/secret/1:test-secret1,secret:secret-mount2:/opt/secret/2:test-secret2:token->value,configmap:configmap-mount:/opt/configmap:test-configmap");
+			ConfigurationMountDecorator.KUBERNETES_CONFIGURATION_SECRETS + ":secret-mount1:/opt/secret/1:test-secret1,"
+				+ ConfigurationMountDecorator.KUBERNETES_CONFIGURATION_SECRETS + ":secret-mount2:/opt/secret/2:test-secret2:token->value,"
+				+ ConfigurationMountDecorator.KUBERNETES_CONFIGURATION_CONFIGMAP + ":configmap-mount:/opt/configmap:test-configmap");
 	}
 
 	@Override
