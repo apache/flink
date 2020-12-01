@@ -726,12 +726,12 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) ON TRUE
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> are tables that track changes over time.
-        A <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
+        <p><a href="{% link dev/table/streaming/temporal_tables.md %}">Temporal Tables</a> are tables that track changes over time.
+        A <a href="{% link dev/table/streaming/temporal_tables.md %}#temporal-table">Temporal Table</a> provides access to the versions of a temporal table at a specific point in time.</p>
 
         <p>Processing-time temporal join and event-time temporal join are supported, inner join and left join are supported.</p>
         <p>The event-time temporal join is not suppored in <span class="label label-primary">Batch</span></p>
-        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
+        <p>The following example assumes that <strong>LatestRates</strong> is a <a href="{% link dev/table/streaming/temporal_tables.md %}#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
 {% highlight sql %}
 SELECT
   o.amount, o.currency, r.rate, o.amount * r.rate
@@ -741,7 +741,7 @@ FROM
   ON r.currency = o.currency
 {% endhighlight %}
         <p>The RHS table can be named with an alias using optional clause <code>[[<strong>AS</strong>] correlationName]</code>, note that the <code><strong>AS</strong></code> keyword is also optional.</p>
-        <p>For more information please check the more detailed <a href="{{ site.baseurl }}/dev/table/streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/temporal_tables.md %}">Temporal Tables</a> concept description.</p>
         <p>Only supported in Blink planner.</p>
       </td>
     </tr>    
