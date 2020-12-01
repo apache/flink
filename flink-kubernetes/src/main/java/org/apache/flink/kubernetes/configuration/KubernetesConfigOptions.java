@@ -156,6 +156,22 @@ public class KubernetesConfigOptions {
 			"The specified image must be based upon the same Apache Flink and Scala versions as used by the application. " +
 			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
+	public static final ConfigOption<String> JOBMANAGER_VOLUME_MOUNT =
+		key("kubernetes.jobmanager.volumemount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Volume (pvc, emptydir, hostpath) mount information for the Job manager. " +
+				"Value can contain several commas-separated volume mounts. Each mount is defined by several : separated " +
+				"parameters - name used for mount, mounting path and volume specific parameters");
+
+	public static final ConfigOption<String> TASKMANAGER_VOLUME_MOUNT =
+		key("kubernetes.taskmanager.vlumemount")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Volume (pvc, emptydir, hostpath) mount information for the Task manager. " +
+				"Value can contain several commas-separated volume mounts. Each mount is defined by several : separated " +
+				"parameters - name used for mount, mounting path and volume specific parameters");
+
 	/**
 	 * The following config options need to be set according to the image.
 	 */
