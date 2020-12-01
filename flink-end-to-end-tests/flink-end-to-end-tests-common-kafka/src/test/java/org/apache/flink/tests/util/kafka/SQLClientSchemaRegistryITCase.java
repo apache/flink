@@ -42,7 +42,6 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -89,9 +88,6 @@ public class SQLClientSchemaRegistryITCase {
 
 	private final KafkaContainerClient kafkaClient = new KafkaContainerClient(kafka);
 	private CachedSchemaRegistryClient registryClient;
-
-	public SQLClientSchemaRegistryITCase() throws IOException {
-	}
 
 	@Before
 	public void setUp() {
