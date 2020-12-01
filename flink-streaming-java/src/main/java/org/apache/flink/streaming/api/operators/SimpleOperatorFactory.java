@@ -96,6 +96,11 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	}
 
 	@Override
+	public boolean isLegacySource() {
+		return operator instanceof StreamSource;
+	}
+
+	@Override
 	public boolean isOutputTypeConfigurable() {
 		return operator instanceof OutputTypeConfigurable;
 	}
