@@ -92,6 +92,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-java-fn-execution</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.beam</groupId>
+					<artifactId>beam-vendor-bytebuddy-1_9_3</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -332,10 +338,18 @@ under the License.
 								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
-										<exclude>org/apache/beam/vendor/bytebuddy/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>LICENSE-junit.txt</exclude>
+										<exclude>LICENSE.txt</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>*.proto</exclude>
 									</excludes>
 								</filter>
 							</filters>
