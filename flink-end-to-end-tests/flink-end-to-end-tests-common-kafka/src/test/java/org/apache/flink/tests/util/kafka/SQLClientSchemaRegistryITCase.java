@@ -35,9 +35,11 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
@@ -48,6 +50,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -65,6 +68,9 @@ public class SQLClientSchemaRegistryITCase {
 	private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.jar");
 
 	public final Network network = Network.newNetwork();
+
+	@ClassRule
+	public static final Timeout TIMEOUT = new Timeout(8, TimeUnit.MINUTES);
 
 	@Rule
 	public final KafkaContainer kafka = new KafkaContainer(
@@ -96,7 +102,7 @@ public class SQLClientSchemaRegistryITCase {
 			10);
 	}
 
-	@Test
+	@Test(timeout = 120_000)
 	public void testReading() throws Exception {
 		String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
 		String testResultsTopic = "test-results-" + UUID.randomUUID().toString();
@@ -163,7 +169,7 @@ public class SQLClientSchemaRegistryITCase {
 		));
 	}
 
-	@Test
+	@Test(timeout = 120_000)
 	public void testWriting() throws Exception {
 		String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();
 		// Create topic test-avro
