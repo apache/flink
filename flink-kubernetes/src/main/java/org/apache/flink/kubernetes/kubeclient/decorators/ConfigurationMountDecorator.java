@@ -52,6 +52,9 @@ import java.util.List;
  */
 public class ConfigurationMountDecorator extends AbstractKubernetesStepDecorator{
 
+	public static final String KUBERNETES_CONFIGURATION_SECRETS = "secret";
+	public static final String KUBERNETES_CONFIGURATION_CONFIGMAP = "configmap";
+
 	private static final Logger LOG = LoggerFactory.getLogger(ConfigurationMountDecorator.class);
 
 	private final AbstractKubernetesParameters kubernetesComponentConf;
@@ -108,7 +111,7 @@ public class ConfigurationMountDecorator extends AbstractKubernetesStepDecorator
 				volumemounts.add(buildVolumeMount(mountInfo[1], mountInfo[2]));
 				String itemsString = (mountInfo.length == 5) ? mountInfo[4] : null;
 				switch (mountInfo[0]) {
-					case "secret":
+					case KUBERNETES_CONFIGURATION_SECRETS:
 						volumes.add(new VolumeBuilder()
 								.withName(mountInfo[1])
 								.withNewSecret()
@@ -117,7 +120,7 @@ public class ConfigurationMountDecorator extends AbstractKubernetesStepDecorator
 								.endSecret()
 								.build());
 						break;
-					case "configmap":
+					case KUBERNETES_CONFIGURATION_CONFIGMAP:
 						volumes.add(new VolumeBuilder()
 								.withName(mountInfo[1])
 								.withNewConfigMap()
