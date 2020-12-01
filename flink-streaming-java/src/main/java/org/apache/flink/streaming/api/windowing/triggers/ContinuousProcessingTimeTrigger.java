@@ -80,6 +80,9 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 			ctx.registerProcessingTimeTimer(time + interval);
 			return TriggerResult.FIRE;
 		}
+		if (window.maxTimestamp() == time) {
+            return TriggerResult.FIRE_AND_PURGE;
+        }
 		return TriggerResult.CONTINUE;
 	}
 
