@@ -236,7 +236,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 			.setDelayExecutor(taskRestartExecutor)
 			.build();
 
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		scheduler.startScheduling();
 
 		final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -312,7 +312,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final SlotProvider slotProvider = new SimpleSlotProvider(parallelism, gateway);
 
 		final SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(new JobGraph(vertex), slotProvider);
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		return scheduler;
 	}
 }
