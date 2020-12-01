@@ -320,6 +320,13 @@ public class CoreOptions {
 			.withDescription("A (semicolon-separated) list of file schemes, for which Hadoop can be used instead " +
 				"of an appropriate Flink plugin. (example: s3;wasb)");
 
+	@Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
+	public static final ConfigOption<MemorySize> FILESYSTEM_READ_BUFFER_SIZE = ConfigOptions
+		.key("fs.hdfs.read-buffer.size")
+		.memoryType()
+		.defaultValue(MemorySize.parse("4kb"))
+		.withDescription("The default size of the read buffer for the hdfs input stream.");
+
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.
 	 */

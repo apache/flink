@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 import org.apache.flink.runtime.util.HadoopUtils;
+
+import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +57,8 @@ public class HadoopFsFactory implements FileSystemFactory {
 	/** Hadoop's configuration for the file systems. */
 	private org.apache.hadoop.conf.Configuration hadoopConfig;
 
+	private int readBufferSize;
+
 	@Override
 	public String getScheme() {
 		// the hadoop factory creates various schemes
@@ -63,6 +69,10 @@ public class HadoopFsFactory implements FileSystemFactory {
 	public void configure(Configuration config) {
 		flinkConfig = config;
 		hadoopConfig = null; // reset the Hadoop Config
+		readBufferSize = MathUtils.checkedDownCast(
+			config.get(CoreOptions.FILESYSTEM_READ_BUFFER_SIZE).getBytes());
+		Preconditions.checkArgument(readBufferSize >= 0,
+			"readBufferSize must >= 0");
 	}
 
 	@Override
@@ -170,7 +180,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 				throw new IOException(message, e);
 			}
 
-			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
+			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs, readBufferSize);
 
 			// create the Flink file system, optionally limiting the open connections
 			if (flinkConfig != null) {

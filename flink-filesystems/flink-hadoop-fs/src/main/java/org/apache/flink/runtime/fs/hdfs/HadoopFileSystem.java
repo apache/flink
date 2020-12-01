@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.BlockLocation;
+import org.apache.flink.core.fs.FSDataBufferedInputStream;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.net.URI;
@@ -43,6 +46,7 @@ public class HadoopFileSystem extends FileSystem {
 	* URL is lazily initialized. */
 	private FileSystemKind fsKind;
 
+	private final int readBufferSize;
 
 	/**
 	 * Wraps the given Hadoop File System object as a Flink File System object.
@@ -51,7 +55,22 @@ public class HadoopFileSystem extends FileSystem {
 	 * @param hadoopFileSystem The Hadoop FileSystem that will be used under the hood.
 	 */
 	public HadoopFileSystem(org.apache.hadoop.fs.FileSystem hadoopFileSystem) {
+		this(hadoopFileSystem, 0);
+	}
+
+	/**
+	 * Wraps the given Hadoop File System object as a Flink File System object.
+	 * The given Hadoop file system object is expected to be initialized already.
+	 *
+	 * @param hadoopFileSystem The Hadoop FileSystem that will be used under the hood.
+	 * @param readBufferSize The size of the buffer to be used.
+	 */
+	public HadoopFileSystem(org.apache.hadoop.fs.FileSystem hadoopFileSystem,
+							int readBufferSize) {
 		this.fs = checkNotNull(hadoopFileSystem, "hadoopFileSystem");
+		Preconditions.checkArgument(readBufferSize >= 0,
+			"readBufferSize must >= 0");
+		this.readBufferSize = readBufferSize;
 	}
 
 	/**
@@ -116,17 +135,19 @@ public class HadoopFileSystem extends FileSystem {
 	}
 
 	@Override
-	public HadoopDataInputStream open(final Path f, final int bufferSize) throws IOException {
+	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
 		final org.apache.hadoop.fs.Path path = toHadoopPath(f);
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(path, bufferSize);
-		return new HadoopDataInputStream(fdis);
+		HadoopDataInputStream inputStream = new HadoopDataInputStream(fdis);
+		if (readBufferSize <= 0) {
+			return inputStream;
+		}
+		return new FSDataBufferedInputStream(inputStream, readBufferSize);
 	}
 
 	@Override
-	public HadoopDataInputStream open(final Path f) throws IOException {
-		final org.apache.hadoop.fs.Path path = toHadoopPath(f);
-		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(path);
-		return new HadoopDataInputStream(fdis);
+	public FSDataInputStream open(final Path f) throws IOException {
+		return open(f, readBufferSize);
 	}
 
 	@Override

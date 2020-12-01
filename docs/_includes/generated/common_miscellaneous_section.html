@@ -20,6 +20,12 @@
             <td>String</td>
             <td>The default filesystem scheme, used for paths that do not declare a scheme explicitly. May contain an authority, e.g. host:port in case of an HDFS NameNode.</td>
         </tr>
+		<tr>
+			<td><h5>fs.hdfs.read-buffer.size</h5></td>
+			<td style="word-wrap: break-word;">(none)</td>
+			<td>MemorySize</td>
+			<td>The default size of the read buffer for the hdfs input stream, default value of 4kb.</td>
+		</tr>
         <tr>
             <td><h5>io.tmp.dirs</h5></td>
             <td style="word-wrap: break-word;">'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty("java.io.tmpdir") in standalone.</td>

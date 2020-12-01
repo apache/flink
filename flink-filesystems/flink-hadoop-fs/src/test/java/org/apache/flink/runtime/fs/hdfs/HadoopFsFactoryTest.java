@@ -18,17 +18,28 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.fs.FSDataBufferedInputStream;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests that validate the behavior of the Hadoop File System Factory.
@@ -61,4 +72,61 @@ public class HadoopFsFactoryTest extends TestLogger {
 			assertTrue(e.getMessage().contains("authority"));
 		}
 	}
+
+	@Test
+	public void testReadBufferSize() throws Exception {
+		final URI uri = URI.create("hdfs://localhost:12345/");
+		final Path path = new Path(uri.getPath());
+
+		org.apache.hadoop.fs.FileSystem hadoopFs = mock(org.apache.hadoop.fs.FileSystem.class);
+		org.apache.hadoop.fs.FSDataInputStream hadoopInputStream =
+			mock(org.apache.hadoop.fs.FSDataInputStream.class);
+		when(hadoopFs.open(isA(org.apache.hadoop.fs.Path.class), anyInt()))
+			.thenReturn(hadoopInputStream);
+
+		// default configuration
+		Configuration configuration = new Configuration();
+
+		HadoopFsFactory fsFactory = new HadoopFsFactory();
+		fsFactory.configure(configuration);
+
+		FileSystem fileSystem = fsFactory.create(uri);
+		mockHadoopFsOpen(fileSystem, hadoopFs);
+		FSDataInputStream inputStream = fileSystem.open(path);
+
+		assertTrue(inputStream instanceof FSDataBufferedInputStream);
+		assertEquals(4096, ((FSDataBufferedInputStream) inputStream).getBufferSize());
+
+		// close read buffer
+		configuration = new Configuration();
+		configuration.set(CoreOptions.FILESYSTEM_READ_BUFFER_SIZE, MemorySize.parse("0kb"));
+		fsFactory.configure(configuration);
+
+		fileSystem = fsFactory.create(uri);
+		mockHadoopFsOpen(fileSystem, hadoopFs);
+		inputStream = fileSystem.open(path);
+
+		assertTrue(inputStream instanceof HadoopDataInputStream);
+
+		// modify read buffer size
+		configuration = new Configuration();
+		configuration.set(CoreOptions.FILESYSTEM_READ_BUFFER_SIZE, MemorySize.parse("8kb"));
+		fsFactory.configure(configuration);
+
+		fileSystem = fsFactory.create(uri);
+		mockHadoopFsOpen(fileSystem, hadoopFs);
+		inputStream = fileSystem.open(path);
+
+		assertTrue(inputStream instanceof FSDataBufferedInputStream);
+		assertEquals(8192, ((FSDataBufferedInputStream) inputStream).getBufferSize());
+	}
+
+	private void mockHadoopFsOpen(
+		FileSystem fileSystem,
+		org.apache.hadoop.fs.FileSystem hadoopFs) throws Exception {
+		Field testAField = fileSystem.getClass().getDeclaredField("fs");
+		testAField.setAccessible(true);
+		testAField.set(fileSystem, hadoopFs);
+	}
+
 }
