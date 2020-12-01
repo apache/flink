@@ -917,7 +917,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (schedulerNG.requestJobStatus() == JobStatus.CREATED) {
 			schedulerAssignedFuture = CompletableFuture.completedFuture(null);
-			schedulerNG.setMainThreadExecutor(getMainThreadExecutor());
+			schedulerNG.initialize(getMainThreadExecutor());
 		} else {
 			suspendAndClearSchedulerFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
@@ -925,7 +925,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
 				(ignored, throwable) -> {
-					newScheduler.setMainThreadExecutor(getMainThreadExecutor());
+					newScheduler.initialize(getMainThreadExecutor());
 					assignScheduler(newScheduler, newJobManagerJobMetricGroup);
 					return null;
 				}
