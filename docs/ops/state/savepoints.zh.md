@@ -81,7 +81,7 @@ mapper-id   | State of StatefulMapper
 当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#配置)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory`参数](#触发-savepoint-1)来控制该目录的位置。
 
 <div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统上的位置。
+<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
 </div>
 
 以 `FsStateBackend`  或 `RocksDBStateBackend` 为例：
@@ -100,10 +100,16 @@ mapper-id   | State of StatefulMapper
 /savepoint/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-从 1.11.0 开始 savepoint 已经是自包含的(查看 <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> 获取更多信息），你可以按需迁移 savepoint 文件后进行恢复。
-<div class="alert alert-info">
-<strong>请注意：</strong> 现在 savepoint 可任意迁移的特性不支持 task-owned state（比如 GenericWriteAhreadLog sink) 以及 <a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>。
+从 1.11.0 开始，你可以通过移动（拷贝）savepoint 目录到任意地方，然后再进行恢复。
+<div class="alert alert-warning">
+在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
+由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
 </div>
+
+<div class="alert alert-warning">
+和 savepoint 不同，checkpoint 不支持任意移动文件，因为 checkpoint 可能包含一些文件的绝对路径。
+</div>
+如果你使用 `MemoryStateBackend` 的话，metadata 和 savepoint 的数据都会保存在 `_metadata` 文件中，因此不要因为没看到目录下没有数据文件而困惑。
 <div class="alert alert-warning">
   <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
 </div>
