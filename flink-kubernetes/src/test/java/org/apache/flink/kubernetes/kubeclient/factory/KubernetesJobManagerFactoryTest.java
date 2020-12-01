@@ -37,6 +37,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -46,6 +47,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +84,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, kerberosDir.toString() + "/" + KEYTAB_FILE);
 		flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, "test");
 		flinkConfig.set(SecurityOptions.KERBEROS_KRB5_PATH, kerberosDir.toString() + "/" + KRB5_CONF_FILE);
+		flinkConfig.setString(KubernetesConfigOptions.JOBMANAGER_OWNER_REF.key(),
+			"cloudflow.lightbend.com/v1alpha1:true:true:CloudflowApplication:sensordata:75526df9-1d6b-42cc-8296-5b1375139a56");
 	}
 
 	@Override
@@ -104,6 +108,10 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 		expectedLabels.putAll(userLabels);
 		assertEquals(expectedLabels, resultDeployment.getMetadata().getLabels());
+		List<OwnerReference> expectedOwnerReferences =
+			Arrays.asList(new OwnerReference("cloudflow.lightbend.com/v1alpha1", true, true,
+				"CloudflowApplication", "sensordata", "75526df9-1d6b-42cc-8296-5b1375139a56"));
+		assertEquals(expectedOwnerReferences, resultDeployment.getMetadata().getOwnerReferences());
 	}
 
 	@Test

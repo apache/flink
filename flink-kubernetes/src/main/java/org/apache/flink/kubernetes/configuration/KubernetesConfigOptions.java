@@ -156,6 +156,13 @@ public class KubernetesConfigOptions {
 			"The specified image must be based upon the same Apache Flink and Scala versions as used by the application. " +
 			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
+	public static final ConfigOption<String> JOBMANAGER_OWNER_REF =
+		key("kubernetes.jobmanager.ownerref")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("owner reference for the job manager. " +
+				"Value is a :-separated values - apiVersion, blockOwnerDeletion, controller, kind, name, uid");
+
 	/**
 	 * The following config options need to be set according to the image.
 	 */
