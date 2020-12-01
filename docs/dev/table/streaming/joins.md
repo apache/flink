@@ -68,7 +68,7 @@ Compared to a regular join operation, this kind of join only supports append-onl
 Temporal Joins
 --------------
 <span class="label label-danger">Attention</span> This feature is only supported in Blink planner.
-<span class="label label-danger">Attention</span> Temporal table has two ways to define in Flink, i.e. [temporal table function]({% link dev/table/streaming/temporal_tables.md %}#temporal-table-function) and [temporal table DDL](({% link dev/table/streaming/temporal_tables.md %}#temporal-table-ddl)).
+<span class="label label-danger">Attention</span> Temporal table has two ways to define in Flink, i.e. [temporal table function]({% link dev/table/streaming/temporal_tables.md %}#temporal-table-function) and [temporal table DDL]({% link dev/table/streaming/temporal_tables.md %}#temporal-table-ddl)).
 Temporal join that using temporal table function is only supported in Table API, temporal join that using temporal table DDL is only supported in SQL, please see the page [temporal table]({% link dev/table/streaming/temporal_tables.md %}) for more information about the differences between temporal table function and temporal table DDL.
 
 Temporal join is an arbitrary table (left input/probe side) correlate with the versions of temporal table (right input/build side), The temporal table can be an external dimension table that changes over time 
@@ -98,7 +98,7 @@ is joined with the version of the build side table at time `12:30:00` according 
 Thus, the incoming row is only joined with rows that have a timestamp lower or equal to `12:30:00` with
 applied updates according to the primary key until this point in time.
 
-By definition of event time, [watermarks]({{ site.baseurl }}/dev/event_time.html) allow the join operation to move
+By definition of event time, [watermarks]({% link dev/event_time.md %}) allow the join operation to move
 forward in time and discard versions of the build table that are no longer necessary because no incoming row with
 lower or equal timestamp is expected.
 

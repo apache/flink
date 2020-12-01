@@ -381,7 +381,7 @@ CLI commands > session environment file > defaults environment file
 
 #### 重启策略（Restart Strategies）
 
-重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({% link dev/task_failure_recovery.zh.md %})相似，更细精度的重启配置可以在环境配置文件中声明。
+重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({% link dev/task_failure_recovery.zh.md %}#restart-strategies)相似，更细精度的重启配置可以在环境配置文件中声明。
 
 Flink 支持以下策略：
 
