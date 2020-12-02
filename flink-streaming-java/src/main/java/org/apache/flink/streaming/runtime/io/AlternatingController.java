@@ -92,9 +92,10 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 				return maybeTimedOut;
 			}
 			else {
-				// TODO: add unit test for this
 				alignedController.resumeConsumption(channelInfo);
 			}
+		} else if (!barrier.getCheckpointOptions().isUnalignedCheckpoint() && activeController == unalignedController) {
+			alignedController.resumeConsumption(channelInfo);
 		}
 		return Optional.empty();
 	}

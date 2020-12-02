@@ -68,6 +68,27 @@ import static org.junit.Assert.assertFalse;
  */
 public class AlternatingControllerTest {
 
+	@Test
+	public void testChannelUnblockedAfterDifferentBarriers() throws Exception {
+		CheckpointedInputGate gate = buildGate(new ValidatingCheckpointHandler(), 3);
+		long barrierId = 1L;
+		long ts = System.currentTimeMillis();
+		long timeout = 10;
+
+		send(barrier(barrierId, ts, unaligned(getDefault())), 0, gate);
+
+		TestInputChannel acChannel = (TestInputChannel) gate.getChannel(1);
+		acChannel.setBlocked(true);
+		send(barrier(barrierId, ts, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)), acChannel.getChannelIndex(), gate);
+		assertFalse(acChannel.isBlocked());
+
+		Thread.sleep(timeout);
+		TestInputChannel acChannelWithTimeout = (TestInputChannel) gate.getChannel(2);
+		acChannelWithTimeout.setBlocked(true);
+		send(barrier(barrierId, ts, alignedWithTimeout(getDefault(), timeout)), acChannelWithTimeout.getChannelIndex(), gate);
+		assertFalse(acChannelWithTimeout.isBlocked());
+	}
+
 	/**
 	 * Upon subsuming (or canceling) a checkpoint, channels should be notified regardless of whether UC controller is
 	 * currently being used or not. Otherwise, channels may not capture in-flight buffers.
