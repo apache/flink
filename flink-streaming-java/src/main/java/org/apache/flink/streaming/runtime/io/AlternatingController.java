@@ -39,6 +39,8 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	private final UnalignedController unalignedController;
 
 	private CheckpointBarrierBehaviourController activeController;
+	private long firstBarrierArrivalTime = Long.MAX_VALUE;
+	private long lastSeenBarrier = -1L;
 
 	public AlternatingController(
 			AlignedController alignedController,
@@ -58,6 +60,10 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 			InputChannelInfo channelInfo,
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber) throws IOException {
+		if (lastSeenBarrier < announcedBarrier.getId()) {
+			lastSeenBarrier = announcedBarrier.getId();
+			firstBarrierArrivalTime = getArrivalTime(announcedBarrier);
+		}
 
 		Optional<CheckpointBarrier> maybeTimedOut = asTimedOut(announcedBarrier);
 		announcedBarrier = maybeTimedOut.orElse(announcedBarrier);
@@ -103,6 +109,10 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	public Optional<CheckpointBarrier> preProcessFirstBarrier(
 			InputChannelInfo channelInfo,
 			CheckpointBarrier barrier) throws IOException, CheckpointException {
+		if (lastSeenBarrier < barrier.getId()) {
+			lastSeenBarrier = barrier.getId();
+			firstBarrierArrivalTime = getArrivalTime(barrier);
+		}
 		return activeController.preProcessFirstBarrier(channelInfo, barrier);
 	}
 
@@ -191,6 +201,11 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 	private boolean canTimeout(CheckpointBarrier barrier) {
 		return barrier.getCheckpointOptions().isTimeoutable() &&
-			barrier.getCheckpointOptions().getAlignmentTimeout() < (System.currentTimeMillis() - barrier.getTimestamp());
+			barrier.getId() <= lastSeenBarrier &&
+			barrier.getCheckpointOptions().getAlignmentTimeout() * 1_000_000 < (System.nanoTime() - firstBarrierArrivalTime);
+	}
+
+	private long getArrivalTime(CheckpointBarrier announcedBarrier) {
+		return announcedBarrier.getCheckpointOptions().isTimeoutable() ? System.nanoTime() : Long.MAX_VALUE;
 	}
 }
