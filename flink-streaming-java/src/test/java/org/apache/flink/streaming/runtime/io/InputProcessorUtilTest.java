@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
@@ -84,7 +85,7 @@ public class InputProcessorUtilTest {
 			for (IndexedInputGate inputGate : allInputGates) {
 				for (int channelId = 0; channelId < inputGate.getNumberOfInputChannels(); channelId++) {
 					barrierHandler.processBarrier(
-						new CheckpointBarrier(1, 42, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0)),
+						new CheckpointBarrier(1, 42, CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())),
 						new InputChannelInfo(inputGate.getGateIndex(), channelId));
 				}
 			}

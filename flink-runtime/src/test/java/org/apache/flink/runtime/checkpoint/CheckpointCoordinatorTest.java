@@ -2620,7 +2620,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		return new CheckpointCoordinatorBuilder()
 			.setJobId(jobId)
 			.setTasks(new ExecutionVertex[]{ vertex1, vertex2 })
-			.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
+			.setCheckpointCoordinatorConfiguration(
+				CheckpointCoordinatorConfiguration.builder()
+					.setAlignmentTimeout(Long.MAX_VALUE)
+					.setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
 			.setTimer(manuallyTriggeredScheduledExecutor)
 			.build();
 	}

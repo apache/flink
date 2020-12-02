@@ -221,7 +221,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
 	private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
 		StreamConfig config = testHarness.getStreamTask().getConfiguration();
-		CheckpointOptions checkpointOptions = CheckpointOptions.create(
+		CheckpointOptions checkpointOptions = CheckpointOptions.forConfig(
 				CheckpointType.CHECKPOINT,
 				CheckpointStorageLocationReference.getDefault(),
 				config.isExactlyOnceCheckpointMode(),

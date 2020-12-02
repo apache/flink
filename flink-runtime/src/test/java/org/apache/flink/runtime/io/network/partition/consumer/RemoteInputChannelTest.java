@@ -44,7 +44,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
@@ -83,6 +82,7 @@ import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.ass
 import static org.apache.flink.runtime.io.network.partition.AvailabilityUtil.assertPriorityAvailability;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
+import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -107,7 +107,9 @@ import static org.mockito.Mockito.when;
  */
 public class RemoteInputChannelTest {
 
-	public static final long CHECKPOINT_ID = 1L;
+	private static final long CHECKPOINT_ID = 1L;
+	private static final CheckpointOptions UNALIGNED = CheckpointOptions.unaligned(getDefault());
+	private static final CheckpointOptions ALIGNED_WITH_TIMEOUT = CheckpointOptions.alignedWithTimeout(getDefault(), 10);
 
 	@Test
 	public void testExceptionOnReordering() throws Exception {
@@ -1136,7 +1138,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 0);
+		sendBarrier(channel, sequenceNumber++, UNALIGNED);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 
@@ -1150,7 +1152,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 0);
+		sendBarrier(channel, sequenceNumber++, UNALIGNED);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		assertInflightBufferSizes(channel, 1, 2);
@@ -1176,7 +1178,7 @@ public class RemoteInputChannelTest {
 			int sequenceNumber = startingSequence;
 			sendBuffer(channel, sequenceNumber++, bufferSize++);
 			sendBuffer(channel, sequenceNumber++, bufferSize++);
-			sendBarrier(channel, sequenceNumber++, 0);
+			sendBarrier(channel, sequenceNumber++, UNALIGNED);
 			sendBuffer(channel, sequenceNumber++, bufferSize++);
 			sendBuffer(channel, sequenceNumber++, bufferSize++);
 			assertThat(
@@ -1193,7 +1195,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 0);
+		sendBarrier(channel, sequenceNumber++, UNALIGNED);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		assertGetNextBufferSequenceNumbers(channel, 2, 0);
@@ -1213,7 +1215,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 10);
+		sendBarrier(channel, sequenceNumber++, ALIGNED_WITH_TIMEOUT);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 
@@ -1239,7 +1241,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 10);
+		sendBarrier(channel, sequenceNumber++, ALIGNED_WITH_TIMEOUT);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		assertInflightBufferSizes(channel, 1, 2);
@@ -1252,7 +1254,7 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 10);
+		sendBarrier(channel, sequenceNumber++, ALIGNED_WITH_TIMEOUT);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		assertGetNextBufferSequenceNumbers(channel, 2);
@@ -1266,20 +1268,14 @@ public class RemoteInputChannelTest {
 		final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
-		sendBarrier(channel, sequenceNumber++, 10);
+		sendBarrier(channel, sequenceNumber++, ALIGNED_WITH_TIMEOUT);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		sendBuffer(channel, sequenceNumber++, bufferSize++);
 		assertGetNextBufferSequenceNumbers(channel, 2, 0);
 		assertInflightBufferSizes(channel, 2);
 	}
 
-	private void sendBarrier(RemoteInputChannel channel, int sequenceNumber, int alignmentTimeout) throws IOException {
-		CheckpointOptions checkpointOptions = CheckpointOptions.create(
-			CHECKPOINT,
-			CheckpointStorageLocationReference.getDefault(),
-			true,
-			true,
-			alignmentTimeout);
+	private void sendBarrier(RemoteInputChannel channel, int sequenceNumber, CheckpointOptions checkpointOptions) throws IOException {
 		send(
 			channel,
 			sequenceNumber,
@@ -1438,7 +1434,7 @@ public class RemoteInputChannelTest {
 		SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		RemoteInputChannel channel = InputChannelTestUtils.createRemoteInputChannel(inputGate, 0);
 
-		CheckpointOptions options = new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+		CheckpointOptions options = new CheckpointOptions(CHECKPOINT, getDefault());
 		assertPriorityAvailability(inputGate, false, false, () ->
 			assertAvailability(inputGate, false, true, () -> {
 				channel.onBuffer(toBuffer(new CheckpointBarrier(1L, 123L, options), false), 0, 0);

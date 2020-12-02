@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -55,12 +54,7 @@ public class EventSerializerTest {
 		new EventAnnouncement(new CheckpointBarrier(
 			42L,
 			1337L,
-			CheckpointOptions.create(
-				CheckpointType.CHECKPOINT,
-				CheckpointStorageLocationReference.getDefault(),
-				true,
-				true,
-				10)),
+			CheckpointOptions.alignedWithTimeout(CheckpointStorageLocationReference.getDefault(), 10)),
 			44)
 	};
 

@@ -104,8 +104,9 @@ public class SubtaskCheckpointCoordinatorTest {
 		MockWriter writer = new MockWriter();
 		SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
 		CheckpointStorageLocationReference locationReference = CheckpointStorageLocationReference.getDefault();
-		CheckpointOptions options = new CheckpointOptions(checkpointType, locationReference, true, unalignedCheckpointEnabled, 0);
-		coordinator.initCheckpoint(1L, options);
+		coordinator.initCheckpoint(1L, unalignedCheckpointEnabled ?
+			CheckpointOptions.unaligned(locationReference) :
+			CheckpointOptions.alignedNoTimeout(checkpointType, locationReference));
 		return writer.started;
 	}
 
