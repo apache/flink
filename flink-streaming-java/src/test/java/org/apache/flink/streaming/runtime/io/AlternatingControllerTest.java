@@ -199,6 +199,7 @@ public class AlternatingControllerTest {
 		// First announcements and prioritsed barriers
 		List<AbstractEvent> events = new ArrayList<>();
 		events.add(gate.pollNext().get().getEvent());
+		Thread.sleep(alignmentTimeout * 2);
 		events.add(gate.pollNext().get().getEvent());
 		events.add(gate.pollNext().get().getEvent());
 		events.add(gate.pollNext().get().getEvent());
