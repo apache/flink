@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,7 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
             final DeweyNumber version) {
 
         if (previousNodeId != null) {
-            lockNode(previousNodeId);
+            lockNode(previousNodeId, version);
         }
 
         NodeId currentNodeId = new NodeId(eventId, getOriginalNameFromInternal(stateName));
@@ -159,9 +160,10 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
                     currentPath.push(currentEntry);
 
                     boolean firstMatch = true;
-                    for (SharedBufferEdge edge : currentEntry.f1.getEdges()) {
+                    for (Lockable<SharedBufferEdge> lockableEdge : currentEntry.f1.getEdges()) {
                         // we can only proceed if the current version is compatible to the version
                         // of this previous relation
+                        final SharedBufferEdge edge = lockableEdge.getElement();
                         final DeweyNumber currentVersion = extractionState.getVersion();
                         if (currentVersion.isCompatibleWith(edge.getDeweyNumber())) {
                             final NodeId target = edge.getTarget();
@@ -225,10 +227,15 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
      *
      * @param node id of the entry
      */
-    public void lockNode(final NodeId node) {
+    public void lockNode(final NodeId node, final DeweyNumber version) {
         Lockable<SharedBufferNode> sharedBufferNode = sharedBuffer.getEntry(node);
         if (sharedBufferNode != null) {
             sharedBufferNode.lock();
+            for (Lockable<SharedBufferEdge> edge : sharedBufferNode.getElement().getEdges()) {
+                if (version.isCompatibleWith(edge.getElement().getDeweyNumber())) {
+                    edge.lock();
+                }
+            }
             sharedBuffer.upsertEntry(node, sharedBufferNode);
         }
     }
@@ -240,10 +247,12 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
      * @param node id of the entry
      * @throws Exception Thrown if the system cannot access the state.
      */
-    public void releaseNode(final NodeId node) throws Exception {
+    public void releaseNode(final NodeId node, final DeweyNumber version) throws Exception {
         // the stack used to detect all nodes that needs to be released.
         Stack<NodeId> nodesToExamine = new Stack<>();
+        Stack<DeweyNumber> versionsToExamine = new Stack<>();
         nodesToExamine.push(node);
+        versionsToExamine.push(version);
 
         while (!nodesToExamine.isEmpty()) {
             NodeId curNode = nodesToExamine.pop();
@@ -253,17 +262,28 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
                 break;
             }
 
+            DeweyNumber currentVersion = versionsToExamine.pop();
+            List<Lockable<SharedBufferEdge>> edges = curBufferNode.getElement().getEdges();
+            Iterator<Lockable<SharedBufferEdge>> edgesIterator = edges.iterator();
+            while (edgesIterator.hasNext()) {
+                Lockable<SharedBufferEdge> sharedBufferEdge = edgesIterator.next();
+                SharedBufferEdge edge = sharedBufferEdge.getElement();
+                if (currentVersion.isCompatibleWith(edge.getDeweyNumber())) {
+                    if (sharedBufferEdge.release()) {
+                        edgesIterator.remove();
+                        NodeId targetId = edge.getTarget();
+                        if (targetId != null) {
+                            nodesToExamine.push(targetId);
+                            versionsToExamine.push(edge.getDeweyNumber());
+                        }
+                    }
+                }
+            }
+
             if (curBufferNode.release()) {
                 // first release the current node
                 sharedBuffer.removeEntry(curNode);
                 releaseEvent(curNode.getEventId());
-
-                for (SharedBufferEdge sharedBufferEdge : curBufferNode.getElement().getEdges()) {
-                    NodeId targetId = sharedBufferEdge.getTarget();
-                    if (targetId != null) {
-                        nodesToExamine.push(targetId);
-                    }
-                }
             } else {
                 sharedBuffer.upsertEntry(curNode, curBufferNode);
             }

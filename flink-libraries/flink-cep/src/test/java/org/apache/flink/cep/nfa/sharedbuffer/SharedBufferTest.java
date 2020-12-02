@@ -111,44 +111,44 @@ public class SharedBufferTest extends TestLogger {
             NodeId aLoop3 =
                     sharedBufferAccessor.put(
                             "a[]", eventIds[4], aLoop2, DeweyNumber.fromString("1.0"));
-            NodeId b0 =
-                    sharedBufferAccessor.put(
-                            "b", eventIds[5], aLoop3, DeweyNumber.fromString("1.0.0"));
+            DeweyNumber b0Version = DeweyNumber.fromString("1.0.0");
+            NodeId b0 = sharedBufferAccessor.put("b", eventIds[5], aLoop3, b0Version);
             NodeId aLoop4 =
                     sharedBufferAccessor.put(
                             "a[]", eventIds[5], aLoop3, DeweyNumber.fromString("1.1"));
-            NodeId b1 =
-                    sharedBufferAccessor.put(
-                            "b", eventIds[5], aSecondLoop0, DeweyNumber.fromString("2.0.0"));
+            DeweyNumber b1Version = DeweyNumber.fromString("2.0.0");
+            NodeId b1 = sharedBufferAccessor.put("b", eventIds[5], aSecondLoop0, b1Version);
             NodeId aLoop5 =
                     sharedBufferAccessor.put(
                             "a[]", eventIds[6], aLoop4, DeweyNumber.fromString("1.1"));
-            NodeId b3 =
-                    sharedBufferAccessor.put(
-                            "b", eventIds[7], aLoop5, DeweyNumber.fromString("1.1.0"));
+            DeweyNumber b3Version = DeweyNumber.fromString("1.1.0");
+            NodeId b3 = sharedBufferAccessor.put("b", eventIds[7], aLoop5, b3Version);
+            sharedBufferAccessor.lockNode(b0, b0Version);
+            sharedBufferAccessor.lockNode(b1, b1Version);
+            sharedBufferAccessor.lockNode(b3, b3Version);
 
             List<Map<String, List<EventId>>> patterns3 =
-                    sharedBufferAccessor.extractPatterns(b3, DeweyNumber.fromString("1.1.0"));
+                    sharedBufferAccessor.extractPatterns(b3, b3Version);
             assertEquals(1L, patterns3.size());
             assertEquals(expectedPattern3, sharedBufferAccessor.materializeMatch(patterns3.get(0)));
-            sharedBufferAccessor.releaseNode(b3);
+            sharedBufferAccessor.releaseNode(b3, b3Version);
 
             List<Map<String, List<EventId>>> patterns4 =
-                    sharedBufferAccessor.extractPatterns(b3, DeweyNumber.fromString("1.1.0"));
+                    sharedBufferAccessor.extractPatterns(b3, b3Version);
             assertEquals(0L, patterns4.size());
             assertTrue(patterns4.isEmpty());
 
             List<Map<String, List<EventId>>> patterns1 =
-                    sharedBufferAccessor.extractPatterns(b1, DeweyNumber.fromString("2.0.0"));
+                    sharedBufferAccessor.extractPatterns(b1, b1Version);
             assertEquals(1L, patterns1.size());
             assertEquals(expectedPattern1, sharedBufferAccessor.materializeMatch(patterns1.get(0)));
+            sharedBufferAccessor.releaseNode(b1, b1Version);
 
             List<Map<String, List<EventId>>> patterns2 =
-                    sharedBufferAccessor.extractPatterns(b0, DeweyNumber.fromString("1.0.0"));
+                    sharedBufferAccessor.extractPatterns(b0, b0Version);
             assertEquals(1L, patterns2.size());
             assertEquals(expectedPattern2, sharedBufferAccessor.materializeMatch(patterns2.get(0)));
-            sharedBufferAccessor.releaseNode(b1);
-            sharedBufferAccessor.releaseNode(b0);
+            sharedBufferAccessor.releaseNode(b0, b0Version);
 
             for (EventId eventId : eventIds) {
                 sharedBufferAccessor.releaseEvent(eventId);
@@ -192,9 +192,9 @@ public class SharedBufferTest extends TestLogger {
                             "branching", eventIds[4], b1, DeweyNumber.fromString("1.1.0"));
 
             // simulate IGNORE (next event can point to events[2])
-            sharedBufferAccessor.lockNode(b0);
+            sharedBufferAccessor.lockNode(b0, DeweyNumber.fromString("1.0"));
 
-            sharedBufferAccessor.releaseNode(b10);
+            sharedBufferAccessor.releaseNode(b10, DeweyNumber.fromString("1.1.0"));
 
             for (EventId eventId : eventIds) {
                 sharedBufferAccessor.releaseEvent(eventId);
@@ -321,7 +321,7 @@ public class SharedBufferTest extends TestLogger {
             assertEquals(4, sharedBuffer.getSharedBufferNodeCacheSize());
             assertEquals(0, sharedBuffer.getSharedBufferNodeSize());
 
-            sharedBufferAccessor.lockNode(b0);
+            sharedBufferAccessor.lockNode(b0, DeweyNumber.fromString("1.0.0"));
 
             for (EventId eventId : eventIds) {
                 sharedBufferAccessor.releaseEvent(eventId);
@@ -366,7 +366,7 @@ public class SharedBufferTest extends TestLogger {
             }
 
             NodeId lastNode = nodeIds[numberEvents - 1];
-            sharedBufferAccessor.releaseNode(lastNode);
+            sharedBufferAccessor.releaseNode(lastNode, DeweyNumber.fromString("1.0"));
 
             for (int i = 0; i < numberEvents; i++) {
                 sharedBufferAccessor.releaseEvent(eventIds[i]);
