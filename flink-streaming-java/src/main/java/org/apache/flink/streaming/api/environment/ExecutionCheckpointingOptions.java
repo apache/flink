@@ -145,7 +145,6 @@ public class ExecutionCheckpointingOptions {
 					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
 				.build());
 
-	@Documentation.ExcludeFromDocumentation("Do not advertise this option until timeout in unaligned checkpoint is completed.")
 	public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
 		ConfigOptions.key("execution.checkpointing.alignment-timeout")
 			.durationType()
