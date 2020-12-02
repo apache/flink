@@ -54,7 +54,9 @@ import java.util.Set;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyLong;
 
 /**
@@ -3940,5 +3942,34 @@ public class NFAITCase extends TestLogger {
             nfa.advanceTime(accessor, nfa.createInitialNFAState(), 2);
             Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
         }
+    }
+
+    @Test
+    public void testLoopClearing() throws Exception {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .times(4)
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .within(Time.milliseconds(3));
+
+        Event a1 = new Event(40, "a", 1.0);
+        Event a2 = new Event(40, "a", 1.0);
+
+        NFA<Event> nfa = compile(pattern, false);
+        TestTimerService timerService = new TestTimerService();
+        NFAState nfaState = nfa.createInitialNFAState();
+        try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+            nfa.process(accessor, nfaState, a1, 1, AfterMatchSkipStrategy.noSkip(), timerService);
+            nfa.process(accessor, nfaState, a2, 2, AfterMatchSkipStrategy.noSkip(), timerService);
+            nfa.advanceTime(accessor, nfaState, 4);
+        }
+
+        assertThat(sharedBuffer.getEventsBufferSize(), equalTo(1));
     }
 }

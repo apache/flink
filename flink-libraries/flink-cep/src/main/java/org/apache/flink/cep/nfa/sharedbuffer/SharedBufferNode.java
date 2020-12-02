@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge.SharedBufferEdgeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,22 +39,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** An entry in {@link SharedBuffer} that allows to store relations between different entries. */
 public class SharedBufferNode {
 
-    private final List<SharedBufferEdge> edges;
+    private final List<Lockable<SharedBufferEdge>> edges;
 
     public SharedBufferNode() {
         edges = new ArrayList<>();
     }
 
-    private SharedBufferNode(List<SharedBufferEdge> edges) {
+    SharedBufferNode(List<Lockable<SharedBufferEdge>> edges) {
         this.edges = edges;
     }
 
-    public List<SharedBufferEdge> getEdges() {
+    public List<Lockable<SharedBufferEdge>> getEdges() {
         return edges;
     }
 
     public void addEdge(SharedBufferEdge edge) {
-        edges.add(edge);
+        edges.add(new Lockable<>(edge, 0));
     }
 
     @Override
@@ -77,7 +79,17 @@ public class SharedBufferNode {
         return Objects.hash(edges);
     }
 
-    /** Serializer for {@link SharedBufferNode}. */
+    /**
+     * Serializer for {@link SharedBufferNode}.
+     *
+     * <p>This serializer had to be deprecated and you cannot directly migrate to the newer version.
+     * The new structure requires additional information from other nodes. The migration happens in
+     * {@link SharedBuffer#migrateOldState(KeyedStateBackend, ValueState)}.
+     *
+     * @deprecated was used in <= 1.12, use {@link
+     *     org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer} instead.
+     */
+    @Deprecated
     public static class SharedBufferNodeSerializer
             extends TypeSerializerSingleton<SharedBufferNode> {
 
@@ -105,7 +117,7 @@ public class SharedBufferNode {
 
         @Override
         public SharedBufferNode copy(SharedBufferNode from) {
-            return new SharedBufferNode(edgesSerializer.copy(from.edges));
+            throw new UnsupportedOperationException("Should not be used");
         }
 
         @Override
@@ -120,13 +132,17 @@ public class SharedBufferNode {
 
         @Override
         public void serialize(SharedBufferNode record, DataOutputView target) throws IOException {
-            edgesSerializer.serialize(record.edges, target);
+            throw new UnsupportedOperationException("We should no longer use it for serialization");
         }
 
         @Override
         public SharedBufferNode deserialize(DataInputView source) throws IOException {
             List<SharedBufferEdge> edges = edgesSerializer.deserialize(source);
-            return new SharedBufferNode(edges);
+            SharedBufferNode node = new SharedBufferNode();
+            for (SharedBufferEdge edge : edges) {
+                node.addEdge(edge);
+            }
+            return node;
         }
 
         @Override

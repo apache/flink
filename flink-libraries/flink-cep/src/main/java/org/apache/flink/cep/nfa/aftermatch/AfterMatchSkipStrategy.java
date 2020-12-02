@@ -110,7 +110,9 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
             for (ComputationState computationState : matchesToPrune) {
                 if (computationState.getStartEventID() != null
                         && shouldPrune(computationState.getStartEventID(), pruningId)) {
-                    sharedBufferAccessor.releaseNode(computationState.getPreviousBufferEntry());
+                    sharedBufferAccessor.releaseNode(
+                            computationState.getPreviousBufferEntry(),
+                            computationState.getVersion());
                     discardStates.add(computationState);
                 }
             }
