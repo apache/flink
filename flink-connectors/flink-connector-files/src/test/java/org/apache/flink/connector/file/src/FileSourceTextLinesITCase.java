@@ -314,9 +314,9 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	}
 
 	private static void restartTaskManager(Runnable afterFailAction) throws Exception {
-		miniCluster.terminateTaskExecutor(0).get();
+		miniCluster.terminateTaskManager(0).get();
 		afterFailAction.run();
-		miniCluster.startTaskExecutor();
+		miniCluster.startTaskManager();
 	}
 
 	// ------------------------------------------------------------------------

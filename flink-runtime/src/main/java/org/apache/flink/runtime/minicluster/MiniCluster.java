@@ -454,7 +454,7 @@ public class MiniCluster implements AutoCloseableAsync {
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
-					componentTerminationFutures.addAll(terminateTaskExecutors());
+					componentTerminationFutures.addAll(terminateTaskManagers());
 
 					componentTerminationFutures.add(shutDownResourceManagerComponents());
 
@@ -519,12 +519,20 @@ public class MiniCluster implements AutoCloseableAsync {
 		LOG.info("Starting {} TaskManger(s)", numTaskManagers);
 
 		for (int i = 0; i < numTaskManagers; i++) {
-			startTaskExecutor();
+			startTaskManager();
 		}
 	}
 
-	@VisibleForTesting
-	void startTaskExecutor() throws Exception {
+	/**
+	 * Starts additional TaskManager process.
+	 *
+	 * <p>When the MiniCluster starts up, it always starts {@link MiniClusterConfiguration#getNumTaskManagers}
+	 * TaskManagers. All TaskManagers are indexed from 0 to the number of TaskManagers, started so far, minus one.
+	 * This method starts a TaskManager with the next index which is the number of TaskManagers, started so far.
+	 * The index always increases with each new started TaskManager. The indices of terminated TaskManagers
+	 * are not reused after {@link #terminateTaskManager(int)}.
+	 */
+	public void startTaskManager() throws Exception {
 		synchronized (lock) {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 
@@ -551,18 +559,27 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	@GuardedBy("lock")
-	private Collection<? extends CompletableFuture<Void>> terminateTaskExecutors() {
+	private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(taskManagers.size());
 		for (int i = 0; i < taskManagers.size(); i++) {
-			terminationFutures.add(terminateTaskExecutor(i));
+			terminationFutures.add(terminateTaskManager(i));
 		}
 
 		return terminationFutures;
 	}
 
-	@VisibleForTesting
-	@Nonnull
-	protected CompletableFuture<Void> terminateTaskExecutor(int index) {
+	/**
+	 * Terminates a TaskManager with the given index.
+	 *
+	 * <p>See {@link #startTaskManager()} to understand how TaskManagers are indexed.
+	 * This method terminates a TaskManager with a given index but it does not clear the index.
+	 * The index stays occupied for the lifetime of the MiniCluster and its TaskManager stays terminated.
+	 * The index is not reused if more TaskManagers are started with {@link #startTaskManager()}.
+	 *
+	 * @param index index of the TaskManager to terminate
+	 * @return {@link CompletableFuture} of the given TaskManager termination
+	 */
+	public CompletableFuture<Void> terminateTaskManager(int index) {
 		synchronized (lock) {
 			final TaskExecutor taskExecutor = taskManagers.get(index);
 			return taskExecutor.closeAsync();
