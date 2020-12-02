@@ -130,5 +130,6 @@ public class GlobalConfigurationTest extends TestLogger {
 		assertTrue(GlobalConfiguration.isSensitive("Secret"));
 		assertTrue(GlobalConfiguration.isSensitive("fs.azure.account.key.storageaccount123456.core.windows.net"));
 		assertFalse(GlobalConfiguration.isSensitive("Hello"));
+		assertTrue(GlobalConfiguration.isSensitive("metrics.reporter.dghttp.apikey"));
 	}
 }
