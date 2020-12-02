@@ -21,9 +21,11 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -90,7 +92,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					// TODO - we need to see how to derive those. We should probably not encode this in the
 					// TODO -   source's trigger message, but do a handshake in this task between the trigger
 					// TODO -   message from the master, and the source's trigger notification
-					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation(
+					final CheckpointOptions checkpointOptions = CheckpointOptions.forConfig(
+						CheckpointType.CHECKPOINT,
+						CheckpointStorageLocationReference.getDefault(),
 						configuration.isExactlyOnceCheckpointMode(),
 						configuration.isUnalignedCheckpointsEnabled(),
 						configuration.getAlignmentTimeout());

@@ -778,7 +778,7 @@ public class CheckpointCoordinator {
 		Execution[] executions,
 		boolean advanceToEndOfTime) {
 
-		final CheckpointOptions checkpointOptions = CheckpointOptions.create(
+		final CheckpointOptions checkpointOptions = CheckpointOptions.forConfig(
 			props.getCheckpointType(),
 			checkpointStorageLocation.getLocationReference(),
 			isExactlyOnceMode,
