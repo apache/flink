@@ -33,21 +33,21 @@ Flink 是一个分布式系统，需要有效分配和管理计算资源才能�
 
 ## Flink 集群剖析
 
-Flink 运行时由两种类型的进程组成：_JobManager_和一个或者多个_TaskManager_。
+Flink 运行时由两种类型的进程组成：一个 _JobManager_ 和一个或者多个 _TaskManager_。
 
 <img src="{% link /fig/processes.svg %}" alt="The processes involved in executing a Flink dataflow" class="offset" width="70%" />
 
 *Client* 不是运行时和程序执行的一部分，而是用于准备数据流并将其发送给 JobManager。之后，客户端可以断开连接（_分离模式_），或保持连接来接收进程报告（_附加模式_）。客户端可以作为触发执行 Java/Scala 程序的一部分运行，也可以在命令行进程`./bin/flink run ...`中运行。
 
-可以通过各种方式启动 JobManager 和 TaskManager：直接在机器上作为[standalone 集群]({% link deployment/resource-providers/standalone/index.zh.md %})启动、在容器中启动、或者通过[YARN]({% link deployment/resource-providers/yarn.zh.md %})或[Mesos]({% link deployment/resource-providers/mesos.zh.md %})等资源框架管理启动。TaskManager 连接到 JobManagers，宣布自己可用，并被分配工作。
+可以通过多种方式启动 JobManager 和 TaskManager：直接在机器上作为[standalone 集群]({% link deployment/resource-providers/standalone/index.zh.md %})启动、在容器中启动、或者通过[YARN]({% link deployment/resource-providers/yarn.zh.md %})或[Mesos]({% link deployment/resource-providers/mesos.zh.md %})等资源框架管理并启动。TaskManager 连接到 JobManagers，宣布自己可用，并被分配工作。
 
 ### JobManager
 
-_JobManager_具有许多与协调 Flink 应用程序的分布式执行有关的职责：它决定何时调度下一个 task（或一组 task）、对完成的 task 或执行失败做出反应、协调 checkpoint、并且协调从失败中恢复等等。这个进程由三个不同的组件组成：
+_JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的职责：它决定何时调度下一个 task（或一组 task）、对完成的 task 或执行失败做出反应、协调 checkpoint、并且协调从失败中恢复等等。这个进程由三个不同的组件组成：
 
   * **ResourceManager** 
 
-    _ResourceManager_负责 Flink 集群中的资源删除/分配和供应 - 它管理 **task slots**，这是 Flink 集群中资源调度的单位（请参考[TaskManagers](#taskmanagers)）。Flink 为不同的环境和资源提供者（例如 YARN、Mesos、Kubernetes 和 standalone 部署）实现了多个 ResourceManager。在 standalone 设置中，ResourceManager 只能分配可用 TaskManager 的 slots，而不能自行启动新的 TaskManager。
+    _ResourceManager_ 负责 Flink 集群中的资源提供、回收、分配 - 它管理 **task slots**，这是 Flink 集群中资源调度的单位（请参考[TaskManagers](#taskmanagers)）。Flink 为不同的环境和资源提供者（例如 YARN、Mesos、Kubernetes 和 standalone 部署）实现了对应的 ResourceManager。在 standalone 设置中，ResourceManager 只能分配可用 TaskManager 的 slots，而不能自行启动新的 TaskManager。
 
   * **Dispatcher** 
 
@@ -57,11 +57,11 @@ _JobManager_具有许多与协调 Flink 应用程序的分布式执行有关的�
 
     _JobMaster_ 负责管理单个[JobGraph]({% link concepts/glossary.zh.md %}#logical-graph)的执行。Flink 集群中可以同时运行多个作业，每个作业都有自己的 JobMaster。
 
-始终至少有一个 JobManager。高可用设置中可能有多个 JobManager，其中一个始终是 *leader*，其他的则是 *standby*（请参考 [高可用（HA）]({% link deployment/ha/index.zh.md %})）。
+始终至少有一个 JobManager。高可用（HA）设置中可能有多个 JobManager，其中一个始终是 *leader*，其他的则是 *standby*（请参考 [高可用（HA）]({% link deployment/ha/index.zh.md %})）。
 
 ### TaskManagers
 
-*TaskManager*（也称为 *worker*）执行数据流的 task，并且缓存和交换数据流。
+*TaskManager*（也称为 *worker*）执行作业流的 task，并且缓存和交换数据流。
 
 必须始终至少有一个 TaskManager。在 TaskManager 中资源调度的最小单位是 task _slot_。TaskManager 中 task slot 的数量表示并发处理 task 的数量。请注意一个 task slot 中可以执行多个算子（请参考[Tasks 和算子链](#tasks-and-operator-chains)）。
 
@@ -69,7 +69,7 @@ _JobManager_具有许多与协调 Flink 应用程序的分布式执行有关的�
 
 ## Tasks 和算子链
 
-对于分布式执行，Flink 将算子的 subtasks *链接*成 *tasks*。每个 task 由一个线程执行。将算子链接成 task 是个有用的优化：它减少线程间切换、缓冲的消耗，并且减少延迟的同时增加整体吞吐量。链行为是可以配置的；请参考[链文档]({% link dev/stream/operators/index.zh.md %}#task-chaining-and-resource-groups)以获取详细信息。
+对于分布式执行，Flink 将算子的 subtasks *链接*成 *tasks*。每个 task 由一个线程执行。将算子链接成 task 是个有用的优化：它减少线程间切换、缓冲的开销，并且减少延迟的同时增加整体吞吐量。链行为是可以配置的；请参考[链文档]({% link dev/stream/operators/index.zh.md %}#task-chaining-and-resource-groups)以获取详细信息。
 
 下图中样例数据流用 5 个 subtask 执行，因此有 5 个并行线程。
 
@@ -97,7 +97,7 @@ _JobManager_具有许多与协调 Flink 应用程序的分布式执行有关的�
 
 ## Flink 应用程序执行
 
-_Flink 应用程序_是从其 ``main()`` 方法产生的一个或多个 Flink 作业的任何用户程序。这些作业的执行可以在本地 JVM（`LocalEnvironment``）中进行，或具有多台机器的集群的远程设置（``RemoteEnvironment``）中进行。对于每个程序，[``ExecutionEnvironment``]({{ site.javadocs_baseurl }}/api/java/) 提供了一些方法来控制作业执行（例如设置并行度）并与外界交互（请参考 [Flink 程序剖析]({% link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program) ）。
+_Flink 应用程序_ 是从其 ``main()`` 方法产生的一个或多个 Flink 作业的任何用户程序。这些作业的执行可以在本地 JVM（`LocalEnvironment``）中进行，或具有多台机器的集群的远程设置（``RemoteEnvironment``）中进行。对于每个程序，[``ExecutionEnvironment``]({{ site.javadocs_baseurl }}/api/java/) 提供了一些方法来控制作业执行（例如设置并行度）并与外界交互（请参考 [Flink 程序剖析]({% link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program) ）。
 
 Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集群]({% link concepts/glossary.zh.md %}#flink-session-cluster)、专用的 [Flink Job 集群]({% link concepts/glossary.zh.md %}#flink-job-cluster) 或 [Flink Application 集群]({% link concepts/glossary.zh.md %}#flink-application-cluster)。这些选项之间的差异主要与集群的生命周期和资源隔离保证有关。
 
