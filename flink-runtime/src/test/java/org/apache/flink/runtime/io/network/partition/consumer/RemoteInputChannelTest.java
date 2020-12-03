@@ -75,6 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
@@ -109,7 +110,30 @@ public class RemoteInputChannelTest {
 
 	private static final long CHECKPOINT_ID = 1L;
 	private static final CheckpointOptions UNALIGNED = CheckpointOptions.unaligned(getDefault());
-	private static final CheckpointOptions ALIGNED_WITH_TIMEOUT = CheckpointOptions.alignedWithTimeout(getDefault(), 10);
+	private static final CheckpointOptions ALIGNED_WITH_TIMEOUT = alignedWithTimeout(getDefault(), 10);
+
+	@Test
+	public void testGateNotifiedOnBarrierConversion() throws IOException, InterruptedException {
+		final int sequenceNumber = 0;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
+		try {
+			SingleInputGate inputGate = new SingleInputGateBuilder().setBufferPoolFactory(networkBufferPool.createBufferPool(1, 1)).build();
+			inputGate.setup();
+			RemoteInputChannel channel = InputChannelBuilder.newBuilder()
+				.setConnectionManager(new TestVerifyConnectionManager(new TestVerifyPartitionRequestClient()))
+				.buildRemoteChannel(inputGate);
+			channel.requestSubpartition(0);
+
+			channel.onBuffer(toBuffer(new CheckpointBarrier(1L, 123L, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)), false), sequenceNumber, 0);
+			inputGate.pollNext(); // process announcement to allow the gate remember the SQN
+
+			channel.convertToPriorityEvent(sequenceNumber);
+			assertTrue(inputGate.getPriorityEventAvailableFuture().isDone());
+
+		} finally {
+			networkBufferPool.destroy();
+		}
+	}
 
 	@Test
 	public void testExceptionOnReordering() throws Exception {
