@@ -56,7 +56,7 @@
           <td>
             <div class="name">{{ vertex.name }}</div>
           </td>
-          <td>{{ checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] }}/{{ checkPointDetail['tasks'][vertex.id]['num_subtasks'] }} ({{ (checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] / checkPointDetail['tasks'][vertex.id]['num_subtasks']) | percent }})</td>
+          <td>{{ checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] }}/{{ checkPointDetail['tasks'][vertex.id]['num_subtasks'] }} ({{ (checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] / checkPointDetail['tasks'][vertex.id]['num_subtasks']) | percent:'0.0-2' }})</td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] >= 0">{{ checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] <0">n/a</td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] >= 0">{{ checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] | humanizeDuration}}</td>
