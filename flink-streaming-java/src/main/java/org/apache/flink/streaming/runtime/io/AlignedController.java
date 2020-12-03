@@ -76,6 +76,7 @@ public class AlignedController implements CheckpointBarrierBehaviourController {
 
 	@Override
 	public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
+		sequenceNumberInAnnouncedChannels.clear();
 	}
 
 	@Override
