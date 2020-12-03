@@ -24,4 +24,4 @@ import org.apache.flink.table.planner.utils.Logging
 /**
   * Base class for batch ExecNode.
   */
-trait BatchExecNode[T] extends ExecNode[BatchPlanner, T] with Logging
+trait BatchExecNode[T] extends ExecNodeBase[BatchPlanner, T] with Logging

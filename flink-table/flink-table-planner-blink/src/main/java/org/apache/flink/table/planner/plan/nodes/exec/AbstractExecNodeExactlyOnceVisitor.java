@@ -27,13 +27,13 @@ import java.util.Set;
  */
 public abstract class AbstractExecNodeExactlyOnceVisitor implements ExecNodeVisitor {
 
-	private final Set<ExecNode<?, ?>> visited;
+	private final Set<ExecNode<?>> visited;
 
 	public AbstractExecNodeExactlyOnceVisitor() {
 		this.visited = new HashSet<>();
 	}
 
-	public void visit(ExecNode<?, ?> node) {
+	public void visit(ExecNode<?> node) {
 		if (visited.contains(node)) {
 			return;
 		}
@@ -41,9 +41,9 @@ public abstract class AbstractExecNodeExactlyOnceVisitor implements ExecNodeVisi
 		visitNode(node);
 	}
 
-	protected abstract void visitNode(ExecNode<?, ?> node);
+	protected abstract void visitNode(ExecNode<?> node);
 
-	protected void visitInputs(ExecNode<?, ?> node) {
+	protected void visitInputs(ExecNode<?> node) {
 		node.getInputNodes().forEach(n -> n.accept(this));
 	}
 }

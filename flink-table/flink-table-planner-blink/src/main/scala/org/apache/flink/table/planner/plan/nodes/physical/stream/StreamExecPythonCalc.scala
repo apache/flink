@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType

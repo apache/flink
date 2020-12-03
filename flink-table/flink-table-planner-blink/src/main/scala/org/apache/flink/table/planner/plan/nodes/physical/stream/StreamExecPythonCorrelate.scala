@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType

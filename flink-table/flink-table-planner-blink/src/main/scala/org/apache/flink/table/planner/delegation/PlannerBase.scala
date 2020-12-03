@@ -300,7 +300,7 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
+      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_]] = {
     require(optimizedRelNodes.forall(_.isInstanceOf[FlinkPhysicalRel]))
     // Rewrite same rel object to different rel objects
     // in order to get the correct dag (dag reuse is based on object not digest)
@@ -309,7 +309,7 @@ abstract class PlannerBase(
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    reusedPlan.map(_.asInstanceOf[ExecNode[_, _]])
+    reusedPlan.map(_.asInstanceOf[ExecNode[_]])
   }
 
   /**
@@ -318,7 +318,7 @@ abstract class PlannerBase(
     * @param execNodes The node DAG to translate.
     * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
+  protected def translateToPlan(execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]]
 
   /**
    * Creates a [[SelectTableSinkBase]] for a select query.

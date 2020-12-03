@@ -37,7 +37,7 @@ import java.util.List;
 public class DeadlockBreakupProcessor implements DAGProcessor {
 
 	@Override
-	public List<ExecNode<?, ?>> process(List<ExecNode<?, ?>> rootNodes, DAGProcessContext context) {
+	public List<ExecNode<?>> process(List<ExecNode<?>> rootNodes, DAGProcessContext context) {
 		if (!rootNodes.stream().allMatch(r -> r instanceof BatchExecNode)) {
 			throw new TableException("Only BatchExecNode DAG is supported now");
 		}

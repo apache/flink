@@ -102,7 +102,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 		Table table = util.tableEnv().sqlQuery(sql);
 		RelNode relNode = TableTestUtil.toRelNode(table);
 		RelNode optimizedRel = util.getPlanner().optimize(relNode);
-		ExecNode<?, ?> execNode = (ExecNode<?, ?>) optimizedRel;
+		ExecNode<?> execNode = (ExecNode<?>) optimizedRel;
 		while (!execNode.getInputNodes().isEmpty()) {
 			execNode = execNode.getInputNodes().get(0);
 		}

@@ -27,25 +27,14 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.delegation.Planner
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
-import org.apache.calcite.rel.RelDistribution
-import org.apache.calcite.rel.core.Exchange
-
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * The representation of execution information for a [[FlinkPhysicalRel]].
   *
-  * @tparam E The Planner
   * @tparam T The type of the elements that result from this [[Transformation]]
   */
-trait ExecNode[E <: Planner, T] {
-
-  /**
-    * The [[Transformation]] translated from this node.
-    */
-  private var transformation: Transformation[T] = _
+trait ExecNode[T] {
 
   /**
     * Translates this node into a Flink operator.
@@ -54,19 +43,7 @@ trait ExecNode[E <: Planner, T] {
     *
     * @param planner The [[Planner]] of the translated Table.
     */
-  def translateToPlan(planner: E): Transformation[T] = {
-    if (transformation == null) {
-      transformation = translateToPlanInternal(planner)
-    }
-    transformation
-  }
-
-  /**
-    * Internal method, translates this node into a Flink operator.
-    *
-    * @param planner The [[Planner]] of the translated Table.
-    */
-  protected def translateToPlanInternal(planner: E): Transformation[T]
+  def translateToPlan(planner: Planner): Transformation[T]
 
   /**
     * Returns a list of this node's input nodes. If there are no inputs,
@@ -74,7 +51,7 @@ trait ExecNode[E <: Planner, T] {
     *
     * @return List of this node's input nodes
     */
-  def getInputNodes: util.List[ExecNode[E, _]]
+  def getInputNodes: util.List[ExecNode[_]]
 
   /**
    * Returns a list of this node's input edges. If there are no inputs,
@@ -91,26 +68,15 @@ trait ExecNode[E <: Planner, T] {
     * @param ordinalInParent Position of the child input, 0 is the first
     * @param newInputNode New node that should be put at position ordinalInParent
     */
-  def replaceInputNode(ordinalInParent: Int, newInputNode: ExecNode[E, _]): Unit
+  def replaceInputNode(ordinalInParent: Int, newInputNode: ExecNode[_]): Unit
 
   /**
     * Accepts a visit from a [[ExecNodeVisitor]].
     *
     * @param visitor ExecNodeVisitor
     */
-  def accept(visitor: ExecNodeVisitor): Unit = {
-    visitor.visit(this)
-  }
+  def accept(visitor: ExecNodeVisitor)
 
-  /**
-    *  Whether there is singleton exchange node as input.
-    */
-  protected def inputsContainSingleton(): Boolean = {
-    getInputNodes.exists { node =>
-      node.isInstanceOf[Exchange] &&
-          node.asInstanceOf[Exchange].getDistribution.getType == RelDistribution.Type.SINGLETON
-    }
-  }
 }
 
 object ExecNode {

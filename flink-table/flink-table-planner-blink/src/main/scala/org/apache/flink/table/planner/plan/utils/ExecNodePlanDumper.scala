@@ -53,7 +53,7 @@ object ExecNodePlanDumper {
     * @return                   explain plan of ExecNode
     */
   def treeToString(
-      node: ExecNode[_, _],
+      node: ExecNode[_],
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withChangelogTraits: Boolean = false,
@@ -80,7 +80,7 @@ object ExecNodePlanDumper {
     * @return                   explain plan of ExecNode
     */
   def dagToString(
-      nodes: Seq[ExecNode[_, _]],
+      nodes: Seq[ExecNode[_]],
       detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withChangelogTraits: Boolean = false,
@@ -99,16 +99,16 @@ object ExecNodePlanDumper {
     val reuseInfoBuilder = new ReuseInfoBuilder()
     nodes.foreach(reuseInfoBuilder.visit)
     // node sets that stop explain when meet them
-    val stopExplainNodes = Sets.newIdentityHashSet[ExecNode[_, _]]()
+    val stopExplainNodes = Sets.newIdentityHashSet[ExecNode[_]]()
     // mapping node to reuse info, the map value is a tuple2,
     // the first value of the tuple is reuse id,
     // the second value is true if the node is first visited else false.
-    val reuseInfoMap = Maps.newIdentityHashMap[ExecNode[_, _], (Integer, Boolean)]()
+    val reuseInfoMap = Maps.newIdentityHashMap[ExecNode[_], (Integer, Boolean)]()
     // mapping node object to visited times
-    val mapNodeToVisitedTimes = Maps.newIdentityHashMap[ExecNode[_, _], Int]()
+    val mapNodeToVisitedTimes = Maps.newIdentityHashMap[ExecNode[_], Int]()
     val sb = new StringBuilder()
     val visitor = new ExecNodeVisitorImpl {
-      override def visit(node: ExecNode[_, _]): Unit = {
+      override def visit(node: ExecNode[_]): Unit = {
         val visitedTimes = mapNodeToVisitedTimes.getOrDefault(node, 0) + 1
         mapNodeToVisitedTimes.put(node, visitedTimes)
         if (visitedTimes == 1) {
@@ -150,13 +150,13 @@ object ExecNodePlanDumper {
   }
 
   private def doConvertTreeToString(
-      node: ExecNode[_, _],
+      node: ExecNode[_],
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withChangelogTraits: Boolean = false,
       withOutputType: Boolean = false,
-      stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
-      reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
+      stopExplainNodes: Option[util.Set[ExecNode[_]]] = None,
+      reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_], (Integer, Boolean)]] = None,
       withResource: Boolean = false
   ): String = {
     // TODO refactor this part of code
@@ -182,12 +182,12 @@ object ExecNodePlanDumper {
   */
 class ReuseInfoBuilder extends ExecNodeVisitorImpl {
   // visited node set
-  private val visitedNodes = Sets.newIdentityHashSet[ExecNode[_, _]]()
+  private val visitedNodes = Sets.newIdentityHashSet[ExecNode[_]]()
   // mapping reuse node to its reuse id
-  private val mapReuseNodeToReuseId = Maps.newIdentityHashMap[ExecNode[_, _], Integer]()
+  private val mapReuseNodeToReuseId = Maps.newIdentityHashMap[ExecNode[_], Integer]()
   private val reuseIdGenerator = new AtomicInteger(0)
 
-  override def visit(node: ExecNode[_, _]): Unit = {
+  override def visit(node: ExecNode[_]): Unit = {
     // if a node is visited more than once, this node is a reusable node
     if (visitedNodes.contains(node)) {
       if (!mapReuseNodeToReuseId.containsKey(node)) {
@@ -204,7 +204,7 @@ class ReuseInfoBuilder extends ExecNodeVisitorImpl {
     * Returns reuse id if the given node is a reuse node (that means it has multiple outputs),
     * else None.
     */
-  def getReuseId(node: ExecNode[_, _]): Option[Integer] = {
+  def getReuseId(node: ExecNode[_]): Option[Integer] = {
     if (mapReuseNodeToReuseId.containsKey(node)) {
       Some(mapReuseNodeToReuseId.get(node))
     } else {
@@ -217,14 +217,14 @@ class ReuseInfoBuilder extends ExecNodeVisitorImpl {
   * Convert node tree to string as a tree style.
   */
 class NodeTreeWriterImpl(
-    node: ExecNode[_, _],
+    node: ExecNode[_],
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withExecNodeId: Boolean = false,
     withChangelogTraits: Boolean = false,
     withOutputType: Boolean = false,
-    stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
-    reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
+    stopExplainNodes: Option[util.Set[ExecNode[_]]] = None,
+    reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_], (Integer, Boolean)]] = None,
     withResource: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, false) {
 
@@ -235,19 +235,19 @@ class NodeTreeWriterImpl(
   // else rebuild it using `ReuseInfoBuilder`
   class ReuseInfo {
     // mapping node object to visited times
-    var mapNodeToVisitedTimes: util.Map[ExecNode[_, _], Int] = _
+    var mapNodeToVisitedTimes: util.Map[ExecNode[_], Int] = _
     var reuseInfoBuilder: ReuseInfoBuilder = _
 
     if (reuseInfoMap.isEmpty) {
       reuseInfoBuilder = new ReuseInfoBuilder()
       reuseInfoBuilder.visit(node)
-      mapNodeToVisitedTimes = Maps.newIdentityHashMap[ExecNode[_, _], Int]()
+      mapNodeToVisitedTimes = Maps.newIdentityHashMap[ExecNode[_], Int]()
     }
 
     /**
       * Returns reuse id if the given node is a reuse node, else None.
       */
-    def getReuseId(node: ExecNode[_, _]): Option[Integer] = {
+    def getReuseId(node: ExecNode[_]): Option[Integer] = {
       reuseInfoMap match {
         case Some(map) => if (map.containsKey(node)) Some(map.get(node)._1) else None
         case _ => reuseInfoBuilder.getReuseId(node)
@@ -257,7 +257,7 @@ class NodeTreeWriterImpl(
     /**
       * Returns true if the given node is first visited, else false.
       */
-    def isFirstVisited(node: ExecNode[_, _]): Boolean = {
+    def isFirstVisited(node: ExecNode[_]): Boolean = {
       reuseInfoMap match {
         case Some(map) => if (map.containsKey(node)) map.get(node)._2 else true
         case _ => mapNodeToVisitedTimes.get(node) == 1
@@ -267,7 +267,7 @@ class NodeTreeWriterImpl(
     /**
       * Updates visited times for given node if `reuseInfoMap` is None.
       */
-    def addVisitedTimes(node: ExecNode[_, _]): Unit = {
+    def addVisitedTimes(node: ExecNode[_]): Unit = {
       reuseInfoMap match {
         case Some(_) => // do nothing
         case _ =>
@@ -284,7 +284,7 @@ class NodeTreeWriterImpl(
   var depth = 0
 
   override def explain_(rel: RelNode, values: JList[Pair[String, AnyRef]]): Unit = {
-    val node = rel.asInstanceOf[ExecNode[_, _]]
+    val node = rel.asInstanceOf[ExecNode[_]]
     reuseInfo.addVisitedTimes(node)
     val inputs = rel.getInputs
     // whether explain input nodes of current node
@@ -394,7 +394,7 @@ class NodeTreeWriterImpl(
   /**
     * Returns true if `stopExplainNodes` is not None and contains the given node, else false.
     */
-  private def needExplainInputs(node: ExecNode[_, _]): Boolean = {
+  private def needExplainInputs(node: ExecNode[_]): Boolean = {
     stopExplainNodes match {
       case Some(nodes) => !nodes.contains(node)
       case _ => true

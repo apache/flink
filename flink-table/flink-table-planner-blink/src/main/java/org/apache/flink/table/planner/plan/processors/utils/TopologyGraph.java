@@ -41,23 +41,23 @@ import java.util.Set;
 @Internal
 class TopologyGraph {
 
-	private final Map<ExecNode<?, ?>, TopologyNode> nodes;
+	private final Map<ExecNode<?>, TopologyNode> nodes;
 
-	TopologyGraph(List<ExecNode<?, ?>> roots) {
+	TopologyGraph(List<ExecNode<?>> roots) {
 		this(roots, Collections.emptySet());
 	}
 
-	TopologyGraph(List<ExecNode<?, ?>> roots, Set<ExecNode<?, ?>> boundaries) {
+	TopologyGraph(List<ExecNode<?>> roots, Set<ExecNode<?>> boundaries) {
 		this.nodes = new HashMap<>();
 
 		// we first link all edges in the original exec node graph
 		AbstractExecNodeExactlyOnceVisitor visitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
-			protected void visitNode(ExecNode<?, ?> node) {
+			protected void visitNode(ExecNode<?> node) {
 				if (boundaries.contains(node)) {
 					return;
 				}
-				for (ExecNode<?, ?> input : node.getInputNodes()) {
+				for (ExecNode<?> input : node.getInputNodes()) {
 					link(input, node);
 				}
 				visitInputs(node);
@@ -70,7 +70,7 @@ class TopologyGraph {
 	 * Link an edge from `from` node to `to` node if no loop will occur after adding this edge.
 	 * Returns if this edge is successfully added.
 	 */
-	boolean link(ExecNode<?, ?> from, ExecNode<?, ?> to) {
+	boolean link(ExecNode<?> from, ExecNode<?> to) {
 		TopologyNode fromNode = getOrCreateTopologyNode(from);
 		TopologyNode toNode = getOrCreateTopologyNode(to);
 
@@ -88,7 +88,7 @@ class TopologyGraph {
 	/**
 	 * Remove the edge from `from` node to `to` node. If there is no edge between them then do nothing.
 	 */
-	void unlink(ExecNode<?, ?> from, ExecNode<?, ?> to) {
+	void unlink(ExecNode<?> from, ExecNode<?> to) {
 		TopologyNode fromNode = getOrCreateTopologyNode(from);
 		TopologyNode toNode = getOrCreateTopologyNode(to);
 
@@ -104,8 +104,8 @@ class TopologyGraph {
 	 * <p>Distance of a node is defined as the number of edges one needs to go through from the
 	 * nodes without inputs to this node.
 	 */
-	Map<ExecNode<?, ?>, Integer> calculateMaximumDistance() {
-		Map<ExecNode<?, ?>, Integer> result = new HashMap<>();
+	Map<ExecNode<?>, Integer> calculateMaximumDistance() {
+		Map<ExecNode<?>, Integer> result = new HashMap<>();
 		Map<TopologyNode, Integer> inputsVisitedMap = new HashMap<>();
 
 		Queue<TopologyNode> queue = new LinkedList<>();
@@ -143,7 +143,7 @@ class TopologyGraph {
 	 * Make the distance of node A at least as far as node B by adding edges
 	 * from all inputs of node B to node A.
 	 */
-	void makeAsFarAs(ExecNode<?, ?> a, ExecNode<?, ?> b) {
+	void makeAsFarAs(ExecNode<?> a, ExecNode<?> b) {
 		TopologyNode nodeA = getOrCreateTopologyNode(a);
 		TopologyNode nodeB = getOrCreateTopologyNode(b);
 
@@ -153,7 +153,7 @@ class TopologyGraph {
 	}
 
 	@VisibleForTesting
-	boolean canReach(ExecNode<?, ?> from, ExecNode<?, ?> to) {
+	boolean canReach(ExecNode<?> from, ExecNode<?> to) {
 		TopologyNode fromNode = getOrCreateTopologyNode(from);
 		TopologyNode toNode = getOrCreateTopologyNode(to);
 		return canReach(fromNode, toNode);
@@ -183,12 +183,12 @@ class TopologyGraph {
 		return false;
 	}
 
-	private TopologyNode getOrCreateTopologyNode(ExecNode<?, ?> execNode) {
+	private TopologyNode getOrCreateTopologyNode(ExecNode<?> execNode) {
 		// NOTE: We treat different `BatchExecBoundedStreamScan`s with same `DataStream` object as the same
 		if (execNode instanceof BatchExecBoundedStreamScan) {
 			DataStream<?> currentStream = ((BatchExecBoundedStreamScan) execNode).boundedStreamTable().dataStream();
-			for (Map.Entry<ExecNode<?, ?>, TopologyNode> entry : nodes.entrySet()) {
-				ExecNode<?, ?> key = entry.getKey();
+			for (Map.Entry<ExecNode<?>, TopologyNode> entry : nodes.entrySet()) {
+				ExecNode<?> key = entry.getKey();
 				if (key instanceof BatchExecBoundedStreamScan) {
 					DataStream<?> existingStream = ((BatchExecBoundedStreamScan) key).boundedStreamTable().dataStream();
 					if (existingStream.equals(currentStream)) {
@@ -209,11 +209,11 @@ class TopologyGraph {
 	 * A node in the {@link TopologyGraph}.
 	 */
 	private static class TopologyNode {
-		private final ExecNode<?, ?> execNode;
+		private final ExecNode<?> execNode;
 		private final Set<TopologyNode> inputs;
 		private final Set<TopologyNode> outputs;
 
-		private TopologyNode(ExecNode<?, ?> execNode) {
+		private TopologyNode(ExecNode<?> execNode) {
 			this.execNode = execNode;
 			this.inputs = new HashSet<>();
 			this.outputs = new HashSet<>();

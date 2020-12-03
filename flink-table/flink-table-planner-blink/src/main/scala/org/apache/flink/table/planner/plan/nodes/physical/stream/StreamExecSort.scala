@@ -89,13 +89,13 @@ class StreamExecSort(
     *
     * @return Array of this node's inputs
     */
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    List(getInput.asInstanceOf[ExecNode[_]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

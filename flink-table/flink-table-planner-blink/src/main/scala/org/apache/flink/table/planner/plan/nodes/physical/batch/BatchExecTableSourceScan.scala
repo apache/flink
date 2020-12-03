@@ -66,13 +66,13 @@ class BatchExecTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
+  override def getInputNodes: util.List[ExecNode[_]] = List()
 
   override def getInputEdges: util.List[ExecEdge] = List()
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

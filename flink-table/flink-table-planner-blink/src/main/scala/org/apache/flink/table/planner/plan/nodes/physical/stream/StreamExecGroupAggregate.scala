@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.operators.aggregate.{GroupAggFunction, Min
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
@@ -95,13 +96,13 @@ class StreamExecGroupAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

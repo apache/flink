@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
@@ -111,14 +110,14 @@ abstract class BatchExecCalcBase(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] =
+    List(getInput.asInstanceOf[ExecNode[_]])
 
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 }

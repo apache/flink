@@ -56,8 +56,8 @@ class BatchExecSink(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] =
+    List(getInput.asInstanceOf[ExecNode[_]])
 
   // the input records will not trigger any output of a sink because it has no output,
   // so it's dam behavior is BLOCKING
@@ -68,7 +68,7 @@ class BatchExecSink(
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

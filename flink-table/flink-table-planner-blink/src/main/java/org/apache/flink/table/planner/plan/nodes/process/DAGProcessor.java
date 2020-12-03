@@ -30,5 +30,5 @@ public interface DAGProcessor {
 	/**
 	 * Given a dag, process it and return the result dag.
 	 */
-	List<ExecNode<?, ?>> process(List<ExecNode<?, ?>> sinkNodes, DAGProcessContext context);
+	List<ExecNode<?>> process(List<ExecNode<?>> sinkNodes, DAGProcessContext context);
 }

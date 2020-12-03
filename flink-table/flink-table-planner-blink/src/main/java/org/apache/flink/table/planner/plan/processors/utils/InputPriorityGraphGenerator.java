@@ -84,8 +84,8 @@ import java.util.TreeMap;
 @Internal
 public abstract class InputPriorityGraphGenerator {
 
-	private final List<ExecNode<?, ?>> roots;
-	private final Set<ExecNode<?, ?>> boundaries;
+	private final List<ExecNode<?>> roots;
+	private final Set<ExecNode<?>> boundaries;
 	private final ExecEdge.DamBehavior safeDamBehavior;
 
 	protected TopologyGraph graph;
@@ -99,8 +99,8 @@ public abstract class InputPriorityGraphGenerator {
 	 *                        {@link ExecEdge.DamBehavior} stricter or equal than this
 	 */
 	public InputPriorityGraphGenerator(
-			List<ExecNode<?, ?>> roots,
-			Set<ExecNode<?, ?>> boundaries,
+			List<ExecNode<?>> roots,
+			Set<ExecNode<?>> boundaries,
 			ExecEdge.DamBehavior safeDamBehavior) {
 		Preconditions.checkArgument(
 			roots.stream().allMatch(root -> root instanceof BatchExecNode),
@@ -117,7 +117,7 @@ public abstract class InputPriorityGraphGenerator {
 		// check and resolve conflicts about input priorities
 		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
-			protected void visitNode(ExecNode<?, ?> node) {
+			protected void visitNode(ExecNode<?> node) {
 				if (!boundaries.contains(node)) {
 					visitInputs(node);
 				}
@@ -127,7 +127,7 @@ public abstract class InputPriorityGraphGenerator {
 		roots.forEach(n -> n.accept(inputPriorityVisitor));
 	}
 
-	private void updateTopologyGraph(ExecNode<?, ?> node) {
+	private void updateTopologyGraph(ExecNode<?> node) {
 		// group inputs by input priorities
 		TreeMap<Integer, List<Integer>> inputPriorityGroupMap = new TreeMap<>();
 		Preconditions.checkState(
@@ -153,19 +153,19 @@ public abstract class InputPriorityGraphGenerator {
 		}
 	}
 
-	private void addTopologyEdges(ExecNode<?, ?> node, int higherInput, int lowerInput) {
-		ExecNode<?, ?> higherNode = node.getInputNodes().get(higherInput);
-		ExecNode<?, ?> lowerNode = node.getInputNodes().get(lowerInput);
-		List<ExecNode<?, ?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
+	private void addTopologyEdges(ExecNode<?> node, int higherInput, int lowerInput) {
+		ExecNode<?> higherNode = node.getInputNodes().get(higherInput);
+		ExecNode<?> lowerNode = node.getInputNodes().get(lowerInput);
+		List<ExecNode<?>> lowerAncestors = calculatePipelinedAncestors(lowerNode);
 
-		List<Tuple2<ExecNode<?, ?>, ExecNode<?, ?>>> linkedEdges = new ArrayList<>();
-		for (ExecNode<?, ?> ancestor : lowerAncestors) {
+		List<Tuple2<ExecNode<?>, ExecNode<?>>> linkedEdges = new ArrayList<>();
+		for (ExecNode<?> ancestor : lowerAncestors) {
 			if (graph.link(higherNode, ancestor)) {
 				linkedEdges.add(Tuple2.of(higherNode, ancestor));
 			} else {
 				// a conflict occurs, resolve it and revert all linked edges
 				resolveInputPriorityConflict(node, higherInput, lowerInput);
-				for (Tuple2<ExecNode<?, ?>, ExecNode<?, ?>> linkedEdge : linkedEdges) {
+				for (Tuple2<ExecNode<?>, ExecNode<?>> linkedEdge : linkedEdges) {
 					graph.unlink(linkedEdge.f0, linkedEdge.f1);
 				}
 				return;
@@ -177,11 +177,11 @@ public abstract class InputPriorityGraphGenerator {
 	 * Find the ancestors by going through PIPELINED edges.
 	 */
 	@VisibleForTesting
-	List<ExecNode<?, ?>> calculatePipelinedAncestors(ExecNode<?, ?> node) {
-		List<ExecNode<?, ?>> ret = new ArrayList<>();
+	List<ExecNode<?>> calculatePipelinedAncestors(ExecNode<?> node) {
+		List<ExecNode<?>> ret = new ArrayList<>();
 		AbstractExecNodeExactlyOnceVisitor ancestorVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
-			protected void visitNode(ExecNode<?, ?> node) {
+			protected void visitNode(ExecNode<?> node) {
 				boolean hasAncestor = false;
 
 				if (!boundaries.contains(node)) {
@@ -205,5 +205,5 @@ public abstract class InputPriorityGraphGenerator {
 		return ret;
 	}
 
-	protected abstract void resolveInputPriorityConflict(ExecNode<?, ?> node, int higherInput, int lowerInput);
+	protected abstract void resolveInputPriorityConflict(ExecNode<?> node, int higherInput, int lowerInput);
 }

@@ -28,6 +28,6 @@ public interface ExecNodeVisitor {
 	 *
 	 * @param node ExecNode to visit
 	 */
-	void visit(ExecNode<?, ?> node);
+	void visit(ExecNode<?> node);
 
 }

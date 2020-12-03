@@ -437,7 +437,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
 
     optimizedRels.head match {
-      case _: ExecNode[_, _] =>
+      case _: ExecNode[_] =>
         val optimizedNodes = planner.translateToExecNodePlan(optimizedRels)
         require(optimizedNodes.length == optimizedRels.length)
         ExecNodePlanDumper.dagToString(

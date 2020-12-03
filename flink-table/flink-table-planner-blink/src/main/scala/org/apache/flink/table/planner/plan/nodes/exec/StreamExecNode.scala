@@ -28,7 +28,7 @@ import scala.collection.JavaConversions._
 /**
   * Base class for stream ExecNode.
   */
-trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging {
+trait StreamExecNode[T] extends ExecNodeBase[StreamPlanner, T] with Logging {
 
   def getInputEdges: util.List[ExecEdge] = {
     // TODO fill out the required shuffle for each stream exec node
