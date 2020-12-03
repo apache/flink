@@ -186,7 +186,7 @@ Flink on Mesos does not support Application Mode.
 
 ### Per-Job Cluster Mode
 
-A job which is executed in Per-Job Cluster Mode spins up a dedicated Flink cluster that only being 
+A job which is executed in Per-Job Cluster Mode spins up a dedicated Flink cluster that is only being 
 used for that specific job. No extra job submission is needed.
 
 `${FLINK_HOME}/bin/mesos-appmaster-job.sh` is used as the startup script. It starts the Mesos 
