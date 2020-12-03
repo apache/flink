@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 
@@ -183,7 +184,7 @@ class BatchExecNestedLoopJoin(
       MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
     }
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       lInput,
       rInput,
       getRelDetailedDescription,

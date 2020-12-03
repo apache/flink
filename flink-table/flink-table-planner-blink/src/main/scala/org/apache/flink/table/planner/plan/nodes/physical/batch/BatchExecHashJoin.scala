@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
@@ -279,7 +280,7 @@ class BatchExecHashJoin(
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)).getBytes
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       build,
       probe,
       getRelDetailedDescription,

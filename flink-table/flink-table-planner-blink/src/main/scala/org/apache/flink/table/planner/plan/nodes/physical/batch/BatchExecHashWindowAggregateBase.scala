@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.codegen.agg.batch.{HashWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
@@ -142,7 +143,7 @@ abstract class BatchExecHashWindowAggregateBase(
 
     val managedMemory = MemorySize.parse(config.getConfiguration.getString(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,

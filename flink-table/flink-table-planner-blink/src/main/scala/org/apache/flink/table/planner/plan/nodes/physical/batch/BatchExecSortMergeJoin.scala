@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
@@ -258,7 +259,7 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       leftInput,
       rightInput,
       getRelDetailedDescription,
