@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -1094,7 +1095,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	 */
 	private static class TestValuesTableSink implements
 			DynamicTableSink,
-			SupportsWritingMetadata {
+			SupportsWritingMetadata,
+			SupportsPartitioning {
 
 		private DataType consumedDataType;
 		private int[] primaryKeyIndices;
@@ -1253,6 +1255,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
 			this.consumedDataType = consumedDataType;
+		}
+
+		@Override
+		public void applyStaticPartition(Map<String, String> partition) {
+		}
+
+		@Override
+		public boolean requiresPartitionGrouping(boolean supportsGrouping) {
+			return supportsGrouping;
 		}
 	}
 
