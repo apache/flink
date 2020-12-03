@@ -49,7 +49,7 @@ instance:
 # Implementing MapFunction
 class MyMapFunction(MapFunction):
     
-    def map(value):
+    def map(self, value):
         return value + 1
         
 data_stream = env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())
