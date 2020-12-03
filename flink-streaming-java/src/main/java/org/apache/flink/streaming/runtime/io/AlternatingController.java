@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
@@ -40,7 +39,6 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	private final UnalignedController unalignedController;
 
 	private CheckpointBarrierBehaviourController activeController;
-	private long timeOutedBarrierId = -1; // used to shortcut timeout check
 
 	public AlternatingController(
 			AlignedController alignedController,
@@ -52,6 +50,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	@Override
 	public void preProcessFirstBarrierOrAnnouncement(CheckpointBarrier barrier) {
 		activeController = chooseController(barrier);
+		activeController.preProcessFirstBarrierOrAnnouncement(barrier);
 	}
 
 	@Override
@@ -60,7 +59,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 			CheckpointBarrier announcedBarrier,
 			int sequenceNumber) throws IOException {
 
-		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(announcedBarrier);
+		Optional<CheckpointBarrier> maybeTimedOut = asTimedOut(announcedBarrier);
 		announcedBarrier = maybeTimedOut.orElse(announcedBarrier);
 
 		if (maybeTimedOut.isPresent() && activeController != unalignedController) {
@@ -81,7 +80,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 			return Optional.of(barrier);
 		}
 
-		Optional<CheckpointBarrier> maybeTimedOut = maybeTimeOut(barrier);
+		Optional<CheckpointBarrier> maybeTimedOut = asTimedOut(barrier);
 		barrier = maybeTimedOut.orElse(barrier);
 
 		checkState(!activeController.barrierReceived(channelInfo, barrier).isPresent());
@@ -135,7 +134,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 
 	@Override
 	public Optional<CheckpointBarrier> postProcessLastBarrier(InputChannelInfo channelInfo, CheckpointBarrier barrier) throws IOException, CheckpointException {
-		Optional<CheckpointBarrier> maybeTimeOut = maybeTimeOut(barrier);
+		Optional<CheckpointBarrier> maybeTimeOut = asTimedOut(barrier);
 		if (maybeTimeOut.isPresent() && activeController == alignedController) {
 			switchToUnaligned(channelInfo, maybeTimeOut.get());
 			checkState(activeController == unalignedController);
@@ -186,20 +185,12 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 		return isAligned(barrier) ? alignedController : unalignedController;
 	}
 
-	private Optional<CheckpointBarrier> maybeTimeOut(CheckpointBarrier barrier) {
-		CheckpointOptions options = barrier.getCheckpointOptions();
-		boolean shouldTimeout = (options.isTimeoutable()) && (
-			barrier.getId() == timeOutedBarrierId ||
-				(System.currentTimeMillis() - barrier.getTimestamp()) > options.getAlignmentTimeout());
-		if (options.isUnalignedCheckpoint() || !shouldTimeout) {
-			return Optional.empty();
-		}
-		else {
-			timeOutedBarrierId = Math.max(timeOutedBarrierId, barrier.getId());
-			return Optional.of(new CheckpointBarrier(
-				barrier.getId(),
-				barrier.getTimestamp(),
-				options.toTimeouted()));
-		}
+	private Optional<CheckpointBarrier> asTimedOut(CheckpointBarrier barrier) {
+		return Optional.of(barrier).filter(this::canTimeout).map(CheckpointBarrier::asUnaligned);
+	}
+
+	private boolean canTimeout(CheckpointBarrier barrier) {
+		return barrier.getCheckpointOptions().isTimeoutable() &&
+			barrier.getCheckpointOptions().getAlignmentTimeout() < (System.currentTimeMillis() - barrier.getTimestamp());
 	}
 }

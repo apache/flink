@@ -98,7 +98,7 @@ public class CheckpointOptions implements Serializable {
 	}
 
 	public boolean isTimeoutable() {
-		return alignmentTimeout > 0 && alignmentTimeout != NO_ALIGNMENT_TIME_OUT;
+		return !isUnalignedCheckpoint && (alignmentTimeout > 0 && alignmentTimeout != NO_ALIGNMENT_TIME_OUT);
 	}
 
 	// ------------------------------------------------------------------------
@@ -190,7 +190,7 @@ public class CheckpointOptions implements Serializable {
 			alignmentTimeout);
 	}
 
-	public CheckpointOptions toTimeouted() {
+	public CheckpointOptions asTimedOut() {
 		checkState(checkpointType == CheckpointType.CHECKPOINT);
 		return create(
 			checkpointType,
