@@ -725,12 +725,12 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) AS t(tag) ON TRUE
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p><a href="{% link dev/table/streaming/temporal_tables.zh.md %}">Temporal Tables</a> 是随时间变化而变化的表。
-        <a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table">Temporal Table</a> 提供访问指定时间点的 temporal table 版本的功能。</p>
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal Tables</a> 是随时间变化而变化的表。
+        <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table">Temporal Table</a> 提供访问指定时间点的 temporal table 版本的功能。</p>
 
         <p>支持基于处理时间 或 基于事件时间 的 temporal table join, 支持 inner 和 left join。 </p>
         <p>基于事件时间的 temporal table join 在 <span class="label label-primary">批处理</span> 中暂不支持。</p>
-        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 物化的 <a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table">Temporal Table</a> 。</p>
+        <p>下述示例中，假设 <strong>LatestRates</strong> 是一个根据最新的 rates 物化的 <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table">Temporal Table</a> 。</p>
 {% highlight sql %}
 SELECT
   o.amount, o.currency, r.rate, o.amount * r.rate
@@ -740,7 +740,7 @@ FROM
   ON r.currency = o.currency
 {% endhighlight %}
         <p>Join 的右表可以使用可选表达式 <code>[[<strong>AS</strong>] correlationName]</code> 取别名，注意 <code><strong>AS</strong></code> 关键词也是可选的。</p>
-        <p>请阅读 <a href="{% link dev/table/streaming/temporal_tables.zh.md %}">Temporal Tables</a> 概念描述以了解详细信息。</p>
+        <p>请阅读 <a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal Tables</a> 概念描述以了解详细信息。</p>
         <p>仅 Blink planner 支持。</p>
       </td>
     </tr>    
@@ -750,13 +750,13 @@ FROM
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p><a href="{% link dev/table/streaming/temporal_tables.zh.md %}">Temporal Tables</a> 是跟随时间变化而变化的表。</p>
-        <p><a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table-functions"> Temporal Table Function</a> 提供访问 Temporal Tables 在某一时间点的状态的能力。
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal Tables</a> 是跟随时间变化而变化的表。</p>
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions"> Temporal Table Function</a> 提供访问 Temporal Tables 在某一时间点的状态的能力。
         Join Temporal Table Function 的语法与 <i>Join Table Function</i> 一致。</p>
 
         <p><b>注意：</b> 目前仅支持在 Temporal Tables 上的 inner join 。</p>
 
-        <p>假如 <i>Rates</i> 是一个 <a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table-functions"> Temporal Table Function</a>, join 可以使用 SQL 进行如下的表达:</p>
+        <p>假如 <i>Rates</i> 是一个 <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions"> Temporal Table Function</a>, join 可以使用 SQL 进行如下的表达:</p>
 {% highlight sql %}
 SELECT
   o_amount, r_rate
@@ -766,7 +766,7 @@ FROM
 WHERE
   r_currency = o_currency
 {% endhighlight %}
-        <p>请查看 <a href="{% link dev/table/streaming/temporal_tables.zh.md %}"> Temporal Tables 概念描述</a> 以了解详细信息。</p>
+        <p>请查看 <a href="{% link dev/table/streaming/legacy.zh.md %}"> Temporal Tables 概念描述</a> 以了解详细信息。</p>
       </td>
     </tr>
   </tbody>
