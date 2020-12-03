@@ -1,7 +1,7 @@
 ---
 title: "Running Flink on Windows"
 layout: redirect
-redirect: deployment/resource-providers/standalone/local
+redirect: deployment/resource-providers/standalone/index
 permalink: /start/flink_on_windows.html
 ---
 <!--
