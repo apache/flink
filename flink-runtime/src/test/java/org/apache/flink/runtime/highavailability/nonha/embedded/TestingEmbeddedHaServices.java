@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -27,9 +31,13 @@ import java.util.concurrent.Executor;
  * {@link EmbeddedHaServices} extension for testing purposes.
  */
 public class TestingEmbeddedHaServices extends EmbeddedHaServices {
+	private final CheckpointRecoveryFactory testingCheckpointRecoveryFactory;
 
 	public TestingEmbeddedHaServices(Executor executor) {
 		super(executor);
+		this.testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
+			n -> new RecoverableCompletedCheckpointStore(),
+			StandaloneCheckpointIDCounter::new);
 	}
 
 	public CompletableFuture<Void> revokeDispatcherLeadership() {
@@ -60,5 +68,13 @@ public class TestingEmbeddedHaServices extends EmbeddedHaServices {
 	public CompletableFuture<Void> grantResourceManagerLeadership() {
 		final EmbeddedLeaderService resourceManagerLeaderService = getResourceManagerLeaderService();
 		return resourceManagerLeaderService.grantLeadership();
+	}
+
+	@Override
+	public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+		synchronized (lock) {
+			checkNotShutdown();
+			return testingCheckpointRecoveryFactory;
+		}
 	}
 }
