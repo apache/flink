@@ -28,6 +28,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -52,6 +54,8 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -102,6 +106,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -428,11 +433,35 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	@VisibleForTesting
-	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+	protected HighAvailabilityServices createHighAvailabilityServices(
+			Configuration configuration,
+			Executor executor) throws Exception {
 		LOG.info("Starting high-availability services");
-		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-			configuration,
-			executor);
+		final HaServices haServices = miniClusterConfiguration.getHaServices();
+		switch (haServices) {
+			case WITH_LEADERSHIP_CONTROL:
+				return new EmbeddedHaServicesWithLeadershipControl(executor);
+			case CONFIGURED:
+				return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration, executor);
+			default:
+				throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+		}
+	}
+
+	/**
+	 * Returns {@link HaLeadershipControl} if enabled.
+	 *
+	 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components,
+	 * e.g. JobManager. The method return {@link Optional#empty()} if the control is not enabled in
+	 * {@link MiniClusterConfiguration}.
+	 *
+	 * <p>Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+	 */
+	public Optional<HaLeadershipControl> getHaLeadershipControl() {
+		synchronized (lock) {
+			return haServices instanceof HaLeadershipControl ?
+				Optional.of((HaLeadershipControl) haServices) : Optional.empty();
+		}
 	}
 
 	/**
@@ -1048,5 +1077,23 @@ public class MiniCluster implements AutoCloseableAsync {
 		private TerminatingFatalErrorHandler create(int index) {
 			return new TerminatingFatalErrorHandler(index);
 		}
+	}
+
+	/**
+	 * HA Services to use.
+	 */
+	public enum HaServices {
+		/**
+		 * Uses the configured HA Services in {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		CONFIGURED,
+
+		/**
+		 * Enables or disables {@link HaLeadershipControl} in {@link MiniCluster#getHaLeadershipControl}.
+		 *
+		 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+		 * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		WITH_LEADERSHIP_CONTROL
 	}
 }
