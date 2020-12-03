@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubernetes](https://kubernetes.io).
+This page describes how to deploy a *Flink application cluster* and *Session cluster* on [Kubernetes](https://kubernetes.io).
 
 * This will be replaced by the TOC
 {:toc}
@@ -34,7 +34,7 @@ You can find more information on native Kubernetes deployments [here]({% link de
 ## Setup Kubernetes
 
 Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in order to deploy a Kubernetes cluster.
-If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
+If you want to run Kubernetes locally, we recommend using [MiniKube](https://minikube.sigs.k8s.io/docs/start/).
 
 <div class="alert alert-info" markdown="span">
   <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster.
@@ -44,8 +44,8 @@ If you want to run Kubernetes locally, we recommend using [MiniKube](https://kub
 ## Flink Docker image
 
 Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation]({% link deployment/resource-providers/standalone/docker.md %}),
-[its tags]({% link deployment/resource-providers/standalone/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link deployment/resource-providers/standalone/docker.md %}#customize-flink-image) and
-[enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-plugins) to use the image in the Kubernetes definition files.
+[its tags]({% link deployment/resource-providers/standalone/docker.md %}#image-tags), [how to customize the Flink Docker image]({% link deployment/resource-providers/standalone/docker.md %}#advanced-customization) and
+[enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-filesystem-plugins) to use the image in the Kubernetes definition files.
 
 ## Deploy Flink cluster on Kubernetes
 
@@ -59,7 +59,7 @@ with the `kubectl` command:
 
 Note that you could define your own customized options of `flink-conf.yaml` within `flink-configuration-configmap.yaml`.
 
-Then launch the specific components depending on whether you want to deploy a [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster.
+Then launch the specific components depending on whether you want to deploy a [Session](#deploy-session-cluster) or an [Application](#deploy-application-cluster) cluster.
 
 You can then access the Flink UI via different ways:
 *  `kubectl proxy`:
@@ -85,7 +85,7 @@ You can also access the queryable state of TaskManager if you create a `NodePort
   1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
   2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.md %}#querying-state) to submit the state queries.
 
-In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
+In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-application-cluster) cluster components
 and use `kubectl` to terminate the common components:
 
 ```sh
@@ -124,29 +124,28 @@ To terminate the *Session cluster*, these components can be deleted along with [
     kubectl delete -f jobmanager-session-deployment.yaml
 ```
 
-### Deploy Job Cluster
+### Deploy Application Cluster
 
-A *Flink Job cluster* is a dedicated cluster which runs a single job.
-You can find more details [here](#start-a-job-cluster).
+A *Flink Application cluster* is a dedicated cluster which runs a single application.
 
-A basic *Flink Job cluster* deployment in Kubernetes has three components:
+A basic *Flink Application cluster* deployment in Kubernetes has three components:
 
-* a *Job* which runs a *JobManager*
+* an *Application* which runs a *JobManager*
 * a *Deployment* for a pool of *TaskManagers*
 * a *Service* exposing the *JobManager's* REST and UI ports
 
-Check [the Job cluster specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
+Check [the Job cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly.
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
 See also [how to specify the JobManager arguments]({% link deployment/resource-providers/standalone/docker.md %}#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
+The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
 The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
 If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image]({% link deployment/resource-providers/standalone/docker.md %}#start-a-job-cluster) which already contains the artifacts instead.
+Alternatively, you can build [a custom image]({% link deployment/resource-providers/standalone/docker.md %}#advanced-customization) which already contains the artifacts instead.
 
-After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)
+After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#application-cluster-resource-definitions)
 to launch the cluster with the `kubectl` command:
 
 ```sh
@@ -154,7 +153,7 @@ to launch the cluster with the `kubectl` command:
     kubectl create -f taskmanager-job-deployment.yaml
 ```
 
-To terminate the single job cluster, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes)
+To terminate the single application cluster, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes)
 with the `kubectl` command:
 
 ```sh
@@ -168,9 +167,9 @@ For high availability on Kubernetes, you can use the [existing high availability
 
 ### How to configure Kubernetes HA Services
 
-Session Mode, Per-Job Mode, and Application Mode clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions). All other yamls do not need to be updated.
+Session Mode and Application Mode clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions). All other yamls do not need to be updated.
 
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-plugins) for more information.
+<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.md %}#advanced-customization) and [enable plugins]({% link deployment/resource-providers/standalone/docker.md %}#using-filesystem-plugins) for more information.
 
 {% highlight yaml %}
 apiVersion: v1
@@ -416,9 +415,9 @@ spec:
             path: log4j-console.properties
 {% endhighlight %}
 
-### Job cluster resource definitions
+### Application cluster resource definitions
 
-`jobmanager-job.yaml`
+`jobmanager-application.yaml`
 {% highlight yaml %}
 apiVersion: batch/v1
 kind: Job
