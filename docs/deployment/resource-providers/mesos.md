@@ -212,7 +212,7 @@ try (FileOutputStream output = new FileOutputStream(jobGraphFile);
 processes contain the reference to the user code jar. There are two ways to achieve this:
 1. One way is to put them in the `${FLINK_HOME}/lib/` directory, which will result in the user 
    code jar being loaded by the system classloader.
-1. Another option is to create a `${FLINK_HOME}/usrlib/` directory and to put the user code jar 
+2. Another option is to create a `${FLINK_HOME}/usrlib/` directory and to put the user code jar 
    in that directory. The user code jar will be loaded by the user code classloader after launching 
    a Per-Job Cluster via `${FLINK_HOME}/bin/mesos-appmaster-job.sh ...`.
 
