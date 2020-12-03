@@ -332,6 +332,26 @@ public class TableEnvHiveConnectorITCase {
 		tableEnv.executeSql("drop table if exists dest");
 	}
 
+	@Test
+	public void testDynamicPartWithOrderBy() throws Exception {
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.executeSql("create table src(x int,y int)");
+		tableEnv.executeSql("create table dest(x int) partitioned by (p int)");
+		try {
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+					.addRow(new Object[]{2, 0})
+					.addRow(new Object[]{1, 0})
+					.commit();
+			// some hive feature relies on the results being sorted, e.g. bucket table
+			tableEnv.executeSql("insert into dest partition(p) select * from src order by x").await();
+			List<Row> results = CollectionUtil.iteratorToList(tableEnv.executeSql("select * from dest").collect());
+			assertEquals("[1,0, 2,0]", results.toString());
+		} finally {
+			tableEnv.executeSql("drop table src");
+			tableEnv.executeSql("drop table dest");
+		}
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
