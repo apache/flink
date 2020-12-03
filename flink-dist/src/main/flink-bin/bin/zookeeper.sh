@@ -58,6 +58,9 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     args=("--zkConfigFile" "${ZK_CONF}" "--peerId" "${PEER_ID}")
 fi
 
+# the JMX log4j integration in ZK 3.4 does not work log4j 2
+export JVM_ARGS="$JVM_ARGS -Dzookeeper.jmx.log4j.disable=true"
+
 if [[ $STARTSTOP == "start-foreground" ]]; then
     "${FLINK_BIN_DIR}"/flink-console.sh zookeeper "${args[@]}"
 else
