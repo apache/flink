@@ -48,14 +48,20 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.scala.typeutils.EnumValueSerializer;
+import org.apache.flink.api.scala.typeutils.NothingSerializer;
+import org.apache.flink.api.scala.typeutils.OptionSerializer;
+import org.apache.flink.api.scala.typeutils.TraversableSerializer;
+import org.apache.flink.api.scala.typeutils.TrySerializer;
+import org.apache.flink.api.scala.typeutils.UnitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.InternalTimersSnapshotReaderWriters;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
-import org.apache.flink.streaming.api.operators.sort.KeyAndValueSerializer;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -92,7 +98,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
 
 		// type serializer whitelist for SerializerTestBase test coverage
 		final List<String> serializerTestBaseWhitelist = Arrays.asList(
-				KeyAndValueSerializer.class.getName(),
 				ArrayListSerializer.class.getName(),
 				EitherSerializer.class.getName(),
 				SingleThreadAccessCheckingTypeSerializer.class.getName(),
@@ -117,12 +122,20 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
 				IntervalJoinOperator.BufferEntrySerializer.class.getName(),
 				GlobalWindow.Serializer.class.getName(),
 				org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class.getName(),
-				org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName()
+				org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
+				EnumValueSerializer.class.getName(),
+				OptionSerializer.class.getName(),
+				TraversableSerializer.class.getName(),
+				UnitSerializer.class.getName(),
+				NothingSerializer.class.getName(),
+				TrySerializer.class.getName(),
+				TestDuplicateSerializer.class.getName(),
+				"org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
+				"org.apache.flink.streaming.api.operators.sort.KeyAndValueSerializer"
 		);
 
 		//  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
 		final List<String> typeSerializerUpgradeTestBaseWhitelist = Arrays.asList(
-				KeyAndValueSerializer.class.getName(),
 				InstantSerializer.class.getName(),
 				SingleThreadAccessCheckingTypeSerializer.class.getName(),
 				SimpleVersionedSerializerTypeSerializerProxy.class.getName(),
@@ -146,19 +159,28 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
 				CoGroupedStreams.UnionSerializer.class.getName(),
 				InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
 				TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
-				GlobalWindow.Serializer.class.getName()
+				GlobalWindow.Serializer.class.getName(),
+				OptionSerializer.class.getName(),
+				UnitSerializer.class.getName(),
+				NothingSerializer.class.getName(),
+				TrySerializer.class.getName(),
+				TestDuplicateSerializer.class.getName(),
+				"org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
+				"org.apache.flink.streaming.api.operators.sort.KeyAndValueSerializer"
 		);
 
 		// check if a test exists for each type serializer
 		for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {
-			// we skip abstract classes, test classes, inner classes and scala classes to skip type serializer defined in test classes
+			// we skip abstract classes, test classes and inner classes to skip type serializer defined in test classes
 			if (Modifier.isAbstract(typeSerializer.getModifiers()) ||
 					Modifier.isPrivate(typeSerializer.getModifiers()) ||
-					typeSerializer.getName().contains("test") ||
-					typeSerializer.getName().contains("Test") ||
-					typeSerializer.getName().contains("ITCase") ||
+					typeSerializer.getName().contains("Test$") ||
+					typeSerializer.getName().contains("TestBase$") ||
+					typeSerializer.getName().contains("TestType$") ||
+					typeSerializer.getName().contains("testutils") ||
+					typeSerializer.getName().contains("ITCase$") ||
 					typeSerializer.getName().contains("$$anon") ||
-					typeSerializer.getName().contains("scala")) {
+					typeSerializer.getName().contains("queryablestate")) {
 				continue;
 			}
 
