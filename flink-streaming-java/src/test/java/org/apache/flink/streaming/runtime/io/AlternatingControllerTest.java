@@ -105,6 +105,26 @@ public class AlternatingControllerTest {
 		assertFalse(stateWriter.getAddedInput().isEmpty());
 	}
 
+	/**
+	 * If a checkpoint announcement was processed from one channel and then UC-barrier arrives
+	 * on another channel, this UC barrier should be processed by the UC controller.
+	 */
+	@Test
+	public void testSwitchToUnalignedByUpstream() throws Exception {
+		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
+		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		SingleCheckpointBarrierHandler barrierHandler = barrierHandler(inputGate, target);
+		CheckpointedInputGate gate = buildGate(target, 2);
+
+		CheckpointBarrier aligned = new CheckpointBarrier(1, System.currentTimeMillis(), alignedWithTimeout(getDefault(), Integer.MAX_VALUE));
+
+		send(toBuffer(new EventAnnouncement(aligned, 0), true), 0, gate); // process announcement but not the barrier
+		assertEquals(0, target.triggeredCheckpointCounter);
+		send(toBuffer(aligned.asUnaligned(), true), 1, gate); // pretend it came from upstream before the first (AC) barrier was picked up
+		assertEquals(1, target.triggeredCheckpointCounter);
+	}
+
 	@Test
 	public void testCheckpointHandling() throws Exception {
 		testBarrierHandling(CHECKPOINT);
