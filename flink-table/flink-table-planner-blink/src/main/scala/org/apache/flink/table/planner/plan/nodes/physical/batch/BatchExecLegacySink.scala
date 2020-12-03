@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -138,12 +139,13 @@ class BatchExecLegacySink[T](
             withChangeFlag,
             "SinkConversion"
           )
-          ExecNode.createOneInputTransformation(
+          ExecNodeUtil.createOneInputTransformation(
             plan,
             s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",
             converterOperator,
             outputTypeInfo,
-            plan.getParallelism)
+            plan.getParallelism,
+            0)
         }
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +

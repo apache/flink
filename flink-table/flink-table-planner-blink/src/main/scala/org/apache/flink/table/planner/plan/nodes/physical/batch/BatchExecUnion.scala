@@ -115,6 +115,6 @@ class BatchExecUnion(
     val transformations = getInputNodes.map {
       input => input.translateToPlan(planner).asInstanceOf[Transformation[RowData]]
     }
-    ExecNode.setManagedMemoryWeight(new UnionTransformation(transformations))
+    new UnionTransformation(transformations)
   }
 }

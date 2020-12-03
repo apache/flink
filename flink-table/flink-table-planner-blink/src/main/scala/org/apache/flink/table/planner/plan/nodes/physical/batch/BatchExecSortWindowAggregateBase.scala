@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.codegen.agg.batch.{SortWindowCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -132,11 +133,12 @@ abstract class BatchExecSortWindowAggregateBase(
       generator.genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       operator,
       InternalTypeInfo.of(outputType),
-      input.getParallelism)
+      input.getParallelism,
+      0)
   }
 }
