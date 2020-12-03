@@ -266,7 +266,6 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 				// between tests runs.
 				String baseImage = buildBaseImage(flinkDist, flinkDistName);
 				ImageFromDockerfile configuredImage = buildConfiguredImage(
-					flinkDistName,
 					workersFile,
 					baseImage);
 
@@ -281,21 +280,19 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 					numTaskManagers,
 					logBackupDirectory.orElse(null));
 			} catch (Exception e) {
-				throw new RuntimeException("Could not build the flink-dist image", e);
-			} finally {
 				temporaryFolder.delete();
+				throw new RuntimeException("Could not build the flink-dist image", e);
 			}
 		}
 
 		private ImageFromDockerfile buildConfiguredImage(
-				String flinkDistName,
 				Path workersFile,
 				String baseImage) {
 			return new ImageFromDockerfile(
 				"flink-dist-configured")
 				.withDockerfileFromBuilder(
 					builder -> builder.from(baseImage)
-						.copy("workers", flinkDistName + "/conf/workers")
+						.copy("workers", "flink/conf/workers")
 						.cmd(FLINK_BIN + "/start-cluster.sh && tail -f /dev/null")
 						.build()
 				)
