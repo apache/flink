@@ -16,53 +16,49 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.testutils;
+package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.util.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
- * A checkpoint store, which supports shutdown and suspend. You can use this to test HA
- * as long as the factory always returns the same store instance.
+ * An embedded in-memory checkpoint store, which supports shutdown and suspend.
+ * You can use this to test HA as long as the factory always returns the same store instance.
  */
-public class RecoverableCompletedCheckpointStore implements CompletedCheckpointStore {
-
-	private static final Logger LOG = LoggerFactory.getLogger(RecoverableCompletedCheckpointStore.class);
+public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	private final ArrayDeque<CompletedCheckpoint> checkpoints = new ArrayDeque<>(2);
 
-	private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
+	private final Collection<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
 	private final int maxRetainedCheckpoints;
 
-	public RecoverableCompletedCheckpointStore() {
+	public EmbeddedCompletedCheckpointStore() {
 		this(1);
 	}
 
-	public RecoverableCompletedCheckpointStore(int maxRetainedCheckpoints) {
+	EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
 		Preconditions.checkArgument(maxRetainedCheckpoints > 0);
 		this.maxRetainedCheckpoints = maxRetainedCheckpoints;
 	}
 
 	@Override
-	public void recover() throws Exception {
+	public void recover() {
 		checkpoints.addAll(suspended);
 		suspended.clear();
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
-
+	public void addCheckpoint(
+			CompletedCheckpoint checkpoint,
+			CheckpointsCleaner checkpointsCleaner,
+			Runnable postCleanup) throws Exception {
 		checkpoints.addLast(checkpoint);
 
 		if (checkpoints.size() > maxRetainedCheckpoints) {
@@ -70,7 +66,8 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 		}
 	}
 
-	public void removeOldestCheckpoint() throws Exception {
+	@VisibleForTesting
+	void removeOldestCheckpoint() throws Exception {
 		CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
 		checkpointToSubsume.discardOnSubsume();
 	}
@@ -82,17 +79,13 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 			suspended.clear();
 		} else {
 			suspended.clear();
-
-			for (CompletedCheckpoint checkpoint : checkpoints) {
-				suspended.add(checkpoint);
-			}
-
+			suspended.addAll(checkpoints);
 			checkpoints.clear();
 		}
 	}
 
 	@Override
-	public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
+	public List<CompletedCheckpoint> getAllCheckpoints() {
 		return new ArrayList<>(checkpoints);
 	}
 

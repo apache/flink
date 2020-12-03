@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.TestLogger;
 
@@ -144,7 +143,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		ExecutionVertex[] arrayExecutionVertices =
 			allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
-		CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore();
+		CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
@@ -264,7 +263,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			tasks.add(stateful);
 			tasks.add(stateless);
 
-			CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore(2);
+			CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(2);
 
 			CheckpointCoordinatorConfiguration chkConfig =
 				new CheckpointCoordinatorConfigurationBuilder()

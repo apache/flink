@@ -46,6 +46,8 @@ public class MiniClusterConfiguration {
 	@Nullable
 	private final String commonBindAddress;
 
+	private final MiniCluster.HaServices haServices;
+
 	// ------------------------------------------------------------------------
 	//  Construction
 	// ------------------------------------------------------------------------
@@ -54,12 +56,13 @@ public class MiniClusterConfiguration {
 			Configuration configuration,
 			int numTaskManagers,
 			RpcServiceSharing rpcServiceSharing,
-			@Nullable String commonBindAddress) {
-
+			@Nullable String commonBindAddress,
+			MiniCluster.HaServices haServices) {
 		this.numTaskManagers = numTaskManagers;
 		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
+		this.haServices = haServices;
 	}
 
 	private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
@@ -122,6 +125,10 @@ public class MiniClusterConfiguration {
 		return configuration;
 	}
 
+	public MiniCluster.HaServices getHaServices() {
+		return haServices;
+	}
+
 	@Override
 	public String toString() {
 		return "MiniClusterConfiguration {" +
@@ -150,6 +157,7 @@ public class MiniClusterConfiguration {
 		private RpcServiceSharing rpcServiceSharing = SHARED;
 		@Nullable
 		private String commonBindAddress = null;
+		private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
 
 		public Builder setConfiguration(Configuration configuration1) {
 			this.configuration = Preconditions.checkNotNull(configuration1);
@@ -176,6 +184,11 @@ public class MiniClusterConfiguration {
 			return this;
 		}
 
+		public Builder setHaServices(MiniCluster.HaServices haServices) {
+			this.haServices = haServices;
+			return this;
+		}
+
 		public MiniClusterConfiguration build() {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
 			modifiedConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
@@ -187,7 +200,8 @@ public class MiniClusterConfiguration {
 				modifiedConfiguration,
 				numTaskManagers,
 				rpcServiceSharing,
-				commonBindAddress);
+				commonBindAddress,
+				haServices);
 		}
 	}
 }

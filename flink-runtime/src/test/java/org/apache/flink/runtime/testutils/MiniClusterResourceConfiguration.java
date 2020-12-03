@@ -20,8 +20,11 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.util.Preconditions;
 
@@ -40,17 +43,22 @@ public class MiniClusterResourceConfiguration {
 
 	private final RpcServiceSharing rpcServiceSharing;
 
+	private final MiniCluster.HaServices haServices;
+
 	protected MiniClusterResourceConfiguration(
 		Configuration configuration,
 		int numberTaskManagers,
 		int numberSlotsPerTaskManager,
 		Time shutdownTimeout,
-		RpcServiceSharing rpcServiceSharing) {
+		RpcServiceSharing rpcServiceSharing,
+		MiniCluster.HaServices haServices) {
+
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.numberTaskManagers = numberTaskManagers;
 		this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
 		this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
+		this.haServices = haServices;
 	}
 
 	public Configuration getConfiguration() {
@@ -73,6 +81,10 @@ public class MiniClusterResourceConfiguration {
 		return rpcServiceSharing;
 	}
 
+	public MiniCluster.HaServices getHaServices() {
+		return haServices;
+	}
+
 	/**
 	 * Builder for {@link MiniClusterResourceConfiguration}.
 	 */
@@ -84,6 +96,7 @@ public class MiniClusterResourceConfiguration {
 		private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
 		private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
+		private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
 
 		public Builder setConfiguration(Configuration configuration) {
 			this.configuration = configuration;
@@ -110,8 +123,25 @@ public class MiniClusterResourceConfiguration {
 			return this;
 		}
 
+		/**
+		 * Enables or disables {@link HaLeadershipControl} in {@link MiniCluster#getHaLeadershipControl}.
+		 *
+		 * <p>{@link HaLeadershipControl} allows granting and revoking leadership of HA components.
+		 * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
+		 */
+		public Builder withHaLeadershipControl() {
+			this.haServices = MiniCluster.HaServices.WITH_LEADERSHIP_CONTROL;
+			return this;
+		}
+
 		public MiniClusterResourceConfiguration build() {
-			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
+			return new MiniClusterResourceConfiguration(
+				configuration,
+				numberTaskManagers,
+				numberSlotsPerTaskManager,
+				shutdownTimeout,
+				rpcServiceSharing,
+				haServices);
 		}
 	}
 }
