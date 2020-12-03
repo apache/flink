@@ -35,7 +35,7 @@ It connects to the running JobManager specified in `conf/flink-config.yaml`.
 A prerequisite for the commands listed in this section to work is to have a running Flink deployment 
 like [Kubernetes]({% link deployment/resource-providers/native_kubernetes.zh.md %}), 
 [YARN]({% link deployment/resource-providers/yarn.zh.md %}) or any other option available. Feel free to 
-[start a Flink cluster locally]({% link deployment/resource-providers/standalone/local.zh.md %}#start-a-local-flink-cluster) 
+[start a Flink cluster locally]({% link deployment/resource-providers/standalone/index.zh.md %}#starting-a-standalone-cluster-session-mode) 
 to try the commands on your own machine.
  
 ### Submitting a Job

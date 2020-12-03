@@ -23,84 +23,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes how to deploy a *Flink Job* and *Session cluster* on [Kubernetes](https://kubernetes.io).
-
 * This will be replaced by the TOC
 {:toc}
 
-{% info %} This page describes deploying a [standalone]({% link deployment/resource-providers/standalone/index.zh.md %}) Flink cluster on top of Kubernetes.
-You can find more information on native Kubernetes deployments [here]({% link deployment/resource-providers/native_kubernetes.zh.md %}).
 
-## Setup Kubernetes
+## Getting Started
 
-Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in order to deploy a Kubernetes cluster.
-If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
+This *Getting Started* guide describes how to deploy a *Session cluster* on [Kubernetes](https://kubernetes.io).
+
+### Introduction
+
+This page describes deploying a [standalone]({% link deployment/resource-providers/standalone/index.zh.md %}) Flink cluster on top of Kubernetes, using Flink's standalone deployment.
+We generally recommend new users to deploy Flink on Kubernetes using [native Kubernetes deployments]({% link deployment/resource-providers/native_kubernetes.zh.md %}).
+
+### Preparation
+
+This guide expects a Kubernetes environment to be present. You can ensure that your Kubernetes setup is working by running a command like `kubectl get nodes`, which lists all connected Kubelets. 
+
+If you want to run Kubernetes locally, we recommend using [MiniKube](https://minikube.sigs.k8s.io/docs/start/).
 
 <div class="alert alert-info" markdown="span">
   <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster.
-  Otherwise Flink components are not able to self reference themselves through a Kubernetes service.
+  Otherwise Flink components are not able to reference themselves through a Kubernetes service.
 </div>
 
-## Flink Docker image
+### Starting a Kubernetes Cluster (Session Mode)
 
-Before deploying the Flink Kubernetes components, please read [the Flink Docker image documentation]({% link deployment/resource-providers/standalone/docker.zh.md %}),
-[its tags]({% link deployment/resource-providers/standalone/docker.zh.md %}#image-tags), [how to customize the Flink Docker image]({% link deployment/resource-providers/standalone/docker.zh.md %}#customize-flink-image) and
-[enable plugins]({% link deployment/resource-providers/standalone/docker.zh.md %}#using-plugins) to use the image in the Kubernetes definition files.
-
-## Deploy Flink cluster on Kubernetes
-
-Using [the common resource definitions](#common-cluster-resource-definitions), launch the common cluster components
-with the `kubectl` command:
-
-```sh
-    kubectl create -f flink-configuration-configmap.yaml
-    kubectl create -f jobmanager-service.yaml
-```
-
-Note that you could define your own customized options of `flink-conf.yaml` within `flink-configuration-configmap.yaml`.
-
-Then launch the specific components depending on whether you want to deploy a [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster.
-
-You can then access the Flink UI via different ways:
-*  `kubectl proxy`:
-
-    1. Run `kubectl proxy` in a terminal.
-    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
-
-*  `kubectl port-forward`:
-    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
-    3. Moreover, you could use the following command below to submit jobs to the cluster:
-    {% highlight bash %}./bin/flink run -m localhost:8081 ./examples/streaming/WordCount.jar{% endhighlight %}
-
-*  Create a `NodePort` service on the rest service of jobmanager:
-    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
-    3. If you use minikube, you can get its public ip by running `minikube ip`.
-    4. Similarly to the `port-forward` solution, you could also use the following command below to submit jobs to the cluster:
-
-        {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
-
-You can also access the queryable state of TaskManager if you create a `NodePort` service for it:
-  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.zh.md %}#querying-state) to submit the state queries.
-
-In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
-and use `kubectl` to terminate the common components:
-
-```sh
-    kubectl delete -f jobmanager-service.yaml
-    kubectl delete -f flink-configuration-configmap.yaml
-    # if created then also the rest service
-    kubectl delete -f jobmanager-rest-service.yaml
-    # if created then also the queryable state service
-    kubectl delete -f taskmanager-query-state-service.yaml
-```
-
-### Deploy Session Cluster
-
-A *Flink Session cluster* is executed as a long-running Kubernetes Deployment.
-Note that you can run multiple Flink jobs on a *Session cluster*.
+A *Flink Session cluster* is executed as a long-running Kubernetes Deployment. You can run multiple Flink jobs on a *Session cluster*.
 Each job needs to be submitted to the cluster after the cluster has been deployed.
 
 A *Flink Session cluster* deployment in Kubernetes has at least three components:
@@ -109,68 +58,145 @@ A *Flink Session cluster* deployment in Kubernetes has at least three components
 * a *Deployment* for a pool of [TaskManagers]({% link concepts/glossary.zh.md %}#flink-taskmanager)
 * a *Service* exposing the *JobManager's* REST and UI ports
 
-After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Session specific resource definitions](#session-cluster-resource-definitions)
-to launch the *Session cluster* with the `kubectl` command:
+Using the file contents provided in the [the common resource definitions](#common-cluster-resource-definitions), create the following files, and create the respective components with the `kubectl` command:
 
 ```sh
-    kubectl create -f jobmanager-session-deployment.yaml
-    kubectl create -f taskmanager-session-deployment.yaml
+    # Configuration and service definition
+    $ kubectl create -f flink-configuration-configmap.yaml
+    $ kubectl create -f jobmanager-service.yaml
+    # Create the deployments for the cluster
+    $ kubectl create -f jobmanager-session-deployment.yaml
+    $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-To terminate the *Session cluster*, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes) with the `kubectl` command:
+Next, we set up a port forward to access the Flink UI and submit jobs:
+
+1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
+2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
+3. Moreover, you could use the following command below to submit jobs to the cluster:
+{% highlight bash %}
+$ ./bin/flink run -m localhost:8081 
+$ ./examples/streaming/TopSpeedWindowing.jar
+{% endhighlight %}
+
+
+
+You can tear down the cluster using the following commands:
 
 ```sh
-    kubectl delete -f taskmanager-session-deployment.yaml
-    kubectl delete -f jobmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-service.yaml
+    $ kubectl delete -f flink-configuration-configmap.yaml
+    $ kubectl delete -f taskmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-session-deployment.yaml
 ```
 
-### Deploy Job Cluster
 
-A *Flink Job cluster* is a dedicated cluster which runs a single job.
-You can find more details [here](#start-a-job-cluster).
+{% top %}
 
-A basic *Flink Job cluster* deployment in Kubernetes has three components:
+## Deployment Modes
 
-* a *Job* which runs a *JobManager*
+### Deploy Application Cluster
+
+A *Flink Application cluster* is a dedicated cluster which runs a single application.
+
+A basic *Flink Application cluster* deployment in Kubernetes has three components:
+
+* an *Application* which runs a *JobManager*
 * a *Deployment* for a pool of *TaskManagers*
 * a *Service* exposing the *JobManager's* REST and UI ports
 
-Check [the Job cluster specific resource definitions](#job-cluster-resource-definitions) and adjust them accordingly.
+Check [the Application cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
 
 The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
 See also [how to specify the JobManager arguments]({% link deployment/resource-providers/standalone/docker.zh.md %}#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#job-cluster-resource-definitions).
+The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
 The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
 If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image]({% link deployment/resource-providers/standalone/docker.zh.md %}#start-a-job-cluster) which already contains the artifacts instead.
+Alternatively, you can build [a custom image]({% link deployment/resource-providers/standalone/docker.zh.md %}#advanced-customization) which already contains the artifacts instead.
 
-After creating [the common cluster components](#deploy-flink-cluster-on-kubernetes), use [the Job cluster specific resource definitions](#job-cluster-resource-definitions)
-to launch the cluster with the `kubectl` command:
+After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
 
 ```sh
-    kubectl create -f jobmanager-job.yaml
-    kubectl create -f taskmanager-job-deployment.yaml
+    $ kubectl create -f jobmanager-job.yaml
+    $ kubectl create -f taskmanager-job-deployment.yaml
 ```
 
-To terminate the single job cluster, these components can be deleted along with [the common ones](#deploy-flink-cluster-on-kubernetes)
+To terminate the single application cluster, these components can be deleted along with [the common ones](#common-cluster-resource-definitions)
 with the `kubectl` command:
 
 ```sh
-    kubectl delete -f taskmanager-job-deployment.yaml
-    kubectl delete -f jobmanager-job.yaml
+    $ kubectl delete -f taskmanager-job-deployment.yaml
+    $ kubectl delete -f jobmanager-job.yaml
 ```
 
-## High-Availability with Standalone Kubernetes
+### Per-Job Cluster Mode
+Flink on Standalone Kubernetes does not support the Per-Job Cluster Mode.
+
+### Session Mode
+
+Deployment of a Session cluster is explained in the [Getting Started](#getting-started) guide at the top of this page.
+
+{% top %}
+
+## Flink on Standalone Kubernetes Reference
+
+### Configuration
+
+All configuration options are listed on the [configuration page]({% link deployment/config.zh.md %}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
+
+### Accessing Flink in Kubernetes
+
+You can then access the Flink UI and submit jobs via different ways:
+*  `kubectl proxy`:
+
+    1. Run `kubectl proxy` in a terminal.
+    2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:webui/proxy) in your browser.
+
+*  `kubectl port-forward`:
+    1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
+    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
+    3. Moreover, you can use the following command below to submit jobs to the cluster:
+    {% highlight bash %}
+    $ ./bin/flink run -m localhost:8081 
+    $ ./examples/streaming/TopSpeedWindowing.jar
+    {% endhighlight %}
+
+*  Create a `NodePort` service on the rest service of jobmanager:
+    1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+    2. Run `kubectl get svc flink-jobmanager-rest` to know the `node-port` of this service and navigate to [http://&lt;public-node-ip&gt;:&lt;node-port&gt;](http://<public-node-ip>:<node-port>) in your browser.
+    3. If you use minikube, you can get its public ip by running `minikube ip`.
+    4. Similarly to the `port-forward` solution, you can also use the following command below to submit jobs to the cluster:
+
+    {% highlight bash %}
+    $ ./bin/flink run -m <public-node-ip>:<node-port> 
+    $ ./examples/streaming/TopSpeedWindowing.jar
+    {% endhighlight %}
+
+### Debugging and Log Access
+
+Many common errors are easy to detect by checking Flink's log files. If you have access to Flink's web user interface, you can access the JobManager and TaskManager logs from there.
+
+If there are problems starting Flink, you can also use Kubernetes utilities to access the logs. Use `kubectl get pods` to see all running pods.
+For the quickstart example from above, you should see three pods:
+```
+$ kubectl get pods
+NAME                                 READY   STATUS             RESTARTS   AGE
+flink-jobmanager-589967dcfc-m49xv    1/1     Running            3          3m32s
+flink-taskmanager-64847444ff-7rdl4   1/1     Running            3          3m28s
+flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
+```
+
+You can now access the logs by running `kubectl logs flink-jobmanager-589967dcfc-m49xv`
+
+### High-Availability with Standalone Kubernetes
 
 For high availability on Kubernetes, you can use the [existing high availability services]({% link deployment/ha/index.zh.md %}).
 
-### How to configure Kubernetes HA Services
+Session Mode and Application Mode clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions). All other yamls do not need to be updated.
 
-Session Mode, Per-Job Mode, and Application Mode clusters support using the Kubernetes high availability service. Users just need to add the following Flink config options to [flink-configuration-configmap.yaml](#common-cluster-resource-definitions). All other yamls do not need to be updated.
-
-<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.zh.md %}#customize-flink-image) and [enable plugins]({% link deployment/resource-providers/standalone/docker.zh.md %}#using-plugins) for more information.
+<span class="label label-info">Note</span> The filesystem which corresponds to the scheme of your configured HA storage directory must be available to the runtime. Refer to [custom Flink image]({% link deployment/resource-providers/standalone/docker.zh.md %}#advanced-customization) and [enable plugins]({% link deployment/resource-providers/standalone/docker.zh.md %}#using-filesystem-plugins) for more information.
 
 {% highlight yaml %}
 apiVersion: v1
@@ -190,6 +216,13 @@ data:
   ...
 {% endhighlight %}
 
+### Enabling Queryable State
+
+You can access the queryable state of TaskManager if you create a `NodePort` service for it:
+  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `&lt;node-port&gt;` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.zh.md %}#querying-state) to submit the state queries.
+
+{% top %}
 
 ## Appendix
 
@@ -417,9 +450,9 @@ spec:
             path: log4j-console.properties
 {% endhighlight %}
 
-### Job cluster resource definitions
+### Application cluster resource definitions
 
-`jobmanager-job.yaml`
+`jobmanager-application.yaml`
 {% highlight yaml %}
 apiVersion: batch/v1
 kind: Job

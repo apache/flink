@@ -1,7 +1,7 @@
 ---
 title: "Local Setup"
 layout: redirect
-redirect: deployment/resource-providers/standalone/local
+redirect: deployment/resource-providers/standalone/index
 permalink: /tutorials/local_setup.html
 ---
 <!--
