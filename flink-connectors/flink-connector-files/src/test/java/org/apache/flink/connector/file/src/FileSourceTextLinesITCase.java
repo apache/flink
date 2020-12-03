@@ -20,25 +20,19 @@ package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.minicluster.TestingMiniCluster;
-import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -57,9 +51,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -76,46 +68,15 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-	private static TestingMiniCluster miniCluster;
-
-	private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
-
-	@BeforeClass
-	public static void setupMiniCluster() throws Exception  {
-		highAvailabilityServices =
-			new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
-
-		final Configuration configuration = createConfiguration();
-
-		miniCluster = new TestingMiniCluster(
-			new TestingMiniClusterConfiguration.Builder()
-				.setConfiguration(configuration)
-				.setNumTaskManagers(1)
-				.setNumSlotsPerTaskManager(PARALLELISM)
-				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-				.build(),
-			() -> highAvailabilityServices);
-
-		miniCluster.start();
-	}
-
-	private static Configuration createConfiguration() throws IOException {
-		final Configuration configuration = new Configuration();
-		final String checkPointDir = Path.fromLocalFile(TMP_FOLDER.newFolder()).toUri().toString();
-		configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkPointDir);
-		return configuration;
-	}
-
-	@AfterClass
-	public static void shutdownMiniCluster() throws Exception {
-		if (miniCluster != null) {
-			miniCluster.close();
-		}
-		if (highAvailabilityServices != null) {
-			highAvailabilityServices.closeAndCleanupAllData();
-			highAvailabilityServices = null;
-		}
-	}
+	@ClassRule
+	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration
+			.Builder()
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(PARALLELISM)
+			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+			.enableEmbeddedHaLeadershipControl()
+			.build());
 
 	// ------------------------------------------------------------------------
 	//  test cases
@@ -160,7 +121,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir))
 			.build();
 
-		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 
 		final DataStream<String> stream = env.fromSource(
@@ -222,7 +183,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 			.monitorContinuously(Duration.ofMillis(5))
 			.build();
 
-		final StreamExecutionEnvironment env = new TestStreamEnvironment(miniCluster, PARALLELISM);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.enableCheckpointing(10L);
 
@@ -294,15 +255,17 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	}
 
 	private static void triggerJobManagerFailover(JobID jobId, Runnable afterFailAction) throws Exception {
-		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
+		final HaLeadershipControl haLeadershipControl =
+			MINI_CLUSTER_RESOURCE.getMiniCluster().getHaLeadershipControl().get();
+		haLeadershipControl.revokeJobMasterLeadership(jobId).get();
 		afterFailAction.run();
-		highAvailabilityServices.grantJobMasterLeadership(jobId).get();
+		haLeadershipControl.grantJobMasterLeadership(jobId).get();
 	}
 
 	private static void restartTaskManager(Runnable afterFailAction) throws Exception {
-		miniCluster.terminateTaskManager(0).get();
+		MINI_CLUSTER_RESOURCE.getMiniCluster().terminateTaskManager(0).get();
 		afterFailAction.run();
-		miniCluster.startTaskManager();
+		MINI_CLUSTER_RESOURCE.getMiniCluster().startTaskManager();
 	}
 
 	// ------------------------------------------------------------------------

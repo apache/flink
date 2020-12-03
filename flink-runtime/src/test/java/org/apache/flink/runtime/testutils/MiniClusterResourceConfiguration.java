@@ -40,17 +40,22 @@ public class MiniClusterResourceConfiguration {
 
 	private final RpcServiceSharing rpcServiceSharing;
 
+	private final boolean enableEmbeddedHaLeadershipControl;
+
 	protected MiniClusterResourceConfiguration(
 		Configuration configuration,
 		int numberTaskManagers,
 		int numberSlotsPerTaskManager,
 		Time shutdownTimeout,
-		RpcServiceSharing rpcServiceSharing) {
+		RpcServiceSharing rpcServiceSharing,
+		boolean enableEmbeddedHaLeadershipControl) {
+
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.numberTaskManagers = numberTaskManagers;
 		this.numberSlotsPerTaskManager = numberSlotsPerTaskManager;
 		this.shutdownTimeout = Preconditions.checkNotNull(shutdownTimeout);
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
+		this.enableEmbeddedHaLeadershipControl = enableEmbeddedHaLeadershipControl;
 	}
 
 	public Configuration getConfiguration() {
@@ -73,6 +78,10 @@ public class MiniClusterResourceConfiguration {
 		return rpcServiceSharing;
 	}
 
+	public boolean embeddedHaLeadershipControlEnabled() {
+		return enableEmbeddedHaLeadershipControl;
+	}
+
 	/**
 	 * Builder for {@link MiniClusterResourceConfiguration}.
 	 */
@@ -84,6 +93,7 @@ public class MiniClusterResourceConfiguration {
 		private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
 		private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
+		private boolean enableEmbeddedHaLeadershipControl;
 
 		public Builder setConfiguration(Configuration configuration) {
 			this.configuration = configuration;
@@ -110,8 +120,19 @@ public class MiniClusterResourceConfiguration {
 			return this;
 		}
 
+		public Builder enableEmbeddedHaLeadershipControl() {
+			this.enableEmbeddedHaLeadershipControl = true;
+			return this;
+		}
+
 		public MiniClusterResourceConfiguration build() {
-			return new MiniClusterResourceConfiguration(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
+			return new MiniClusterResourceConfiguration(
+				configuration,
+				numberTaskManagers,
+				numberSlotsPerTaskManager,
+				shutdownTimeout,
+				rpcServiceSharing,
+				enableEmbeddedHaLeadershipControl);
 		}
 	}
 }

@@ -38,7 +38,7 @@ public class MiniClusterResourceConfiguration extends org.apache.flink.runtime.t
 			int numberSlotsPerTaskManager,
 			Time shutdownTimeout,
 			RpcServiceSharing rpcServiceSharing) {
-		super(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing);
+		super(configuration, numberTaskManagers, numberSlotsPerTaskManager, shutdownTimeout, rpcServiceSharing, false);
 	}
 
 	/**
