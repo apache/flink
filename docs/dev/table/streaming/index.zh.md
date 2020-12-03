@@ -38,7 +38,7 @@ Flink 的 [Table API]({% link dev/table/tableApi.zh.md %}) 和 [SQL]({% link dev
 * [动态表]({% link dev/table/streaming/dynamic_tables.zh.md %}): 描述了动态表的概念。
 * [时间属性]({% link dev/table/streaming/time_attributes.zh.md %}): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
 * [流上的 Join]({% link dev/table/streaming/joins.zh.md %}): 支持的几种流上的 Join。
-* [时态（temporal）表]({% link dev/table/streaming/temporal_tables.zh.md %}): 描述了时态表的概念。
+* [时态（temporal）表]({% link dev/table/streaming/versioned_tables.zh.md %}): 描述了时态表的概念。
 * [查询配置]({% link dev/table/streaming/query_configuration.zh.md %}): Table API & SQL 特定的配置。
 
 {% top %}

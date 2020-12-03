@@ -82,7 +82,10 @@ update_time  product_id product_name price
 
 ## Versioned Table Sources
 
-Versioned tables are defined implicitly for any tables whose underlying sources or formats directly define changelogs. Examples include the [upsert Kafka]({% link dev/table/connectors/upsert-kafka.md %}) source as well as database changelog formats such as [debezium]({% link dev/table/connectors/formats/debezium.md %}) and [canal]({% link dev/table/connectors/formats/canal.md %}). As discussed above, the only additional requirement is the `CREATE` table statement must contain a primary key and an event-time attribute. 
+Versioned tables are defined implicitly for any tables whose underlying sources or formats directly define changelogs.
+Examples include the [upsert Kafka]({% link dev/table/connectors/upsert-kafka.md %}) source as well as database changelog
+formats such as [debezium]({% link dev/table/connectors/formats/debezium.md %}) and [canal]({% link dev/table/connectors/formats/canal.md %}).
+As discussed above, the only additional requirement is the `CREATE` table statement must contain a `PRIMARY KEY` and an event-time attribute. 
 
 {% highlight sql %}
 CREATE TABLE products (
@@ -97,7 +100,8 @@ CREATE TABLE products (
 
 ## Versioned Table Views
 
-Flink also supports defining versioned views if the underlying query contains a unique key constraint and event-time attribute. Imagine an append-only table of currency rates. 
+Flink also supports defining versioned views if the underlying query contains a unique key constraint
+and event-time attribute. Imagine an append-only table of currency rates. 
 
 {% highlight sql %}
 CREATE TABLE currency_rates (
@@ -113,34 +117,66 @@ CREATE TABLE currency_rates (
 );
 {% endhighlight %}
 
-The table `currency_rates` contains a row for each currency &mdash; with respect to USD &mdash; and receives a new row each time the rate changes.
+The table `currency_rates` contains a row for each currency &mdash; with respect to USD &mdash; 
+and receives a new row each time the rate changes.
 The `JSON` format does not support native changelog semantics, so Flink can only read this table as append-only.
-However, it is clear to us (the query developer) that this table has all the necessary information to define a versioned table. 
 
-Flink can reinterpret this table as a versioned table by defining a [deduplication query]({% link dev/table/sql/queries.md %}#deduplication) which produces an ordered changelog stream with an inferred primary key (currency) and event time (update_time). 
+{% highlight sql %}
+(changelog kind) update_time   currency   rate
+================ ============= =========  ====
++(INSERT)        09:00:00      Yen        102
++(INSERT)        09:00:00      Euro       114
++(INSERT)        09:00:00      USD        1
++(INSERT)        11:15:00      Euro       119
++(INSERT)        11:49:00      Pounds     108
+{% endhighlight %}
+
+Flink interprets each row as an `INSERT` to the table, meaning we cannot define a `PRIMARY KEY` over currency.
+However, it is clear to us (the query developer) that this table has all the necessary information to define a versioned table. 
+Flink can reinterpret this table as a versioned table by defining a [deduplication query]({% link dev/table/sql/queries.md %}#deduplication)
+which produces an ordered changelog stream with an inferred primary key (currency) and event time (update_time). 
 
 {% highlight sql %}
 -- Define a versioned view
 CREATE VIEW versioned_rates AS              
-SELECT currency, rate, currency_time            -- (1) `currency_time` keeps the event time
+SELECT currency, rate, update_time              -- (1) `update_time` keeps the event time
   FROM (
       SELECT *,
       ROW_NUMBER() OVER (PARTITION BY currency  -- (2) the inferred unique key `currency` can be a primary key
-         ORDER BY update_time DESC) AS rowNum 
+         ORDER BY update_time DESC) AS rownum 
       FROM currency_rates)
-WHERE rowNum = 1; 
+WHERE rownum = 1; 
 
 -- the view `versioned_rates` will produce a changelog as the following.
 (changelog kind) update_time currency   rate
 ================ ============= =========  ====
-+(INSERT)        09:00:00      US Dollar  102
++(INSERT)        09:00:00      Yen        102
 +(INSERT)        09:00:00      Euro       114
-+(INSERT)        09:00:00      Yen        1
++(INSERT)        09:00:00      USD        1
 +(UPDATE_AFTER)  10:45:00      Euro       116
 +(UPDATE_AFTER)  11:15:00      Euro       119
 +(INSERT)        11:49:00      Pounds     108
 {% endhighlight %}
 
-The deduplication query in the view will be optimized by Flink and produce a versioned table usable in subsequent queries.
+Flink has a special optimization step that will efficiently transform this query into a versioned
+table usable in subsequent queries.
+In general, the results of a query with the following format produces a versioned table:
+
+{% highlight sql %}
+SELECT [column_list]
+FROM (
+   SELECT [column_list],
+     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
+       ORDER BY time_attr DESC) AS rownum
+   FROM table_name)
+WHERE rownum = 1
+{% endhighlight %}
+
+**Parameter Specification:**
+
+- `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
+- `PARTITION BY col1[, col2...]`: Specifies the partition columns, i.e. the deduplicate key. These columns form the primary key of the subsequent versioned table.
+- `ORDER BY time_attr DESC`: Specifies the ordering column, it must be a [time attribute]({% link dev/table/streaming/time_attributes.md %}).
+- `WHERE rownum = 1`: The `rownum = 1` is required for Flink to recognize this query is to generate a versioned table.
 
 {% top %}
