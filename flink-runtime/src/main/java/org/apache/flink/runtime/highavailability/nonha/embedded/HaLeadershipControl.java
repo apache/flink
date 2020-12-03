@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
- * Simple {@link CheckpointRecoveryFactory} which is initialized with a
- * {@link CompletedCheckpointStore} and a {@link CheckpointIDCounter}.
+ * Interface to grant and revoke leadership of HA components.
  */
-public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
+public interface HaLeadershipControl {
+	CompletableFuture<Void> revokeDispatcherLeadership();
 
-	private final CompletedCheckpointStore store;
-	private final CheckpointIDCounter counter;
+	CompletableFuture<Void> grantDispatcherLeadership();
 
-	public TestingCheckpointRecoveryFactory(CompletedCheckpointStore store, CheckpointIDCounter counter) {
-		this.store = store;
-		this.counter = counter;
-	}
+	CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId);
 
-	@Override
-	public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
-		return store;
-	}
+	CompletableFuture<Void> grantJobMasterLeadership(JobID jobId);
 
-	@Override
-	public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) throws Exception {
-		return counter;
-	}
+	CompletableFuture<Void> revokeResourceManagerLeadership();
+
+	CompletableFuture<Void> grantResourceManagerLeadership();
 }
