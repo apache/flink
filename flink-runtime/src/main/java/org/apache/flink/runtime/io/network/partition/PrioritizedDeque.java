@@ -150,7 +150,7 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	 */
 	public T getAndRemove(Predicate<T> preCondition) {
 		Iterator<T> iterator = deque.iterator();
-		for (int i = 0; i < deque.size(); i++) {
+		for (int i = 0; iterator.hasNext(); i++) {
 			T next = iterator.next();
 			if (preCondition.test(next)) {
 				if (i < numPriorityElements) {

@@ -102,7 +102,7 @@ public class UnalignedControllerCancellationTest {
 	}
 
 	private static CheckpointBarrier checkpoint(int checkpointId) {
-		return new CheckpointBarrier(checkpointId, 1, CheckpointOptions.forCheckpointWithDefaultLocation().toTimeouted());
+		return new CheckpointBarrier(checkpointId, 1, CheckpointOptions.forCheckpointWithDefaultLocation().asTimedOut());
 	}
 
 	private static CancelCheckpointMarker cancel(int checkpointId) {
