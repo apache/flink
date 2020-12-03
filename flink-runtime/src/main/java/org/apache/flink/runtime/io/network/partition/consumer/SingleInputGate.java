@@ -773,7 +773,7 @@ public class SingleInputGate extends IndexedInputGate {
 	// ------------------------------------------------------------------------
 
 	void notifyChannelNonEmpty(InputChannel channel) {
-		queueChannel(checkNotNull(channel), null);
+		queueChannel(checkNotNull(channel), null, false);
 	}
 
 	/**
@@ -782,10 +782,14 @@ public class SingleInputGate extends IndexedInputGate {
 	 * <p>The buffer number limits the notification to the respective buffer and voids the whole notification in case
 	 * that the buffer has been polled in the meantime. That is, if task thread polls the enqueued priority buffer
 	 * before this notification occurs (notification is not performed under lock), this buffer number allows
-	 * {@link #queueChannel(InputChannel, Integer)} to avoid spurious priority wake-ups.
+	 * {@link #queueChannel(InputChannel, Integer, boolean)} to avoid spurious priority wake-ups.
 	 */
 	void notifyPriorityEvent(InputChannel inputChannel, int prioritySequenceNumber) {
-		queueChannel(checkNotNull(inputChannel), prioritySequenceNumber);
+		queueChannel(checkNotNull(inputChannel), prioritySequenceNumber, false);
+	}
+
+	void notifyPriorityEventForce(InputChannel inputChannel) {
+		queueChannel(checkNotNull(inputChannel), null, true);
 	}
 
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
@@ -805,12 +809,12 @@ public class SingleInputGate extends IndexedInputGate {
 			}));
 	}
 
-	private void queueChannel(InputChannel channel, @Nullable Integer prioritySequenceNumber) {
+	private void queueChannel(InputChannel channel, @Nullable Integer prioritySequenceNumber, boolean forcePriority) {
 		try (GateNotificationHelper notification = new GateNotificationHelper(this, inputChannelsWithData)) {
 			synchronized (inputChannelsWithData) {
-				boolean priority = prioritySequenceNumber != null;
+				boolean priority = prioritySequenceNumber != null || forcePriority;
 
-				if (priority &&
+				if (!forcePriority && priority &&
 						isOutdated(prioritySequenceNumber, lastPrioritySequenceNumber[channel.getChannelIndex()])) {
 					// priority event at the given offset already polled (notification is not atomic in respect to
 					// buffer enqueuing), so just ignore the notification
