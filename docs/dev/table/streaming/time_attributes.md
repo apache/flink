@@ -24,7 +24,7 @@ under the License.
 
 Flink can process data based on different notions of time. 
 
-*Processing time* refers to the machine's system time (also known as "wall-clock time") that is executing the respective operation.
+- *Processing time* refers to the machine's system time (also known as "wall-clock time") that is executing the respective operation.
 - *Event time* refers to the processing of streaming data based on timestamps that are attached to each row. The timestamps can encode when an event happened.
 
 For more information about time handling in Flink, see the introduction about [event time and watermarks]({% link dev/event_time.md %}).
@@ -39,19 +39,19 @@ Introduction to Time Attributes
 Time attributes can be part of every table schema.
 They are defined when creating a table from a `CREATE TABLE DDL` or a `DataStream`. 
 Once a time attribute is defined, it can be referenced as a field and used in time-based operations.
-As long as a time attribute is not modified and forwarded from one part of the query to another, it remains valid.
-Time attributes behave like regular timestamps and accessible for calculations.
-When used in computation, time attributes are materialized and act as standard timestamps. 
-However, the opposite is not true; ordinary timestamp columns cannot be arbitrarily converted to time attributes in the middle of a query.
+As long as a time attribute is not modified, and is simply forwarded from one part of a query to another, it remains a valid time attribute. 
+Time attributes behave like regular timestamps, and are accessible for calculations.
+When used in calculations, time attributes are materialized and act as standard timestamps. 
+However, ordinary timestamps cannot be used in place of, or be converted to, time attributes.
 
 Event Time
 ----------
 
-Event time allows a table program to produce results based on timestamps in every record, allowing for consistent results even in case of out-of-order events or late events. It also ensures the replayability of the results of the table program when reading records from persistent storage.
+Event time allows a table program to produce results based on timestamps in every record, allowing for consistent results despite out-of-order or late events. It also ensures the replayability of the results of the table program when reading records from persistent storage.
 
 Additionally, event time allows for unified syntax for table programs in both batch and streaming environments. A time attribute in a streaming environment can be a regular column of a row in a batch environment.
 
-To handle out-of-order events and distinguish between on-time and late events in streaming, Flink needs to extract timestamps from events and make some progress in time (so-called [watermarks]({% link dev/event_time.md %})).
+To handle out-of-order events and to distinguish between on-time and late events in streaming, Flink needs to know the timestamp for each row, and it also needs regular indications of how far along in event time the processing has progressed so far (via so-called [watermarks]({% link dev/event_time.md %})).
 
 Event time attributes can be defined in `CREATE` table DDL or during DataStream-to-Table conversion.
 
@@ -80,9 +80,9 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ### During DataStream-to-Table Conversion
 
-When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({% link dev/event_time.md %}) must have been already assigned in the `DataStream` being converted.
+When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({% link dev/event_time.md %}) must have already been assigned in the `DataStream` being converted.
 
-There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream`, the timestamp is either (1) appended as a new column to the schema or
+There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream`, the timestamp is either (1) appended as a new column, or it
 (2) replaces an existing column.
 
 In either case, the event time timestamp field will hold the value of the `DataStream` event time timestamp.
@@ -149,7 +149,7 @@ val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" a
 Processing Time
 ---------------
 
-Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time but does not provide determinism. It neither requires timestamp extraction nor watermark generation.
+Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time, but it will generate non-deterministic results. Processing time does not require timestamp extraction or watermark generation.
 
 There are three ways to define a processing time attribute.
 

@@ -34,7 +34,7 @@ You only need to have basic knowledge of SQL to follow along. No other programmi
 
 ### Installation
 
-There are multiple ways to install Flink. For experimentation, the most common option is to download the binaries and run them locally. You can follow the steps in [local nstallation]({%link try-flink/local_installation.zh.md %}) to set up an environment for the rest of the tutorial. 
+There are multiple ways to install Flink. For experimentation, the most common option is to download the binaries and run them locally. You can follow the steps in [local installation]({%link try-flink/local_installation.zh.md %}) to set up an environment for the rest of the tutorial. 
 
 Once you're all set, use the following command to start a local cluster from the installation folder:
 

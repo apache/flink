@@ -1317,8 +1317,8 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="{% link dev/table/streaming/temporal_tables.zh.md %}">Temporal tables</a> are tables that track changes over time.</p>
-        <p>A <a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1336,7 +1336,7 @@ Table orders = tableEnv.from("Orders");
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/temporal_tables.zh.md %}">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.zh.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -1461,8 +1461,8 @@ val result: Table = table
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="{% link dev/table/streaming/temporal_tables.zh.md %}">Temporal tables</a> are tables that track their changes over time.</p>
-        <p>A <a href="{% link dev/table/streaming/temporal_tables.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal tables</a> are tables that track their changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1477,7 +1477,7 @@ val orders = tableEnv.from("Orders")
 val result = orders
     .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/temporal_tables.zh.md %}">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.zh.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
