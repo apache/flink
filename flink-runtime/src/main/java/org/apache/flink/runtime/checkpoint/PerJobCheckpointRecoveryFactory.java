@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 
 import java.util.HashMap;
@@ -29,13 +30,13 @@ import java.util.function.Supplier;
  * Simple {@link CheckpointRecoveryFactory} which creates a
  * {@link CompletedCheckpointStore} and a {@link CheckpointIDCounter} per {@link JobID}.
  */
-public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
+public class PerJobCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 	private final Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory;
 	private final Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory;
 	private final Map<JobID, CompletedCheckpointStore> store;
 	private final Map<JobID, CheckpointIDCounter> counter;
 
-	public TestingCheckpointRecoveryFactory(
+	public PerJobCheckpointRecoveryFactory(
 			Function<Integer, CompletedCheckpointStore> completedCheckpointStorePerJobFactory,
 			Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory) {
 		this.completedCheckpointStorePerJobFactory = completedCheckpointStorePerJobFactory;
@@ -58,9 +59,10 @@ public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFacto
 		return counter.computeIfAbsent(jobId, jId -> checkpointIDCounterPerJobFactory.get());
 	}
 
+	@VisibleForTesting
 	public static CheckpointRecoveryFactory createSamePerJob(
 			CompletedCheckpointStore store,
 			CheckpointIDCounter counter) {
-		return new TestingCheckpointRecoveryFactory(n -> store, () -> counter);
+		return new PerJobCheckpointRecoveryFactory(n -> store, () -> counter);
 	}
 }

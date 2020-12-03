@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -64,7 +64,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	private static TestingMiniCluster miniCluster;
 
-	private static TestingEmbeddedHaServices highAvailabilityServices;
+	private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
 
 	private JobGraph jobGraph;
 
@@ -72,7 +72,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	@BeforeClass
 	public static void setupClass() throws Exception  {
-		highAvailabilityServices = new TestingEmbeddedHaServices(TestingUtils.defaultExecutor());
+		highAvailabilityServices = new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
 
 		miniCluster = new TestingMiniCluster(
 			new TestingMiniClusterConfiguration.Builder()

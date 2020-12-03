@@ -24,16 +24,11 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -43,7 +38,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -84,15 +78,12 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
 	private static TestingMiniCluster miniCluster;
 
-	private static TestingEmbeddedHaServices highAvailabilityServices;
-
-	private static CompletedCheckpointStore checkpointStore;
+	private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
 
 	@BeforeClass
 	public static void setupMiniCluster() throws Exception  {
-		highAvailabilityServices = new HaServices(TestingUtils.defaultExecutor(),
-			() -> checkpointStore,
-			new StandaloneCheckpointIDCounter());
+		highAvailabilityServices =
+			new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
 
 		final Configuration configuration = createConfiguration();
 
@@ -113,11 +104,6 @@ public class FileSourceTextLinesITCase extends TestLogger {
 		final String checkPointDir = Path.fromLocalFile(TMP_FOLDER.newFolder()).toUri().toString();
 		configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkPointDir);
 		return configuration;
-	}
-
-	@Before
-	public void setup() {
-		checkpointStore = new RecoverableCompletedCheckpointStore();
 	}
 
 	@AfterClass
@@ -482,52 +468,6 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  mini cluster failover utilities
 	// ------------------------------------------------------------------------
-
-	private static class HaServices extends TestingEmbeddedHaServices {
-		private final Supplier<CompletedCheckpointStore> completedCheckpointStoreFactory;
-		private final CheckpointIDCounter checkpointIDCounter;
-
-		private HaServices(
-				Executor executor,
-				Supplier<CompletedCheckpointStore> completedCheckpointStoreFactory,
-				CheckpointIDCounter checkpointIDCounter) {
-			super(executor);
-			this.completedCheckpointStoreFactory = completedCheckpointStoreFactory;
-			this.checkpointIDCounter = checkpointIDCounter;
-		}
-
-		@Override
-		public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-			return new CheckpointRecoveryFactoryWithSettableStore(
-				completedCheckpointStoreFactory,
-				checkpointIDCounter);
-		}
-	}
-
-	private static class CheckpointRecoveryFactoryWithSettableStore implements CheckpointRecoveryFactory {
-		private final Supplier<CompletedCheckpointStore> completedCheckpointStoreFactory;
-		private final CheckpointIDCounter checkpointIDCounter;
-
-		private CheckpointRecoveryFactoryWithSettableStore(
-				Supplier<CompletedCheckpointStore> completedCheckpointStoreFactory,
-				CheckpointIDCounter checkpointIDCounter) {
-			this.completedCheckpointStoreFactory = completedCheckpointStoreFactory;
-			this.checkpointIDCounter = checkpointIDCounter;
-		}
-
-		@Override
-		public CompletedCheckpointStore createCheckpointStore(
-				JobID jobId,
-				int maxNumberOfCheckpointsToRetain,
-				ClassLoader userClassLoader) {
-			return completedCheckpointStoreFactory.get();
-		}
-
-		@Override
-		public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
-			return checkpointIDCounter;
-		}
-	}
 
 	private static class RecordCounterToFail {
 
