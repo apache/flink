@@ -21,8 +21,10 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -106,7 +108,25 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 
     @Override
     public CompletableFuture<Map<String, Object>> getAccumulators() {
-        return getJobExecutionResult().thenApply(JobExecutionResult::getAllAccumulatorResults);
+        final CompletableFuture<JobExecutionResult> jobExecutionResult = getJobExecutionResult();
+        if (jobExecutionResult.isDone()) {
+            return jobExecutionResult.thenApply(JobExecutionResult::getAllAccumulatorResults);
+        } else {
+            return miniCluster
+                    .getExecutionGraph(jobID)
+                    .thenApply(AccessExecutionGraph::getAccumulatorsSerialized)
+                    .thenApply(
+                            accumulators -> {
+                                try {
+                                    return AccumulatorHelper.deserializeAndUnwrapAccumulators(
+                                            accumulators, classLoader);
+                                } catch (Exception e) {
+                                    throw new CompletionException(
+                                            "Cannot deserialize and unwrap accumulators properly.",
+                                            e);
+                                }
+                            });
+        }
     }
 
     @Override

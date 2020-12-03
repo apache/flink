@@ -38,6 +38,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -153,24 +154,10 @@ public class AccumulatorLiveITCase extends TestLogger {
         try {
             NotifyingMapper.notifyLatch.await();
 
-            FutureUtils.retrySuccessfulWithDelay(
-                            () -> {
-                                try {
-                                    return CompletableFuture.completedFuture(
-                                            client.getAccumulators(jobGraph.getJobID()).get());
-                                } catch (Exception e) {
-                                    return FutureUtils.completedExceptionally(e);
-                                }
-                            },
-                            Time.milliseconds(20),
-                            deadline,
-                            accumulators ->
-                                    accumulators.size() == 1
-                                            && accumulators.containsKey(ACCUMULATOR_NAME)
-                                            && (int) accumulators.get(ACCUMULATOR_NAME)
-                                                    == NUM_ITERATIONS,
-                            TestingUtils.defaultScheduledExecutor())
-                    .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            // verify using the ClusterClient
+            verifyResults(jobGraph, deadline, client);
+            // verify using the MiniClusterJobClient
+            verifyResults(jobGraph, deadline, null);
 
             NotifyingMapper.shutdownLatch.trigger();
         } finally {
@@ -179,6 +166,41 @@ public class AccumulatorLiveITCase extends TestLogger {
             // wait for the job to have terminated
             submissionThread.sync();
         }
+    }
+
+    private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
+            throws InterruptedException, java.util.concurrent.ExecutionException,
+                    java.util.concurrent.TimeoutException {
+        FutureUtils.retrySuccessfulWithDelay(
+                        () -> {
+                            try {
+                                if (client != null) {
+                                    return CompletableFuture.completedFuture(
+                                            client.getAccumulators(jobGraph.getJobID()).get());
+                                } else {
+                                    final MiniClusterJobClient miniClusterJobClient =
+                                            new MiniClusterJobClient(
+                                                    jobGraph.getJobID(),
+                                                    MINI_CLUSTER_RESOURCE.getMiniCluster(),
+                                                    ClassLoader.getSystemClassLoader(),
+                                                    MiniClusterJobClient.JobFinalizationBehavior
+                                                            .NOTHING);
+                                    return CompletableFuture.completedFuture(
+                                            miniClusterJobClient.getAccumulators().get());
+                                }
+                            } catch (Exception e) {
+                                return FutureUtils.completedExceptionally(e);
+                            }
+                        },
+                        Time.milliseconds(20),
+                        deadline,
+                        accumulators ->
+                                accumulators.size() == 1
+                                        && accumulators.containsKey(ACCUMULATOR_NAME)
+                                        && (int) accumulators.get(ACCUMULATOR_NAME)
+                                                == NUM_ITERATIONS,
+                        TestingUtils.defaultScheduledExecutor())
+                .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
     }
 
     /** UDF that notifies when it changes the accumulator values. */
