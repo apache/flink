@@ -280,12 +280,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.StreamTableExample</program-class>
+									<program-class>org.apache.flink.table.examples.scala.basics.StreamTableExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/scala/StreamTableExample*</include>
+								<include>org/apache/flink/table/examples/scala/basics/StreamTableExample*</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -302,12 +302,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.TPCHQuery3Table</program-class>
+									<program-class>org.apache.flink.table.examples.scala.basics.TPCHQuery3Table</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/scala/TPCHQuery3Table*</include>
+								<include>org/apache/flink/table/examples/scala/basics/TPCHQuery3Table*</include>
 							</includes>
 						</configuration>
 					</execution>
