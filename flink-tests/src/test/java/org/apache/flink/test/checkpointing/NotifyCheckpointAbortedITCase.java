@@ -448,7 +448,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 		@Override
 		public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) {
 			return new TestingHaServices(
-				new TestingCheckpointRecoveryFactory(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
+				TestingCheckpointRecoveryFactory.createSamePerJob(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
 				executor);
 		}
 	}
