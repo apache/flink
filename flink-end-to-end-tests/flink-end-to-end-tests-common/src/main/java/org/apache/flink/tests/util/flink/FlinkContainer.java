@@ -248,7 +248,6 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 		public FlinkContainer build() {
 			try {
 				Path flinkDist = FileUtils.findFlinkDist();
-				String flinkDistName = flinkDist.getFileName().toString();
 				temporaryFolder.create();
 				Path tmp = temporaryFolder.newFolder().toPath();
 				Path workersFile = tmp.resolve("workers");
@@ -264,7 +263,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 				//
 				// This lets us save some time for archiving and copying big, immutable files
 				// between tests runs.
-				String baseImage = buildBaseImage(flinkDist, flinkDistName);
+				String baseImage = buildBaseImage(flinkDist);
 				ImageFromDockerfile configuredImage = buildConfiguredImage(
 					workersFile,
 					baseImage);
@@ -300,9 +299,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 		}
 
 		@Nonnull
-		private String buildBaseImage(
-					Path flinkDist,
-					String flinkDistName)
+		private String buildBaseImage(Path flinkDist)
 				throws java.util.concurrent.TimeoutException {
 			String baseImage = "flink-dist-base";
 			if (!imageExists(baseImage)) {
@@ -310,10 +307,10 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 					.withDockerfileFromBuilder(
 						builder -> builder
 							.from("openjdk:" + getJavaVersionSuffix())
-							.copy(flinkDistName, "flink")
+							.copy("flink", "flink")
 							.build()
 					)
-					.withFileFromPath(flinkDistName, flinkDist)
+					.withFileFromPath("flink", flinkDist)
 					.get(1, TimeUnit.MINUTES);
 			}
 			return baseImage;
