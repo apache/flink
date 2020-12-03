@@ -78,4 +78,22 @@ class TableSinkTest extends TableTestBase {
 
     util.verifyPlan(stmtSet)
   }
+
+  @Test
+  def testDynamicPartWithOrderBy(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT
+         |) PARTITIONED BY (
+         |  `b`
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyPlan(stmtSet)
+  }
 }
