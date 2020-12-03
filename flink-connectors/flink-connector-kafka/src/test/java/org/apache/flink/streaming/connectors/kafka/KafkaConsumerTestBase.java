@@ -46,7 +46,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -258,7 +257,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		runner.join();
 
 		final Throwable t = errorRef.get();
-		if (t != null && ((JobExecutionException) t).getStatus() == ApplicationStatus.FAILED) {
+		if (t != null) {
 			throw new RuntimeException("Job failed with an exception", t);
 		}
 
@@ -343,7 +342,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		runner.join();
 
 		final Throwable t = errorRef.get();
-		if (t != null && ((JobExecutionException) t).getStatus() == ApplicationStatus.FAILED) {
+		if (t != null) {
 			throw new RuntimeException("Job failed with an exception", t);
 		}
 
