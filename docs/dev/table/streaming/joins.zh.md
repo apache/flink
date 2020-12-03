@@ -1,7 +1,7 @@
 ---
 title: "流上的 Join"
 nav-parent_id: streaming_tableapi
-nav-pos: 3
+nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

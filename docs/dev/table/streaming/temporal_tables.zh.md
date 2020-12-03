@@ -1,7 +1,7 @@
 ---
 title: "时态表（Temporal Tables）"
 nav-parent_id: streaming_tableapi
-nav-pos: 4
+nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
