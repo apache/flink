@@ -177,7 +177,7 @@ In contrast to that, the TaskManagers will run as Mesos tasks in the Mesos clust
 ## Deployment Modes Supported by Flink on Mesos
 
 For production use, we recommend deploying Flink Applications in the 
-[Per-Job]({% link deployment/index.md %}#per-job-mode), as this mode provides a better isolation 
+[Per-Job Mode]({% link deployment/index.md %}#per-job-mode), as it provides a better isolation 
 for each job.
 
 ### Application Mode
