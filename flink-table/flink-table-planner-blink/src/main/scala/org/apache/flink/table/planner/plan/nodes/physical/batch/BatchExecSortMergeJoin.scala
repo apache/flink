@@ -183,8 +183,8 @@ class BatchExecSortMergeJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] =
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
 
   // this method must be in sync with the behavior of SortMergeJoinOperator.
   override def getInputEdges: util.List[ExecEdge] = List(
@@ -197,7 +197,7 @@ class BatchExecSortMergeJoin(
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 

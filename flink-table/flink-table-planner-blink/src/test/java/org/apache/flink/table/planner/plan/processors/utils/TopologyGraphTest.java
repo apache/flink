@@ -130,7 +130,7 @@ public class TopologyGraphTest {
 		TopologyGraph graph = tuple2.f0;
 		TestingBatchExecNode[] nodes = tuple2.f1;
 
-		Map<ExecNode<?, ?>, Integer> result = graph.calculateMaximumDistance();
+		Map<ExecNode<?>, Integer> result = graph.calculateMaximumDistance();
 		Assert.assertEquals(8, result.size());
 		Assert.assertEquals(0, result.get(nodes[0]).intValue());
 		Assert.assertEquals(1, result.get(nodes[1]).intValue());
@@ -148,7 +148,7 @@ public class TopologyGraphTest {
 		TopologyGraph graph = tuple2.f0;
 		TestingBatchExecNode[] nodes = tuple2.f1;
 
-		Map<ExecNode<?, ?>, Integer> result = graph.calculateMaximumDistance();
+		Map<ExecNode<?>, Integer> result = graph.calculateMaximumDistance();
 		Assert.assertEquals(6, result.size());
 		Assert.assertEquals(0, result.get(nodes[2]).intValue());
 		Assert.assertEquals(0, result.get(nodes[3]).intValue());
@@ -165,7 +165,7 @@ public class TopologyGraphTest {
 		TestingBatchExecNode[] nodes = tuple2.f1;
 
 		graph.makeAsFarAs(nodes[4], nodes[7]);
-		Map<ExecNode<?, ?>, Integer> distances = graph.calculateMaximumDistance();
+		Map<ExecNode<?>, Integer> distances = graph.calculateMaximumDistance();
 		Assert.assertEquals(4, distances.get(nodes[7]).intValue());
 		Assert.assertEquals(4, distances.get(nodes[4]).intValue());
 	}

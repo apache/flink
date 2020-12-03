@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -102,13 +101,13 @@ abstract class StreamExecOverAggregateBase(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.asScala.map(_.asInstanceOf[ExecNode[StreamPlanner, _]]).asJava
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    getInputs.asScala.map(_.asInstanceOf[ExecNode[_]]).asJava
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 }
