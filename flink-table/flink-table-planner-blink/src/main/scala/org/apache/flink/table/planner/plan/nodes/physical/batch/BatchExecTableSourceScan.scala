@@ -86,7 +86,7 @@ class BatchExecTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[RowData](inputFormat, outTypeInfo)
-    ExecNode.setManagedMemoryWeight(env.addSource(func, name, outTypeInfo).getTransformation)
+    env.addSource(func, name, outTypeInfo).getTransformation
   }
 
   override protected def translateToPlanInternal(

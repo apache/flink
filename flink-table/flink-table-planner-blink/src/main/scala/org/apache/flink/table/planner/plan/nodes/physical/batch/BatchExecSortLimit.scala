@@ -25,6 +25,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator
@@ -144,11 +145,12 @@ class BatchExecSortLimit(
     // TODO If input is ordered, there is no need to use the heap.
     val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)
 
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),
       inputType,
-      input.getParallelism)
+      input.getParallelism,
+      0)
   }
 }

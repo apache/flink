@@ -159,8 +159,7 @@ class BatchExecLegacyTableSourceScan(
     // to read multiple partitions which are multiple paths.
     // We can use InputFormatSourceFunction directly to support InputFormat.
     val func = new InputFormatSourceFunction[IN](format, t)
-    ExecNode.setManagedMemoryWeight(env.addSource(func, tableSource.explainSource(), t)
-        .getTransformation)
+    env.addSource(func, tableSource.explainSource(), t).getTransformation
   }
 
   private def computeIndexMapping()

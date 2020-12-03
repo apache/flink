@@ -18,12 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.core.memory.ManagedMemoryUseCase
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.delegation.Planner
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 
@@ -77,61 +72,4 @@ trait ExecNode[T] {
     */
   def accept(visitor: ExecNodeVisitor)
 
-}
-
-object ExecNode {
-
-  /**
-    * Set memoryBytes to Transformation.setManagedMemoryWeight.
-    */
-  def setManagedMemoryWeight[T](
-      transformation: Transformation[T],
-      memoryBytes: Long = 0): Transformation[T] = {
-
-    // Using Bytes can easily overflow
-    // Using KibiBytes to cast to int
-    // Careful about zero
-    if (memoryBytes != 0) {
-      val memoryKibiBytes = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 10).toInt)
-      val previousWeight = transformation.declareManagedMemoryUseCaseAtOperatorScope(
-        ManagedMemoryUseCase.BATCH_OP, memoryKibiBytes)
-      if (previousWeight.isPresent) {
-        throw new TableException("Managed memory weight has been set, this should not happen.")
-      }
-    }
-    transformation
-  }
-
-  /**
-    * Create a [[OneInputTransformation]] with memoryBytes.
-    */
-  def createOneInputTransformation[T](
-      input: Transformation[T],
-      name: String,
-      operatorFactory: StreamOperatorFactory[T],
-      outputType: TypeInformation[T],
-      parallelism: Int,
-      memoryBytes: Long = 0): OneInputTransformation[T, T] = {
-    val ret = new OneInputTransformation[T, T](
-      input, name, operatorFactory, outputType, parallelism)
-    setManagedMemoryWeight(ret, memoryBytes)
-    ret
-  }
-
-  /**
-    * Create a [[TwoInputTransformation]] with memoryBytes.
-    */
-  def createTwoInputTransformation[T](
-      input1: Transformation[T],
-      input2: Transformation[T],
-      name: String,
-      operatorFactory: StreamOperatorFactory[T],
-      outputType: TypeInformation[T],
-      parallelism: Int,
-      memoryBytes: Long = 0): TwoInputTransformation[T, T, T] = {
-    val ret = new TwoInputTransformation[T, T, T](
-      input1, input2, name, operatorFactory, outputType, parallelism)
-    setManagedMemoryWeight(ret, memoryBytes)
-    ret
-  }
 }
