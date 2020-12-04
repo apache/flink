@@ -88,7 +88,7 @@ LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[=(c, a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
 :- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])
       +- Calc(select=[a AS a1], where=[=(b, _UTF-16LE'two')])
@@ -151,7 +151,7 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS _c0])
    +- Reused(reference_id=[1])
 ]]>
@@ -192,7 +192,7 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a])
 :- Calc(select=[a])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b])(reuse_id=[1])
 +- Calc(select=[b])
    +- Reused(reference_id=[1])
 ]]>

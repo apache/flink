@@ -19,14 +19,12 @@
 package org.apache.flink.table.planner.plan.nodes.physical
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.utils.NodeTreeWriterImpl
+import org.apache.flink.table.planner.plan.utils.ExecNodePlanDumper
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{AbstractRelNode, RelNode, RelWriter}
-import org.apache.calcite.sql.SqlExplainLevel
 
-import java.io.{PrintWriter, StringWriter}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -64,15 +62,9 @@ class MultipleInputRel(
   }
 
   private def getExplainTermsOfMembers: String = {
-    val sw = new StringWriter
-    val planWriter = new NodeTreeWriterImpl(
+    ExecNodePlanDumper.treeToString(
       outputRel.asInstanceOf[ExecNode[_]],
-      new PrintWriter(sw),
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      stopExplainNodes = Some(inputRels.map(_.asInstanceOf[ExecNode[_]]).toList),
-      reuseInfoMap = Some(new util.IdentityHashMap()),
-      includingBorder = true)
-    outputRel.explain(planWriter)
-    sw.toString
+      inputRels.map(_.asInstanceOf[ExecNode[_]]).toList,
+      true)
   }
 }

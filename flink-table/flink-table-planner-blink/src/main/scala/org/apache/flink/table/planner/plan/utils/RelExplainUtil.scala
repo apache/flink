@@ -52,7 +52,9 @@ object RelExplainUtil {
     */
   def preferExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
     // infix format is more readable for displaying
-    case _: RelDescriptionWriterImpl => ExpressionFormat.Infix
+    // TODO to make the minimal plan change, change to `Prefix` for temporary solution
+    // this only affects the operator names
+    case _: RelDescriptionWriterImpl => ExpressionFormat.Prefix
     // traditional writer prefers prefix expression format, e.g. +(x, y)
     case _ => ExpressionFormat.Prefix
   }

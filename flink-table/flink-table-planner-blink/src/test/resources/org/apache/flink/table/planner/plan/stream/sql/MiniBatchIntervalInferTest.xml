@@ -392,7 +392,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a,
                            +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
 
 == Optimized Execution Plan ==
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods], reuse_id=[1])
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=1, rightTimeIndex=1], where=[AND(=(id1, id2), >(CAST(rowtime), -(CAST(rowtime0), 300000:INTERVAL MINUTE)), <(CAST(rowtime), +(CAST(rowtime0), 180000:INTERVAL MINUTE)))], select=[id1, rowtime, text, id2, rowtime0, cnt, name, goods])(reuse_id=[1])
 :- Exchange(distribution=[hash[id1]])
 :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
 :     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[id1, rowtime, text])
@@ -400,7 +400,7 @@ IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
       +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
 
-Exchange(distribution=[hash[id1]], reuse_id=[2])
+Exchange(distribution=[hash[id1]])(reuse_id=[2])
 +- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
    +- Reused(reference_id=[1])
 

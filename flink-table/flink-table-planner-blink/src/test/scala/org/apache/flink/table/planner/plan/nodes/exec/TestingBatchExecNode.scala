@@ -26,8 +26,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRel
 
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgram}
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.rel.AbstractRelNode
+import org.apache.calcite.rel.`type`.RelDataTypeSystem
 
 import java.util
 
