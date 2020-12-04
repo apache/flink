@@ -170,12 +170,14 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines) throws IOException {
 		LOG.info("Executing Kafka {} end-to-end SQL statements.", kafkaSQLVersion);
-		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-			.addJar(sqlAvroJar)
-			.addJars(apacheAvroJars)
-			.addJar(sqlConnectorKafkaJar)
-			.addJar(sqlToolBoxJar)
-			.build());
+		clusterController.submitSQLJob(
+			new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
+				.addJar(sqlConnectorKafkaJar)
+				.addJar(sqlToolBoxJar)
+				.build(),
+			Duration.ofMinutes(2L));
 	}
 
 	private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {
