@@ -1242,6 +1242,9 @@
         },
         "unaligned_checkpoints" : {
           "type" : "boolean"
+        },
+        "tolerable_failed_checkpoints" : {
+          "type" : "integer"
         }
       }
     }
