@@ -157,7 +157,7 @@ public final class DataViewUtils {
 
 	private static class DataViewsTransformation implements TypeTransformation {
 
-		private Function<DataType, TypeSerializer<?>> serializer;
+		private final Function<DataType, TypeSerializer<?>> serializer;
 
 		private DataViewsTransformation(Function<DataType, TypeSerializer<?>> serializer) {
 			this.serializer = serializer;
