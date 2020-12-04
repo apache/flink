@@ -100,7 +100,7 @@ class BatchExecRank(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = inputRel.getRowType
-    pw.item("input", getInput)
+    pw.input("input", getInput)
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
