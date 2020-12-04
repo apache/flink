@@ -212,7 +212,9 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 
 	@Override
 	public ArrayData deserialize(ArrayData reuse, DataInputView source) throws IOException {
-		return deserializeReuse(reuse instanceof GenericArrayData ? new BinaryArrayData() : (BinaryArrayData) reuse, source);
+		return deserializeReuse(
+			reuse instanceof BinaryArrayData ? (BinaryArrayData) reuse : new BinaryArrayData(),
+			source);
 	}
 
 	private BinaryArrayData deserializeReuse(BinaryArrayData reuse, DataInputView source) throws IOException {
