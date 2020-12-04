@@ -157,7 +157,7 @@ public final class DataViewUtils {
 
 	private static class DataViewsTransformation implements TypeTransformation {
 
-		private Function<DataType, TypeSerializer<?>> serializer;
+		private final Function<DataType, TypeSerializer<?>> serializer;
 
 		private DataViewsTransformation(Function<DataType, TypeSerializer<?>> serializer) {
 			this.serializer = serializer;
@@ -301,16 +301,8 @@ public final class DataViewUtils {
 	 */
 	public static class DistinctViewSpec extends MapViewSpec {
 
-		// stores the entire view data type for off-heap operations
-		private final DataType distinctViewDataType;
-
 		public DistinctViewSpec(String stateId, DataType distinctViewDataType) {
 			super(stateId, -1, distinctViewDataType.getChildren().get(0), true); // handles null keys
-			this.distinctViewDataType = distinctViewDataType;
-		}
-
-		public DataType getDistinctViewDataType() {
-			return distinctViewDataType;
 		}
 	}
 

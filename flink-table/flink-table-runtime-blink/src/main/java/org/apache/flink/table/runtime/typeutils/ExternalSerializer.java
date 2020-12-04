@@ -26,12 +26,18 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Objects;
 
 /**
@@ -52,11 +58,19 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
 	private final TypeSerializer<I> internalSerializer;
 
+	private final boolean isReuseEnabled;
+
+	private transient I reuse;
+
 	private transient DataStructureConverter<I, E> converter;
 
 	private ExternalSerializer(DataType dataType, TypeSerializer<I> internalSerializer) {
 		this.dataType = dataType;
 		this.internalSerializer = internalSerializer;
+		// if no data structures that use memory segments are exposed in the external data structure,
+		// we can reuse intermediate internal data structures
+		this.isReuseEnabled = !hasBinaryData(dataType);
+		initializeConverter();
 	}
 
 	/**
@@ -64,14 +78,6 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 	 */
 	public static <I, E> ExternalSerializer<I, E> of(DataType dataType) {
 		return new ExternalSerializer<>(dataType, InternalSerializers.create(dataType.getLogicalType()));
-	}
-
-	@SuppressWarnings("unchecked")
-	private void checkConverterInitialized() {
-		if (converter == null) {
-			converter = (DataStructureConverter<I, E>) DataStructureConverters.getConverter(dataType);
-			converter.open(Thread.currentThread().getContextClassLoader());
-		}
 	}
 
 	@Override
@@ -86,7 +92,6 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
 	@Override
 	public E createInstance() {
-		checkConverterInitialized();
 		// in some cases this fails
 		// e.g. for objects backed by non-existing binary sections
 		try {
@@ -99,7 +104,6 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
 	@Override
 	public E copy(E from) {
-		checkConverterInitialized();
 		final I internalFrom = converter.toInternal(from);
 		final I copy = internalSerializer.copy(internalFrom);
 		return converter.toExternal(copy);
@@ -117,16 +121,19 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
 	@Override
 	public void serialize(E record, DataOutputView target) throws IOException {
-		checkConverterInitialized();
 		final I internalRecord = converter.toInternal(record);
 		internalSerializer.serialize(internalRecord, target);
 	}
 
 	@Override
 	public E deserialize(DataInputView source) throws IOException {
-		checkConverterInitialized();
-		final I internalRecord = internalSerializer.deserialize(source);
-		return converter.toExternal(internalRecord);
+		if (isReuseEnabled) {
+			reuse = internalSerializer.deserialize(reuse, source);
+			return converter.toExternal(reuse);
+		} else {
+			final I internalRecord = internalSerializer.deserialize(source);
+			return converter.toExternal(internalRecord);
+		}
 	}
 
 	@Override
@@ -160,6 +167,31 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 	@Override
 	public TypeSerializerSnapshot<E> snapshotConfiguration() {
 		return new ExternalSerializerSnapshot<>(this);
+	}
+
+	// ---------------------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream serialized) throws IOException, ClassNotFoundException {
+		serialized.defaultReadObject();
+		initializeConverter();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void initializeConverter() {
+		converter = (DataStructureConverter<I, E>) DataStructureConverters.getConverter(dataType);
+		converter.open(Thread.currentThread().getContextClassLoader());
+	}
+
+	private static boolean hasBinaryData(DataType dataType) {
+		if (dataType.getChildren().stream().anyMatch(ExternalSerializer::hasBinaryData)) {
+			return true;
+		}
+		final Class<?> clazz = dataType.getConversionClass();
+		return clazz == RowData.class ||
+			clazz == StringData.class ||
+			clazz == ArrayData.class ||
+			clazz == MapData.class ||
+			clazz == RawValueData.class;
 	}
 
 	// ---------------------------------------------------------------------------------
