@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
@@ -101,8 +102,8 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 		String sql = "SELECT * FROM " + name;
 		Table table = util.tableEnv().sqlQuery(sql);
 		RelNode relNode = TableTestUtil.toRelNode(table);
-		RelNode optimizedRel = util.getPlanner().optimize(relNode);
-		ExecNode<?> execNode = (ExecNode<?>) optimizedRel;
+		FlinkPhysicalRel optimizedRel = (FlinkPhysicalRel) util.getPlanner().optimize(relNode);
+		ExecNode<?> execNode = optimizedRel.translateToExecNode();
 		while (!execNode.getInputNodes().isEmpty()) {
 			execNode = execNode.getInputNodes().get(0);
 		}

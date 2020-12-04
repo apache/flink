@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
@@ -46,4 +47,7 @@ class StreamExecIntermediateTableScan(
     new StreamExecIntermediateTableScan(cluster, traitSet, getTable, outputRowType)
   }
 
+  override def translateToExecNode(): ExecNode[_] = {
+    throw new UnsupportedOperationException("Can't be converted to ExecNode")
+  }
 }

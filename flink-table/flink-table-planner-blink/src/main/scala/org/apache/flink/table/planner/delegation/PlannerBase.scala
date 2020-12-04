@@ -309,7 +309,7 @@ abstract class PlannerBase(
     // reuse subplan
     val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
     // convert FlinkPhysicalRel DAG to ExecNode DAG
-    reusedPlan.map(_.asInstanceOf[ExecNode[_]])
+    reusedPlan.map(r => r.asInstanceOf[FlinkPhysicalRel].translateToExecNode())
   }
 
   /**

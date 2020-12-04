@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
 import org.apache.flink.table.planner.plan.utils.AggregateUtil._
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.generated.{GeneratedClass, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedRecordEqualiser}
@@ -44,7 +44,6 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -99,16 +98,6 @@ abstract class StreamExecGroupWindowAggregateBase(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[_]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

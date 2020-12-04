@@ -20,9 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.exec
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.delegation.Planner
+import org.apache.flink.util.Preconditions.{checkArgument, checkNotNull}
 
 import org.apache.calcite.rel.RelDistribution
 import org.apache.calcite.rel.core.Exchange
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -38,6 +41,25 @@ trait ExecNodeBase[P <: Planner, T] extends ExecNode[T] {
    * The [[Transformation]] translated from this node.
    */
   private var transformation: Transformation[T] = _
+
+  /**
+   * The inputs of this node.
+   */
+  private var inputNodes: util.List[ExecNode[_]] = _
+
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    checkNotNull(inputNodes)
+  }
+
+  override def replaceInputNode(ordinalInParent: Int, newInputNode: ExecNode[_]): Unit = {
+    checkArgument(inputNodes != null && ordinalInParent >= 0 && ordinalInParent < inputNodes.size)
+    inputNodes.set(ordinalInParent, newInputNode)
+  }
+
+  // TODO this is a temporary solution to set input nodes
+  def setInputNodes(inputNodes: util.List[ExecNode[_]]): Unit = {
+    this.inputNodes = new util.ArrayList[ExecNode[_]](inputNodes)
+  }
 
   /**
    * Translates this node into a Flink operator.

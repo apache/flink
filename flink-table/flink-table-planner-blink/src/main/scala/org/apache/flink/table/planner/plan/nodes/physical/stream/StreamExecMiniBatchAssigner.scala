@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.StreamExecNode
 import org.apache.flink.table.runtime.operators.wmassigners.{ProcTimeMiniBatchAssignerOperator, RowTimeMiniBatchAssginerOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -33,8 +33,6 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Stream physical RelNode for injecting a mini-batch event in the streaming data. The mini-batch
@@ -70,16 +68,6 @@ class StreamExecMiniBatchAssigner(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[_]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[_]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[_]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

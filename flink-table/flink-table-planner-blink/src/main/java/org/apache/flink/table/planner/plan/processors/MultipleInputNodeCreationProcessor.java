@@ -475,15 +475,20 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 			List<Tuple2<ExecNode<?>, ExecEdge>> inputs) {
 		RelNode outputRel = (RelNode) group.root.execNode;
 		RelNode[] inputRels = new RelNode[inputs.size()];
+		List<ExecNode<?>> inputNodes = new ArrayList<>();
 		for (int i = 0; i < inputs.size(); i++) {
 			inputRels[i] = (RelNode) inputs.get(i).f0;
+			inputNodes.add(inputs.get(i).f0);
 		}
 
-		return new StreamExecMultipleInput(
+		StreamExecMultipleInput multipleInput = new StreamExecMultipleInput(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
 			outputRel);
+		// TODO remove this later
+		multipleInput.setInputNodes(inputNodes);
+		return multipleInput;
 	}
 
 	private BatchExecMultipleInput createBatchMultipleInputNode(
@@ -503,11 +508,13 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 		// then create input rels and edges with the input orders
 		RelNode outputRel = (RelNode) group.root.execNode;
 		RelNode[] inputRels = new RelNode[inputs.size()];
+		List<ExecNode<?>> inputNodes = new ArrayList<>();
 		ExecEdge[] inputEdges = new ExecEdge[inputs.size()];
 		for (int i = 0; i < inputs.size(); i++) {
 			ExecNode<?> inputNode = inputs.get(i).f0;
 			ExecEdge originalInputEdge = inputs.get(i).f1;
 			inputRels[i] = (RelNode) inputNode;
+			inputNodes.add(inputNode);
 			inputEdges[i] = ExecEdge.builder()
 				.requiredShuffle(originalInputEdge.getRequiredShuffle())
 				.damBehavior(originalInputEdge.getDamBehavior())
@@ -515,12 +522,15 @@ public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 				.build();
 		}
 
-		return new BatchExecMultipleInput(
+		BatchExecMultipleInput multipleInput = new BatchExecMultipleInput(
 			outputRel.getCluster(),
 			outputRel.getTraitSet(),
 			inputRels,
 			outputRel,
 			inputEdges);
+		// TODO remove this later
+		multipleInput.setInputNodes(inputNodes);
+		return multipleInput;
 	}
 
 	// --------------------------------------------------------------------------------
