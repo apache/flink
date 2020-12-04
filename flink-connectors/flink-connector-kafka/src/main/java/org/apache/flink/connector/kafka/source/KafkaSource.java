@@ -39,7 +39,7 @@ import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscr
 import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.reader.KafkaRecordEmitter;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -62,7 +62,7 @@ import java.util.function.Supplier;
  *     .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
  *     .setGroupId("MyGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(new TestingKafkaRecordDeserializer())
+ *     .setDeserializer(new TestingKafkaRecordDeserializationSchema())
  *     .setStartingOffsetInitializer(OffsetsInitializer.earliest())
  *     .build();
  * }</pre>
@@ -80,7 +80,7 @@ public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaS
 	private final OffsetsInitializer stoppingOffsetsInitializer;
 	// Boundedness
 	private final Boundedness boundedness;
-	private final KafkaRecordDeserializer<OUT> deserializationSchema;
+	private final KafkaRecordDeserializationSchema<OUT> deserializationSchema;
 	// The configurations.
 	private final Properties props;
 
@@ -89,7 +89,7 @@ public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaS
 			OffsetsInitializer startingOffsetsInitializer,
 			@Nullable OffsetsInitializer stoppingOffsetsInitializer,
 			Boundedness boundedness,
-			KafkaRecordDeserializer<OUT> deserializationSchema,
+			KafkaRecordDeserializationSchema<OUT> deserializationSchema,
 			Properties props) {
 		this.subscriber = subscriber;
 		this.startingOffsetsInitializer = startingOffsetsInitializer;

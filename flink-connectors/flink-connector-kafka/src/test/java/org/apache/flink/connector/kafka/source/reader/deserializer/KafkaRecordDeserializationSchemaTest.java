@@ -40,15 +40,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 /**
- * Unit tests for KafkaRecordDeserializers.
+ * Unit tests for KafkaRecordDeserializationSchemas.
  */
-public class KafkaRecordDeserializerTest {
+public class KafkaRecordDeserializationSchemaTest {
 
 	@Test
 	public void testKafkaDeserializationSchemaWrapper() throws IOException {
 		final ConsumerRecord<byte[], byte[]> consumerRecord = getConsumerRecord();
-		KafkaRecordDeserializer<ObjectNode> schema =
-			KafkaRecordDeserializer.of(new JSONKeyValueDeserializationSchema(true));
+		KafkaRecordDeserializationSchema<ObjectNode> schema =
+			KafkaRecordDeserializationSchema.of(new JSONKeyValueDeserializationSchema(true));
 		SimpleCollector<ObjectNode> collector = new SimpleCollector<>();
 		schema.deserialize(consumerRecord, collector);
 
@@ -65,8 +65,8 @@ public class KafkaRecordDeserializerTest {
 	@Test
 	public void testKafkaValueDeserializationSchemaWrapper() throws IOException {
 		final ConsumerRecord<byte[], byte[]> consumerRecord = getConsumerRecord();
-		KafkaRecordDeserializer<ObjectNode> schema =
-			KafkaRecordDeserializer.valueOnly(new JsonNodeDeserializationSchema());
+		KafkaRecordDeserializationSchema<ObjectNode> schema =
+			KafkaRecordDeserializationSchema.valueOnly(new JsonNodeDeserializationSchema());
 		SimpleCollector<ObjectNode> collector = new SimpleCollector<>();
 		schema.deserialize(consumerRecord, collector);
 
@@ -84,8 +84,8 @@ public class KafkaRecordDeserializerTest {
 		byte[] value = new StringSerializer().serialize(topic, "world");
 		final ConsumerRecord<byte[], byte[]> consumerRecord =
 			new ConsumerRecord<>(topic, 0, 0L, null, value);
-		KafkaRecordDeserializer<String> schema =
-			KafkaRecordDeserializer.valueOnly(StringDeserializer.class);
+		KafkaRecordDeserializationSchema<String> schema =
+			KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class);
 		schema.open(new TestingDeserializationContext());
 
 		SimpleCollector<String> collector = new SimpleCollector<>();

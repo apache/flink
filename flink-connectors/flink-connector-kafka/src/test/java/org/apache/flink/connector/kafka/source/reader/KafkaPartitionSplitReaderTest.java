@@ -23,7 +23,7 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
 
@@ -161,8 +161,8 @@ public class KafkaPartitionSplitReaderTest {
 		Properties props = new Properties();
 		props.putAll(KafkaSourceTestEnv.getConsumerProperties(ByteArrayDeserializer.class));
 		props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
-		KafkaRecordDeserializer<Integer> deserializationSchema =
-			KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class);
+		KafkaRecordDeserializationSchema<Integer> deserializationSchema =
+			KafkaRecordDeserializationSchema.valueOnly(IntegerDeserializer.class);
 		deserializationSchema.open(new TestingDeserializationContext());
 		return new KafkaPartitionSplitReader<>(props, deserializationSchema, 0);
 	}

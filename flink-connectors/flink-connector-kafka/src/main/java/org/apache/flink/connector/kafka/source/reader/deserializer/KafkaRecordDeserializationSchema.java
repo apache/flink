@@ -36,7 +36,7 @@ import java.util.Map;
 /**
  * An interface for the deserialization of Kafka records.
  */
-public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQueryable<T> {
+public interface KafkaRecordDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Initialization method for the schema. It is called before the actual working methods
@@ -72,10 +72,10 @@ public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQuer
 	 *
 	 * @param kafkaDeserializationSchema the legacy {@link KafkaDeserializationSchema} to use.
 	 * @param <V> the return type of the deserialized record.
-	 * @return A {@link KafkaRecordDeserializer} that uses the given {@link KafkaDeserializationSchema}
+	 * @return A {@link KafkaRecordDeserializationSchema} that uses the given {@link KafkaDeserializationSchema}
 	 * to deserialize the {@link ConsumerRecord ConsumerRecords}.
 	 */
-	static <V> KafkaRecordDeserializer<V> of(KafkaDeserializationSchema<V> kafkaDeserializationSchema) {
+	static <V> KafkaRecordDeserializationSchema<V> of(KafkaDeserializationSchema<V> kafkaDeserializationSchema) {
 		return new KafkaDeserializationSchemaWrapper<>(kafkaDeserializationSchema);
 	}
 
@@ -90,34 +90,34 @@ public interface KafkaRecordDeserializer<T> extends Serializable, ResultTypeQuer
 	 * @param valueDeserializationSchema the {@link DeserializationSchema} used to deserialized the
 	 * value of a {@link ConsumerRecord}.
 	 * @param <V> the type of the deserialized record.
-	 * @return A {@link KafkaRecordDeserializer} that uses the given {@link DeserializationSchema}
+	 * @return A {@link KafkaRecordDeserializationSchema} that uses the given {@link DeserializationSchema}
 	 * to deserialize a {@link ConsumerRecord} from its value.
 	 */
-	static <V> KafkaRecordDeserializer<V> valueOnly(DeserializationSchema<V> valueDeserializationSchema) {
+	static <V> KafkaRecordDeserializationSchema<V> valueOnly(DeserializationSchema<V> valueDeserializationSchema) {
 		return new KafkaValueOnlyDeserializationSchemaWrapper<>(valueDeserializationSchema);
 	}
 
 	/**
-	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
+	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializationSchema}.
 	 * @param valueDeserializerClass the deserializer class used to deserialize the value.
 	 * @param <V> the value type.
-	 * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given deserializer.
+	 * @return A {@link KafkaRecordDeserializationSchema} that deserialize the value with the given deserializer.
 	 */
-	static <V> KafkaRecordDeserializer<V> valueOnly(
+	static <V> KafkaRecordDeserializationSchema<V> valueOnly(
 			Class<? extends Deserializer<V>> valueDeserializerClass) {
 		return new KafkaValueOnlyDeserializerWrapper<>(valueDeserializerClass, Collections.emptyMap());
 	}
 
 	/**
-	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializer}.
+	 * Wraps a Kafka {@link Deserializer} to a {@link KafkaRecordDeserializationSchema}.
 	 * @param valueDeserializerClass the deserializer class used to deserialize the value.
 	 * @param config the configuration of the value deserializer, only valid when the deserializer
 	 *               is an implementation of {@code Configurable}.
 	 * @param <V> the value type.
 	 * @param <D> the type of the deserializer.
-	 * @return A {@link KafkaRecordDeserializer} that deserialize the value with the given deserializer.
+	 * @return A {@link KafkaRecordDeserializationSchema} that deserialize the value with the given deserializer.
 	 */
-	static <V, D extends Configurable & Deserializer<V>> KafkaRecordDeserializer<V> valueOnly(
+	static <V, D extends Configurable & Deserializer<V>> KafkaRecordDeserializationSchema<V> valueOnly(
 			Class<D> valueDeserializerClass,
 			Map<String, String> config) {
 		return new KafkaValueOnlyDeserializerWrapper<>(valueDeserializerClass, config);

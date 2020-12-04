@@ -22,7 +22,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
  *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .build();
  * }</pre>
  * The bootstrap servers, group id, topics/partitions to consume, and the record deserializer
@@ -74,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
  *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
- *     .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .setUnbounded(OffsetsInitializer.latest())
  *     .build();
  * }</pre>
@@ -94,7 +94,7 @@ public class KafkaSourceBuilder<OUT> {
 	private OffsetsInitializer stoppingOffsetsInitializer;
 	// Boundedness
 	private Boundedness boundedness;
-	private KafkaRecordDeserializer<OUT> deserializationSchema;
+	private KafkaRecordDeserializationSchema<OUT> deserializationSchema;
 	// The configurations.
 	protected Properties props;
 
@@ -317,14 +317,14 @@ public class KafkaSourceBuilder<OUT> {
 	}
 
 	/**
-	 * Sets the {@link KafkaRecordDeserializer deserializer} of the
+	 * Sets the {@link KafkaRecordDeserializationSchema deserializer} of the
 	 * {@link org.apache.kafka.clients.consumer.ConsumerRecord ConsumerRecord} for KafkaSource.
 	 *
 	 * @param recordDeserializer the deserializer for Kafka
 	 *                           {@link org.apache.kafka.clients.consumer.ConsumerRecord ConsumerRecord}.
 	 * @return this KafkaSourceBuilder.
 	 */
-	public KafkaSourceBuilder<OUT> setDeserializer(KafkaRecordDeserializer<OUT> recordDeserializer) {
+	public KafkaSourceBuilder<OUT> setDeserializer(KafkaRecordDeserializationSchema<OUT> recordDeserializer) {
 		this.deserializationSchema = recordDeserializer;
 		return this;
 	}

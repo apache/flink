@@ -37,7 +37,7 @@ import java.util.Map;
 /**
  * A package private class to wrap {@link Deserializer}.
  */
-class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserializer<T> {
+class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserializationSchema<T> {
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaValueOnlyDeserializerWrapper.class);
 	private final String deserializerClass;

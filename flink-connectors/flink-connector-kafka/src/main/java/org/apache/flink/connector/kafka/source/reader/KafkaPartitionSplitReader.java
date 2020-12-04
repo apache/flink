@@ -24,7 +24,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -68,7 +68,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 	private static final long POLL_TIMEOUT = 10000L;
 
 	private final KafkaConsumer<byte[], byte[]> consumer;
-	private final KafkaRecordDeserializer<T> deserializationSchema;
+	private final KafkaRecordDeserializationSchema<T> deserializationSchema;
 	private final Map<TopicPartition, Long> stoppingOffsets;
 	private final SimpleCollector<T> collector;
 	private final String groupId;
@@ -76,7 +76,7 @@ public class KafkaPartitionSplitReader<T> implements SplitReader<Tuple3<T, Long,
 
 	public KafkaPartitionSplitReader(
 			Properties props,
-			KafkaRecordDeserializer<T> deserializationSchema,
+			KafkaRecordDeserializationSchema<T> deserializationSchema,
 			int subtaskId) {
 		Properties consumerProps = new Properties();
 		consumerProps.putAll(props);

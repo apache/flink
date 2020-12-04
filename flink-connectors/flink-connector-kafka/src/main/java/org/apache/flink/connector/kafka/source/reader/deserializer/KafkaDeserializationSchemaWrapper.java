@@ -33,7 +33,7 @@ import java.io.IOException;
  *
  * @param <T> the type of the deserialized records.
  */
-class KafkaDeserializationSchemaWrapper<T> implements KafkaRecordDeserializer<T> {
+class KafkaDeserializationSchemaWrapper<T> implements KafkaRecordDeserializationSchema<T> {
 	private static final long serialVersionUID = 1L;
 	private final KafkaDeserializationSchema<T> kafkaDeserializationSchema;
 
