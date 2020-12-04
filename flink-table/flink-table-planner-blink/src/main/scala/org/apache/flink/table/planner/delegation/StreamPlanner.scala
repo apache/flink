@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, LegacyStreamExe
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
@@ -102,7 +102,6 @@ class StreamPlanner(
 
     val transformations = translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
-    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -112,7 +111,7 @@ class StreamPlanner(
       sb.append(System.lineSeparator)
     }
 
-    sb.append("== Optimized Logical Plan ==")
+    sb.append("== Optimized Physical Plan ==")
     sb.append(System.lineSeparator)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -120,18 +119,23 @@ class StreamPlanner(
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
-    sb.append(ExecNodePlanDumper.dagToString(
-      execNodes,
-      explainLevel,
-      withChangelogTraits = withChangelogTraits))
-    sb.append(System.lineSeparator)
+    optimizedRelNodes.foreach { rel =>
+      sb.append(FlinkRelOptUtil.toString(
+        rel,
+        explainLevel,
+        withChangelogTraits = withChangelogTraits))
+      sb.append(System.lineSeparator)
+    }
 
-    sb.append("== Physical Execution Plan ==")
+    sb.append("== Optimized Execution Plan ==")
     sb.append(System.lineSeparator)
+    sb.append(ExecNodePlanDumper.dagToString(execNodes))
+
     if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Physical Execution Plan ==")
+      sb.append(System.lineSeparator)
       sb.append(streamGraph.getStreamingPlanAsJSON)
-    } else {
-      sb.append(executionPlan)
     }
 
     sb.toString()
