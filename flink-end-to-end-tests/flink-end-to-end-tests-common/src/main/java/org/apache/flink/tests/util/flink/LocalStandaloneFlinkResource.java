@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -185,15 +186,15 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		}
 
 		@Override
-		public JobController submitJob(JobSubmission job) throws IOException {
-			final JobID run = distribution.submitJob(job);
+		public JobController submitJob(JobSubmission job, Duration timeout) throws IOException {
+			final JobID run = distribution.submitJob(job, timeout);
 
 			return new StandaloneJobController(run);
 		}
 
 		@Override
-		public void submitSQLJob(SQLJobSubmission job) throws IOException {
-			distribution.submitSQLJob(job);
+		public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
+			distribution.submitSQLJob(job, timeout);
 		}
 
 		@Override
