@@ -116,6 +116,8 @@ export interface CheckPointConfigInterface {
     delete_on_cancellation: boolean;
   };
   unaligned_checkpoints: boolean;
+  prefer_checkpoint_for_recovery : boolean;
+  tolerable_failed: number;
 }
 
 export interface CheckPointDetailInterface {

@@ -57,6 +57,10 @@ public class CheckpointConfigInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_UNALIGNED_CHECKPOINTS = "unaligned_checkpoints";
 
+	public static final String FIELD_NAME_PREFER_CHECKPOINT_FOR_RECOVERY = "prefer_checkpoint_for_recovery";
+
+	public static final String FIELD_NAME_TOLERABLE_FAILED_CHECKPOINT = "tolerable_failed";
+
 	@JsonProperty(FIELD_NAME_PROCESSING_MODE)
 	private final ProcessingMode processingMode;
 
@@ -81,6 +85,13 @@ public class CheckpointConfigInfo implements ResponseBody {
 	@JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS)
 	private final boolean unalignedCheckpoints;
 
+	@JsonProperty(FIELD_NAME_PREFER_CHECKPOINT_FOR_RECOVERY)
+	private final boolean preferCheckpointForRecovery;
+
+	@JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINT)
+	private final int tolerableFailed;
+
+
 	@JsonCreator
 	public CheckpointConfigInfo(
 			@JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
@@ -90,7 +101,9 @@ public class CheckpointConfigInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT) int maxConcurrentCheckpoints,
 			@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG) ExternalizedCheckpointInfo externalizedCheckpointInfo,
 			@JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend,
-			@JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints) {
+			@JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints,
+			@JsonProperty(FIELD_NAME_PREFER_CHECKPOINT_FOR_RECOVERY) boolean preferCheckpointForRecovery,
+			@JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINT) int tolerableFailed) {
 		this.processingMode = Preconditions.checkNotNull(processingMode);
 		this.checkpointInterval = checkpointInterval;
 		this.checkpointTimeout = checkpointTimeout;
@@ -99,6 +112,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 		this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
 		this.stateBackend = Preconditions.checkNotNull(stateBackend);
 		this.unalignedCheckpoints = unalignedCheckpoints;
+		this.preferCheckpointForRecovery = preferCheckpointForRecovery;
+		this.tolerableFailed = tolerableFailed;
 	}
 
 	@Override
@@ -117,13 +132,15 @@ public class CheckpointConfigInfo implements ResponseBody {
 			processingMode == that.processingMode &&
 			Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo) &&
 			Objects.equals(stateBackend, that.stateBackend) &&
-			unalignedCheckpoints == that.unalignedCheckpoints;
+			unalignedCheckpoints == that.unalignedCheckpoints &&
+			preferCheckpointForRecovery == that.preferCheckpointForRecovery &&
+			tolerableFailed == that.tolerableFailed;
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(processingMode, checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints,
-			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend, unalignedCheckpoints);
+			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend, unalignedCheckpoints, preferCheckpointForRecovery, tolerableFailed);
 	}
 
 	/**

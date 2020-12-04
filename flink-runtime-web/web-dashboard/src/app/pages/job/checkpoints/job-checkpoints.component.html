@@ -252,6 +252,14 @@
             </td>
             <td *ngIf="!checkPointConfig['externalization']['enabled']">Disabled</td>
           </tr>
+          <tr>
+            <td>Prefer Checkpoint For Recovery</td>
+            <td>{{ checkPointConfig['prefer_checkpoint_for_recovery'] ? 'Enabled' : 'Disabled' }}</td>
+          </tr>
+          <tr>
+            <td>Tolerable Failed Checkpoints</td>
+            <td>{{ checkPointConfig['tolerable_failed'] }}</td>
+          </tr>
         </ng-container>
       </tbody>
     </nz-table>
