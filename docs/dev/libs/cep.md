@@ -793,7 +793,7 @@ next.within(Time.seconds(10))
 
 You can apply the same contiguity condition as discussed in the previous [section](#combining-patterns) within a looping pattern.
 The contiguity will be applied between elements accepted into such a pattern.
-To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s followed by a `"c"`) with
+To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s nexted by a `"c"`) with
 input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
 
  1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
