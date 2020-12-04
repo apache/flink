@@ -569,7 +569,7 @@ public class MiniCluster implements AutoCloseableAsync {
 	}
 
 	/**
-	 * Terminates a TaskManager with a given index.
+	 * Terminates a TaskManager with the given index.
 	 *
 	 * <p>See {@link #startTaskManager()} to understand how TaskManagers are indexed.
 	 * This method terminates a TaskManager with a given index but it does not clear the index.
