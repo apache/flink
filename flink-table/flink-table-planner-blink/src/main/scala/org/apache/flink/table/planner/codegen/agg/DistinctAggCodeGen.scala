@@ -142,12 +142,10 @@ class DistinctAggCodeGen(
       Seq()
     } else {
       val Seq(mapViewTerm, accTerm) = newNames("mapview", "distinct_acc")
-      val accTypeTerm = boxedTypeTermForType(internalAccType)
       val code =
         s"""
            |$MAP_VIEW $mapViewTerm = new $MAP_VIEW();
-           |$accTypeTerm $accTerm =
-           |  ${genToInternalConverter(ctx, externalAccType, mapViewTerm)};
+           |$BINARY_RAW_VALUE $accTerm = $BINARY_RAW_VALUE.fromObject($mapViewTerm);
          """.stripMargin
 
       Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
@@ -180,11 +178,9 @@ class DistinctAggCodeGen(
       Seq()
     } else {
       val accTerm = newName("distinct_acc")
-      val accTypeTerm = boxedTypeTermForType(internalAccType)
       val code =
         s"""
-           |$accTypeTerm $accTerm =
-           |  ${genToInternalConverter(ctx, externalAccType, distinctAccTerm)};
+           |$BINARY_RAW_VALUE $accTerm = $BINARY_RAW_VALUE.fromObject($distinctAccTerm);
          """.stripMargin
 
       Seq(GeneratedExpression(
@@ -478,13 +474,6 @@ class DistinctAggCodeGen(
           }
           GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType)
         } else {
-          val accDataType = if (distinctSpec.nonEmpty && !useStateDataView) {
-            // externalAccType represents "null" for state backed views
-            // but we don't want to use state here
-            distinctSpec.get.getDistinctViewDataType
-          } else {
-            externalAccType
-          }
           val expr = generateFieldAccess(ctx, inputType, inputTerm, index)
           if (useBackupDataView) {
             // this is called in the merge method
@@ -496,18 +485,17 @@ class DistinctAggCodeGen(
                  |$otherMapViewTerm = null;
                  |if (!${expr.nullTerm}) {
                  | $otherMapViewTerm =
-                 |   ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
+                 |   ${genToExternalConverter(ctx, externalAccType, expr.resultTerm)};
                  |}
                """.stripMargin
-            GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, accDataType.getLogicalType)
+            GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, internalAccType)
           } else {
             val code =
               s"""
                  |${expr.code}
-                 |$distinctAccTerm =
-                 |  ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
+                 |$distinctAccTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
               """.stripMargin
-            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, accDataType.getLogicalType)
+            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, internalAccType)
           }
         }
 
