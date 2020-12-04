@@ -177,6 +177,52 @@ class ExplainTest
     assertEquals(replaceStageId(expected), replaceStageId(result))
   }
 
+  @Test
+  def testBatchTableEnvironmentExecutionExplain(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "sourceTable", CommonTestData.getCsvTableSource)
+
+    val fieldNames = Array("d", "e")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
+
+    val actual = tEnv.explainSql("INSERT INTO targetTable SELECT first, id FROM sourceTable",
+      ExplainDetail.JSON_EXECUTION_PLAN)
+    val expected = readFromResource("testBatchTableEnvironmentExecutionExplain.out")
+
+    assertEquals(replaceStreamNodeIdAndParallelism(expected),
+      replaceStreamNodeIdAndParallelism(actual))
+  }
+
+  @Test
+  def testStatementSetExecutionExplain(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "sourceTable", CommonTestData.getCsvTableSource)
+
+    val fieldNames = Array("d", "e")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
+
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("INSERT INTO targetTable SELECT first, id FROM sourceTable")
+
+    val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
+    val expected = readFromResource("testStatementSetExecutionExplain1.out")
+
+    assertEquals(replaceStreamNodeIdAndParallelism(expected),
+      replaceStreamNodeIdAndParallelism(actual))
+  }
+
   def replaceString(s: String, t1: Table, t2: Table): String = {
     replaceSourceNode(replaceSourceNode(replaceString(s), t1, 0), t2, 1)
   }
@@ -194,5 +240,11 @@ class ExplainTest
 
   def replaceString(s: String): String = {
     s.replaceAll("\\r\\n", "\n")
+  }
+
+
+  def replaceStreamNodeIdAndParallelism(s: String): String = {
+    s.replaceAll("\"id\": \\d+", "\"id\": ")
+        .replaceAll("\"parallelism\": \"(\\d+|,)\"", "\"parallelism\":").trim
   }
 }

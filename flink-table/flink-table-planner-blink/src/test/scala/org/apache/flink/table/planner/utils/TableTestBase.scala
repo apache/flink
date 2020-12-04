@@ -1210,7 +1210,7 @@ object TableTestUtil {
    * while StreamExecutionEnvironment is up
    */
   def replaceStreamNodeIdAndParallelism(s: String): String = {
-    s.replaceAll("\"id\" : \\d+,", "\"id\" : ,")
-        .replaceAll("\"parallelism\" : \\d+,", "\"parallelism\" : ,").trim
+    s.replaceAll("\"id\" : \\d+", "\"id\" : ")
+        .replaceAll("\"parallelism\" : (\\d+|,)", "\"parallelism\" :").trim
   }
 }
