@@ -18,15 +18,21 @@
 
 package org.apache.flink.test.state;
 
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -58,15 +64,15 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 	public void testTumblingIngestionTimeWindowsWithFsBackend() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
 		String checkpoints = tempFolder.newFolder().toURI().toString();
 		env.setStateBackend(new FsStateBackend(checkpoints));
 
 		env.addSource(new InfiniteTupleSource(1_000))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
 				.keyBy(0)
-				.timeWindow(Time.seconds(3))
+				.window(TumblingEventTimeWindows.of(Time.seconds(3)))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -93,15 +99,15 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 	public void testTumblingIngestionTimeWindowsWithFsBackendWithLateness() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
 		String checkpoints = tempFolder.newFolder().toURI().toString();
 		env.setStateBackend(new FsStateBackend(checkpoints));
 
 		env.addSource(new InfiniteTupleSource(10_000))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
 				.keyBy(0)
-				.timeWindow(Time.seconds(3))
+				.window(TumblingEventTimeWindows.of(Time.seconds(3)))
 				.allowedLateness(Time.seconds(1))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
@@ -129,14 +135,14 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 	public void testTumblingIngestionTimeWindowsWithRocksDBBackend() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
 		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
 				.keyBy(0)
-				.timeWindow(Time.seconds(3))
+				.window(TumblingEventTimeWindows.of(Time.seconds(3)))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -163,49 +169,15 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 	public void testTumblingIngestionTimeWindowsWithRocksDBBackendWithLateness() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(1);
 
 		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
 
 		env.addSource(new InfiniteTupleSource(10_000))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
 				.keyBy(0)
-				.timeWindow(Time.seconds(3))
+				.window(TumblingEventTimeWindows.of(Time.seconds(3)))
 				.allowedLateness(Time.seconds(1))
-				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
-							Tuple2<String, Integer> value2) throws Exception {
-						return Tuple2.of(value1.f0, value1.f1 + value2.f1);
-					}
-				})
-				.filter(new FilterFunction<Tuple2<String, Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public boolean filter(Tuple2<String, Integer> value) throws Exception {
-						return value.f0.startsWith("Tuple 0");
-					}
-				})
-				.print();
-
-		env.execute();
-	}
-
-	@Test
-	public void testAlignedProcessingTimeWindows() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.setParallelism(1);
-
-		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
-
-		env.addSource(new InfiniteTupleSource(10_000))
-				.keyBy(0)
-				.timeWindow(Time.seconds(3))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -255,6 +227,31 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 		@Override
 		public void cancel() {
 			this.running = false;
+		}
+	}
+
+	/**
+	 * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+	 * In a real use case you should use proper timestamps and an appropriate {@link
+	 * WatermarkStrategy}.
+	 */
+	private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+		private IngestionTimeWatermarkStrategy() {
+		}
+
+		public static <T> IngestionTimeWatermarkStrategy<T> create() {
+			return new IngestionTimeWatermarkStrategy<>();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new AscendingTimestampsWatermarks<>();
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return (event, timestamp) -> System.currentTimeMillis();
 		}
 	}
 }

@@ -22,34 +22,49 @@ import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for verifying that the {@link SourceOperator} as a task input can be integrated
@@ -78,6 +93,67 @@ public class SourceOperatorStreamTaskTest {
 				IntStream.range(NUM_RECORDS, NUM_RECORDS * 2));
 	}
 
+	@Test
+	public void testSnapshotAndAdvanceToEndOfEventTime() throws Exception {
+		final int checkpointId = 1;
+		try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness(checkpointId, null)) {
+			getAndMaybeAssignSplit(testHarness);
+
+			final CheckpointOptions checkpointOptions = new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT,
+				CheckpointStorageLocationReference.getDefault());
+			triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
+
+			Queue<Object> expectedOutput = new LinkedList<>();
+			expectedOutput.add(Watermark.MAX_WATERMARK);
+			expectedOutput.add(new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
+
+			assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+		}
+	}
+
+	@Test
+	public void testEmittingMaxWatermarkAfterReadingAllRecords() throws Exception {
+		try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
+			testHarness.processAll();
+			testHarness.finishProcessing();
+
+			List<Object> expectedOutput = Collections.singletonList(
+				Watermark.MAX_WATERMARK
+			);
+			assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
+		}
+	}
+
+	@Test
+	public void testNotEmittingMaxWatermarkAfterCancelling() throws Exception {
+		try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
+			testHarness.getStreamTask().cancel();
+			testHarness.finishProcessing();
+
+			assertThat(testHarness.getOutput(), hasSize(0));
+		}
+	}
+
+	@Test
+	public void testExternallyInducedSource() throws Exception {
+		final int numEventsBeforeCheckpoint = 10;
+		final int totalNumEvents = 20;
+		TestingExternallyInducedSourceReader testingReader =
+			new TestingExternallyInducedSourceReader(numEventsBeforeCheckpoint, totalNumEvents);
+		try (StreamTaskMailboxTestHarness<Integer> testHarness =
+					createTestHarness(new TestingExternallyInducedSource(testingReader), 0, null)) {
+			TestingExternallyInducedSourceReader runtimeTestingReader =
+				(TestingExternallyInducedSourceReader) ((SourceOperator) testHarness.getStreamTask().mainOperator).getSourceReader();
+
+			testHarness.processAll();
+
+			assertEquals(totalNumEvents, runtimeTestingReader.numEmittedEvents);
+			assertTrue(runtimeTestingReader.checkpointed);
+			assertEquals(TestingExternallyInducedSourceReader.CHECKPOINT_ID, runtimeTestingReader.checkpointedId);
+			assertEquals(numEventsBeforeCheckpoint, runtimeTestingReader.checkpointedAt);
+		}
+	}
+
 	private TaskStateSnapshot executeAndWaitForCheckpoint(
 			long checkpointId,
 			TaskStateSnapshot initialSnapshot,
@@ -89,24 +165,10 @@ public class SourceOperatorStreamTaskTest {
 			// Add records to the split and update expected output.
 			addRecords(split, NUM_RECORDS);
 			// Process all the records.
-			processUntil(testHarness, () -> !testHarness.getStreamTask().inputProcessor.getAvailableFuture().isDone());
+			testHarness.processAll();
 
-			// Trigger a checkpoint.
 			CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
-			OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-			testHarness.taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
-			CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
-			Future<Boolean> checkpointFuture =
-					testHarness
-							.getStreamTask()
-							.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false);
-
-			// Wait until the checkpoint finishes.
-			// We have to mark the source reader as available here, otherwise the runMailboxStep() call after
-			// checkpiont is completed will block.
-			getSourceReaderFromTask(testHarness).markAvailable();
-			processUntil(testHarness, checkpointFuture::isDone);
-			waitForAcknowledgeLatch.await();
+			triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
 			// Build expected output to verify the results
 			Queue<Object> expectedOutput = new LinkedList<>();
@@ -121,23 +183,57 @@ public class SourceOperatorStreamTaskTest {
 		}
 	}
 
+	private void triggerCheckpointWaitForFinish(StreamTaskMailboxTestHarness<Integer> testHarness,
+												long checkpointId,
+												CheckpointOptions checkpointOptions) throws Exception {
+		// Trigger a checkpoint.
+		OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
+		testHarness.taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
+		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
+		Future<Boolean> checkpointFuture =
+			testHarness
+				.getStreamTask()
+				.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, true);
+
+		// Wait until the checkpoint finishes.
+		// We have to mark the source reader as available here, otherwise the runMailboxStep() call after
+		// checkpoint is completed will block.
+		getSourceReaderFromTask(testHarness).markAvailable();
+		processUntil(testHarness, checkpointFuture::isDone);
+		waitForAcknowledgeLatch.await();
+	}
+
 	private void processUntil(StreamTaskMailboxTestHarness testHarness, Supplier<Boolean> condition) throws Exception {
 		do {
 			testHarness.getStreamTask().runMailboxStep();
 		} while (!condition.get());
 	}
 
+	private StreamTaskMailboxTestHarness<Integer> createTestHarness() throws Exception {
+		return createTestHarness(0, null);
+	}
+
 	private StreamTaskMailboxTestHarness<Integer> createTestHarness(
 			long checkpointId,
 			TaskStateSnapshot snapshot) throws Exception {
+		return createTestHarness(
+			new MockSource(Boundedness.BOUNDED, 1),
+			checkpointId,
+			snapshot
+		);
+	}
+
+	private StreamTaskMailboxTestHarness<Integer> createTestHarness(
+			MockSource source,
+			long checkpointId,
+			TaskStateSnapshot snapshot) throws Exception {
 		// get a source operator.
-		SourceOperatorFactory<Integer> sourceOperatorFactory = new SourceOperatorFactory<>(
-				new MockSource(Boundedness.BOUNDED, 1),
-				WatermarkStrategy.noWatermarks());
+		SourceOperatorFactory<Integer> sourceOperatorFactory =
+			new SourceOperatorFactory<>(source, WatermarkStrategy.noWatermarks());
 
 		// build a test harness.
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-				new MultipleInputStreamTaskTestHarnessBuilder<>(SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+				new StreamTaskMailboxTestHarnessBuilder<>(SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO);
 		if (snapshot != null) {
 			// Set initial snapshot if needed.
 			builder.setTaskStateSnapshot(checkpointId, snapshot);
@@ -177,6 +273,89 @@ public class SourceOperatorStreamTaskTest {
 	}
 
 	private MockSourceReader getSourceReaderFromTask(StreamTaskMailboxTestHarness<Integer> testHarness) {
-		return (MockSourceReader) ((SourceOperator) testHarness.getStreamTask().headOperator).getSourceReader();
+		return (MockSourceReader) ((SourceOperator) testHarness.getStreamTask().mainOperator).getSourceReader();
+	}
+
+	// ------------- private testing classes ----------
+
+	private static class TestingExternallyInducedSource extends MockSource {
+		private static final long serialVersionUID = 3078454109555893721L;
+		private final TestingExternallyInducedSourceReader reader;
+
+		private TestingExternallyInducedSource(TestingExternallyInducedSourceReader reader) {
+			super(Boundedness.CONTINUOUS_UNBOUNDED, 1);
+			this.reader = reader;
+		}
+
+		@Override
+		public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
+			return reader;
+		}
+	}
+
+	private static class TestingExternallyInducedSourceReader
+			implements ExternallyInducedSourceReader<Integer, MockSourceSplit>, Serializable {
+		private static final long CHECKPOINT_ID = 1234L;
+		private final int numEventsBeforeCheckpoint;
+		private final int totalNumEvents;
+		private int numEmittedEvents;
+
+		private boolean checkpointed;
+		private int checkpointedAt;
+		private long checkpointedId;
+
+		TestingExternallyInducedSourceReader(int numEventsBeforeCheckpoint, int totalNumEvents) {
+			this.numEventsBeforeCheckpoint = numEventsBeforeCheckpoint;
+			this.totalNumEvents = totalNumEvents;
+			this.numEmittedEvents = 0;
+			this.checkpointed = false;
+			this.checkpointedAt = -1;
+		}
+
+		@Override
+		public Optional<Long> shouldTriggerCheckpoint() {
+			if (numEmittedEvents == numEventsBeforeCheckpoint && !checkpointed) {
+				return Optional.of(CHECKPOINT_ID);
+			} else {
+				return Optional.empty();
+			}
+		}
+
+		@Override
+		public void start() {}
+
+		@Override
+		public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
+			numEmittedEvents++;
+			if (numEmittedEvents == numEventsBeforeCheckpoint) {
+				return InputStatus.NOTHING_AVAILABLE;
+			} else if (numEmittedEvents < totalNumEvents) {
+				return InputStatus.MORE_AVAILABLE;
+			} else {
+				return InputStatus.END_OF_INPUT;
+			}
+		}
+
+		@Override
+		public List<MockSourceSplit> snapshotState(long checkpointId) {
+			checkpointed = true;
+			checkpointedAt = numEmittedEvents;
+			checkpointedId = checkpointId;
+			return Collections.emptyList();
+		}
+
+		@Override
+		public CompletableFuture<Void> isAvailable() {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public void addSplits(List<MockSourceSplit> splits) {}
+
+		@Override
+		public void notifyNoMoreSplits() {}
+
+		@Override
+		public void close() throws Exception {}
 	}
 }

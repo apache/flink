@@ -16,6 +16,130 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testExplainMultipleInput[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+      :  +- LogicalProject(a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+== Optimized Logical Plan ==
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+:     +- Calc(select=[a, b])
+:        +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+      +- Calc(select=[d, e])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : Source: Collection Source
+
+ : Data Source
+	content : Source: Collection Source
+
+	 : Operator
+		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select=[a, b])
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : Calc(select=[d, e])
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+								ship_strategy : HASH[d]
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainMultipleInput[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+      :  +- LogicalProject(a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+== Optimized Logical Plan ==
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:     +- Calc(select=[a, b]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:        +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[hash[d]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[d, e]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : Source: Collection Source
+
+ : Data Source
+	content : Source: Collection Source
+
+	 : Operator
+		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select=[a, b])
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : Calc(select=[d, e])
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+								ship_strategy : HASH[d]
+
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExplainWithAgg[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==

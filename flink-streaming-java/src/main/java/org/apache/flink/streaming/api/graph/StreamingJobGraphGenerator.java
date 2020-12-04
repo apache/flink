@@ -22,9 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
@@ -48,11 +50,13 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
@@ -72,7 +76,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -83,10 +86,13 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -97,7 +103,9 @@ public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
 
-	private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
+	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
+
+	public static final long UNDEFINED_NETWORK_BUFFER_TIMEOUT = -1L;
 
 	// ------------------------------------------------------------------------
 
@@ -155,6 +163,7 @@ public class StreamingJobGraphGenerator {
 
 		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(streamGraph.getScheduleMode());
+		jobGraph.enableApproximateLocalRecovery(streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
 
 		// Generate deterministic hashes for the nodes in order to identify them across
 		// submission iff they didn't change.
@@ -176,8 +185,8 @@ public class StreamingJobGraphGenerator {
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> streamGraph.getStreamNode(id).getMinResources(),
-			id -> streamGraph.getStreamNode(id).getManagedMemoryWeight());
+			id -> streamGraph.getStreamNode(id).getManagedMemoryOperatorScopeUseCaseWeights(),
+			id -> streamGraph.getStreamNode(id).getManagedMemorySlotScopeUseCases());
 
 		configureCheckpointing();
 
@@ -208,6 +217,12 @@ public class StreamingJobGraphGenerator {
 					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
 						+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
 						+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
+			}
+			if (streamGraph.isIterative() && checkpointConfig.isUnalignedCheckpointsEnabled() && !checkpointConfig.isForceUnalignedCheckpoints()) {
+				throw new UnsupportedOperationException(
+					"Unaligned Checkpoints are currently not supported for iterative jobs, "
+						+ " as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+						+ "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
 			}
 
 			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -250,21 +265,78 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
+	private  Map<Integer, OperatorChainInfo> buildChainedInputsAndGetHeadInputs(
+			final Map<Integer, byte[]> hashes,
+			final List<Map<Integer, byte[]>> legacyHashes) {
+
+		final Map<Integer, ChainedSourceInfo> chainedSources = new HashMap<>();
+		final Map<Integer, OperatorChainInfo> chainEntryPoints = new HashMap<>();
+
+		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
+			final StreamNode sourceNode = streamGraph.getStreamNode(sourceNodeId);
+
+			if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory && sourceNode.getOutEdges().size() == 1) {
+				// as long as only NAry ops support this chaining, we need to skip the other parts
+				final StreamEdge sourceOutEdge = sourceNode.getOutEdges().get(0);
+				final StreamNode target = streamGraph.getStreamNode(sourceOutEdge.getTargetId());
+				final ChainingStrategy targetChainingStrategy = target.getOperatorFactory().getChainingStrategy();
+
+				if (targetChainingStrategy == ChainingStrategy.HEAD_WITH_SOURCES && isChainableInput(sourceOutEdge, streamGraph)) {
+					final OperatorID opId = new OperatorID(hashes.get(sourceNodeId));
+					final StreamConfig.SourceInputConfig inputConfig = new StreamConfig.SourceInputConfig(sourceOutEdge);
+					final StreamConfig operatorConfig = new StreamConfig(new Configuration());
+					setVertexConfig(sourceNodeId, operatorConfig, Collections.emptyList(), Collections.emptyList(), Collections.emptyMap());
+					operatorConfig.setChainIndex(0); // sources are always first
+					operatorConfig.setOperatorID(opId);
+					operatorConfig.setOperatorName(sourceNode.getOperatorName());
+					chainedSources.put(sourceNodeId, new ChainedSourceInfo(operatorConfig, inputConfig));
+
+					final SourceOperatorFactory<?> sourceOpFact = (SourceOperatorFactory<?>) sourceNode.getOperatorFactory();
+					final OperatorCoordinator.Provider coord = sourceOpFact.getCoordinatorProvider(sourceNode.getOperatorName(), opId);
+
+					final OperatorChainInfo chainInfo = chainEntryPoints.computeIfAbsent(
+						sourceOutEdge.getTargetId(),
+						(k) -> new OperatorChainInfo(sourceOutEdge.getTargetId(), hashes, legacyHashes, chainedSources, streamGraph));
+					chainInfo.addCoordinatorProvider(coord);
+					continue;
+				}
+			}
+
+			chainEntryPoints.put(
+				sourceNodeId,
+				new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, chainedSources, streamGraph));
+		}
+
+		return chainEntryPoints;
+	}
+
 	/**
 	 * Sets up task chains from the source {@link StreamNode} instances.
 	 *
 	 * <p>This will recursively create all {@link JobVertex} instances.
 	 */
 	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes) {
-		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
+		// we separate out the sources that run as inputs to another operator (chained inputs)
+		// from the sources that needs to run as the main (head) operator.
+		final Map<Integer, OperatorChainInfo> chainEntryPoints = buildChainedInputsAndGetHeadInputs(hashes, legacyHashes);
+		final Collection<OperatorChainInfo> initialEntryPoints = new ArrayList<>(chainEntryPoints.values());
+
+		// iterate over a copy of the values, because this map gets concurrently modified
+		for (OperatorChainInfo info : initialEntryPoints) {
 			createChain(
-					sourceNodeId,
-					0,
-					new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, streamGraph));
+					info.getStartNodeId(),
+					1,  // operators start at position 1 because 0 is for chained source inputs
+					info,
+					chainEntryPoints);
 		}
 	}
 
-	private List<StreamEdge> createChain(Integer currentNodeId, int chainIndex, OperatorChainInfo chainInfo) {
+	private List<StreamEdge> createChain(
+			final Integer currentNodeId,
+			final int chainIndex,
+			final OperatorChainInfo chainInfo,
+			final Map<Integer, OperatorChainInfo> chainEntryPoints) {
+
 		Integer startNodeId = chainInfo.getStartNodeId();
 		if (!builtVertices.contains(startNodeId)) {
 
@@ -285,15 +357,21 @@ public class StreamingJobGraphGenerator {
 
 			for (StreamEdge chainable : chainableOutputs) {
 				transitiveOutEdges.addAll(
-						createChain(chainable.getTargetId(), chainIndex + 1, chainInfo));
+						createChain(chainable.getTargetId(), chainIndex + 1, chainInfo, chainEntryPoints));
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
 				transitiveOutEdges.add(nonChainable);
-				createChain(nonChainable.getTargetId(), 0, chainInfo.newChain(nonChainable.getTargetId()));
+				createChain(
+						nonChainable.getTargetId(),
+						1, // operators start at position 1 because 0 is for chained source inputs
+						chainEntryPoints.computeIfAbsent(
+							nonChainable.getTargetId(),
+							(k) -> chainInfo.newChain(nonChainable.getTargetId())),
+						chainEntryPoints);
 			}
 
-			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
+			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs, Optional.ofNullable(chainEntryPoints.get(currentNodeId))));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
 
@@ -311,20 +389,19 @@ public class StreamingJobGraphGenerator {
 					? createJobVertex(startNodeId, chainInfo)
 					: new StreamConfig(new Configuration());
 
-			setVertexConfig(currentNodeId, config, chainableOutputs, nonChainableOutputs);
+			setVertexConfig(currentNodeId, config, chainableOutputs, nonChainableOutputs, chainInfo.getChainedSources());
 
 			if (currentNodeId.equals(startNodeId)) {
 
 				config.setChainStart();
-				config.setChainIndex(0);
+				config.setChainIndex(chainIndex);
 				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
-				config.setOutEdgesInOrder(transitiveOutEdges);
-				config.setOutEdges(streamGraph.getStreamNode(currentNodeId).getOutEdges());
 
 				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNodeId, edge);
 				}
 
+				config.setOutEdgesInOrder(transitiveOutEdges);
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
@@ -353,8 +430,10 @@ public class StreamingJobGraphGenerator {
 			.computeIfAbsent(startNodeId, k -> new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader()));
 	}
 
-	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
-		String operatorName = streamGraph.getStreamNode(vertexID).getOperatorName();
+	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs, Optional<OperatorChainInfo> operatorChainInfo) {
+		final String operatorName = nameWithChainedSourcesInfo(
+			streamGraph.getStreamNode(vertexID).getOperatorName(),
+			operatorChainInfo.map(chain -> chain.getChainedSources().values()).orElse(Collections.emptyList()));
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<>();
 			for (StreamEdge chainable : chainedOutputs) {
@@ -430,7 +509,7 @@ public class StreamingJobGraphGenerator {
 				jobVertex.addOperatorCoordinator(new SerializedValue<>(coordinatorProvider));
 			} catch (IOException e) {
 				throw new FlinkRuntimeException(String.format(
-						"Coordinator Provider for node %s is not serializable.", chainedNames.get(streamNodeId)));
+						"Coordinator Provider for node %s is not serializable.", chainedNames.get(streamNodeId)), e);
 			}
 		}
 
@@ -462,17 +541,53 @@ public class StreamingJobGraphGenerator {
 		return new StreamConfig(jobVertex.getConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
-	private void setVertexConfig(Integer vertexID, StreamConfig config,
-			List<StreamEdge> chainableOutputs, List<StreamEdge> nonChainableOutputs) {
+	private void setVertexConfig(
+			Integer vertexID,
+			StreamConfig config,
+			List<StreamEdge> chainableOutputs,
+			List<StreamEdge> nonChainableOutputs,
+			Map<Integer, ChainedSourceInfo> chainedSources) {
 
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		config.setVertexID(vertexID);
-		config.setBufferTimeout(vertex.getBufferTimeout());
 
-		config.setTypeSerializersIn(vertex.getTypeSerializersIn());
+		// build the inputs as a combination of source and network inputs
+		final List<StreamEdge> inEdges = vertex.getInEdges();
+		final TypeSerializer<?>[] inputSerializers = vertex.getTypeSerializersIn();
+
+		final StreamConfig.InputConfig[] inputConfigs = new StreamConfig.InputConfig[inputSerializers.length];
+
+		int inputGateCount = 0;
+		for (final StreamEdge inEdge : inEdges) {
+			final ChainedSourceInfo chainedSource = chainedSources.get(inEdge.getSourceId());
+
+			final int inputIndex = inEdge.getTypeNumber() == 0
+				? 0 // single input operator
+				: inEdge.getTypeNumber() - 1; // in case of 2 or more inputs
+
+			if (chainedSource != null) {
+				// chained source is the input
+				if (inputConfigs[inputIndex] != null) {
+					throw new IllegalStateException("Trying to union a chained source with another input.");
+				}
+				inputConfigs[inputIndex] = chainedSource.getInputConfig();
+				chainedConfigs
+					.computeIfAbsent(vertexID, (key) -> new HashMap<>())
+					.put(inEdge.getSourceId(), chainedSource.getOperatorConfig());
+			} else {
+				// network input. null if we move to a new input, non-null if this is a further edge
+				// that is union-ed into the same input
+				if (inputConfigs[inputIndex] == null) {
+					inputConfigs[inputIndex] = new StreamConfig.NetworkInputConfig(
+						inputSerializers[inputIndex], inputGateCount++);
+				}
+			}
+		}
+		config.setInputs(inputConfigs);
+
 		config.setTypeSerializerOut(vertex.getTypeSerializerOut());
+		config.setShouldSortInputs(vertex.getSortedInputs());
 
 		// iterate edges, find sideOutput edges create and save serializers for each outputTag type
 		for (StreamEdge edge : chainableOutputs) {
@@ -493,7 +608,6 @@ public class StreamingJobGraphGenerator {
 		}
 
 		config.setStreamOperatorFactory(vertex.getOperatorFactory());
-		config.setOutputSelectors(vertex.getOutputSelectors());
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
@@ -504,9 +618,12 @@ public class StreamingJobGraphGenerator {
 		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
 		config.setStateBackend(streamGraph.getStateBackend());
+		config.setGraphContainingLoops(streamGraph.isIterative());
+		config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
 		config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
 		config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
+		config.setAlignmentTimeout(checkpointCfg.getAlignmentTimeout());
 
 		for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
 			config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
@@ -550,7 +667,7 @@ public class StreamingJobGraphGenerator {
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
 
-		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
+		downStreamConfig.setNumberOfNetworkInputs(downStreamConfig.getNumberOfNetworkInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 
@@ -570,6 +687,8 @@ public class StreamingJobGraphGenerator {
 					edge.getShuffleMode() + " is not supported yet.");
 		}
 
+		checkAndResetBufferTimeout(resultPartitionType, edge);
+
 		JobEdge jobEdge;
 		if (isPointwisePartitioner(partitioner)) {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
@@ -584,10 +703,25 @@ public class StreamingJobGraphGenerator {
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());
+		jobEdge.setDownstreamSubtaskStateMapper(partitioner.getDownstreamSubtaskStateMapper());
+		jobEdge.setUpstreamSubtaskStateMapper(partitioner.getUpstreamSubtaskStateMapper());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
 					headOfChain, downStreamVertexID);
+		}
+	}
+
+	private void checkAndResetBufferTimeout(ResultPartitionType type, StreamEdge edge) {
+		long bufferTimeout = edge.getBufferTimeout();
+		if (type.isBlocking() && bufferTimeout != UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
+			throw new UnsupportedOperationException(
+				"Blocking partition does not support buffer timeout " + bufferTimeout + " for src operator in edge "
+					+ edge.toString() + ". \nPlease either reset buffer timeout as -1 or use the non-blocking partition.");
+		}
+
+		if (type.isPipelined() && bufferTimeout == UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
+			edge.setBufferTimeout(DEFAULT_NETWORK_BUFFER_TIMEOUT);
 		}
 	}
 
@@ -613,22 +747,43 @@ public class StreamingJobGraphGenerator {
 				}
 			case ALL_EDGES_PIPELINED:
 				return ResultPartitionType.PIPELINED_BOUNDED;
+			case ALL_EDGES_PIPELINED_APPROXIMATE:
+				return ResultPartitionType.PIPELINED_APPROXIMATE;
 			default:
 				throw new RuntimeException("Unrecognized global data exchange mode " + streamGraph.getGlobalDataExchangeMode());
 		}
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
 		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
 		return downStreamVertex.getInEdges().size() == 1
-				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
-				&& (edge.getPartitioner() instanceof ForwardPartitioner)
-				&& edge.getShuffleMode() != ShuffleMode.BATCH
-				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& isChainableInput(edge, streamGraph);
+	}
+
+	private static boolean isChainableInput(StreamEdge edge, StreamGraph streamGraph) {
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
+
+		if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
+			&& areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
+			&& (edge.getPartitioner() instanceof ForwardPartitioner)
+			&& edge.getShuffleMode() != ShuffleMode.BATCH
+			&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
+			&& streamGraph.isChainingEnabled())) {
+
+			return false;
+		}
+
+		// check that we do not have a union operation, because unions currently only work
+		// through the network/byte-channel stack.
+		// we check that by testing that each "type" (which means input position) is used only once
+		for (StreamEdge inEdge : downStreamVertex.getInEdges()) {
+			if (inEdge != edge && inEdge.getTypeNumber() == edge.getTypeNumber()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@VisibleForTesting
@@ -642,17 +797,47 @@ public class StreamingJobGraphGenerator {
 			return false;
 		}
 
-		if (upStreamOperator.getChainingStrategy() == ChainingStrategy.NEVER ||
-			downStreamOperator.getChainingStrategy() != ChainingStrategy.ALWAYS) {
+		// yielding operators cannot be chained to legacy sources
+		// unfortunately the information that vertices have been chained is not preserved at this point
+		if (downStreamOperator instanceof YieldingOperatorFactory &&
+				getHeadOperator(upStreamVertex, streamGraph).isLegacySource()) {
 			return false;
 		}
 
-		// yielding operators cannot be chained to legacy sources
-		if (downStreamOperator instanceof YieldingOperatorFactory) {
-			// unfortunately the information that vertices have been chained is not preserved at this point
-			return !getHeadOperator(upStreamVertex, streamGraph).isStreamSource();
+		// we use switch/case here to make sure this is exhaustive if ever values are added to the
+		// ChainingStrategy enum
+		boolean isChainable;
+
+		switch (upStreamOperator.getChainingStrategy()) {
+			case NEVER:
+				isChainable = false;
+				break;
+			case ALWAYS:
+			case HEAD:
+			case HEAD_WITH_SOURCES:
+				isChainable = true;
+				break;
+			default:
+				throw new RuntimeException("Unknown chaining strategy: " + upStreamOperator.getChainingStrategy());
 		}
-		return true;
+
+		switch (downStreamOperator.getChainingStrategy()) {
+			case NEVER:
+			case HEAD:
+				isChainable = false;
+				break;
+			case ALWAYS:
+				// keep the value from upstream
+				break;
+			case HEAD_WITH_SOURCES:
+				// only if upstream is a source
+				isChainable &= (upStreamOperator instanceof SourceOperatorFactory);
+				break;
+			default:
+				throw new RuntimeException("Unknown chaining strategy: " + upStreamOperator.getChainingStrategy());
+		}
+
+		return isChainable;
 	}
 
 	/**
@@ -679,12 +864,12 @@ public class StreamingJobGraphGenerator {
 			final JobVertex vertex = entry.getValue();
 			final String slotSharingGroupKey = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
 
+			checkNotNull(slotSharingGroupKey, "StreamNode slot sharing group must not be null");
+
 			final SlotSharingGroup effectiveSlotSharingGroup;
-			if (slotSharingGroupKey == null) {
-				effectiveSlotSharingGroup = null;
-			} else if (slotSharingGroupKey.equals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)) {
+			if (slotSharingGroupKey.equals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)) {
 				// fallback to the region slot sharing group by default
-				effectiveSlotSharingGroup = vertexRegionSlotSharingGroups.get(vertex.getID());
+				effectiveSlotSharingGroup = checkNotNull(vertexRegionSlotSharingGroups.get(vertex.getID()));
 			} else {
 				effectiveSlotSharingGroup = specifiedSlotSharingGroups.computeIfAbsent(
 					slotSharingGroupKey, k -> new SlotSharingGroup());
@@ -755,8 +940,8 @@ public class StreamingJobGraphGenerator {
 			final Map<Integer, JobVertex> jobVertices,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever,
-			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Map<ManagedMemoryUseCase, Integer>> operatorScopeManagedMemoryUseCaseWeightsRetriever,
+			final java.util.function.Function<Integer, Set<ManagedMemoryUseCase>> slotScopeManagedMemoryUseCasesRetriever) {
 
 		// all slot sharing groups in this job
 		final Set<SlotSharingGroup> slotSharingGroups = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -791,8 +976,8 @@ public class StreamingJobGraphGenerator {
 				vertexOperators,
 				operatorConfigs,
 				vertexChainedConfigs,
-				operatorResourceRetriever,
-				operatorManagedMemoryWeightRetriever);
+				operatorScopeManagedMemoryUseCaseWeightsRetriever,
+				slotScopeManagedMemoryUseCasesRetriever);
 		}
 	}
 
@@ -802,24 +987,34 @@ public class StreamingJobGraphGenerator {
 			final Map<JobVertexID, Set<Integer>> vertexOperators,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever,
-			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Map<ManagedMemoryUseCase, Integer>> operatorScopeManagedMemoryUseCaseWeightsRetriever,
+			final java.util.function.Function<Integer, Set<ManagedMemoryUseCase>> slotScopeManagedMemoryUseCasesRetriever) {
 
-		final int groupManagedMemoryWeight = slotSharingGroup.getJobVertexIds().stream()
-			.flatMap(vid -> vertexOperators.get(vid).stream())
-			.mapToInt(operatorManagedMemoryWeightRetriever::apply)
-			.sum();
+		final Set<Integer> groupOperatorIds = slotSharingGroup.getJobVertexIds().stream()
+			.flatMap((vid) -> vertexOperators.get(vid).stream())
+			.collect(Collectors.toSet());
+
+		final Map<ManagedMemoryUseCase, Integer> groupOperatorScopeUseCaseWeights = groupOperatorIds.stream()
+			.flatMap((oid) -> operatorScopeManagedMemoryUseCaseWeightsRetriever.apply(oid).entrySet().stream())
+			.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingInt(Map.Entry::getValue)));
+
+		final Set<ManagedMemoryUseCase> groupSlotScopeUseCases = groupOperatorIds.stream()
+			.flatMap((oid) -> slotScopeManagedMemoryUseCasesRetriever.apply(oid).stream())
+			.collect(Collectors.toSet());
 
 		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {
 			for (int operatorNodeId : vertexOperators.get(jobVertexID)) {
 				final StreamConfig operatorConfig = operatorConfigs.get(operatorNodeId);
-				final ResourceSpec operatorResourceSpec = operatorResourceRetriever.apply(operatorNodeId);
-				final int operatorManagedMemoryWeight = operatorManagedMemoryWeightRetriever.apply(operatorNodeId);
+				final Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights =
+					operatorScopeManagedMemoryUseCaseWeightsRetriever.apply(operatorNodeId);
+				final Set<ManagedMemoryUseCase> slotScopeUseCases =
+					slotScopeManagedMemoryUseCasesRetriever.apply(operatorNodeId);
 				setManagedMemoryFractionForOperator(
-					operatorResourceSpec,
 					slotSharingGroup.getResourceSpec(),
-					operatorManagedMemoryWeight,
-					groupManagedMemoryWeight,
+					operatorScopeUseCaseWeights,
+					slotScopeUseCases,
+					groupOperatorScopeUseCaseWeights,
+					groupSlotScopeUseCases,
 					operatorConfig);
 			}
 
@@ -831,32 +1026,38 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private static void setManagedMemoryFractionForOperator(
-			final ResourceSpec operatorResourceSpec,
 			final ResourceSpec groupResourceSpec,
-			final int operatorManagedMemoryWeight,
-			final int groupManagedMemoryWeight,
+			final Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+			final Set<ManagedMemoryUseCase> slotScopeUseCases,
+			final Map<ManagedMemoryUseCase, Integer> groupManagedMemoryWeights,
+			final Set<ManagedMemoryUseCase> groupSlotScopeUseCases,
 			final StreamConfig operatorConfig) {
 
-		final double managedMemoryFraction;
-
+		// For each operator, make sure fractions are set for all use cases in the group, even if the operator does not
+		// have the use case (set the fraction to 0.0). This allows us to learn which use cases exist in the group from
+		// either one of the stream configs.
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
-			managedMemoryFraction = groupManagedMemoryWeight > 0
-				? getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight)
-				: 0.0;
+			for (Map.Entry<ManagedMemoryUseCase, Integer> entry : groupManagedMemoryWeights.entrySet()) {
+				final ManagedMemoryUseCase useCase = entry.getKey();
+				final int groupWeight = entry.getValue();
+				final int operatorWeight = operatorScopeUseCaseWeights.getOrDefault(useCase, 0);
+				operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+					useCase,
+					operatorWeight > 0 ? ManagedMemoryUtils.getFractionRoundedDown(operatorWeight, groupWeight) : 0.0);
+			}
+			for (ManagedMemoryUseCase useCase : groupSlotScopeUseCases) {
+				operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+					useCase,
+					slotScopeUseCases.contains(useCase) ? 1.0 : 0.0);
+			}
 		} else {
-			final long groupManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
-			managedMemoryFraction = groupManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupManagedMemoryBytes)
-				: 0.0;
+			// Supporting for fine grained resource specs is still under developing.
+			// This branch should not be executed in production. Not throwing exception for testing purpose.
+			// TODO: support calculating managed memory fractions for fine grained resource specs
+			LOG.error("Failed setting managed memory fractions. " +
+					" Operators may not be able to use managed memory properly." +
+					" Calculating managed memory fractions with fine grained resource spec is currently not supported.");
 		}
-
-		operatorConfig.setManagedMemoryFraction(managedMemoryFraction);
-	}
-
-	private static double getFractionRoundedDown(final long dividend, final long divisor) {
-		return BigDecimal.valueOf(dividend)
-			.divide(BigDecimal.valueOf(divisor), MANAGED_MEMORY_FRACTION_SCALE, BigDecimal.ROUND_DOWN)
-			.doubleValue();
 	}
 
 	private void configureCheckpointing() {
@@ -967,6 +1168,7 @@ public class StreamingJobGraphGenerator {
 				.setPreferCheckpointForRecovery(cfg.isPreferCheckpointForRecovery())
 				.setTolerableCheckpointFailureNumber(cfg.getTolerableCheckpointFailureNumber())
 				.setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
+				.setAlignmentTimeout(cfg.getAlignmentTimeout())
 				.build(),
 			serializedStateBackend,
 			serializedHooks);
@@ -974,15 +1176,25 @@ public class StreamingJobGraphGenerator {
 		jobGraph.setSnapshotSettings(settings);
 	}
 
+	private static String nameWithChainedSourcesInfo(String operatorName, Collection<ChainedSourceInfo> chainedSourceInfos) {
+		return chainedSourceInfos.isEmpty() ? operatorName :
+			String.format("%s [%s]", operatorName, chainedSourceInfos
+				.stream()
+				.map(chainedSourceInfo -> chainedSourceInfo.getOperatorConfig().getOperatorName())
+				.collect(Collectors.joining(", "))
+			);
+	}
+
 	/**
 	 * A private class to help maintain the information of an operator chain during the recursive call in
-	 * {@link #createChain(Integer, int, OperatorChainInfo)}.
+	 * {@link #createChain(Integer, int, OperatorChainInfo, Map)}.
 	 */
 	private static class OperatorChainInfo {
 		private final Integer startNodeId;
 		private final Map<Integer, byte[]> hashes;
 		private final List<Map<Integer, byte[]>> legacyHashes;
 		private final Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes;
+		private final Map<Integer, ChainedSourceInfo> chainedSources;
 		private final List<OperatorCoordinator.Provider> coordinatorProviders;
 		private final StreamGraph streamGraph;
 
@@ -990,12 +1202,14 @@ public class StreamingJobGraphGenerator {
 				int startNodeId,
 				Map<Integer, byte[]> hashes,
 				List<Map<Integer, byte[]>> legacyHashes,
+				Map<Integer, ChainedSourceInfo> chainedSources,
 				StreamGraph streamGraph) {
 			this.startNodeId = startNodeId;
 			this.hashes = hashes;
 			this.legacyHashes = legacyHashes;
 			this.chainedOperatorHashes = new HashMap<>();
 			this.coordinatorProviders = new ArrayList<>();
+			this.chainedSources = chainedSources;
 			this.streamGraph = streamGraph;
 		}
 
@@ -1011,8 +1225,16 @@ public class StreamingJobGraphGenerator {
 			return chainedOperatorHashes.get(startNodeId);
 		}
 
+		void addCoordinatorProvider(OperatorCoordinator.Provider coordinator) {
+			coordinatorProviders.add(coordinator);
+		}
+
 		private List<OperatorCoordinator.Provider> getCoordinatorProviders() {
 			return coordinatorProviders;
+		}
+
+		Map<Integer, ChainedSourceInfo> getChainedSources() {
+			return chainedSources;
 		}
 
 		private OperatorID addNodeToChain(int currentNodeId, String operatorName) {
@@ -1033,7 +1255,25 @@ public class StreamingJobGraphGenerator {
 		}
 
 		private OperatorChainInfo newChain(Integer startNodeId) {
-			return new OperatorChainInfo(startNodeId, hashes, legacyHashes, streamGraph);
+			return new OperatorChainInfo(startNodeId, hashes, legacyHashes, chainedSources, streamGraph);
+		}
+	}
+
+	private static final class ChainedSourceInfo {
+		private final StreamConfig operatorConfig;
+		private final StreamConfig.SourceInputConfig inputConfig;
+
+		ChainedSourceInfo(StreamConfig operatorConfig, StreamConfig.SourceInputConfig inputConfig) {
+			this.operatorConfig = operatorConfig;
+			this.inputConfig = inputConfig;
+		}
+
+		public StreamConfig getOperatorConfig() {
+			return operatorConfig;
+		}
+
+		public StreamConfig.SourceInputConfig getInputConfig() {
+			return inputConfig;
 		}
 	}
 }

@@ -26,7 +26,8 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAcc
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.planner.typeutils.TypeCoercion
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -34,19 +35,16 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
+
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.StandardCharsets
-import java.util
 import java.util.Arrays.asList
-
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 
 import scala.collection.JavaConversions._
 
@@ -389,7 +387,13 @@ object ScalarOperatorGens {
     }
     // map types
     else if (isMap(left.resultType) && canEqual) {
-      generateMapComparison(ctx, left, right)
+      val mapType = left.resultType.asInstanceOf[MapType]
+      generateMapComparison(ctx, left, right, mapType.getKeyType, mapType.getValueType)
+    }
+    // multiset types
+    else if (isMultiset(left.resultType) && canEqual) {
+      val multisetType = left.resultType.asInstanceOf[MultisetType]
+      generateMapComparison(ctx, left, right, multisetType.getElementType, new IntType(false))
     }
     // comparable types of same type
     else if (isComparable(left.resultType) && canEqual) {
@@ -567,8 +571,9 @@ object ScalarOperatorGens {
       // both sides are binary type
       else if (isBinaryString(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
+        val utilName = classOf[SqlFunctionUtils].getCanonicalName
         (leftTerm, rightTerm) =>
-          s"java.util.Arrays.equals($leftTerm, $rightTerm)"
+          s"$utilName.byteArrayCompare($leftTerm, $rightTerm) $operator 0"
       }
       // both sides are same comparable type
       else if (isComparable(left.resultType) &&
@@ -588,7 +593,7 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression): GeneratedExpression = {
     if (ctx.nullCheck) {
-      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
@@ -597,10 +602,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} == null;
            |""".stripMargin
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
@@ -614,7 +619,7 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = !${operand.nullTerm};
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("result")
@@ -623,10 +628,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} != null;
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
@@ -851,7 +856,11 @@ object ScalarOperatorGens {
       }
 
     case (from, to) =>
-      throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      if (from == to) {
+        operand
+      } else {
+        throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      }
   }
 
   def generateCast(
@@ -866,7 +875,8 @@ object ScalarOperatorGens {
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-        operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+        // just replace the DataType
+        operand.copy(resultType = new TimestampType(operand.resultType.isNullable, 3))
 
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       val fromType = operand.resultType.asInstanceOf[TimestampType]
@@ -964,7 +974,7 @@ object ScalarOperatorGens {
       generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
 
     // Byte array -> String UTF-8
-    case (VARBINARY, VARCHAR | CHAR) =>
+    case (BINARY | VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
@@ -1047,9 +1057,9 @@ object ScalarOperatorGens {
     // String -> Time
     case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
@@ -1058,9 +1068,9 @@ object ScalarOperatorGens {
     // String -> Timestamp
     case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"""
@@ -1286,6 +1296,9 @@ object ScalarOperatorGens {
           | (TIME_WITHOUT_TIME_ZONE, BIGINT)
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
+
+    case (ROW, ROW) if LogicalTypeCasts.supportsExplicitCast(operand.resultType, targetType) =>
+      generateCastRowToRow(ctx, operand, targetType)
 
     case (_, _) =>
       throw new CodeGenException(s"Unsupported cast from '${operand.resultType}' to '$targetType'.")
@@ -1874,6 +1887,35 @@ object ScalarOperatorGens {
   // private generate utils
   // ----------------------------------------------------------------------------------------
 
+  private def generateCastRowToRow(
+      ctx: CodeGeneratorContext,
+      operand: GeneratedExpression,
+      targetRowType: LogicalType)
+    : GeneratedExpression = {
+    // assumes that the arity has been checked before
+    generateCallWithStmtIfArgsNotNull(ctx, targetRowType, Seq(operand)) { case Seq(rowTerm) =>
+      val fieldExprs = operand
+        .resultType
+        .getChildren
+        .zip(targetRowType.getChildren)
+        .zipWithIndex
+        .map { case ((sourceType, targetType), idx) =>
+          val sourceTypeTerm = primitiveTypeTermForType(sourceType)
+          val sourceTerm = newName("field")
+          val sourceAccessCode = rowFieldReadAccess(ctx, idx, rowTerm, sourceType)
+          val sourceExpr = GeneratedExpression(
+            sourceTerm,
+            s"$rowTerm.isNullAt($idx)",
+            s"$sourceTypeTerm $sourceTerm = ($sourceTypeTerm) $sourceAccessCode;",
+            sourceType)
+          generateCast(ctx, sourceExpr, targetType)
+        }
+
+      val generateRowExpr = generateRow(ctx, targetRowType, fieldExprs)
+      (generateRowExpr.code, generateRowExpr.resultTerm)
+    }
+  }
+
   private def generateCastStringLiteralToDateTime(
       ctx: CodeGeneratorContext,
       stringLiteral: GeneratedExpression,
@@ -2149,7 +2191,10 @@ object ScalarOperatorGens {
   private def generateMapComparison(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression =
+      right: GeneratedExpression,
+      keyType: LogicalType,
+      valueType: LogicalType)
+    : GeneratedExpression =
     generateCallWithStmtIfArgsNotNull(ctx, new BooleanType(), Seq(left, right)) {
       args =>
         val leftTerm = args.head
@@ -2157,33 +2202,30 @@ object ScalarOperatorGens {
 
         val resultTerm = newName("compareResult")
 
-        val mapType = left.resultType.asInstanceOf[MapType]
-        val mapCls = classOf[java.util.Map[AnyRef, AnyRef]].getCanonicalName
-        val keyCls = boxedTypeTermForType(mapType.getKeyType)
-        val valueCls = boxedTypeTermForType(mapType.getValueType)
+        val mapCls = className[java.util.Map[_, _]]
+        val keyCls = boxedTypeTermForType(keyType)
+        val valueCls = boxedTypeTermForType(valueType)
 
         val leftMapTerm = newName("leftMap")
         val leftKeyTerm = newName("leftKey")
         val leftValueTerm = newName("leftValue")
         val leftValueNullTerm = newName("leftValueIsNull")
         val leftValueExpr =
-          GeneratedExpression(leftValueTerm, leftValueNullTerm, "", mapType.getValueType)
+          GeneratedExpression(leftValueTerm, leftValueNullTerm, "", valueType)
 
         val rightMapTerm = newName("rightMap")
         val rightValueTerm = newName("rightValue")
         val rightValueNullTerm = newName("rightValueIsNull")
         val rightValueExpr =
-          GeneratedExpression(rightValueTerm, rightValueNullTerm, "", mapType.getValueType)
+          GeneratedExpression(rightValueTerm, rightValueNullTerm, "", valueType)
 
         val entryTerm = newName("entry")
         val entryCls = classOf[java.util.Map.Entry[AnyRef, AnyRef]].getCanonicalName
         val valueEqualsExpr = generateEquals(ctx, leftValueExpr, rightValueExpr)
 
         val internalTypeCls = classOf[LogicalType].getCanonicalName
-        val keyTypeTerm =
-          ctx.addReusableObject(mapType.getKeyType, "keyType", internalTypeCls)
-        val valueTypeTerm =
-          ctx.addReusableObject(mapType.getValueType, "valueType", internalTypeCls)
+        val keyTypeTerm = ctx.addReusableObject(keyType, "keyType", internalTypeCls)
+        val valueTypeTerm = ctx.addReusableObject(valueType, "valueType", internalTypeCls)
         val mapDataUtil = className[MapDataUtil]
 
         val stmt =
@@ -2220,7 +2262,7 @@ object ScalarOperatorGens {
              """.stripMargin
         (stmt, resultTerm)
     }
-  
+
   // ------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(

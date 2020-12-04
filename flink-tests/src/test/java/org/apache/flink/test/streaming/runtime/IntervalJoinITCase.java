@@ -19,7 +19,6 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.UnsupportedTimeCharacteristicException;
@@ -58,7 +57,6 @@ public class IntervalJoinITCase {
 	public void testCanJoinOverSameKey() throws Exception {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
@@ -110,7 +108,6 @@ public class IntervalJoinITCase {
 	@Test
 	public void testJoinsCorrectlyWithMultipleKeys() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		KeyedStream<Tuple2<String, Integer>, String> streamOne = env.fromElements(
@@ -159,7 +156,6 @@ public class IntervalJoinITCase {
 	public void testBoundedUnorderedStreamsStillJoinCorrectly() throws Exception {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
@@ -253,7 +249,6 @@ public class IntervalJoinITCase {
 	@Test(expected = NullPointerException.class)
 	public void testFailsWithoutUpperBound() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -268,7 +263,6 @@ public class IntervalJoinITCase {
 	@Test(expected = NullPointerException.class)
 	public void testFailsWithoutLowerBound() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -283,7 +277,6 @@ public class IntervalJoinITCase {
 	@Test
 	public void testBoundsCanBeExclusive() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(
@@ -317,7 +310,6 @@ public class IntervalJoinITCase {
 	@Test
 	public void testBoundsCanBeInclusive() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(
@@ -355,7 +347,6 @@ public class IntervalJoinITCase {
 	@Test
 	public void testBoundsAreInclusiveByDefault() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(
@@ -393,7 +384,6 @@ public class IntervalJoinITCase {
 	@Test(expected = UnsupportedTimeCharacteristicException.class)
 	public void testExecutionFailsInProcessingTime() throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -401,6 +391,7 @@ public class IntervalJoinITCase {
 
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+			.inProcessingTime()
 			.between(Time.milliseconds(0), Time.milliseconds(0))
 			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override

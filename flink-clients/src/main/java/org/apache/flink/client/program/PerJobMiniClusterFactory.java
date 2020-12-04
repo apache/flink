@@ -18,36 +18,23 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
-import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.MathUtils;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 /**
@@ -81,14 +68,25 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
-	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
+	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
 		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
 		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
 		miniCluster.start();
 
 		return miniCluster
 			.submitJob(jobGraph)
-			.thenApply(result -> new PerJobMiniClusterJobClient(result.getJobID(), miniCluster))
+			.thenApplyAsync(FunctionUtils.uncheckedFunction(submissionResult -> {
+				org.apache.flink.client.ClientUtils.waitUntilJobInitializationFinished(
+					() -> miniCluster.getJobStatus(submissionResult.getJobID()).get(),
+					() -> miniCluster.requestJobResult(submissionResult.getJobID()).get(),
+					userCodeClassloader);
+				return submissionResult;
+			}))
+			.thenApply(result -> new MiniClusterJobClient(
+					result.getJobID(),
+					miniCluster,
+					userCodeClassloader,
+					MiniClusterJobClient.JobFinalizationBehavior.SHUTDOWN_CLUSTER))
 			.whenComplete((ignored, throwable) -> {
 				if (throwable != null) {
 					// We failed to create the JobClient and must shutdown to ensure cleanup.
@@ -131,73 +129,4 @@ public final class PerJobMiniClusterFactory {
 			});
 	}
 
-	/**
-	 * A {@link JobClient} for a {@link PerJobMiniClusterFactory}.
-	 */
-	private static final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
-
-		private final JobID jobID;
-		private final MiniCluster miniCluster;
-		private final CompletableFuture<JobResult> jobResultFuture;
-
-		private PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster) {
-			this.jobID = jobID;
-			this.miniCluster = miniCluster;
-			this.jobResultFuture = miniCluster
-				.requestJobResult(jobID)
-				// Make sure to shutdown the cluster when the job completes.
-				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
-		}
-
-		@Override
-		public JobID getJobID() {
-			return jobID;
-		}
-
-		@Override
-		public CompletableFuture<JobStatus> getJobStatus() {
-			return miniCluster.getJobStatus(jobID);
-		}
-
-		@Override
-		public CompletableFuture<Void> cancel() {
-			return miniCluster.cancelJob(jobID).thenAccept(result -> {});
-		}
-
-		@Override
-		public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-			return miniCluster.stopWithSavepoint(jobID, savepointDirectory, advanceToEndOfEventTime);
-		}
-
-		@Override
-		public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-			return miniCluster.triggerSavepoint(jobID, savepointDirectory, false);
-		}
-
-		@Override
-		public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-			return getJobExecutionResult(classLoader).thenApply(JobExecutionResult::getAllAccumulatorResults);
-		}
-
-		@Override
-		public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader classLoader) {
-			return jobResultFuture.thenApply(result -> {
-				try {
-					return result.toJobExecutionResult(classLoader);
-				} catch (Exception e) {
-					throw new CompletionException("Failed to convert JobResult to JobExecutionResult.", e);
-				}
-			});
-		}
-
-		@Override
-		public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
-			try {
-				SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
-				return miniCluster.deliverCoordinationRequestToCoordinator(jobID, operatorId, serializedRequest);
-			} catch (IOException e) {
-				return FutureUtils.completedExceptionally(e);
-			}
-		}
-	}
 }

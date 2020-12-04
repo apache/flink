@@ -78,13 +78,13 @@ public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
 		writer.sep(","); // configures the writer
 		keyType.unparse(writer, leftPrec, rightPrec);
 		// Default is nullable.
-		if (!keyType.getNullable()) {
+		if (keyType.getNullable() != null && !keyType.getNullable()) {
 			writer.keyword("NOT NULL");
 		}
 		writer.sep(",");
 		valType.unparse(writer, leftPrec, rightPrec);
 		// Default is nullable.
-		if (!valType.getNullable()) {
+		if (valType.getNullable() != null && !valType.getNullable()) {
 			writer.keyword("NOT NULL");
 		}
 		writer.endList(frame);

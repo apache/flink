@@ -34,23 +34,10 @@ under the License.
 依赖
 ------------
 
-为了设置 Avro format，下表提供了使用自动化构建工具（例如 Maven 或 SBT）和带有 SQL JAR 捆绑包的 SQL Client 的项目依赖信息。
-
-<div class="codetabs" markdown="1">
-<div data-lang="SQL Client JAR" markdown="1">
-您可以从 [这里](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) 下载 flink-avro，除此之外还需要额外的 [Hadoop 依赖]({% link ops/deployment/hadoop.zh.md %}) 用于集群执行。
-
-</div>
-<div data-lang="Maven 依赖" markdown="1">
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-{% endhighlight %}
-</div>
-</div>
+{% assign connector = site.data.sql-connectors['avro'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 如何使用 Avro format 创建表
 ----------------

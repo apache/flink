@@ -187,17 +187,19 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
-  def testExecuteSqlWithUseCatalog(): Unit = {
+  def testExecuteSqlWithUseCatalogAndShowCurrentCatalog(): Unit = {
     val util = batchTestUtil()
     util.tableEnv.registerCatalog("my_catalog", new GenericInMemoryCatalog("my_catalog"))
     assertEquals("default_catalog", util.tableEnv.getCurrentCatalog)
     val tableResult2 = util.tableEnv.executeSql("USE CATALOG my_catalog")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("my_catalog", util.tableEnv.getCurrentCatalog)
+    val tableResult3 = util.tableEnv.executeSql("SHOW CURRENT CATALOG")
+    assertEquals("my_catalog", tableResult3.collect().next().toString)
   }
 
   @Test
-  def testExecuteSqlWithUseDatabase(): Unit = {
+  def testExecuteSqlWithUseDatabaseAndShowCurrentDatabase(): Unit = {
     val util = batchTestUtil()
     val tableResult1 = util.tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
@@ -208,6 +210,9 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = util.tableEnv.executeSql("USE db1")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("db1", util.tableEnv.getCurrentDatabase)
+
+    val tableResult3 = util.tableEnv.executeSql("SHOW CURRENT DATABASE")
+    assertEquals("db1", tableResult3.collect().next().toString)
   }
 
   @Test

@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 	private static final long serialVersionUID = 8758670006385551407L;
 
 	private final GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc;
-	private final RowDataTypeInfo rightRowTypeInfo;
+	private final InternalTypeInfo<RowData> rightRowTypeInfo;
 	private transient TypeSerializer<RowData> rightSerializer;
 
 	public AsyncLookupJoinWithCalcRunner(
@@ -51,7 +51,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 			GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
 			GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
 			TypeInformation<?> fetcherReturnType,
-			RowDataTypeInfo rightRowTypeInfo,
+			InternalTypeInfo<RowData> rightRowTypeInfo,
 			boolean isLeftOuterJoin,
 			int asyncBufferCapacity) {
 		super(generatedFetcher, generatedResultFuture, fetcherReturnType,

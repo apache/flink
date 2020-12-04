@@ -126,7 +126,8 @@ class ProjectSemiAntiJoinTransposeRule
       newLeftInput: RelNode,
       newRightInput: RelNode): Join = {
     val newCondition = rewriteJoinCondition(originJoin, mapping)
-    LogicalJoin.create(newLeftInput, newRightInput, newCondition, originJoin.getVariablesSet,
+    LogicalJoin.create(newLeftInput, newRightInput, java.util.Collections.emptyList(),
+      newCondition, originJoin.getVariablesSet,
       originJoin.getJoinType)
   }
 

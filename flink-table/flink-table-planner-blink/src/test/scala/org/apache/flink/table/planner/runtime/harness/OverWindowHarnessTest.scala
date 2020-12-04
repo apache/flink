@@ -71,7 +71,14 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -179,7 +186,13 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
     testHarness.open()
 
     testHarness.setProcessingTime(3)
@@ -289,7 +302,13 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -372,7 +391,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeBoundedRangeOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -391,7 +409,12 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -487,7 +510,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeBoundedRowsOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -507,7 +529,12 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -635,7 +662,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeUnboundedRangeOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -655,7 +681,12 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 
@@ -773,7 +804,6 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
   def testRowTimeUnboundedRowsOver(): Unit = {
 
     val data = new mutable.MutableList[(Long, String, Long)]
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val t = env.fromCollection(data).toTable(tEnv, 'rowtime.rowtime, 'b, 'c)
     tEnv.registerTable("T", t)
 
@@ -793,7 +823,12 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
     val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
     val assertor = new RowDataHarnessAssertor(
-      Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
+      Array(
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.BIGINT().getLogicalType))
 
     testHarness.open()
 

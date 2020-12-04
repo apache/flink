@@ -44,19 +44,21 @@ object AggWithoutKeysCodeGenerator {
       outputType: RowType,
       isMerge: Boolean,
       isFinal: Boolean,
-      prefix: String): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
-    val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
-    val aggregates = aggCallToAggFunction.map(_._2)
-    val udaggs = AggCodeGenHelper.getUdaggs(aggregates)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(Array(), aggregates)
-    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, Array(), aggregates)
-    val aggArgs = aggInfoList.aggInfos.map(_.argIndexes)
+      prefix: String)
+    : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+
+    // prepare for aggregation
+    val auxGrouping = Array[Int]()
+    val aggInfos = aggInfoList.aggInfos
+    aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
+    val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
-
-    // register udagg
-    aggregates.filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
 
     val (initAggBufferCode, doAggregateCode, aggOutputExpr) = genSortAggCodes(
       isMerge,
@@ -65,11 +67,8 @@ object AggWithoutKeysCodeGenerator {
       builder,
       Array(),
       Array(),
-      aggCallToAggFunction,
-      aggArgs,
-      aggregates,
-      aggInfoList.aggInfos.map(_.externalResultType),
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       inputTerm,
       inputType,
       aggBufferNames,

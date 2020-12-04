@@ -52,6 +52,8 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
 	private final MailboxExecutor mailboxExecutor;
 
+	private final boolean isHead;
+
 	private StreamOperatorWrapper<?, ?> previous;
 
 	private StreamOperatorWrapper<?, ?> next;
@@ -59,25 +61,15 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 	private boolean closed;
 
 	StreamOperatorWrapper(
-		OP wrapped,
-		Optional<ProcessingTimeService> processingTimeService,
-		MailboxExecutor mailboxExecutor) {
+			OP wrapped,
+			Optional<ProcessingTimeService> processingTimeService,
+			MailboxExecutor mailboxExecutor,
+			boolean isHead) {
 
 		this.wrapped = checkNotNull(wrapped);
 		this.processingTimeService = checkNotNull(processingTimeService);
 		this.mailboxExecutor = checkNotNull(mailboxExecutor);
-	}
-
-	/**
-	 * Closes the wrapped operator and propagates the close operation to the next wrapper that the
-	 * {@link #next} points to.
-	 *
-	 * <p>Note that this method must be called in the task thread, because we need to call
-	 * {@link MailboxExecutor#yield()} to take the mails of closing operator and running timers and
-	 * run them.
-	 */
-	public void close(StreamTaskActionExecutor actionExecutor) throws Exception {
-		close(actionExecutor, false);
+		this.isHead = isHead;
 	}
 
 	/**
@@ -120,8 +112,16 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 		this.next = next;
 	}
 
-	private void close(StreamTaskActionExecutor actionExecutor, boolean invokingEndInput) throws Exception {
-		if (invokingEndInput) {
+	/**
+	 * Closes the wrapped operator and propagates the close operation to the next wrapper that the
+	 * {@link #next} points to.
+	 *
+	 * <p>Note that this method must be called in the task thread, because we need to call
+	 * {@link MailboxExecutor#yield()} to take the mails of closing operator and running timers and
+	 * run them.
+	 */
+	public void close(StreamTaskActionExecutor actionExecutor) throws Exception {
+		if (!isHead) {
 			// NOTE: This only do for the case where the operator is one-input operator. At present,
 			// any non-head operator on the operator chain is one-input operator.
 			actionExecutor.runThrowing(() -> endOperatorInput(1));
@@ -131,7 +131,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
 		// propagate the close operation to the next wrapper
 		if (next != null) {
-			next.close(actionExecutor, true);
+			next.close(actionExecutor);
 		}
 	}
 

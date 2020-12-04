@@ -25,11 +25,11 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public enum TimestampFormat {
-	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format
-	 * and output timestamp in the same format*/
+	/** Options to specify TIMESTAMP/TIMESTAMP_WITH_LOCAL_ZONE format. It will parse TIMESTAMP in "yyyy-MM-dd HH:mm:ss.s{precision}" format,
+	 * TIMESTAMP_WITH_LOCAL_TIMEZONE in "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" and output in the same format.*/
 	SQL,
 
-	/** Options to specify timestamp format. It will parse timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format
-	 * and output timestamp in the same format*/
+	/** Options to specify TIMESTAMP/TIMESTAMP_WITH_LOCAL_ZONE format. It will parse TIMESTAMP in "yyyy-MM-ddTHH:mm:ss.s{precision}" format,
+	 * TIMESTAMP_WITH_LOCAL_TIMEZONE in "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" and output in the same format.*/
 	ISO_8601
 }

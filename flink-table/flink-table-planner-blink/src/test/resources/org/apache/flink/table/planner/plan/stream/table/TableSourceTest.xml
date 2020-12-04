@@ -34,7 +34,7 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
     <Resource name="planBefore">
       <![CDATA[
 LogicalFilter(condition=[>($2, 100)])
-+- LogicalProject(id=[$0], name=[$2], valSum=[AS(SUM($1) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW), _UTF-16LE'valSum')])
++- LogicalProject(id=[$0], name=[$2], valSum=[AS(SUM($1) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'valSum')])
    +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
 ]]>
     </Resource>
@@ -59,10 +59,8 @@ LogicalProject(rtime=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[rtime])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime]]], fields=[rtime])
 ]]>
     </Resource>
   </TestCase>
@@ -98,10 +96,9 @@ LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[name, val, rtime, id])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
++- Calc(select=[name, val, rtime, id])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>

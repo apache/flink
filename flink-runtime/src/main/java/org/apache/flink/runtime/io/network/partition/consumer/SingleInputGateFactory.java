@@ -72,7 +72,7 @@ public class SingleInputGateFactory {
 	@Nonnull
 	protected final NetworkBufferPool networkBufferPool;
 
-	private final int networkBuffersPerChannel;
+	protected final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
 
@@ -134,7 +134,8 @@ public class SingleInputGateFactory {
 			partitionProducerStateProvider,
 			bufferPoolFactory,
 			bufferDecompressor,
-			networkBufferPool);
+			networkBufferPool,
+			networkBufferSize);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;
@@ -188,6 +189,7 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
+					networkBuffersPerChannel,
 					metrics);
 			},
 			nettyShuffleDescriptor ->
@@ -218,6 +220,7 @@ public class SingleInputGateFactory {
 				taskEventPublisher,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		} else {
 			// Different instances => remote
@@ -230,6 +233,7 @@ public class SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		}
 	}

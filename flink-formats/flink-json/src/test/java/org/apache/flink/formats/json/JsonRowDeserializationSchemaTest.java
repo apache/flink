@@ -314,6 +314,36 @@ public class JsonRowDeserializationSchemaTest {
 			.expect(Row.of(112L)),
 
 		TestSpec
+			.json("{\"id\":true}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("true")),
+
+		TestSpec
+			.json("{\"id\":123.234}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("123.234")),
+
+		TestSpec
+			.json("{\"id\":1234567}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("1234567")),
+
+		TestSpec
+			.json("{\"id\":\"string field\"}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("string field")),
+
+		TestSpec
+			.json("{\"id\":[\"array data1\",\"array data2\",123,234.345]}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("[\"array data1\",\"array data2\",123,234.345]")),
+
+		TestSpec
+			.json("{\"id\":{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.STRING))
+			.expect(Row.of("{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}")),
+
+		TestSpec
 			.json("{\"id\":\"long\"}")
 			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.LONG))
 			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
@@ -364,9 +394,12 @@ public class JsonRowDeserializationSchemaTest {
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.typeInfo(Types.ROW_NAMED(new String[]{"map"}, Types.MAP(Types.STRING, Types.INT)))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'"),
 
-
+		TestSpec
+			.json("{\"id\":1,\"factor\":799.929496989092949698}")
+			.typeInfo(Types.ROW_NAMED(new String[]{"id", "factor"}, Types.INT, Types.BIG_DEC))
+			.expect(Row.of(1, new BigDecimal("799.929496989092949698")))
 	);
 
 	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {

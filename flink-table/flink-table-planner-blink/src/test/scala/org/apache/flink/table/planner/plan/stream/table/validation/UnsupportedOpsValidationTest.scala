@@ -31,13 +31,6 @@ import org.junit.Test
 class UnsupportedOpsValidationTest extends AbstractTestBase {
 
   @Test(expected = classOf[ValidationException])
-  def testSort(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.fromCollection(TestData.smallTupleData3).toTable(tEnv).orderBy('_1.desc)
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -90,21 +83,4 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.minusAll(t2)
   }
-
-  @Test(expected = classOf[ValidationException])
-  def testOffset(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.offset(5)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFetch(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.fetch(5)
-  }
-
 }

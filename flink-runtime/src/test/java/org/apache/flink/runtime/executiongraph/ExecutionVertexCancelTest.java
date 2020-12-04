@@ -20,16 +20,13 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -38,7 +35,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
@@ -59,11 +56,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testCancelFromCreated() {
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -86,11 +79,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testCancelFromScheduled() {
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			setVertexState(vertex, ExecutionState.SCHEDULED);
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -114,11 +103,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testCancelFromRunning() {
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new CancelSequenceSimpleAckingTaskManagerGateway(1)).createTestingLogicalSlot();
 
@@ -148,12 +133,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testRepeatedCancelFromRunning() {
 		try {
-
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new CancelSequenceSimpleAckingTaskManagerGateway(1)).createTestingLogicalSlot();
 
@@ -192,11 +172,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testCancelFromRunningDidNotFindTask() {
 		// this may happen when the task finished or failed while the call was in progress
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new CancelSequenceSimpleAckingTaskManagerGateway(1)).createTestingLogicalSlot();
 
@@ -222,11 +198,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testCancelCallFails() {
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = ExecutionGraphTestUtils.getExecutionJobVertex(jid, new DirectScheduledExecutorService());
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new CancelSequenceSimpleAckingTaskManagerGateway(0)).createTestingLogicalSlot();
 
@@ -279,11 +251,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	@Test
 	public void testScheduleOrDeployAfterCancel() {
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
-
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 			setVertexState(vertex, ExecutionState.CANCELED);
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
@@ -324,13 +292,9 @@ public class ExecutionVertexCancelTest extends TestLogger {
 	public void testActionsWhileCancelling() {
 
 		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionJobVertex(jid);
-
 			// scheduling while canceling is an illegal state transition
 			try {
-				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.getDefaultTimeout());
+				final ExecutionVertex vertex = getExecutionVertex();
 				setVertexState(vertex, ExecutionState.CANCELING);
 				vertex.scheduleForExecution(
 					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1)),
@@ -343,8 +307,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 			// deploying while in canceling state is illegal (should immediately go to canceled)
 			try {
-				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.getDefaultTimeout());
+				final ExecutionVertex vertex = getExecutionVertex();
 				setVertexState(vertex, ExecutionState.CANCELING);
 
 				final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
@@ -358,8 +321,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 			// fail while canceling
 			{
-				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.getDefaultTimeout());
+				final ExecutionVertex vertex = getExecutionVertex();
 
 				final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 

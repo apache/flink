@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -37,6 +36,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -89,7 +89,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(3);
 
 		DataStream<Integer> dataStream = env.addSource(new SourceFunction<Integer>() {
@@ -753,7 +752,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -761,7 +759,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
-				.timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.windowAll(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.sideOutputLateData(lateDataTag)
 				.apply(new AllWindowFunction<Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
@@ -798,7 +796,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(3);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -807,7 +804,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<String> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
 				.keyBy(new TestKeySelector())
-				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.window(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.allowedLateness(Time.milliseconds(2))
 				.sideOutputLateData(lateDataTag)
 				.apply(new WindowFunction<Integer, String, Integer, TimeWindow>() {
@@ -840,7 +837,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(3);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -849,7 +845,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
 				.keyBy(new TestKeySelector())
-				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.window(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.process(new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
@@ -875,7 +871,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -883,7 +878,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
-				.timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.windowAll(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.process(new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 

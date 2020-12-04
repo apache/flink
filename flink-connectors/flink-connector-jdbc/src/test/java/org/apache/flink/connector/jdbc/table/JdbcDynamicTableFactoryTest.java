@@ -115,6 +115,7 @@ public class JdbcDynamicTableFactoryTest {
 		properties.put("scan.partition.upper-bound", "100");
 		properties.put("scan.partition.num", "10");
 		properties.put("scan.fetch-size", "20");
+		properties.put("scan.auto-commit", "false");
 
 		DynamicTableSource actual = createTableSource(properties);
 
@@ -128,6 +129,7 @@ public class JdbcDynamicTableFactoryTest {
 			.setPartitionUpperBound(100)
 			.setNumPartitions(10)
 			.setFetchSize(20)
+			.setAutoCommit(false)
 			.build();
 		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
 			.setCacheMaxSize(-1)
@@ -280,6 +282,30 @@ public class JdbcDynamicTableFactoryTest {
 					"lookup.cache.max-rows\n" +
 					"lookup.cache.ttl").isPresent());
 		}
+
+		// lookup retries shouldn't be negative
+		try {
+			Map<String, String> properties = getAllOptions();
+			properties.put("lookup.max-retries", "-1");
+			createTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable t) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
+				"The value of 'lookup.max-retries' option shouldn't be negative, but is -1.")
+				.isPresent());
+		}
+
+		// sink retries shouldn't be negative
+		try {
+			Map<String, String> properties = getAllOptions();
+			properties.put("sink.max-retries", "-1");
+			createTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable t) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
+				"The value of 'sink.max-retries' option shouldn't be negative, but is -1.")
+				.isPresent());
+		}
 	}
 
 	private Map<String, String> getAllOptions() {
@@ -296,7 +322,8 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock source"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -305,6 +332,7 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock sink"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 }

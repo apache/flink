@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendRowDataSink}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{IntType, VarCharType}
 
 import org.junit.Assert._
@@ -35,7 +35,7 @@ class ValuesITCase extends StreamingTestBase {
 
     val sqlQuery = "SELECT * FROM (VALUES (1, 'Bob'), (1, 'Alice')) T(a, b)"
 
-    val outputType = new RowDataTypeInfo(
+    val outputType = InternalTypeInfo.ofFields(
       new IntType(),
       new VarCharType(5))
 

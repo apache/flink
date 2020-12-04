@@ -45,6 +45,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -96,6 +98,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final JobVertexID jobVertexID;
 
+	private final ExecutionAttemptID executionAttemptID;
+
 	private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
@@ -108,7 +112,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final int bufferSize;
 
-	private final ClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
@@ -138,7 +142,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader,
+			UserCodeClassLoader userCodeClassLoader,
 			TaskMetricGroup taskMetricGroup,
 			TaskManagerRuntimeInfo taskManagerRuntimeInfo,
 			MemoryManager memManager,
@@ -152,6 +156,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.taskConfiguration = taskConfiguration;
 		this.inputs = new LinkedList<>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
+		this.executionAttemptID = new ExecutionAttemptID();
 
 		this.memManager = memManager;
 		this.ioManager = ioManager;
@@ -197,7 +202,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	public void addOutput(final List<Record> outputList) {
 		try {
-			outputs.add(new RecordCollectingResultPartitionWriter(outputList, new TestPooledBufferProvider(Integer.MAX_VALUE)));
+			outputs.add(new RecordCollectingResultPartitionWriter(outputList));
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
@@ -264,7 +269,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
 	}
 
@@ -305,7 +310,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public ExecutionAttemptID getExecutionId() {
-		return new ExecutionAttemptID(0L, 0L);
+		return executionAttemptID;
 	}
 
 	@Override

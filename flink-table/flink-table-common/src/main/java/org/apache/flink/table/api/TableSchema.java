@@ -85,7 +85,7 @@ public class TableSchema {
 		validateNameTypeNumberEqual(fieldNames, fieldDataTypes);
 		List<TableColumn> columns = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; i++) {
-			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
+			columns.add(TableColumn.physical(fieldNames[i], fieldDataTypes[i]));
 		}
 		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
 		this.columns = columns;
@@ -231,35 +231,62 @@ public class TableSchema {
 	/**
 	 * Converts all columns of this schema into a (possibly nested) row data type.
 	 *
-	 * <p>Note: The returned row data type contains both physical and computed columns. Be careful when
-	 * using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
+	 * <p>This method returns the <b>source-to-query schema</b>.
+	 *
+	 * <p>Note: The returned row data type contains physical, computed, and metadata columns. Be careful
+	 * when using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
 	 * might be more appropriate.
 	 *
 	 * @see DataTypes#ROW(Field...)
 	 * @see #toPhysicalRowDataType()
+	 * @see #toPersistedRowDataType()
 	 */
 	public DataType toRowDataType() {
 		final Field[] fields = columns.stream()
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
-		return ROW(fields);
+		// The row should be never null.
+		return ROW(fields).notNull();
 	}
 
 	/**
 	 * Converts all physical columns of this schema into a (possibly nested) row data type.
 	 *
 	 * <p>Note: The returned row data type contains only physical columns. It does not include computed
-	 * columns.
+	 * or metadata columns.
 	 *
 	 * @see DataTypes#ROW(Field...)
 	 * @see #toRowDataType()
+	 * @see #toPersistedRowDataType()
 	 */
 	public DataType toPhysicalRowDataType() {
 		final Field[] fields = columns.stream()
-			.filter(column -> !column.isGenerated())
+			.filter(TableColumn::isPhysical)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
-		return ROW(fields);
+		// The row should be never null.
+		return ROW(fields).notNull();
+	}
+
+	/**
+	 * Converts all persisted columns of this schema into a (possibly nested) row data type.
+	 *
+	 * <p>This method returns the <b>query-to-sink schema</b>.
+	 *
+	 * <p>Note: Computed columns and virtual columns are excluded in the returned row data type. The
+	 * data type contains the columns of {@link #toPhysicalRowDataType()} plus persisted metadata columns.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toRowDataType()
+	 * @see #toPhysicalRowDataType()
+	 */
+	public DataType toPersistedRowDataType() {
+		final Field[] fields = columns.stream()
+			.filter(TableColumn::isPersisted)
+			.map(column -> FIELD(column.getName(), column.getType()))
+			.toArray(Field[]::new);
+		// The row should be never null.
+		return ROW(fields).notNull();
 	}
 
 	/**
@@ -291,20 +318,14 @@ public class TableSchema {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("root\n");
 		for (TableColumn column : columns) {
-			sb.append(" |-- ")
-				.append(column.getName())
-				.append(": ");
-			sb.append(column.getType());
-			if (column.getExpr().isPresent()) {
-				sb.append(" AS ").append(column.getExpr().get());
-			}
+			sb.append(" |-- ");
+			sb.append(column.asSummaryString());
 			sb.append('\n');
 		}
 		if (!watermarkSpecs.isEmpty()) {
-			for (WatermarkSpec watermark : watermarkSpecs) {
-				sb.append(" |-- ").append("WATERMARK FOR ")
-					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpr());
+			for (WatermarkSpec watermarkSpec : watermarkSpecs) {
+				sb.append(" |-- ");
+				sb.append(watermarkSpec.asSummaryString());
 				sb.append('\n');
 			}
 		}
@@ -441,9 +462,9 @@ public class TableSchema {
 					columnName));
 			}
 
-			if (column.isGenerated()) {
+			if (!column.isPhysical()) {
 				throw new ValidationException(String.format(
-					"Could not create a PRIMARY KEY '%s' with a generated column '%s'.",
+					"Could not create a PRIMARY KEY '%s'. Column '%s' is not a physical column.",
 					primaryKey.getName(),
 					columnName));
 			}
@@ -525,7 +546,7 @@ public class TableSchema {
 		public Builder field(String name, DataType dataType) {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
-			columns.add(TableColumn.of(name, dataType));
+			columns.add(TableColumn.physical(name, dataType));
 			return this;
 		}
 
@@ -557,7 +578,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
 			Preconditions.checkNotNull(expression);
-			columns.add(TableColumn.of(name, dataType, expression));
+			columns.add(TableColumn.computed(name, dataType, expression));
 			return this;
 		}
 
@@ -581,7 +602,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(dataTypes);
 			validateNameTypeNumberEqual(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
-				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
+				.mapToObj(idx -> TableColumn.physical(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
 			this.columns.addAll(columns);
 			return this;

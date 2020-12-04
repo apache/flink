@@ -17,14 +17,14 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * This class is copied from Calcite's {@link org.apache.calcite.util.XmlOutput},
@@ -540,7 +540,7 @@ public class XmlOutput {
 	 * use one of the global mappings pre-defined here.</p>
 	 */
 	static class StringEscaper implements Cloneable {
-		private ArrayList<String> translationVector;
+		private List<String> translationVector;
 		private String [] translationTable;
 
 		public static final StringEscaper XML_ESCAPER;
@@ -634,7 +634,7 @@ public class XmlOutput {
 		public StringEscaper getMutableClone() {
 			StringEscaper clone = clone();
 			if (clone.translationVector == null) {
-				clone.translationVector = Lists.newArrayList(clone.translationTable);
+				clone.translationVector = Arrays.asList(clone.translationTable);
 				clone.translationTable = null;
 			}
 			return clone;

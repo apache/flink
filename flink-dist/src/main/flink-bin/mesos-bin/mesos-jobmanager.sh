@@ -26,7 +26,11 @@ bin=$(cd "${bin}" || exit; pwd)
 # get Flink config
 . "${bin}"/config.sh
 
-parseJmJvmArgsAndExportLogs "${ARGS[@]}"
+parseJmArgsAndExportLogs "${ARGS[@]}"
+
+if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
+    ARGS+=(${DYNAMIC_PARAMETERS[@]})
+fi
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
     FLINK_IDENT_STRING="$USER"

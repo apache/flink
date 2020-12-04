@@ -41,14 +41,13 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
-import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext
 import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sources.LookupableTableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
@@ -283,8 +282,8 @@ abstract class CommonLookupJoin(
     val operatorFactory = if (isAsyncEnabled) {
       val asyncBufferCapacity= config.getConfiguration
         .getInteger(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY)
-      val asyncTimeout = getMillisecondFromConfigDuration(config,
-        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT)
+      val asyncTimeout = config.getConfiguration.get(
+        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT).toMillis
 
       val asyncLookupFunction = lookupFunction.asInstanceOf[AsyncTableFunction[_]]
       // return type valid check
@@ -335,7 +334,7 @@ abstract class CommonLookupJoin(
           generatedCalc,
           generatedResultFuture,
           producedTypeInfo,
-          RowDataTypeInfo.of(rightRowType),
+          InternalTypeInfo.of(rightRowType),
           leftOuterJoin,
           asyncBufferCapacity)
       } else {
@@ -351,7 +350,7 @@ abstract class CommonLookupJoin(
           generatedFetcher,
           generatedResultFuture,
           producedTypeInfo,
-          RowDataTypeInfo.of(rightRowType),
+          InternalTypeInfo.of(rightRowType),
           leftOuterJoin,
           asyncBufferCapacity)
       }
@@ -434,7 +433,7 @@ abstract class CommonLookupJoin(
       inputTransformation,
       getRelDetailedDescription,
       operatorFactory,
-      RowDataTypeInfo.of(resultRowType),
+      InternalTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
   }
 
@@ -671,6 +670,7 @@ abstract class CommonLookupJoin(
       val (inputRef, literal) = (left, right) match {
         case (literal: RexLiteral, ref: RexInputRef) => (ref, literal)
         case (ref: RexInputRef, literal: RexLiteral) => (ref, literal)
+        case _ => return // non-constant condition
       }
       val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
       constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
@@ -742,7 +742,7 @@ abstract class CommonLookupJoin(
           s"implement LookupableTableSource interface if it is used in temporal table join.")
       }
       val tableSourceProducedType = fromDataTypeToTypeInfo(tableSource.getProducedDataType)
-      if (!tableSourceProducedType.isInstanceOf[RowDataTypeInfo] &&
+      if (!tableSourceProducedType.isInstanceOf[InternalTypeInfo[RowData]] &&
         !tableSourceProducedType.isInstanceOf[RowTypeInfo]) {
         throw new TableException(
           "Temporal table join only support Row or RowData type as return type of temporal table." +
@@ -754,7 +754,7 @@ abstract class CommonLookupJoin(
       udtfReturnTypeInfo: TypeInformation[_],
       extractedUdtfReturnTypeInfo: TypeInformation[_]): Unit = {
     if (udtfReturnTypeInfo != null) {
-      if (!udtfReturnTypeInfo.isInstanceOf[RowDataTypeInfo] &&
+      if (!udtfReturnTypeInfo.isInstanceOf[InternalTypeInfo[RowData]] &&
         !udtfReturnTypeInfo.isInstanceOf[RowTypeInfo]) {
         throw new TableException(
           s"Result type of the async lookup TableFunction of $tableSourceDescription " +

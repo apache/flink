@@ -71,6 +71,7 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -436,7 +437,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
 
     optimizedRels.head match {
-      case _: ExecNode[_, _] =>
+      case _: ExecNode[_] =>
         val optimizedNodes = planner.translateToExecNodePlan(optimizedRels)
         require(optimizedNodes.length == optimizedRels.length)
         ExecNodePlanDumper.dagToString(
@@ -503,7 +504,6 @@ abstract class TableTestUtil(
     GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -558,22 +558,25 @@ abstract class TableTestUtil(
   }
 
   /**
-    * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = {
@@ -653,7 +656,6 @@ abstract class ScalaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
@@ -687,7 +689,6 @@ abstract class JavaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // java tableEnv
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
@@ -793,8 +794,8 @@ case class StreamTableTestUtil(
   def enableMiniBatch(): Unit = {
     tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     tableEnv.getConfig.getConfiguration.setLong(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3L)
   }
@@ -959,7 +960,8 @@ class TestingTableEnvironment private(
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreamingMode: Boolean)
+    isStreamingMode: Boolean,
+    userClassLoader: ClassLoader)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
@@ -967,7 +969,8 @@ class TestingTableEnvironment private(
     executor,
     functionCatalog,
     planner,
-    isStreamingMode) {
+    isStreamingMode,
+    userClassLoader) {
 
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
@@ -988,7 +991,7 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
   // just for testing, remove this method while
@@ -997,12 +1000,12 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: TableAggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
-  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+  private def registerImperativeAggregateFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
+      f: ImperativeAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserDefinedFunctionHelper
@@ -1118,7 +1121,8 @@ object TestingTableEnvironment {
       executor,
       functionCatalog,
       planner,
-      settings.isStreamingMode)
+      settings.isStreamingMode,
+      classLoader)
   }
 }
 

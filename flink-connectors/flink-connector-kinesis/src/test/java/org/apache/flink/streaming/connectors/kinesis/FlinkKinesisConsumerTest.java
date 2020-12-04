@@ -61,8 +61,6 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -78,6 +76,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -722,7 +721,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		BlockingQueue<String> shard2 = new LinkedBlockingQueue();
 
 		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
-		streamToQueueMap.put(streamName, Lists.newArrayList(shard1, shard2));
+		streamToQueueMap.put(streamName, Arrays.asList(shard1, shard2));
 
 		// override createFetcher to mock Kinesis
 		FlinkKinesisConsumer<String> sourceFunc =
@@ -749,8 +748,9 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 							new AtomicReference<>(),
 							new ArrayList<>(),
 							subscribedStreamsToLastDiscoveredShardIds,
-							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap)
-							) {};
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap),
+							null) {
+						};
 					return fetcher;
 				}
 			};
@@ -881,9 +881,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 							new AtomicReference<>(),
 							new ArrayList<>(),
 							subscribedStreamsToLastDiscoveredShardIds,
-							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(
-								streamToQueueMap)
-						) {
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap),
+							null) {
 							@Override
 							protected void emitWatermark() {
 								// necessary in this test to ensure that watermark state is updated

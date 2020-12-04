@@ -30,9 +30,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,20 +44,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * terminate after job completion if its execution mode is {@link ClusterEntrypoint.ExecutionMode#DETACHED}.
  */
 public class MiniDispatcher extends Dispatcher {
-	private static final Logger LOG = LoggerFactory.getLogger(MiniDispatcher.class);
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
+	private boolean jobCancelled = false;
 
 	public MiniDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
-			DispatcherBootstrap dispatcherBootstrap,
+			JobGraph jobGraph,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
 			fencingToken,
-			dispatcherBootstrap,
+			Collections.singleton(jobGraph),
+			dispatcherBootstrapFactory,
 			dispatcherServices);
 
 		this.executionMode = checkNotNull(executionMode);
@@ -91,44 +91,40 @@ public class MiniDispatcher extends Dispatcher {
 				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
 						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
 
-				LOG.debug("Shutting down per-job cluster because someone retrieved the job result.");
+				log.info("Shutting down cluster because someone retrieved the job result.");
 				shutDownFuture.complete(status);
 			});
 		} else {
-			LOG.debug("Not shutting down per-job cluster after someone retrieved the job result.");
+			log.info("Not shutting down cluster after someone retrieved the job result.");
 		}
 
 		return jobResultFuture;
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelJob(
-			JobID jobId, Time timeout) {
-		CompletableFuture<Acknowledge> cancelFuture = super.cancelJob(jobId, timeout);
-
-		cancelFuture.thenAccept((ignored) -> {
-			LOG.debug("Shutting down per-job cluster because the job was canceled.");
-			shutDownFuture.complete(ApplicationStatus.CANCELED);
-		});
-
-		return cancelFuture;
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+		jobCancelled = true;
+		return super.cancelJob(jobId, timeout);
 	}
 
 	@Override
-	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
-		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+	protected CleanupJobState jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
+		final CleanupJobState cleanupHAState = super.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
-		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
-			// shut down since we don't have to wait for the execution result retrieval
+		if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
+			// shut down if job is cancelled or we don't have to wait for the execution result retrieval
+			log.info("Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}", archivedExecutionGraph.getState(), jobCancelled, executionMode);
 			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
+
+		return cleanupHAState;
 	}
 
 	@Override
 	protected void jobNotFinished(JobID jobId) {
 		super.jobNotFinished(jobId);
-
 		// shut down since we have done our job
+		log.info("Shutting down cluster because job not finished");
 		shutDownFuture.complete(ApplicationStatus.UNKNOWN);
 	}
 }

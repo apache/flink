@@ -88,7 +88,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 		}
 	}
 
-	Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	Buffer requestBufferBlocking() throws InterruptedException {
 		synchronized (bufferQueue) {
 			Buffer buffer;
 			while ((buffer = bufferQueue.takeBuffer()) == null) {
@@ -125,10 +125,10 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	}
 
 	/**
-	 * Requests exclusive buffers from the provider and returns the number of requested amount.
+	 * Requests exclusive buffers from the provider.
 	 */
-	int requestExclusiveBuffers() throws IOException {
-		Collection<MemorySegment> segments = globalPool.requestMemorySegments();
+	void requestExclusiveBuffers(int numExclusiveBuffers) throws IOException {
+		Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
 		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
 		synchronized (bufferQueue) {
@@ -136,14 +136,13 @@ public class BufferManager implements BufferListener, BufferRecycler {
 				bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 			}
 		}
-		return segments.size();
 	}
 
 	/**
 	 * Requests floating buffers from the buffer pool based on the given required amount, and returns the actual
 	 * requested amount. If the required amount is not fully satisfied, it will register as a listener.
 	 */
-	int requestFloatingBuffers(int numRequired) throws IOException {
+	int requestFloatingBuffers(int numRequired) {
 		int numRequestedBuffers = 0;
 		synchronized (bufferQueue) {
 			// Similar to notifyBufferAvailable(), make sure that we never add a buffer after channel
@@ -254,6 +253,16 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	@Override
 	public BufferListener.NotificationResult notifyBufferAvailable(Buffer buffer) {
 		BufferListener.NotificationResult notificationResult = BufferListener.NotificationResult.BUFFER_NOT_USED;
+
+		// Assuming two remote channels with respective buffer managers as listeners inside LocalBufferPool.
+		// While canceler thread calling ch1#releaseAllResources, it might trigger bm2#notifyBufferAvaialble.
+		// Concurrently if task thread is recycling exclusive buffer, it might trigger bm1#notifyBufferAvailable.
+		// Then these two threads will both occupy the respective bufferQueue lock and wait for other side's
+		// bufferQueue lock to cause deadlock. So we check the isReleased state out of synchronized to resolve it.
+		if (inputChannel.isReleased()) {
+			return notificationResult;
+		}
+
 		try {
 			synchronized (bufferQueue) {
 				checkState(isWaitingForFloatingBuffers, "This channel should be waiting for floating buffers.");
@@ -317,7 +326,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 		}
 	}
 
-	int unsynchronizedGetExclusiveBuffersUsed() {
+	int unsynchronizedGetAvailableExclusiveBuffers() {
 		return bufferQueue.exclusiveBuffers.size();
 	}
 

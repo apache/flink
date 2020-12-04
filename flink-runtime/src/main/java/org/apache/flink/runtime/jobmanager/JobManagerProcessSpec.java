@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemory;
@@ -60,6 +62,15 @@ public class JobManagerProcessSpec extends CommonProcessMemorySpec<JobManagerFli
 
 	JobManagerProcessSpec(JobManagerFlinkMemory flinkMemory, JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead) {
 		super(flinkMemory, jvmMetaspaceAndOverhead);
+	}
+
+	@VisibleForTesting
+	public JobManagerProcessSpec(
+			MemorySize jvmHeapSize,
+			MemorySize offHeapSize,
+			MemorySize jvmMetaspaceSize,
+			MemorySize jvmOverheadSize) {
+		this(new JobManagerFlinkMemory(jvmHeapSize, offHeapSize), new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize));
 	}
 
 	@Override

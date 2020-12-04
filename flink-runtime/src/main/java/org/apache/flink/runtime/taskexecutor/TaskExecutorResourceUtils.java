@@ -132,9 +132,10 @@ public class TaskExecutorResourceUtils {
 	public static Configuration adjustForLocalExecution(Configuration config) {
 		UNUSED_CONFIG_OPTIONS.forEach(option -> warnOptionHasNoEffectIfSet(config, option));
 
-		setConfigOptionToDefaultIfNotSet(config, TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
-		setConfigOptionToDefaultIfNotSet(config, TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.MAX_VALUE);
-		setConfigOptionToDefaultIfNotSet(config, TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.MAX_VALUE);
+		setConfigOptionToPassedMaxIfNotSet(config, TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
+		setConfigOptionToPassedMaxIfNotSet(config, TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.MAX_VALUE);
+		setConfigOptionToPassedMaxIfNotSet(config, TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.MAX_VALUE);
+
 		adjustNetworkMemoryForLocalExecution(config);
 		setConfigOptionToDefaultIfNotSet(config, TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 
@@ -168,11 +169,26 @@ public class TaskExecutorResourceUtils {
 			Configuration config,
 			ConfigOption<T> option,
 			T defaultValue) {
+		setConfigOptionToDefaultIfNotSet(config, option, defaultValue, "its default value " + defaultValue);
+	}
+
+	private static <T> void setConfigOptionToPassedMaxIfNotSet(
+			Configuration config,
+			ConfigOption<T> option,
+			T maxValue) {
+		setConfigOptionToDefaultIfNotSet(config, option, maxValue, "the maximal possible value");
+	}
+
+	private static <T> void setConfigOptionToDefaultIfNotSet(
+			Configuration config,
+			ConfigOption<T> option,
+			T defaultValue,
+			String defaultValueLogExt) {
 		if (!config.contains(option)) {
 			LOG.info(
-				"The configuration option {} required for local execution is not set, setting it to its default value {}",
-				option,
-				defaultValue);
+				"The configuration option {} required for local execution is not set, setting it to {}.",
+				option.key(),
+				defaultValueLogExt);
 			config.set(option, defaultValue);
 		}
 	}

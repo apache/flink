@@ -97,7 +97,7 @@ class SqlCreateTableConverter {
 			sourceTableSchema = table.getSchema();
 			sourcePartitionKeys = table.getPartitionKeys();
 			likeOptions = sqlTableLike.getOptions();
-			sourceProperties = table.getProperties();
+			sourceProperties = table.getOptions();
 		} else {
 			sourceTableSchema = TableSchema.builder().build();
 			sourcePartitionKeys = Collections.emptyList();
@@ -140,8 +140,7 @@ class SqlCreateTableConverter {
 	}
 
 	private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlTableLike.getSourceTable()
-			.toString());
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlTableLike.getSourceTable().names);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		CatalogManager.TableLookupResult lookupResult = catalogManager.getTable(identifier)
 			.orElseThrow(() -> new ValidationException(String.format(

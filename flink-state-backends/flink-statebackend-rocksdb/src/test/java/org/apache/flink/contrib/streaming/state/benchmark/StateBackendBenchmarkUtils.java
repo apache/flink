@@ -38,6 +38,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.RocksDBException;
@@ -74,9 +76,27 @@ public class StateBackendBenchmarkUtils {
 			case ROCKSDB:
 				rootDir = prepareDirectory(rootDirName, null);
 				return createRocksDBKeyedStateBackend(rootDir);
+			case BATCH_EXECUTION:
+				return createBatchExecutionStateBackend();
 			default:
 				throw new IllegalArgumentException("Unknown backend type: " + backendType);
 		}
+	}
+
+	private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
+		return new BatchExecutionStateBackend().createKeyedStateBackend(
+			null,
+			new JobID(),
+			"Test",
+			new LongSerializer(),
+			2,
+			new KeyGroupRange(0, 1),
+			null,
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			null
+		);
 	}
 
 	private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(File rootDir) throws IOException {
@@ -193,6 +213,6 @@ public class StateBackendBenchmarkUtils {
 	 * Enum of backend type.
 	 */
 	public enum StateBackendType {
-		HEAP, ROCKSDB
+		HEAP, ROCKSDB, BATCH_EXECUTION
 	}
 }

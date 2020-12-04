@@ -22,8 +22,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -36,7 +34,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
@@ -44,7 +41,6 @@ import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResultTest.assertResultsEquals;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVertexInfoEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 /**
  * Unit tests for {@link DefaultLogicalTopology}.
@@ -57,7 +53,7 @@ public class DefaultLogicalTopologyTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		jobGraph = createJobGraph(false);
+		jobGraph = createJobGraph();
 		logicalTopology = new DefaultLogicalTopology(jobGraph);
 	}
 
@@ -77,23 +73,12 @@ public class DefaultLogicalTopologyTest extends TestLogger {
 	}
 
 	@Test
-	public void testWithCoLocationConstraints() {
-		final DefaultLogicalTopology topology = new DefaultLogicalTopology(createJobGraph(true));
-		assertTrue(topology.containsCoLocationConstraints());
-	}
-
-	@Test
-	public void testWithoutCoLocationConstraints() {
-		assertFalse(logicalTopology.containsCoLocationConstraints());
-	}
-
-	@Test
 	public void testGetLogicalPipelinedRegions() {
 		final Set<DefaultLogicalPipelinedRegion> regions = logicalTopology.getLogicalPipelinedRegions();
 		assertEquals(2, regions.size());
 	}
 
-	private JobGraph createJobGraph(final boolean containsCoLocationConstraint) {
+	private JobGraph createJobGraph() {
 		final JobVertex[] jobVertices = new JobVertex[3];
 		final int parallelism = 3;
 		jobVertices[0] = createNoOpVertex("v1", parallelism);
@@ -101,18 +86,6 @@ public class DefaultLogicalTopologyTest extends TestLogger {
 		jobVertices[2] = createNoOpVertex("v3", parallelism);
 		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
 		jobVertices[2].connectNewDataSetAsInput(jobVertices[1], ALL_TO_ALL, BLOCKING);
-
-		if (containsCoLocationConstraint) {
-			final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-			jobVertices[0].setSlotSharingGroup(slotSharingGroup);
-			jobVertices[1].setSlotSharingGroup(slotSharingGroup);
-
-			final CoLocationGroup coLocationGroup = new CoLocationGroup();
-			coLocationGroup.addVertex(jobVertices[0]);
-			coLocationGroup.addVertex(jobVertices[1]);
-			jobVertices[0].updateCoLocationGroup(coLocationGroup);
-			jobVertices[1].updateCoLocationGroup(coLocationGroup);
-		}
 
 		return new JobGraph(jobVertices);
 	}

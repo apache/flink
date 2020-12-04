@@ -72,7 +72,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
 		if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
 			FlinkTypeFactory typeFactory = context.getTypeFactory();
 			Expression agg = children.get(0);
-			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(typeFactory));
+			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(context.getRelBuilder()));
 			RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
 				fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
 

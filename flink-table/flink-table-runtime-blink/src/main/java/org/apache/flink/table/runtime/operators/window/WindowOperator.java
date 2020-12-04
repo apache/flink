@@ -246,14 +246,14 @@ public abstract class WindowOperator<K, W extends Window>
 
 		StateDescriptor<ValueState<RowData>, RowData> windowStateDescriptor = new ValueStateDescriptor<>(
 				"window-aggs",
-				new RowDataSerializer(getExecutionConfig(), accumulatorTypes));
+				new RowDataSerializer(accumulatorTypes));
 		this.windowState = (InternalValueState<K, W, RowData>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
 
 		if (produceUpdates) {
 			LogicalType[] valueTypes = ArrayUtils.addAll(aggResultTypes, windowPropertyTypes);
 			StateDescriptor<ValueState<RowData>, RowData> previousStateDescriptor = new ValueStateDescriptor<>(
 					"previous-aggs",
-					new RowDataSerializer(getExecutionConfig(), valueTypes));
+					new RowDataSerializer(valueTypes));
 			this.previousState = (InternalValueState<K, W, RowData>) getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
 		}
 
@@ -305,7 +305,9 @@ public abstract class WindowOperator<K, W extends Window>
 		collector = null;
 		triggerContext = null;
 		functionsClosed = true;
-		windowAggregator.close();
+		if (windowAggregator != null) {
+			windowAggregator.close();
+		}
 	}
 
 	@Override
@@ -315,7 +317,9 @@ public abstract class WindowOperator<K, W extends Window>
 		triggerContext = null;
 		if (!functionsClosed) {
 			functionsClosed = true;
-			windowAggregator.close();
+			if (windowAggregator != null) {
+				windowAggregator.close();
+			}
 		}
 	}
 

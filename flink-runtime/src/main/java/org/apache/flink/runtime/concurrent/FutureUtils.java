@@ -57,6 +57,7 @@ import java.util.function.Supplier;
 
 import scala.concurrent.Future;
 
+import static org.apache.flink.util.Preconditions.checkCompletedNormally;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -76,17 +77,17 @@ public class FutureUtils {
 	}
 
 	/**
-	 * Fakes asynchronous execution by immediately executing the operation and returns a (exceptionally) completed
-	 * future.
+	 * Fakes asynchronous execution by immediately executing the operation and completing the supplied future
+	 * either noramlly or exceptionally.
 	 *
 	 * @param operation to executed
 	 * @param <T> type of the result
 	 */
-	public static <T> CompletableFuture<T> runSync(Callable<T> operation) {
+	public static <T> void completeFromCallable(CompletableFuture<T> future, Callable<T> operation) {
 		try {
-			return CompletableFuture.completedFuture(operation.call());
+			future.complete(operation.call());
 		} catch (Exception e) {
-			return completedExceptionally(e);
+			future.completeExceptionally(e);
 		}
 	}
 
@@ -108,9 +109,28 @@ public class FutureUtils {
 			final int retries,
 			final Executor executor) {
 
+		return retry(operation, retries, ignore -> true, executor);
+	}
+
+	/**
+	 * Retry the given operation the given number of times in case of a failure only when an exception is retryable.
+	 *
+	 * @param operation to executed
+	 * @param retries if the operation failed
+	 * @param retryPredicate Predicate to test whether an exception is retryable
+	 * @param executor to use to run the futures
+	 * @param <T> type of the result
+	 * @return Future containing either the result of the operation or a {@link RetryException}
+	 */
+	public static <T> CompletableFuture<T> retry(
+		final Supplier<CompletableFuture<T>> operation,
+		final int retries,
+		final Predicate<Throwable> retryPredicate,
+		final Executor executor) {
+
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
-		retryOperation(resultFuture, operation, retries, executor);
+		retryOperation(resultFuture, operation, retries, retryPredicate, executor);
 
 		return resultFuture;
 	}
@@ -121,6 +141,7 @@ public class FutureUtils {
 	 * @param resultFuture to complete
 	 * @param operation to retry
 	 * @param retries until giving up
+	 * @param retryPredicate Predicate to test whether an exception is retryable
 	 * @param executor to run the futures
 	 * @param <T> type of the future's result
 	 */
@@ -128,6 +149,7 @@ public class FutureUtils {
 			final CompletableFuture<T> resultFuture,
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
+			final Predicate<Throwable> retryPredicate,
 			final Executor executor) {
 
 		if (!resultFuture.isDone()) {
@@ -139,15 +161,24 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0) {
-								retryOperation(
-									resultFuture,
-									operation,
-									retries - 1,
-									executor);
+							throwable = ExceptionUtils.stripExecutionException(throwable);
+							if (!retryPredicate.test(throwable)) {
+								resultFuture.completeExceptionally(
+									new RetryException("Stopped retrying the operation because the error is not " +
+										"retryable.", throwable));
 							} else {
-								resultFuture.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
-									"has been exhausted.", throwable));
+								if (retries > 0) {
+									retryOperation(
+										resultFuture,
+										operation,
+										retries - 1,
+										retryPredicate,
+										executor);
+								} else {
+									resultFuture.completeExceptionally(
+										new RetryException("Could not complete the operation. Number of retries " +
+										"has been exhausted.", throwable));
+								}
 							}
 						}
 					} else {
@@ -178,14 +209,35 @@ public class FutureUtils {
 			final Time retryDelay,
 			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+				operation,
+				new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
+				retryPredicate,
+				scheduledExecutor);
+	}
+
+		/**
+		 * Retry the given operation with the given delay in between failures.
+		 *
+		 * @param operation to retry
+		 * @param retryStrategy the RetryStrategy
+		 * @param retryPredicate Predicate to test whether an exception is retryable
+		 * @param scheduledExecutor executor to be used for the retry operation
+		 * @param <T> type of the result
+		 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+		 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final RetryStrategy retryStrategy,
+			final Predicate<Throwable> retryPredicate,
+			final ScheduledExecutor scheduledExecutor) {
 
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
 		retryOperationWithDelay(
 			resultFuture,
 			operation,
-			retries,
-			retryDelay,
+			retryStrategy,
 			retryPredicate,
 			scheduledExecutor);
 
@@ -208,11 +260,29 @@ public class FutureUtils {
 			final Time retryDelay,
 			final ScheduledExecutor scheduledExecutor) {
 		return retryWithDelay(
-			operation,
-			retries,
-			retryDelay,
-			(throwable) -> true,
-			scheduledExecutor);
+				operation,
+				new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
+				scheduledExecutor);
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between failures.
+	 *
+	 * @param operation to retry
+	 * @param retryStrategy the RetryStrategy
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+	 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final RetryStrategy retryStrategy,
+			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+				operation,
+				retryStrategy,
+				(throwable) -> true,
+				scheduledExecutor);
 	}
 
 	/**
@@ -273,8 +343,7 @@ public class FutureUtils {
 	private static <T> void retryOperationWithDelay(
 			final CompletableFuture<T> resultFuture,
 			final Supplier<CompletableFuture<T>> operation,
-			final int retries,
-			final Time retryDelay,
+			final RetryStrategy retryStrategy,
 			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
@@ -290,10 +359,11 @@ public class FutureUtils {
 							throwable = ExceptionUtils.stripExecutionException(throwable);
 							if (!retryPredicate.test(throwable)) {
 								resultFuture.completeExceptionally(throwable);
-							} else if (retries > 0) {
+							} else if (retryStrategy.getNumRemainingRetries() > 0) {
+								long retryDelayMillis = retryStrategy.getRetryDelay().toMillis();
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
-									retryDelay.toMilliseconds(),
+									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retryStrategy.getNextRetryStrategy(), retryPredicate, scheduledExecutor),
+									retryDelayMillis,
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
@@ -421,7 +491,21 @@ public class FutureUtils {
 	 * @return The timeout enriched future
 	 */
 	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
-		return orTimeout(future, timeout, timeUnit, Executors.directExecutor());
+		return orTimeout(future, timeout, timeUnit, Executors.directExecutor(), null);
+	}
+
+	/**
+	 * Times the given future out after the timeout.
+	 *
+	 * @param future to time out
+	 * @param timeout after which the given future is timed out
+	 * @param timeUnit time unit of the timeout
+	 * @param timeoutMsg timeout message for exception
+	 * @param <T> type of the given future
+	 * @return The timeout enriched future
+	 */
+	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit, @Nullable String timeoutMsg) {
+		return orTimeout(future, timeout, timeUnit, Executors.directExecutor(), timeoutMsg);
 	}
 
 	/**
@@ -439,10 +523,30 @@ public class FutureUtils {
 		long timeout,
 		TimeUnit timeUnit,
 		Executor timeoutFailExecutor) {
+		return orTimeout(future, timeout, timeUnit, timeoutFailExecutor, null);
+	}
+
+	/**
+	 * Times the given future out after the timeout.
+	 *
+	 * @param future to time out
+	 * @param timeout after which the given future is timed out
+	 * @param timeUnit time unit of the timeout
+	 * @param timeoutFailExecutor executor that will complete the future exceptionally after the timeout is reached
+	 * @param timeoutMsg timeout message for exception
+	 * @param <T> type of the given future
+	 * @return The timeout enriched future
+	 */
+	public static <T> CompletableFuture<T> orTimeout(
+		CompletableFuture<T> future,
+		long timeout,
+		TimeUnit timeUnit,
+		Executor timeoutFailExecutor,
+		@Nullable String timeoutMsg) {
 
 		if (!future.isDone()) {
 			final ScheduledFuture<?> timeoutFuture = Delayer.delay(
-				() -> timeoutFailExecutor.execute(new Timeout(future)), timeout, timeUnit);
+				() -> timeoutFailExecutor.execute(new Timeout(future, timeoutMsg)), timeout, timeUnit);
 
 			future.whenComplete((T value, Throwable throwable) -> {
 				if (!timeoutFuture.isDone()) {
@@ -1002,6 +1106,24 @@ public class FutureUtils {
 	}
 
 	/**
+	 * @return true if future has completed normally, false otherwise.
+	 */
+	public static boolean isCompletedNormally(CompletableFuture<?> future) {
+		return future.isDone() && !future.isCompletedExceptionally();
+	}
+
+	/**
+	 * Perform check state that future has completed normally and return the result.
+	 *
+	 * @return the result of completable future.
+	 * @throws IllegalStateException Thrown, if future has not completed or it has completed exceptionally.
+	 */
+	public static <T> T checkStateAndGet(CompletableFuture<T> future) {
+		checkCompletedNormally(future);
+		return getWithoutException(future);
+	}
+
+	/**
 	 * Gets the result of a completable future without any exception thrown.
 	 *
 	 * @param future the completable future specified.
@@ -1011,7 +1133,7 @@ public class FutureUtils {
 	 */
 	@Nullable
 	public static <T> T getWithoutException(CompletableFuture<T> future) {
-		if (future.isDone() && !future.isCompletedExceptionally()) {
+		if (isCompletedNormally(future)) {
 			try {
 				return future.get();
 			} catch (InterruptedException | ExecutionException ignored) {
@@ -1021,19 +1143,29 @@ public class FutureUtils {
 	}
 
 	/**
+	 * @return the result of completable future, or the defaultValue if it has not yet completed.
+	 */
+	public static <T> T getOrDefault(CompletableFuture<T> future, T defaultValue) {
+		T value = getWithoutException(future);
+		return value == null ? defaultValue : value;
+	}
+
+	/**
 	 * Runnable to complete the given future with a {@link TimeoutException}.
 	 */
 	private static final class Timeout implements Runnable {
 
 		private final CompletableFuture<?> future;
+		private final String timeoutMsg;
 
-		private Timeout(CompletableFuture<?> future) {
+		private Timeout(CompletableFuture<?> future, @Nullable String timeoutMsg) {
 			this.future = checkNotNull(future);
+			this.timeoutMsg = timeoutMsg;
 		}
 
 		@Override
 		public void run() {
-			future.completeExceptionally(new TimeoutException());
+			future.completeExceptionally(new TimeoutException(timeoutMsg));
 		}
 	}
 
@@ -1112,6 +1244,18 @@ public class FutureUtils {
 		source.whenCompleteAsync(
 			forwardTo(target),
 			executor);
+	}
+
+	/**
+	 * Throws the causing exception if the given future is completed exceptionally, otherwise do nothing.
+	 *
+	 * @param future the future to check.
+	 * @throws Exception when the future is completed exceptionally.
+	 */
+	public static void throwIfCompletedExceptionally(CompletableFuture<?> future) throws Exception {
+		if (future.isCompletedExceptionally()) {
+			future.get();
+		}
 	}
 
 	private static <T> BiConsumer<T, Throwable> forwardTo(CompletableFuture<T> target) {

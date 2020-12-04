@@ -69,6 +69,11 @@ class TestContext {
 			public ClassLoader getClassLoader() {
 				return TestContext.class.getClassLoader();
 			}
+
+			@Override
+			public boolean isTemporary() {
+				return false;
+			}
 		};
 	}
 

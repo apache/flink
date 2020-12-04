@@ -48,7 +48,7 @@ public class ElasticsearchOptions {
 			.stringType()
 			.asList()
 			.noDefaultValue()
-			.withDescription("Elasticseatch hosts to connect to.");
+			.withDescription("Elasticsearch hosts to connect to.");
 	public static final ConfigOption<String> INDEX_OPTION =
 		ConfigOptions.key("index")
 			.stringType()
@@ -59,6 +59,16 @@ public class ElasticsearchOptions {
 			.stringType()
 			.noDefaultValue()
 			.withDescription("Elasticsearch document type.");
+	public static final ConfigOption<String> PASSWORD_OPTION =
+		ConfigOptions.key("password")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Password used to connect to Elasticsearch instance.");
+	public static final ConfigOption<String> USERNAME_OPTION =
+		ConfigOptions.key("username")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Username used to connect to Elasticsearch instance.");
 	public static final ConfigOption<String> KEY_DELIMITER_OPTION =
 		ConfigOptions.key("document-id.key-delimiter")
 			.stringType()

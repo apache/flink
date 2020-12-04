@@ -42,6 +42,7 @@ import java.util.List;
  * @param <T> The type of element in the list.
  */
 @Internal
+@Deprecated
 public class ListViewSerializer<T>
 		extends TypeSerializer<ListView<T>>
 		implements LegacySerializerSnapshotTransformer<ListView<T>> {
@@ -71,7 +72,9 @@ public class ListViewSerializer<T>
 
 	@Override
 	public ListView<T> copy(ListView<T> from) {
-		return new ListView<>(null, listSerializer.copy(from.list));
+		final ListView<T> view = new ListView<>();
+		view.setList(listSerializer.copy(from.getList()));
+		return view;
 	}
 
 	@Override
@@ -86,12 +89,14 @@ public class ListViewSerializer<T>
 
 	@Override
 	public void serialize(ListView<T> record, DataOutputView target) throws IOException {
-		listSerializer.serialize(record.list, target);
+		listSerializer.serialize(record.getList(), target);
 	}
 
 	@Override
 	public ListView<T> deserialize(DataInputView source) throws IOException {
-		return new ListView<>(null, listSerializer.deserialize(source));
+		final ListView<T> view = new ListView<>();
+		view.setList(listSerializer.deserialize(source));
+		return view;
 	}
 
 	@Override

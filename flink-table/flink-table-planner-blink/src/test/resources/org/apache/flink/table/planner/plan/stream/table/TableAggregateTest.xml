@@ -36,14 +36,14 @@ GroupTableAggregate(groupBy=[c], select=[c, EmptyTableAggFunc(a) AS (f0, f1)])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[f0 AS a, f1 AS b])
-+- GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
++- GroupTableAggregate(select=[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67(b) AS (f0, f1)])
    +- Exchange(distribution=[single])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
@@ -53,7 +53,7 @@ Calc(select=[f0 AS a, f1 AS b])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[AS($2, _UTF-16LE'y')])
-+- LogicalTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
++- LogicalTableAggregate(group=[{2}], tableAggregate=[[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67($0, $1)]])
    +- LogicalProject(a=[$0], b=[$1], bb=[MOD($1, 5)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
@@ -61,7 +61,7 @@ LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[bb, +(f0, 1) AS _c1, f1 AS y])
-+- GroupTableAggregate(groupBy=[bb], select=[bb, EmptyTableAggFunc(a, b) AS (f0, f1)])
++- GroupTableAggregate(groupBy=[bb], select=[bb, org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
       +- Calc(select=[a, b, MOD(b, 5) AS bb])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])

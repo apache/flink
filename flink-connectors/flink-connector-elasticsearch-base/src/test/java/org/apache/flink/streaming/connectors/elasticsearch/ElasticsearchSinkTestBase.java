@@ -21,12 +21,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.elasticsearch.client.Client;
-import org.junit.ClassRule;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,10 +42,11 @@ import static org.junit.Assert.fail;
  */
 public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> extends AbstractTestBase {
 
-	protected static final String CLUSTER_NAME = "test-cluster";
+	// It's not good that we're using a Client here instead of a Rest Client but we need this
+	// for compatibility with ES 5.3.x. As soon as we drop that we can use RestClient here.
+	protected abstract Client getClient();
 
-	@ClassRule
-	public static ElasticsearchResource elasticsearchResource = new ElasticsearchResource(CLUSTER_NAME);
+	protected abstract String getClusterName();
 
 	/**
 	 * Tests that the Elasticsearch sink works properly with json.
@@ -84,13 +83,14 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
 				1,
-				CLUSTER_NAME,
+				getClusterName(),
 				functionFactory.apply(index)));
 
 		env.execute("Elasticsearch Sink Test");
 
 		// verify the results
-		Client client = elasticsearchResource.getClient();
+		Client client = getClient();
+
 		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
 
 		client.close();
@@ -99,11 +99,11 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	/**
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code null}.
 	 */
-	public void runNullAddressesTest() throws Exception {
+	public void runNullAddressesTest() {
 		try {
 			createElasticsearchSink(
 					1,
-					CLUSTER_NAME,
+					getClusterName(),
 					null,
 					SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException | NullPointerException expectedException) {
@@ -117,11 +117,11 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	/**
 	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is empty.
 	 */
-	public void runEmptyAddressesTest() throws Exception {
+	public void runEmptyAddressesTest() {
 		try {
 			createElasticsearchSink(
 					1,
-					CLUSTER_NAME,
+					getClusterName(),
 					Collections.emptyList(),
 					SourceSinkDataTestKit.getJsonSinkFunction("test"));
 		} catch (IllegalArgumentException expectedException) {

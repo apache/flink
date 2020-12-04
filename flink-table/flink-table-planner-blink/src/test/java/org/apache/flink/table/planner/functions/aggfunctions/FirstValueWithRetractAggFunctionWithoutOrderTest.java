@@ -18,21 +18,21 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.BooleanFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ByteFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.DecimalFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.DoubleFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.FloatFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.IntFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.LongFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ShortFirstValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.StringFirstValueWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.FirstValueWithRetractAccumulator;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.serialization.types.ShortType;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -56,7 +56,7 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Test for ByteFirstValueWithRetractAggFunction.
+	 * Test for {@link TinyIntType}.
 	 */
 	public static final class ByteFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Byte> {
@@ -67,13 +67,13 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
-			return new ByteFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Byte, FirstValueWithRetractAccumulator<Byte>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.TINYINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for ShortFirstValueWithRetractAggFunction.
+	 * Test for {@link ShortType}.
 	 */
 	public static final class ShortFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Short> {
@@ -84,13 +84,13 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRowData> getAggregator() {
-			return new ShortFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Short, FirstValueWithRetractAccumulator<Short>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.SMALLINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for IntFirstValueWithRetractAggFunction.
+	 * Test for {@link IntType}.
 	 */
 	public static final class IntFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Integer> {
@@ -101,13 +101,13 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
-			return new IntFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Integer, FirstValueWithRetractAccumulator<Integer>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.INT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for LongFirstValueWithRetractAggFunction.
+	 * Test for {@link BigIntType}.
 	 */
 	public static final class LongFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Long> {
@@ -118,13 +118,13 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRowData> getAggregator() {
-			return new LongFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Long, FirstValueWithRetractAccumulator<Long>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.BIGINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for FloatFirstValueWithRetractAggFunction.
+	 * Test for {@link FloatType}.
 	 */
 	public static final class FloatFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Float> {
@@ -135,13 +135,13 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRowData> getAggregator() {
-			return new FloatFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Float, FirstValueWithRetractAccumulator<Float>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.FLOAT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for DoubleFirstValueWithRetractAggFunction.
+	 * Test for {@link DoubleType}.
 	 */
 	public static final class DoubleFirstValueWithRetractAggFunctionWithoutOrderTest
 			extends NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<Double> {
@@ -152,16 +152,16 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRowData> getAggregator() {
-			return new DoubleFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Double, FirstValueWithRetractAccumulator<Double>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.DOUBLE().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for BooleanFirstValueWithRetractAggFunction.
+	 * Test for {@link BooleanType}.
 	 */
-	public static final class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest extends
-			FirstValueWithRetractAggFunctionWithoutOrderTestBase<Boolean> {
+	public static final class BooleanFirstValueWithRetractAggFunctionWithoutOrderTest
+			extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -208,16 +208,16 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
-			return new BooleanFirstValueWithRetractAggFunction();
+		protected AggregateFunction<Boolean, FirstValueWithRetractAccumulator<Boolean>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for DecimalFirstValueWithRetractAggFunction.
+	 * Test for {@link DecimalType}.
 	 */
-	public static final class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest extends
-			FirstValueWithRetractAggFunctionWithoutOrderTestBase<DecimalData> {
+	public static final class DecimalFirstValueWithRetractAggFunctionWithoutOrderTest
+			extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<DecimalData> {
 
 		private int precision = 20;
 		private int scale = 6;
@@ -260,16 +260,16 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
-			return new DecimalFirstValueWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
+		protected AggregateFunction<DecimalData, FirstValueWithRetractAccumulator<DecimalData>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.DECIMAL(precision, scale).getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for StringFirstValueWithRetractAggFunction.
+	 * Test for {@link VarCharType}.
 	 */
-	public static final class StringFirstValueWithRetractAggFunctionWithoutOrderTest extends
-			FirstValueWithRetractAggFunctionWithoutOrderTestBase<StringData> {
+	public static final class StringFirstValueWithRetractAggFunctionWithoutOrderTest
+			extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<StringData> {
 
 		@Override
 		protected List<List<StringData>> getInputValueSets() {
@@ -310,8 +310,8 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
-			return new StringFirstValueWithRetractAggFunction();
+		protected AggregateFunction<StringData, FirstValueWithRetractAccumulator<StringData>> getAggregator() {
+			return new FirstValueWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
 		}
 	}
 
@@ -324,14 +324,14 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * The base test class for FirstValueWithRetractAggFunction without order.
+	 * Test base for {@link FirstValueWithRetractAggFunction} without order.
 	 */
 	public abstract static class FirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
-		extends AggFunctionTestBase<T, GenericRowData> {
+			extends AggFunctionTestBase<T, FirstValueWithRetractAccumulator<T>> {
 
 		@Override
 		protected Class<?> getAccClass() {
-			return GenericRowData.class;
+			return FirstValueWithRetractAccumulator.class;
 		}
 
 		@Override
@@ -341,10 +341,11 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 	}
 
 	/**
-	 * Test FirstValueWithRetractAggFunction for number type.
+	 * Test base for {@link FirstValueWithRetractAggFunction} with number types.
 	 */
 	public abstract static class NumberFirstValueWithRetractAggFunctionWithoutOrderTestBase<T>
-		extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<T> {
+			extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<T> {
+
 		protected abstract T getValue(String v);
 
 		@Override

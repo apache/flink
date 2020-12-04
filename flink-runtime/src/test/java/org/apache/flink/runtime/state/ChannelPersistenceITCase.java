@@ -18,41 +18,54 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReaderImpl;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
-import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
 
-import java.util.Collection;
-import java.util.List;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult.NO_MORE_DATA;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN;
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.RECOVERY_COMPLETION;
 import static org.apache.flink.util.CloseableIterator.ofElements;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * ChannelPersistenceITCase.
@@ -61,32 +74,117 @@ public class ChannelPersistenceITCase {
 	private static final Random RANDOM = new Random(System.currentTimeMillis());
 
 	@Test
+	public void testUpstreamBlocksAfterRecoveringState() throws Exception {
+		upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testNotBlocksAfterRecoveringStateForApproximateLocalRecovery() throws Exception {
+		upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED_APPROXIMATE);
+	}
+
+	@Test
 	public void testReadWritten() throws Exception {
-		long checkpointId = 1L;
-
-		InputChannelInfo inputChannelInfo = new InputChannelInfo(2, 3);
 		byte[] inputChannelInfoData = randomBytes(1024);
-
-		ResultSubpartitionInfo resultSubpartitionInfo = new ResultSubpartitionInfo(4, 5);
 		byte[] resultSubpartitionInfoData = randomBytes(1024);
+		int partitionIndex = 0;
 
-		ChannelStateWriteResult handles = write(
-			checkpointId,
-			singletonMap(inputChannelInfo, inputChannelInfoData),
-			singletonMap(resultSubpartitionInfo, resultSubpartitionInfoData)
-		);
+		SequentialChannelStateReader reader = new SequentialChannelStateReaderImpl(toTaskStateSnapshot(write(
+			1L,
+			singletonMap(new InputChannelInfo(0, 0), inputChannelInfoData),
+			singletonMap(new ResultSubpartitionInfo(partitionIndex, 0), resultSubpartitionInfoData)
+		)));
 
-		assertArrayEquals(inputChannelInfoData, read(
-			toTaskStateSnapshot(handles),
-			inputChannelInfoData.length,
-			(reader, mem) -> reader.readInputData(inputChannelInfo, new NetworkBuffer(mem, FreeingBufferRecycler.INSTANCE))
-		));
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
+		try {
+			int numChannels = 1;
+			InputGate gate = buildGate(networkBufferPool, numChannels);
+			reader.readInputData(new InputGate[]{gate});
+			assertArrayEquals(inputChannelInfoData, collectBytes(() -> gate.pollNext().map(BufferOrEvent::getBuffer)));
 
-		assertArrayEquals(resultSubpartitionInfoData, read(
-			toTaskStateSnapshot(handles),
-			resultSubpartitionInfoData.length,
-			(reader, mem) -> reader.readOutputData(resultSubpartitionInfo, new BufferBuilder(mem, FreeingBufferRecycler.INSTANCE))
-		));
+			BufferWritingResultPartition resultPartition = buildResultPartition(
+				networkBufferPool,
+				ResultPartitionType.PIPELINED,
+				partitionIndex,
+				numChannels);
+			reader.readOutputData(new BufferWritingResultPartition[]{resultPartition}, false);
+			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+			assertArrayEquals(resultSubpartitionInfoData, collectBytes(() -> Optional.ofNullable(view.getNextBuffer()).map(BufferAndBacklog::buffer)));
+		} finally {
+			networkBufferPool.destroy();
+		}
+	}
+
+	private void upstreamBlocksAfterRecoveringState(ResultPartitionType type) throws Exception {
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1024);
+		byte[] dataAfterRecovery = randomBytes(1024);
+		try {
+			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, type, 0, 1);
+			new SequentialChannelStateReaderImpl(new TaskStateSnapshot())
+				.readOutputData(new BufferWritingResultPartition[]{resultPartition}, true);
+			resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
+			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+			if (type != ResultPartitionType.PIPELINED_APPROXIMATE) {
+				assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
+				assertNull(view.getNextBuffer());
+				view.resumeConsumption();
+			}
+			assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
+		} finally {
+			networkBufferPool.destroy();
+		}
+	}
+
+	private BufferWritingResultPartition buildResultPartition(
+			NetworkBufferPool networkBufferPool,
+			ResultPartitionType resultPartitionType,
+			int index,
+			int numberOfSubpartitions) throws IOException {
+		ResultPartition resultPartition = new ResultPartitionBuilder()
+			.setResultPartitionIndex(index)
+			.setResultPartitionType(resultPartitionType)
+			.setNumberOfSubpartitions(numberOfSubpartitions)
+			.setBufferPoolFactory(() -> networkBufferPool.createBufferPool(
+				numberOfSubpartitions,
+				Integer.MAX_VALUE,
+				numberOfSubpartitions,
+				Integer.MAX_VALUE))
+			.build();
+		resultPartition.setup();
+		return (BufferWritingResultPartition) resultPartition;
+	}
+
+	private SingleInputGate buildGate(NetworkBufferPool networkBufferPool, int numberOfChannels) throws IOException {
+		SingleInputGate gate = new SingleInputGateBuilder()
+			.setChannelFactory(InputChannelBuilder::buildRemoteRecoveredChannel)
+			.setBufferPoolFactory(networkBufferPool.createBufferPool(numberOfChannels, Integer.MAX_VALUE))
+			.setSegmentProvider(networkBufferPool)
+			.setNumberOfChannels(numberOfChannels)
+			.build();
+		gate.setup();
+		return gate;
+	}
+
+	private byte[] collectBytes(SupplierWithException<Optional<Buffer>, Exception> bufferSupplier) throws Exception {
+		ArrayList<Buffer> buffers = new ArrayList<>();
+		for (Optional<Buffer> buffer = bufferSupplier.get(); buffer.isPresent(); buffer = bufferSupplier.get()){
+			if (buffer.get().getDataType().isBuffer()) {
+				buffers.add(buffer.get());
+			}
+		}
+		ByteBuffer result = ByteBuffer.wrap(new byte[buffers.stream().mapToInt(Buffer::getSize).sum()]);
+		buffers.forEach(buffer -> {
+			result.put(buffer.getNioBufferReadable());
+			buffer.recycleBuffer();
+		});
+		return result.array();
+	}
+
+	private byte[] collectBytes(Buffer buffer) {
+		ByteBuffer nioBufferReadable = buffer.getNioBufferReadable();
+		byte[] buf = new byte[nioBufferReadable.capacity()];
+		nioBufferReadable.get(buf);
+		return buf;
 	}
 
 	private byte[] randomBytes(int size) {
@@ -99,7 +197,7 @@ public class ChannelPersistenceITCase {
 		int maxStateSize = sizeOfBytes(icMap) + sizeOfBytes(rsMap) + Long.BYTES * 2;
 		Map<InputChannelInfo, Buffer> icBuffers = wrapWithBuffers(icMap);
 		Map<ResultSubpartitionInfo, Buffer> rsBuffers = wrapWithBuffers(rsMap);
-		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl("test", getStreamFactoryFactory(maxStateSize))) {
+		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl("test", 0, getStreamFactoryFactory(maxStateSize))) {
 			writer.open();
 			writer.start(checkpointId, new CheckpointOptions(CHECKPOINT, new CheckpointStorageLocationReference("poly".getBytes())));
 			for (Map.Entry<InputChannelInfo, Buffer> e : icBuffers.entrySet()) {
@@ -134,33 +232,13 @@ public class ChannelPersistenceITCase {
 		};
 	}
 
-	private byte[] read(TaskStateSnapshot taskStateSnapshot, int size, BiFunctionWithException<ChannelStateReader, MemorySegment, ReadResult, Exception> readFn) throws Exception {
-		byte[] dst = new byte[size];
-		HeapMemorySegment mem = HeapMemorySegment.FACTORY.wrap(dst);
-		try {
-			checkState(NO_MORE_DATA == readFn.apply(new ChannelStateReaderImpl(taskStateSnapshot), mem));
-		} finally {
-			mem.free();
-		}
-		return dst;
-	}
-
 	private TaskStateSnapshot toTaskStateSnapshot(ChannelStateWriteResult t) throws Exception {
-		return new TaskStateSnapshot(singletonMap(new OperatorID(),
-			new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				new StateObjectCollection<>(t.getInputChannelStateHandles().get()),
-				new StateObjectCollection<>(t.getResultSubpartitionStateHandles().get())
-			)
-		));
-	}
-
-	@SuppressWarnings("unchecked")
-	private <C> List<C> collect(Collection<StateObject> handles, Class<C> clazz) {
-		return handles.stream().filter(clazz::isInstance).map(h -> (C) h).collect(Collectors.toList());
+		return new TaskStateSnapshot(singletonMap(
+			new OperatorID(),
+			OperatorSubtaskState.builder()
+				.setInputChannelState(new StateObjectCollection<>(t.getInputChannelStateHandles().get()))
+				.setResultSubpartitionState(new StateObjectCollection<>(t.getResultSubpartitionStateHandles().get()))
+				.build()));
 	}
 
 	private static int sizeOfBytes(Map<?, byte[]> map) {

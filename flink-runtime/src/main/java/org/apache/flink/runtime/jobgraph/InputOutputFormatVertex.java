@@ -99,7 +99,6 @@ public class InputOutputFormatVertex extends JobVertex {
 					((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
 				}
 			}
-
 		} finally {
 			// restore original classloader
 			Thread.currentThread().setContextClassLoader(original);
@@ -132,7 +131,6 @@ public class InputOutputFormatVertex extends JobVertex {
 					((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
 				}
 			}
-
 		} finally {
 			// restore original classloader
 			Thread.currentThread().setContextClassLoader(original);

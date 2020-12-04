@@ -29,14 +29,24 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.util.Preconditions;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Utilities for handling {@link LogicalType}s.
  */
 @Internal
 public final class LogicalTypeUtils {
+
+	private static final String ATOMIC_FIELD_NAME = "f0";
 
 	private static final TimeAttributeRemover TIME_ATTRIBUTE_REMOVER = new TimeAttributeRemover();
 
@@ -102,6 +112,64 @@ public final class LogicalTypeUtils {
 			default:
 				throw new IllegalArgumentException("Illegal type: " + type);
 		}
+	}
+
+	/**
+	 * Converts any logical type to a row type. Composite types are converted to a row type. Atomic
+	 * types are wrapped into a field.
+	 */
+	public static RowType toRowType(LogicalType t) {
+		switch (t.getTypeRoot()) {
+			case ROW:
+				return (RowType) t;
+			case STRUCTURED_TYPE:
+				final StructuredType structuredType = (StructuredType) t;
+				final List<RowField> fields = structuredType.getAttributes()
+						.stream()
+						.map(attribute ->
+							new RowField(
+								attribute.getName(),
+								attribute.getType(),
+								attribute.getDescription().orElse(null))
+						)
+						.collect(Collectors.toList());
+				return new RowType(structuredType.isNullable(), fields);
+			case DISTINCT_TYPE:
+				return toRowType(((DistinctType) t).getSourceType());
+			default:
+				return RowType.of(t);
+		}
+	}
+
+	/**
+	 * Returns a unique name for an atomic type.
+	 */
+	public static String getAtomicName(List<String> existingNames) {
+		int i = 0;
+		String fieldName = ATOMIC_FIELD_NAME;
+		while ((null != existingNames) && existingNames.contains(fieldName)) {
+			fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+		}
+		return fieldName;
+	}
+
+	/**
+	 * Renames the fields of the given {@link RowType}.
+	 */
+	public static RowType renameRowFields(RowType rowType, List<String> newFieldNames) {
+		Preconditions.checkArgument(
+				rowType.getFieldCount() == newFieldNames.size(),
+				"Row length and new names must match.");
+		final List<RowField> newFields = IntStream.range(0, rowType.getFieldCount())
+				.mapToObj(pos -> {
+					final RowField oldField = rowType.getFields().get(pos);
+					return new RowField(
+							newFieldNames.get(pos),
+							oldField.getType(),
+							oldField.getDescription().orElse(null));
+				})
+				.collect(Collectors.toList());
+		return new RowType(rowType.isNullable(), newFields);
 	}
 
 	// --------------------------------------------------------------------------------------------

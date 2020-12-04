@@ -39,6 +39,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -157,7 +158,8 @@ public class StandaloneResourceManagerTest extends TestLogger {
 				fatalErrorHandler,
 				resourceManagerMetricGroup,
 				startupPeriodTime,
-				RpcUtils.INF_TIMEOUT);
+				RpcUtils.INF_TIMEOUT,
+				ForkJoinPool.commonPool());
 			this.rmServices = rmServices;
 		}
 	}

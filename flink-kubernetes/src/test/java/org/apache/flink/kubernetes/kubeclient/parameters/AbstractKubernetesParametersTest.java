@@ -20,15 +20,22 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
@@ -42,6 +49,9 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
 	private final Configuration flinkConfig = new Configuration();
 	private final TestingKubernetesParameters testingKubernetesParameters = new TestingKubernetesParameters(flinkConfig);
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testClusterIdMustNotBeBlank() {
@@ -78,7 +88,71 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 		assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
 	}
 
-	private class TestingKubernetesParameters extends AbstractKubernetesParameters {
+	@Test
+	public void testGetLocalHadoopConfigurationDirectoryReturnEmptyWhenHadoopEnvIsNotSet() throws Exception {
+		runTestWithEmptyEnv(() -> {
+			final Optional<String> optional = testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
+			assertThat(optional.isPresent(), is(false));
+		});
+	}
+
+	@Test
+	public void testGetLocalHadoopConfigurationDirectoryFromHadoopConfDirEnv() throws Exception {
+		runTestWithEmptyEnv(() -> {
+			final String hadoopConfDir = "/etc/hadoop/conf";
+			setEnv(Constants.ENV_HADOOP_CONF_DIR, hadoopConfDir);
+
+			final Optional<String> optional = testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
+			assertThat(optional.isPresent(), is(true));
+			assertThat(optional.get(), is(hadoopConfDir));
+		});
+	}
+
+	@Test
+	public void testGetLocalHadoopConfigurationDirectoryFromHadoop2HomeEnv() throws Exception {
+		runTestWithEmptyEnv(() -> {
+			final String hadoopHome = temporaryFolder.getRoot().getAbsolutePath();
+			temporaryFolder.newFolder("etc", "hadoop");
+			setEnv(Constants.ENV_HADOOP_HOME, hadoopHome);
+
+			final Optional<String> optional = testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
+			assertThat(optional.isPresent(), is(true));
+			assertThat(optional.get(), is(hadoopHome + "/etc/hadoop"));
+		});
+	}
+
+	@Test
+	public void testGetLocalHadoopConfigurationDirectoryFromHadoop1HomeEnv() throws Exception {
+		runTestWithEmptyEnv(() -> {
+			final String hadoopHome = temporaryFolder.getRoot().getAbsolutePath();
+			temporaryFolder.newFolder("conf");
+			setEnv(Constants.ENV_HADOOP_HOME, hadoopHome);
+
+			final Optional<String> optional = testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
+			assertThat(optional.isPresent(), is(true));
+			assertThat(optional.get(), is(hadoopHome + "/conf"));
+		});
+	}
+
+	private void runTestWithEmptyEnv(RunnableWithException testMethod) throws Exception {
+		final Map<String, String> current = new HashMap<>(System.getenv());
+		// Clear the environments
+		CommonTestUtils.setEnv(Collections.emptyMap(), true);
+		testMethod.run();
+		// Restore the environments
+		CommonTestUtils.setEnv(current, true);
+	}
+
+	private void setEnv(String key, String value) {
+		final Map<String, String> map = new HashMap<>();
+		map.put(key, value);
+		CommonTestUtils.setEnv(map, false);
+	}
+
+	/**
+	 * KubernetesParameters for testing usecase.
+	 */
+	public static class TestingKubernetesParameters extends AbstractKubernetesParameters {
 
 		public TestingKubernetesParameters(Configuration flinkConfig) {
 			super(flinkConfig);

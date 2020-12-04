@@ -21,8 +21,8 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,16 +45,16 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	private final StreamTaskInput<IN> input;
 	private final DataOutput<IN> output;
 
-	private final OperatorChain<?, ?> operatorChain;
+	private final BoundedMultiInput endOfInputAware;
 
 	public StreamOneInputProcessor(
 			StreamTaskInput<IN> input,
 			DataOutput<IN> output,
-			OperatorChain<?, ?> operatorChain) {
+			BoundedMultiInput endOfInputAware) {
 
 		this.input = checkNotNull(input);
 		this.output = checkNotNull(output);
-		this.operatorChain = checkNotNull(operatorChain);
+		this.endOfInputAware = checkNotNull(endOfInputAware);
 	}
 
 	@Override
@@ -67,7 +67,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endHeadOperatorInput(1);
+			endOfInputAware.endInput(input.getInputIndex() + 1);
 		}
 
 		return status;

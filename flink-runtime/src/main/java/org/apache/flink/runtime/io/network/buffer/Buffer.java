@@ -21,11 +21,14 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 
 import java.nio.ByteBuffer;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Wrapper for pooled {@link MemorySegment} instances with reference counting.
@@ -245,43 +248,120 @@ public interface Buffer {
 	 */
 	enum DataType {
 		/**
-		 * DATA_BUFFER indicates that this buffer represents a non-event data buffer.
+		 * {@link #NONE} indicates that there is no buffer.
 		 */
-		DATA_BUFFER(true, false),
+		NONE(false, false, false, false, false),
 
 		/**
-		 * EVENT_BUFFER indicates that this buffer represents serialized data of an event.
+		 * {@link #DATA_BUFFER} indicates that this buffer represents a non-event data buffer.
+		 */
+		DATA_BUFFER(true, false, false, false, false),
+
+		/**
+		 * {@link #EVENT_BUFFER} indicates that this buffer represents serialized data of an event.
 		 * Note that this type can be further divided into more fine-grained event types
-		 * like {@link #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
+		 * like {@link #ALIGNED_CHECKPOINT_BARRIER} and etc.
 		 */
-		EVENT_BUFFER(false, false),
+		EVENT_BUFFER(false, true, false, false, false),
 
 		/**
-		 * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
+		 * Same as EVENT_BUFFER, but the event has been prioritized (e.g. it skipped buffers).
+		 */
+		PRIORITIZED_EVENT_BUFFER(false, true, false, true, false),
+
+		/**
+		 * {@link #ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a
 		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
 		 */
-		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true);
+		ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, false),
+
+		/**
+		 * {@link #TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a
+		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode, that can be time-out'ed
+		 * to an unaligned checkpoint barrier.
+		 */
+		TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true),
+
+		/**
+		 * Indicates that this subpartition state is fully recovered (emitted).
+		 * Further data can be consumed after unblocking.
+		 */
+		RECOVERY_COMPLETION(false, true, true, false, false);
 
 		private final boolean isBuffer;
+		private final boolean isEvent;
 		private final boolean isBlockingUpstream;
+		private final boolean hasPriority;
+		/**
+		 * If buffer (currently only Events are supported in that case) requires announcement,
+		 * it's arrival in the {@link org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel}
+		 * will be announced, by a special announcement message. Announcement messages are
+		 * {@link #PRIORITIZED_EVENT_BUFFER} processed out of order. It allows readers of the input
+		 * to react sooner on arrival of such Events, before it will be able to be processed normally.
+		 */
+		private final boolean requiresAnnouncement;
 
-		DataType(boolean isBuffer, boolean isBlockingUpstream) {
+		DataType(
+				boolean isBuffer,
+				boolean isEvent,
+				boolean isBlockingUpstream,
+				boolean hasPriority,
+				boolean requiresAnnouncement) {
+			checkState(
+				!(requiresAnnouncement && hasPriority),
+				"DataType [%s] has both priority and requires announcement, which is not supported " +
+					"and doesn't make sense. There should be no need for announcing priority events, which are always " +
+					"overtaking in-flight data.",
+				this);
 			this.isBuffer = isBuffer;
+			this.isEvent = isEvent;
 			this.isBlockingUpstream = isBlockingUpstream;
+			this.hasPriority = hasPriority;
+			this.requiresAnnouncement = requiresAnnouncement;
 		}
 
 		public boolean isBuffer() {
 			return isBuffer;
 		}
 
+		public boolean isEvent() {
+			return isEvent;
+		}
+
+		public boolean hasPriority() {
+			return hasPriority;
+		}
+
 		public boolean isBlockingUpstream() {
 			return isBlockingUpstream;
 		}
 
-		public static DataType getDataType(AbstractEvent event) {
-			return event instanceof CheckpointBarrier && ((CheckpointBarrier) event).getCheckpointOptions().needsAlignment() ?
-					ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER :
-					EVENT_BUFFER;
+		public boolean requiresAnnouncement() {
+			return requiresAnnouncement;
+		}
+
+		public static DataType getDataType(AbstractEvent event, boolean hasPriority) {
+			if (hasPriority) {
+				return PRIORITIZED_EVENT_BUFFER;
+			}
+			else if (event instanceof EndOfChannelStateEvent) {
+				return RECOVERY_COMPLETION;
+			}
+			else if (!(event instanceof CheckpointBarrier)) {
+				return EVENT_BUFFER;
+			}
+			CheckpointBarrier barrier = (CheckpointBarrier) event;
+			if (barrier.getCheckpointOptions().needsAlignment()) {
+				if (barrier.getCheckpointOptions().isTimeoutable()) {
+					return TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER;
+				}
+				else {
+					return ALIGNED_CHECKPOINT_BARRIER;
+				}
+			}
+			else {
+				return EVENT_BUFFER;
+			}
 		}
 	}
 }

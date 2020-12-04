@@ -425,7 +425,8 @@ class StreamTableEnvironmentTest extends TableTestBase {
       jStreamExecEnv,
       streamPlanner,
       executor,
-      true)
+      true,
+      Thread.currentThread().getContextClassLoader)
 
     val sType = new TupleTypeInfo(Types.LONG, Types.INT, Types.STRING, Types.INT, Types.LONG)
       .asInstanceOf[TupleTypeInfo[JTuple5[JLong, JInt, String, JInt, JLong]]]

@@ -62,7 +62,7 @@ The following figure shows the application “MyApp” which consists of three o
 Src has one operator state (os1), Proc has one operator state (os2) and two keyed states (ks1, ks2) and Snk is stateless.
 
 <p style="display: block; text-align: center; margin-top: 20px; margin-bottom: 20px">
-	<img src="{{ site.baseurl }}/fig/application-my-app-state-processor-api.png" width="600px" alt="Application: MyApp"/>
+	<img src="{% link /fig/application-my-app-state-processor-api.png %}" width="600px" alt="Application: MyApp"/>
 </p>
 
 A savepoint or checkpoint of MyApp consists of the data of all states, organized in a way that the states of each task can be restored.
@@ -73,7 +73,7 @@ All keyed states of an operator are mapped to a single table consisting of a col
 The following figure shows how a savepoint of MyApp is mapped to a database.
 
 <p style="display: block; text-align: center; margin-top: 20px; margin-bottom: 20px">
-	<img src="{{ site.baseurl }}/fig/database-my-app-state-processor-api.png" width="600px" alt="Database: MyApp"/>
+	<img src="{% link /fig/database-my-app-state-processor-api.png %}" width="600px" alt="Database: MyApp"/>
 </p>
 
 The figure shows how the values of Src's operator state are mapped to a table with one column and five rows, one row for each of the list entries across all parallel tasks of Src.
@@ -104,7 +104,7 @@ val savepoint = Savepoint.load(bEnv, "hdfs://path/", new MemoryStateBackend)
 
 ### Operator State
 
-[Operator state]({{ site.baseurl }}/dev/stream/state/state.html#operator-state) is any non-keyed state in Flink.
+[Operator state]({% link dev/stream/state/state.md %}#operator-state) is any non-keyed state in Flink.
 This includes, but is not limited to, any use of `CheckpointedFunction` or `BroadcastState` within an application.
 When reading operator state, users specify the operator uid, the state name, and the type information.
 
@@ -160,7 +160,7 @@ val listState  = savepoint.readUnionState(
 
 #### Broadcast State
 
-[BroadcastState]({{ site.baseurl }} /dev/stream/state/broadcast_state.html) can be read using `ExistingSavepoint#readBroadcastState`.
+[BroadcastState]({% link dev/stream/state/broadcast_state.md %}) can be read using `ExistingSavepoint#readBroadcastState`.
 The state name and type information should match those used to define the `MapStateDescriptor` that declared this state in the DataStream application.
 The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
 
@@ -212,7 +212,7 @@ val listState = savepoint.readListState(
 
 ### Keyed State
 
-[Keyed state]({{ site.baseurl }}/dev/stream/state/state.html#keyed-state), or partitioned state, is any state that is partitioned relative to a key.
+[Keyed state]({% link dev/stream/state/state.md %}#keyed-state), or partitioned state, is any state that is partitioned relative to a key.
 When reading a keyed state, users specify the operator id and a `KeyedStateReaderFunction<KeyType, OutputType>`.
 
 The `KeyedStateReaderFunction` allows users to read arbitrary columns and complex state types such as ListState, MapState, and AggregatingState.
@@ -246,26 +246,24 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Void] {
- 
-   var state: ValueState[Integer] = _
- 
-   var updateTimes: ListState[Long] = _ 
+class StatefulFunctionWithTime extends KeyedProcessFunction[Int, Int, Void] {
+  var state: ValueState[Int] = _
+  var updateTimes: ListState[Long] = _
 
-   @throws[Exception]
-   override def open(parameters: Configuration): Unit = {
-      val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
-      state = getRuntimeContext().getState(stateDescriptor)
+  @throws[Exception]
+  override def open(parameters: Configuration): Unit = {
+    val stateDescriptor = new ValueStateDescriptor("state", createTypeInformation[Int])
+    state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
-      updateTimes = getRuntimeContext().getListState(updateDescriptor)
-   }
- 
-   @throws[Exception]
-   override def processElement(value: Integer, ctx: KeyedProcessFunction[ Integer, Integer, Void ]#Context, out: Collector[Void]): Unit = {
-      state.update(value + 1)
-      updateTimes.add(System.currentTimeMillis)
-   }
+    val updateDescriptor = new ListStateDescriptor("times", createTypeInformation[Long])
+    updateTimes = getRuntimeContext().getListState(updateDescriptor)
+  }
+
+  @throws[Exception]
+  override def processElement(value: Int, ctx: KeyedProcessFunction[Int, Int, Void]#Context, out: Collector[Void]): Unit = {
+    state.update(value + 1)
+    updateTimes.add(System.currentTimeMillis)
+  }
 }
 {% endhighlight %}
 </div>
@@ -321,34 +319,22 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val keyedState = savepoint.readKeyedState("my-uid", new ReaderFunction)
-
-case class KeyedState(key: Int, value: Int, times: List[Long])
- 
-class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
- 
-  var state: ValueState[Integer] = _
-
+class ReaderFunction extends KeyedStateReaderFunction[Int, KeyedState] {
+  var state: ValueState[Int] = _
   var updateTimes: ListState[Long] = _
- 
+
   @throws[Exception]
   override def open(parameters: Configuration): Unit = {
-     val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
-     state = getRuntimeContext().getState(stateDescriptor)
+    val stateDescriptor = new ValueStateDescriptor("state", createTypeInformation[Int])
+    state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
-      updateTimes = getRuntimeContext().getListState(updateDescriptor)
-    }
- 
+    val updateDescriptor = new ListStateDescriptor("times", createTypeInformation[Long])
+    updateTimes = getRuntimeContext().getListState(updateDescriptor)
+  }
 
-  @throws[Exception]
-  override def processKey(
-    key: Int,
-    ctx: Context,
-    out: Collector[Keyedstate]): Unit = {
- 
-     val data = KeyedState(key, state.value(), updateTimes.get.asScala.toList)
-     out.collect(data)
+  override def readKey(key: Int, ctx: KeyedStateReaderFunction.Context, out: Collector[KeyedState]): Unit = {
+    val data = KeyedState(key, state.value, updateTimes.get.asScala.toList)
+    out.collect(data)
   }
 }
 {% endhighlight %}
@@ -358,6 +344,173 @@ class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
 Along with reading registered state values, each key has access to a `Context` with metadata such as registered event time and processing time timers.
 
 {% panel **Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`. %}
+
+### Window State
+
+The state processor api supports reading state from a [window operator]({% link dev/stream/operators/windows.md %}).
+When reading a window state, users specify the operator id, window assigner, and aggregation type.
+
+Additionally, a `WindowReaderFunction` can be specified to enrich each read with additional information similar
+to a `WindowFunction` or `ProcessWindowFunction`.
+
+Suppose a DataStream application that counts the number of clicks per user per minute.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+class Click {
+    public String userId;
+
+    public LocalDateTime time;    
+}
+
+class ClickCounter implements AggregateFunction<Click, Integer, Integer> {
+
+	@Override
+	public Integer createAccumulator() {
+		return 0;
+	}
+
+	@Override
+	public Integer add(Click value, Integer accumulator) {
+		return 1 + accumulator;
+	}
+
+	@Override
+	public Integer getResult(Integer accumulator) {
+		return accumulator;
+	}
+
+	@Override
+	public Integer merge(Integer a, Integer b) {
+		return a + b;
+	}
+}
+
+DataStream<Click> clicks = . . . 
+
+clicks
+    .keyBy(click -> click.userId)
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .aggregate(new ClickCounter())
+    .uid("click-window")
+    .addSink(new Sink());
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+import java.lang.{Integer => JInteger}
+
+case class Click(userId: String, time: LocalDateTime)
+
+class ClickCounter extends AggregateFunction[Click, JInteger, JInteger] {
+
+	override def createAccumulator(): JInteger = 0
+
+    override def add(value: Click, accumulator: JInteger): JInteger = 1 + accumulator
+    
+    override def getResult(accumulator: JInteger): JInteger = accumulator
+
+    override def merge(a: JInteger, b: JInteger): JInteger = a + b
+}
+
+DataStream[Click] clicks = . . . 
+
+clicks
+    .keyBy(click => click.userId)
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .aggregate(new ClickCounter())
+    .uid("click-window")
+    .addSink(new Sink())
+
+{% endhighlight %}
+</div>
+</div>
+
+This state can be read using the code below.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+class ClickState {
+    
+    public String userId;
+
+    public int count;
+
+    public TimeWindow window;
+
+    public Set<Long> triggerTimers;
+}
+
+class ClickReader extends WindowReaderFunction<Integer, ClickState, String, TimeWindow> { 
+
+	@Override
+	public void readWindow(String key, Context<TimeWindow> context, Iterable<Integer> elements, Collector<ClickState> out) {
+		ClickState state = new ClickState();
+		state.userId = key;
+		state.count = elements.iterator().next();
+		state.window = context.window();
+		state.triggerTimers = context.registeredEventTimeTimers();
+		
+		out.collect(state);
+	}
+}
+
+ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend());
+
+savepoint
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
+    .print();
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+import java.lang.{Integer => JInteger, Long => JLong}
+import java.util.{Set => JSet}
+
+case class ClickState(userId: String, count: JInteger, window: TimeWindow, triggerTimers: JSet[JLong])
+
+class ClickReader extends WindowReaderFunction[JInteger, ClickState, String, TimeWindow] { 
+
+	override def readWindow(
+	    key: String,
+	    context: Context[TimeWindow],
+	    elements: Iterable[JInteger],
+	    out: Collector[ClickState]): Unit = {
+		 
+		state = ClickState(
+		    userId = key,
+		    count = elements.iterator().next(),
+		    window = context.window()k
+		    triggerTimers = context.registeredEventTimeTimers())
+		    
+		out.collect(state)
+	}
+}
+
+val batchEnv = ExecutionEnvironment.getExecutionEnvironment()
+val savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend())
+
+savepoint
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
+    .print()
+
+{% endhighlight %}
+</div>
+</div>
+
+Additionally, trigger state - from `CountTrigger`s or custom triggers - can be read using the method
+`Context#triggerState` inside the `WindowReaderFunction`.
 
 ## Writing New Savepoints
 
@@ -389,7 +542,7 @@ Savepoint
 </div>
 </div>
 
-The [UIDs]({{ site.baseurl}}/ops/state/savepoints.html#assigning-operator-ids) associated with each operator must match one to one with the UIDs assigned to the operators in your `DataStream` application; these are how Flink knows what state maps to which operator.
+The [UIDs]({% link ops/state/savepoints.md %}#assigning-operator-ids) associated with each operator must match one to one with the UIDs assigned to the operators in your `DataStream` application; these are how Flink knows what state maps to which operator.
 
 ### Operator State
 
@@ -458,7 +611,7 @@ BootstrapTransformation transformation = OperatorTransformation
 
 ### Broadcast State
 
-[BroadcastState]({{ site.baseurl }} /dev/stream/state/broadcast_state.html) can be written using a `BroadcastStateBootstrapFunction`. Similar to broadcast state in the `DataStream` API, the full state must fit in memory. 
+[BroadcastState]({% link dev/stream/state/broadcast_state.md %}) can be written using a `BroadcastStateBootstrapFunction`. Similar to broadcast state in the `DataStream` API, the full state must fit in memory. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -588,7 +741,57 @@ The `KeyedStateBootstrapFunction` supports setting event time and processing tim
 The timers will not fire inside the bootstrap function and only become active once restored within a `DataStream` application.
 If a processing time timer is set but the state is not restored until after that time has passed, the timer will fire immediately upon start.
 
-<span class="label label-danger">Attention</span> If your bootstrap function creates timers, the state can only be restored using one of the [process]({{ site.baseurl }}/dev/stream/operators/process_function.html) type functions.
+<span class="label label-danger">Attention</span> If your bootstrap function creates timers, the state can only be restored using one of the [process]({% link dev/stream/operators/process_function.md %}) type functions.
+
+### Window State
+
+The state processor api supports writing state for the [window operator]({% link dev/stream/operators/windows.md %}).
+When writing window state, users specify the operator id, window assigner, evictor, optional trigger, and aggregation type.
+It is important the configurations on the bootstrap transformation match the configurations on the DataStream window.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class Account {
+    public int id;
+
+    public double amount;	
+
+    public long timestamp;
+}
+ 
+ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<Account> accountDataSet = bEnv.fromCollection(accounts);
+
+BootstrapTransformation<Account> transformation = OperatorTransformation
+    .bootstrapWith(accountDataSet)
+    // When using event time windows, it is important
+    // to assign timestamps to each record.
+    .assignTimestamps(account -> account.timestamp)
+    .keyBy(acc -> acc.id)
+    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .reduce((left, right) -> left + right);
+{% endhighlight %}
+</div>
+<div data-lang="java" markdown="1">
+{% highlight scala %}
+case class Account(id: Int, amount: Double, timestamp: Long)
+ 
+val bEnv = ExecutionEnvironment.getExecutionEnvironment();
+val accountDataSet = bEnv.fromCollection(accounts);
+
+val transformation = OperatorTransformation
+    .bootstrapWith(accountDataSet)
+    // When using event time windows, its important
+    // to assign timestamps to each record.
+    .assignTimestamps(account => account.timestamp)
+    .keyBy(acc => acc.id)
+    .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+    .reduce((left, right) => left + right)
+{% endhighlight %}
+</div>
+</div>
 
 ## Modifying Savepoints
 
@@ -612,5 +815,3 @@ Savepoint
 {% endhighlight %}
 </div>
 </div>
-
-{% panel **Note:** When basing a new savepoint on existing state, the state processor api makes a shallow copy of the pointers to the existing operators. This means that both savepoints share state and one cannot be deleted without corrupting the other! %}

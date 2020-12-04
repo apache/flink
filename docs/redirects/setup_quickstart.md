@@ -1,7 +1,7 @@
 ---
 title: "Local Setup Tutorial"
 layout: redirect
-redirect: /ops/deployment/local.html
+redirect: /deployment/resource-providers/standalone/local.html
 permalink: /quickstart/setup_quickstart.html
 ---
 <!--

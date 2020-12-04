@@ -28,9 +28,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.output.BoundedOneInputStreamTaskRunner;
 import org.apache.flink.state.api.output.OperatorSubtaskStateReducer;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
@@ -82,13 +84,18 @@ public class BootstrapTransformation<T> {
 	/** Local max parallelism for the bootstrapped operator. */
 	private final OptionalInt operatorMaxParallelism;
 
+	@Nullable
+	private final Timestamper<T> timestamper;
+
 	BootstrapTransformation(
 		DataSet<T> dataSet,
 		OptionalInt operatorMaxParallelism,
+		@Nullable Timestamper<T> timestamper,
 		SavepointWriterOperatorFactory factory) {
 		this.dataSet = dataSet;
 		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
+		this.timestamper = timestamper;
 		this.originalKeySelector = null;
 		this.hashKeySelector = null;
 		this.keyType = null;
@@ -97,12 +104,14 @@ public class BootstrapTransformation<T> {
 	<K> BootstrapTransformation(
 		DataSet<T> dataSet,
 		OptionalInt operatorMaxParallelism,
+		@Nullable Timestamper<T> timestamper,
 		SavepointWriterOperatorFactory factory,
 		@Nonnull KeySelector<T, K> keySelector,
 		@Nonnull TypeInformation<K> keyType) {
 		this.dataSet = dataSet;
 		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
+		this.timestamper = timestamper;
 		this.originalKeySelector = keySelector;
 		this.hashKeySelector = new HashSelector<>(keySelector);
 		this.keyType = keyType;
@@ -156,7 +165,8 @@ public class BootstrapTransformation<T> {
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
 			config,
-			localMaxParallelism);
+			localMaxParallelism,
+			timestamper);
 
 		MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates = input
 			.mapPartition(operatorRunner)
@@ -194,6 +204,7 @@ public class BootstrapTransformation<T> {
 		config.setOperatorName(operatorID.toHexString());
 		config.setOperatorID(operatorID);
 		config.setStateBackend(stateBackend);
+		config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
 		return config;
 	}
 

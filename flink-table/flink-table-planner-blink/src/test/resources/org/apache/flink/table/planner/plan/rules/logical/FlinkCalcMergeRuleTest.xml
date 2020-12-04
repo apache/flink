@@ -70,11 +70,124 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-FlinkLogicalCalc(select=[a])
-+- FlinkLogicalCalc(select=[a], where=[>(random_udf(a), 10)])
-   +- FlinkLogicalCalc(select=[a])
-      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+FlinkLogicalCalc(select=[a], where=[>(random_udf(a), 10)])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithNestedNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT random_udf(a1) as a2 FROM (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a2=[random_udf($0)])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a1=[random_udf($0)], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[random_udf(random_udf(a)) AS a2], where=[>(b, 10)])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithTopMultiNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT random_udf(a1) as a2, random_udf(a1) as a3 FROM (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a1=[random_udf($0)], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
++- FlinkLogicalCalc(select=[random_udf(a) AS a1, b], where=[>(b, 10)])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeTopFilterHasNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM (SELECT a, random_udf(b) as b1, c FROM MyTable) t WHERE b1 > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], b1=[random_udf($1)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, c], where=[>(random_udf(b), 10)])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithBottomMultiNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b2 FROM (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE c > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], b2=[$1])
++- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
+   +- LogicalProject(a1=[random_udf($0)], b2=[random_udf($1)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[>(CAST(c), 10:BIGINT)])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithBottomMultiNonDeterministicInConditionExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM (SELECT random_udf(a) as a1, random_udf(b) as b2, c FROM MyTable) t WHERE a1 > b2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[>($0, $1)])
+   +- LogicalProject(a1=[random_udf($0)], b2=[random_udf($1)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+FlinkLogicalCalc(select=[c], where=[>(random_udf(a), random_udf(b))])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithoutInnerNonDeterministicExpr">
+  <Resource name="sql">
+    <![CDATA[SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10]]>
+  </Resource>
+  <Resource name="planBefore">
+    <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+  </Resource>
+  <Resource name="planAfter">
+    <![CDATA[
+FlinkLogicalCalc(select=[a, c], where=[>(CAST(c), 10:BIGINT)])
++- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+  </Resource>
   </TestCase>
 </Root>

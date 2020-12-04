@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.utils.StreamRecordCRowWrappingCollector;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -62,7 +63,6 @@ public abstract class AbstractRowPythonScalarFunctionOperator extends AbstractPy
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);

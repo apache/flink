@@ -2,7 +2,7 @@
 title: "Amazon Web Services (AWS)"
 layout: redirect
 redirect: /index.html
-permalink: /ops/deployment/aws.html
+permalink: /deployment/resource-providers/aws.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

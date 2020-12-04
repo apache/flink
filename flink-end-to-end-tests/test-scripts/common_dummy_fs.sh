@@ -17,9 +17,17 @@
 # limitations under the License.
 ################################################################################
 
+DUMMY_FS_PATH="${END_TO_END_DIR}/flink-plugins-test/dummy-fs/target/flink-dummy-fs.jar"
+ANOTHER_DUMMY_FS_PATH="${END_TO_END_DIR}/flink-plugins-test/another-dummy-fs/target/flink-another-dummy-fs.jar"
+
 function dummy_fs_setup() {
     mkdir -p "$FLINK_DIR/plugins/dummy-fs"
     mkdir -p "$FLINK_DIR/plugins/another-dummy-fs"
-    cp "${END_TO_END_DIR}/flink-plugins-test/dummy-fs/target/flink-dummy-fs.jar" "${FLINK_DIR}/plugins/dummy-fs/"
-    cp "${END_TO_END_DIR}/flink-plugins-test/another-dummy-fs/target/flink-another-dummy-fs.jar" "${FLINK_DIR}/plugins/another-dummy-fs/"
+    cp "$DUMMY_FS_PATH" "${FLINK_DIR}/plugins/dummy-fs/"
+    cp "$ANOTHER_DUMMY_FS_PATH" "${FLINK_DIR}/plugins/another-dummy-fs/"
+}
+
+function cp_dummy_fs_to_opt() {
+    cp "$DUMMY_FS_PATH" "${FLINK_DIR}/opt/"
+    cp "$ANOTHER_DUMMY_FS_PATH" "${FLINK_DIR}/opt/"
 }

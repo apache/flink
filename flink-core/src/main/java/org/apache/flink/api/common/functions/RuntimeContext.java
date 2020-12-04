@@ -42,7 +42,6 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -102,9 +101,9 @@ public interface RuntimeContext {
 	int getAttemptNumber();
 
 	/**
-	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
 	 * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be
-	 * {@link #getNumberOfParallelSubtasks()}.
+	 * {@link #getNumberOfParallelSubtasks()}, and 1 would be {@link #getAttemptNumber()}.
 	 *
 	 * @return The name of the task, with subtask indicator.
 	 */
@@ -124,6 +123,18 @@ public interface RuntimeContext {
 	 */
 	ClassLoader getUserCodeClassLoader();
 
+	/**
+	 * Registers a custom hook for the user code class loader release.
+	 *
+	 * <p>The release hook is executed just before the user code class loader is being released.
+	 * Registration only happens if no hook has been registered under this name already.
+	 *
+	 * @param releaseHookName name of the release hook.
+	 * @param releaseHook release hook which is executed just before the user code class loader is being released
+	 */
+	@PublicEvolving
+	void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook);
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -142,15 +153,6 @@ public interface RuntimeContext {
 	 * accumulator exists, but with different type.
 	 */
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
-
-	/**
-	 * Returns a map of all registered accumulators for this task.
-	 * The returned map must not be modified.
-	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
-	 */
-	@Deprecated
-	@PublicEvolving
-	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.

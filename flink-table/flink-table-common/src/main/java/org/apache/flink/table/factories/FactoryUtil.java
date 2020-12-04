@@ -45,7 +45,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -73,20 +72,6 @@ public final class FactoryUtil {
 			"Uniquely identifies the connector of a dynamic table that is used for accessing data in " +
 			"an external system. Its value is used during table source and table sink discovery.");
 
-	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
-		.key("key.format")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Defines the format identifier for encoding key data. " +
-			"The identifier is used to discover a suitable format factory.");
-
-	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
-		.key("value.format")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("Defines the format identifier for encoding value data. " +
-			"The identifier is used to discover a suitable format factory.");
-
 	public static final ConfigOption<String> FORMAT = ConfigOptions
 		.key("format")
 		.stringType()
@@ -94,9 +79,22 @@ public final class FactoryUtil {
 		.withDescription("Defines the format identifier for encoding data. " +
 			"The identifier is used to discover a suitable format factory.");
 
-	private static final String FORMAT_KEY = "format";
+	public static final ConfigOption<Integer> SINK_PARALLELISM = ConfigOptions
+			.key("sink.parallelism")
+			.intType()
+			.noDefaultValue()
+			.withDescription("Defines a custom parallelism for the sink. "
+					+ "By default, if this option is not defined, the planner will derive the parallelism "
+					+ "for each statement individually by also considering the global configuration.");
 
-	private static final String FORMAT_SUFFIX = ".format";
+	/**
+	 * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
+	 * for both key and value).
+	 *
+	 * <p>See {@link #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)} for
+	 * more information.
+	 */
+	public static final String FORMAT_SUFFIX = ".format";
 
 	/**
 	 * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -108,12 +106,14 @@ public final class FactoryUtil {
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
 			ReadableConfig configuration,
-			ClassLoader classLoader) {
+			ClassLoader classLoader,
+			boolean isTemporary) {
 		final DefaultDynamicTableContext context = new DefaultDynamicTableContext(
 			objectIdentifier,
 			catalogTable,
 			configuration,
-			classLoader);
+			classLoader,
+			isTemporary);
 		try {
 			final DynamicTableSourceFactory factory = getDynamicTableFactory(
 				DynamicTableSourceFactory.class,
@@ -147,12 +147,14 @@ public final class FactoryUtil {
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
 			ReadableConfig configuration,
-			ClassLoader classLoader) {
+			ClassLoader classLoader,
+			boolean isTemporary) {
 		final DefaultDynamicTableContext context = new DefaultDynamicTableContext(
 			objectIdentifier,
 			catalogTable,
 			configuration,
-			classLoader);
+			classLoader,
+			isTemporary);
 		try {
 			final DynamicTableSinkFactory factory = getDynamicTableFactory(
 				DynamicTableSinkFactory.class,
@@ -181,21 +183,24 @@ public final class FactoryUtil {
 	 *
 	 * <p>The following example sketches the usage:
 	 * <pre>{@code
-	 * // in createDynamicTableSource()
-	 * helper = FactoryUtil.createTableFactoryHelper(this, context);
-	 * keyFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, KEY_FORMAT);
-	 * valueFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
-	 * helper.validate();
-	 * ... // construct connector with discovered formats
+	 *     // in createDynamicTableSource()
+	 *     helper = FactoryUtil.createTableFactoryHelper(this, context);
+	 *
+	 *     keyFormat = helper.discoverDecodingFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+	 *     valueFormat = helper.discoverDecodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
+	 *
+	 *     helper.validate();
+	 *
+	 *     ... // construct connector with discovered formats
 	 * }</pre>
 	 *
-	 * <p>Note: The format option parameter of {@code helper.discoverScanFormat(formatFactoryClass, formatOption)}
-	 * and {@code helper.discoverSinkFormat(formatFactoryClass, formatOption)} must be 'format' or
-	 * with '.format' suffix (e.g. {@link #FORMAT}, {@link #KEY_FORMAT} and {@link #VALUE_FORMAT}).
-	 * The discovery logic will replace 'format' with the factory identifier value as the format
-	 * prefix. For example, assuming the identifier is 'json', if format option key is 'format',
-	 * then format prefix is 'json.'. If format option key is 'value.format', then format prefix
-	 * is 'value.json'. The format prefix is used to project the options for the format factory.
+	 * <p>Note: The format option parameter of {@link TableFactoryHelper#discoverEncodingFormat(Class, ConfigOption)}
+	 * and {@link TableFactoryHelper#discoverDecodingFormat(Class, ConfigOption)} must be {@link #FORMAT}
+	 * or end with {@link #FORMAT_SUFFIX}. The discovery logic will replace 'format' with the factory
+	 * identifier value as the format prefix. For example, assuming the identifier is 'json', if the
+	 * format option key is 'format', then the format prefix is 'json.'. If the format option key is
+	 * 'value.format', then the format prefix is 'value.json'. The format prefix is used to project
+	 * the options for the format factory.
 	 *
 	 * <p>Note: This utility checks for left-over options in the final step.
 	 */
@@ -209,8 +214,8 @@ public final class FactoryUtil {
 	 * Discovers a factory using the given factory base class and identifier.
 	 *
 	 * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)}
-	 * {@link #createTableSource(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader)},
-	 * and {@link #createTableSink(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader)}
+	 * {@link #createTableSource(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)},
+	 * and {@link #createTableSink(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)}
 	 * are not applicable.
 	 */
 	@SuppressWarnings("unchecked")
@@ -245,6 +250,7 @@ public final class FactoryUtil {
 					factoryClass.getName(),
 					foundFactories.stream()
 						.map(Factory::factoryIdentifier)
+						.distinct()
 						.sorted()
 						.collect(Collectors.joining("\n"))));
 		}
@@ -256,8 +262,8 @@ public final class FactoryUtil {
 					"%s",
 					factoryIdentifier,
 					factoryClass.getName(),
-					foundFactories.stream()
-						.map(f -> factories.getClass().getName())
+					matchingFactories.stream()
+						.map(f -> f.getClass().getName())
 						.sorted()
 						.collect(Collectors.joining("\n"))));
 		}
@@ -271,26 +277,64 @@ public final class FactoryUtil {
 	 * <p>Note: It does not check for left-over options.
 	 */
 	public static void validateFactoryOptions(Factory factory, ReadableConfig options) {
+		validateFactoryOptions(factory.requiredOptions(), factory.optionalOptions(), options);
+	}
+
+	/**
+	 * Validates the required options and optional options.
+	 *
+	 * <p>Note: It does not check for left-over options.
+	 */
+	public static void validateFactoryOptions(
+			Set<ConfigOption<?>> requiredOptions,
+			Set<ConfigOption<?>> optionalOptions,
+			ReadableConfig options) {
 		// currently Flink's options have no validation feature which is why we access them eagerly
 		// to provoke a parsing error
 
-		final List<String> missingRequiredOptions = factory.requiredOptions().stream()
-			.filter(option -> readOption(options, option) == null)
-			.map(ConfigOption::key)
-			.sorted()
-			.collect(Collectors.toList());
+		final List<String> missingRequiredOptions = requiredOptions.stream()
+				.filter(option -> readOption(options, option) == null)
+				.map(ConfigOption::key)
+				.sorted()
+				.collect(Collectors.toList());
 
 		if (!missingRequiredOptions.isEmpty()) {
 			throw new ValidationException(
-				String.format(
-					"One or more required options are missing.\n\n" +
-					"Missing required options are:\n\n" +
-					"%s",
-					String.join("\n", missingRequiredOptions)));
+					String.format(
+							"One or more required options are missing.\n\n" +
+									"Missing required options are:\n\n" +
+									"%s",
+							String.join("\n", missingRequiredOptions)));
 		}
 
-		factory.optionalOptions()
-			.forEach(option -> readOption(options, option));
+		optionalOptions.forEach(option -> readOption(options, option));
+	}
+
+	/**
+	 * Validates unconsumed option keys.
+	 */
+	public static void validateUnconsumedKeys(
+			String factoryIdentifier,
+			Set<String> allOptionKeys,
+			Set<String> consumedOptionKeys) {
+		final Set<String> remainingOptionKeys = new HashSet<>(allOptionKeys);
+		remainingOptionKeys.removeAll(consumedOptionKeys);
+		if (remainingOptionKeys.size() > 0) {
+			throw new ValidationException(
+					String.format(
+							"Unsupported options found for connector '%s'.\n\n" +
+									"Unsupported options:\n\n" +
+									"%s\n\n" +
+									"Supported options:\n\n" +
+									"%s",
+							factoryIdentifier,
+							remainingOptionKeys.stream()
+									.sorted()
+									.collect(Collectors.joining("\n")),
+							consumedOptionKeys.stream()
+									.sorted()
+									.collect(Collectors.joining("\n"))));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -325,11 +369,44 @@ public final class FactoryUtil {
 		try {
 			return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
 		} catch (ValidationException e) {
-			throw new ValidationException(
+			throw enrichNoMatchingConnectorError(factoryClass, context, connectorOption);
+		}
+	}
+
+	private static ValidationException enrichNoMatchingConnectorError(
+			Class<?> factoryClass,
+			DefaultDynamicTableContext context,
+			String connectorOption) {
+		final DynamicTableFactory factory;
+		try {
+			factory = discoverFactory(context.getClassLoader(), DynamicTableFactory.class, connectorOption);
+		} catch (ValidationException e) {
+			return new ValidationException(
 				String.format(
-					"Cannot discover a connector using option '%s'.",
+					"Cannot discover a connector using option: %s",
 					stringifyOption(CONNECTOR.key(), connectorOption)),
 				e);
+		}
+
+		final Class<?> sourceFactoryClass = DynamicTableSourceFactory.class;
+		final Class<?> sinkFactoryClass = DynamicTableSinkFactory.class;
+		// for a better exception message
+		if (sourceFactoryClass.equals(factoryClass) && sinkFactoryClass.isAssignableFrom(factory.getClass())) {
+			// discovering source, but not found, and this is a sink connector.
+			return new ValidationException(String.format(
+				"Connector '%s' can only be used as a sink. It cannot be used as a source.",
+				connectorOption));
+		} else if (sinkFactoryClass.equals(factoryClass) && sourceFactoryClass.isAssignableFrom(factory.getClass())) {
+			// discovering sink, but not found, and this is a source connector.
+			return new ValidationException(String.format(
+				"Connector '%s' can only be used as a source. It cannot be used as a sink.",
+				connectorOption));
+		} else {
+			return new ValidationException(String.format(
+				"Connector '%s' does neither implement the '%s' nor the '%s' interface.",
+				connectorOption,
+				sourceFactoryClass.getName(),
+				sinkFactoryClass.getName()));
 		}
 	}
 
@@ -352,12 +429,6 @@ public final class FactoryUtil {
 			"'%s'='%s'",
 			EncodingUtils.escapeSingleQuotes(key),
 			EncodingUtils.escapeSingleQuotes(value));
-	}
-
-	private static Configuration asConfiguration(Map<String, String> options) {
-		final Configuration configuration = new Configuration();
-		options.forEach(configuration::setString);
-		return configuration;
 	}
 
 	private static <T> T readOption(ReadableConfig options, ConfigOption<T> option) {
@@ -390,7 +461,7 @@ public final class FactoryUtil {
 		private TableFactoryHelper(DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
 			this.tableFactory = tableFactory;
 			this.context = context;
-			this.allOptions = asConfiguration(context.getCatalogTable().getOptions());
+			this.allOptions = Configuration.fromMap(context.getCatalogTable().getOptions());
 			this.consumedOptionKeys = new HashSet<>();
 			this.consumedOptionKeys.add(PROPERTY_VERSION.key());
 			this.consumedOptionKeys.add(CONNECTOR.key());
@@ -480,24 +551,7 @@ public final class FactoryUtil {
 		 */
 		public void validate() {
 			validateFactoryOptions(tableFactory, allOptions);
-			final Set<String> remainingOptionKeys = new HashSet<>(allOptions.keySet());
-			remainingOptionKeys.removeAll(consumedOptionKeys);
-			if (remainingOptionKeys.size() > 0) {
-				throw new ValidationException(
-					String.format(
-						"Unsupported options found for connector '%s'.\n\n" +
-						"Unsupported options:\n\n" +
-						"%s\n\n" +
-						"Supported options:\n\n" +
-						"%s",
-						tableFactory.factoryIdentifier(),
-						remainingOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n")),
-						consumedOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n"))));
-			}
+			validateUnconsumedKeys(tableFactory.factoryIdentifier(), allOptions.keySet(), consumedOptionKeys);
 		}
 
 		/**
@@ -556,7 +610,7 @@ public final class FactoryUtil {
 
 		private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
 			String identifier = formatFactory.factoryIdentifier();
-			if (formatOption.key().equals(FORMAT_KEY)) {
+			if (formatOption.key().equals(FORMAT.key())) {
 				return identifier + ".";
 			} else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
 				// extract the key prefix, e.g. extract 'key' from 'key.format'
@@ -582,16 +636,19 @@ public final class FactoryUtil {
 		private final CatalogTable catalogTable;
 		private final ReadableConfig configuration;
 		private final ClassLoader classLoader;
+		private final boolean isTemporary;
 
 		DefaultDynamicTableContext(
 				ObjectIdentifier objectIdentifier,
 				CatalogTable catalogTable,
 				ReadableConfig configuration,
-				ClassLoader classLoader) {
+				ClassLoader classLoader,
+				boolean isTemporary) {
 			this.objectIdentifier = objectIdentifier;
 			this.catalogTable = catalogTable;
 			this.configuration = configuration;
 			this.classLoader = classLoader;
+			this.isTemporary = isTemporary;
 		}
 
 		@Override
@@ -612,6 +669,11 @@ public final class FactoryUtil {
 		@Override
 		public ClassLoader getClassLoader() {
 			return classLoader;
+		}
+
+		@Override
+		public boolean isTemporary() {
+			return isTemporary;
 		}
 	}
 

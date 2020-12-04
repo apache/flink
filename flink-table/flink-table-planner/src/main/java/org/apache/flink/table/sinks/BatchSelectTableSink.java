@@ -99,8 +99,7 @@ public class BatchSelectTableSink implements BatchTableSink<Row> {
 	private CloseableIterator<Row> collectResult(JobClient jobClient) {
 		JobExecutionResult jobExecutionResult;
 		try {
-			jobExecutionResult = jobClient.getJobExecutionResult(
-					Thread.currentThread().getContextClassLoader())
+			jobExecutionResult = jobClient.getJobExecutionResult()
 					.get();
 		} catch (InterruptedException | ExecutionException e) {
 			throw new TableException("Failed to get job execution result.", e);

@@ -37,7 +37,8 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Arrays;
+import org.apache.commons.lang3.StringEscapeUtils;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -48,7 +49,6 @@ import static org.apache.flink.formats.csv.CsvOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.csv.CsvOptions.LINE_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
 
@@ -62,7 +62,6 @@ public final class CsvFormatFactory implements
 
 	public static final String IDENTIFIER = "csv";
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context, ReadableConfig formatOptions) {
@@ -76,7 +75,7 @@ public final class CsvFormatFactory implements
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+						context.createTypeInformation(producedDataType);
 				final CsvRowDataDeserializationSchema.Builder schemaBuilder =
 						new CsvRowDataDeserializationSchema.Builder(
 								rowType,
@@ -132,7 +131,6 @@ public final class CsvFormatFactory implements
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(FIELD_DELIMITER);
-		options.add(LINE_DELIMITER);
 		options.add(DISABLE_QUOTE_CHARACTER);
 		options.add(QUOTE_CHARACTER);
 		options.add(ALLOW_COMMENTS);
@@ -155,30 +153,37 @@ public final class CsvFormatFactory implements
 					"Format cannot define a quote character and disabled quote character at the same time.");
 		}
 		// Validate the option value must be a single char.
-		validateCharacterVal(tableOptions, FIELD_DELIMITER);
+		validateCharacterVal(tableOptions, FIELD_DELIMITER, true);
 		validateCharacterVal(tableOptions, ARRAY_ELEMENT_DELIMITER);
 		validateCharacterVal(tableOptions, QUOTE_CHARACTER);
 		validateCharacterVal(tableOptions, ESCAPE_CHARACTER);
-
-		tableOptions.getOptional(LINE_DELIMITER).ifPresent(delimiter -> {
-			Set<String> allowedValues = new HashSet<>(Arrays.asList("\r", "\n", "\r\n", ""));
-			if (!allowedValues.contains(delimiter)) {
-				throw new ValidationException(
-						String.format("Invalid value for option '%s.%s'. Supported values are %s, but was: %s",
-								IDENTIFIER,
-								LINE_DELIMITER.key(),
-								"[\\r, \\n, \\r\\n, \"\"]",
-								delimiter));
-			}
-		});
 	}
 
-	/** Validates the option {@code option} value must be a Character. */
+	/**
+	 * Validates the option {@code option} value must be a Character.
+	 */
+	private static void validateCharacterVal(
+		ReadableConfig tableOptions,
+		ConfigOption<String> option) {
+		validateCharacterVal(tableOptions, option, false);
+	}
+
+	/**
+	 * Validates the option {@code option} value must be a Character.
+	 *
+	 * @param tableOptions the table options
+	 * @param option       the config option
+	 * @param unescape     whether to unescape the option value
+	 */
 	private static void validateCharacterVal(
 			ReadableConfig tableOptions,
-			ConfigOption<String> option) {
+			ConfigOption<String> option,
+			boolean unescape) {
 		if (tableOptions.getOptional(option).isPresent()) {
-			if (tableOptions.get(option).length() != 1) {
+			final String value = unescape
+				? StringEscapeUtils.unescapeJava(tableOptions.get(option))
+				: tableOptions.get(option);
+			if (value.length() != 1) {
 				throw new ValidationException(
 						String.format("Option '%s.%s' must be a string with single character, but was: %s",
 								IDENTIFIER,
@@ -196,7 +201,7 @@ public final class CsvFormatFactory implements
 			ReadableConfig formatOptions,
 			CsvRowDataDeserializationSchema.Builder schemaBuilder) {
 		formatOptions.getOptional(FIELD_DELIMITER)
-				.map(delimiter -> delimiter.charAt(0))
+				.map(delimiter -> StringEscapeUtils.unescapeJava(delimiter).charAt(0))
 				.ifPresent(schemaBuilder::setFieldDelimiter);
 
 		formatOptions.getOptional(QUOTE_CHARACTER)
@@ -224,11 +229,8 @@ public final class CsvFormatFactory implements
 			ReadableConfig formatOptions,
 			CsvRowDataSerializationSchema.Builder schemaBuilder) {
 		formatOptions.getOptional(FIELD_DELIMITER)
-				.map(delimiter -> delimiter.charAt(0))
+				.map(delimiter -> StringEscapeUtils.unescapeJava(delimiter).charAt(0))
 				.ifPresent(schemaBuilder::setFieldDelimiter);
-
-		formatOptions.getOptional(LINE_DELIMITER)
-				.ifPresent(schemaBuilder::setLineDelimiter);
 
 		if (formatOptions.get(DISABLE_QUOTE_CHARACTER)) {
 			schemaBuilder.disableQuoteCharacter();

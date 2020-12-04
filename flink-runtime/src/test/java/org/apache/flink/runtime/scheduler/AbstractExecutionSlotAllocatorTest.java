@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
@@ -26,12 +27,15 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.createSchedulingRequirements;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -114,21 +118,10 @@ public class AbstractExecutionSlotAllocatorTest extends TestLogger {
 	public void testComputeAllPriorAllocationIds() {
 		final List<AllocationID> expectAllocationIds = Arrays.asList(new AllocationID(), new AllocationID());
 		final List<ExecutionVertexSchedulingRequirements> testSchedulingRequirements = Arrays.asList(
-			new ExecutionVertexSchedulingRequirements.Builder().
-				withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 0)).
-				withPreviousAllocationId(expectAllocationIds.get(0)).
-				build(),
-			new ExecutionVertexSchedulingRequirements.Builder().
-				withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 1)).
-				withPreviousAllocationId(expectAllocationIds.get(0)).
-				build(),
-			new ExecutionVertexSchedulingRequirements.Builder().
-				withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 2)).
-				withPreviousAllocationId(expectAllocationIds.get(1)).
-				build(),
-			new ExecutionVertexSchedulingRequirements.Builder().
-				withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 3)).
-				build()
+			createSchedulingRequirement(0, expectAllocationIds.get(0)),
+			createSchedulingRequirement(1, expectAllocationIds.get(0)),
+			createSchedulingRequirement(2, expectAllocationIds.get(1)),
+			createSchedulingRequirement(3)
 		);
 
 		final Set<AllocationID> allPriorAllocationIds =
@@ -136,16 +129,19 @@ public class AbstractExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(allPriorAllocationIds, containsInAnyOrder(expectAllocationIds.toArray()));
 	}
 
-	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(
-			final ExecutionVertexID... executionVertexIds) {
+	private ExecutionVertexSchedulingRequirements createSchedulingRequirement(
+			final int subtaskIndex) {
+		return createSchedulingRequirement(subtaskIndex, null);
+	}
 
-		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = new ArrayList<>(executionVertexIds.length);
-
-		for (ExecutionVertexID executionVertexId : executionVertexIds) {
-			schedulingRequirements.add(new ExecutionVertexSchedulingRequirements.Builder()
-				.withExecutionVertexId(executionVertexId).build());
-		}
-		return schedulingRequirements;
+	private ExecutionVertexSchedulingRequirements createSchedulingRequirement(
+			final int subtaskIndex,
+			@Nullable final AllocationID previousAllocationId) {
+		return new ExecutionVertexSchedulingRequirements.Builder()
+			.withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), subtaskIndex))
+			.withSlotSharingGroupId(new SlotSharingGroupId())
+			.withPreviousAllocationId(previousAllocationId)
+			.build();
 	}
 
 	private static class TestingExecutionSlotAllocator extends AbstractExecutionSlotAllocator {

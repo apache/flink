@@ -23,9 +23,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -61,12 +61,13 @@ import java.io.Serializable;
  * {@link StreamingFileSink#forBulkFormat(Path, BulkWriter.Factory)}.
  *
  *
- * <p>The filenames of the part files could be defined using {@link OutputFileConfig}, this configuration contain
- * a part prefix and part suffix, that will be used with the parallel subtask index of the sink
- * and a rolling counter. For example for a prefix "prefix" and a suffix ".ext" the file create will have a name
- * {@code "prefix-1-17.ext"} containing the data from {@code subtask 1} of the sink and is the {@code 17th} bucket
+ * <p>The names of the part files could be defined using {@link OutputFileConfig}. This configuration contains
+ * a part prefix and a part suffix that will be used with the parallel subtask index of the sink and a rolling counter
+ * to determine the file names. For example with a prefix "prefix" and a suffix ".ext", a file named
+ * {@code "prefix-1-17.ext"} contains the data from {@code subtask 1} of the sink and is the {@code 17th} bucket
  * created by that subtask.
- * Part files roll based on the user-specified {@link RollingPolicy}. By default, a {@link DefaultRollingPolicy}
+ *
+ * <p>Part files roll based on the user-specified {@link RollingPolicy}. By default, a {@link DefaultRollingPolicy}
  * is used for row-encoded sink output; a {@link OnCheckpointRollingPolicy} is used for bulk-encoded sink output.
  *
  * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the user
@@ -123,7 +124,7 @@ public class StreamingFileSink<IN>
 	// --------------------------- Sink Builders  -----------------------------
 
 	/**
-	 * Creates the builder for a {@code StreamingFileSink} with row-encoding format.
+	 * Creates the builder for a {@link StreamingFileSink} with row-encoding format.
 	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
 	 * @param encoder the {@link Encoder} to be used when writing elements in the buckets.
 	 * @param <IN> the type of incoming elements
@@ -136,12 +137,12 @@ public class StreamingFileSink<IN>
 	}
 
 	/**
-	 * Creates the builder for a {@link StreamingFileSink} with row-encoding format.
+	 * Creates the builder for a {@link StreamingFileSink} with bulk-encoding format.
 	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
 	 * @param writerFactory the {@link BulkWriter.Factory} to be used when writing elements in the buckets.
 	 * @param <IN> the type of incoming elements
 	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
-	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
+	 * In order to instantiate the sink, call {@link BulkFormatBuilder#build()} after specifying the desired parameters.
 	 */
 	public static <IN> StreamingFileSink.DefaultBulkFormatBuilder<IN> forBulkFormat(
 			final Path basePath, final BulkWriter.Factory<IN> writerFactory) {
@@ -162,6 +163,9 @@ public class StreamingFileSink<IN>
 		protected T self() {
 			return (T) this;
 		}
+
+		@Internal
+		public abstract BucketWriter<IN, BucketID> createBucketWriter() throws IOException;
 
 		@Internal
 		public abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
@@ -252,12 +256,18 @@ public class StreamingFileSink<IN>
 
 		@Internal
 		@Override
+		public BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+			return new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder);
+		}
+
+		@Internal
+		@Override
 		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
+					createBucketWriter(),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
@@ -363,12 +373,18 @@ public class StreamingFileSink<IN>
 
 		@Internal
 		@Override
+		public BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+			return new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory);
+		}
+
+		@Internal
+		@Override
 		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
+					createBucketWriter(),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);

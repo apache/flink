@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.ChangelogMode
@@ -27,7 +26,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -57,20 +56,19 @@ class BatchExecSink(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * For sink operator, the records will not pass through it, so it's DamBehavior is FULL_DAM.
-    *
-    * @return Returns [[DamBehavior]] of Sink.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
+  override def getInputNodes: util.List[ExecNode[_]] =
+    List(getInput.asInstanceOf[ExecNode[_]])
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-  }
+  // the input records will not trigger any output of a sink because it has no output,
+  // so it's dam behavior is BLOCKING
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .build())
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
@@ -85,12 +83,13 @@ class BatchExecSink(
     }
 
     // tell sink the ChangelogMode of input, batch only supports INSERT only.
-    tableSink.getChangelogMode(ChangelogMode.insertOnly())
+    val changelogMode = tableSink.getChangelogMode(ChangelogMode.insertOnly())
     createSinkTransformation(
       planner.getExecEnv,
       inputTransformation,
       planner.getTableConfig,
       -1 /* not rowtime field */,
-      isBounded = true)
+      isBounded = true,
+      changelogMode = changelogMode)
   }
 }

@@ -53,6 +53,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,7 +186,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
-		return new IterativeRuntimeUdfContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new IterativeRuntimeUdfContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics, env.getExternalResourceInfoProvider());
 	}
 
@@ -376,7 +377,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+		public IterativeRuntimeUdfContext(TaskInfo taskInfo, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
 											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulatorMap,
 											MetricGroup metrics, ExternalResourceInfoProvider externalResourceInfoProvider) {
 			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap, metrics, externalResourceInfoProvider);

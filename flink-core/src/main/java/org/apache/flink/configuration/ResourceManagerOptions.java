@@ -68,6 +68,19 @@ public class ResourceManagerOptions {
 			"effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
 	/**
+	 * The number of redundant task managers. Redundant task managers are extra task managers started by Flink,
+	 * in order to speed up job recovery in case of failures due to task manager lost.
+	 * Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).
+	 */
+	public static final ConfigOption<Integer> REDUNDANT_TASK_MANAGER_NUM = ConfigOptions
+		.key("slotmanager.redundant-taskmanager-num")
+		.intType()
+		.defaultValue(0)
+		.withDescription("The number of redundant task managers. Redundant task managers are extra task managers " +
+			"started by Flink, in order to speed up job recovery in case of failures due to task manager lost. " +
+			"Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
+
+	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.
 	 * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
 	 */

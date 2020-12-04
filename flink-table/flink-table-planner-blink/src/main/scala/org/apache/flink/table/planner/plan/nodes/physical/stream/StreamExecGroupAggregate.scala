@@ -32,7 +32,8 @@ import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUt
 import org.apache.flink.table.runtime.operators.aggregate.{GroupAggFunction, MiniBatchGroupAggFunction}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
@@ -95,13 +96,13 @@ class StreamExecGroupAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
@@ -157,20 +158,20 @@ class StreamExecGroupAggregate(
         accTypes,
         inputRowType,
         inputCountIndex,
-        generateUpdateBefore)
+        generateUpdateBefore,
+        tableConfig.getIdleStateRetention.toMillis)
 
       new KeyedMapBundleOperator(
         aggFunction,
         AggregateUtil.createMiniBatchTrigger(tableConfig))
     } else {
       val aggFunction = new GroupAggFunction(
-        tableConfig.getMinIdleStateRetentionTime,
-        tableConfig.getMaxIdleStateRetentionTime,
         aggsHandler,
         recordEqualiser,
         accTypes,
         inputCountIndex,
-        generateUpdateBefore)
+        generateUpdateBefore,
+        tableConfig.getIdleStateRetention.toMillis)
 
       val operator = new KeyedProcessOperator[RowData, RowData, RowData](aggFunction)
       operator
@@ -178,14 +179,14 @@ class StreamExecGroupAggregate(
 
     val selector = KeySelectorUtil.getRowDataSelector(
       grouping,
-      RowDataTypeInfo.of(inputRowType))
+      InternalTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

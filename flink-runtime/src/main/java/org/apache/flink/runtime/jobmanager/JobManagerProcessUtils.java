@@ -21,6 +21,8 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
@@ -33,6 +35,8 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
@@ -68,8 +72,14 @@ public class JobManagerProcessUtils {
 	public static JobManagerProcessSpec processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			Configuration config,
 			ConfigOption<MemorySize> newOptionToInterpretLegacyHeap) {
-		return processSpecFromConfig(
-			getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(config, newOptionToInterpretLegacyHeap));
+		try {
+			return processSpecFromConfig(
+				getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
+					config,
+					newOptionToInterpretLegacyHeap));
+		} catch (IllegalConfigurationException e) {
+			throw new IllegalConfigurationException("JobManager memory configuration failed: " + e.getMessage(), e);
+		}
 	}
 
 	static JobManagerProcessSpec processSpecFromConfig(Configuration config) {
@@ -98,5 +108,18 @@ public class JobManagerProcessUtils {
 		return ProcessMemoryUtils.generateJvmParametersStr(
 			processSpec,
 			configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
+	}
+
+	public static String generateDynamicConfigsStr(final JobManagerProcessSpec jobManagerProcessSpec) {
+		final Map<String, String> config = new HashMap<>();
+
+		config.put(JobManagerOptions.JVM_HEAP_MEMORY.key(), jobManagerProcessSpec.getJvmHeapMemorySize().getBytes() + "b");
+		config.put(JobManagerOptions.OFF_HEAP_MEMORY.key(), jobManagerProcessSpec.getJvmDirectMemorySize().getBytes() + "b");
+
+		config.put(JobManagerOptions.JVM_METASPACE.key(), jobManagerProcessSpec.getJvmMetaspaceSize().getBytes() + "b");
+		config.put(JobManagerOptions.JVM_OVERHEAD_MIN.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
+		config.put(JobManagerOptions.JVM_OVERHEAD_MAX.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
+
+		return ConfigurationUtils.assembleDynamicConfigsStr(config);
 	}
 }

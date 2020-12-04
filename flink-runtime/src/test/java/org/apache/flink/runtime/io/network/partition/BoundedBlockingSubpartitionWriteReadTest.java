@@ -75,6 +75,8 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 
 	private final boolean compressionEnabled;
 
+	private final boolean sslEnabled;
+
 	@Parameters(name = "type = {0}, compressionEnabled = {1}")
 	public static Collection<Object[]> parameters() {
 		return Arrays.stream(BoundedBlockingSubpartitionType.values())
@@ -86,6 +88,8 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	public BoundedBlockingSubpartitionWriteReadTest(BoundedBlockingSubpartitionType type, boolean compressionEnabled) {
 		this.type = type;
 		this.compressionEnabled = compressionEnabled;
+		// we can also make use of the same flag since they are completely irrelevant
+		this.sslEnabled = compressionEnabled;
 	}
 
 	// ------------------------------------------------------------------------
@@ -229,13 +233,14 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	private BoundedBlockingSubpartition createSubpartition() throws IOException {
 		return type.create(
 				0,
-				PartitionTestUtils.createPartition(
+					(BoundedBlockingResultPartition) PartitionTestUtils.createPartition(
 					ResultPartitionType.BLOCKING,
 					fileChannelManager,
 					compressionEnabled,
 					BUFFER_SIZE),
 				new File(TMP_FOLDER.newFolder(), "partitiondata"),
-				BUFFER_SIZE);
+				BUFFER_SIZE,
+				sslEnabled);
 	}
 
 	private static LongReader[] createSubpartitionLongReaders(

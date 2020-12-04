@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -56,6 +57,11 @@ public class RescalePartitioner<T> extends StreamPartitioner<T> {
 			nextChannelToSendTo = 0;
 		}
 		return nextChannelToSendTo;
+	}
+
+	@Override
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.ROUND_ROBIN;
 	}
 
 	public StreamPartitioner<T> copy() {

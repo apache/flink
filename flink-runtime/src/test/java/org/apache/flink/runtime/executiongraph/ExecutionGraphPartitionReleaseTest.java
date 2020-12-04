@@ -193,7 +193,8 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			log,
 			NettyShuffleMaster.INSTANCE,
-			partitionTracker);
+			partitionTracker,
+			System.currentTimeMillis());
 
 		executionGraph.start(mainThreadExecutor.getMainThreadExecutor());
 		mainThreadExecutor.execute(executionGraph::scheduleForExecution);

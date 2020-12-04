@@ -61,7 +61,7 @@ import java.util.Collection;
  * to store checkpoint and recovery metadata and is typically also used by the keyed- and operator state
  * backends to store checkpointed state.
  *
- * <p>The {@link AbstractKeyedStateBackend} and {@link OperatorStateBackend} created by this state
+ * <p>The {@link CheckpointableKeyedStateBackend} and {@link OperatorStateBackend} created by this state
  * backend define how to hold the working state for keys and operators. They also define how to checkpoint
  * that state, frequently using the raw bytes storage (via the {@code CheckpointStreamFactory}).
  * However, it is also possible that for example a keyed state backend simply implements the bridge to
@@ -115,13 +115,13 @@ public interface StateBackend extends java.io.Serializable {
 	 *
 	 * @throws IOException Thrown if the checkpoint storage cannot be initialized.
 	 */
-	CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException;
+	CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Structure Backends 
 	// ------------------------------------------------------------------------
 	/**
-	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
+	 * Creates a new {@link CheckpointableKeyedStateBackend} that is responsible for holding <b>keyed state</b>
 	 * and checkpointing it.
 	 *
 	 * <p><i>Keyed State</i> is state where each value is bound to a key.
@@ -143,7 +143,7 @@ public interface StateBackend extends java.io.Serializable {
 	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
-	<K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+	<K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
 		Environment env,
 		JobID jobID,
 		String operatorIdentifier,
@@ -155,6 +155,39 @@ public interface StateBackend extends java.io.Serializable {
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) throws Exception;
+
+	/**
+	 * Creates a new {@link CheckpointableKeyedStateBackend} with the given managed memory fraction.
+	 * Backends that use managed memory are required to implement this interface.
+	 */
+	default <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider,
+			MetricGroup metricGroup,
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry,
+			double managedMemoryFraction) throws Exception {
+
+		// ignore managed memory fraction by default
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			ttlTimeProvider,
+			metricGroup,
+			stateHandles,
+			cancelStreamRegistry);
+	}
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
@@ -176,4 +209,11 @@ public interface StateBackend extends java.io.Serializable {
 		String operatorIdentifier,
 		@Nonnull Collection<OperatorStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) throws Exception;
+
+	/**
+	 * Whether the state backend uses Flink's managed memory.
+	 */
+	default boolean useManagedMemory() {
+		return false;
+	}
 }

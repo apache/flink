@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
-import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -69,7 +70,8 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
 			// use DynamoDBStreamsProxy
-			DynamoDBStreamsProxy::create);
+			DynamoDBStreamsProxy::create,
+			null);
 	}
 
 	@Override
@@ -89,7 +91,7 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param handle stream handle
 	 * @param lastSeqNum last sequence number
-	 * @param shardMetricsReporter the reporter to report metrics to
+	 * @param metricGroup the metric group to report metrics to
 	 * @return
 	 */
 	@Override
@@ -97,16 +99,16 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 		Integer subscribedShardStateIndex,
 		StreamShardHandle handle,
 		SequenceNumber lastSeqNum,
-		ShardMetricsReporter shardMetricsReporter,
-		KinesisDeserializationSchema<T> shardDeserializer) {
+		MetricGroup metricGroup,
+		KinesisDeserializationSchema<T> shardDeserializer) throws InterruptedException {
 
-		return new ShardConsumer(
+		return new ShardConsumer<T>(
 			this,
+			createRecordPublisher(lastSeqNum, getConsumerConfiguration(), metricGroup, handle),
 			subscribedShardStateIndex,
 			handle,
 			lastSeqNum,
-			DynamoDBStreamsProxy.create(getConsumerConfiguration()),
-			shardMetricsReporter,
+			new ShardConsumerMetricsReporter(metricGroup),
 			shardDeserializer);
 	}
 }

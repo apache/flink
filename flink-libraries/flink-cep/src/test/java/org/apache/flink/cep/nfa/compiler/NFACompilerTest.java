@@ -102,7 +102,7 @@ public class NFACompilerTest extends TestLogger {
 			.followedBy("middle").where(new TestFilter())
 			.notFollowedBy("end").where(new TestFilter());
 
-		// here we must have an exception because of the two "start" patterns with the same name.
+		// here we must have an exception because the last pattern is notFollowedBy!
 		compile(invalidPattern, false);
 	}
 

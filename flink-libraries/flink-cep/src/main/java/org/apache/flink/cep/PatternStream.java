@@ -64,8 +64,30 @@ public class PatternStream<T> {
 		return new PatternStream<>(builder.withComparator(comparator));
 	}
 
+	/**
+	 * Send late arriving data to the side output identified by the given {@link OutputTag}. A record
+	 * is considered late after the watermark has passed its timestamp.
+	 *
+	 * <p>You can get the stream of late data using
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the pattern processing operations.
+	 */
 	public PatternStream<T> sideOutputLateData(OutputTag<T> lateDataOutputTag) {
 		return new PatternStream<>(builder.withLateDataOutputTag(lateDataOutputTag));
+	}
+
+	/**
+	 * Sets the time characteristic to processing time.
+	 */
+	public PatternStream<T> inProcessingTime() {
+		return new PatternStream<>(builder.inProcessingTime());
+	}
+
+	/**
+	 * Sets the time characteristic to event time.
+	 */
+	public PatternStream<T> inEventTime() {
+		return new PatternStream<>(builder.inEventTime());
 	}
 
 	/**

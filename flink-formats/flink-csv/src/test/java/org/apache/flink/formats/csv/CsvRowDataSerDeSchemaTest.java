@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalTime;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -107,6 +108,22 @@ public class CsvRowDataSerDeSchemaTest {
 			BYTES(),
 			"awML",
 			new byte[] {107, 3, 11});
+		testNullableField(
+			TIME(3),
+			"12:12:12.232",
+			LocalTime.parse("12:12:12.232"));
+		testNullableField(
+			TIME(2),
+			"12:12:12.23",
+			LocalTime.parse("12:12:12.23"));
+		testNullableField(
+			TIME(1),
+			"12:12:12.2",
+			LocalTime.parse("12:12:12.2"));
+		testNullableField(
+			TIME(0),
+			"12:12:12",
+			LocalTime.parse("12:12:12"));
 	}
 
 	@Test
@@ -124,13 +141,13 @@ public class CsvRowDataSerDeSchemaTest {
 			.setArrayElementDelimiter(":")
 			.setFieldDelimiter(';');
 
-		testField(STRING(), "123*'4**", "123'4*", deserConfig, ";");
-		testField(STRING(), "'123''4**'", "123'4*", serConfig, deserConfig, ";");
-		testField(STRING(), "'a;b*'c'", "a;b'c", deserConfig, ";");
+		testFieldDeserialization(STRING(), "123*'4**", "123'4*", deserConfig, ";");
+		testField(STRING(), "'123''4**'", "'123''4**'", serConfig, deserConfig, ";");
+		testFieldDeserialization(STRING(), "'a;b*'c'", "a;b'c", deserConfig, ";");
 		testField(STRING(), "'a;b''c'", "a;b'c", serConfig, deserConfig, ";");
-		testField(INT(), "       12          ", 12, deserConfig, ";");
+		testFieldDeserialization(INT(), "       12          ", 12, deserConfig, ";");
 		testField(INT(), "12", 12, serConfig, deserConfig, ";");
-		testField(
+		testFieldDeserialization(
 			ROW(FIELD("f0", STRING()), FIELD("f1", STRING())),
 			"1:hello", Row.of("1", "hello"),
 			deserConfig,
@@ -150,6 +167,26 @@ public class CsvRowDataSerDeSchemaTest {
 			deserConfig,
 			";");
 		testField(STRING(), "null", "null", serConfig, deserConfig, ";"); // string because null literal has not been set
+		testFieldDeserialization(TIME(3), "12:12:12.232", LocalTime.parse("12:12:12.232"), deserConfig, ";");
+		testFieldDeserialization(TIME(3), "12:12:12.232342", LocalTime.parse("12:12:12.232"), deserConfig, ";");
+		testFieldDeserialization(TIME(3), "12:12:12.23", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.23", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.232312", LocalTime.parse("12:12:12.23"), deserConfig, ";");
+		testFieldDeserialization(TIME(2), "12:12:12.2", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12.2", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12.2235", LocalTime.parse("12:12:12.2"), deserConfig, ";");
+		testFieldDeserialization(TIME(1), "12:12:12", LocalTime.parse("12:12:12"), deserConfig, ";");
+		testFieldDeserialization(TIME(0), "12:12:12", LocalTime.parse("12:12:12"), deserConfig, ";");
+		testFieldDeserialization(TIME(0), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
+		int precision = 5;
+		try {
+			testFieldDeserialization(TIME(5), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
+			fail();
+		} catch (Exception e) {
+			assertEquals(
+				"Csv does not support TIME type with precision: 5, it only supports precision 0 ~ 3.",
+				e.getMessage());
+		}
 	}
 
 	@Test
@@ -200,38 +237,23 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
 		CsvRowDataSerializationSchema.Builder serSchemaBuilder =
-			new CsvRowDataSerializationSchema.Builder(rowType).setLineDelimiter("\r");
+			new CsvRowDataSerializationSchema.Builder(rowType);
 
 		assertArrayEquals(
-			"Test,12,Hello\r".getBytes(),
+			"Test,12,Hello".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "Hello")));
 
 		serSchemaBuilder.setQuoteCharacter('#');
 
 		assertArrayEquals(
-			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
+			"Test,12,#2019-12-26 12:12:12#".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
 
 		serSchemaBuilder.disableQuoteCharacter();
 
 		assertArrayEquals(
-			"Test,12,2019-12-26 12:12:12\r".getBytes(),
+			"Test,12,2019-12-26 12:12:12".getBytes(),
 			serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
-	}
-
-	@Test
-	public void testEmptyLineDelimiter() throws Exception {
-		DataType dataType = ROW(
-			FIELD("f0", STRING()),
-			FIELD("f1", INT()),
-			FIELD("f2", STRING()));
-		RowType rowType = (RowType) dataType.getLogicalType();
-		CsvRowDataSerializationSchema.Builder serSchemaBuilder =
-			new CsvRowDataSerializationSchema.Builder(rowType).setLineDelimiter("");
-
-		assertArrayEquals(
-			"Test,12,Hello".getBytes(),
-			serialize(serSchemaBuilder, rowData("Test", 12, "Hello")));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -248,6 +270,39 @@ public class CsvRowDataSerDeSchemaTest {
 			RAW(TypeExtractor.getForClass(java.util.Date.class)),
 			"FAIL",
 			new java.util.Date());
+	}
+
+	@Test
+	public void testSerializeDeserializeNestedTypes() throws Exception {
+		DataType subDataType0 = ROW(
+			FIELD("f0c0", STRING()),
+			FIELD("f0c1", INT()),
+			FIELD("f0c2", STRING()));
+		DataType subDataType1 = ROW(
+			FIELD("f1c0", STRING()),
+			FIELD("f1c1", INT()),
+			FIELD("f1c2", STRING()));
+		DataType dataType = ROW(
+			FIELD("f0", subDataType0),
+			FIELD("f1", subDataType1));
+		RowType rowType = (RowType) dataType.getLogicalType();
+
+		// serialization
+		CsvRowDataSerializationSchema.Builder serSchemaBuilder =
+			new CsvRowDataSerializationSchema.Builder(rowType);
+		// deserialization
+		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
+
+		RowData normalRow = GenericRowData.of(
+			rowData("hello", 1, "This is 1st top column"),
+			rowData("world", 2, "This is 2nd top column"));
+		testSerDeConsistency(normalRow, serSchemaBuilder, deserSchemaBuilder);
+
+		RowData nullRow = GenericRowData.of(
+			null,
+			rowData("world", 2, "This is 2nd top column after null"));
+		testSerDeConsistency(nullRow, serSchemaBuilder, deserSchemaBuilder);
 	}
 
 	private void testNullableField(DataType fieldType, String string, Object value) throws Exception {
@@ -272,11 +327,11 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f1", fieldType),
 			FIELD("f2", STRING())
 		).getLogicalType();
-		String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
+		String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
 
 		// deserialization
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType));
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
 		deserializationConfig.accept(deserSchemaBuilder);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, expectedCsv);
 
@@ -288,7 +343,7 @@ public class CsvRowDataSerDeSchemaTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void testField(
+	private void testFieldDeserialization(
 			DataType fieldType,
 			String csvValue,
 			Object value,
@@ -299,12 +354,12 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f1", fieldType),
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
-		String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
+		String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END";
 		Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// deserialization
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType));
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
 		deserializationConfig.accept(deserSchemaBuilder);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, csv);
 		Row actualRow = (Row) DataFormatConverters.getConverterForDataType(dataType)
@@ -323,12 +378,22 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType))
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType))
 				.setIgnoreParseErrors(allowParsingErrors)
 				.setAllowComments(allowComments);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, string);
 		return (Row) DataFormatConverters.getConverterForDataType(dataType)
 			.toExternal(deserializedRow);
+	}
+
+	private void testSerDeConsistency(
+			RowData originalRow,
+			CsvRowDataSerializationSchema.Builder serSchemaBuilder,
+			CsvRowDataDeserializationSchema.Builder deserSchemaBuilder) throws Exception {
+		RowData deserializedRow = deserialize(
+			deserSchemaBuilder,
+			new String(serialize(serSchemaBuilder, originalRow)));
+		assertEquals(deserializedRow, originalRow);
 	}
 
 	private static byte[] serialize(CsvRowDataSerializationSchema.Builder serSchemaBuilder, RowData row) throws Exception {

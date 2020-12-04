@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
 
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
@@ -66,19 +67,25 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of()))
     assertEquals(50.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(0)))
     assertEquals(48.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(1)))
-    assertEquals(16.22, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(2)), 1e-2)
-    assertEquals(6.98, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(3)), 1e-2)
-    assertEquals(20.09, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(4)), 1e-2)
-    assertEquals(20.09, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(5)), 1e-2)
+    assertEquals(16.43,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(2)), 1e-2)
+    assertEquals(6.99,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(3)), 1e-2)
+    assertEquals(20.37,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(4)), 1e-2)
+    assertEquals(20.37,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(5)), 1e-2)
     assertEquals(35.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(6)))
     assertEquals(5.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(7)), 1e-2)
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(8)))
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(9)))
     assertEquals(1.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(10)))
-    assertEquals(16.22, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(11)), 1e-2)
+    assertEquals(16.43,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(11)), 1e-2)
 
     assertEquals(50.0, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(0, 1)))
-    assertEquals(31.06, mq.getPopulationSize(logicalProject, ImmutableBitSet.of(1, 8)), 1e-2)
+    assertEquals(31.24,
+      mq.getPopulationSize(logicalProject, ImmutableBitSet.of(1, 8)), 1e-2)
   }
 
   @Test
@@ -102,19 +109,25 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of()))
     assertEquals(50.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(0)))
     assertEquals(48.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(1)))
-    assertEquals(10.99, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(2)), 1e-2)
-    assertEquals(6.59, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(3)), 1e-2)
-    assertEquals(12.04, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(4)), 1e-2)
-    assertEquals(12.04, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(5)), 1e-2)
+    assertEquals(11.22,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(2)), 1e-2)
+    assertEquals(6.67,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(3)), 1e-2)
+    assertEquals(12.30,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(4)), 1e-2)
+    assertEquals(12.30,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(5)), 1e-2)
     assertEquals(35.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(6)))
     assertEquals(2.5, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(7)), 1e-2)
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(8)))
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(9)))
     assertEquals(1.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(10)))
-    assertEquals(10.99, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(11)), 1e-2)
+    assertEquals(11.22,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(11)), 1e-2)
 
     assertEquals(50.0, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(0, 1)))
-    assertEquals(19.49, mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(1, 8)), 1e-2)
+    assertEquals(19.64,
+      mq.getPopulationSize(logicalCalc, ImmutableBitSet.of(1, 8)), 1e-2)
   }
 
   @Test
@@ -283,7 +296,7 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetPopulationSizeOnJoin(): Unit = {
     assertEquals(1.0, mq.getPopulationSize(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of()))
-    assertEquals(49.999937,
+    assertEquals(49.999938,
       mq.getPopulationSize(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(0)), 1e-6)
     assertEquals(49.999998,
       mq.getPopulationSize(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(1)), 1e-6)
@@ -294,28 +307,28 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
 
     assertEquals(1.0, mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of()))
     assertEquals(2.0E7, mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0)))
-    assertEquals(505696447.06,
+    assertEquals(5.0569644545E8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1)), 1e-2)
-    assertEquals(799999979.15,
+    assertEquals(8.0E8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1, 5)), 1e-2)
-    assertEquals(793772745.78,
+    assertEquals(7.9377199253E8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0, 6)), 1e-2)
 
     assertEquals(1.0,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of()))
-    assertEquals(12642411.178,
+    assertEquals(1.264241136E7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(0)), 1e-2)
-    assertEquals(19752070.37,
+    assertEquals(1.975207027E7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(1)), 1e-2)
-    assertEquals(19999999.87,
+    assertEquals(2.0E7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(1, 5)), 1e-2)
-    assertEquals(19996088.14,
+    assertEquals(1.999606902E7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(0, 6)), 1e-2)
 
     assertEquals(1.0, mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of()))
     assertEquals(2.0E7, mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(0)))
     assertEquals(8.0E8, mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(1)))
-    assertEquals(6.295509444597865E15,
+    assertEquals(8.0E15,
       mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(1, 5)))
     assertEquals(5.112E10,
       mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(0, 6)))
@@ -350,6 +363,21 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
   def testGetPopulationSizeOnDefault(): Unit = {
     assertNull(mq.getPopulationSize(testRel, ImmutableBitSet.of()))
     assertNull(mq.getPopulationSize(testRel, ImmutableBitSet.of(1)))
+  }
 
+  @Test
+  def testGetPopulationSizeOnLargeDomainSize(): Unit = {
+    relBuilder.clear()
+    val rel = relBuilder
+      .scan("MyTable1")
+      .project(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(SqlStdOperatorTable.SUBSTRING, relBuilder.field(3), relBuilder.literal(10)))
+      .build()
+    assertEquals(
+      7.999999964933156E8,
+      mq.getPopulationSize(rel, ImmutableBitSet.of(0, 1, 2)),
+      1e-2)
   }
 }

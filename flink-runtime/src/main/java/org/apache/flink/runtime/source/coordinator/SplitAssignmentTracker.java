@@ -80,7 +80,6 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	 * @param in The ObjectInput that contains the state of the SplitAssignmentTracker.
 	 * @throws Exception when the state deserialization fails.
 	 */
-	@SuppressWarnings("unchecked")
 	public void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, DataInputStream in) throws Exception {
 		// Read the split assignments by checkpoint id.
 		Map<Long, Map<Integer, LinkedHashSet<SplitT>>> deserializedAssignments =
@@ -114,15 +113,20 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	 * if those splits were never assigned. To handle this case, the coordinator needs to find those
 	 * splits and return them back to the SplitEnumerator for re-assignment.
 	 *
-	 * @param failedSubtaskId the failed subtask id.
+	 * @param subtaskId the subtask id of the reader that failed over.
+	 * @param restoredCheckpointId the ID of the checkpoint that the reader was restored to.
 	 * @return A list of splits that needs to be added back to the {@link SplitEnumerator}.
 	 */
-	public List<SplitT> getAndRemoveUncheckpointedAssignment(int failedSubtaskId) {
-		List<SplitT> splits = new ArrayList<>();
-		assignmentsByCheckpointId.values().forEach(assignments -> {
-			removeFromAssignment(failedSubtaskId, assignments, splits);
-		});
-		removeFromAssignment(failedSubtaskId, uncheckpointedAssignments, splits);
+	public List<SplitT> getAndRemoveUncheckpointedAssignment(int subtaskId, long restoredCheckpointId) {
+		final ArrayList<SplitT> splits = new ArrayList<>();
+
+		for (final Map.Entry<Long, Map<Integer, LinkedHashSet<SplitT>>> entry : assignmentsByCheckpointId.entrySet()) {
+			if (entry.getKey() > restoredCheckpointId) {
+				removeFromAssignment(subtaskId, entry.getValue(), splits);
+			}
+		}
+
+		removeFromAssignment(subtaskId, uncheckpointedAssignments, splits);
 		return splits;
 	}
 

@@ -46,12 +46,12 @@ class FlinkChainedProgramTest {
     builder
       .addMatchLimit(10)
       .addMatchOrder(HepMatchOrder.ARBITRARY)
-      .addRuleInstance(SubQueryRemoveRule.FILTER)
-      .addRuleInstance(SubQueryRemoveRule.PROJECT)
-      .addRuleInstance(SubQueryRemoveRule.JOIN)
+      .addRuleInstance(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE)
+      .addRuleInstance(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE)
+      .addRuleInstance(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE)
       .addMatchLimit(100)
       .addMatchOrder(HepMatchOrder.BOTTOM_UP)
-      .addRuleCollection(Collections.singletonList(ValuesReduceRule.FILTER_INSTANCE))
+      .addRuleCollection(Collections.singletonList(CoreRules.FILTER_VALUES_MERGE))
     val program1 = FlinkHepProgram(builder.build())
     assertTrue(programs.addFirst("o2", program1))
     assertEquals(List("o2"), programs.getProgramNames.toList)
@@ -60,10 +60,10 @@ class FlinkChainedProgramTest {
 
     val program2 = FlinkHepRuleSetProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        ReduceExpressionsRule.FILTER_INSTANCE,
-        ReduceExpressionsRule.PROJECT_INSTANCE,
-        ReduceExpressionsRule.CALC_INSTANCE,
-        ReduceExpressionsRule.JOIN_INSTANCE
+        CoreRules.FILTER_REDUCE_EXPRESSIONS,
+        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+        CoreRules.CALC_REDUCE_EXPRESSIONS,
+        CoreRules.JOIN_REDUCE_EXPRESSIONS
       )).build()
     assertTrue(programs.addFirst("o1", program2))
     assertEquals(List("o1", "o2"), programs.getProgramNames.toList)
@@ -73,11 +73,11 @@ class FlinkChainedProgramTest {
     // test addLast
     val program3 = FlinkHepRuleSetProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        FilterCalcMergeRule.INSTANCE,
-        ProjectCalcMergeRule.INSTANCE,
-        FilterToCalcRule.INSTANCE,
-        ProjectToCalcRule.INSTANCE,
-        CalcMergeRule.INSTANCE))
+        CoreRules.FILTER_CALC_MERGE,
+        CoreRules.PROJECT_CALC_MERGE,
+        CoreRules.FILTER_TO_CALC,
+        CoreRules.PROJECT_TO_CALC,
+        CoreRules.CALC_MERGE))
       .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
       .setMatchLimit(10000)
       .setHepMatchOrder(HepMatchOrder.ARBITRARY)
@@ -91,8 +91,8 @@ class FlinkChainedProgramTest {
     val TEST = new Convention.Impl("TEST", classOf[RelNode])
     val program4 = FlinkVolcanoProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        FilterJoinRule.FILTER_ON_JOIN,
-        FilterJoinRule.JOIN))
+        CoreRules.FILTER_INTO_JOIN,
+        CoreRules.JOIN_CONDITION_PUSH))
       .setRequiredOutputTraits(Array(TEST))
       .build()
     assertTrue(programs.addBefore("o4", "o3", program4))
@@ -121,7 +121,7 @@ class FlinkChainedProgramTest {
     assertTrue(programs.getProgramNames.isEmpty)
 
     val program1 = FlinkHepRuleSetProgramBuilder.newBuilder
-      .add(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .add(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
       .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
       .build()
     programs.addFirst("o1", program1)
@@ -131,8 +131,8 @@ class FlinkChainedProgramTest {
     val builder = new HepProgramBuilder()
     builder
       .addMatchLimit(10)
-      .addRuleInstance(SubQueryRemoveRule.FILTER)
-      .addRuleInstance(SubQueryRemoveRule.JOIN)
+      .addRuleInstance(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE)
+      .addRuleInstance(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE)
       .addMatchOrder(HepMatchOrder.BOTTOM_UP)
     val program2 = FlinkHepProgram(builder.build())
     programs.addLast("o2", program2)
@@ -144,7 +144,7 @@ class FlinkChainedProgramTest {
 
     val p1 = programs.getFlinkRuleSetProgram("o1")
     assertTrue(p1.isDefined)
-    p1.get.add(RuleSets.ofList(SubQueryRemoveRule.PROJECT))
+    p1.get.add(RuleSets.ofList(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE))
     assertTrue(p1.get eq programs.getFlinkRuleSetProgram("o1").get)
   }
 

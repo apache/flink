@@ -20,7 +20,7 @@ package org.apache.flink.orc.nohive;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.orc.writer.PhysicalWriterImpl;
+import org.apache.flink.orc.nohive.writer.NoHivePhysicalWriterImpl;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -42,6 +42,8 @@ import org.apache.orc.storage.ql.exec.vector.TimestampColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.sql.Timestamp;
 import java.util.Properties;
 
@@ -50,9 +52,9 @@ import java.util.Properties;
  */
 public class OrcNoHiveBulkWriterFactory implements BulkWriter.Factory<RowData> {
 
-	private final Configuration conf;
-	private final String schema;
-	private final LogicalType[] fieldTypes;
+	private Configuration conf;
+	private String schema;
+	private LogicalType[] fieldTypes;
 
 	public OrcNoHiveBulkWriterFactory(Configuration conf, String schema, LogicalType[] fieldTypes) {
 		this.conf = conf;
@@ -65,7 +67,7 @@ public class OrcNoHiveBulkWriterFactory implements BulkWriter.Factory<RowData> {
 		OrcFile.WriterOptions opts = OrcFile.writerOptions(new Properties(), conf);
 		TypeDescription description = TypeDescription.fromString(schema);
 		opts.setSchema(description);
-		opts.physicalWriter(new PhysicalWriterImpl(out, opts));
+		opts.physicalWriter(new NoHivePhysicalWriterImpl(out, opts));
 		WriterImpl writer = new WriterImpl(null, new Path("."), opts);
 
 		VectorizedRowBatch rowBatch = description.createRowBatch();
@@ -96,6 +98,20 @@ public class OrcNoHiveBulkWriterFactory implements BulkWriter.Factory<RowData> {
 				writer.close();
 			}
 		};
+	}
+
+	// Custom serialization methods
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		conf.write(out);
+		out.writeObject(schema);
+		out.writeObject(fieldTypes);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		conf = new Configuration(false);
+		conf.readFields(in);
+		schema = (String) in.readObject();
+		fieldTypes = (LogicalType[]) in.readObject();
 	}
 
 	private static void setColumn(

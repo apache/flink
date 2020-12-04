@@ -20,25 +20,22 @@ package org.apache.flink.table.planner.runtime.stream
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.runtime.state.CheckpointListener
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.filesystem.DefaultPartTimeExtractor.{toLocalDateTime, toMills}
 import org.apache.flink.table.filesystem.FileSystemOptions._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-
+import org.apache.flink.util.CollectionUtil
 import org.junit.Assert.assertEquals
 import org.junit.rules.Timeout
 import org.junit.{Assert, Before, Rule, Test}
-
 import java.io.File
 import java.net.URI
+
+import org.apache.flink.api.common.state.CheckpointListener
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
@@ -118,15 +115,9 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
 
-    val tableResult = tEnv.sqlQuery("select * from my_table").executeInsert("sink_table")
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
+    tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await()
 
-    check(
-      ddl,
-      "select * from sink_table",
-      data)
+    check("select * from sink_table", data)
   }
 
   @Test
@@ -137,12 +128,10 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     test(partition = true, "metastore")
   }
 
-  def check(ddl: String, sqlQuery: String, expectedResult: Seq[Row]): Unit = {
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-    val tEnv = TableEnvironment.create(setting)
-    tEnv.executeSql(ddl)
-
-    val result = Lists.newArrayList(tEnv.sqlQuery(sqlQuery).execute().collect())
+  def check(sqlQuery: String, expectedResult: Seq[Row]): Unit = {
+    val iter = tEnv.sqlQuery(sqlQuery).execute().collect()
+    val result = CollectionUtil.iteratorToList(iter)
+    iter.close()
 
     assertEquals(
       expectedResult.map(TestSinkUtil.rowToString(_)).sorted,

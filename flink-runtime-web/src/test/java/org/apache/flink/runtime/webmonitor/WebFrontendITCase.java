@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -55,7 +55,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -260,7 +259,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -271,12 +270,12 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// cancel the job
-			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -304,6 +303,52 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.reset();
 	}
 
+	/**
+	 * See FLINK-19518. This test ensures that the /jobs/overview handler shows a duration != 0.
+	 */
+	@Test
+	public void testJobOverviewHandler() throws Exception {
+		// this only works if there is no active job at this point
+		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
+
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(BlockingInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+
+		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
+		clusterClient.submitJob(jobGraph).get();
+
+		// wait for job to show up
+		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
+			Thread.sleep(10);
+		}
+
+		// wait for tasks to be properly running
+		BlockingInvokable.latch.await();
+
+		final Duration testTimeout = Duration.ofMinutes(2);
+
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobs/overview");
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode jsonJobs = (ArrayNode) parsed.get("jobs");
+		assertEquals(1, jsonJobs.size());
+		assertThat("Duration must be positive", jsonJobs.get(0).get("duration").asInt() > 0);
+
+		clusterClient.cancel(jobGraph.getJobID()).get();
+
+		// ensure cancellation is finished
+		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
+			Thread.sleep(20);
+		}
+
+		BlockingInvokable.reset();
+	}
+
 	@Test
 	public void testCancelYarn() throws Exception {
 		// this only works if there is no active job at this point
@@ -318,7 +363,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -329,13 +374,13 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
 
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -356,10 +401,6 @@ public class WebFrontendITCase extends TestLogger {
 			.filter(status -> !status.getJobState().isGloballyTerminalState())
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
-	}
-
-	private static Duration getTimeLeft(LocalTime deadline) {
-		return Duration.between(LocalTime.now(), deadline);
 	}
 
 	/**

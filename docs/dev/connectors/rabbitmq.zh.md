@@ -43,7 +43,7 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有将
 </dependency>
 {% endhighlight %}
 
-注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({{site.baseurl}}/zh/dev/project-configuration.html).
+注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({% link dev/project-configuration.zh.md %}).
 
 ### 安装 RabbitMQ
 安装 RabbitMQ 请参考 [RabbitMQ 下载页面](http://www.rabbitmq.com/download.html)。安装完成之后，服务会自动拉起，应用程序就可以尝试连接到 RabbitMQ 了。
@@ -112,6 +112,35 @@ val stream = env
 {% endhighlight %}
 </div>
 </div>
+
+#### 服务质量 (QoS) / 消费者预取(Consumer Prefetch)
+
+RabbitMQ Source 通过 `RMQConnectionConfig` 类提供了一种简单的方式，来设置 source channel 上的 `basicQos`（见下方示例）。要注意的是这里的 prefetch count 是对单个 channel 设置的，并且由于每个并发的 source 都持有一个 connection/channel，因此这个值实际上会乘以 source 的并行度，来表示同一时间可以向这个 job 总共发送多少条未确认的消息。如果需要更复杂的配置，可以通过重写 `RMQSource#setupChannel(Connection)` 方法来实现手动配置。
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+    .setPrefetchCount(30_000)
+    ...
+    .build();
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val connectionConfig = new RMQConnectionConfig.Builder()
+    .setPrefetchCount(30000)
+    ...
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+RabbitMQ Source 默认情况下是不设置 prefetch count 的，这意味着 RabbitMQ 服务器将会无限制地向 source 发送消息。因此在生产环境中，最好要设置它。当消费海量数据的队列并且启用 checkpointing 时，消息只有在做完 checkpoint 后才会被确认，因此也许需要对 prefetch count 做一些调整来减少不必要的循环。
+
+更多关于 QoS 以及 prefetch 相关的内容可以参考 [这里](https://www.rabbitmq.com/confirms.html#channel-qos-prefetch).
+更多关于在 AMQP 0-9-1 中可选的选项可以参考 [这里](https://www.rabbitmq.com/consumer-prefetch.html).
 
 ### RabbitMQ Sink
 该连接器提供了一个 `RMQSink` 类，用来向 RabbitMQ 队列发送数据。下面是设置 RabbitMQ sink 的代码示例：

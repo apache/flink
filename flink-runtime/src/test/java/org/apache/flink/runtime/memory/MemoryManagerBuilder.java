@@ -40,7 +40,7 @@ public class MemoryManagerBuilder {
 	}
 
 	public MemoryManager build() {
-		return new MemoryManager(memorySize, pageSize);
+		return new MemoryManager(memorySize, pageSize, UnsafeMemoryBudgetTest.MAX_SLEEPS_VERIFY_EMPTY_FOR_TESTS);
 	}
 
 	public static MemoryManagerBuilder newBuilder() {

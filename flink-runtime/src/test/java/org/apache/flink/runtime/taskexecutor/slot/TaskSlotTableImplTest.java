@@ -33,7 +33,6 @@ import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -80,16 +79,38 @@ public class TaskSlotTableImplTest extends TestLogger {
 			assertThat(taskSlotTable.isAllocated(1, jobId1, allocationId2), is(true));
 			assertThat(taskSlotTable.isAllocated(2, jobId2, allocationId3), is(true));
 
-			assertThat(IteratorUtils.toList(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(Arrays.asList(allocationId1))));
+			assertThat(taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId1), is(equalTo(Sets.newHashSet(allocationId1))));
 
 			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId1), is(true));
 			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId2), is(true));
 			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId3), is(false));
 
-			assertThat(Sets.newHashSet(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
+			assertThat(taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId1), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
 		} finally {
 			taskSlotTable.close();
 			assertThat(taskSlotTable.isClosed(), is(true));
+		}
+	}
+
+	/**
+	 * Tests {@link TaskSlotTableImpl#getActiveTaskSlotAllocationIds()}.
+	 */
+	@Test
+	public void testRetrievingAllActiveSlots() throws Exception {
+		try (final TaskSlotTableImpl<?> taskSlotTable = createTaskSlotTableAndStart(3)) {
+			final JobID jobId1 = new JobID();
+			final AllocationID allocationId1 = new AllocationID();
+			taskSlotTable.allocateSlot(0, jobId1, allocationId1, SLOT_TIMEOUT);
+			final AllocationID allocationId2 = new AllocationID();
+			taskSlotTable.allocateSlot(1, jobId1, allocationId2, SLOT_TIMEOUT);
+			final AllocationID allocationId3 = new AllocationID();
+			final JobID jobId2 = new JobID();
+			taskSlotTable.allocateSlot(2, jobId2, allocationId3, SLOT_TIMEOUT);
+
+			taskSlotTable.markSlotActive(allocationId1);
+			taskSlotTable.markSlotActive(allocationId3);
+
+			assertThat(taskSlotTable.getActiveTaskSlotAllocationIds(), is(Sets.newHashSet(allocationId1, allocationId3)));
 		}
 	}
 

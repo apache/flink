@@ -30,7 +30,7 @@ LogicalProject(ts=[$0], a=[$1], b=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ts, a, b], where=[>(a, 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b])
 ]]>
     </Resource>
   </TestCase>

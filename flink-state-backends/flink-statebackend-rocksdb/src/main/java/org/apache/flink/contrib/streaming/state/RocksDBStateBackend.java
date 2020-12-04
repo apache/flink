@@ -31,8 +31,9 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
@@ -90,7 +91,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * using the methods {@link #setPredefinedOptions(PredefinedOptions)} and
  * {@link #setRocksDBOptions(RocksDBOptionsFactory)}.
  */
-public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
+public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend implements ConfigurableStateBackend {
 
 	/**
 	 * The options to chose for the type of priority queue state.
@@ -461,13 +462,42 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
 		return checkpointStreamBackend.createCheckpointStorage(jobId);
 	}
 
 	// ------------------------------------------------------------------------
 	//  State holding data structures
 	// ------------------------------------------------------------------------
+
+	@Override
+	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider,
+			MetricGroup metricGroup,
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) throws IOException {
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			ttlTimeProvider,
+			metricGroup,
+			stateHandles,
+			cancelStreamRegistry,
+			1.0
+		);
+	}
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -481,7 +511,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry) throws IOException {
+		CloseableRegistry cancelStreamRegistry,
+		double managedMemoryFraction) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -501,7 +532,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
 		final OpaqueMemoryResource<RocksDBSharedResources> sharedResources = RocksDBOperationUtils
-				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), LOG);
+				.allocateSharedCachesIfConfigured(memoryConfiguration, env.getMemoryManager(), managedMemoryFraction, LOG);
 		if (sharedResources != null) {
 			LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
 		}
@@ -511,7 +542,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			instanceBasePath,
 			resourceContainer,
 			stateName -> resourceContainer.getColumnOptions(),
@@ -526,8 +557,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry
-		)
+			cancelStreamRegistry)
 			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
@@ -545,7 +575,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
 		final boolean asyncSnapshots = true;
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			asyncSnapshots,
 			stateHandles,

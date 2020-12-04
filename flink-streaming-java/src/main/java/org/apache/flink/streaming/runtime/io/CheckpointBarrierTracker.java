@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 
 /**
@@ -76,12 +77,13 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		this.pendingCheckpoints = new ArrayDeque<>();
 	}
 
-	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
-			notifyCheckpoint(receivedBarrier, 0);
+			markAlignmentStartAndEnd(receivedBarrier.getTimestamp());
+			notifyCheckpoint(receivedBarrier);
 			return;
 		}
 
@@ -118,8 +120,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Received all barriers for checkpoint {}", barrierId);
 					}
-
-					notifyCheckpoint(receivedBarrier, 0);
+					markAlignmentEnd();
+					notifyCheckpoint(receivedBarrier);
 				}
 			}
 		}
@@ -129,7 +131,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 			// if it is not newer than the latest checkpoint ID, then there cannot be a
 			// successful checkpoint for that ID anyways
 			if (barrierId > latestPendingCheckpointID) {
-				markCheckpointStart(receivedBarrier.getTimestamp());
+				markAlignmentStart(receivedBarrier.getTimestamp());
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
 
@@ -142,7 +144,15 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+	public void processBarrierAnnouncement(
+			CheckpointBarrier announcedBarrier,
+			int sequenceNumber,
+			InputChannelInfo channelInfo) throws IOException {
+		// Ignore
+	}
+
+	@Override
+	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long checkpointId = cancelBarrier.getCheckpointId();
 
 		if (LOG.isDebugEnabled()) {
@@ -199,7 +209,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processEndOfPartition() throws Exception {
+	public void processEndOfPartition() throws IOException {
 		while (!pendingCheckpoints.isEmpty()) {
 			CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
 			if (barrierCount.markAborted()) {

@@ -16,15 +16,14 @@
 # limitations under the License.
 ################################################################################
 
-import unittest
-
 from pyflink.ml.api.ml_environment_factory import MLEnvironment
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class MLEnvironmentTest(unittest.TestCase):
+class MLEnvironmentTest(PyFlinkTestCase):
 
     def test_default_constructor(self):
         ml_environment = MLEnvironment()

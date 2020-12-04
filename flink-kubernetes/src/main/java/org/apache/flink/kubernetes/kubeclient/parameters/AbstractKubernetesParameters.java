@@ -22,13 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -115,11 +115,7 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public Map<String, String> getCommonLabels() {
-		Map<String, String> commonLabels = new HashMap<>();
-		commonLabels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		commonLabels.put(Constants.LABEL_APP_KEY, getClusterId());
-
-		return Collections.unmodifiableMap(commonLabels);
+		return Collections.unmodifiableMap(KubernetesUtils.getCommonLabels(getClusterId()));
 	}
 
 	@Override
@@ -163,18 +159,35 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public Optional<String> getLocalHadoopConfigurationDirectory() {
-		final String[] possibleHadoopConfPaths = new String[] {
-			System.getenv(Constants.ENV_HADOOP_CONF_DIR),
-			System.getenv(Constants.ENV_HADOOP_HOME) + "/etc/hadoop", // hadoop 2.2
-			System.getenv(Constants.ENV_HADOOP_HOME) + "/conf"
-		};
+		final String hadoopConfDirEnv = System.getenv(Constants.ENV_HADOOP_CONF_DIR);
+		if (StringUtils.isNotBlank(hadoopConfDirEnv)) {
+			return Optional.of(hadoopConfDirEnv);
+		}
 
-		for (String hadoopConfPath: possibleHadoopConfPaths) {
-			if (StringUtils.isNotBlank(hadoopConfPath)) {
-				return Optional.of(hadoopConfPath);
+		final String hadoopHomeEnv = System.getenv(Constants.ENV_HADOOP_HOME);
+		if (StringUtils.isNotBlank(hadoopHomeEnv)) {
+			// Hadoop 2.2+
+			final File hadoop2ConfDir = new File(hadoopHomeEnv, "/etc/hadoop");
+			if (hadoop2ConfDir.exists()) {
+				return Optional.of(hadoop2ConfDir.getAbsolutePath());
+			}
+
+			// Hadoop 1.x
+			final File hadoop1ConfDir = new File(hadoopHomeEnv, "/conf");
+			if (hadoop1ConfDir.exists()) {
+				return Optional.of(hadoop1ConfDir.getAbsolutePath());
 			}
 		}
 
 		return Optional.empty();
+	}
+
+	public Map<String, String> getSecretNamesToMountPaths() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_SECRETS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getEnvironmentsFromSecrets() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF).orElse(Collections.emptyList());
 	}
 }

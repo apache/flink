@@ -70,6 +70,12 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
+      <td><a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a></td>
+      <td></td>
+      <td>Unbounded Scan</td>
+      <td>Streaming Sink</td>
+    </tr>
+    <tr>
       <td><a href="{% link dev/table/connectors/jdbc.zh.md %}">JDBC</a></td>
       <td></td>
       <td>Bounded Scan, Lookup</td>
@@ -77,8 +83,14 @@ Flink natively support various connectors. The following tables list all availab
     </tr>
     <tr>
       <td><a href="{% link dev/table/connectors/hbase.zh.md %}">Apache HBase</a></td>
-      <td>1.4.x</td>
+      <td>1.4.x & 2.2.x</td>
       <td>Bounded Scan, Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{% link dev/table/connectors/hive/index.zh.md %}">Apache Hive</a></td>
+      <td><a href="{% link dev/table/connectors/hive/index.zh.md %}#支持的hive版本">Supported Versions</a></td>
+      <td>Unbounded Scan, Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     </tbody>
@@ -89,9 +101,12 @@ Flink natively support various connectors. The following tables list all availab
 How to use connectors
 --------
 
-Flink supports to use SQL CREATE TABLE statement to register a table. One can define the table name, the table schema, and the table options for connecting to an external system.
+Flink supports using SQL `CREATE TABLE` statements to register tables. One can define the table name,
+the table schema, and the table options for connecting to an external system.
 
-The following code shows a full example of how to connect to Kafka for reading Json records.
+See the [SQL section for more information about creating a table]({% link dev/table/sql/create.zh.md %}#create-table).
+
+The following code shows a full example of how to connect to Kafka for reading and writing JSON records.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -99,10 +114,10 @@ The following code shows a full example of how to connect to Kafka for reading J
 CREATE TABLE MyUserTable (
   -- declare the schema of the table
   `user` BIGINT,
-  message STRING,
-  ts TIMESTAMP,
-  proctime AS PROCTIME(), -- use computed column to define proctime attribute
-  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND  -- use WATERMARK statement to define rowtime attribute
+  `message` STRING,
+  `rowtime` TIMESTAMP(3) METADATA FROM 'timestamp',    -- use a metadata column to access Kafka's record timestamp
+  `proctime AS PROCTIME(),    -- use a computed column to define a proctime attribute
+  WATERMARK FOR `rowtime` AS `rowtime` - INTERVAL '5' SECOND    -- use a WATERMARK statement to define a rowtime attribute
 ) WITH (
   -- declare the external system to connect to
   'connector' = 'kafka',
@@ -115,18 +130,87 @@ CREATE TABLE MyUserTable (
 </div>
 </div>
 
-In this way the desired connection properties are converted into string-based key-value pairs. So-called [table factories]({% link dev/table/sourceSinks.zh.md %}#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
+The desired connection properties are converted into string-based key-value pairs. [Factories]({% link dev/table/sourceSinks.zh.md %})
+will create configured table sources, table sinks, and corresponding formats from the key-value pairs
+based on factory identifiers (`kafka` and `json` in this example). All factories that can be found via
+Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html)
+are taken into account when searching for exactly one matching factory for each component.
 
-If no factory can be found or multiple factories match for the given properties, an exception will be thrown with additional information about considered factories and supported properties.
+If no factory can be found or multiple factories match for the given properties, an exception will be
+thrown with additional information about considered factories and supported properties.
+
+Transform table connector/format resources
+--------
+
+Flink uses Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) to load the table connector/format factories by their identifiers. Since the SPI resource file named `org.apache.flink.table.factories.Factory` for every table connector/format is under the same directory `META-INF/services`, these resource files will override each other when build the uber-jar of the project which uses more than one table connector/format, which will cause Flink to fail to load table connector/format factories.
+
+In this situation, the recommended way is transforming these resource files under the directory `META-INF/services` by [ServicesResourceTransformer](https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html) of maven shade plugin. Given the pom.xml file content of example that contains connector `flink-sql-connector-hive-3.1.2` and format `flink-parquet` in a project.
+
+{% highlight xml %}
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.example</groupId>
+    <artifactId>myProject</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <dependencies>
+        <!--  other project dependencies  ...-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-connector-hive-3.1.2_${scala.binary.version}</artifactId>
+            <version>${flink-version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-parquet_${scala.binary.version}</artifactId>
+            <version>${flink-version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>shade</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers combine.children="append">
+                                <!-- The service transformer is needed to merge META-INF/services files -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- ... -->
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+{% endhighlight %}
+
+After configured the `ServicesResourceTransformer`, the table connector/format resource files under the directory `META-INF/services` would be merged rather than overwritten each other when build the uber-jar of above project.
 
 {% top %}
 
 Schema Mapping
 ------------
 
-The body clause of a SQL `CREATE TABLE` statement defines the names and types of columns, constraints and watermarks. Flink doesn't hold the data, thus the schema definition only declares how to map types from an external system to Flink’s representation. The mapping may not be mapped by names, it depends on the implementation of formats and connectors. For example, a MySQL database table is mapped by field names (not case sensitive), and a CSV filesystem is mapped by field order (field names can be arbitrary). This will be explained in every connectors.
+The body clause of a SQL `CREATE TABLE` statement defines the names and types of physical columns,
+constraints and watermarks. Flink doesn't hold the data, thus the schema definition only declares how
+to map physical columns from an external system to Flink’s representation. The mapping may not be
+mapped by names, it depends on the implementation of formats and connectors. For example, a MySQL database
+table is mapped by field names (not case sensitive), and a CSV filesystem is mapped by field order
+(field names can be arbitrary). This will be explained in every connector.
 
-The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
+The following example shows a simple schema without time attributes and one-to-one field mapping
+of input/output to table columns.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -141,6 +225,12 @@ CREATE TABLE MyTable (
 {% endhighlight %}
 </div>
 </div>
+
+### Metadata
+
+Some connectors and formats expose additional metadata fields that can be accessed in metadata columns
+next to the physical payload columns. See the [`CREATE TABLE` section]({% link dev/table/sql/create.zh.md %}#columns)
+for more information about metadata columns.
 
 ### Primary Key
 
@@ -228,7 +318,7 @@ The following watermark strategies are supported:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 -- Sets a watermark strategy for strictly ascending rowtime attributes. Emits a watermark of the
--- maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp
+-- maximum observed timestamp so far. Rows that have a timestamp bigger to the max timestamp
 -- are not late.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
@@ -238,7 +328,7 @@ CREATE TABLE MyTable (
 )
 
 -- Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
--- observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
+-- observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp
 -- are not late.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),

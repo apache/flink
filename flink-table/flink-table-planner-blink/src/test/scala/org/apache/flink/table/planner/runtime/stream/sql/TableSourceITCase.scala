@@ -28,8 +28,6 @@ import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-
 class TableSourceITCase extends StreamingTestBase {
 
   @Before
@@ -44,13 +42,13 @@ class TableSourceITCase extends StreamingTestBase {
          |  `c` STRING
          |) WITH (
          |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId'
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
 
     val filterableTableDataId = TestValuesTableFactory.registerData(
-      TestFilterableTableSource.defaultRows)
-    // TODO: [FLINK-17425] support filter pushdown for TestValuesTableSource
+      TestLegacyFilterableTableSource.defaultRows)
     tEnv.executeSql(
       s"""
          |CREATE TABLE FilterableTable (
@@ -60,9 +58,48 @@ class TableSourceITCase extends StreamingTestBase {
          |  price DOUBLE
          |) WITH (
          |  'connector' = 'values',
-         |  'data-id' = '$filterableTableDataId'
+         |  'filterable-fields' = 'amount',
+         |  'data-id' = '$filterableTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
+
+    val metadataTableDataId = TestValuesTableFactory.registerData(TestData.smallData5)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3',
+         |  `b` BIGINT,
+         |  `metadata_1` INT METADATA,
+         |  `computed` AS `metadata_1` * 2,
+         |  `metadata_2` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$metadataTableDataId',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |)
+         |""".stripMargin)
+    val nestedTableDataId = TestValuesTableFactory.registerData(TestData.deepNestedRow)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE NestedTable (
+         |  id BIGINT,
+         |  deepNested ROW<
+         |     nested1 ROW<name STRING, `value.` INT>,
+         |     `nested2.` ROW<num INT, flag BOOLEAN>
+         |   >,
+         |   nested ROW<name STRING, `value` INT>,
+         |   name STRING,
+         |   lower_name AS LOWER(name)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'data-id' = '$nestedTableDataId'
+         |)
+         |""".stripMargin
+    )
   }
 
   @Test
@@ -92,59 +129,15 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testNestedProject(): Unit = {
-    val data = Seq(
-      Row.of(new JLong(1),
-        Row.of(
-          Row.of("Sarah", new JInt(100)),
-          Row.of(new JInt(1000), new JBool(true))
-        ),
-        Row.of("Peter", new JInt(10000)),
-        "Mary"),
-      Row.of(new JLong(2),
-        Row.of(
-          Row.of("Rob", new JInt(200)),
-          Row.of(new JInt(2000), new JBool(false))
-        ),
-        Row.of("Lucy", new JInt(20000)),
-        "Bob"),
-      Row.of(new JLong(3),
-        Row.of(
-          Row.of("Mike", new JInt(300)),
-          Row.of(new JInt(3000), new JBool(true))
-        ),
-        Row.of("Betty", new JInt(30000)),
-        "Liz"))
-
-    val dataId = TestValuesTableFactory.registerData(data)
-
-    // TODO: [FLINK-17428] support nested project for TestValuesTableSource
-    val ddl =
-      s"""
-         |CREATE TABLE T (
-         |  id BIGINT,
-         |  deepNested ROW<
-         |     nested1 ROW<name STRING, `value` INT>,
-         |     nested2 ROW<num INT, flag BOOLEAN>
-         |   >,
-         |   nested ROW<name STRING, `value` INT>,
-         |   name STRING,
-         |   lower_name AS LOWER(name)
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId'
-         |)
-         |""".stripMargin
-    tEnv.executeSql(ddl)
-
     val query =
       """
         |SELECT id,
         |    deepNested.nested1.name AS nestedName,
         |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum,
+        |    deepNested.`nested2.`.flag AS nestedFlag,
+        |    deepNested.`nested2.`.num + deepNested.nested1.`value.` AS nestedNum,
         |    lower_name
-        |FROM T
+        |FROM NestedTable
       """.stripMargin
 
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
@@ -153,34 +146,34 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,Sarah,10000,true,1000,mary",
-      "2,Rob,20000,false,2000,bob",
-      "3,Mike,30000,true,3000,liz")
+      "1,Sarah,10000,true,1100,mary",
+      "2,Rob,20000,false,2200,bob",
+      "3,Mike,30000,true,3300,liz")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    val query = "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9"
+    val query = "SELECT id, amount, name FROM FilterableTable WHERE amount > 4 AND price < 9"
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
+    val expected = Seq("5,5,Record_5", "6,6,Record_6", "7,7,Record_7", "8,8,Record_8")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
-    val query = "SELECT id, name FROM FilterableTable " +
+    val query = "SELECT id, amount, name FROM FilterableTable " +
       "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'"
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("5,Record_5")
+    val expected = Seq("5,5,Record_5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -261,5 +254,64 @@ class TableSourceITCase extends StreamingTestBase {
       "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testSimpleMetadataAccess(): Unit = {
+    val result = tEnv.sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,Hallo",
+      "2,2,Hallo Welt",
+      "2,3,Hallo Welt wie")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testComplexMetadataAccess(): Unit = {
+    val result = tEnv.sqlQuery(
+        "SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+    // (a, b, metadata_1, computed, metadata_2, other_metadata)
+    // (1, 1L, 0, 0, "Hallo", 1L)
+    // (2, 2L, 1, 2, "Hallo Welt", 2L)
+    // (2, 3L, 2, 4, "Hallo Welt wie", 1L)
+    val expected = Seq(
+      "1,1,1,Hallo,0",
+      "2,2,2,Hallo Welt,2",
+      "2,1,3,Hallo Welt wie,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testNestedProjectionWithMetadataAccess(): Unit = {
+    val query =
+      """
+        |SELECT id,
+        |    deepNested.nested1.name AS nestedName,
+        |    nested.`value` AS nestedValue,
+        |    deepNested.`nested2.`.flag AS nestedFlag,
+        |    deepNested.`nested2.`.num + deepNested.nested1.`value.` AS nestedNum,
+        |    LOWER(name) as lowerName
+        |FROM NestedTable
+      """.stripMargin
+
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,Sarah,10000,true,1100,mary",
+      "2,Rob,20000,false,2200,bob",
+      "3,Mike,30000,true,3300,liz")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

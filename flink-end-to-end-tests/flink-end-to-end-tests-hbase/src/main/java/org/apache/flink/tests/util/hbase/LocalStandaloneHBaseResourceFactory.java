@@ -24,7 +24,7 @@ package org.apache.flink.tests.util.hbase;
 public class LocalStandaloneHBaseResourceFactory implements HBaseResourceFactory {
 
 	@Override
-	public HBaseResource create() {
-		return new LocalStandaloneHBaseResource();
+	public HBaseResource create(String version) {
+		return new LocalStandaloneHBaseResource(version);
 	}
 }

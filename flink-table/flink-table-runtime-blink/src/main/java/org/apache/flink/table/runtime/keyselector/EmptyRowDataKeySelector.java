@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.keyselector;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowDataUtil;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * A utility class which key is always empty no matter what the input row is.
@@ -31,7 +31,7 @@ public class EmptyRowDataKeySelector implements RowDataKeySelector {
 
 	private static final long serialVersionUID = -2079386198687082032L;
 
-	private final RowDataTypeInfo returnType = new RowDataTypeInfo();
+	private final InternalTypeInfo<RowData> returnType = InternalTypeInfo.ofFields();
 
 	@Override
 	public RowData getKey(RowData value) throws Exception {
@@ -39,7 +39,7 @@ public class EmptyRowDataKeySelector implements RowDataKeySelector {
 	}
 
 	@Override
-	public RowDataTypeInfo getProducedType() {
+	public InternalTypeInfo<RowData> getProducedType() {
 		return returnType;
 	}
 }

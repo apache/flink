@@ -31,6 +31,10 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.commons.lang3.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,9 +61,11 @@ final class SpanningWrapper {
 	private static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
 	private static final int DEFAULT_FILE_BUFFER_SIZE = 2 * 1024 * 1024;
 
+	private static final Logger LOG = LoggerFactory.getLogger(SpanningWrapper.class);
+
 	private final byte[] initialBuffer = new byte[1024];
 
-	private final String[] tempDirs;
+	private String[] tempDirs;
 
 	private final Random rnd = new Random();
 
@@ -285,12 +291,23 @@ final class SpanningWrapper {
 
 		// try to find a unique file name for the spilling channel
 		int maxAttempts = 10;
+		int initialDirIndex = rnd.nextInt(tempDirs.length);
 		for (int attempt = 0; attempt < maxAttempts; attempt++) {
-			String directory = tempDirs[rnd.nextInt(tempDirs.length)];
+			int dirIndex = (initialDirIndex + attempt) % tempDirs.length;
+			String directory = tempDirs[dirIndex];
 			File file = new File(directory, randomString(rnd) + ".inputchannel");
-			if (file.createNewFile()) {
-				spillFile = new RefCountedFile(file);
-				return new RandomAccessFile(file, "rw").getChannel();
+			try {
+				if (file.createNewFile()) {
+					spillFile = new RefCountedFile(file);
+					return new RandomAccessFile(file, "rw").getChannel();
+				}
+			} catch (IOException e) {
+				// if there is no tempDir left to try
+				if (tempDirs.length <= 1) {
+					throw e;
+				}
+				LOG.warn("Caught an IOException when creating spill file: " + directory + ". Attempt " + attempt, e);
+				tempDirs = (String[]) ArrayUtils.remove(tempDirs, dirIndex);
 			}
 		}
 

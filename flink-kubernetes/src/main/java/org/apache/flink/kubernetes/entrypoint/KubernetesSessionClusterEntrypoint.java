@@ -20,6 +20,8 @@ package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -48,8 +50,12 @@ public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
+		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new DynamicParametersConfigurationParserFactory(),
+			KubernetesSessionClusterEntrypoint.class);
 		final ClusterEntrypoint entrypoint = new KubernetesSessionClusterEntrypoint(
-			KubernetesEntrypointUtils.loadConfiguration());
+			KubernetesEntrypointUtils.loadConfiguration(dynamicParameters));
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 }

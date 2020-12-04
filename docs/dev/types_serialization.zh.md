@@ -70,7 +70,7 @@ wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     }
 });
 
-wordCounts.keyBy(0); // also valid .keyBy("f0")
+wordCounts.keyBy(value -> value.f0);
 
 
 {% endhighlight %}
@@ -86,11 +86,11 @@ val input = env.fromElements(
     WordCount("hello", 1),
     WordCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word)
 
 val input2 = env.fromElements(("hello", 1), ("world", 2)) // Tuple2 Data Set
 
-input2.keyBy(0, 1) // key by field positions 0 and 1
+input2.keyBy(value => (value._1, value._2))
 {% endhighlight %}
 
 </div>
@@ -137,7 +137,7 @@ DataStream<WordWithCount> wordCounts = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 
-wordCounts.keyBy("word"); // key by field expression "word"
+wordCounts.keyBy(value -> value.word);
 
 {% endhighlight %}
 </div>
@@ -153,7 +153,7 @@ val input = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word)
 
 {% endhighlight %}
 </div>
@@ -176,13 +176,13 @@ Flink treats these data types as black boxes and is not able to access their con
 
 *Value* types describe their serialization and deserialization manually. Instead of going through a
 general purpose serialization framework, they provide custom code for those operations by means of
-implementing the `org.apache.flinktypes.Value` interface with the methods `read` and `write`. Using
+implementing the `org.apache.flink.types.Value` interface with the methods `read` and `write`. Using
 a Value type is reasonable when general purpose serialization would be highly inefficient. An
 example would be a data type that implements a sparse vector of elements as an array. Knowing that
 the array is mostly zero, one can use a special encoding for the non-zero elements, while the
 general purpose serialization would simply write all array elements.
 
-The `org.apache.flinktypes.CopyableValue` interface supports manual internal cloning logic in a
+The `org.apache.flink.types.CopyableValue` interface supports manual internal cloning logic in a
 similar way.
 
 Flink comes with pre-defined Value types that correspond to basic data types. (`ByteValue`,
@@ -237,9 +237,6 @@ Flink 会尽力推断有关数据类型的大量信息，这些数据会在分�
 可以把它想象成一个推断表结构的数据库。在大多数情况下，Flink 可以依赖自身透明的推断出所有需要的类型信息。
 掌握这些类型信息可以帮助 Flink 实现很多意想不到的特性：
 
-* 对于使用 POJOs 类型的数据，可以通过指定字段名（比如 `dataSet.keyBy("username")` ）进行 grouping 、joining、aggregating 操作。
-  类型信息可以帮助 Flink 在运行前做一些拼写错误以及类型兼容方面的检查，而不是等到运行时才暴露这些问题。
-
 * Flink 对数据类型了解的越多，序列化和数据布局方案就越好。
   这对 Flink 中的内存使用范式尤为重要（可以尽可能处理堆上或者堆外的序列化数据并且使序列化操作很廉价）。
 
@@ -260,7 +257,7 @@ Flink 会尽力推断有关数据类型的大量信息，这些数据会在分�
   并非所有的类型都可以被 Kryo (或者 Flink ) 处理。例如谷歌的 Guava 集合类型默认情况下是没办法很好处理的。
   解决方案是为这些引起问题的类型注册额外的序列化器。调用 `StreamExecutionEnvironment` 或者 `ExecutionEnvironment` 
   的 `.getConfig().addDefaultKryoSerializer(clazz, serializer)` 方法注册 Kryo 序列化器。存在很多的额外 Kryo 序列化器类库
-  具体细节可以参看 [自定义序列化器]({{ site.baseurl }}/zh/dev/custom_serializers.html) 以了解更多的自定义序列化器。
+  具体细节可以参看 [自定义序列化器]({% link dev/custom_serializers.zh.md %}) 以了解更多的自定义序列化器。
 
 * **添加类型提示** 有时， Flink 用尽一切手段也无法推断出泛型类型，用户需要提供*类型提示*。通常只在 Java API 中需要。
   [类型提示部分](#java-api-中的类型提示) 描述了更多的细节。

@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.RetryStrategy;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -42,24 +42,17 @@ public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGate
 	private final RpcService rpcService;
 	private final Class<T> gatewayType;
 	private final Function<UUID, F> fencingTokenMapper;
-
-	private final int retries;
-	private final Time retryDelay;
+	private final RetryStrategy retryStrategy;
 
 	public RpcGatewayRetriever(
 			RpcService rpcService,
 			Class<T> gatewayType,
 			Function<UUID, F> fencingTokenMapper,
-			int retries,
-			Time retryDelay) {
+			RetryStrategy retryStrategy) {
 		this.rpcService = Preconditions.checkNotNull(rpcService);
-
 		this.gatewayType = Preconditions.checkNotNull(gatewayType);
 		this.fencingTokenMapper = Preconditions.checkNotNull(fencingTokenMapper);
-
-		Preconditions.checkArgument(retries >= 0, "The number of retries must be greater or equal to 0.");
-		this.retries = retries;
-		this.retryDelay = Preconditions.checkNotNull(retryDelay);
+		this.retryStrategy = Preconditions.checkNotNull(retryStrategy);
 	}
 
 	@Override
@@ -72,8 +65,7 @@ public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGate
 							addressLeaderTuple.f0,
 							fencingTokenMapper.apply(addressLeaderTuple.f1),
 							gatewayType)),
-			retries,
-			retryDelay,
+			retryStrategy,
 			rpcService.getScheduledExecutor());
 	}
 }

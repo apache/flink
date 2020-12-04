@@ -22,15 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DecimalType;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
@@ -38,6 +41,7 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Static;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 
@@ -50,8 +54,9 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 	public FlinkCalciteSqlValidator(
 			SqlOperatorTable opTab,
 			SqlValidatorCatalogReader catalogReader,
-			RelDataTypeFactory typeFactory) {
-		super(opTab, catalogReader, typeFactory, SqlConformanceEnum.DEFAULT);
+			RelDataTypeFactory typeFactory,
+			SqlValidator.Config config) {
+		super(opTab, catalogReader, typeFactory, config);
 	}
 
 	@Override
@@ -73,6 +78,15 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 		// temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
 		if (join.getJoinType() == JoinType.LEFT &&
 				SqlUtil.stripAs(join.getRight()).getKind() == SqlKind.COLLECTION_TABLE) {
+			SqlNode right = SqlUtil.stripAs(join.getRight());
+			if (right instanceof SqlBasicCall) {
+				SqlBasicCall call = (SqlBasicCall) right;
+				SqlNode operand0 = call.operand(0);
+				if (operand0 instanceof SqlBasicCall
+						&& ((SqlBasicCall) operand0).getOperator() instanceof SqlWindowTableFunction) {
+					return;
+				}
+			}
 			final SqlNode condition = join.getCondition();
 			if (condition != null &&
 					(!SqlUtil.isLiteral(condition) || ((SqlLiteral) condition).getValueAs(Boolean.class) != Boolean.TRUE)) {
@@ -84,5 +98,12 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 			}
 		}
 		super.validateJoin(join, scope);
+	}
+
+	@Override
+	public void validateColumnListParams(SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
+		// we don't support column lists and translate them into the unknown type in the type factory,
+		// this makes it possible to ignore them in the validator and fall back to regular row types
+		// see also SqlFunction#deriveType
 	}
 }

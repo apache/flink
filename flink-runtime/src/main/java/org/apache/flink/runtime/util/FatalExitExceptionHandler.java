@@ -32,16 +32,16 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
 	private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
 
 	public static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler();
+	public static final int EXIT_CODE = -17;
 
 	@Override
 	@SuppressWarnings("finally")
 	public void uncaughtException(Thread t, Throwable e) {
 		try {
-			LOG.error("FATAL: Thread '" + t.getName() +
-				"' produced an uncaught exception. Stopping the process...", e);
+			LOG.error("FATAL: Thread '{}' produced an uncaught exception. Stopping the process...", t.getName(), e);
 		}
 		finally {
-			System.exit(-17);
+			System.exit(EXIT_CODE);
 		}
 	}
 }

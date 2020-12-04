@@ -28,6 +28,7 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
+from pyflink.common import JobExecutionResult
 from pyflink.table import TableConfig
 from pyflink.table.sources import CsvTableSource
 from pyflink.dataset.execution_environment import ExecutionEnvironment
@@ -36,7 +37,7 @@ from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
-
+from pyflink.util.utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -61,6 +62,34 @@ def get_private_field(java_obj, field_name):
                 return field.get(java_obj)
             except Py4JJavaError:
                 pass
+
+
+def exec_insert_table(table, table_path) -> JobExecutionResult:
+    return table.execute_insert(table_path).get_job_client().get_job_execution_result().result()
+
+
+def _load_specific_flink_module_jars(jars_relative_path):
+    flink_source_root = _find_flink_source_root()
+    jars_abs_path = flink_source_root + jars_relative_path
+    specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
+    specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
+    add_jars_to_context_class_loader(specific_jars)
+
+
+def invoke_java_object_method(obj, method_name):
+    clz = obj.getClass()
+    j_method = None
+    while clz is not None:
+        try:
+            j_method = clz.getDeclaredMethod(method_name, None)
+            if j_method is not None:
+                break
+        except:
+            clz = clz.getSuperclass()
+    if j_method is None:
+        raise Exception("No such method: " + method_name)
+    j_method.setAccessible(True)
+    return j_method.invoke(obj, to_jarray(get_gateway().jvm.Object, []))
 
 
 class PyFlinkTestCase(unittest.TestCase):
@@ -128,8 +157,6 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
             self.env,
             environment_settings=EnvironmentSettings.new_instance()
                 .in_streaming_mode().use_old_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "taskmanager.memory.task.off-heap.size", "80mb")
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -142,8 +169,6 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         self.env = ExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
         self.t_env = BatchTableEnvironment.create(self.env, TableConfig())
-        self.t_env.get_config().get_configuration().set_string(
-            "taskmanager.memory.task.off-heap.size", "80mb")
 
     def collect(self, table):
         j_table = table._j_table
@@ -166,8 +191,6 @@ class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
         self.t_env = StreamTableEnvironment.create(
             self.env, environment_settings=EnvironmentSettings.new_instance()
                 .in_streaming_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "taskmanager.memory.task.off-heap.size", "80mb")
 
 
 class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
@@ -180,8 +203,6 @@ class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env = BatchTableEnvironment.create(
             environment_settings=EnvironmentSettings.new_instance()
             .in_batch_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "taskmanager.memory.task.off-heap.size", "80mb")
         self.t_env._j_tenv.getPlanner().getExecEnv().setParallelism(2)
 
 

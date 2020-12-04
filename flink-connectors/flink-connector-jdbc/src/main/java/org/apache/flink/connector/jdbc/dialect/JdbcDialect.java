@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
+
 /**
  * Handle the SQL dialect of jdbc driver.
  */
@@ -97,7 +99,7 @@ public interface JdbcDialect extends Serializable {
 	 */
 	default String getRowExistsStatement(String tableName, String[] conditionFields) {
 		String fieldExpressions = Arrays.stream(conditionFields)
-			.map(f -> quoteIdentifier(f) + "=?")
+			.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 			.collect(Collectors.joining(" AND "));
 		return "SELECT 1 FROM " + quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
 	}
@@ -110,7 +112,7 @@ public interface JdbcDialect extends Serializable {
 			.map(this::quoteIdentifier)
 			.collect(Collectors.joining(", "));
 		String placeholders = Arrays.stream(fieldNames)
-			.map(f -> "?")
+			.map(f -> ":" + f)
 			.collect(Collectors.joining(", "));
 		return "INSERT INTO " + quoteIdentifier(tableName) +
 			"(" + columns + ")" + " VALUES (" + placeholders + ")";
@@ -122,10 +124,10 @@ public interface JdbcDialect extends Serializable {
 	 */
 	default String getUpdateStatement(String tableName, String[] fieldNames, String[] conditionFields) {
 		String setClause = Arrays.stream(fieldNames)
-			.map(f -> quoteIdentifier(f) + "=?")
+			.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 			.collect(Collectors.joining(", "));
 		String conditionClause = Arrays.stream(conditionFields)
-			.map(f -> quoteIdentifier(f) + "=?")
+			.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 			.collect(Collectors.joining(" AND "));
 		return "UPDATE " + quoteIdentifier(tableName) +
 			" SET " + setClause +
@@ -138,7 +140,7 @@ public interface JdbcDialect extends Serializable {
 	 */
 	default String getDeleteStatement(String tableName, String[] conditionFields) {
 		String conditionClause = Arrays.stream(conditionFields)
-			.map(f -> quoteIdentifier(f) + "=?")
+			.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 			.collect(Collectors.joining(" AND "));
 		return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
 	}
@@ -151,7 +153,7 @@ public interface JdbcDialect extends Serializable {
 				.map(this::quoteIdentifier)
 				.collect(Collectors.joining(", "));
 		String fieldExpressions = Arrays.stream(conditionFields)
-				.map(f -> quoteIdentifier(f) + "=?")
+				.map(f -> format("%s = :%s", quoteIdentifier(f), f))
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
 				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");

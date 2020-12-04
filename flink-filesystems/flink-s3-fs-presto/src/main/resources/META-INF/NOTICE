@@ -7,17 +7,17 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - commons-beanutils:commons-beanutils:1.9.3
-- commons-codec:commons-codec:1.10
+- commons-codec:commons-codec:1.13
 - commons-collections:commons-collections:3.2.2
-- commons-io:commons-io:2.4
+- commons-io:commons-io:2.7
 - commons-lang:commons-lang:2.6
 - commons-logging:commons-logging:1.1.3
-- com.amazonaws:aws-java-sdk-core:1.11.754
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.754
-- com.amazonaws:aws-java-sdk-kms:1.11.754
-- com.amazonaws:aws-java-sdk-s3:1.11.754
-- com.amazonaws:aws-java-sdk-sts:1.11.754
-- com.amazonaws:jmespath-java:1.11.754
+- com.amazonaws:aws-java-sdk-core:1.11.788
+- com.amazonaws:aws-java-sdk-dynamodb:1.11.788
+- com.amazonaws:aws-java-sdk-kms:1.11.788
+- com.amazonaws:aws-java-sdk-s3:1.11.788
+- com.amazonaws:aws-java-sdk-sts:1.11.788
+- com.amazonaws:jmespath-java:1.11.788
 - com.facebook.presto:presto-hive:0.187
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
@@ -52,7 +52,6 @@ See bundled license files for details.
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
-- javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).

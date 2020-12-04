@@ -37,7 +37,7 @@ LogicalProject(a=[$0], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[explode($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ LogicalProject(b=[$0], s=[$2])
       :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0])
-         +- LogicalTableFunctionScan(invocation=[explode($cor0.set)], rowType=[RecordType(BIGINT f0)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.set)], rowType=[RecordType:peek_no_expand(BIGINT f0)])
 ]]>
     </Resource>
   </TestCase>
@@ -101,7 +101,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(k=[$0], v=[$1])
-      +- LogicalTableFunctionScan(invocation=[explode($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)])
 ]]>
     </Resource>
   </TestCase>
@@ -137,7 +137,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
       :  +- LogicalFilter(condition=[<($0, 3)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
       +- LogicalProject(x=[$0], y=[$1])
-         +- LogicalTableFunctionScan(invocation=[explode($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -171,7 +171,7 @@ LogicalProject(a=[$0], s=[$2])
       :  +- LogicalProject(a=[$0], b=[$1])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0])
-         +- LogicalTableFunctionScan(invocation=[explode($cor0.set)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.set)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
   </TestCase>
@@ -196,7 +196,7 @@ LogicalProject(a=[$0], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[explode($cor0.c)], rowType=[RecordType(INTEGER ARRAY f0)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.c)], rowType=[RecordType:peek_no_expand(INTEGER ARRAY f0)])
 ]]>
     </Resource>
   </TestCase>
@@ -230,7 +230,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
       :  +- LogicalProject(b=[$1], c=[$2])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(id=[$0], point=[$1])
-         +- LogicalTableFunctionScan(invocation=[explode($cor0.set)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.set)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -255,7 +255,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(s=[$0])
-      +- LogicalTableFunctionScan(invocation=[explode($cor0.b)], rowType=[RecordType(INTEGER f0)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER f0)])
 ]]>
     </Resource>
   </TestCase>
@@ -282,7 +282,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
       +- LogicalProject(s=[$0], t=[$1])
-         +- LogicalTableFunctionScan(invocation=[explode($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>
@@ -307,7 +307,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
-      +- LogicalTableFunctionScan(invocation=[explode($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[UNNEST($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
   </TestCase>

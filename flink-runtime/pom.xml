@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-	<name>flink-runtime</name>
+	<name>Flink : Runtime</name>
 
 	<packaging>jar</packaging>
 
@@ -503,6 +503,7 @@ under the License.
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
 					<gitDescribe>
 						<!-- Don't generate the describe property -->
 						<!-- It is useless due to the way Flink does branches and tags -->

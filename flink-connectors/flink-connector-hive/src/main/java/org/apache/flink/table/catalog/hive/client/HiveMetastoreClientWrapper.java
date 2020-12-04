@@ -20,11 +20,13 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
@@ -68,7 +70,10 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
-		client = createMetastoreClient();
+		// use synchronized client in case we're talking to a remote HMS
+		client = HiveCatalog.isEmbeddedMetastore(hiveConf) ?
+				createMetastoreClient() :
+				HiveMetaStoreClient.newSynchronizedClient(createMetastoreClient());
 	}
 
 	@Override

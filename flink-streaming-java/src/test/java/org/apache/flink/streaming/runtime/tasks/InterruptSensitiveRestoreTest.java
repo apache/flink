@@ -218,11 +218,12 @@ public class InterruptSensitiveRestoreTest {
 				throw new IllegalArgumentException();
 		}
 
-		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			new StateObjectCollection<>(operatorStateBackend),
-			new StateObjectCollection<>(operatorStateStream),
-			new StateObjectCollection<>(keyedStateFromBackend),
-			new StateObjectCollection<>(keyedStateFromStream));
+		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(new StateObjectCollection<>(operatorStateBackend))
+			.setRawOperatorState(new StateObjectCollection<>(operatorStateStream))
+			.setManagedKeyedState(new StateObjectCollection<>(keyedStateFromBackend))
+			.setRawKeyedState(new StateObjectCollection<>(keyedStateFromStream))
+			.build();
 
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);

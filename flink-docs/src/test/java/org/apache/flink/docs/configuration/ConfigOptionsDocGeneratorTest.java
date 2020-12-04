@@ -46,6 +46,7 @@ import java.util.Map;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -533,6 +534,22 @@ public class ConfigOptionsDocGeneratorTest {
 		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class).get(0).f1;
 
 		assertEquals(expectedTable, htmlTable);
+	}
+
+	@ConfigGroups(groups = {@ConfigGroup(name = "firstGroup", keyPrefix = "first")})
+	static class EmptyConfigOptions {
+	}
+
+	@Test
+	public void testClassWithoutOptionsIsIgnored() {
+		assertThat(ConfigOptionsDocGenerator.generateTablesForClass(EmptyConfigOptions.class), empty());
+	}
+
+	@Test
+	public void testSnakeCaseConversion() {
+		assertEquals("rocks_options", ConfigOptionsDocGenerator.toSnakeCase("RocksOptions"));
+		assertEquals("rocksdb_options", ConfigOptionsDocGenerator.toSnakeCase("RocksDBOptions"));
+		assertEquals("db_options", ConfigOptionsDocGenerator.toSnakeCase("DBOptions"));
 	}
 
 	static String getProjectRootDir() {

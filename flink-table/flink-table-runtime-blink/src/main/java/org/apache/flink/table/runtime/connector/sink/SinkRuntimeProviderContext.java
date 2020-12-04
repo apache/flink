@@ -22,11 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.TypeTransformations;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
+import static org.apache.flink.table.types.utils.DataTypeUtils.validateOutputDataType;
 
 /**
  * Implementation of {@link DynamicTableSink.Context}.
@@ -47,14 +46,13 @@ public final class SinkRuntimeProviderContext implements DynamicTableSink.Contex
 
 	@Override
 	public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
-		final DataType internalDataType = DataTypeUtils.transform(
-			consumedDataType,
-			TypeTransformations.TO_INTERNAL_CLASS);
-		return fromDataTypeToTypeInfo(internalDataType);
+		validateOutputDataType(consumedDataType);
+		return InternalTypeInfo.of(consumedDataType.getLogicalType());
 	}
 
 	@Override
 	public DynamicTableSink.DataStructureConverter createDataStructureConverter(DataType consumedDataType) {
+		validateOutputDataType(consumedDataType);
 		return new DataStructureConverterWrapper(DataStructureConverters.getConverter(consumedDataType));
 	}
 }

@@ -18,10 +18,10 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.RowData;
 
 import java.io.Serializable;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -44,5 +44,5 @@ public interface JdbcRowConverter extends Serializable {
 	 * @param statement The statement to be filled.
 	 * @return The filled statement.
 	 */
-	PreparedStatement toExternal(RowData rowData, PreparedStatement statement) throws SQLException;
+	FieldNamedPreparedStatement toExternal(RowData rowData, FieldNamedPreparedStatement statement) throws SQLException;
 }

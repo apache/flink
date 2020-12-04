@@ -21,16 +21,12 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.config.CatalogConfig;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.mapred.JobConf;
 
 import java.util.List;
 import java.util.Map;
@@ -41,13 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A table factory implementation for Hive catalog.
  */
 public class HiveTableFactory
-		implements TableSourceFactory<RowData>, TableSinkFactory {
-
-	private final HiveConf hiveConf;
-
-	public HiveTableFactory(HiveConf hiveConf) {
-		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
-	}
+		implements TableSourceFactory, TableSinkFactory {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -60,18 +50,15 @@ public class HiveTableFactory
 	}
 
 	@Override
-	public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
+	public TableSource createTableSource(TableSourceFactory.Context context) {
 		CatalogTable table = checkNotNull(context.getTable());
 		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
-			return new HiveTableSource(
-					new JobConf(hiveConf),
-					context.getConfiguration(),
-					context.getObjectIdentifier().toObjectPath(),
-					table);
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
+			throw new UnsupportedOperationException("Hive table should be resolved by HiveDynamicTableFactory.");
 		} else {
 			return TableFactoryUtil.findAndCreateTableSource(context);
 		}
@@ -84,14 +71,9 @@ public class HiveTableFactory
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
-			return new HiveTableSink(
-					context.getConfiguration().get(
-							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
-					context.isBounded(),
-					new JobConf(hiveConf),
-					context.getObjectIdentifier(),
-					table);
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
+			throw new UnsupportedOperationException("Hive table should be resolved by HiveDynamicTableFactory.");
 		} else {
 			return TableFactoryUtil.findAndCreateTableSink(context);
 		}

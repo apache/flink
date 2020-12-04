@@ -22,9 +22,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -50,12 +48,11 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.StreamGroupedFold;
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
@@ -88,7 +85,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@code DataStream} are also possible on a {@code KeyedStream}, with the exception of
  * partitioning methods such as shuffle, forward and keyBy.
  *
- * <p>Reduce-style operations, such as {@link #reduce}, {@link #sum} and {@link #fold} work on
+ * <p>Reduce-style operations, such as {@link #reduce}, and {@link #sum} work on
  * elements that have the same key.
  *
  * @param <T> The type of the elements in the Keyed Stream.
@@ -170,6 +167,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param keyType The {@link TypeInformation} of the key.
 	 */
+	@SuppressWarnings("rawtypes")
 	private TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
 		Stack<TypeInformation<?>> stack = new Stack<>();
 		stack.push(keyType);
@@ -437,12 +435,43 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		private final KeyedStream<T1, KEY> streamOne;
 		private final KeyedStream<T2, KEY> streamTwo;
 
+		/**
+		 * The time behaviour enum defines how the system determines time for time-dependent order and
+		 * operations that depend on time.
+		 */
+		enum TimeBehaviour {
+			ProcessingTime,
+			EventTime
+		}
+
+		/**
+		 * The time behaviour to specify processing time or event time.
+		 * Default time behaviour is {@link TimeBehaviour#EventTime}.
+		 */
+		private TimeBehaviour timeBehaviour = TimeBehaviour.EventTime;
+
 		IntervalJoin(
 				KeyedStream<T1, KEY> streamOne,
 				KeyedStream<T2, KEY> streamTwo
 		) {
 			this.streamOne = checkNotNull(streamOne);
 			this.streamTwo = checkNotNull(streamTwo);
+		}
+
+		/**
+		 * Sets the time characteristic to event time.
+		 */
+		public IntervalJoin<T1, T2, KEY> inEventTime() {
+			timeBehaviour = TimeBehaviour.EventTime;
+			return this;
+		}
+
+		/**
+		 * Sets the time characteristic to processing time.
+		 */
+		public IntervalJoin<T1, T2, KEY> inProcessingTime() {
+			timeBehaviour = TimeBehaviour.ProcessingTime;
+			return this;
 		}
 
 		/**
@@ -457,11 +486,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		 */
 		@PublicEvolving
 		public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
-
-			TimeCharacteristic timeCharacteristic =
-				streamOne.getExecutionEnvironment().getStreamTimeCharacteristic();
-
-			if (timeCharacteristic != TimeCharacteristic.EventTime) {
+			if (timeBehaviour != TimeBehaviour.EventTime) {
 				throw new UnsupportedTimeCharacteristicException("Time-bounded stream joins are only supported in event time");
 			}
 
@@ -618,7 +643,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
+	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(TumblingProcessingTimeWindows.of(size));
@@ -636,7 +666,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
+	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(SlidingProcessingTimeWindows.of(size, slide));
@@ -699,32 +734,18 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
-				clean(reducer), getType().createSerializer(getExecutionConfig())));
-	}
+		ReduceTransformation<T, KEY> reduce = new ReduceTransformation<>(
+			"Keyed Reduce",
+			environment.getParallelism(),
+			transformation,
+			clean(reducer),
+			keySelector,
+			getKeyType()
+		);
 
-	/**
-	 * Applies a fold transformation on the grouped data stream grouped on by
-	 * the given key position. The {@link FoldFunction} will receive input
-	 * values based on the key value. Only input values with the same key will
-	 * go to the same folder.
-	 *
-	 * @param folder
-	 *            The {@link FoldFunction} that will be called for every element
-	 *            of the input values with the same key.
-	 * @param initialValue
-	 *            The initialValue passed to the folders for each key.
-	 * @return The transformed DataStream.
-	 *
-	 * @deprecated will be removed in a future version
-	 */
-	@Deprecated
-	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> folder) {
+		getExecutionEnvironment().addOperator(reduce);
 
-		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
-				clean(folder), getType(), Utils.getCallLocationName(), true);
-
-		return transform("Keyed Fold", outType, new StreamGroupedFold<>(clean(folder), initialValue));
+		return new SingleOutputStreamOperator<>(getExecutionEnvironment(), reduce);
 	}
 
 	/**
@@ -939,7 +960,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T> minBy(int positionToMinBy, boolean first) {
-		return aggregate(new ComparableAggregator<T>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
+		return aggregate(new ComparableAggregator<>(positionToMinBy, getType(), AggregationFunction.AggregationType.MINBY, first,
 				getExecutionConfig()));
 	}
 
@@ -1000,9 +1021,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(
-				clean(aggregate), getType().createSerializer(getExecutionConfig()));
-		return transform("Keyed Aggregation", getType(), operator);
+		return reduce(aggregate).name("Keyed Aggregation");
 	}
 
 	/**
@@ -1013,7 +1032,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
-		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
 				UUID.randomUUID().toString(),
 				getType());
 
@@ -1035,33 +1054,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		transform("Queryable state: " + queryableStateName,
 				getType(),
 				new QueryableValueStateOperator<>(queryableStateName, stateDescriptor));
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		return new QueryableStateStream<>(
-				queryableStateName,
-				stateDescriptor,
-				getKeyType().createSerializer(getExecutionConfig()));
-	}
-
-	/**
-	 * Publishes the keyed stream as a queryable FoldingState instance.
-	 *
-	 * @param queryableStateName Name under which to the publish the queryable state instance
-	 * @param stateDescriptor State descriptor to create state instance from
-	 * @return Queryable state instance
-	 *
-	 * @deprecated will be removed in a future version
-	 */
-	@PublicEvolving
-	@Deprecated
-	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
-			String queryableStateName,
-			FoldingStateDescriptor<T, ACC> stateDescriptor) {
-
-		transform("Queryable state: " + queryableStateName,
-				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 

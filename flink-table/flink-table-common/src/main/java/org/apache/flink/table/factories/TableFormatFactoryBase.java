@@ -162,9 +162,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			final TableColumn tableColumn = tableSchema.getTableColumns().get(i);
 			final String fieldName = tableColumn.getName();
 			final DataType dataType = tableColumn.getType();
-			final boolean isGeneratedColumn = tableColumn.isGenerated();
-			if (isGeneratedColumn) {
-				//skip generated column
+			if (!tableColumn.isPhysical()) {
+				// skip non-physical columns
 				continue;
 			}
 			final boolean isProctime = descriptorProperties

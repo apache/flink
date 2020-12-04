@@ -26,7 +26,7 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -37,7 +37,10 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -63,15 +66,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private final TaskEventPublisher taskEventPublisher;
 
 	/** The consumed subpartition. */
-	private volatile ResultSubpartitionView subpartitionView;
+	@Nullable private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
 
-	/** The latest already triggered checkpoint id which would be updated during {@link #spillInflightBuffers(long, ChannelStateWriter)}.*/
-	private long lastRequestedCheckpointId = -1;
-
-	/** The current received checkpoint id from the network. */
-	private long receivedCheckpointId = -1;
+	private final ChannelStatePersister channelStatePersister;
 
 	public LocalInputChannel(
 		SingleInputGate inputGate,
@@ -82,7 +81,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		Counter numBytesIn,
 		Counter numBuffersIn) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, 0, 0, numBytesIn, numBuffersIn);
+		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, 0, 0, numBytesIn, numBuffersIn, ChannelStateWriter.NO_OP);
 	}
 
 	public LocalInputChannel(
@@ -94,22 +93,33 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int initialBackoff,
 		int maxBackoff,
 		Counter numBytesIn,
-		Counter numBuffersIn) {
+		Counter numBuffersIn,
+		ChannelStateWriter stateWriter) {
 
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventPublisher = checkNotNull(taskEventPublisher);
+		this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 	}
 
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
 
+	public void checkpointStarted(CheckpointBarrier barrier) {
+		channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
+	}
+
+	public void checkpointStopped(long checkpointId) {
+		channelStatePersister.stopPersisting(checkpointId);
+	}
+
 	@Override
 	protected void requestSubpartition(int subpartitionIndex) throws IOException {
 
 		boolean retriggerRequest = false;
+		boolean notifyDataAvailable = false;
 
 		// The lock is required to request only once in the presence of retriggered requests.
 		synchronized (requestLock) {
@@ -134,6 +144,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					if (isReleased) {
 						subpartitionView.releaseAllResources();
 						this.subpartitionView = null;
+					} else {
+						notifyDataAvailable = true;
 					}
 				} catch (PartitionNotFoundException notFound) {
 					if (increaseBackoff()) {
@@ -143,6 +155,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					}
 				}
 			}
+		}
+
+		if (notifyDataAvailable) {
+			notifyDataAvailable();
 		}
 
 		// Do this outside of the lock scope as this might lead to a
@@ -174,12 +190,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) {
-		this.lastRequestedCheckpointId = checkpointId;
-	}
-
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkError();
 
 		ResultSubpartitionView subpartitionView = this.subpartitionView;
@@ -211,16 +222,23 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		Buffer buffer = next.buffer();
-		CheckpointBarrier notifyReceivedBarrier = parseCheckpointBarrierOrNull(buffer);
-		if (notifyReceivedBarrier != null) {
-			receivedCheckpointId = notifyReceivedBarrier.getId();
-		} else if (receivedCheckpointId < lastRequestedCheckpointId && buffer.isBuffer()) {
-			inputGate.getBufferReceivedListener().notifyBufferReceived(buffer.retainBuffer(), channelInfo);
+
+		if (buffer instanceof FileRegionBuffer) {
+			buffer = ((FileRegionBuffer) buffer).readInto(inputGate.getUnpooledSegment());
 		}
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(buffer, next.isDataAvailable(), next.buffersInBacklog()));
+		if (buffer.getDataType().hasPriority()) {
+			channelStatePersister.checkForBarrier(buffer);
+		} else {
+			channelStatePersister.maybePersist(buffer);
+		}
+		return Optional.of(new BufferAndAvailability(
+			buffer,
+			next.getNextDataType(),
+			next.buffersInBacklog(),
+			next.getSequenceNumber()));
 	}
 
 	@Override
@@ -303,28 +321,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	@Override
 	public String toString() {
 		return "LocalInputChannel [" + partitionId + "]";
-	}
-
-	@Override
-	public boolean notifyPriorityEvent(BufferConsumer eventBufferConsumer) throws IOException {
-		if (inputGate.getBufferReceivedListener() == null) {
-			// in rare cases and very low checkpointing intervals, we may receive the first barrier, before setting
-			// up CheckpointedInputGate
-			return false;
-		}
-		Buffer buffer = eventBufferConsumer.build();
-		try {
-			CheckpointBarrier event = parseCheckpointBarrierOrNull(buffer);
-			if (event == null) {
-				throw new IllegalStateException("Currently only checkpoint barriers are known priority events");
-			} else if (event.isCheckpoint()) {
-				inputGate.getBufferReceivedListener().notifyBarrierReceived(event, channelInfo);
-			}
-		} finally {
-			buffer.recycleBuffer();
-		}
-		// already processed
-		return true;
 	}
 
 	// ------------------------------------------------------------------------

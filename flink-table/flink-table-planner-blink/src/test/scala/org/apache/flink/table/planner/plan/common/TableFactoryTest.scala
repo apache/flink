@@ -22,7 +22,6 @@ import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.runner.RunWith

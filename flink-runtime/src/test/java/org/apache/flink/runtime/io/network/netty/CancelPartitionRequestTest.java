@@ -190,7 +190,7 @@ public class CancelPartitionRequestTest {
 			Buffer buffer = bufferProvider.requestBuffer();
 			if (buffer != null) {
 				buffer.setSize(buffer.getMaxCapacity()); // fake some data
-				return new BufferAndBacklog(buffer, true, 0, false);
+				return new BufferAndBacklog(buffer, 0, Buffer.DataType.DATA_BUFFER, 0);
 			} else {
 				return null;
 			}

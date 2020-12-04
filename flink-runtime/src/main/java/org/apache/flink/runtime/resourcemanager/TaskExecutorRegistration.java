@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 
 import java.io.Serializable;
 
@@ -48,9 +49,19 @@ public class TaskExecutorRegistration implements Serializable {
 	private final int dataPort;
 
 	/**
+	 * Port used for JMX RMI.
+	 */
+	private final int jmxPort;
+
+	/**
 	 * HardwareDescription of the registering TaskExecutor.
 	 */
 	private final HardwareDescription hardwareDescription;
+
+	/**
+	 * Memory configuration of the registering TaskExecutor.
+	 */
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
 	/**
 	 * The default resource profile for slots requested with unknown resource requirements.
@@ -66,13 +77,17 @@ public class TaskExecutorRegistration implements Serializable {
 			final String taskExecutorAddress,
 			final ResourceID resourceId,
 			final int dataPort,
+			final int jmxPort,
 			final HardwareDescription hardwareDescription,
+			final TaskExecutorMemoryConfiguration memoryConfiguration,
 			final ResourceProfile defaultSlotResourceProfile,
 			final ResourceProfile totalResourceProfile) {
 		this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
 		this.resourceId = checkNotNull(resourceId);
 		this.dataPort = dataPort;
+		this.jmxPort = jmxPort;
 		this.hardwareDescription = checkNotNull(hardwareDescription);
+		this.memoryConfiguration = checkNotNull(memoryConfiguration);
 		this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
 		this.totalResourceProfile = checkNotNull(totalResourceProfile);
 	}
@@ -89,8 +104,16 @@ public class TaskExecutorRegistration implements Serializable {
 		return dataPort;
 	}
 
+	public int getJmxPort() {
+		return jmxPort;
+	}
+
 	public HardwareDescription getHardwareDescription() {
 		return hardwareDescription;
+	}
+
+	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+		return memoryConfiguration;
 	}
 
 	public ResourceProfile getDefaultSlotResourceProfile() {

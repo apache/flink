@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<artifactId>flink-external-resources</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-external-resource-gpu</artifactId>
-	<name>flink-external-resource-gpu</name>
+	<name>Flink : External resources : GPU</name>
 
 	<packaging>jar</packaging>
 

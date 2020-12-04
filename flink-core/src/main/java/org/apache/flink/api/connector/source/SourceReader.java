@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.io.InputStatus;
 
 import java.util.List;
@@ -32,7 +33,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <SplitT> The type of the the source splits.
  */
 @PublicEvolving
-public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseable {
+public interface SourceReader<T, SplitT extends SourceSplit>
+		extends AutoCloseable, CheckpointListener {
 
 	/**
 	 * Start the reader.
@@ -58,24 +60,66 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 *
 	 * @return the state of the source.
 	 */
-	List<SplitT> snapshotState();
+	List<SplitT> snapshotState(long checkpointId);
 
 	/**
+	 * Returns a future that signals that data is available from the reader.
+	 *
+	 * <p>Once the future completes, the runtime will keep calling the {@link #pollNext(ReaderOutput)}
+	 * method until that methods returns a status other than {@link InputStatus#MORE_AVAILABLE}.
+	 * After that the, the runtime will again call this method to obtain the next future.
+	 * Once that completes, it will again call {@link #pollNext(ReaderOutput)} and so on.
+	 *
+	 * <p>The contract is the following: If the reader has data available, then all
+	 * futures previously returned by this method must eventually complete. Otherwise
+	 * the source might stall indefinitely.
+	 *
+	 * <p>It is not a problem to have occasional "false positives", meaning to complete
+	 * a future even if no data is available. However, one should not use an "always complete"
+	 * future in cases no data is available, because that will result in busy waiting loops
+	 * calling {@code pollNext(...)} even though no data is available.
+	 *
 	 * @return a future that will be completed once there is a record available to poll.
 	 */
 	CompletableFuture<Void> isAvailable();
 
 	/**
 	 * Adds a list of splits for this reader to read.
+	 * This method is called when the enumerator assigns a split via
+	 * {@link SplitEnumeratorContext#assignSplit(SourceSplit, int)} or
+	 * {@link SplitEnumeratorContext#assignSplits(SplitsAssignment)}.
 	 *
 	 * @param splits The splits assigned by the split enumerator.
 	 */
 	void addSplits(List<SplitT> splits);
 
 	/**
-	 * Handle a source event sent by the {@link SplitEnumerator}.
+	 * This method is called when the reader is notified that it will not
+	 * receive any further splits.
+	 *
+	 * <p>It is triggered when the enumerator calls {@link SplitEnumeratorContext#signalNoMoreSplits(int)}
+	 * with the reader's parallel subtask.
+	 */
+	void notifyNoMoreSplits();
+
+	/**
+	 * Handle a custom source event sent by the {@link SplitEnumerator}.
+	 * This method is called when the enumerator sends an event via
+	 * {@link SplitEnumeratorContext#sendEventToSourceReader(int, SourceEvent)}.
+	 *
+	 * <p>This method has a default implementation that does nothing, because
+	 * most sources do not require any custom events.
 	 *
 	 * @param sourceEvent the event sent by the {@link SplitEnumerator}.
 	 */
-	void handleSourceEvents(SourceEvent sourceEvent);
+	default void handleSourceEvents(SourceEvent sourceEvent) {}
+
+	/**
+	 * We have an empty default implementation here because most source readers do not have
+	 * to implement the method.
+	 *
+	 * @see CheckpointListener#notifyCheckpointComplete(long)
+	 */
+	@Override
+	default void notifyCheckpointComplete(long checkpointId) throws Exception {}
 }

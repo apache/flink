@@ -15,6 +15,8 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
+import datetime
+import decimal
 import glob
 import os
 import pathlib
@@ -22,20 +24,25 @@ import sys
 
 from py4j.protocol import Py4JJavaError
 
+from pyflink.common import RowKind
+from pyflink.common.typeinfo import Types
+
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
     Module, ResultKind
 from pyflink.table.descriptors import FileSystem, OldCsv, Schema
 from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.expressions import col
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
-from pyflink.table.types import RowType
+from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -54,7 +61,7 @@ class TableEnvironmentTest(object):
             .add('c', DataTypes.STRING())
         t_env = self.t_env
         t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
 
         actual = result.explain()
 
@@ -67,7 +74,7 @@ class TableEnvironmentTest(object):
             .add('c', DataTypes.STRING())
         t_env = self.t_env
         t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
 
         actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
 
@@ -115,7 +122,7 @@ class TableEnvironmentTest(object):
 
 class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
-    def test_register_table_source_scan(self):
+    def test_register_table_source_from_path(self):
         t_env = self.t_env
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -123,7 +130,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         csv_source = self.prepare_csv_source(source_path, [], field_types, field_names)
         t_env.register_table_source("Source", csv_source)
 
-        result = t_env.scan("Source")
+        result = t_env.from_path("Source")
         self.assertEqual(
             'CatalogTable: (identifier: [`default_catalog`.`default_database`.`Source`]'
             ', fields: [a, b, c])',
@@ -137,8 +144,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "Sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
-        self.t_env.execute("test")
+        t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).execute_insert("Sinks").wait()
+
         actual = source_sink_utils.results()
 
         expected = ['1,Hi,Hello']
@@ -243,8 +250,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "Sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.insert_into("Sinks", t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]))
-        self.t_env.execute("test")
+        t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).execute_insert("Sinks").wait()
 
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello']
@@ -378,13 +384,11 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         t_env.register_table_sink(
             "sink",
             CsvTableSink(field_names, field_types, sink_path))
-        source = t_env.scan("source")
+        source = t_env.from_path("source")
 
         result = source.alias("a, b, c").select("1 + a, b, c")
 
-        result.insert_into("sink")
-
-        t_env.execute("blink_test")
+        result.execute_insert("sink").wait()
 
         results = []
         with open(sink_path, 'r') as f:
@@ -392,6 +396,85 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             results.append(f.readline())
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
+
+    def test_from_data_stream(self):
+        self.env.set_parallelism(1)
+
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.STRING(),
+                                                           Types.STRING()]))
+        t_env = self.t_env
+        table = t_env.from_data_stream(ds)
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink("Sink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("Sink", table)
+        t_env.execute("test_from_data_stream")
+        result = source_sink_utils.results()
+        expected = ['1,Hi,Hello', '2,Hello,Hi']
+        self.assert_equals(result, expected)
+
+        table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
+        t_env.register_table_sink("ExprSink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("ExprSink", table)
+        t_env.execute("test_from_data_stream_with_expr")
+        result = source_sink_utils.results()
+        self.assert_equals(result, expected)
+
+    def test_to_append_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
+        new_table = table.select("a + 1, b + 'flink', c")
+        ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                          Types.STRING(),
+                                                                          Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
+        self.env.execute("test_to_append_stream")
+        result = test_sink.get_results(False)
+        expected = ['2,Hiflink,Hello', '3,Helloflink,Hi']
+        self.assertEqual(result, expected)
+
+    def test_to_retract_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
+        new_table = table.group_by("c").select("a.sum, c as b")
+        ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                           Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.map(lambda x: x).add_sink(test_sink)
+        self.env.execute("test_to_retract_stream")
+        result = test_sink.get_results(True)
+        expected = ["(True, <Row(1, 'Hello')>)", "(False, <Row(1, 'Hello')>)",
+                    "(True, <Row(2, 'Hello')>)"]
+        self.assertEqual(result, expected)
+
+    def test_collect_null_value_result(self):
+        element_data = [(1, None, 'a'),
+                        (3, 4, 'b'),
+                        (5, None, 'a'),
+                        (7, 8, 'b')]
+        source = self.t_env.from_elements(element_data,
+                                          DataTypes.ROW([DataTypes.FIELD('a', DataTypes.INT()),
+                                                         DataTypes.FIELD('b', DataTypes.INT()),
+                                                         DataTypes.FIELD('c', DataTypes.STRING())]))
+        table_result = source.execute()
+        expected_result = [Row(1, None, 'a'), Row(3, 4, 'b'), Row(5, None, 'a'),
+                           Row(7, 8, 'b')]
+        with table_result.collect() as results:
+            collected_result = []
+            for result in results:
+                collected_result.append(result)
+            self.assertEqual(collected_result, expected_result)
 
     def test_set_jars(self):
         self.verify_set_java_dependencies("pipeline.jars", self.execute_with_t_env)
@@ -432,8 +515,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def execute_with_t_env(self, t_env):
         source = t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
-        source.select("func1(a, b), func2(a, b)").insert_into("sink")
-        t_env.execute("test")
+        source.select("func1(a, b), func2(a, b)").execute_insert("sink").wait()
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)
@@ -470,10 +552,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
     def execute_with_table_execute_insert(self, t_env):
         source = t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
         result = source.select("func1(a, b), func2(a, b)")
-        result.execute_insert("sink") \
-            .get_job_client() \
-            .get_job_execution_result() \
-            .result()
+        result.execute_insert("sink").wait()
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)
@@ -536,6 +615,157 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
     def get_jar_url(jar_filename_pattern):
         test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
         return [pathlib.Path(jar_path).as_uri() for jar_path in test_jars]
+
+    def test_collect_for_all_data_types(self):
+        expected_result = [Row(1, None, 1, True, 32767, -2147483648, 1.23,
+                           1.98932, bytearray(b'pyflink'), 'pyflink',
+                           datetime.date(2014, 9, 13), datetime.time(12, 0),
+                           datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                           [Row(['[pyflink]']), Row(['[pyflink]']),
+                            Row(['[pyflink]'])], {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                           decimal.Decimal('1000000000000000000.05'),
+                           decimal.Decimal('1000000000000000000.05999999999999999899999999999'))]
+        source = self.t_env.from_elements([(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                                            bytearray(b'pyflink'), 'pyflink',
+                                            datetime.date(2014, 9, 13),
+                                            datetime.time(hour=12, minute=0, second=0,
+                                                          microsecond=123000),
+                                            datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                                            [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
+                                            {1: Row(['flink']), 2: Row(['pyflink'])},
+                                            decimal.Decimal('1000000000000000000.05'),
+                                            decimal.Decimal(
+                                                '1000000000000000000.0599999999999999989'
+                                                '9999999999'))],
+                                          DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                                         DataTypes.FIELD("b", DataTypes.BIGINT()),
+                                                         DataTypes.FIELD("c", DataTypes.TINYINT()),
+                                                         DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                                                         DataTypes.FIELD("e", DataTypes.SMALLINT()),
+                                                         DataTypes.FIELD("f", DataTypes.INT()),
+                                                         DataTypes.FIELD("g", DataTypes.FLOAT()),
+                                                         DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                                                         DataTypes.FIELD("i", DataTypes.BYTES()),
+                                                         DataTypes.FIELD("j", DataTypes.STRING()),
+                                                         DataTypes.FIELD("k", DataTypes.DATE()),
+                                                         DataTypes.FIELD("l", DataTypes.TIME()),
+                                                         DataTypes.FIELD("m",
+                                                                         DataTypes.TIMESTAMP(3)),
+                                                         DataTypes.FIELD("n", DataTypes.ARRAY(
+                                                             DataTypes.ROW([DataTypes.FIELD('ss2',
+                                                                            DataTypes.STRING())]))),
+                                                         DataTypes.FIELD("o", DataTypes.MAP(
+                                                             DataTypes.BIGINT(), DataTypes.ROW(
+                                                                 [DataTypes.FIELD('ss',
+                                                                  DataTypes.STRING())]))),
+                                                         DataTypes.FIELD("p",
+                                                                         DataTypes.DECIMAL(38, 18)),
+                                                         DataTypes.FIELD("q",
+                                                                         DataTypes.DECIMAL(38,
+                                                                                           18))]))
+        table_result = source.execute()
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+            self.assertEqual(expected_result, collected_result)
+
+    def test_collect_with_retract(self):
+
+        expected_row_kinds = [RowKind.INSERT, RowKind.DELETE, RowKind.INSERT, RowKind.INSERT,
+                              RowKind.DELETE, RowKind.INSERT]
+        element_data = [(1, 2, 'a'),
+                        (3, 4, 'b'),
+                        (5, 6, 'a'),
+                        (7, 8, 'b')]
+        field_names = ['a', 'b', 'c']
+        source = self.t_env.from_elements(element_data, field_names)
+        table_result = self.t_env.execute_sql(
+            "SELECT SUM(a), c FROM %s group by c" % source)
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+
+            collected_result = [str(result) + ',' + str(result.get_row_kind())
+                                for result in collected_result]
+            expected_result = [Row(1, 'a'), Row(1, 'a'), Row(6, 'a'), Row(3, 'b'),
+                               Row(3, 'b'), Row(10, 'b')]
+            for i in range(len(expected_result)):
+                expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
+            expected_result.sort()
+            collected_result.sort()
+            self.assertEqual(expected_result, collected_result)
+
+
+class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamTableTestCase):
+
+    def test_collect_with_retract(self):
+        expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
+                              RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER]
+        element_data = [(1, 2, 'a'),
+                        (3, 4, 'b'),
+                        (5, 6, 'a'),
+                        (7, 8, 'b')]
+        field_names = ['a', 'b', 'c']
+        source = self.t_env.from_elements(element_data, field_names)
+        table_result = self.t_env.execute_sql(
+            "SELECT SUM(a), c FROM %s group by c" % source)
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+
+            collected_result = [str(result) + ',' + str(result.get_row_kind())
+                                for result in collected_result]
+            expected_result = [Row(1, 'a'), Row(1, 'a'), Row(6, 'a'), Row(3, 'b'),
+                               Row(3, 'b'), Row(10, 'b')]
+            for i in range(len(expected_result)):
+                expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
+            expected_result.sort()
+            collected_result.sort()
+            self.assertEqual(expected_result, collected_result)
+
+    def test_collect_for_all_data_types(self):
+        expected_result = [Row(1, None, 1, True, 32767, -2147483648, 1.23,
+                           1.98932, bytearray(b'pyflink'), 'pyflink',
+                           datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
+                           datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                           [Row(['[pyflink]']), Row(['[pyflink]']), Row(['[pyflink]'])],
+                           {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                           decimal.Decimal('1000000000000000000.050000000000000000'),
+                           decimal.Decimal('1000000000000000000.059999999999999999'))]
+        source = self.t_env.from_elements(
+            [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932, bytearray(b'pyflink'), 'pyflink',
+             datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
+             microsecond=123000), datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+             [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
+              {1: Row(['flink']), 2: Row(['pyflink'])}, decimal.Decimal('1000000000000000000.05'),
+              decimal.Decimal('1000000000000000000.05999999999999999899999999999'))], DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()), DataTypes.FIELD("b", DataTypes.BIGINT()),
+                 DataTypes.FIELD("c", DataTypes.TINYINT()),
+                 DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                 DataTypes.FIELD("e", DataTypes.SMALLINT()),
+                 DataTypes.FIELD("f", DataTypes.INT()),
+                 DataTypes.FIELD("g", DataTypes.FLOAT()),
+                 DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                 DataTypes.FIELD("i", DataTypes.BYTES()),
+                 DataTypes.FIELD("j", DataTypes.STRING()),
+                 DataTypes.FIELD("k", DataTypes.DATE()),
+                 DataTypes.FIELD("l", DataTypes.TIME()),
+                 DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
+                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD('ss2',
+                                                      DataTypes.STRING())]))),
+                 DataTypes.FIELD("o", DataTypes.MAP(DataTypes.BIGINT(), DataTypes.ROW(
+                     [DataTypes.FIELD('ss', DataTypes.STRING())]))),
+                 DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)), DataTypes.FIELD("q",
+                 DataTypes.DECIMAL(38, 18))]))
+        table_result = source.execute()
+        with table_result.collect() as result:
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+            self.assertEqual(expected_result, collected_result)
 
 
 class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase):
@@ -631,13 +861,11 @@ class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase
         t_env.register_table_sink(
             "sink",
             CsvTableSink(field_names, field_types, sink_path))
-        source = t_env.scan("source")
+        source = t_env.from_path("source")
 
         result = source.alias("a, b, c").select("1 + a, b, c")
 
-        result.insert_into("sink")
-
-        t_env.execute("blink_test")
+        result.execute_insert("sink").wait()
 
         results = []
         for root, dirs, files in os.walk(sink_path):

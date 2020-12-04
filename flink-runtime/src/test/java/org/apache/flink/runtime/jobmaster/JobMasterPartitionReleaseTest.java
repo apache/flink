@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -46,7 +45,6 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -60,8 +58,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -162,26 +158,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 		}
 	}
 
-	private static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
-		private final BlockingQueue<AllocationID> allocationIds;
-
-		private AllocationIdsResourceManagerGateway() {
-			this.allocationIds = new ArrayBlockingQueue<>(10);
-			setRequestSlotConsumer(
-				slotRequest -> allocationIds.offer(slotRequest.getAllocationId())
-			);
-		}
-
-		AllocationID takeAllocationId() {
-			try {
-				return allocationIds.take();
-			} catch (InterruptedException e) {
-				ExceptionUtils.rethrow(e);
-				return null;
-			}
-		}
-	}
-
 	private static class TestSetup implements AutoCloseable {
 
 		private final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -201,10 +177,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
-			SettableLeaderRetrievalService rmLeaderRetrievalService = new SettableLeaderRetrievalService(
-				null,
-				null);
-			haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+			haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService(null, null));
 
 			final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 
@@ -231,27 +204,20 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 			registerTaskExecutorAtJobMaster(
 				rpcService,
 				getJobMasterGateway(),
-				taskExecutorGateway,
-				rmLeaderRetrievalService
+				taskExecutorGateway
 			);
 		}
 
 		private void registerTaskExecutorAtJobMaster(
 				TestingRpcService rpcService,
 				JobMasterGateway jobMasterGateway,
-				TaskExecutorGateway taskExecutorGateway,
-				SettableLeaderRetrievalService rmLeaderRetrievalService) throws ExecutionException, InterruptedException {
-
-			final AllocationIdsResourceManagerGateway resourceManagerGateway = new AllocationIdsResourceManagerGateway();
-			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+				TaskExecutorGateway taskExecutorGateway) throws ExecutionException, InterruptedException {
 
 			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
 			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), localTaskManagerUnresolvedLocation, testingTimeout).get();
 
-			final AllocationID allocationId = resourceManagerGateway.takeAllocationId();
-			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN));
+			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
 
 			jobMasterGateway.offerSlots(localTaskManagerUnresolvedLocation.getResourceID(), slotOffers, testingTimeout).get();
 		}

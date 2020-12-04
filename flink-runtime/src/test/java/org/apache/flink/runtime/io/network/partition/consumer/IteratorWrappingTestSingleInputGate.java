@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -31,6 +32,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
@@ -48,7 +50,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 	private MutableObjectIterator<T> inputIterator;
 
-	private RecordSerializer<T> serializer;
+	private DataOutputSerializer serializer;
 
 	private final T reuse;
 
@@ -67,7 +69,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 	private IteratorWrappingTestSingleInputGate<T> wrapIterator(MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
 		inputIterator = iterator;
-		serializer = new SpanningRecordSerializer<T>();
+		serializer = new DataOutputSerializer(128);
 
 		// The input iterator can produce an infinite stream. That's why we have to serialize each
 		// record on demand and cannot do it upfront.
@@ -78,21 +80,25 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 			@Override
 			public Optional<BufferAndAvailability> getBufferAvailability() throws IOException {
 				if (hasData) {
-					serializer.serializeRecord(reuse);
+					ByteBuffer serializedRecord = RecordWriter.serializeRecord(serializer, reuse);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
 					BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-					serializer.copyToBufferBuilder(bufferBuilder);
+					bufferBuilder.appendAndCommit(serializedRecord);
 
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), true, 0));
+					final Buffer.DataType nextDataType = hasData ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), nextDataType, 0, 0));
 				} else {
 					inputChannel.setReleased();
 
-					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
-						false,
-						0));
+					return Optional.of(
+						new BufferAndAvailability(
+							EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+							Buffer.DataType.NONE,
+							0,
+							0));
 				}
 			}
 		};

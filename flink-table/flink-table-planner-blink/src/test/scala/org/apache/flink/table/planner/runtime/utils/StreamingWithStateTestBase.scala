@@ -34,7 +34,7 @@ import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.junit.runners.Parameterized
@@ -109,7 +109,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
         result += reuse.copy()
       case _ => throw new UnsupportedOperationException
     }
-    val newTypeInfo = RowDataTypeInfo.of(
+    val newTypeInfo = InternalTypeInfo.of(
       TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType(typeInfo).asInstanceOf[RowType])
     failingDataSource(result)(newTypeInfo.asInstanceOf[TypeInformation[RowData]])
   }

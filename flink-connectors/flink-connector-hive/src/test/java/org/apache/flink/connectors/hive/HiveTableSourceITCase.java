@@ -20,18 +20,14 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.table.HiveVersionTestUtil;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -44,23 +40,18 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
-import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
-import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
-import org.apache.flink.table.planner.runtime.utils.TestingAppendSink;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FileUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.calcite.rel.RelNode;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
@@ -70,21 +61,22 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
-import static org.apache.flink.table.catalog.hive.HiveTestUtils.waitForJobFinish;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -98,20 +90,16 @@ import static org.mockito.Mockito.spy;
 /**
  * Tests {@link HiveTableSource}.
  */
-@RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
-	@HiveSQL(files = {})
-	private static HiveShell hiveShell;
-
 	private static HiveCatalog hiveCatalog;
-	private static HiveConf hiveConf;
+	private static TableEnvironment batchTableEnv;
 
 	@BeforeClass
-	public static void createCatalog() throws IOException {
-		hiveConf = hiveShell.getHiveConf();
-		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
+	public static void createCatalog() {
+		hiveCatalog = HiveTestUtils.createHiveCatalog();
 		hiveCatalog.open();
+		batchTableEnv = createTableEnv();
 	}
 
 	@AfterClass
@@ -123,24 +111,23 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 	@Before
 	public void setupSourceDatabaseAndData() {
-		hiveShell.execute("CREATE DATABASE IF NOT EXISTS source_db");
+		batchTableEnv.executeSql("CREATE DATABASE IF NOT EXISTS source_db");
 	}
 
 	@Test
 	public void testReadNonPartitionedTable() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "test";
-		TableEnvironment tEnv = createTableEnv();
-		tEnv.executeSql("CREATE TABLE source_db.test ( a INT, b INT, c STRING, d BIGINT, e DOUBLE)");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		batchTableEnv.executeSql("CREATE TABLE source_db.test ( a INT, b INT, c STRING, d BIGINT, e DOUBLE)");
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[] { 1, 1, "a", 1000L, 1.11 })
 				.addRow(new Object[] { 2, 2, "b", 2000L, 2.22 })
 				.addRow(new Object[] { 3, 3, "c", 3000L, 3.33 })
 				.addRow(new Object[] { 4, 4, "d", 4000L, 4.44 })
 				.commit();
 
-		Table src = tEnv.sqlQuery("select * from hive.source_db.test");
-		List<Row> rows = Lists.newArrayList(src.execute().collect());
+		Table src = batchTableEnv.sqlQuery("select * from hive.source_db.test");
+		List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 
 		Assert.assertEquals(4, rows.size());
 		Assert.assertEquals("1,1,a,1000,1.11", rows.get(0).toString());
@@ -153,19 +140,18 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	public void testReadComplexDataType() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "complex_test";
-		TableEnvironment tEnv = createTableEnv();
-		tEnv.executeSql("create table source_db.complex_test(" +
+		batchTableEnv.executeSql("create table source_db.complex_test(" +
 						"a array<int>, m map<int,string>, s struct<f1:int,f2:bigint>)");
 		Integer[] array = new Integer[]{1, 2, 3};
 		Map<Integer, String> map = new LinkedHashMap<>();
 		map.put(1, "a");
 		map.put(2, "b");
 		Object[] struct = new Object[]{3, 3L};
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{array, map, struct})
 				.commit();
-		Table src = tEnv.sqlQuery("select * from hive.source_db.complex_test");
-		List<Row> rows = Lists.newArrayList(src.execute().collect());
+		Table src = batchTableEnv.sqlQuery("select * from hive.source_db.complex_test");
+		List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 		Assert.assertEquals(1, rows.size());
 		assertArrayEquals(array, (Integer[]) rows.get(0).getField(0));
 		assertEquals(map, rows.get(0).getField(1));
@@ -180,19 +166,18 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	public void testReadPartitionTable() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "test_table_pt";
-		TableEnvironment tEnv = createTableEnv();
-		tEnv.executeSql("CREATE TABLE source_db.test_table_pt " +
+		batchTableEnv.executeSql("CREATE TABLE source_db.test_table_pt " +
 						"(`year` STRING, `value` INT) partitioned by (pt int)");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
 				.commit("pt=0");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt");
-		List<Row> rows = Lists.newArrayList(src.execute().collect());
+		Table src = batchTableEnv.sqlQuery("select * from hive.source_db.test_table_pt");
+		List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 
 		assertEquals(4, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
@@ -203,29 +188,25 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	public void testPartitionPrunning() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "test_table_pt_1";
-		TableEnvironment tEnv = createTableEnv();
-		tEnv.executeSql("CREATE TABLE source_db.test_table_pt_1 " +
+		batchTableEnv.executeSql("CREATE TABLE source_db.test_table_pt_1 " +
 						"(`year` STRING, `value` INT) partitioned by (pt int)");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
 				.commit("pt=0");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
+		Table src = batchTableEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
 		// first check execution plan to ensure partition prunning works
 		String[] explain = src.explain().split("==.*==\n");
 		assertEquals(4, explain.length);
 		String optimizedLogicalPlan = explain[2];
-		String physicalExecutionPlan = explain[3];
 		assertTrue(optimizedLogicalPlan, optimizedLogicalPlan.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
-		assertTrue(physicalExecutionPlan, physicalExecutionPlan.contains(
-				"HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+				"table=[[hive, source_db, test_table_pt_1, partitions=[{pt=0}], project=[year, value]]]"));
 		// second check execute results
-		List<Row> rows = Lists.newArrayList(src.execute().collect());
+		List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
@@ -241,54 +222,66 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		tableEnv.executeSql("create database db1");
 		try {
 			tableEnv.executeSql("create table db1.part(x int) partitioned by (p1 int,p2 string)");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
 					.addRow(new Object[]{1}).commit("p1=1,p2='a'");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
 					.addRow(new Object[]{2}).commit("p1=2,p2='b'");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
 					.addRow(new Object[]{3}).commit("p1=3,p2='c'");
 			// test string partition columns with special characters
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
 					.addRow(new Object[]{4}).commit("p1=4,p2='c:2'");
 			Table query = tableEnv.sqlQuery("select x from db1.part where p1>1 or p2<>'a' order by x");
 			String[] explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 3"));
-			List<Row> results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=2, p2=b}, {p1=3, p2=c}, {p1=4, p2=c:2}]"));
+			List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[2, 3, 4]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
-			results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains("table=[[test-catalog, db1, part, partitions=[], project=[x]]]"));
+			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=3, p2=c}], project=[x]]]"));
+			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[1, 3]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
-			results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=1, p2=a}, {p1=2, p2=b}], project=[x]]]"));
+			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[1, 2]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p2 = 'c:2' order by x");
 			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
-			results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=4, p2=c:2}], project=[x]]]"));
+			results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[4]", results.toString());
+
+			query = tableEnv.sqlQuery("select x from db1.part where '' = p2");
+			explain = query.explain().split("==.*==\n");
+			assertFalse(catalog.fallback);
+			optimizedPlan = explain[2];
+			assertTrue(optimizedPlan, optimizedPlan.contains("table=[[test-catalog, db1, part, partitions=[], project=[x]]]"));
+			results = CollectionUtil.iteratorToList(query.execute().collect());
+			assertEquals("[]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop database db1 cascade");
 		}
@@ -304,22 +297,27 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		tableEnv.executeSql("create database db1");
 		try {
 			tableEnv.executeSql("create table db1.part(x int) partitioned by (p1 date,p2 timestamp)");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{1}).commit("p1='2018-08-08',p2='2018-08-08 08:08:08'");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{2}).commit("p1='2018-08-09',p2='2018-08-08 08:08:09'");
-			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part")
-					.addRow(new Object[]{3}).commit("p1='2018-08-10',p2='2018-08-08 08:08:10'");
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
+					.addRow(new Object[]{1}).commit("p1='2018-08-08',p2='2018-08-08 08:08:08.1'");
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
+					.addRow(new Object[]{2}).commit("p1='2018-08-09',p2='2018-08-08 08:08:09.1'");
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "part")
+					.addRow(new Object[]{3}).commit("p1='2018-08-10',p2='2018-08-08 08:08:10.1'");
 
 			Table query = tableEnv.sqlQuery(
-					"select x from db1.part where p1>cast('2018-08-09' as date) and p2<>cast('2018-08-08 08:08:09' as timestamp)");
+					"select x from db1.part where p1>cast('2018-08-09' as date) and p2<>cast('2018-08-08 08:08:09.1' as timestamp)");
 			String[] explain = query.explain().split("==.*==\n");
 			assertTrue(catalog.fallback);
 			String optimizedPlan = explain[2];
-			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
-			List<Row> results = Lists.newArrayList(query.execute().collect());
+			assertTrue(optimizedPlan, optimizedPlan.contains(
+					"table=[[test-catalog, db1, part, partitions=[{p1=2018-08-10, p2=2018-08-08 08:08:10.1}]"));
+			List<Row> results = CollectionUtil.iteratorToList(query.execute().collect());
 			assertEquals("[3]", results.toString());
-			System.out.println(results);
+
+			// filter by timestamp partition
+			query = tableEnv.sqlQuery("select x from db1.part where timestamp '2018-08-08 08:08:09' = p2");
+			results = CollectionUtil.iteratorToList(query.execute().collect());
+			assertEquals("[2]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop database db1 cascade");
 		}
@@ -327,93 +325,111 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 	@Test
 	public void testProjectionPushDown() throws Exception {
-		TableEnvironment tableEnv = createTableEnv();
-		tableEnv.executeSql("create table src(x int,y string) partitioned by (p1 bigint, p2 string)");
+		batchTableEnv.executeSql("create table src(x int,y string) partitioned by (p1 bigint, p2 string)");
 		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
 					.addRow(new Object[]{1, "a"})
 					.addRow(new Object[]{2, "b"})
 					.commit("p1=2013, p2='2013'");
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
 					.addRow(new Object[]{3, "c"})
 					.commit("p1=2014, p2='2014'");
-			Table table = tableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
+			Table table = batchTableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
 			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
-			String physicalPlan = explain[3];
 			String expectedExplain =
-					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: null, ProjectedFields: [2, 1]";
+					"table=[[hive, default, src, project=[p1, y]]]";
 			assertTrue(logicalPlan, logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan, physicalPlan.contains(expectedExplain));
 
-			List<Row> rows = Lists.newArrayList(table.execute().collect());
+			List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
 			assertEquals(2, rows.size());
 			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 			assertArrayEquals(new String[]{"2013,2", "2014,1"}, rowStrings);
 		} finally {
-			tableEnv.executeSql("drop table src");
+			batchTableEnv.executeSql("drop table src");
 		}
 	}
 
 	@Test
 	public void testLimitPushDown() throws Exception {
-		TableEnvironment tableEnv = createTableEnv();
-		tableEnv.executeSql("create table src (a string)");
+		batchTableEnv.executeSql("create table src (a string)");
 		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
 						.addRow(new Object[]{"a"})
 						.addRow(new Object[]{"b"})
 						.addRow(new Object[]{"c"})
 						.addRow(new Object[]{"d"})
 						.commit();
-			//Add this to obtain correct stats of table to avoid FLINK-14965 problem
-			hiveShell.execute("analyze table src COMPUTE STATISTICS");
-			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
+			Table table = batchTableEnv.sqlQuery("select * from hive.`default`.src limit 1");
 			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
-			String physicalPlan = explain[3];
-			String expectedExplain = "HiveTableSource(a) TablePath: default.src, PartitionPruned: false, " +
-									"PartitionNums: null, LimitPushDown true, Limit 1";
-			assertTrue(logicalPlan.contains(expectedExplain));
-			assertTrue(physicalPlan.contains(expectedExplain));
+			assertTrue(logicalPlan, logicalPlan.contains("table=[[hive, default, src, limit=[1]]]"));
 
-			List<Row> rows = Lists.newArrayList(table.execute().collect());
+			List<Row> rows = CollectionUtil.iteratorToList(table.execute().collect());
 			assertEquals(1, rows.size());
 			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 			assertArrayEquals(new String[]{"a"}, rowStrings);
 		} finally {
-			tableEnv.executeSql("drop table src");
+			batchTableEnv.executeSql("drop table src");
 		}
 	}
 
 	@Test
-	public void testParallelismSetting() {
+	public void testParallelismSetting() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "test_parallelism";
-		TableEnvironment tEnv = createTableEnv();
-		tEnv.executeSql("CREATE TABLE source_db.test_parallelism " +
+		batchTableEnv.executeSql("CREATE TABLE source_db.test_parallelism " +
 				"(`year` STRING, `value` INT) partitioned by (pt int)");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2014", 3})
 				.addRow(new Object[]{"2014", 4})
 				.commit("pt=0");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{"2015", 2})
 				.addRow(new Object[]{"2015", 5})
 				.commit("pt=1");
-		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism");
+
+		Table table = batchTableEnv.sqlQuery("select * from hive.source_db.test_parallelism");
+		testParallelismSettingTranslateAndAssert(2, table, batchTableEnv);
+	}
+
+	@Test
+	public void testParallelismSettingWithFileNum() throws IOException {
+		// create test files
+		File dir = Files.createTempDirectory("testParallelismSettingWithFileNum").toFile();
+		dir.deleteOnExit();
+		for (int i = 0; i < 3; i++) {
+			File csv = new File(dir, "data" + i + ".csv");
+			csv.createNewFile();
+			FileUtils.writeFileUtf8(csv, "1|100\n2|200\n");
+		}
+
+		TableEnvironment tEnv = createTableEnv();
+		tEnv.executeSql("CREATE EXTERNAL TABLE source_db.test_parallelism_setting_with_file_num " +
+			"(a INT, b INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' LOCATION '" + dir.toString() + "'");
+
+		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism_setting_with_file_num");
+		testParallelismSettingTranslateAndAssert(3, table, tEnv);
+
+		tEnv.getConfig().getConfiguration().setInteger(
+			HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX, 2);
+		testParallelismSettingTranslateAndAssert(2, table, tEnv);
+	}
+
+	private void testParallelismSettingTranslateAndAssert(int expected, Table table, TableEnvironment tEnv) {
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
 		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
 		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
 		@SuppressWarnings("unchecked")
 		Transformation transformation = execNode.translateToPlan(planner);
-		Assert.assertEquals(2, transformation.getParallelism());
+		Assert.assertEquals(expected, transformation.getParallelism());
 	}
 
 	@Test
-	public void testParallelismOnLimitPushDown() {
+	public void testParallelismOnLimitPushDown() throws Exception {
 		final String dbName = "source_db";
 		final String tblName = "test_parallelism_limit_pushdown";
 		TableEnvironment tEnv = createTableEnv();
@@ -423,22 +439,21 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2);
 		tEnv.executeSql("CREATE TABLE source_db.test_parallelism_limit_pushdown " +
 					"(`year` STRING, `value` INT) partitioned by (pt int)");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 					.addRow(new Object[]{"2014", 3})
 					.addRow(new Object[]{"2014", 4})
 					.commit("pt=0");
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 					.addRow(new Object[]{"2015", 2})
 					.addRow(new Object[]{"2015", 5})
 					.commit("pt=1");
 		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism_limit_pushdown limit 1");
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
 		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
-		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
-		@SuppressWarnings("unchecked")
-		Transformation transformation = execNode.translateToPlan(planner);
-		Assert.assertEquals(1, ((PartitionTransformation) ((OneInputTransformation) transformation).getInput())
-			.getInput().getParallelism());
+		ExecNode<?> execNode = planner.translateToExecNodePlan(
+				toScala(Collections.singletonList(relNode))).get(0);
+		Transformation<?> transformation = (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
+		Assert.assertEquals(1, transformation.getParallelism());
 	}
 
 	@Test
@@ -446,20 +461,125 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		// vector reader not available for 1.x and we're not testing orc for 2.0.x
 		Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
 		Map<String, String> env = System.getenv();
-		hiveShell.execute("create database db1");
+		batchTableEnv.executeSql("create database db1");
 		try {
-			hiveShell.execute("create table db1.src (x int,y string) stored as orc");
-			hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
+			batchTableEnv.executeSql("create table db1.src (x int,y string) stored as orc");
+			batchTableEnv.executeSql("insert into db1.src values (1,'a'),(2,'b')").await();
 			testSourceConfig(true, true);
 			testSourceConfig(false, false);
 		} finally {
 			TestBaseUtils.setEnv(env);
-			hiveShell.execute("drop database db1 cascade");
+			batchTableEnv.executeSql("drop database db1 cascade");
 		}
 	}
 
 	@Test(timeout = 120000)
-	public void testStreamPartitionRead() throws Exception {
+	public void testStreamPartitionReadByPartitionName() throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "stream_partition_name_test";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		tEnv.useCatalog(catalogName);
+		tEnv.executeSql("CREATE TABLE source_db.stream_partition_name_test (x int, y string, z int)" +
+				" PARTITIONED BY (" +
+				" pt_year int, pt_mon string, pt_day string) TBLPROPERTIES(" +
+				"'streaming-source.enable'='true'," +
+				"'streaming-source.monitor-interval'='1s'," +
+				"'streaming-source.consume-start-offset'='pt_year=2019/pt_month=09/pt_day=02'" +
+				")");
+
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+				.addRow(new Object[]{0, "a", 11})
+				.commit("pt_year='2019',pt_mon='09',pt_day='01'");
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+				.addRow(new Object[]{1, "b", 12})
+				.commit("pt_year='2020',pt_mon='09',pt_day='03'");
+
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_partition_name_test");
+		CloseableIterator<Row> iter = result.collect();
+
+		Assert.assertEquals(
+				Row.of(1, "b", "12", "2020", "09", "03").toString(),
+				fetchRows(iter, 1).get(0));
+
+		for (int i = 2; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+					.addRow(new Object[]{i, "new_add", 11 + i})
+					.addRow(new Object[]{i, "new_add_1", 11 + i})
+					.commit("pt_year='2020',pt_mon='10',pt_day='0" + i + "'");
+
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, "new_add", 11 + i, "2020", "10", "0" + i).toString(),
+							Row.of(i, "new_add_1", 11 + i, "2020", "10", "0" + i).toString()),
+					fetchRows(iter, 2));
+		}
+
+		result.getJobClient().get().cancel();
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamPartitionReadByCreateTime() throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "stream_create_time_test";
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		tEnv.useCatalog(catalogName);
+		tEnv.executeSql("CREATE TABLE source_db.stream_create_time_test (x int, y string, z int)" +
+				" PARTITIONED BY (" +
+				" p1 string, p2 string, p3 string) TBLPROPERTIES(" +
+				"'streaming-source.enable'='true'," +
+				"'streaming-source.partition-include'='all'," +
+				"'streaming-source.consume-order'='create-time'," +
+				"'streaming-source.monitor-interval'='1s'," +
+				"'streaming-source.consume-start-offset'='2020-10-02 00:00:00'" +
+				")");
+
+		// the create-time is near current timestamp and bigger than '2020-10-02 00:00:00' since the code wrote
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+				.addRow(new Object[]{0, "a", 11})
+				.commit("p1='A1',p2='B1',p3='C1'");
+
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_create_time_test");
+		CloseableIterator<Row> iter = result.collect();
+
+		Assert.assertEquals(
+				Row.of(0, "a", "11", "A1", "B1", "C1").toString(),
+				fetchRows(iter, 1).get(0));
+
+		for (int i = 1; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+					.addRow(new Object[]{i, "new_add", 11 + i})
+					.addRow(new Object[]{i, "new_add_1", 11 + i})
+					.commit("p1='A',p2='B',p3='" + i + "'");
+
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, "new_add", 11 + i, "A", "B", i).toString(),
+							Row.of(i, "new_add_1", 11 + i, "A", "B", i).toString()),
+					fetchRows(iter, 2));
+		}
+		result.getJobClient().get().cancel();
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamPartitionReadByPartitionTime() throws Exception {
 		final String catalogName = "hive";
 		final String dbName = "source_db";
 		final String tblName = "stream_test";
@@ -477,59 +597,46 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				"'streaming-source.consume-order'='partition-time'" +
 				")");
 
-		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+		HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
 				.addRow(new Object[]{0, "0"})
 				.commit("ts='2020-05-06 00:00:00'");
 
-		Table src = tEnv.from("hive.source_db.stream_test");
+		TableResult result = tEnv.executeSql("select * from hive.source_db.stream_test");
+		CloseableIterator<Row> iter = result.collect();
 
-		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(new RowDataTypeInfo(
-				DataTypes.INT().getLogicalType(),
-				DataTypes.STRING().getLogicalType(),
-				DataTypes.STRING().getLogicalType()));
-		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
-		out.print(); // add print to see streaming reading
-		out.addSink(sink);
+		Assert.assertEquals(
+				Row.of(0, "0", "2020-05-06 00:00:00").toString(),
+				fetchRows(iter, 1).get(0));
 
-		JobClient job = env.executeAsync("job");
-
-		Runnable runnable = () -> {
-			for (int i = 1; i < 6; i++) {
-				try {
-					Thread.sleep(5_000);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-				HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-						.addRow(new Object[]{i, String.valueOf(i)})
-						.addRow(new Object[]{i, i + "_copy"})
-						.commit("ts='2020-05-06 00:" + i + "0:00'");
+		for (int i = 1; i < 6; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
 			}
-		};
-		Thread thread = new Thread(runnable);
-		thread.setDaemon(true);
-		thread.start();
-		thread.join();
-		Thread.sleep(5_000);
+			HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+					.addRow(new Object[]{i, String.valueOf(i)})
+					.addRow(new Object[]{i, i + "_copy"})
+					.commit("ts='2020-05-06 00:" + i + "0:00'");
 
-		List<String> expected = Arrays.asList(
-				"+I(0,0,2020-05-06 00:00:00)",
-				"+I(1,1,2020-05-06 00:10:00)",
-				"+I(1,1_copy,2020-05-06 00:10:00)",
-				"+I(2,2,2020-05-06 00:20:00)",
-				"+I(2,2_copy,2020-05-06 00:20:00)",
-				"+I(3,3,2020-05-06 00:30:00)",
-				"+I(3,3_copy,2020-05-06 00:30:00)",
-				"+I(4,4,2020-05-06 00:40:00)",
-				"+I(4,4_copy,2020-05-06 00:40:00)",
-				"+I(5,5,2020-05-06 00:50:00)",
-				"+I(5,5_copy,2020-05-06 00:50:00)"
-		);
-		List<String> results = sink.getJavaAppendResults();
-		results.sort(String::compareTo);
-		assertEquals(expected, results);
-		job.cancel();
-		StreamTestSink.clear();
+			Assert.assertEquals(
+					Arrays.asList(
+							Row.of(i, String.valueOf(i), "2020-05-06 00:" + i + "0:00").toString(),
+							Row.of(i, i + "_copy", "2020-05-06 00:" + i + "0:00").toString()),
+					fetchRows(iter, 2));
+		}
+
+		result.getJobClient().get().cancel();
+	}
+
+	private static List<String> fetchRows(Iterator<Row> iter, int size) {
+		List<String> strings = new ArrayList<>(size);
+		for (int i = 0; i < size; i++) {
+			Assert.assertTrue(iter.hasNext());
+			strings.add(iter.next().toString());
+		}
+		strings.sort(String::compareTo);
+		return strings;
 	}
 
 	@Test(timeout = 30000)
@@ -555,65 +662,41 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				"  b CHAR(1) " +
 				") stored as parquet TBLPROPERTIES (" +
 				"  'streaming-source.enable'='true'," +
+				"  'streaming-source.partition-order'='create-time'," +
 				"  'streaming-source.monitor-interval'='100ms'" +
 				")");
 
-		Table src = tEnv.sqlQuery("select * from hive.source_db." + tblName);
+		TableResult result = tEnv.executeSql("select * from hive.source_db." + tblName);
+		CloseableIterator<Row> iter = result.collect();
 
-		TestingAppendSink sink = new TestingAppendSink();
-		tEnv.toAppendStream(src, Row.class).addSink(sink);
-		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
-		out.print(); // add print to see streaming reading
-		final JobClient jobClient = env.executeAsync();
-
-		Runnable runnable = () -> {
-			for (int i = 0; i < 3; ++i) {
-				hiveShell.execute("insert into table source_db." + tblName + " values (1,'a'), (2,'b')");
-				try {
-					Thread.sleep(2_000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					break;
-				}
+		for (int i = 1; i < 3; i++) {
+			try {
+				Thread.sleep(1_000);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
 			}
-		};
-		Thread thread = new Thread(runnable);
-		thread.setDaemon(true);
-		thread.start();
-		// Waiting for writing test data to finish
-		thread.join();
-		// Wait up to 20 seconds for all data to be processed
-		for (int i = 0; i < 20; ++i) {
-			if (sink.getAppendResults().size() == 6) {
-				break;
-			} else {
-				Thread.sleep(1000);
-			}
+			batchTableEnv.executeSql("insert into table source_db." + tblName + " values (1,'a'), (2,'b')").await();
+			Assert.assertEquals(
+					Arrays.asList(Row.of(1, "a").toString(), Row.of(2, "b").toString()),
+					fetchRows(iter, 2));
 		}
 
-		// check the result
-		List<String> actual = new ArrayList<>(JavaScalaConversionUtil.toJava(sink.getAppendResults()));
-		actual.sort(String::compareTo);
-		List<String> expected = Arrays.asList("1,a", "1,a", "1,a", "2,b", "2,b", "2,b");
-		expected.sort(String::compareTo);
-		assertEquals(expected, actual);
-		// cancel the job
-		jobClient.cancel();
+		result.getJobClient().get().cancel();
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
-		HiveTableFactory tableFactorySpy = spy((HiveTableFactory) hiveCatalog.getTableFactory().get());
+		HiveDynamicTableFactory tableFactorySpy = spy((HiveDynamicTableFactory) hiveCatalog.getFactory().get());
 
 		doAnswer(invocation -> {
 			TableSourceFactory.Context context = invocation.getArgument(0);
+			assertEquals(fallbackMR, context.getConfiguration().get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 			return new TestConfigSource(
 					new JobConf(hiveCatalog.getHiveConf()),
 					context.getConfiguration(),
 					context.getObjectIdentifier().toObjectPath(),
 					context.getTable(),
-					fallbackMR,
 					inferParallelism);
-		}).when(tableFactorySpy).createTableSource(any(TableSourceFactory.Context.class));
+		}).when(tableFactorySpy).createDynamicTableSource(any(DynamicTableFactory.Context.class));
 
 		HiveCatalog catalogSpy = spy(hiveCatalog);
 		doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
@@ -628,7 +711,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		tableEnv.registerCatalog(catalogSpy.getName(), catalogSpy);
 		tableEnv.useCatalog(catalogSpy.getName());
 
-		List<Row> results = Lists.newArrayList(
+		List<Row> results = CollectionUtil.iteratorToList(
 				tableEnv.sqlQuery("select * from db1.src order by x").execute().collect());
 		assertEquals("[1,a, 2,b]", results.toString());
 	}
@@ -648,7 +731,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 						"'connector'='filesystem','format'='%s','path'='%s')",
 				format,
 				folderURI));
-		waitForJobFinish(tEnv.executeSql("insert into parquet_t select 1, 2"));
+		tEnv.executeSql("insert into parquet_t select 1, 2").await();
 		tEnv.executeSql("drop table parquet_t");
 
 		// Hive to read parquet file
@@ -673,7 +756,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 	 * A sub-class of HiveTableSource to test vector reader switch.
 	 */
 	private static class TestConfigSource extends HiveTableSource {
-		private final boolean fallbackMR;
 		private final boolean inferParallelism;
 
 		TestConfigSource(
@@ -681,10 +763,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 				ReadableConfig flinkConf,
 				ObjectPath tablePath,
 				CatalogTable catalogTable,
-				boolean fallbackMR,
 				boolean inferParallelism) {
 			super(jobConf, flinkConf, tablePath, catalogTable);
-			this.fallbackMR = fallbackMR;
 			this.inferParallelism = inferParallelism;
 		}
 
@@ -694,14 +774,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 			int parallelism = dataStream.getTransformation().getParallelism();
 			assertEquals(inferParallelism ? 1 : 2, parallelism);
 			return dataStream;
-		}
-
-		@Override
-		HiveTableInputFormat getInputFormat(
-				List<HiveTablePartition> allHivePartitions,
-				boolean useMapRedReader) {
-			assertEquals(useMapRedReader, fallbackMR);
-			return super.getInputFormat(allHivePartitions, useMapRedReader);
 		}
 	}
 

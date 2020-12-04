@@ -33,6 +33,9 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfMethod;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectMethods;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
@@ -156,11 +161,13 @@ final class FunctionMappingExtractor {
 		}
 		for (Method method : methods) {
 			try {
+				final Method correctMethod = correctVarArgMethod(method);
+
 				final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod =
-					collectMethodMappings(method, global, globalResultOnly, resultExtraction, accessor);
+					collectMethodMappings(correctMethod, global, globalResultOnly, resultExtraction, accessor);
 
 				// check if the method can be called
-				verifyMappingForMethod(method, collectedMappingsPerMethod, verification);
+				verifyMappingForMethod(correctMethod, collectedMappingsPerMethod, verification);
 
 				// check if method strategies conflict with function strategies
 				collectedMappingsPerMethod.forEach((signature, result) -> putMapping(collectedMappings, signature, result));
@@ -172,6 +179,39 @@ final class FunctionMappingExtractor {
 			}
 		}
 		return collectedMappings;
+	}
+
+	/**
+	 * Special case for Scala which generates two methods when using var-args (a {@code Seq < String >}
+	 * and {@code String...}). This method searches for the Java-like variant.
+	 */
+	private static Method correctVarArgMethod(Method method) {
+		final int paramCount = method.getParameterCount();
+		final Class<?>[] paramClasses = method.getParameterTypes();
+		if (paramCount > 0 && paramClasses[paramCount - 1].getName().equals("scala.collection.Seq")) {
+			final Type[] paramTypes = method.getGenericParameterTypes();
+			final ParameterizedType seqType = (ParameterizedType) paramTypes[paramCount - 1];
+			final Type varArgType = seqType.getActualTypeArguments()[0];
+			return ExtractionUtils.collectMethods(method.getDeclaringClass(), method.getName())
+				.stream()
+				.filter(Method::isVarArgs)
+				.filter(candidate -> candidate.getParameterCount() == paramCount)
+				.filter(candidate -> {
+					final Type[] candidateParamTypes = candidate.getGenericParameterTypes();
+					for (int i = 0; i < paramCount - 1; i++) {
+						if (candidateParamTypes[i] != paramTypes[i]) {
+							return false;
+						}
+					}
+					final Class<?> candidateVarArgType = candidate.getParameterTypes()[paramCount - 1];
+					return candidateVarArgType.isArray() &&
+						// check for Object is needed in case of Scala primitives (e.g. Int)
+						(varArgType == Object.class || candidateVarArgType.getComponentType() == varArgType);
+				})
+				.findAny()
+				.orElse(method);
+		}
+		return method;
 	}
 
 	/**
@@ -368,7 +408,7 @@ final class FunctionMappingExtractor {
 				return FunctionArgumentTemplate.of(((CollectionDataType) type).getElementDataType());
 			}
 			// special case for varargs that have been misinterpreted as BYTES
-			else {
+			else if (type.equals(DataTypes.BYTES())) {
 				return FunctionArgumentTemplate.of(DataTypes.TINYINT().notNull().bridgedTo(byte.class));
 			}
 		}
@@ -400,9 +440,30 @@ final class FunctionMappingExtractor {
 
 	/**
 	 * Extraction that uses a generic type variable for producing a {@link FunctionResultTemplate}.
+	 *
+	 * <p>If enabled, a {@link DataTypeHint} from method or class has higher priority.
 	 */
-	static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
+	static ResultExtraction createGenericResultExtraction(
+			Class<? extends UserDefinedFunction> baseClass,
+			int genericPos,
+			boolean allowDataTypeHint) {
 		return (extractor, method) -> {
+			if (allowDataTypeHint) {
+				final Set<DataTypeHint> dataTypeHints = new HashSet<>();
+				dataTypeHints.addAll(collectAnnotationsOfMethod(DataTypeHint.class, method));
+				dataTypeHints.addAll(collectAnnotationsOfClass(DataTypeHint.class, extractor.function));
+				if (dataTypeHints.size() > 1) {
+					throw extractionError(
+						"More than one data type hint found for output of function. " +
+							"Please use a function hint instead.");
+				}
+				if (dataTypeHints.size() == 1) {
+					return FunctionTemplate.createResultTemplate(
+						extractor.typeFactory,
+						dataTypeHints.iterator().next());
+				}
+				// otherwise continue with regular extraction
+			}
 			final DataType dataType = DataTypeExtractor.extractFromGeneric(
 				extractor.typeFactory,
 				baseClass,

@@ -75,7 +75,8 @@ public class AvroKryoClassloadingTest {
 				new URL[] { avroLocation, kryoLocation },
 				parentClassLoader,
 				CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS.defaultValue().split(";"),
-			NOOP_EXCEPTION_HANDLER);
+				NOOP_EXCEPTION_HANDLER,
+				true);
 
 		final Class<?> userLoadedAvroClass = Class.forName(avroClass.getName(), false, userAppClassLoader);
 		assertNotEquals(avroClass, userLoadedAvroClass);

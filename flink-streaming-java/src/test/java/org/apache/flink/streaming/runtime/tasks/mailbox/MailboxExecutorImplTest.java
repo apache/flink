@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -80,6 +81,26 @@ public class MailboxExecutorImplTest {
 	}
 
 	@Test
+	public void testIsIdle() throws Exception {
+		MailboxProcessor processor = new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
+		MailboxExecutorImpl executor = (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
+
+		assertFalse(executor.isIdle());
+
+		processor.runMailboxStep(); // suspend default action after suspension
+		processor.mailbox.drain(); // drop any control mails
+
+		assertTrue(executor.isIdle());
+
+		executor.execute(() -> {}, "");
+		assertFalse(executor.isIdle());
+
+		processor.mailbox.drain();
+		processor.mailbox.quiesce();
+		assertFalse(executor.isIdle());
+	}
+
+	@Test
 	public void testOperations() throws Exception {
 		AtomicBoolean wasExecuted = new AtomicBoolean(false);
 		CompletableFuture.runAsync(() -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""), otherThreadExecutor).get();
@@ -109,13 +130,13 @@ public class MailboxExecutorImplTest {
 		try {
 			mailboxExecutor.tryYield();
 			Assert.fail("yielding should not work after shutdown().");
-		} catch (IllegalStateException expected) {
+		} catch (MailboxClosedException expected) {
 		}
 
 		try {
 			mailboxExecutor.yield();
 			Assert.fail("yielding should not work after shutdown().");
-		} catch (IllegalStateException expected) {
+		} catch (MailboxClosedException expected) {
 		}
 	}
 

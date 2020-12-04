@@ -20,12 +20,9 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -38,9 +35,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.types.LongValue;
@@ -50,10 +44,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 /**
  * Tests network shuffle when data compression is enabled.
@@ -87,31 +79,26 @@ public class ShuffleCompressionITCase {
 	}
 
 	@Test
-	public void testDataCompressionForBlockingShuffle() throws Exception {
-		executeTest(createJobGraph(ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH));
+	public void testDataCompressionForBoundedBlockingShuffle() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
+
+		JobGraph jobGraph = createJobGraph(
+			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
+		JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
 	}
 
-	private void executeTest(JobGraph jobGraph) throws Exception {
+	@Test
+	public void testDataCompressionForSortMergeBlockingShuffle() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(NUM_TASKMANAGERS)
-			.setNumSlotsPerTaskManager(NUM_SLOTS)
-			.build();
-
-		try (MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration)) {
-			miniCluster.start();
-
-			MiniClusterClient miniClusterClient = new MiniClusterClient(configuration, miniCluster);
-			// wait for the submission to succeed
-			JobID jobID = miniClusterClient.submitJob(jobGraph).get();
-
-			CompletableFuture<JobResult> resultFuture = miniClusterClient.requestJobResult(jobID);
-			assertFalse(resultFuture.get().getSerializedThrowable().isPresent());
-		}
+		JobGraph jobGraph = createJobGraph(
+			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
+		JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
 	}
 
 	private static JobGraph createJobGraph(
@@ -167,7 +154,7 @@ public class ShuffleCompressionITCase {
 				writer.broadcastEmit(RECORD_TO_SEND);
 			}
 			writer.flushAll();
-			writer.clearBuffers();
+			writer.close();
 		}
 	}
 

@@ -19,7 +19,7 @@
 package org.apache.flink.orc.nohive.shim;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.orc.OrcSplitReader;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.nohive.vector.OrcNoHiveBatchWrapper;
 import org.apache.flink.orc.shim.OrcShim;
 
@@ -49,7 +49,7 @@ public class OrcNoHiveShim implements OrcShim<VectorizedRowBatch> {
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
-			List<OrcSplitReader.Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			org.apache.flink.core.fs.Path path,
 			long splitStart,
 			long splitLength) throws IOException {

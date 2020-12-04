@@ -53,6 +53,7 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getScheme;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
 /**
@@ -73,6 +74,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	@Override
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
+		InfluxdbReporterOptions.Scheme scheme = getScheme(config);
 		int port = getInteger(config, PORT);
 		if (!isValidHost(host) || !NetUtils.isValidClientPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
@@ -81,7 +83,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		if (database == null) {
 			throw new IllegalArgumentException("'" + DB.key() + "' configuration option is not set");
 		}
-		String url = String.format("http://%s:%d", host, port);
+		String url = String.format("%s://%s:%d", scheme, host, port);
 		String username = getString(config, USERNAME);
 		String password = getString(config, PASSWORD);
 

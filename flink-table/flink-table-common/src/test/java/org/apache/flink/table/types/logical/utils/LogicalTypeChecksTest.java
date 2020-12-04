@@ -38,6 +38,7 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -47,18 +48,18 @@ import static org.junit.Assert.assertThat;
 public class LogicalTypeChecksTest {
 
 	@Test
-	public void testHasNestedRoot() {
+	public void testHasNested() {
 		final DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
 		assertThat(
-			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.VARCHAR),
+			LogicalTypeChecks.hasNested(dataType.getLogicalType(), t -> hasRoot(t, LogicalTypeRoot.VARCHAR)),
 			is(true));
 
 		assertThat(
-			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			LogicalTypeChecks.hasNested(dataType.getLogicalType(), t -> hasRoot(t, LogicalTypeRoot.ROW)),
 			is(true));
 
 		assertThat(
-			LogicalTypeChecks.hasNestedRoot(dataType.getLogicalType(), LogicalTypeRoot.BOOLEAN),
+			LogicalTypeChecks.hasNested(dataType.getLogicalType(), t -> hasRoot(t, LogicalTypeRoot.BOOLEAN)),
 			is(false));
 	}
 

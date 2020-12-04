@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
@@ -32,22 +32,55 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * built-in listAggWs with retraction aggregate function.
+ * Built-in LISTAGGWS with retraction aggregate function.
  */
+@Internal
 public final class ListAggWsWithRetractAggFunction
-	extends AggregateFunction<StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
+		extends InternalAggregateFunction<StringData, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
 
 	private static final long serialVersionUID = -8627988150350160473L;
 
-	/**
-	 * The initial accumulator for concat with retraction aggregate function.
-	 */
-	public static class ListAggWsWithRetractAccumulator {
-		public ListView<StringData> list = new ListView<>(StringDataTypeInfo.INSTANCE);
-		public ListView<StringData> retractList = new ListView<>(StringDataTypeInfo.INSTANCE);
-		public StringData delimiter = StringData.fromString(",");
+	// --------------------------------------------------------------------------------------------
+	// Planning
+	// --------------------------------------------------------------------------------------------
 
-		@VisibleForTesting
+	@Override
+	public DataType[] getInputDataTypes() {
+		return new DataType[]{
+			DataTypes.STRING().bridgedTo(StringData.class),
+			DataTypes.STRING().bridgedTo(StringData.class)};
+	}
+
+	@Override
+	public DataType getAccumulatorDataType() {
+		return DataTypes.STRUCTURED(
+			ListAggWsWithRetractAccumulator.class,
+			DataTypes.FIELD(
+				"list",
+				ListView.newListViewDataType(DataTypes.STRING().notNull().bridgedTo(StringData.class))),
+			DataTypes.FIELD(
+				"retractList",
+				ListView.newListViewDataType(DataTypes.STRING().notNull().bridgedTo(StringData.class))),
+			DataTypes.FIELD(
+				"delimiter",
+				DataTypes.STRING().bridgedTo(StringData.class)));
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return DataTypes.STRING().bridgedTo(StringData.class);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Runtime
+	// --------------------------------------------------------------------------------------------
+
+	/** Accumulator for LISTAGGWS with retraction. */
+	public static class ListAggWsWithRetractAccumulator {
+		public ListView<StringData> list;
+		public ListView<StringData> retractList;
+		public StringData delimiter;
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -58,18 +91,25 @@ public final class ListAggWsWithRetractAggFunction
 			}
 			ListAggWsWithRetractAccumulator that = (ListAggWsWithRetractAccumulator) o;
 			return Objects.equals(list, that.list) &&
-				Objects.equals(retractList, that.retractList) &&
-				Objects.equals(delimiter, that.delimiter);
+				Objects.equals(retractList, that.retractList);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(list, retractList);
 		}
 	}
 
 	@Override
 	public ListAggWsWithRetractAccumulator createAccumulator() {
-		return new ListAggWsWithRetractAccumulator();
+		final ListAggWsWithRetractAccumulator acc = new ListAggWsWithRetractAccumulator();
+		acc.list = new ListView<>();
+		acc.retractList = new ListView<>();
+		acc.delimiter = StringData.fromString(",");
+		return acc;
 	}
 
 	public void accumulate(ListAggWsWithRetractAccumulator acc, StringData value, StringData lineDelimiter) throws Exception {
-		// ignore null value
 		if (value != null) {
 			acc.delimiter = lineDelimiter;
 			acc.list.add(value);
@@ -131,9 +171,8 @@ public final class ListAggWsWithRetractAggFunction
 	@Override
 	public StringData getValue(ListAggWsWithRetractAccumulator acc) {
 		try {
-			// we removed the element type to make the compile pass,
 			// the element must be BinaryStringData because it's the only implementation.
-			Iterable accList = acc.list.get();
+			Iterable<BinaryStringData> accList = (Iterable) acc.list.get();
 			if (accList == null || !accList.iterator().hasNext()) {
 				// return null when the list is empty
 				return null;

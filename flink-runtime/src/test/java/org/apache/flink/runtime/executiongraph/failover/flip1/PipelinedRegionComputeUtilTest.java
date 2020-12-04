@@ -433,79 +433,66 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
 	}
 
 	/**
-	 * This test checks that are strictly co-located vertices are in the same failover region,
-	 * even through they are only connected via a blocking pattern.
-	 * This is currently an assumption / limitation of the scheduler.
+	 * This test checks that cyclic dependent regions will be merged into one.
 	 * <pre>
-	 *     (a1) -+-> (b1)
-	 *           X
-	 *     (a2) -+-> (b2)
-	 *
-	 *           ^
-	 *           |
-	 *       (blocking)
+	 *       (blocking)(blocking)
+	 *           |      |
+	 *           v      v
+	 *          +|-(v2)-|+
+	 *          |        |
+	 *     (v1)--+       +--(v4)
+	 *          |        |
+	 *          +--(v3)--+
 	 * </pre>
 	 */
 	@Test
-	public void testBlockingAllToAllTopologyWithCoLocation() {
+	public void testCyclicDependentRegionsAreMerged() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
 
 		topology
-			.connect(va1, vb1, ResultPartitionType.BLOCKING)
-			.connect(va1, vb2, ResultPartitionType.BLOCKING)
-			.connect(va2, vb1, ResultPartitionType.BLOCKING)
-			.connect(va2, vb2, ResultPartitionType.BLOCKING);
-
-		topology.setContainsCoLocationConstraints(true);
+			.connect(v1, v2, ResultPartitionType.BLOCKING)
+			.connect(v1, v3, ResultPartitionType.PIPELINED)
+			.connect(v2, v4, ResultPartitionType.BLOCKING)
+			.connect(v3, v4, ResultPartitionType.PIPELINED);
 
 		Map<ExecutionVertexID, Set<SchedulingExecutionVertex>> pipelinedRegionByVertex = computePipelinedRegionByVertex(topology);
 
-		Set<SchedulingExecutionVertex> ra1 = pipelinedRegionByVertex.get(va1.getId());
-		Set<SchedulingExecutionVertex> ra2 = pipelinedRegionByVertex.get(va2.getId());
-		Set<SchedulingExecutionVertex> rb1 = pipelinedRegionByVertex.get(vb1.getId());
-		Set<SchedulingExecutionVertex> rb2 = pipelinedRegionByVertex.get(vb2.getId());
+		Set<SchedulingExecutionVertex> r1 = pipelinedRegionByVertex.get(v1.getId());
+		Set<SchedulingExecutionVertex> r2 = pipelinedRegionByVertex.get(v2.getId());
+		Set<SchedulingExecutionVertex> r3 = pipelinedRegionByVertex.get(v3.getId());
+		Set<SchedulingExecutionVertex> r4 = pipelinedRegionByVertex.get(v4.getId());
 
-		assertSameRegion(ra1, ra2, rb1, rb2);
+		assertSameRegion(r1, r2, r3, r4);
 	}
 
-	/**
-	 * This test checks that are strictly co-located vertices are in the same failover region,
-	 * even through they are not connected.
-	 * This is currently an assumption / limitation of the scheduler.
-	 * <pre>
-	 *     (a1) -+-> (b1)
-	 *
-	 *     (a2) -+-> (b2)
-	 * </pre>
-	 */
 	@Test
-	public void testPipelinedOneToOneTopologyWithCoLocation() {
+	public void testPipelinedApproximateDifferentRegions() {
 		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
-		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
 
 		topology
-			.connect(va1, vb1, ResultPartitionType.PIPELINED)
-			.connect(va2, vb2, ResultPartitionType.PIPELINED);
-
-		topology.setContainsCoLocationConstraints(true);
+			.connect(v1, v2, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v1, v3, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v2, v4, ResultPartitionType.PIPELINED_APPROXIMATE)
+			.connect(v3, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
 
 		Map<ExecutionVertexID, Set<SchedulingExecutionVertex>> pipelinedRegionByVertex = computePipelinedRegionByVertex(topology);
 
-		Set<SchedulingExecutionVertex> ra1 = pipelinedRegionByVertex.get(va1.getId());
-		Set<SchedulingExecutionVertex> ra2 = pipelinedRegionByVertex.get(va2.getId());
-		Set<SchedulingExecutionVertex> rb1 = pipelinedRegionByVertex.get(vb1.getId());
-		Set<SchedulingExecutionVertex> rb2 = pipelinedRegionByVertex.get(vb2.getId());
+		Set<SchedulingExecutionVertex> r1 = pipelinedRegionByVertex.get(v1.getId());
+		Set<SchedulingExecutionVertex> r2 = pipelinedRegionByVertex.get(v2.getId());
+		Set<SchedulingExecutionVertex> r3 = pipelinedRegionByVertex.get(v3.getId());
+		Set<SchedulingExecutionVertex> r4 = pipelinedRegionByVertex.get(v4.getId());
 
-		assertSameRegion(ra1, ra2, rb1, rb2);
+		assertDistinctRegions(r1, r2, r3, r4);
 	}
 
 	// ------------------------------------------------------------------------

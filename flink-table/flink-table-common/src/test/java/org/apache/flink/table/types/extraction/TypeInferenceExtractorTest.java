@@ -23,6 +23,7 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -139,7 +140,9 @@ public class TypeInferenceExtractorTest {
 				.expectOutputMapping(
 					InputTypeStrategies.varyingSequence(
 						new String[]{"myInt", "myAny"},
-						new ArgumentTypeStrategy[]{InputTypeStrategies.explicit(DataTypes.INT()), InputTypeStrategies.ANY}),
+						new ArgumentTypeStrategy[]{
+							InputTypeStrategies.explicit(
+								DataTypes.ARRAY(DataTypes.INT())), InputTypeStrategies.ANY}),
 					TypeStrategies.explicit(DataTypes.BOOLEAN())),
 
 			// global input hints and local output hints
@@ -379,7 +382,52 @@ public class TypeInferenceExtractorTest {
 					TypeStrategies.explicit(DataTypes.BIGINT()))
 				.expectOutputMapping(
 					InputTypeStrategies.sequence(InputTypeStrategies.explicit(DataTypes.INT())),
-					TypeStrategies.explicit(DataTypes.INT()))
+					TypeStrategies.explicit(DataTypes.INT())),
+
+			TestSpec
+				.forTableFunction(
+					"A data type hint on the class is used instead of a function output hint",
+					DataTypeHintOnTableFunctionClass.class)
+				.expectNamedArguments()
+				.expectTypedArguments()
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{},
+						new ArgumentTypeStrategy[]{}),
+					TypeStrategies.explicit(DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())))),
+
+			TestSpec
+				.forTableFunction(
+					"A data type hint on the method is used instead of a function output hint",
+					DataTypeHintOnTableFunctionMethod.class)
+				.expectNamedArguments("i")
+				.expectTypedArguments(DataTypes.INT())
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{"i"},
+						new ArgumentTypeStrategy[]{InputTypeStrategies.explicit(DataTypes.INT())}),
+					TypeStrategies.explicit(DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())))),
+
+			TestSpec
+				.forTableFunction(
+					"Invalid data type hint on top of method and class",
+					InvalidDataTypeHintOnTableFunction.class)
+				.expectErrorMessage(
+					"More than one data type hint found for output of function. " +
+						"Please use a function hint instead."),
+
+			TestSpec
+				.forScalarFunction(
+					"A data type hint on the method is used for enriching (not a function output hint)",
+					DataTypeHintOnScalarFunction.class)
+				.expectNamedArguments()
+				.expectTypedArguments()
+				.expectOutputMapping(
+					InputTypeStrategies.sequence(
+						new String[]{},
+						new ArgumentTypeStrategy[]{}),
+					TypeStrategies.explicit(
+						DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())).bridgedTo(RowData.class)))
 		);
 	}
 
@@ -579,7 +627,7 @@ public class TypeInferenceExtractorTest {
 
 	private static class ComplexFunctionHint extends ScalarFunction {
 		@FunctionHint(
-			input = {@DataTypeHint("INT"), @DataTypeHint(inputGroup = InputGroup.ANY)},
+			input = {@DataTypeHint("ARRAY<INT>"), @DataTypeHint(inputGroup = InputGroup.ANY)},
 			argumentNames = {"myInt", "myAny"},
 			output = @DataTypeHint("BOOLEAN"),
 			isVarArgs = true
@@ -859,6 +907,34 @@ public class TypeInferenceExtractorTest {
 		@FunctionHint(input = @DataTypeHint("INT"), output = @DataTypeHint("INT"))
 		public Number eval(Number n) {
 			return n;
+		}
+	}
+
+	@DataTypeHint("ROW<i INT>")
+	private static class DataTypeHintOnTableFunctionClass extends TableFunction<Row> {
+		public void eval() {
+			// nothing to do
+		}
+	}
+
+	private static class DataTypeHintOnTableFunctionMethod extends TableFunction<Row> {
+		@DataTypeHint("ROW<i INT>")
+		public void eval(Integer i) {
+			// nothing to do
+		}
+	}
+
+	@DataTypeHint("ROW<i BOOLEAN>")
+	private static class InvalidDataTypeHintOnTableFunction extends TableFunction<Row> {
+		@DataTypeHint("ROW<i INT>")
+		public void eval(Integer i) {
+			// nothing to do
+		}
+	}
+
+	private static class DataTypeHintOnScalarFunction extends ScalarFunction {
+		public @DataTypeHint("ROW<i INT>") RowData eval() {
+			return null;
 		}
 	}
 }

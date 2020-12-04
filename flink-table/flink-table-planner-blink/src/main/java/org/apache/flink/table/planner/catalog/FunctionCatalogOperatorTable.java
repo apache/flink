@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
@@ -120,14 +119,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			}
 		} else if (definition instanceof ScalarFunctionDefinition) {
 			ScalarFunctionDefinition def = (ScalarFunctionDefinition) definition;
-			if (isHiveFunc(def.getScalarFunction())) {
-				return Optional.of(new HiveScalarSqlFunction(
-						identifier,
-						def.getScalarFunction(),
-						typeFactory));
-			} else {
-				return convertScalarFunction(identifier, def);
-			}
+			return convertScalarFunction(identifier, def);
 		} else if (definition instanceof TableFunctionDefinition &&
 				category != null &&
 				category.isTableFunction()) {
@@ -154,7 +146,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
 
-		if (!verifyFunctionKind(category, definition)) {
+		if (!verifyFunctionKind(category, identifier, definition)) {
 			return Optional.empty();
 		}
 
@@ -194,9 +186,13 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		return Optional.of(function);
 	}
 
-	@SuppressWarnings("RedundantIfStatement")
+	/**
+	 * Verifies which kinds of functions are allowed to be returned from the catalog given the
+	 * context information.
+	 */
 	private boolean verifyFunctionKind(
 			@Nullable SqlFunctionCategory category,
+			FunctionIdentifier identifier,
 			FunctionDefinition definition) {
 
 		// for now, we don't allow other functions than user-defined ones
@@ -205,19 +201,23 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			return false;
 		}
 
-		// it would be nice to give a more meaningful exception when a scalar function is used instead
-		// of a table function and vice versa, but we can do that only once FLIP-51 is implemented
+		final FunctionKind kind = definition.getKind();
 
-		if (definition.getKind() == FunctionKind.SCALAR &&
-				(category == SqlFunctionCategory.USER_DEFINED_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+		if (kind == FunctionKind.TABLE) {
 			return true;
-		} else if (definition.getKind() == FunctionKind.TABLE &&
-				(category == SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION || category == SqlFunctionCategory.SYSTEM)) {
+		} else if (kind == FunctionKind.SCALAR ||
+				kind == FunctionKind.AGGREGATE ||
+				kind == FunctionKind.TABLE_AGGREGATE) {
+			if (category != null && category.isTableFunction()) {
+				throw new ValidationException(
+					String.format(
+						"Function '%s' cannot be used as a table function.",
+						identifier.asSummaryString()
+					)
+				);
+			}
 			return true;
 		}
-
-		// aggregate function are not supported, because the code generator is not ready yet
-
 		return false;
 	}
 

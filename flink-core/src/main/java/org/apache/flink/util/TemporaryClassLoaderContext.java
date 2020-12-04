@@ -53,7 +53,7 @@ public final class TemporaryClassLoaderContext implements AutoCloseable {
 	 * that sets it back to the current context ClassLoader when the resource is closed.
 	 *
 	 * <pre>{@code
-	 * try (AutoContextClassLoader ignored = AutoContextClassLoader.of(classloader)) {
+	 * try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classloader)) {
 	 *     // code that needs the context class loader
 	 * }
 	 * }</pre>

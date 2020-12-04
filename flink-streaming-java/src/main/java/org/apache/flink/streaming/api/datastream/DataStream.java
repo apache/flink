@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -40,6 +41,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -48,10 +51,10 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -69,8 +72,14 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -85,7 +94,6 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
 import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -97,10 +105,13 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -229,23 +240,6 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
-	 * Calling this method on an operator creates a new {@link SplitStream}.
-	 *
-	 * @param outputSelector
-	 *            The user defined
-	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
-	 *            for directing the tuples.
-	 * @return The {@link SplitStream}
-	 * @deprecated Please use side output instead.
-	 */
-	@Deprecated
-	public SplitStream<T> split(OutputSelector<T> outputSelector) {
-		return new SplitStream<>(this, clean(outputSelector));
-	}
-
-	/**
 	 * Creates a new {@link ConnectedStreams} by connecting
 	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
@@ -280,7 +274,7 @@ public class DataStream<T> {
 				environment,
 				this,
 				Preconditions.checkNotNull(broadcastStream),
-				broadcastStream.getBroadcastStateDescriptor());
+				broadcastStream.getBroadcastStateDescriptors());
 	}
 
 	/**
@@ -526,7 +520,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -558,7 +552,7 @@ public class DataStream<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link #split(OutputSelector)} for more information.
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)} for more information.
 	 *
 	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
@@ -792,7 +786,12 @@ public class DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(TumblingProcessingTimeWindows.of(size));
@@ -813,7 +812,12 @@ public class DataStream<T> {
 	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(SlidingProcessingTimeWindows.of(size, slide));
@@ -896,17 +900,17 @@ public class DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			WatermarkStrategy<T> watermarkStrategy) {
-
 		final WatermarkStrategy<T> cleanedStrategy = clean(watermarkStrategy);
-
-		final TimestampsAndWatermarksOperator<T> operator =
-			new TimestampsAndWatermarksOperator<>(cleanedStrategy);
-
 		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
 		final int inputParallelism = getTransformation().getParallelism();
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-			.setParallelism(inputParallelism);
+		final TimestampsAndWatermarksTransformation<T> transformation =
+				new TimestampsAndWatermarksTransformation<>(
+						"Timestamps/Watermarks",
+						inputParallelism,
+						getTransformation(),
+						cleanedStrategy);
+		getExecutionEnvironment().addOperator(transformation);
+		return new SingleOutputStreamOperator<>(getExecutionEnvironment(), transformation);
 	}
 
 	/**
@@ -1180,7 +1184,8 @@ public class DataStream<T> {
 	 *
 	 * <p>The output is not participating in Flink's checkpointing!
 	 *
-	 * <p>For writing to a file system periodically, the use of the "flink-connector-filesystem"
+	 * <p>For writing to a file system periodically, the use of the
+	 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}
 	 * is recommended.
 	 *
 	 * @param format The output format
@@ -1299,6 +1304,103 @@ public class DataStream<T> {
 
 		getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink;
+	}
+
+	/**
+	 * Adds the given {@link Sink} to this DataStream. Only streams with sinks added
+	 * will be executed once the {@link StreamExecutionEnvironment#execute()} method is called.
+	 *
+	 * @param sink The user defined sink.
+	 *
+	 * @return The closed DataStream.
+	 */
+	@Experimental
+	public DataStreamSink<T> sinkTo(Sink<T, ?, ?, ?> sink) {
+		// read the output type of the input Transform to coax out errors about MissingTypeInfo
+		transformation.getOutputType();
+
+		return new DataStreamSink<>(this, sink);
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 *
+	 *<p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+	 */
+	public CloseableIterator<T> executeAndCollect() throws Exception {
+		return executeAndCollect("DataStream Collect");
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 *
+	 *<p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+	 */
+	public CloseableIterator<T> executeAndCollect(String jobExecutionName) throws Exception {
+		return executeAndCollectWithClient(jobExecutionName).iterator;
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 */
+	public List<T> executeAndCollect(int limit) throws Exception {
+		return executeAndCollect("DataStream Collect", limit);
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 */
+	public List<T> executeAndCollect(String jobExecutionName, int limit) throws Exception {
+		Preconditions.checkState(limit > 0, "Limit must be greater than 0");
+
+		try (ClientAndIterator<T> clientAndIterator = executeAndCollectWithClient(jobExecutionName)){
+			List<T> results = new ArrayList<>(limit);
+			while (clientAndIterator.iterator.hasNext() && limit > 0) {
+				results.add(clientAndIterator.iterator.next());
+				limit--;
+			}
+
+			return results;
+		}
+	}
+
+	ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+		TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
+		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
+
+		StreamExecutionEnvironment env = getExecutionEnvironment();
+		CollectSinkOperatorFactory<T> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
+		CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+		CollectResultIterator<T> iterator = new CollectResultIterator<>(
+				operator.getOperatorIdFuture(), serializer, accumulatorName, env.getCheckpointConfig());
+		CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
+		sink.name("Data stream collect sink");
+		env.addOperator(sink.getTransformation());
+
+		final JobClient jobClient = env.executeAsync(jobExecutionName);
+		iterator.setJobClient(jobClient);
+
+		return new ClientAndIterator<>(jobClient, iterator);
 	}
 
 	/**

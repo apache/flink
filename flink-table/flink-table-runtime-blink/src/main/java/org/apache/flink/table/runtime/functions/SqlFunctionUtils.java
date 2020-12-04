@@ -26,8 +26,6 @@ import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
 
-import org.apache.calcite.avatica.util.DateTimeUtils;
-import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1119,88 +1117,29 @@ public class SqlFunctionUtils {
 		return (float) doubleValue(struncate(castFrom((double) b0, 38, 18), b1));
 	}
 
-	/** TODO: remove addMonths and subtractMonths if CALCITE-3881 fixed.
-	 *   https://issues.apache.org/jira/browse/CALCITE-3881
-	 **/
-	public static long addMonths(long timestamp, int m) {
-		final long millis =
-			DateTimeUtils.floorMod(timestamp, DateTimeUtils.MILLIS_PER_DAY);
-		timestamp -= millis;
-		final long x =
-			addMonths((int) (timestamp / DateTimeUtils.MILLIS_PER_DAY), m);
-		return x * DateTimeUtils.MILLIS_PER_DAY + millis;
-	}
-
-	public static int addMonths(int date, int m) {
-		int y0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.YEAR, date);
-		int m0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.MONTH, date);
-		int d0 = (int) DateTimeUtils.unixDateExtract(TimeUnitRange.DAY, date);
-		m0 += m;
-		int deltaYear = (int) DateTimeUtils.floorDiv(m0, 12);
-		y0 += deltaYear;
-		m0 = (int) DateTimeUtils.floorMod(m0, 12);
-		if (m0 == 0) {
-			y0 -= 1;
-			m0 += 12;
-		}
-		int last = lastDay(y0, m0);
-		if (d0 > last) {
-			d0 = last;
-		}
-		return DateTimeUtils.ymdToUnixDate(y0, m0, d0);
-	}
-
-	private static int lastDay(int y, int m) {
-		switch (m) {
-			case 2:
-				return y % 4 == 0
-					&& (y % 100 != 0
-					|| y % 400 == 0)
-					? 29 : 28;
-			case 4:
-			case 6:
-			case 9:
-			case 11:
-				return 30;
-			default:
-				return 31;
-		}
-	}
-
-	public static int subtractMonths(int date0, int date1) {
-		if (date0 < date1) {
-			return -subtractMonths(date1, date0);
-		}
-		// Start with an estimate.
-		// Since no month has more than 31 days, the estimate is <= the true value.
-		int m = (date0 - date1) / 31;
-		while (true) {
-			int date2 = addMonths(date1, m);
-			if (date2 >= date0) {
-				return m;
+	/**
+	 * Compares two byte arrays in lexicographical order.
+	 *
+	 * <p>The result is
+	 * positive if {@code array1} is great than {@code array2},
+	 * negative if {@code array1} is less than {@code array2} and
+	 * 0 if {@code array1} is equal to {@code array2}.
+	 *
+	 * <p>Note: Currently, this is used in {@code ScalarOperatorGens}
+	 * for comparing two fields of binary or varbinary type.
+	 *
+	 * @param array1 byte array to compare.
+	 * @param array2 byte array to compare.
+	 * @return an Integer indicating which one is bigger
+	 */
+	public static int byteArrayCompare(byte[] array1, byte[] array2) {
+		for (int i = 0, j = 0; i < array1.length && j < array2.length; i++, j++) {
+			int a = (array1[i] & 0xff);
+			int b = (array2[j] & 0xff);
+			if (a != b) {
+				return a - b;
 			}
-			int date3 = addMonths(date1, m + 1);
-			if (date3 > date0) {
-				return m;
-			}
-			++m;
 		}
-	}
-
-	public static int subtractMonths(long t0, long t1) {
-		final long millis0 =
-			DateTimeUtils.floorMod(t0, DateTimeUtils.MILLIS_PER_DAY);
-		final int d0 = (int) DateTimeUtils.floorDiv(t0 - millis0,
-			DateTimeUtils.MILLIS_PER_DAY);
-		final long millis1 =
-			DateTimeUtils.floorMod(t1, DateTimeUtils.MILLIS_PER_DAY);
-		final int d1 = (int) DateTimeUtils.floorDiv(t1 - millis1,
-			DateTimeUtils.MILLIS_PER_DAY);
-		int x = subtractMonths(d0, d1);
-		final long d2 = addMonths(d1, x);
-		if (d2 == d0 && millis0 < millis1) {
-			--x;
-		}
-		return x;
+		return array1.length - array2.length;
 	}
 }

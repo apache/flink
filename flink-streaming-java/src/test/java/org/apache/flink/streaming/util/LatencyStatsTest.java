@@ -21,14 +21,12 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.util.TestLogger;
 
@@ -120,7 +118,15 @@ public class LatencyStatsTest extends TestLogger {
 		final Consumer<List<Tuple2<String, Histogram>>> verifier) {
 
 		final AbstractMetricGroup<?> dummyGroup = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-		final TestMetricRegistry registry = new TestMetricRegistry();
+
+		final List<Tuple2<String, Histogram>> latencyHistograms = new ArrayList<>(4);
+		final TestingMetricRegistry registry = TestingMetricRegistry.builder()
+			.setRegisterConsumer((metric, metricName, group) -> {
+				if (metric instanceof Histogram) {
+					latencyHistograms.add(Tuple2.of(group.getMetricIdentifier(metricName), (Histogram) metric));
+				}
+			})
+			.build();
 		final MetricGroup parentGroup = new GenericMetricGroup(registry, dummyGroup, PARENT_GROUP_NAME);
 
 		final LatencyStats latencyStats = new LatencyStats(
@@ -136,7 +142,7 @@ public class LatencyStatsTest extends TestLogger {
 		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 2));
 		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 3));
 
-		verifier.accept(registry.latencyHistograms);
+		verifier.accept(latencyHistograms);
 	}
 
 	/**
@@ -168,37 +174,5 @@ public class LatencyStatsTest extends TestLogger {
 			".operator_id." + OPERATOR_ID +
 			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
 			".latency", sanitizedName);
-	}
-
-	private static class TestMetricRegistry implements MetricRegistry {
-
-		private final List<Tuple2<String, Histogram>> latencyHistograms = new ArrayList<>(4);
-
-		@Override
-		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-			if (metric instanceof Histogram) {
-				latencyHistograms.add(Tuple2.of(group.getMetricIdentifier(metricName), (Histogram) metric));
-			}
-		}
-
-		@Override
-		public char getDelimiter() {
-			return '.';
-		}
-
-		@Override
-		public int getNumberReporters() {
-			return 0;
-		}
-
-		@Override
-		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-
-		}
-
-		@Override
-		public ScopeFormats getScopeFormats() {
-			return null;
-		}
 	}
 }

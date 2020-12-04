@@ -1,6 +1,6 @@
 ---
 title: "旁路输出"
-nav-title: "Side Outputs"
+nav-title: "旁路输出"
 nav-parent_id: streaming
 nav-pos: 36
 ---
@@ -26,21 +26,15 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-In addition to the main stream that results from `DataStream` operations, you can also produce any
-number of additional side output result streams. The type of data in the result streams does not
-have to match the type of data in the main stream and the types of the different side outputs can
-also differ. This operation can be useful when you want to split a stream of data where you would
-normally have to replicate the stream and then filter out from each stream the data that you don't
-want to have.
+除了由 `DataStream` 操作产生的主要流之外，你还可以产生任意数量的旁路输出结果流。结果流中的数据类型不必与主要流中的数据类型相匹配，并且不同旁路输出的类型也可以不同。当你需要拆分数据流时，通常必须复制该数据流，然后从每个流中过滤掉不需要的数据，这个操作十分有用。
 
-When using side outputs, you first need to define an `OutputTag` that will be used to identify a
-side output stream:
+使用旁路输出时，首先需要定义用于标识旁路输出流的 `OutputTag`：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
 {% highlight java %}
-// this needs to be an anonymous inner class, so that we can analyze the type
+// 这需要是一个匿名的内部类，以便我们分析类型
 OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 {% endhighlight %}
 </div>
@@ -52,21 +46,18 @@ val outputTag = OutputTag[String]("side-output")
 </div>
 </div>
 
-Notice how the `OutputTag` is typed according to the type of elements that the side output stream
-contains.
+注意 `OutputTag` 是如何根据旁路输出流所包含的元素类型进行类型化的。
 
-Emitting data to a side output is possible from the following functions:
+可以通过以下方法将数据发送到旁路输出：
 
-- [ProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html)
-- [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html#the-keyedprocessfunction)
+- [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %})
+- [KeyedProcessFunction]({% link dev/stream/operators/process_function.zh.md %}#the-keyedprocessfunction)
 - CoProcessFunction
 - KeyedCoProcessFunction
-- [ProcessWindowFunction]({{ site.baseurl }}/dev/stream/operators/windows.html#processwindowfunction)
+- [ProcessWindowFunction]({% link dev/stream/operators/windows.zh.md %}#processwindowfunction)
 - ProcessAllWindowFunction
 
-You can use the `Context` parameter, which is exposed to users in the above functions, to emit
-data to a side output identified by an `OutputTag`. Here is an example of emitting side output
-data from a `ProcessFunction`:
+你可以使用在上述方法中向用户暴露的 `Context` 参数，将数据发送到由 `OutputTag` 标识的旁路输出。这是从 `ProcessFunction` 发送数据到旁路输出的示例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -84,10 +75,10 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
           Integer value,
           Context ctx,
           Collector<Integer> out) throws Exception {
-        // emit data to regular output
+        // 发送数据到主要的输出
         out.collect(value);
 
-        // emit data to side output
+        // 发送数据到旁路输出
         ctx.output(outputTag, "sideout-" + String.valueOf(value));
       }
     });
@@ -107,10 +98,10 @@ val mainDataStream = input
         value: Int,
         ctx: ProcessFunction[Int, Int]#Context,
         out: Collector[Int]): Unit = {
-      // emit data to regular output
+      // 发送数据到主要的输出
       out.collect(value)
 
-      // emit data to side output
+      // 发送数据到旁路输出
       ctx.output(outputTag, "sideout-" + String.valueOf(value))
     }
   })
@@ -118,9 +109,7 @@ val mainDataStream = input
 </div>
 </div>
 
-For retrieving the side output stream you use `getSideOutput(OutputTag)`
-on the result of the `DataStream` operation. This will give you a `DataStream` that is typed
-to the result of the side output stream:
+你可以在 `DataStream` 运算结果上使用 `getSideOutput(OutputTag)` 方法获取旁路输出流。这将产生一个与旁路输出流结果类型一致的 `DataStream`：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

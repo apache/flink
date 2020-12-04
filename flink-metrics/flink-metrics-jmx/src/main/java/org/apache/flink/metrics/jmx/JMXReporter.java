@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -28,9 +29,9 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
-import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,26 +43,12 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
-import javax.management.remote.JMXConnectorServer;
-import javax.management.remote.JMXServiceURL;
-import javax.management.remote.rmi.RMIConnectorServer;
-import javax.management.remote.rmi.RMIJRMPServerImpl;
 
-import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.net.MalformedURLException;
-import java.rmi.NoSuchObjectException;
-import java.rmi.NotBoundException;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
@@ -91,42 +78,15 @@ public class JMXReporter implements MetricReporter {
 	/** The names under which the registered metrics have been added to the MBeanServer. */
 	private final Map<Metric, ObjectName> registeredMetrics;
 
-	/** The server to which JMX clients connect to. Allows for better control over port usage. */
-	@Nullable
-	private final JMXServer jmxServer;
-
 	JMXReporter(@Nullable final String portsConfig) {
 		this.mBeanServer = ManagementFactory.getPlatformMBeanServer();
 		this.registeredMetrics = new HashMap<>();
 
 		if (portsConfig != null) {
-			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
-
-			JMXServer successfullyStartedServer = null;
-			while (ports.hasNext() && successfullyStartedServer == null) {
-				JMXServer server = new JMXServer();
-				int port = ports.next();
-				try {
-					server.start(port);
-					LOG.info("Started JMX server on port " + port + ".");
-					successfullyStartedServer = server;
-				} catch (IOException ioe) { //assume port conflict
-					LOG.debug("Could not start JMX server on port " + port + ".", ioe);
-					try {
-						server.stop();
-					} catch (Exception e) {
-						LOG.debug("Could not stop JMX server.", e);
-					}
-				}
-			}
-			if (successfullyStartedServer == null) {
-				throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
-			}
-			this.jmxServer = successfullyStartedServer;
-		} else {
-			this.jmxServer = null;
+			LOG.warn("JMXReporter port config is deprecated. " +
+				"Please use: {} instead!", JMXServerOptions.JMX_SERVER_PORT);
+			JMXService.startInstance(portsConfig);
 		}
-		LOG.info("Configured JMXReporter with {port:{}}", portsConfig);
 	}
 
 	// ------------------------------------------------------------------------
@@ -139,21 +99,11 @@ public class JMXReporter implements MetricReporter {
 
 	@Override
 	public void close() {
-		if (jmxServer != null) {
-			try {
-				jmxServer.stop();
-			} catch (IOException e) {
-				LOG.error("Failed to stop JMX server.", e);
-			}
-		}
+		// Nothing to close.
 	}
 
 	public Optional<Integer> getPort() {
-		if (jmxServer == null) {
-			return Optional.empty();
-		} else {
-			return Optional.of(jmxServer.port);
-		}
+		return JMXService.getPort();
 	}
 
 	// ------------------------------------------------------------------------
@@ -472,121 +422,6 @@ public class JMXReporter implements MetricReporter {
 		@Override
 		public long getCount() {
 			return meter.getCount();
-		}
-	}
-
-	/**
-	 * JMX Server implementation that JMX clients can connect to.
-	 *
-	 * <p>Originally based on j256 simplejmx project
-	 *
-	 * <p>https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
-	 */
-	private static class JMXServer {
-		private Registry rmiRegistry;
-		private JMXConnectorServer connector;
-		private int port;
-		private final AtomicReference<Remote> rmiServerReference = new AtomicReference<>();
-
-		public void start(int port) throws IOException {
-			if (rmiRegistry != null && connector != null) {
-				LOG.debug("JMXServer is already running.");
-				return;
-			}
-			internalStart(port);
-			this.port = port;
-		}
-
-		private void internalStart(int port) throws IOException {
-			rmiServerReference.set(null);
-
-			// this allows clients to lookup the JMX service
-			rmiRegistry = new JmxRegistry(port, "jmxrmi", rmiServerReference);
-
-			String serviceUrl = "service:jmx:rmi://localhost:" + port + "/jndi/rmi://localhost:" + port + "/jmxrmi";
-			JMXServiceURL url;
-			try {
-				url = new JMXServiceURL(serviceUrl);
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("Malformed service url created " + serviceUrl, e);
-			}
-
-			final RMIJRMPServerImpl rmiServer = new RMIJRMPServerImpl(port, null, null, null);
-
-			connector = new RMIConnectorServer(url, null, rmiServer, ManagementFactory.getPlatformMBeanServer());
-			connector.start();
-
-			// we can't pass the created stub directly to the registry since this would form a cyclic dependency:
-			// - you can only start the connector after the registry was started
-			// - you can only create the stub after the connector was started
-			// - you can only start the registry after the stub was created
-			rmiServerReference.set(rmiServer.toStub());
-		}
-
-		public void stop() throws IOException {
-			rmiServerReference.set(null);
-			if (connector != null) {
-				try {
-					connector.stop();
-				} finally {
-					connector = null;
-				}
-			}
-			if (rmiRegistry != null) {
-				try {
-					UnicastRemoteObject.unexportObject(rmiRegistry, true);
-				} catch (NoSuchObjectException e) {
-					throw new IOException("Could not un-export our RMI registry", e);
-				} finally {
-					rmiRegistry = null;
-				}
-			}
-		}
-
-		/**
-		 * A registry that only exposes a single remote object.
-		 */
-		@SuppressWarnings("restriction")
-		private static class JmxRegistry extends sun.rmi.registry.RegistryImpl {
-			private final String lookupName;
-			private final AtomicReference<Remote> remoteServerStub;
-
-			JmxRegistry(final int port, final String lookupName, final AtomicReference<Remote> remoteServerStub) throws RemoteException {
-				super(port);
-				this.lookupName = lookupName;
-				this.remoteServerStub = remoteServerStub;
-			}
-
-			@Override
-			public Remote lookup(String s) throws NotBoundException {
-				if (lookupName.equals(s)) {
-					final Remote remote = remoteServerStub.get();
-					if (remote != null) {
-						return remote;
-					}
-				}
-				throw new NotBoundException("Not bound.");
-			}
-
-			@Override
-			public void bind(String s, Remote remote) {
-				// this is called from RMIConnectorServer#start; don't throw a general AccessException
-			}
-
-			@Override
-			public void unbind(String s) {
-				// this is called from RMIConnectorServer#stop; don't throw a general AccessException
-			}
-
-			@Override
-			public void rebind(String s, Remote remote) {
-				// might as well not throw an exception here given that the others don't
-			}
-
-			@Override
-			public String[] list() {
-				return new String[]{lookupName};
-			}
 		}
 	}
 }

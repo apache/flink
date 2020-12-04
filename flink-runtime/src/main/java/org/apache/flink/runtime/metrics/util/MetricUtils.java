@@ -26,7 +26,9 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -35,6 +37,8 @@ import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -51,13 +55,18 @@ import javax.management.ReflectionException;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to register pre-defined metric sets.
@@ -69,6 +78,16 @@ public class MetricUtils {
 
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
 	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
+	static final String METRIC_GROUP_METASPACE_NAME = "Metaspace";
+
+	@VisibleForTesting
+	static final String METRIC_GROUP_FLINK = "Flink";
+
+	@VisibleForTesting
+	static final String METRIC_GROUP_MEMORY = "Memory";
+
+	@VisibleForTesting
+	static final String METRIC_GROUP_MANAGED_MEMORY = "Managed";
 
 	private MetricUtils() {
 	}
@@ -127,9 +146,48 @@ public class MetricUtils {
 
 		instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"));
 		instantiateGarbageCollectorMetrics(jvm.addGroup("GarbageCollector"));
-		instantiateMemoryMetrics(jvm.addGroup("Memory"));
+		instantiateMemoryMetrics(jvm.addGroup(METRIC_GROUP_MEMORY));
 		instantiateThreadMetrics(jvm.addGroup("Threads"));
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
+	}
+
+	public static void instantiateFlinkMemoryMetricGroup(
+			MetricGroup parentMetricGroup,
+			TaskSlotTable<?> taskSlotTable,
+			Supplier<Long> managedMemoryTotalSupplier) {
+		checkNotNull(parentMetricGroup);
+		checkNotNull(taskSlotTable);
+		checkNotNull(managedMemoryTotalSupplier);
+
+		MetricGroup flinkMemoryMetricGroup = parentMetricGroup.addGroup(METRIC_GROUP_FLINK).addGroup(METRIC_GROUP_MEMORY);
+
+		instantiateManagedMemoryMetrics(flinkMemoryMetricGroup, taskSlotTable, managedMemoryTotalSupplier);
+	}
+
+	private static void instantiateManagedMemoryMetrics(
+			MetricGroup metricGroup,
+			TaskSlotTable<?> taskSlotTable,
+			Supplier<Long> managedMemoryTotalSupplier) {
+		MetricGroup managedMemoryMetricGroup = metricGroup.addGroup(METRIC_GROUP_MANAGED_MEMORY);
+
+		managedMemoryMetricGroup.gauge("Used", () -> getUsedManagedMemory(taskSlotTable));
+		managedMemoryMetricGroup.gauge("Total", managedMemoryTotalSupplier::get);
+	}
+
+	private static long getUsedManagedMemory(TaskSlotTable<?> taskSlotTable) {
+		Set<AllocationID> activeTaskAllocationIds = taskSlotTable.getActiveTaskSlotAllocationIds();
+
+		long usedMemory = 0L;
+		for (AllocationID allocationID : activeTaskAllocationIds) {
+			try {
+				MemoryManager taskSlotMemoryManager = taskSlotTable.getTaskMemoryManager(allocationID);
+				usedMemory += taskSlotMemoryManager.getMemorySize() - taskSlotMemoryManager.availableMemory();
+			} catch (SlotNotFoundException e) {
+				LOG.debug("The task slot {} is not present anymore and will be ignored in calculating the amount of used memory.", allocationID);
+			}
+		}
+
+		return usedMemory;
 	}
 
 	public static RpcService startRemoteMetricsRpcService(Configuration configuration, String hostname) throws Exception {
@@ -172,6 +230,7 @@ public class MetricUtils {
 	private static void instantiateMemoryMetrics(MetricGroup metrics) {
 		instantiateHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_HEAP_NAME));
 		instantiateNonHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_NONHEAP_NAME));
+		instantiateMetaspaceMemoryMetrics(metrics);
 
 		final MBeanServer con = ManagementFactory.getPlatformMBeanServer();
 
@@ -212,6 +271,29 @@ public class MetricUtils {
 	@VisibleForTesting
 	static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
 		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
+	}
+
+	@VisibleForTesting
+	static void instantiateMetaspaceMemoryMetrics(final MetricGroup parentMetricGroup) {
+		final List<MemoryPoolMXBean> memoryPoolMXBeans = ManagementFactory.getMemoryPoolMXBeans()
+			.stream()
+			.filter(bean -> "Metaspace".equals(bean.getName()))
+			.collect(Collectors.toList());
+
+		if (memoryPoolMXBeans.isEmpty()) {
+			LOG.info("The '{}' metrics will not be exposed because no pool named 'Metaspace' could be found. This might be caused by the used JVM.", METRIC_GROUP_METASPACE_NAME);
+			return;
+		}
+
+		final MetricGroup metricGroup = parentMetricGroup.addGroup(METRIC_GROUP_METASPACE_NAME);
+		final Iterator<MemoryPoolMXBean> beanIterator = memoryPoolMXBeans.iterator();
+
+		final MemoryPoolMXBean firstPool = beanIterator.next();
+		instantiateMemoryUsageMetrics(metricGroup, firstPool::getUsage);
+
+		if (beanIterator.hasNext()) {
+			LOG.debug("More than one memory pool named 'Metaspace' is present. Only the first pool was used for instantiating the '{}' metrics.", METRIC_GROUP_METASPACE_NAME);
+		}
 	}
 
 	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final Supplier<MemoryUsage> memoryUsageSupplier) {

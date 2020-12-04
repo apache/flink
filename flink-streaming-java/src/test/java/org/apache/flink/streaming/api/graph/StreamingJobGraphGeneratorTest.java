@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -29,13 +30,17 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
@@ -62,6 +67,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
@@ -72,12 +78,14 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
@@ -86,13 +94,12 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import org.hamcrest.FeatureMatcher;
+import org.hamcrest.Matcher;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -100,11 +107,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -609,6 +617,77 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
 	}
 
+	@Test
+	public void testPartitionTypesInBatchMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+		env.setParallelism(4);
+		env.disableOperatorChaining();
+		DataStream<Integer> source = env.fromElements(1);
+		source
+			// set the same parallelism as the source to make it a FORWARD SHUFFLE
+			.map(value -> value).setParallelism(1)
+			.rescale()
+			.map(value -> value)
+			.rebalance()
+			.map(value -> value)
+			.keyBy(value -> value)
+			.map(value -> value)
+			.addSink(new DiscardingSink<>());
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertThat(verticesSorted.get(0) /* source - forward */,
+			hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+		assertThat(verticesSorted.get(1) /* rescale */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(2) /* rebalance */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(3) /* keyBy */,
+			hasOutputPartitionType(ResultPartitionType.BLOCKING));
+		assertThat(verticesSorted.get(4) /* forward - sink */,
+			hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+	}
+
+	private Matcher<JobVertex> hasOutputPartitionType(ResultPartitionType partitionType) {
+		return new FeatureMatcher<JobVertex, ResultPartitionType>(
+			equalTo(partitionType),
+			"output partition type",
+			"output partition type"
+		) {
+			@Override
+			protected ResultPartitionType featureValueOf(JobVertex actual) {
+				return actual.getProducedDataSets().get(0).getResultType();
+			}
+		};
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testConflictShuffleModeWithBufferTimeout() {
+		testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
+	}
+
+	@Test
+	public void testNormalShuffleModeWithBufferTimeout() {
+		testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.PIPELINED);
+	}
+
+	private void testCompatibleShuffleModeWithBufferTimeout(ShuffleMode shuffleMode) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setBufferTimeout(100);
+
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+		PartitionTransformation<Integer> transformation = new PartitionTransformation<>(
+			sourceDataStream.getTransformation(),
+			new RebalancePartitioner<>(),
+			shuffleMode);
+
+		DataStream<Integer> partitionStream = new DataStream<>(env, transformation);
+		partitionStream.map(value -> value).print();
+
+		StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
 	/**
 	 * Test iteration job, check slot sharing group and co-location group.
 	 */
@@ -661,26 +740,13 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// use eager schedule mode by default
-		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
-			env.getConfig(), env.getCheckpointConfig())
+		StreamGraph streamGraph = new StreamGraphGenerator(
+				Collections.emptyList(),
+				env.getConfig(),
+				env.getCheckpointConfig())
 			.generate();
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 		assertEquals(ScheduleMode.EAGER, jobGraph.getScheduleMode());
-	}
-
-	/**
-	 * Test schedule mode is configurable or not.
-	 */
-	@Test
-	public void testSetScheduleMode() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
-			env.getConfig(), env.getCheckpointConfig())
-			.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES)
-			.generate();
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
 	}
 
 	@Test
@@ -723,7 +789,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	 * sources, see FLINK-16219.
 	 */
 	@Test
-	public void testYieldingOperatorProperlyChained() {
+	public void testYieldingOperatorProperlyChainedOnLegacySources() {
 		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		chainEnv.fromElements(1)
@@ -743,6 +809,26 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(5, vertices.get(1).getOperatorIDs().size());
 	}
 
+	/**
+	 * Tests that {@link org.apache.flink.streaming.api.operators.YieldingOperatorFactory} are chained to new sources,
+	 * see FLINK-20444.
+	 */
+	@Test
+	public void testYieldingOperatorProperlyChainedOnNewSources() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		chainEnv.fromSource(new NumberSequenceSource(0, 10), WatermarkStrategy.noWatermarks(), "input")
+			.map((x) -> x)
+			.transform("test", BasicTypeInfo.LONG_TYPE_INFO, new YieldingTestOperatorFactory<>())
+			.addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		Assert.assertEquals(1, vertices.size());
+		assertEquals(4, vertices.get(0).getOperatorIDs().size());
+	}
+
 	@Test(expected = UnsupportedOperationException.class)
 	public void testNotSupportInputSelectableOperatorIfCheckpointing() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -760,78 +846,82 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	@Test
-	public void testManagedMemoryFractionForSpecifiedResourceSpec() throws Exception {
-		// these specific values are needed to produce the double precision issue,
-		// i.e. 100.0 / 1100 + 300.0 / 1100 + 700.0 / 1100 can be larger than 1.0.
-		final ResourceSpec resource1 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(100))
-			.build();
-		final ResourceSpec resource2 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(300))
-			.build();
-		final ResourceSpec resource3 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(700))
-			.build();
-		final ResourceSpec resource4 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(123))
-			.build();
-		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource1, resource2, resource3, resource4);
-
-		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
-		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, null);
-		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
-		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
-
-		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFraction(), 0.000001);
-
-		final StreamConfig map1Config = Iterables.getOnlyElement(
-			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFraction(), 0.000001);
-
-		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFraction(), 0.000001);
-
-		final BigDecimal sumFraction = BigDecimal.valueOf(sourceConfig.getManagedMemoryFraction())
-			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFraction()))
-			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFraction()));
-		assertThat(sumFraction, lessThanOrEqualTo(BigDecimal.ONE));
-
-		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
-	}
-
-	@Test
 	public void testManagedMemoryFractionForUnknownResourceSpec() throws Exception {
 		final ResourceSpec resource = ResourceSpec.UNKNOWN;
 		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource, resource, resource, resource);
-		final List<Integer> managedMemoryWeights = Arrays.asList(1, 2, 3, 4);
 
-		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
-		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, managedMemoryWeights);
+		final Configuration taskManagerConfig = new Configuration() {{
+			set(
+				TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+				new HashMap<String, String>() {{
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "6");
+					put(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "4");
+				}});
+		}};
+
+		final List<Map<ManagedMemoryUseCase, Integer>> operatorScopeManagedMemoryUseCaseWeights = new ArrayList<>();
+		final List<Set<ManagedMemoryUseCase>> slotScopeManagedMemoryUseCases = new ArrayList<>();
+
+		// source: batch
+		operatorScopeManagedMemoryUseCaseWeights.add(Collections.singletonMap(ManagedMemoryUseCase.BATCH_OP, 1));
+		slotScopeManagedMemoryUseCases.add(Collections.emptySet());
+
+		// map1: batch, python
+		operatorScopeManagedMemoryUseCaseWeights.add(Collections.singletonMap(ManagedMemoryUseCase.BATCH_OP, 1));
+		slotScopeManagedMemoryUseCases.add(Collections.singleton(ManagedMemoryUseCase.PYTHON));
+
+		// map3: python
+		operatorScopeManagedMemoryUseCaseWeights.add(Collections.emptyMap());
+		slotScopeManagedMemoryUseCases.add(Collections.singleton(ManagedMemoryUseCase.PYTHON));
+
+		// map3: batch
+		operatorScopeManagedMemoryUseCaseWeights.add(Collections.singletonMap(ManagedMemoryUseCase.BATCH_OP, 1));
+		slotScopeManagedMemoryUseCases.add(Collections.emptySet());
+
+		// slotSharingGroup1 contains batch and python use cases: v1(source[batch]) -> map1[batch, python]), v2(map2[python])
+		// slotSharingGroup2 contains batch use case only: v3(map3[batch])
+		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(
+			resourceSpecs,
+			operatorScopeManagedMemoryUseCaseWeights,
+			slotScopeManagedMemoryUseCases);
 		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryFraction(), 0.000001);
+		verifyFractions(sourceConfig,
+			0.6 / 2,
+			0.0,
+			0.0,
+			taskManagerConfig);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(2.0 / 6, map1Config.getManagedMemoryFraction(), 0.000001);
+		verifyFractions(map1Config,
+			0.6 / 2,
+			0.4,
+			0.0,
+			taskManagerConfig);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(3.0 / 6, map2Config.getManagedMemoryFraction(), 0.000001);
+		verifyFractions(map2Config,
+			0.0,
+			0.4,
+			0.0,
+			taskManagerConfig);
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
-
+		verifyFractions(map3Config,
+			1.0,
+			0.0,
+			0.0,
+			taskManagerConfig);
 	}
 
 	private JobGraph createJobGraphForManagedMemoryFractionTest(
 		final List<ResourceSpec> resourceSpecs,
-		@Nullable final List<Integer> managedMemoryWeights) throws Exception {
+		final List<Map<ManagedMemoryUseCase, Integer>> operatorScopeUseCaseWeights,
+		final List<Set<ManagedMemoryUseCase>> slotScopeUseCases) throws Exception {
 
 		final Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
 
@@ -860,14 +950,45 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final DataStream<Integer> map3 = map2.rebalance().map(value -> value).slotSharingGroup("test");
 		opMethod.invoke(map3, resourceSpecs.get(3));
 
-		if (managedMemoryWeights != null) {
-			source.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(0));
-			map1.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(1));
-			map2.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(2));
-			map3.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(3));
-		}
+		declareManagedMemoryUseCaseForTranformation(source.getTransformation(), operatorScopeUseCaseWeights.get(0), slotScopeUseCases.get(0));
+		declareManagedMemoryUseCaseForTranformation(map1.getTransformation(), operatorScopeUseCaseWeights.get(1), slotScopeUseCases.get(1));
+		declareManagedMemoryUseCaseForTranformation(map2.getTransformation(), operatorScopeUseCaseWeights.get(2), slotScopeUseCases.get(2));
+		declareManagedMemoryUseCaseForTranformation(map3.getTransformation(), operatorScopeUseCaseWeights.get(3), slotScopeUseCases.get(3));
 
 		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
+	private void declareManagedMemoryUseCaseForTranformation(
+			Transformation<?> transformation,
+			Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+			Set<ManagedMemoryUseCase> slotScopeUseCases) {
+		for (Map.Entry<ManagedMemoryUseCase, Integer> entry : operatorScopeUseCaseWeights.entrySet()) {
+			transformation.declareManagedMemoryUseCaseAtOperatorScope(entry.getKey(), entry.getValue());
+		}
+		for (ManagedMemoryUseCase useCase : slotScopeUseCases) {
+			transformation.declareManagedMemoryUseCaseAtSlotScope(useCase);
+		}
+	}
+
+	private void verifyFractions(
+			StreamConfig streamConfig,
+			double expectedBatchFrac,
+			double expectedPythonFrac,
+			double expectedStateBackendFrac,
+			Configuration tmConfig) {
+		final double delta = 0.000001;
+		assertEquals(
+			expectedStateBackendFrac,
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.STATE_BACKEND, tmConfig, ClassLoader.getSystemClassLoader()),
+			delta);
+		assertEquals(
+			expectedPythonFrac,
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.PYTHON, tmConfig, ClassLoader.getSystemClassLoader()),
+			delta);
+		assertEquals(
+			expectedBatchFrac,
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, tmConfig, ClassLoader.getSystemClassLoader()),
+			delta);
 	}
 
 	@Test
@@ -917,6 +1038,49 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		// vertices in different regions should be in different slot sharing groups
 		assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+	}
+
+	@Test
+	public void testNamingOfChainedMultipleInputs() {
+		String[] sources = new String[]{"source-1", "source-2", "source-3"};
+		JobGraph graph = createGraphWithMultipleInputs(true, sources);
+		JobVertex head = graph.getVerticesSortedTopologicallyFromSources().iterator().next();
+		Arrays.stream(sources).forEach(source -> assertTrue(head.getName().contains(source)));
+	}
+
+	@Test
+	public void testNamingOfNonChainedMultipleInputs() {
+		String[] sources = new String[]{"source-1", "source-2", "source-3"};
+		JobGraph graph = createGraphWithMultipleInputs(false, sources);
+		JobVertex head = Iterables.find(graph.getVertices(), vertex -> vertex.getInvokableClassName().equals(MultipleInputStreamTask.class.getName()));
+		assertFalse(head.getName(), head.getName().contains("source-1"));
+	}
+
+	public JobGraph createGraphWithMultipleInputs(boolean chain, String ...inputNames) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		MultipleInputTransformation<Long> transform = new MultipleInputTransformation<>("mit", new UnusedOperatorFactory(), Types.LONG, env.getParallelism());
+		Arrays.stream(inputNames)
+			.map(name -> env.fromSource(new NumberSequenceSource(1, 2), WatermarkStrategy.noWatermarks(), name).getTransformation())
+			.forEach(transform::addInput);
+		transform.setChainingStrategy(chain ? ChainingStrategy.HEAD_WITH_SOURCES : ChainingStrategy.NEVER);
+
+		env.addOperator(transform);
+
+		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+	}
+
+	private static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+
+		@Override
+		public <T extends StreamOperator<Long>> T createStreamOperator(StreamOperatorParameters<Long> parameters) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	private static List<JobVertex> getExpectedVerticesList(List<JobVertex> vertices) {

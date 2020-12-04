@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -30,8 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamGroupedFold;
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.EvictingQueue;
 
@@ -47,8 +45,7 @@ import java.util.Random;
  * of {@link AbstractUdfStreamOperator} is correctly restored in case of recovery from
  * a failure.
  *
- * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduce}
- * and the {@link StreamGroupedFold} operators.
+ * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduceOperator} operator.
  */
 @SuppressWarnings("serial")
 public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
@@ -86,18 +83,6 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 				})
 				.keyBy(0)
 				.addSink(new SumEvictingQueueSink());
-
-		stream
-				// testing UDF folder
-				.fold(Tuple2.of(0, 0L), new FoldFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>>() {
-					@Override
-					public Tuple2<Integer, Long> fold(
-							Tuple2<Integer, Long> accumulator, Tuple2<Integer, Long> value) throws Exception {
-						return Tuple2.of(value.f0, accumulator.f1 + value.f1);
-					}
-				})
-				.keyBy(0)
-				.addSink(new FoldEvictingQueueSink());
 	}
 
 	@Override
@@ -122,18 +107,6 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 				Assert.assertTrue("Unexpected reduce value " + value + " instead of " + sum + ".", value == sum);
 			}
 		}
-
-		// Checking the result of the UDF folder
-		for (int i = 0; i < PARALLELISM; i++) {
-			long prevCount = NUM_INPUT - NUM_OUTPUT;
-			long sum = prevCount * (prevCount + 1) / 2;
-			while (!FoldEvictingQueueSink.queues[i].isEmpty()) {
-				sum += ++prevCount;
-				Long value = FoldEvictingQueueSink.queues[i].remove();
-				Assert.assertTrue("Unexpected fold value " + value + " instead of " + sum + ".", value == sum);
-			}
-		}
-
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -253,24 +226,6 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 	 * parallel access of the queues.
 	 */
 	private static class SumEvictingQueueSink implements SinkFunction<Tuple2<Integer, Long>> {
-
-		public static Queue<Long>[] queues = new Queue[PARALLELISM];
-
-		@Override
-		public void invoke(Tuple2<Integer, Long> value) throws Exception {
-			if (queues[value.f0] == null) {
-				queues[value.f0] = EvictingQueue.create(NUM_OUTPUT);
-			}
-			queues[value.f0].add(value.f1);
-		}
-	}
-
-	/**
-	 * Sink that emits the output to an evicting queue storing the last {@link #NUM_OUTPUT} elements.
-	 * A separate queue is initiated for each group, apply a grouping prior to this operator to avoid
-	 * parallel access of the queues.
-	 */
-	private static class FoldEvictingQueueSink implements SinkFunction<Tuple2<Integer, Long>> {
 
 		public static Queue<Long>[] queues = new Queue[PARALLELISM];
 

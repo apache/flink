@@ -27,6 +27,7 @@ import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Serialization schema that serializes to Avro binary format.
@@ -51,7 +52,7 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
 	 * 	                          schema writing
 	 */
-	protected RegistryAvroSerializationSchema(Class<T> recordClazz, Schema schema, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+	public RegistryAvroSerializationSchema(Class<T> recordClazz, Schema schema, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, schema);
 		this.schemaCoderProvider = schemaCoderProvider;
 	}
@@ -94,5 +95,25 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 		if (schemaCoder == null) {
 			schemaCoder = schemaCoderProvider.get();
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+		RegistryAvroSerializationSchema<?> that = (RegistryAvroSerializationSchema<?>) o;
+		return schemaCoderProvider.equals(that.schemaCoderProvider);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), schemaCoderProvider);
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -47,6 +48,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_DATA_PORT = "dataPort";
 
+	public static final String FIELD_NAME_JMX_PORT = "jmxPort";
+
 	public static final String FIELD_NAME_LAST_HEARTBEAT = "timeSinceLastHeartbeat";
 
 	public static final String FIELD_NAME_NUMBER_SLOTS = "slotsNumber";
@@ -59,6 +62,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
 
+	public static final String FIELD_NAME_MEMORY = "memoryConfiguration";
+
 	private static final long serialVersionUID = 1L;
 
 	@JsonProperty(FIELD_NAME_RESOURCE_ID)
@@ -70,6 +75,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	@JsonProperty(FIELD_NAME_DATA_PORT)
 	private final int dataPort;
+
+	@JsonProperty(FIELD_NAME_JMX_PORT)
+	private final int jmxPort;
 
 	@JsonProperty(FIELD_NAME_LAST_HEARTBEAT)
 	private final long lastHeartbeat;
@@ -89,47 +97,58 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 	@JsonProperty(FIELD_NAME_HARDWARE)
 	private final HardwareDescription hardwareDescription;
 
+	@JsonProperty(FIELD_NAME_MEMORY)
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+
 	@JsonCreator
 	public TaskManagerInfo(
 			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
 			@JsonProperty(FIELD_NAME_ADDRESS) String address,
 			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
+			@JsonProperty(FIELD_NAME_JMX_PORT) int jmxPort,
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
 			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
 			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
-			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription) {
+			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+			@JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration) {
 		this.resourceId = Preconditions.checkNotNull(resourceId);
 		this.address = Preconditions.checkNotNull(address);
 		this.dataPort = dataPort;
+		this.jmxPort = jmxPort;
 		this.lastHeartbeat = lastHeartbeat;
 		this.numberSlots = numberSlots;
 		this.numberAvailableSlots = numberAvailableSlots;
 		this.totalResource = totalResource;
 		this.freeResource = freeResource;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+		this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
 	}
 
 	public TaskManagerInfo(
 			ResourceID resourceId,
 			String address,
 			int dataPort,
+			int jmxPort,
 			long lastHeartbeat,
 			int numberSlots,
 			int numberAvailableSlots,
 			ResourceProfile totalResource,
 			ResourceProfile freeResource,
-			HardwareDescription hardwareDescription) {
+			HardwareDescription hardwareDescription,
+			TaskExecutorMemoryConfiguration memoryConfiguration) {
 		this(resourceId,
 			address,
 			dataPort,
+			jmxPort,
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
 			ResourceProfileInfo.fromResrouceProfile(totalResource),
 			ResourceProfileInfo.fromResrouceProfile(freeResource),
-			hardwareDescription);
+			hardwareDescription,
+			memoryConfiguration);
 	}
 
 	public ResourceID getResourceId() {
@@ -142,6 +161,10 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public int getDataPort() {
 		return dataPort;
+	}
+
+	public int getJmxPort() {
+		return jmxPort;
 	}
 
 	public long getLastHeartbeat() {
@@ -168,6 +191,10 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		return hardwareDescription;
 	}
 
+	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+		return memoryConfiguration;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -178,6 +205,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		}
 		TaskManagerInfo that = (TaskManagerInfo) o;
 		return dataPort == that.dataPort &&
+			jmxPort == that.jmxPort &&
 			lastHeartbeat == that.lastHeartbeat &&
 			numberSlots == that.numberSlots &&
 			numberAvailableSlots == that.numberAvailableSlots &&
@@ -185,7 +213,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			Objects.equals(freeResource, that.freeResource) &&
 			Objects.equals(resourceId, that.resourceId) &&
 			Objects.equals(address, that.address) &&
-			Objects.equals(hardwareDescription, that.hardwareDescription);
+			Objects.equals(hardwareDescription, that.hardwareDescription) &&
+			Objects.equals(memoryConfiguration, that.memoryConfiguration);
 	}
 
 	@Override
@@ -194,11 +223,13 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			resourceId,
 			address,
 			dataPort,
+			jmxPort,
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
 			totalResource,
 			freeResource,
-			hardwareDescription);
+			hardwareDescription,
+			memoryConfiguration);
 	}
 }

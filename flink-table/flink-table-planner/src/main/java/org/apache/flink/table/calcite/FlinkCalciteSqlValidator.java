@@ -29,7 +29,6 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
@@ -44,8 +43,9 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 	public FlinkCalciteSqlValidator(
 			SqlOperatorTable opTab,
 			SqlValidatorCatalogReader catalogReader,
-			RelDataTypeFactory typeFactory) {
-		super(opTab, catalogReader, typeFactory, SqlConformanceEnum.DEFAULT);
+			RelDataTypeFactory typeFactory,
+			SqlValidator.Config config) {
+		super(opTab, catalogReader, typeFactory, config);
 	}
 
 	@Override

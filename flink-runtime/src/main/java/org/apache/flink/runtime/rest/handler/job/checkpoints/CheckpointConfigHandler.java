@@ -92,7 +92,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 		if (checkpointCoordinatorConfiguration == null) {
 			throw new RestHandlerException(
 				"Checkpointing is not enabled for this job (" + executionGraph.getJobID() + ").",
-				HttpResponseStatus.NOT_FOUND);
+				HttpResponseStatus.NOT_FOUND, RestHandlerException.LoggingBehavior.IGNORE);
 		} else {
 			CheckpointRetentionPolicy retentionPolicy = checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy();
 
@@ -109,7 +109,8 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 				checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
 				checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointInfo,
-				stateBackendName);
+				stateBackendName,
+				checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled());
 		}
 	}
 }

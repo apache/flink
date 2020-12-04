@@ -22,18 +22,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
+import ch.vorburger.exec.ManagedProcessException;
+import ch.vorburger.mariadb4j.DB;
 import ch.vorburger.mariadb4j.DBConfigurationBuilder;
-import ch.vorburger.mariadb4j.junit.MariaDB4jRule;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -42,6 +43,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -56,27 +58,58 @@ import static org.junit.Assert.assertEquals;
  */
 public class UnsignedTypeConversionITCase extends AbstractTestBase {
 
+	private static final Logger logger = LoggerFactory.getLogger(UnsignedTypeConversionITCase.class);
 	private static final String DEFAULT_DB_NAME = "test";
 	private static final String TABLE_NAME = "unsigned_test";
+	private static final int INITIALIZE_DB_MAX_RETRY = 3;
+	private static DB db;
+	private static String dbUrl;
+	private static Connection connection;
 
 	private StreamTableEnvironment tEnv;
-	private String dbUrl;
-	private Connection connection;
 
-	@ClassRule
-	public static MariaDB4jRule db4jRule = new MariaDB4jRule(
-		DBConfigurationBuilder.newBuilder().build(),
-		DEFAULT_DB_NAME,
-		null);
+	@BeforeClass
+	public static void prepareMariaDB() throws IllegalStateException {
+		boolean initDbSuccess = false;
+		int i = 0;
+		//The initialization of maria db instance is a little unstable according to past CI tests.
+		//Add retry logic here to avoid initialization failure.
+		while (i < INITIALIZE_DB_MAX_RETRY) {
+			try {
+				db = DB.newEmbeddedDB(DBConfigurationBuilder.newBuilder().build());
+				db.start();
+				dbUrl = db.getConfiguration().getURL(DEFAULT_DB_NAME);
+				connection = DriverManager.getConnection(dbUrl);
+				try (Statement statement = connection.createStatement()) {
+					statement.execute("CREATE DATABASE IF NOT EXISTS `" + DEFAULT_DB_NAME + "`;");
+					ResultSet resultSet = statement.executeQuery("SELECT SCHEMA_NAME FROM " +
+						"INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '" + DEFAULT_DB_NAME + "';");
+					if (resultSet.next()) {
+						String dbName = resultSet.getString(1);
+						initDbSuccess = DEFAULT_DB_NAME.equalsIgnoreCase(dbName);
+					}
+				}
+			} catch (Exception e) {
+				logger.warn("Initialize DB fail caused by {}", e);
+				stopDb();
+			}
+			if (initDbSuccess) {
+				break;
+			}
+			i++;
+		}
+		if (!initDbSuccess) {
+			throw new IllegalStateException(String.format("Initialize MySQL database instance failed after {} attempts," +
+				" please open an issue.", INITIALIZE_DB_MAX_RETRY));
+		}
+	}
 
 	@Before
-	public void setUp() throws SQLException, ClassNotFoundException {
+	public void setUp() throws SQLException, IllegalStateException {
+		//dbUrl: jdbc:mysql://localhost:3306/test
+		createMysqlTable();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		tEnv = StreamTableEnvironment.create(env);
-		//dbUrl: jdbc:mysql://localhost:3306/test
-		dbUrl = db4jRule.getURL();
-		connection = DriverManager.getConnection(dbUrl);
-		createMysqlTable();
 		createFlinkTable();
 		prepareData();
 	}
@@ -84,7 +117,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 	@Test
 	public void testUnsignedType() throws Exception {
 		// write data to db
-		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into jdbc_sink select" +
+		tEnv.executeSql("insert into jdbc_sink select" +
 			" tiny_c," +
 			" tiny_un_c," +
 			" small_c," +
@@ -92,7 +125,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 			" int_c," +
 			" int_un_c," +
 			" big_c ," +
-			" big_un_c from data");
+			" big_un_c from data").await();
 
 		// read data from db using jdbc connection and compare
 		PreparedStatement query = connection.prepareStatement(String.format("select tiny_c, tiny_un_c, small_c, small_un_c," +
@@ -113,7 +146,7 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 		Iterator<Row> collected = tEnv.executeSql("select tiny_c, tiny_un_c, small_c, small_un_c," +
 			" int_c, int_un_c, big_c, big_un_c from jdbc_source")
 			.collect();
-		List<String> result = Lists.newArrayList(collected).stream()
+		List<String> result = CollectionUtil.iteratorToList(collected).stream()
 			.map(Row::toString)
 			.sorted()
 			.collect(Collectors.toList());
@@ -177,8 +210,18 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 	}
 
 	@After
-	public void cleanup() throws Exception {
-		PreparedStatement preparedStatement = connection.prepareStatement(String.format("drop table %s", TABLE_NAME));
-		preparedStatement.execute();
+	public void cleanup() {
+		stopDb();
+	}
+
+	private static void stopDb() {
+		if (db == null) {
+			return;
+		}
+		try {
+			db.stop();
+		} catch (ManagedProcessException e1) {
+			logger.warn("Stop DB instance fail caused by {}", e1);
+		}
 	}
 }

@@ -67,7 +67,21 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
 	private static final int TASK_MANAGER_DATA_PORT = 12345;
 
+	private static final int TASK_MANAGER_JMX_PORT = 23456;
+
 	private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION = HardwareDescription.extractFromSystem(Long.MAX_VALUE);
+
+	private static final TaskExecutorMemoryConfiguration TASK_MANAGER_MEMORY_CONFIGURATION = new TaskExecutorMemoryConfiguration(
+		1L,
+		2L,
+		3L,
+		4L,
+		5L,
+		6L,
+		7L,
+		8L,
+		9L,
+		10L);
 
 	private TestingRpcService rpcService;
 
@@ -84,11 +98,13 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 			final ResourceID actualResourceId = taskExecutorRegistration.getResourceId();
 			final Integer actualDataPort = taskExecutorRegistration.getDataPort();
 			final HardwareDescription actualHardwareDescription = taskExecutorRegistration.getHardwareDescription();
+			final TaskExecutorMemoryConfiguration actualMemoryConfiguration = taskExecutorRegistration.getMemoryConfiguration();
 
 			assertThat(actualAddress, is(equalTo(TASK_MANAGER_ADDRESS)));
 			assertThat(actualResourceId, is(equalTo(TASK_MANAGER_RESOURCE_ID)));
 			assertThat(actualDataPort, is(equalTo(TASK_MANAGER_DATA_PORT)));
 			assertThat(actualHardwareDescription, is(equalTo(TASK_MANAGER_HARDWARE_DESCRIPTION)));
+			assertThat(actualMemoryConfiguration, is(TASK_MANAGER_MEMORY_CONFIGURATION));
 
 			return CompletableFuture.completedFuture(successfulRegistration());
 		});
@@ -102,7 +118,9 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 			TASK_MANAGER_ADDRESS,
 			TASK_MANAGER_RESOURCE_ID,
 			TASK_MANAGER_DATA_PORT,
+			TASK_MANAGER_JMX_PORT,
 			TASK_MANAGER_HARDWARE_DESCRIPTION,
+			TASK_MANAGER_MEMORY_CONFIGURATION,
 			ResourceProfile.ZERO,
 			ResourceProfile.ZERO
 		);

@@ -21,12 +21,14 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
@@ -44,6 +46,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link StreamTask} for executing a {@link OneInputStreamOperator}.
@@ -82,20 +85,48 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
 		if (numberOfInputs > 0) {
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
-			DataOutput<IN> output = createDataOutput();
-			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
+			Counter numRecordsIn = setupNumRecordsInCounter(mainOperator);
+			DataOutput<IN> output = createDataOutput(numRecordsIn);
+			StreamTaskInput<IN> input = createTaskInput(inputGate);
+
+			if (configuration.shouldSortInputs()) {
+				checkState(!configuration.isCheckpointingEnabled(), "Checkpointing is not allowed with sorted inputs.");
+				input = wrapWithSorted(input);
+			}
+
+			getEnvironment().getMetricGroup().getIOMetricGroup().reuseRecordsInputCounter(numRecordsIn);
+
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
 				output,
 				operatorChain);
 		}
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
+	}
+
+	private StreamTaskInput<IN> wrapWithSorted(StreamTaskInput<IN> input) {
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
+		return new SortingDataInput<>(
+			input,
+			configuration.getTypeSerializerIn(input.getInputIndex(), userCodeClassLoader),
+			configuration.getStateKeySerializer(userCodeClassLoader),
+			configuration.getStatePartitioner(input.getInputIndex(), userCodeClassLoader),
+			getEnvironment().getMemoryManager(),
+			getEnvironment().getIOManager(),
+			getExecutionConfig().isObjectReuseEnabled(),
+			configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.BATCH_OP,
+				getTaskConfiguration(),
+				userCodeClassLoader),
+			getJobConfiguration(),
+			this
+		);
 	}
 
 	private CheckpointedInputGate createCheckpointedInputGate() {
@@ -107,20 +138,21 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			getCheckpointCoordinator(),
 			inputGates,
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId());
+			getTaskNameWithSubtaskAndId(),
+			mainMailboxExecutor);
 	}
 
-	private DataOutput<IN> createDataOutput() {
+	private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
 		return new StreamTaskNetworkOutput<>(
-			headOperator,
+			mainOperator,
 			getStreamStatusMaintainer(),
 			inputWatermarkGauge,
-			setupNumRecordsInCounter(headOperator));
+			numRecordsIn);
 	}
 
-	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate, DataOutput<IN> output) {
+	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
 		int numberOfInputChannels = inputGate.getNumberOfInputChannels();
-		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels, output);
+		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels);
 
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		return new StreamTaskNetworkInput<>(

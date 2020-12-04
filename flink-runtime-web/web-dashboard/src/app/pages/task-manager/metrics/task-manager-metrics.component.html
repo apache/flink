@@ -18,119 +18,192 @@
 
 <ng-container *ngIf="taskManagerDetail">
   <nz-card nzTitle="Memory">
-    <nz-card nzType="inner" nzTitle="JVM (Heap/Non-Heap)">
-      <nz-table
-        [nzTemplateMode]="true"
-        [nzShowPagination]="false"
-        [nzSize]="'small'"
-        class="no-border">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Committed</th>
-            <th>Used</th>
-            <th>Maximum</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Heap</strong></td>
-            <td>{{ taskManagerDetail.metrics.heapCommitted | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.heapUsed | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.heapMax | humanizeBytes }}</td>
-          </tr>
-          <tr>
-            <td><strong>Non-Heap</strong></td>
-            <td>{{ taskManagerDetail.metrics.nonHeapCommitted | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.nonHeapUsed | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.nonHeapMax | humanizeBytes }}</td>
-          </tr>
-          <tr>
-            <td><strong>Total</strong></td>
-            <td>{{ (taskManagerDetail.metrics.heapCommitted + taskManagerDetail.metrics.nonHeapCommitted) | humanizeBytes }}</td>
-            <td>{{ (taskManagerDetail.metrics.heapUsed + taskManagerDetail.metrics.nonHeapUsed) | humanizeBytes }}</td>
-            <td>{{ (taskManagerDetail.metrics.heapMax + taskManagerDetail.metrics.nonHeapMax) | humanizeBytes }}</td>
-          </tr>
-        </tbody>
-      </nz-table>
-    </nz-card>
-    <nz-card nzType="inner" nzTitle="Outside JVM">
-      <nz-table
-        [nzTemplateMode]="true"
-        [nzShowPagination]="false"
-        [nzSize]="'small'"
-        class="no-border">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Count</th>
-            <th>Used</th>
-            <th>Capacity</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Direct</strong></td>
-            <td>{{ taskManagerDetail.metrics.directCount | number }}</td>
-            <td>{{ taskManagerDetail.metrics.directUsed | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.directMax | humanizeBytes }}</td>
-          </tr>
-          <tr>
-            <td><strong>Mapped</strong></td>
-            <td>{{ taskManagerDetail.metrics.mappedCount | number }}</td>
-            <td>{{ taskManagerDetail.metrics.mappedUsed | humanizeBytes }}</td>
-            <td>{{ taskManagerDetail.metrics.mappedMax | humanizeBytes }}</td>
-          </tr>
-        </tbody>
-      </nz-table>
-    </nz-card>
+    <nz-table class="flink-memory-model" *ngIf="metrics" nzTemplateMode nzSize="small" [nzWidthConfig]="['220px','200px','200px',null]">
+      <thead>
+      <tr>
+        <th colspan="2" class="table-header">Flink Memory Model</th>
+        <th class="table-header">Configured Values</th>
+        <th class="table-header">Metric</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td rowspan="8" class="table-header">
+          <img src="assets/images/memory-model.svg">
+        </td>
+        <td class="table-header">Framework Heap</td>
+        <td>{{taskManagerDetail.memoryConfiguration.frameworkHeap | humanizeBytes}}</td>
+        <td rowspan="2">
+          <nz-progress nzSize="small" nzStrokeLinecap="square" [nzPercent]="+(metrics['Status.JVM.Memory.Heap.Used'] / metrics['Status.JVM.Memory.Heap.Max']  * 100 | number:'1.0-2')" nzStatus="normal"></nz-progress>
+          {{metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes}} / {{metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}
+          <i nz-icon nz-tooltip nzTitle="The maximum heap displayed might differ from the configured values depending on the used GC algorithm for this process." nzType="info-circle"></i>
+        </td>
+      </tr>
+      <tr>
+        <td class="table-header">Task Heap</td>
+        <td>{{taskManagerDetail.memoryConfiguration.taskHeap | humanizeBytes}}</td>
+      </tr>
+      <tr>
+        <td class="table-header">Managed Memory</td>
+        <td>{{taskManagerDetail.memoryConfiguration.managedMemory | humanizeBytes}}</td>
+        <td>
+          <nz-progress nzSize="small" nzStrokeLinecap="square" [nzPercent]="+(metrics['Status.Flink.Memory.Managed.Used'] / metrics['Status.Flink.Memory.Managed.Total']  * 100 | number:'1.0-2')" nzStatus="normal"></nz-progress>
+          {{metrics['Status.Flink.Memory.Managed.Used'] | humanizeBytes}} / {{metrics['Status.Flink.Memory.Managed.Total'] | humanizeBytes }}
+        </td>
+      </tr>
+      <tr>
+        <td class="table-header">Framework Off-Heap</td>
+        <td>{{ taskManagerDetail.memoryConfiguration.frameworkOffHeap | humanizeBytes}}</td>
+        <td rowspan="2">
+          <i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools." nzType="info-circle"></i>
+        </td>
+      </tr>
+      <tr>
+        <td class="table-header">Task Off-Heap</td>
+        <td>{{taskManagerDetail.memoryConfiguration.taskOffHeap | humanizeBytes}}</td>
+      </tr>
+      <tr>
+        <td class="table-header">Network</td>
+        <td>{{taskManagerDetail.memoryConfiguration.networkMemory | humanizeBytes}}</td>
+        <td>
+          <nz-progress nzSize="small" nzStrokeLinecap="square" [nzPercent]="+(metrics['Status.Shuffle.Netty.UsedMemory'] / metrics['Status.Shuffle.Netty.TotalMemory']  * 100 | number:'1.0-2')" nzStatus="normal"></nz-progress>
+          {{metrics['Status.Shuffle.Netty.UsedMemory'] | humanizeBytes}} / {{metrics['Status.Shuffle.Netty.TotalMemory'] | humanizeBytes }}
+        </td>
+      </tr>
+      <tr>
+        <td class="table-header">JVM Metaspace</td>
+        <td>{{taskManagerDetail.memoryConfiguration.jvmMetaspace | humanizeBytes}}</td>
+        <td>
+          <nz-progress nzSize="small" nzStrokeLinecap="square" [nzPercent]="+(metrics['Status.JVM.Memory.Metaspace.Used'] / metrics['Status.JVM.Memory.Metaspace.Max']  * 100 | number:'1.0-2')" nzStatus="normal"></nz-progress>
+          {{metrics['Status.JVM.Memory.Metaspace.Used'] | humanizeBytes}} / {{metrics['Status.JVM.Memory.Metaspace.Max'] | humanizeBytes }}
+        </td>
+      </tr>
+      <tr>
+        <td class="table-header">JVM Overhead</td>
+        <td>{{taskManagerDetail.memoryConfiguration.jvmOverhead | humanizeBytes}}</td>
+        <td><i nz-icon nz-tooltip nzTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools." nzType="info-circle"></i></td>
+      </tr>
+      </tbody>
+    </nz-table>
   </nz-card>
-  <nz-card nzTitle="Network">
-    <nz-card nzType="inner" nzTitle="Memory Segments">
-      <nz-table
-        [nzTemplateMode]="true"
-        [nzShowPagination]="false"
-        [nzSize]="'small'"
-        class="no-border">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Available</strong></td>
-            <td>{{ taskManagerDetail.metrics.memorySegmentsAvailable | number }}</td>
-          </tr>
-          <tr>
-            <td><strong>Total</strong></td>
-            <td>{{ taskManagerDetail.metrics.memorySegmentsTotal | number }}</td>
-          </tr>
-        </tbody>
-      </nz-table>
-    </nz-card>
-    <nz-card nzType="inner" nzTitle="Garbage Collection">
-      <nz-table
-        [nzTemplateMode]="true"
-        [nzShowPagination]="false"
-        [nzSize]="'small'"
-        class="no-border">
-        <thead>
-          <tr>
-            <th>Collector</th>
-            <th>Count</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let g of taskManagerDetail.metrics.garbageCollectors">
-            <td><strong>{{ g.name }}</strong></td>
-            <td>{{ g.count | number }}</td>
-            <td>{{ g.time | number }}</td>
-          </tr>
-        </tbody>
-      </nz-table>
-    </nz-card>
+  <nz-card nzTitle="Advanced">
+    <div nz-row [nzGutter]="16">
+      <div nz-col [nzSpan]="12">
+        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="JVM (Heap/Non-Heap) Memory">
+          <nz-table
+              [nzTemplateMode]="true"
+              [nzShowPagination]="false"
+              [nzSize]="'small'"
+              class="no-border">
+            <thead>
+            <tr>
+              <th>Type</th>
+              <th>Committed</th>
+              <th>Used</th>
+              <th>Maximum</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td><strong>Heap</strong></td>
+              <td>{{ taskManagerDetail.metrics.heapCommitted | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.heapUsed | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.heapMax | humanizeBytes }}</td>
+            </tr>
+            <tr>
+              <td><strong>Non-Heap</strong></td>
+              <td>{{ taskManagerDetail.metrics.nonHeapCommitted | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.nonHeapUsed | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.nonHeapMax | humanizeBytes }}</td>
+            </tr>
+            </tbody>
+          </nz-table>
+        </nz-card>
+      </div>
+      <div nz-col [nzSpan]="12">
+        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="Outside JVM Memory">
+          <nz-table
+              [nzTemplateMode]="true"
+              [nzShowPagination]="false"
+              [nzSize]="'small'"
+              class="no-border">
+            <thead>
+            <tr>
+              <th>Type</th>
+              <th>Count</th>
+              <th>Used</th>
+              <th>Capacity</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td><strong>Direct</strong></td>
+              <td>{{ taskManagerDetail.metrics.directCount | number }}</td>
+              <td>{{ taskManagerDetail.metrics.directUsed | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.directMax | humanizeBytes }}</td>
+            </tr>
+            <tr>
+              <td><strong>Mapped</strong></td>
+              <td>{{ taskManagerDetail.metrics.mappedCount | number }}</td>
+              <td>{{ taskManagerDetail.metrics.mappedUsed | humanizeBytes }}</td>
+              <td>{{ taskManagerDetail.metrics.mappedMax | humanizeBytes }}</td>
+            </tr>
+            </tbody>
+          </nz-table>
+        </nz-card>
+      </div>
+    </div>
+    <div nz-row [nzGutter]="16">
+      <div nz-col [nzSpan]="12">
+        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="Netty Shuffle Buffers">
+          <nz-table
+              [nzTemplateMode]="true"
+              [nzShowPagination]="false"
+              [nzSize]="'small'"
+              class="no-border">
+            <thead>
+            <tr>
+              <th>Type</th>
+              <th>Count</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td><strong>Available</strong></td>
+              <td>{{ taskManagerDetail.metrics.memorySegmentsAvailable | number }}</td>
+            </tr>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td>{{ taskManagerDetail.metrics.memorySegmentsTotal | number }}</td>
+            </tr>
+            </tbody>
+          </nz-table>
+        </nz-card>
+      </div>
+      <div nz-col [nzSpan]="12">
+        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="Garbage Collection">
+          <nz-table
+              [nzTemplateMode]="true"
+              [nzShowPagination]="false"
+              [nzSize]="'small'"
+              class="no-border">
+            <thead>
+            <tr>
+              <th>Collector</th>
+              <th>Count</th>
+              <th>Time</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let g of taskManagerDetail.metrics.garbageCollectors">
+              <td><strong>{{ g.name }}</strong></td>
+              <td>{{ g.count | number }}</td>
+              <td>{{ g.time | number }}</td>
+            </tr>
+            </tbody>
+          </nz-table>
+        </nz-card>
+      </div>
+    </div>
   </nz-card>
 </ng-container>

@@ -78,12 +78,25 @@ public final class BinaryRawValueData<T> extends LazyBinaryFormat<T> implements 
 
 	@Override
 	public boolean equals(Object o) {
-		throw new UnsupportedOperationException("BinaryRawValueData cannot be compared");
+		if (o instanceof BinaryRawValueData) {
+			BinaryRawValueData<?> other = (BinaryRawValueData<?>) o;
+			if (binarySection != null && other.binarySection != null) {
+				return binarySection.equals(other.binarySection);
+			}
+			throw new UnsupportedOperationException(
+				"Unmaterialized BinaryRawValueData cannot be compared.");
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public int hashCode() {
-		throw new UnsupportedOperationException("BinaryRawValueData does not have a hashCode");
+		if (binarySection != null) {
+			return binarySection.hashCode();
+		}
+		throw new UnsupportedOperationException(
+			"Unmaterialized BinaryRawValueData does not have a hashCode.");
 	}
 
 	@Override

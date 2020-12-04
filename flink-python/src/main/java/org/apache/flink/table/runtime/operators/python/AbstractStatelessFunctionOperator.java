@@ -21,25 +21,23 @@ package org.apache.flink.table.runtime.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -51,7 +49,7 @@ import java.util.stream.Collectors;
  */
 @Internal
 public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
-	extends AbstractPythonFunctionOperator<IN, OUT> {
+	extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -88,13 +86,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	/**
 	 * The queue holding the input elements for which the execution results have not been received.
 	 */
-	protected transient LinkedBlockingQueue<IN> forwardedInputQueue;
-
-	/**
-	 * The queue holding the user-defined function execution results. The execution results
-	 * are in the same order as the input elements.
-	 */
-	protected transient LinkedBlockingQueue<byte[]> userDefinedFunctionResultQueue;
+	protected transient LinkedList<IN> forwardedInputQueue;
 
 	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
@@ -105,6 +97,16 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 * InputStream Wrapper.
 	 */
 	protected transient DataInputViewStreamWrapper baisWrapper;
+
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
+	protected transient ByteArrayOutputStreamWithPos baos;
+
+	/**
+	 * OutputStream Wrapper.
+	 */
+	protected transient DataOutputViewStreamWrapper baosWrapper;
 
 	public AbstractStatelessFunctionOperator(
 		Configuration config,
@@ -120,50 +122,65 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	@Override
 	public void open() throws Exception {
-		forwardedInputQueue = new LinkedBlockingQueue<>();
-		userDefinedFunctionResultQueue = new LinkedBlockingQueue<>();
+		forwardedInputQueue = new LinkedList<>();
 		userDefinedFunctionInputType = new RowType(
 			Arrays.stream(userDefinedFunctionInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
+		baos = new ByteArrayOutputStreamWithPos();
+		baosWrapper = new DataOutputViewStreamWrapper(baos);
 		super.open();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		bufferInput(element.getValue());
-		super.processElement(element);
+		IN value = element.getValue();
+		bufferInput(value);
+		processElementInternal(value);
+		elementCount++;
+		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 
 	@Override
-	public PythonFunctionRunner<IN> createPythonFunctionRunner() throws IOException {
-		final FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
-
-		return new ProjectUdfInputPythonScalarFunctionRunner(
-			createPythonFunctionRunner(
-				userDefinedFunctionResultReceiver,
-				createPythonEnvironmentManager(),
-				jobOptions));
+	public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+		return new BeamTableStatelessPythonFunctionRunner(
+			getRuntimeContext().getTaskName(),
+			createPythonEnvironmentManager(),
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType,
+			getFunctionUrn(),
+			getUserDefinedFunctionsProto(),
+			getInputOutputCoderUrn(),
+			jobOptions,
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager(),
+			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.PYTHON,
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader()));
 	}
 
 	/**
 	 * Buffers the specified input, it will be used to construct
 	 * the operator result together with the user-defined function execution result.
 	 */
-	public abstract void bufferInput(IN input);
+	public abstract void bufferInput(IN input) throws Exception;
 
 	public abstract UDFIN getFunctionInput(IN element);
 
-	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager,
-		Map<String, String> jobOptions);
+	/**
+	 * Gets the proto representation of the Python user-defined functions to be executed.
+	 */
+	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+
+	public abstract String getInputOutputCoderUrn();
+
+	public abstract String getFunctionUrn();
+
+	public abstract void processElementInternal(IN value) throws Exception;
 
 	private Map<String, String> buildJobOptions(Configuration config) {
 		Map<String, String> jobOptions = new HashMap<>();
@@ -173,97 +190,4 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		return jobOptions;
 	}
 
-	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
-
-		private final PythonFunctionRunner<UDFIN> pythonFunctionRunner;
-
-		ProjectUdfInputPythonScalarFunctionRunner(PythonFunctionRunner<UDFIN> pythonFunctionRunner) {
-			this.pythonFunctionRunner = pythonFunctionRunner;
-		}
-
-		@Override
-		public void open() throws Exception {
-			pythonFunctionRunner.open();
-		}
-
-		@Override
-		public void close() throws Exception {
-			pythonFunctionRunner.close();
-		}
-
-		@Override
-		public void startBundle() throws Exception {
-			pythonFunctionRunner.startBundle();
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			pythonFunctionRunner.finishBundle();
-		}
-
-		@Override
-		public void processElement(IN element) throws Exception {
-			pythonFunctionRunner.processElement(getFunctionInput(element));
-		}
-	}
-
-	/**
-	 * The collector is used to convert a {@link Row} to a {@link CRow}.
-	 */
-	public static class StreamRecordCRowWrappingCollector implements Collector<Row> {
-
-		private final Collector<StreamRecord<CRow>> out;
-		private final CRow reuseCRow = new CRow();
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
-
-		public StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
-			this.out = out;
-		}
-
-		public void setChange(boolean change) {
-			this.reuseCRow.change_$eq(change);
-		}
-
-		@Override
-		public void collect(Row record) {
-			reuseCRow.row_$eq(record);
-			out.collect(reuseStreamRecord);
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
-	}
-
-	/**
-	 * The collector is used to convert a {@link RowData} to a {@link StreamRecord}.
-	 */
-	public static class StreamRecordRowDataWrappingCollector implements Collector<RowData> {
-
-		private final Collector<StreamRecord<RowData>> out;
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
-
-		public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
-			this.out = out;
-		}
-
-		@Override
-		public void collect(RowData record) {
-			out.collect(reuseStreamRecord.replace(record));
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
-	}
 }

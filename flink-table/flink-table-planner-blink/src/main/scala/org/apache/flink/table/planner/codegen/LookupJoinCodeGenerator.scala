@@ -17,6 +17,9 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import java.util
+
+import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -25,7 +28,8 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -40,10 +44,6 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-
-import org.apache.calcite.rex.{RexNode, RexProgram}
-
-import java.util
 
 object LookupJoinCodeGenerator {
 
@@ -197,7 +197,7 @@ object LookupJoinCodeGenerator {
           boxedTypeTermForType(e.resultType)
         }
         val assign = if (isExternalArgs) {
-          CodeGenUtils.genToExternal(ctx, dataType, e.resultTerm)
+          CodeGenUtils.genToExternalConverter(ctx, dataType, e.resultTerm)
         } else {
           e.resultTerm
         }

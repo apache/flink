@@ -29,7 +29,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -56,8 +56,8 @@ public class MockStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) {
-		return new CheckpointStorage() {
+	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
+		return new CheckpointStorageAccess() {
 			@Override
 			public boolean supportsHighlyAvailableStorage() {
 				return false;
@@ -137,7 +137,7 @@ public class MockStateBackend extends AbstractStateBackend {
 		return new MockKeyedStateBackendBuilder<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),

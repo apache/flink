@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,7 +31,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -121,6 +121,8 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @Internal
 public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements CheckpointedFunction, CheckpointListener {
+
+	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(CollectSinkFunction.class);
 
@@ -381,12 +383,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 					if (!version.equals(requestVersion) || requestOffset < offset) {
 						// invalid request
-						if (LOG.isDebugEnabled()) {
-							// this is normal for the 1st request after the sink (re)starts, so we print debug log
-							LOG.debug("Invalid request. Received version = " + requestVersion +
-								", offset = " + requestOffset + ", while expected version = "
-								+ version + ", offset = " + offset);
-						}
+						// this is normal for the 1st request after the sink (re)starts
+						LOG.info("Invalid request. Received version = " + requestVersion +
+							", offset = " + requestOffset + ", while expected version = "
+							+ version + ", offset = " + offset);
 						sendBackResults(Collections.emptyList());
 						continue;
 					}

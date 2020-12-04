@@ -48,9 +48,9 @@ class LegacyTableSourceTest extends TableTestBase {
       Seq.empty[Row])
     )
 
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable",
       isBounded = true)
     TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "PartitionableTable", true)
@@ -194,7 +194,7 @@ class LegacyTableSourceTest extends TableTestBase {
     row.setField(2, DateTimeTestUtil.localTime("14:23:02"))
     row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
 
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       util.tableEnv,
       schema,
       "FilterableTable1",

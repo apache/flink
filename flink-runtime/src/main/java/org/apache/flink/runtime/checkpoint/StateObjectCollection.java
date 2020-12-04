@@ -23,6 +23,8 @@ import org.apache.flink.runtime.state.StateUtil;
 
 import org.apache.commons.collections.CollectionUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -196,12 +198,16 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 		return (StateObjectCollection<T>) EMPTY;
 	}
 
-	public static <T extends StateObject> StateObjectCollection<T> emptyIfNull(StateObjectCollection<T> collection) {
+	public static <T extends StateObject> StateObjectCollection<T> emptyIfNull(@Nullable StateObjectCollection<T> collection) {
 		return collection == null ? empty() : collection;
 	}
 
 	public static <T extends StateObject> StateObjectCollection<T> singleton(T stateObject) {
 		return new StateObjectCollection<>(Collections.singleton(stateObject));
+	}
+
+	public static <T extends StateObject> StateObjectCollection<T> singletonOrEmpty(@Nullable T stateObject) {
+		return stateObject == null ? empty() : singleton(stateObject);
 	}
 
 	private static long sumAllSizes(Collection<? extends StateObject> stateObject) {

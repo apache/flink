@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -34,8 +33,8 @@ import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.types.RowKind;
 
@@ -56,7 +55,7 @@ public class StreamSortOperator extends TableStreamOperator<RowData> implements
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamSortOperator.class);
 
-	private final RowDataTypeInfo inputRowType;
+	private final InternalTypeInfo<RowData> inputRowType;
 	private GeneratedRecordComparator gComparator;
 	private transient RecordComparator comparator;
 	private transient RowDataSerializer rowDataSerializer;
@@ -67,7 +66,7 @@ public class StreamSortOperator extends TableStreamOperator<RowData> implements
 	// inputBuffer buffers all input elements, key is RowData, value is appear times.
 	private transient HashMap<RowData, Long> inputBuffer;
 
-	public StreamSortOperator(RowDataTypeInfo inputRowType, GeneratedRecordComparator gComparator) {
+	public StreamSortOperator(InternalTypeInfo<RowData> inputRowType, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
 		this.gComparator = gComparator;
 	}
@@ -77,8 +76,7 @@ public class StreamSortOperator extends TableStreamOperator<RowData> implements
 		super.open();
 
 		LOG.info("Opening StreamSortOperator");
-		ExecutionConfig executionConfig = getExecutionConfig();
-		this.rowDataSerializer = inputRowType.createSerializer(executionConfig);
+		this.rowDataSerializer = inputRowType.toRowSerializer();
 
 		comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
 		gComparator = null;

@@ -176,22 +176,32 @@ public class CliFrontend {
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
-			CliFrontendParser.printHelpForRun(customCommandLines);
+			CliFrontendParser.printHelpForRunApplication(customCommandLines);
 			return;
 		}
 
 		final CustomCommandLine activeCommandLine =
 				validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
-		final ProgramOptions programOptions = new ProgramOptions(commandLine);
-
 		final ApplicationDeployer deployer =
-				new ApplicationClusterDeployer(clusterClientServiceLoader);
+			new ApplicationClusterDeployer(clusterClientServiceLoader);
 
-		programOptions.validate();
-		final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
-		final Configuration effectiveConfiguration = getEffectiveConfiguration(
+		final ProgramOptions programOptions;
+		final Configuration effectiveConfiguration;
+
+		// No need to set a jarFile path for Pyflink job.
+		if (ProgramOptionsUtils.isPythonEntryPoint(commandLine)) {
+			programOptions = ProgramOptionsUtils.createPythonProgramOptions(commandLine);
+			effectiveConfiguration = getEffectiveConfiguration(
+				activeCommandLine, commandLine, programOptions, Collections.emptyList());
+		} else {
+			programOptions = new ProgramOptions(commandLine);
+			programOptions.validate();
+			final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
+			effectiveConfiguration = getEffectiveConfiguration(
 				activeCommandLine, commandLine, programOptions, Collections.singletonList(uri.toString()));
+		}
+
 		final ApplicationConfiguration applicationConfiguration =
 				new ApplicationConfiguration(programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
 		deployer.run(effectiveConfiguration, applicationConfiguration);
@@ -219,14 +229,14 @@ public class CliFrontend {
 
 		final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
-		final PackagedProgram program =
-				getPackagedProgram(programOptions);
+		final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
-		final List<URL> jobJars = program.getJobJarAndDependencies();
 		final Configuration effectiveConfiguration = getEffectiveConfiguration(
 				activeCommandLine, commandLine, programOptions, jobJars);
 
 		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
+		final PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration);
 
 		try {
 			executeProgram(effectiveConfiguration, program);
@@ -235,11 +245,28 @@ public class CliFrontend {
 		}
 	}
 
-	private PackagedProgram getPackagedProgram(ProgramOptions programOptions) throws ProgramInvocationException, CliArgsException {
+	/**
+	 * Get all provided libraries needed to run the program from the ProgramOptions.
+	 */
+	private List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws CliArgsException {
+		String entryPointClass = programOptions.getEntryPointClassName();
+		String jarFilePath = programOptions.getJarFilePath();
+
+		try {
+			File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
+			return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
+		} catch (FileNotFoundException | ProgramInvocationException e) {
+			throw new CliArgsException("Could not get job jar and dependencies from JAR file: " + e.getMessage(), e);
+		}
+	}
+
+	private PackagedProgram getPackagedProgram(
+			ProgramOptions programOptions,
+			Configuration effectiveConfiguration) throws ProgramInvocationException, CliArgsException {
 		PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
-			program = buildProgram(programOptions);
+			program = buildProgram(programOptions, effectiveConfiguration);
 		} catch (FileNotFoundException e) {
 			throw new CliArgsException("Could not build the program from JAR file: " + e.getMessage(), e);
 		}
@@ -248,21 +275,33 @@ public class CliFrontend {
 
 	private <T> Configuration getEffectiveConfiguration(
 			final CustomCommandLine activeCustomCommandLine,
+			final CommandLine commandLine) throws FlinkException {
+
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+
+		final Configuration commandLineConfiguration =
+				checkNotNull(activeCustomCommandLine).toConfiguration(commandLine);
+
+		effectiveConfiguration.addAll(commandLineConfiguration);
+
+		return effectiveConfiguration;
+	}
+
+	private <T> Configuration getEffectiveConfiguration(
+			final CustomCommandLine activeCustomCommandLine,
 			final CommandLine commandLine,
 			final ProgramOptions programOptions,
 			final List<T> jobJars) throws FlinkException {
+
+		final Configuration effectiveConfiguration = getEffectiveConfiguration(activeCustomCommandLine, commandLine);
 
 		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(
 				checkNotNull(programOptions),
 				checkNotNull(jobJars));
 
-		final Configuration executorConfig = checkNotNull(activeCustomCommandLine)
-				.applyCommandLineOptionsToConfiguration(commandLine);
-
-		final Configuration effectiveConfiguration = new Configuration(executorConfig);
-
 		executionParameters.applyToConfiguration(effectiveConfiguration);
-		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+
+		LOG.debug("Effective configuration after Flink conf, custom commandline, and program options: {}", effectiveConfiguration);
 		return effectiveConfiguration;
 	}
 
@@ -289,7 +328,8 @@ public class CliFrontend {
 		// -------- build the packaged program -------------
 
 		LOG.info("Building program from JAR file");
-		final PackagedProgram program = buildProgram(programOptions);
+
+		PackagedProgram program = null;
 
 		try {
 			int parallelism = programOptions.getParallelism();
@@ -303,7 +343,9 @@ public class CliFrontend {
 					validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
 			final Configuration effectiveConfiguration = getEffectiveConfiguration(
-					activeCommandLine, commandLine, programOptions, program.getJobJarAndDependencies());
+					activeCommandLine, commandLine, programOptions, getJobJarAndDependencies(programOptions));
+
+			program = buildProgram(programOptions, effectiveConfiguration);
 
 			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
@@ -328,7 +370,9 @@ public class CliFrontend {
 			}
 		}
 		finally {
-			program.deleteExtractedLibraries();
+			if (program != null) {
+				program.deleteExtractedLibraries();
+			}
 		}
 	}
 
@@ -398,7 +442,7 @@ public class CliFrontend {
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
 		final List<JobStatusMessage> terminatedJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
-			if (details.getJobState() == JobStatus.CREATED) {
+			if (details.getJobState() == JobStatus.CREATED || details.getJobState() == JobStatus.INITIALIZING) {
 				scheduledJobs.add(details);
 			} else if (!details.getJobState().isGloballyTerminalState()) {
 				runningJobs.add(details);
@@ -706,6 +750,15 @@ public class CliFrontend {
 	 */
 	PackagedProgram buildProgram(final ProgramOptions runOptions)
 			throws FileNotFoundException, ProgramInvocationException, CliArgsException {
+		return buildProgram(runOptions, configuration);
+	}
+
+	/**
+	 * Creates a Packaged program from the given command line options and the effectiveConfiguration.
+	 *
+	 * @return A PackagedProgram (upon success)
+	 */
+	PackagedProgram buildProgram(final ProgramOptions runOptions, final Configuration configuration) throws FileNotFoundException, ProgramInvocationException, CliArgsException {
 		runOptions.validate();
 
 		String[] programArgs = runOptions.getProgramArgs();
@@ -851,15 +904,17 @@ public class CliFrontend {
 	 * @throws FlinkException if something goes wrong
 	 */
 	private <ClusterID> void runClusterAction(CustomCommandLine activeCommandLine, CommandLine commandLine, ClusterAction<ClusterID> clusterAction) throws FlinkException {
-		final Configuration executorConfig = activeCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+		final Configuration effectiveConfiguration = getEffectiveConfiguration(activeCommandLine, commandLine);
+		LOG.debug("Effective configuration after Flink conf, and custom commandline: {}", effectiveConfiguration);
 
-		final ClusterID clusterId = clusterClientFactory.getClusterId(executorConfig);
+		final ClusterClientFactory<ClusterID> clusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(effectiveConfiguration);
+
+		final ClusterID clusterId = clusterClientFactory.getClusterId(effectiveConfiguration);
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which you would like to connect.");
 		}
 
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(executorConfig)) {
+		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(effectiveConfiguration)) {
 			try (final ClusterClient<ClusterID> clusterClient = clusterDescriptor.retrieve(clusterId).getClusterClient()) {
 				clusterAction.runAction(clusterClient);
 			}
@@ -894,7 +949,7 @@ public class CliFrontend {
 	 * @param args command line arguments of the client.
 	 * @return The return code of the program
 	 */
-	public int parseParameters(String[] args) {
+	public int parseAndRun(String[] args) {
 
 		// check for action
 		if (args.length < 1) {
@@ -989,7 +1044,7 @@ public class CliFrontend {
 
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
-					.runSecured(() -> cli.parseParameters(args));
+					.runSecured(() -> cli.parseAndRun(args));
 			System.exit(retCode);
 		}
 		catch (Throwable t) {
@@ -1070,7 +1125,7 @@ public class CliFrontend {
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
-		customCommandLines.add(new DefaultCLI(configuration));
+		customCommandLines.add(new DefaultCLI());
 
 		return customCommandLines;
 	}

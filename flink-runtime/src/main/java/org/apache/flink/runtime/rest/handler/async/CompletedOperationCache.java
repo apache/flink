@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
@@ -70,6 +71,11 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 	 */
 	private final Cache<K, ResultAccessTracker<R>> completedOperations;
 
+	private final Object lock = new Object();
+
+	@Nullable
+	private CompletableFuture<Void> terminationFuture;
+
 	CompletedOperationCache() {
 		this(Ticker.systemTicker());
 	}
@@ -102,12 +108,18 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 	 * Registers an ongoing operation with the cache.
 	 *
 	 * @param operationResultFuture A future containing the operation result.
+	 * @throw IllegalStateException if the cache is already shutting down
 	 */
 	public void registerOngoingOperation(
 			final K operationKey,
 			final CompletableFuture<R> operationResultFuture) {
 		final ResultAccessTracker<R> inProgress = ResultAccessTracker.inProgress();
-		registeredOperationTriggers.put(operationKey, inProgress);
+
+		synchronized (lock) {
+			checkState(isRunning(), "The CompletedOperationCache has already been closed.");
+			registeredOperationTriggers.put(operationKey, inProgress);
+		}
+
 		operationResultFuture.whenComplete((result, error) -> {
 			if (error == null) {
 				completedOperations.put(operationKey, inProgress.finishOperation(Either.Right(result)));
@@ -116,6 +128,11 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 			}
 			registeredOperationTriggers.remove(operationKey);
 		});
+	}
+
+	@GuardedBy("lock")
+	private boolean isRunning() {
+		return terminationFuture == null;
 	}
 
 	/**
@@ -139,10 +156,16 @@ class CompletedOperationCache<K extends OperationKey, R> implements AutoCloseabl
 
 	@Override
 	public CompletableFuture<Void> closeAsync() {
-		return FutureUtils.orTimeout(
-			asyncWaitForResultsToBeAccessed(),
-			COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS,
-			TimeUnit.SECONDS);
+		synchronized (lock) {
+			if (isRunning()) {
+					terminationFuture = FutureUtils.orTimeout(
+						asyncWaitForResultsToBeAccessed(),
+						COMPLETED_OPERATION_RESULT_CACHE_DURATION_SECONDS,
+						TimeUnit.SECONDS);
+			}
+
+			return terminationFuture;
+		}
 	}
 
 	private CompletableFuture<Void> asyncWaitForResultsToBeAccessed() {

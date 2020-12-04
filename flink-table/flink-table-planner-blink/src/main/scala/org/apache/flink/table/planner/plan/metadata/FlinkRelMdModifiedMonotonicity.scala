@@ -164,8 +164,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     }
 
     // if partitionBy a update field or partitionBy a field whose mono is null, just return null
-    if (rel.partitionKey.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (rel.partitionKey.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -209,12 +208,27 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamExecDeduplicate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput)) {
-      val mono = new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(MONOTONIC))
+      val mono = new RelModifiedMonotonicity(
+        Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
       rel.getUniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
       mono
     } else {
       null
     }
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: StreamExecChangelogNormalize,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    val mono = new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
+    rel.uniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
+    mono
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: StreamExecDropUpdateBefore,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
   def getRelModifiedMonotonicity(
@@ -336,8 +350,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by an update field or group by a field mono is null, just return null
-    if (grouping.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (inputMonotonicity == null ||
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -357,8 +371,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by a update field or group by a field mono is null, just return null
-    if (grouping.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (inputMonotonicity == null ||
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 

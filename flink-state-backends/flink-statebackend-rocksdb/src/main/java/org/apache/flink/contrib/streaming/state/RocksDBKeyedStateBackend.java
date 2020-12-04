@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -33,6 +32,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamespaceIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
@@ -119,8 +119,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2.of(ListStateDescriptor.class, (StateFactory) RocksDBListState::create),
 			Tuple2.of(MapStateDescriptor.class, (StateFactory) RocksDBMapState::create),
 			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) RocksDBAggregatingState::create),
-			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) RocksDBReducingState::create),
-			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) RocksDBFoldingState::create)
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) RocksDBReducingState::create)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {
@@ -305,6 +304,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			ambiguousKeyPossible, nameSpaceBytes);
 
 		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
+		return targetStream.onClose(iteratorWrapper::close);
+	}
+
+	@Override
+	public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
+		RocksDbKvStateInfo columnInfo = kvStateInformation.get(state);
+		if (columnInfo == null || !(columnInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo)) {
+			return Stream.empty();
+		}
+
+		RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
+			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.metaInfo;
+
+		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
+		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(getKeySerializer(), namespaceSerializer);
+
+		RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnInfo.columnFamilyHandle, readOptions);
+		iterator.seekToFirst();
+
+		final RocksStateKeysAndNamespaceIterator<K, N> iteratorWrapper = new RocksStateKeysAndNamespaceIterator<>(
+			iterator, state, getKeySerializer(), namespaceSerializer, keyGroupPrefixBytes, ambiguousKeyPossible);
+
+		Stream<Tuple2<K, N>> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
 		return targetStream.onClose(iteratorWrapper::close);
 	}
 
@@ -523,7 +545,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				StateSnapshotTransformFactory.noTransform());
 
 			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(
-				newMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
+				newMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager,
+				optionsContainer.getWriteBufferManagerCapacity());
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}
@@ -546,19 +569,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@SuppressWarnings("unchecked")
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
 
+		// fetch current serializer now because if it is incompatible, we can't access
+		// it anymore to improve the error message
+		TypeSerializer<N> previousNamespaceSerializer =
+			restoredKvStateMetaInfo.getNamespaceSerializer();
+
 		TypeSerializerSchemaCompatibility<N> s = restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
 		if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
-			throw new StateMigrationException("The new namespace serializer must be compatible.");
+			throw new StateMigrationException("The new namespace serializer (" + namespaceSerializer + ") must be compatible with the old namespace serializer (" + previousNamespaceSerializer + ").");
 		}
 
 		restoredKvStateMetaInfo.checkStateMetaInfo(stateDesc);
+
+		// fetch current serializer now because if it is incompatible, we can't access
+		// it anymore to improve the error message
+		TypeSerializer<SV> previousStateSerializer = restoredKvStateMetaInfo.getStateSerializer();
 
 		TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
 			restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
 		if (newStateSerializerCompatibility.isCompatibleAfterMigration()) {
 			migrateStateValues(stateDesc, oldStateInfo);
 		} else if (newStateSerializerCompatibility.isIncompatible()) {
-			throw new StateMigrationException("The new state serializer cannot be incompatible.");
+			throw new StateMigrationException("The new state serializer (" + stateSerializer + ") must not be incompatible with the old state serializer (" + previousStateSerializer + ").");
 		}
 
 		return restoredKvStateMetaInfo;

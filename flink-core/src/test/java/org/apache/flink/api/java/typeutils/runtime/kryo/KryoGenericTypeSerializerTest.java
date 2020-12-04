@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import com.esotericsoftware.kryo.Kryo;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
 import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import com.esotericsoftware.kryo.Kryo;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -34,7 +33,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("unchecked")
 public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
@@ -58,8 +59,6 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
 		runTests(b);
 	}
-
-
 
 	@Test
 	public void testJavaDequeue(){

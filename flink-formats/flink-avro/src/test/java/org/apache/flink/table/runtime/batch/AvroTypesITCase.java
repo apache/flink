@@ -18,36 +18,39 @@
 
 package org.apache.flink.table.runtime.batch;
 
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
-import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
@@ -83,9 +86,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -104,12 +107,13 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeMap(new HashMap<>())
 			.setTypeFixed(new Fixed16())
 			.setTypeUnion(null)
-			.setTypeNested(null).setTypeDate(LocalDate.parse("2014-03-01"))
+			.setTypeNested(null)
+			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -132,9 +136,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -147,41 +151,50 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 
 	@Test
 	public void testAvroToRow() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().registerTypeWithKryoSerializer(LocalDate.class, AvroKryoSerializerUtils.JodaLocalDateSerializer.class);
-		env.getConfig().registerTypeWithKryoSerializer(LocalTime.class, AvroKryoSerializerUtils.JodaLocalTimeSerializer.class);
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		Table t = tEnv.fromDataSet(testData(env));
+		Table t = tEnv.fromDataStream(testData(env));
 		Table result = t.select($("*"));
 
-		List<Row> results = tEnv.toDataSet(result, Row.class).collect();
+		List<Row> results = CollectionUtil.iteratorToList(
+			DataStreamUtils.collect(
+				tEnv.toAppendStream(
+					result,
+					Row.class)));
 		String expected =
 			"black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10]," +
 			"2014-03-01,java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
-			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null\n" +
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,00:00:00.123456," +
+			"12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null\n" +
 			"blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],1.337,RED,null,1337,{}," +
-			"{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": " +
-			"\"Berlin\", \"zip\": \"12049\"},null,null,123456,12:12:12.000,123456," +
+			// TODO we should get an Avro record here instead of a nested row. This should be fixed
+			// with FLIP-136
+			"Berlin,42,Berlin,Bakerstreet,12049,null,null,00:00:00.123456,12:12:12,1970-01-01T00:00:00.123456Z," +
 			"2014-03-01T12:12:12.321Z,null\n" +
 			"yellow,null,Terminator,[false],[world],false," +
 			"java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
-			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null";
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,00:00:00.123456," +
+			"12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null";
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testAvroStringAccess() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		Table t = tEnv.fromDataSet(testData(env));
+		Table t = tEnv.fromDataStream(testData(env));
 		Table result = t.select($("name"));
-		List<Utf8> results = tEnv.toDataSet(result, Types.GENERIC(Utf8.class)).collect();
+		List<Utf8> results = CollectionUtil.iteratorToList(result.execute().collect())
+			.stream()
+			.map(row -> (Utf8) row.getField(0))
+			.collect(Collectors.toList());
+
 		String expected = "Charlie\n" +
 				"Terminator\n" +
 				"Whatever";
@@ -190,38 +203,48 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 
 	@Test
 	public void testAvroObjectAccess() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		Table t = tEnv.fromDataSet(testData(env));
+		Table t = tEnv.fromDataStream(testData(env));
 		Table result = t
 				.filter($("type_nested").isNotNull())
 				.select($("type_nested").flatten())
 				.as("city", "num", "state", "street", "zip");
 
-		List<Address> results = tEnv.toDataSet(result, Types.POJO(Address.class)).collect();
+		List<Address> results = CollectionUtil.iteratorToList(
+			DataStreamUtils.collect(
+				tEnv.toAppendStream(
+					result,
+					Address.class)));
 		String expected = USER_1.getTypeNested().toString();
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testAvroToAvro() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env, config());
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-		Table t = tEnv.fromDataSet(testData(env));
+		Table t = tEnv.fromDataStream(testData(env));
 		Table result = t.select($("*"));
 
-		List<User> results = tEnv.toDataSet(result, Types.POJO(User.class)).collect();
+		List<User> results = CollectionUtil.iteratorToList(
+			DataStreamUtils.collect(
+				tEnv.toAppendStream(result, User.class)));
 		List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);
 		assertEquals(expected, results);
 	}
 
-	private DataSet<User> testData(ExecutionEnvironment env) {
-		List<User> data = new ArrayList<>(3);
-		data.add(USER_1);
-		data.add(USER_2);
-		data.add(USER_3);
-		return env.fromCollection(data);
+	private DataStream<User> testData(StreamExecutionEnvironment env) {
+		return env.fromElements(
+			USER_1,
+			USER_2,
+			USER_3
+		);
 	}
 }

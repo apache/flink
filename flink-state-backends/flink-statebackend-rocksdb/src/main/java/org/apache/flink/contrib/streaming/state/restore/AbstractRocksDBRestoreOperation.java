@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
@@ -90,6 +91,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	protected ColumnFamilyHandle defaultColumnFamilyHandle;
 	protected RocksDBNativeMetricMonitor nativeMetricMonitor;
 	protected boolean isKeySerializerCompatibilityChecked;
+	protected final Long writeBufferManagerCapacity;
 
 	protected AbstractRocksDBRestoreOperation(
 		KeyGroupRange keyGroupRange,
@@ -106,7 +108,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		Long writeBufferManagerCapacity) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -125,6 +128,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
+		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	void openDB() throws IOException {
@@ -159,7 +163,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 			if (columnFamilyHandle == null) {
 				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(
-					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
+					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager, writeBufferManagerCapacity);
 			} else {
 				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
 			}
@@ -186,12 +190,16 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 			new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 		serializationProxy.read(dataInputView);
 		if (!isKeySerializerCompatibilityChecked) {
+			// fetch current serializer now because if it is incompatible, we can't access
+			// it anymore to improve the error message
+			TypeSerializer<K> currentSerializer =
+				keySerializerProvider.currentSchemaSerializer();
 			// check for key serializer compatibility; this also reconfigures the
 			// key serializer to be compatible, if it is required and is possible
 			TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
 				keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(serializationProxy.getKeySerializerSnapshot());
 			if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
-				throw new StateMigrationException("The new key serializer must be compatible.");
+				throw new StateMigrationException("The new key serializer (" + currentSerializer + ") must be compatible with the previous key serializer (" + keySerializerProvider.previousSchemaSerializer() + ").");
 			}
 
 			isKeySerializerCompatibilityChecked = true;

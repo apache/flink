@@ -40,8 +40,15 @@ import java.io.PrintStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}.
@@ -57,7 +64,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
-	public void test() {
+	public void testCreateHiveCatalog() {
 		final String catalogName = "mycatalog";
 
 		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
@@ -70,7 +77,33 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
 			.createCatalog(catalogName, properties);
 
+		assertEquals("dummy-hms", ((HiveCatalog) actualCatalog).getHiveConf().getVar(HiveConf.ConfVars.METASTOREURIS));
 		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+	}
+
+	@Test
+	public void testCreateHiveCatalogWithHadoopConfDir() throws IOException {
+		final String catalogName = "mycatalog";
+
+		final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
+		final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
+		final String mapredKey = "mapred.site.config.key";
+		final String mapredVal = "mapred.site.config.val";
+		writeProperty(mapredSiteFile, mapredKey, mapredVal);
+
+		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
+
+		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+
+		final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
+		properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
+
+		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
+			.createCatalog(catalogName, properties);
+
+		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+		assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
 	}
 
 	@Test
@@ -124,6 +157,43 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
 
 		TableFactoryService.find(CatalogFactory.class, properties).createCatalog("my_catalog", properties);
+	}
+
+	@Test
+	public void testCreateMultipleHiveCatalog() throws Exception {
+		final HiveCatalogDescriptor descriptor1 = new HiveCatalogDescriptor();
+		descriptor1.hiveSitePath(Thread.currentThread().getContextClassLoader().getResource("test-multi-hive-conf1").getPath());
+		Map<String, String> props1 = descriptor1.toProperties();
+
+		final HiveCatalogDescriptor descriptor2 = new HiveCatalogDescriptor();
+		descriptor2.hiveSitePath(Thread.currentThread().getContextClassLoader().getResource("test-multi-hive-conf2").getPath());
+		Map<String, String> props2 = descriptor2.toProperties();
+
+		Callable<Catalog> callable1 = () -> TableFactoryService.find(CatalogFactory.class, props1)
+				.createCatalog("cat1", props1);
+
+		Callable<Catalog> callable2 = () -> TableFactoryService.find(CatalogFactory.class, props2)
+				.createCatalog("cat2", props2);
+
+		ExecutorService executorService = Executors.newFixedThreadPool(2);
+		Future<Catalog> future1 = executorService.submit(callable1);
+		Future<Catalog> future2 = executorService.submit(callable2);
+		executorService.shutdown();
+
+		HiveCatalog catalog1 = (HiveCatalog) future1.get();
+		HiveCatalog catalog2 = (HiveCatalog) future2.get();
+
+		// verify we read our own props
+		assertEquals("val1", catalog1.getHiveConf().get("key"));
+		assertNotNull(catalog1.getHiveConf().get("conf1", null));
+		// verify we don't read props from other conf
+		assertNull(catalog1.getHiveConf().get("conf2", null));
+
+		// verify we read our own props
+		assertEquals("val2", catalog2.getHiveConf().get("key"));
+		assertNotNull(catalog2.getHiveConf().get("conf2", null));
+		// verify we don't read props from other conf
+		assertNull(catalog2.getHiveConf().get("conf1", null));
 	}
 
 	private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {

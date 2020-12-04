@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -29,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.function.FunctionUtils;
 
 import javax.annotation.Nonnull;
 
@@ -53,7 +55,7 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 	}
 
 	@Override
-	public CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) throws Exception {
+	public CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration, @Nonnull final ClassLoader userCodeClassloader) throws Exception {
 		final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 
 		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
@@ -64,9 +66,17 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 			ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
 			return clusterClient
 					.submitJob(jobGraph)
+					.thenApplyAsync(FunctionUtils.uncheckedFunction(jobId -> {
+						ClientUtils.waitUntilJobInitializationFinished(
+							() -> clusterClient.getJobStatus(jobId).get(),
+							() -> clusterClient.requestJobResult(jobId).get(),
+							userCodeClassloader);
+						return jobId;
+					}))
 					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
 							clusterClientProvider,
-							jobID))
+							jobID,
+							userCodeClassloader))
 					.whenComplete((ignored1, ignored2) -> clusterClient.close());
 		}
 	}

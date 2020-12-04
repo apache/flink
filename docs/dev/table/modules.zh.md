@@ -43,7 +43,7 @@ functions as Flink built-in functions.
 ### HiveModule
 
 The `HiveModule` provides Hive built-in functions as Flink's system functions to SQL and Table API users.
-Flink's [Hive documentation]({{ site.baseurl }}/dev/table/hive/hive_functions.html) provides full details on setting up the module.
+Flink's [Hive documentation]({% link dev/table/connectors/hive/hive_functions.zh.md %}) provides full details on setting up the module.
 
 ### User-Defined Module
 

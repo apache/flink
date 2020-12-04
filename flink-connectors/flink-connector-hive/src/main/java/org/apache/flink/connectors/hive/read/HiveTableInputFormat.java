@@ -25,8 +25,8 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.data.GenericRowData;
@@ -41,15 +41,11 @@ import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -74,26 +70,26 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 	private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
 	private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
 
-	private JobConf jobConf;
+	private final JobConfWrapper jobConf;
 
-	private String hiveVersion;
+	private final String hiveVersion;
 
-	private List<String> partitionKeys;
+	private final List<String> partitionKeys;
 
-	private DataType[] fieldTypes;
+	private final DataType[] fieldTypes;
 
-	private String[] fieldNames;
+	private final String[] fieldNames;
 
 	//For non-partition hive table, partitions only contains one partition which partitionValues is empty.
-	private List<HiveTablePartition> partitions;
+	private final List<HiveTablePartition> partitions;
 
 	// indices of fields to be returned, with projection applied (if any)
-	private int[] selectedFields;
+	private final int[] selectedFields;
 
-	//We should limit the input read count of this splits, -1 represents no limit.
-	private long limit;
+	//We should limit the input read count of this splits, null represents no limit.
+	private final Long limit;
 
-	private boolean useMapRedReader;
+	private final boolean useMapRedReader;
 
 	private transient long currentReadCount = 0L;
 
@@ -102,28 +98,29 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
-			CatalogTable catalogTable,
-			List<HiveTablePartition> partitions,
+			List<String> partitionKeys,
+			DataType[] fieldTypes,
+			String[] fieldNames,
 			int[] projectedFields,
-			long limit,
+			Long limit,
 			String hiveVersion,
-			boolean useMapRedReader) {
+			boolean useMapRedReader,
+			List<HiveTablePartition> partitions) {
 		super(jobConf.getCredentials());
-		this.partitionKeys = catalogTable.getPartitionKeys();
-		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
-		this.fieldNames = catalogTable.getSchema().getFieldNames();
+		this.jobConf = new JobConfWrapper(new JobConf(jobConf));
+		this.partitionKeys = partitionKeys;
+		this.fieldTypes = fieldTypes;
+		this.fieldNames = fieldNames;
 		this.limit = limit;
 		this.hiveVersion = hiveVersion;
-		checkNotNull(catalogTable, "catalogTable can not be null.");
-		this.partitions = checkNotNull(partitions, "partitions can not be null.");
-		this.jobConf = new JobConf(jobConf);
-		int rowArity = catalogTable.getSchema().getFieldCount();
-		selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
+		int rowArity = fieldTypes.length;
+		this.selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
 		this.useMapRedReader = useMapRedReader;
+		this.partitions = checkNotNull(partitions, "partitions can not be null.");
 	}
 
 	public JobConf getJobConf() {
-		return jobConf;
+		return jobConf.conf();
 	}
 
 	@Override
@@ -135,12 +132,12 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		HiveTablePartition partition = split.getHiveTablePartition();
 		if (!useMapRedReader && useOrcVectorizedRead(partition)) {
 			this.reader = new HiveVectorizedOrcSplitReader(
-					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
+					hiveVersion, jobConf.conf(), fieldNames, fieldTypes, selectedFields, split);
 		} else if (!useMapRedReader && useParquetVectorizedRead(partition)) {
 			this.reader = new HiveVectorizedParquetSplitReader(
-					hiveVersion, jobConf, fieldNames, fieldTypes, selectedFields, split);
+					hiveVersion, jobConf.conf(), fieldNames, fieldTypes, selectedFields, split);
 		} else {
-			JobConf clonedConf = new JobConf(jobConf);
+			JobConf clonedConf = new JobConf(jobConf.conf());
 			addSchemaToConf(clonedConf);
 			this.reader = new HiveMapredSplitReader(clonedConf, partitionKeys, fieldTypes, selectedFields, split,
 					HiveShimLoader.loadHiveShim(hiveVersion));
@@ -255,7 +252,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		if (limit > 0 && currentReadCount >= limit) {
+		if (limit != null && currentReadCount >= limit) {
 			return true;
 		} else {
 			return reader.reachedEnd();
@@ -279,7 +276,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 	@Override
 	public HiveTableInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
-		return createInputSplits(minNumSplits, partitions, jobConf);
+		return createInputSplits(minNumSplits, partitions, jobConf.conf());
 	}
 
 	public static HiveTableInputSplit[] createInputSplits(
@@ -329,42 +326,21 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
 
-	// --------------------------------------------------------------------------------------------
-	//  Custom serialization methods
-	// --------------------------------------------------------------------------------------------
-
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		super.write(out);
-		jobConf.write(out);
-		out.writeObject(partitionKeys);
-		out.writeObject(fieldTypes);
-		out.writeObject(fieldNames);
-		out.writeObject(partitions);
-		out.writeObject(selectedFields);
-		out.writeObject(limit);
-		out.writeObject(hiveVersion);
-		out.writeBoolean(useMapRedReader);
-	}
-
-	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		super.read(in);
-		if (jobConf == null) {
-			jobConf = new JobConf();
+	public int getNumFiles() throws IOException {
+		int numFiles = 0;
+		FileSystem fs = null;
+		for (HiveTablePartition partition : partitions) {
+			StorageDescriptor sd = partition.getStorageDescriptor();
+			Path inputPath = new Path(sd.getLocation());
+			if (fs == null) {
+				fs = inputPath.getFileSystem(jobConf.conf());
+			}
+			// it's possible a partition exists in metastore but the data has been removed
+			if (!fs.exists(inputPath)) {
+				continue;
+			}
+			numFiles += fs.listStatus(inputPath).length;
 		}
-		jobConf.readFields(in);
-		jobConf.getCredentials().addAll(this.credentials);
-		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
-		if (currentUserCreds != null) {
-			jobConf.getCredentials().addAll(currentUserCreds);
-		}
-		partitionKeys = (List<String>) in.readObject();
-		fieldTypes = (DataType[]) in.readObject();
-		fieldNames = (String[]) in.readObject();
-		partitions = (List<HiveTablePartition>) in.readObject();
-		selectedFields = (int[]) in.readObject();
-		limit = (long) in.readObject();
-		hiveVersion = (String) in.readObject();
-		useMapRedReader = in.readBoolean();
+		return numFiles;
 	}
 }

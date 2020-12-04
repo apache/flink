@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -37,7 +38,7 @@ public class HiveTablePartition implements Serializable {
 	private static final long serialVersionUID = 4145470177119940673L;
 
 	/** Partition storage descriptor. */
-	private final StorageDescriptor storageDescriptor;
+	private final CachedSerializedValue<StorageDescriptor> storageDescriptor;
 
 	/** The map of partition key names and their values. */
 	private final Map<String, Object> partitionSpec;
@@ -50,13 +51,21 @@ public class HiveTablePartition implements Serializable {
 	}
 
 	public HiveTablePartition(StorageDescriptor storageDescriptor, Map<String, Object> partitionSpec, Properties tableProps) {
-		this.storageDescriptor = checkNotNull(storageDescriptor, "storageDescriptor can not be null");
+		try {
+			this.storageDescriptor = new CachedSerializedValue<>(checkNotNull(storageDescriptor, "storageDescriptor can not be null"));
+		} catch (IOException e) {
+			throw new FlinkHiveException("Failed to serialize StorageDescriptor", e);
+		}
 		this.partitionSpec = checkNotNull(partitionSpec, "partitionSpec can not be null");
 		this.tableProps = checkNotNull(tableProps, "tableProps can not be null");
 	}
 
 	public StorageDescriptor getStorageDescriptor() {
-		return storageDescriptor;
+		try {
+			return storageDescriptor.deserializeValue();
+		} catch (IOException | ClassNotFoundException e) {
+			throw new FlinkHiveException("Failed to deserialize StorageDescriptor", e);
+		}
 	}
 
 	public Map<String, Object> getPartitionSpec() {
@@ -89,7 +98,7 @@ public class HiveTablePartition implements Serializable {
 	@Override
 	public String toString() {
 		return "HiveTablePartition{" +
-				"storageDescriptor=" + storageDescriptor +
+				"storageDescriptor=" + getStorageDescriptor() +
 				", partitionSpec=" + partitionSpec +
 				", tableProps=" + tableProps +
 				'}';

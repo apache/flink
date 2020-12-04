@@ -59,6 +59,7 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -153,13 +154,10 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		.map(i ->
 			// exception failure:
 				1 + // this mapper
-				i + // previous mappers
 			// TM failure:
 				(MAP_NUMBER - i - 1) + // subsequent mappers after PartitionNotFoundException
 				1 + // this mapper
-				1 + // this mapper after PartitionNotFoundException
-				i + // previous mappers
-				i) // previous mappers after PartitionNotFoundException
+				1) // this mapper after PartitionNotFoundException
 		.toArray();
 
 	private static final String TASK_NAME_PREFIX = "Test partition mapper ";
@@ -393,14 +391,16 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		@Override
 		void fail(int trackingIndex) throws Exception {
 			//noinspection OverlyBroadCatchBlock
-			try {
-				restartTaskManager();
-			} catch (InterruptedException e) {
-				// ignore the exception, task should have been failed while stopping TM
-				Thread.currentThread().interrupt();
-			} catch (Throwable t) {
-				failureTracker.unrelatedFailure(t);
-				throw t;
+			try (TemporaryClassLoaderContext unused = TemporaryClassLoaderContext.of(ClassLoader.getSystemClassLoader())) {
+				try {
+					restartTaskManager();
+				} catch (InterruptedException e) {
+					// ignore the exception, task should have been failed while stopping TM
+					Thread.currentThread().interrupt();
+				} catch (Throwable t) {
+					failureTracker.unrelatedFailure(t);
+					throw t;
+				}
 			}
 		}
 	}

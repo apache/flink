@@ -32,12 +32,11 @@ import org.apache.flink.state.api.runtime.VoidTriggerable;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
-import org.apache.flink.streaming.api.operators.TimerSerializer;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 /**
  * Base class for executing functions that read keyed state.
@@ -78,7 +77,7 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT> imple
 
 	public abstract void processElement(KEY key, N namespace, Collector<OUT> out) throws Exception;
 
-	public abstract Iterator<Tuple2<KEY, N>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception;
+	public abstract CloseableIterator<Tuple2<KEY, N>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception;
 
 	public final void setup(
 		ExecutionConfig executionConfig,
@@ -95,8 +94,11 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT> imple
 	}
 
 	protected final InternalTimerService<N> getInternalTimerService(String name) {
-		TimerSerializer<KEY, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
-		return timerServiceManager.getInternalTimerService(name, timerSerializer, VoidTriggerable.instance());
+		return timerServiceManager.getInternalTimerService(
+			name,
+			keySerializer,
+			namespaceSerializer,
+			VoidTriggerable.instance());
 	}
 
 	public void open() throws Exception {

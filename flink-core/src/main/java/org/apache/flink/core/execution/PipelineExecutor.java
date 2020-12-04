@@ -39,7 +39,8 @@ public interface PipelineExecutor {
 	 *
 	 * @param pipeline the {@link Pipeline} to execute
 	 * @param configuration the {@link Configuration} with the required execution parameters
+	 * @param userCodeClassloader the {@link ClassLoader} to deserialize usercode
 	 * @return a {@link CompletableFuture} with the {@link JobClient} corresponding to the pipeline.
 	 */
-	CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration) throws Exception;
+	CompletableFuture<JobClient> execute(final Pipeline pipeline, final Configuration configuration, final ClassLoader userCodeClassloader) throws Exception;
 }

@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.DistinctInfo
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
@@ -83,9 +82,9 @@ class DistinctAggCodeGen(
 
   val aggCount: Int = innerAggCodeGens.length
   val externalAccType: DataType = distinctInfo.accType
-  val internalAccType: LogicalType = fromDataTypeToLogicalType(externalAccType)
+  val internalAccType: LogicalType = externalAccType.getLogicalType
   val keyType: DataType = distinctInfo.keyType
-  val internalKeyType: LogicalType = fromDataTypeToLogicalType(keyType)
+  val internalKeyType: LogicalType = keyType.getLogicalType
   val keyTypeTerm: String = keyType.getConversionClass.getCanonicalName
   val distinctAccTerm: String = s"distinct_view_$distinctIndex"
   val distinctBackupAccTerm: String = s"distinct_backup_view_$distinctIndex"
@@ -124,14 +123,14 @@ class DistinctAggCodeGen(
       ctx.addReusableMember(s"private $MAP_VIEW $distinctBackupAccTerm;")
     }
 
-    // when dataview works on state, assign the stateDataView to accTerm in open method
+    // when data view works on state, assign it to distinctAccTerm in open method
     distinctInfo.dataViewSpec match {
       case Some(spec) =>
-        val dataviewTerm = createDataViewTerm(spec)
-        ctx.addReusableOpenStatement(s"$distinctAccTerm = $dataviewTerm;")
+        val dataViewTerm = createDataViewTerm(spec)
+        ctx.addReusableOpenStatement(s"$distinctAccTerm = $dataViewTerm;")
         if (enableBackupDataView) {
-          val dataviewBackupTerm = createDataViewBackupTerm(spec)
-          ctx.addReusableOpenStatement(s"$distinctBackupAccTerm = $dataviewBackupTerm;")
+          val dataViewBackupTerm = createDataViewBackupTerm(spec)
+          ctx.addReusableOpenStatement(s"$distinctBackupAccTerm = $dataViewBackupTerm;")
         }
       case None => // do nothing
     }
@@ -143,10 +142,12 @@ class DistinctAggCodeGen(
       Seq()
     } else {
       val Seq(mapViewTerm, accTerm) = newNames("mapview", "distinct_acc")
+      val accTypeTerm = boxedTypeTermForType(internalAccType)
       val code =
         s"""
            |$MAP_VIEW $mapViewTerm = new $MAP_VIEW();
-           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, mapViewTerm)};
+           |$accTypeTerm $accTerm =
+           |  ${genToInternalConverter(ctx, externalAccType, mapViewTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
@@ -179,9 +180,11 @@ class DistinctAggCodeGen(
       Seq()
     } else {
       val accTerm = newName("distinct_acc")
+      val accTypeTerm = boxedTypeTermForType(internalAccType)
       val code =
         s"""
-           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, distinctAccTerm)};
+           |$accTypeTerm $accTerm =
+           |  ${genToInternalConverter(ctx, externalAccType, distinctAccTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(
@@ -423,10 +426,6 @@ class DistinctAggCodeGen(
     }
   }
 
-  /**
-    * This method is mainly the same as CodeGenUtils.generateFieldAccess(), the only difference is
-    * that this method using UpdatableRow to wrap RowData to handle DataViews.
-    */
   private def generateAccumulatorAccess(
     ctx: CodeGeneratorContext,
     inputType: LogicalType,
@@ -435,6 +434,8 @@ class DistinctAggCodeGen(
     useStateDataView: Boolean,
     useBackupDataView: Boolean,
     nullableInput: Boolean = false): GeneratedExpression = {
+
+    val distinctSpec = distinctInfo.dataViewSpec
 
     // if input has been used before, we can reuse the code that
     // has already been generated
@@ -445,14 +446,14 @@ class DistinctAggCodeGen(
       // generate input access and unboxing if necessary
       case None =>
 
-        val expr = if (distinctInfo.dataViewSpec.nonEmpty && useStateDataView) {
-          val spec = distinctInfo.dataViewSpec.get
+        val expr = if (distinctSpec.nonEmpty && useStateDataView) {
+          val spec = distinctSpec.get
           val dataViewTerm = if (useBackupDataView) {
             createDataViewBackupTerm(spec)
           } else {
             createDataViewTerm(spec)
           }
-          val resultTerm = if (useBackupDataView) {
+          val accTerm = if (useBackupDataView) {
             distinctBackupAccTerm
           } else {
             distinctAccTerm
@@ -464,19 +465,26 @@ class DistinctAggCodeGen(
                |// when namespace is null, the dataview is used in heap, no key and namespace set
                |if ($NAMESPACE_TERM != null) {
                |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
-               |  $resultTerm = $dataViewTerm;
+               |  $accTerm = $dataViewTerm;
                |} else {
                |  ${expr.code}
-               |  $resultTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
+               |  $accTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
                |}
             """.stripMargin
           } else {
             s"""
-               |$resultTerm = $dataViewTerm;
+               |$accTerm = $dataViewTerm;
             """.stripMargin
           }
-          GeneratedExpression(resultTerm, NEVER_NULL, code, internalAccType)
+          GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType)
         } else {
+          val accDataType = if (distinctSpec.nonEmpty && !useStateDataView) {
+            // externalAccType represents "null" for state backed views
+            // but we don't want to use state here
+            distinctSpec.get.getDistinctViewDataType
+          } else {
+            externalAccType
+          }
           val expr = generateFieldAccess(ctx, inputType, inputTerm, index)
           if (useBackupDataView) {
             // this is called in the merge method
@@ -487,17 +495,19 @@ class DistinctAggCodeGen(
                  |${expr.code}
                  |$otherMapViewTerm = null;
                  |if (!${expr.nullTerm}) {
-                 | $otherMapViewTerm = ${genToExternal(ctx, externalAccType, expr.resultTerm)};
+                 | $otherMapViewTerm =
+                 |   ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
                  |}
                """.stripMargin
-            GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, internalAccType)
+            GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, accDataType.getLogicalType)
           } else {
             val code =
               s"""
                  |${expr.code}
-                 |$distinctAccTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
+                 |$distinctAccTerm =
+                 |  ${genToExternalConverter(ctx, accDataType, expr.resultTerm)};
               """.stripMargin
-            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, internalAccType)
+            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, accDataType.getLogicalType)
           }
         }
 

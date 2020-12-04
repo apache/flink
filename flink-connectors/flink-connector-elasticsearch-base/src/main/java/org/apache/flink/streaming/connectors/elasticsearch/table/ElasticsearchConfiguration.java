@@ -37,6 +37,8 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.FAILURE_HANDLER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
 
 /**
  * Accessor methods to elasticsearch options.
@@ -96,6 +98,14 @@ class ElasticsearchConfiguration {
 		long interval = config.get(BULK_FLUSH_INTERVAL_OPTION).toMillis();
 		// convert 0 to -1, because Elasticsearch client use -1 to disable this configuration.
 		return interval == 0 ? -1 : interval;
+	}
+
+	public Optional<String> getUsername() {
+		return config.getOptional(USERNAME_OPTION);
+	}
+
+	public Optional<String> getPassword() {
+		return config.getOptional(PASSWORD_OPTION);
 	}
 
 	public boolean isBulkFlushBackoffEnabled() {

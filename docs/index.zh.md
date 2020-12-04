@@ -37,7 +37,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 * [Local Installation]({% link try-flink/local_installation.zh.md %})
 * [DataStream API 进行欺诈检测]({% link try-flink/datastream_api.zh.md %})
 * [Table API 构建实时报表]({% link try-flink/table_api.zh.md %})
-* [Python API 教程]({% link try-flink/python_table_api.zh.md %})
+* [PyFlink 教程]({% link dev/python/index.zh.md %})
 * [Flink 游乐场]({% link try-flink/flink-operations-playground.zh.md %})
 
 ### 学习 Flink
@@ -67,16 +67,16 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 </div>
 <div class="col-sm-6" markdown="1">
 
-* [配置参数]({% link ops/config.zh.md %})
-* [Rest API]({% link monitoring/rest_api.zh.md %})
-* [CLI]({% link ops/cli.zh.md %})
+* [配置参数]({% link deployment/config.zh.md %})
+* [Rest API]({% link ops/rest_api.zh.md %})
+* [CLI]({% link deployment/cli.zh.md %})
 
 </div>
 </div>
 
 ### 部署 Flink
 
-在线上环境运行你的 Flink 作业之前，请阅读 [生产环境注意事项检查清单]({% link ops/production_ready.zh.md %}). 各种部署环境一览，详见 [集群与部署]({% link ops/deployment/index.zh.md %}). 
+在线上环境运行你的 Flink 作业之前，请阅读 [生产环境注意事项检查清单]({% link ops/production_ready.zh.md %}). 各种部署环境一览，详见 [集群与部署]({% link deployment/resource-providers/index.zh.md %}). 
 
 ### 升级 Flink
 

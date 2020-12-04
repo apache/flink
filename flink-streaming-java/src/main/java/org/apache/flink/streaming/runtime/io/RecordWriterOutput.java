@@ -32,7 +32,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
  */
 @Internal
-public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
+public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
 	private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
@@ -91,13 +91,9 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-			// we are not responsible for emitting to the side-output specified by this
-			// OutputTag.
-			return;
+		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+			pushToRecordWriter(record);
 		}
-
-		pushToRecordWriter(record);
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {

@@ -18,13 +18,13 @@
             <td><h5>python.client.executable</h5></td>
             <td style="word-wrap: break-word;">"python"</td>
             <td>String</td>
-            <td>The python interpreter used to launch the python process when compiling the jobs containing Python UDFs. Equivalent to the environment variable PYFLINK_EXECUTABLE. The priority is as following: 1. the configuration 'python.client.executable' defined in the source code; 2. the environment variable PYFLINK_EXECUTABLE; 3. the configuration 'python.client.executable' defined in flink-conf.yaml</td>
+            <td>The path of the Python interpreter used to launch the Python process when submitting the Python jobs via "flink run" or compiling the Java/Scala jobs containing Python UDFs. Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. The priority is as following: <br />1. the configuration 'python.client.executable' defined in the source code;<br />2. the environment variable PYFLINK_CLIENT_EXECUTABLE;<br />3. the configuration 'python.client.executable' defined in flink-conf.yaml</td>
         </tr>
         <tr>
             <td><h5>python.executable</h5></td>
             <td style="word-wrap: break-word;">"python"</td>
             <td>String</td>
-            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.19.0), Pip (version &gt;= 7.1.0) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
+            <td>Specify the path of the python interpreter used to execute the python UDF worker. The python UDF worker depends on Python 3.5+, Apache Beam (version == 2.23.0), Pip (version &gt;= 7.1.0) and SetupTools (version &gt;= 37.0.0). Please ensure that the specified environment meets the above requirements. The option is equivalent to the command line option "-pyexec".</td>
         </tr>
         <tr>
             <td><h5>python.files</h5></td>
@@ -39,12 +39,6 @@
             <td>The maximum number of elements to include in an arrow batch for Python user-defined function execution. The arrow batch size should not exceed the bundle size. Otherwise, the bundle size will be used as the arrow batch size.</td>
         </tr>
         <tr>
-            <td><h5>python.fn-execution.buffer.memory.size</h5></td>
-            <td style="word-wrap: break-word;">"15mb"</td>
-            <td>String</td>
-            <td>The amount of memory to be allocated by the input buffer and output buffer of a Python worker. The memory will be accounted as managed memory if the actual memory allocated to an operator is no less than the total memory of a Python worker. Otherwise, this configuration takes no effect.</td>
-        </tr>
-        <tr>
             <td><h5>python.fn-execution.bundle.size</h5></td>
             <td style="word-wrap: break-word;">100000</td>
             <td>Integer</td>
@@ -57,16 +51,28 @@
             <td>Sets the waiting timeout(in milliseconds) before processing a bundle for Python user-defined function execution. The timeout defines how long the elements of a bundle will be buffered before being processed. Lower timeouts lead to lower tail latencies, but may affect throughput.</td>
         </tr>
         <tr>
-            <td><h5>python.fn-execution.framework.memory.size</h5></td>
-            <td style="word-wrap: break-word;">"64mb"</td>
-            <td>String</td>
-            <td>The amount of memory to be allocated by the Python framework. The sum of the value of this configuration and "python.fn-execution.buffer.memory.size" represents the total memory of a Python worker. The memory will be accounted as managed memory if the actual memory allocated to an operator is no less than the total memory of a Python worker. Otherwise, this configuration takes no effect.</td>
+            <td><h5>python.fn-execution.memory.managed</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>If set, the Python worker will configure itself to use the managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory of the task slot. In this case, users should set the Task Off-Heap Memory using the configuration key taskmanager.memory.task.off-heap.size.</td>
         </tr>
         <tr>
-            <td><h5>python.fn-execution.memory.managed</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>If set, the Python worker will configure itself to use the managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory of the task slot. In this case, users should set the Task Off-Heap Memory using the configuration key taskmanager.memory.task.off-heap.size. For each Python worker, the required Task Off-Heap Memory is the sum of the value of python.fn-execution.framework.memory.size and python.fn-execution.buffer.memory.size.</td>
+            <td><h5>python.map-state.iterate-response-batch-size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of the MapState keys/entries sent to Python UDF worker in each batch when iterating a Python MapState. Note that this is an experimental flag and might not be available in future releases.</td>
+        </tr>
+        <tr>
+            <td><h5>python.map-state.read-cache-size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of cached entries for a single Python MapState. Note that this is an experimental flag and might not be available in future releases.</td>
+        </tr>
+        <tr>
+            <td><h5>python.map-state.write-cache-size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of cached write requests for a single Python MapState. The write requests will be flushed to the state backend (managed in the Java operator) when the number of cached write requests exceed this limit. Note that this is an experimental flag and might not be available in future releases.</td>
         </tr>
         <tr>
             <td><h5>python.metric.enabled</h5></td>
@@ -79,6 +85,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify a requirements.txt file which defines the third-party dependencies. These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. A directory which contains the installation packages of these dependencies could be specified optionally. Use '#' as the separator if the optional parameter exists. The option is equivalent to the command line option "-pyreq".</td>
+        </tr>
+        <tr>
+            <td><h5>python.state.cache-size</h5></td>
+            <td style="word-wrap: break-word;">1000</td>
+            <td>Integer</td>
+            <td>The maximum number of states cached in a Python UDF worker. Note that this is an experimental flag and might not be available in future releases.</td>
         </tr>
     </tbody>
 </table>

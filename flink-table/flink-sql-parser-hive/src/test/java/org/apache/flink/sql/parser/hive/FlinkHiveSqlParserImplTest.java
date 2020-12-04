@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -34,22 +35,30 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		return FlinkHiveSqlParserImpl.FACTORY;
 	}
 
-	// overrides test methods that we don't support
-	@Override
+	// ignore test methods that we don't support
+	@Ignore
+	@Test
 	public void testDescribeStatement() {
 	}
 
-	@Override
+	@Ignore
+	@Test
 	public void testTableHintsInInsert() {
 	}
 
-	@Override
+	@Ignore
+	@Test
 	public void testDescribeSchema() {
 	}
 
 	@Test
 	public void testShowDatabases() {
 		sql("show databases").ok("SHOW DATABASES");
+	}
+
+	@Test
+	public void testShowCurrentDatabase() {
+		sql("show current database").ok("SHOW CURRENT DATABASE");
 	}
 
 	@Test
@@ -173,6 +182,10 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `P`  TIMESTAMP\n" +
 						")");
 		sql("create table tbl (v varchar)").fails("VARCHAR precision is mandatory");
+
+		sql("create table if not exists tbl (x int)").ok("CREATE TABLE IF NOT EXISTS `TBL` (\n"
+				+ "  `X`  INTEGER\n"
+				+ ")");
 		// TODO: support CLUSTERED BY, SKEWED BY, STORED BY, col constraints
 	}
 
@@ -256,6 +269,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCurrentCatalog() {
+		sql("show current catalog").ok("SHOW CURRENT CATALOG");
+	}
+
+	@Test
 	public void testUseCatalog() {
 		sql("use catalog cat").ok("USE CATALOG `CAT`");
 	}
@@ -326,24 +344,24 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testChangeColumn() {
 		sql("alter table tbl change c c1 struct<f0:timestamp,f1:array<char(5)>> restrict")
-				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C1`  STRUCT< `F0` TIMESTAMP, `F1` ARRAY< CHAR(5) > > RESTRICT");
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C1` STRUCT< `F0` TIMESTAMP, `F1` ARRAY< CHAR(5) > > RESTRICT");
 		sql("alter table tbl change column c c decimal(5,2) comment 'new comment' first cascade")
-				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C`  DECIMAL(5, 2)  COMMENT 'new comment' FIRST CASCADE");
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C` DECIMAL(5, 2) COMMENT 'new comment' FIRST CASCADE");
 	}
 
 	@Test
 	public void testAddReplaceColumn() {
 		sql("alter table tbl add columns (a float,b timestamp,c binary) cascade")
 				.ok("ALTER TABLE `TBL` ADD COLUMNS (\n" +
-						"  `A`  FLOAT,\n" +
-						"  `B`  TIMESTAMP,\n" +
-						"  `C`  BINARY\n" +
+						"  `A` FLOAT,\n" +
+						"  `B` TIMESTAMP,\n" +
+						"  `C` BINARY\n" +
 						") CASCADE");
 		sql("alter table tbl replace columns (a char(100),b tinyint comment 'tiny comment',c smallint) restrict")
 				.ok("ALTER TABLE `TBL` REPLACE COLUMNS (\n" +
-						"  `A`  CHAR(100),\n" +
-						"  `B`  TINYINT  COMMENT 'tiny comment',\n" +
-						"  `C`  SMALLINT\n" +
+						"  `A` CHAR(100),\n" +
+						"  `B` TINYINT COMMENT 'tiny comment',\n" +
+						"  `C` SMALLINT\n" +
 						") RESTRICT");
 	}
 
@@ -417,5 +435,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"PARTITION (`P1` = 'a', `P2` = 1)\n" +
 						"PARTITION (`P1` = 'b', `P2` = 2)");
 		// TODO: support IGNORE PROTECTION, PURGE
+	}
+
+	@Test
+	public void testShowPartitions() {
+		sql("show partitions tbl")
+			.ok("SHOW PARTITIONS `TBL`");
+		sql("show partitions tbl partition (p=1)")
+			.ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
 	}
 }

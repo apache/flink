@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
@@ -42,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricGroup> {
 
 	/** Map from execution attempt ID (task identifier) to task metrics. */
-	private final Map<AbstractID, TaskMetricGroup> tasks = new HashMap<>();
+	private final Map<ExecutionAttemptID, TaskMetricGroup> tasks = new HashMap<>();
 
 	// ------------------------------------------------------------------------
 
@@ -95,7 +94,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
 		}
 	}
 
-	public void removeTaskMetricGroup(AbstractID executionId) {
+	public void removeTaskMetricGroup(ExecutionAttemptID executionId) {
 		checkNotNull(executionId);
 
 		boolean removeFromParent = false;

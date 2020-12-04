@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.util.TestProducerSource.BufferConsumerAndChannel;
+import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
+import org.apache.flink.runtime.io.network.util.TestProducerSource.BufferAndChannel;
 
+import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.concurrent.Callable;
 
@@ -38,7 +39,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 	public static final int MAX_SLEEP_TIME_MS = 20;
 
 	/** The partition to add data to. */
-	private final ResultPartition partition;
+	private final BufferWritingResultPartition partition;
 
 	/**
 	 * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
@@ -53,7 +54,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 	private final Random random;
 
 	public TestPartitionProducer(
-			ResultPartition partition,
+			BufferWritingResultPartition partition,
 			boolean isSlowProducer,
 			TestProducerSource source) {
 
@@ -69,10 +70,11 @@ public class TestPartitionProducer implements Callable<Boolean> {
 		boolean success = false;
 
 		try {
-			BufferConsumerAndChannel consumerAndChannel;
+			BufferAndChannel bufferAndChannel;
 
-			while ((consumerAndChannel = source.getNextBufferConsumer()) != null) {
-				partition.addBufferConsumer(consumerAndChannel.getBufferConsumer(), consumerAndChannel.getTargetChannel());
+			while ((bufferAndChannel = source.getNextBuffer()) != null) {
+				ByteBuffer record = ByteBuffer.wrap(bufferAndChannel.getBuffer());
+				partition.emitRecord(record, bufferAndChannel.getTargetChannel());
 
 				// Check for interrupted flag after adding data to prevent resource leaks
 				if (Thread.interrupted()) {

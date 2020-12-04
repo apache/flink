@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -35,17 +36,24 @@ import org.junit.Test;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DataTypeUtils}.
@@ -53,11 +61,103 @@ import static org.junit.Assert.assertTrue;
 public class DataTypeUtilsTest {
 
 	@Test
+	public void testProjectRow() {
+		final DataType thirdLevelRow = ROW(
+			FIELD("c0", BOOLEAN()),
+			FIELD("c1", DOUBLE()),
+			FIELD("c2", INT())
+		);
+		final DataType secondLevelRow = ROW(
+			FIELD("b0", BOOLEAN()),
+			FIELD("b1", thirdLevelRow),
+			FIELD("b2", INT())
+		);
+		final DataType topLevelRow = ROW(
+			FIELD("a0", INT()),
+			FIELD("a1", secondLevelRow),
+			FIELD("a1_b1_c0", INT())
+		);
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{0}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("a0", INT()), FIELD("a1_b1_c0", BOOLEAN()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1}, {0}}),
+			equalTo(ROW(FIELD("a1_b1", thirdLevelRow), FIELD("a0", INT()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 2}, {1, 1, 1}, {1, 1, 0}}),
+			equalTo(ROW(FIELD("a1_b1_c2", INT()), FIELD("a1_b1_c1", DOUBLE()), FIELD("a1_b1_c0", BOOLEAN()))));
+
+		assertThat(
+			DataTypeUtils.projectRow(topLevelRow, new int[][]{{1, 1, 0}, {2}}),
+			equalTo(ROW(FIELD("a1_b1_c0", BOOLEAN()), FIELD("a1_b1_c0_$0", INT()))));
+	}
+
+	@Test
+	public void testAppendRowFields() {
+		{
+			final DataType row = ROW(
+					FIELD("a0", BOOLEAN()),
+					FIELD("a1", DOUBLE()),
+					FIELD("a2", INT()));
+
+			final DataType expectedRow = ROW(
+					FIELD("a0", BOOLEAN()),
+					FIELD("a1", DOUBLE()),
+					FIELD("a2", INT()),
+					FIELD("a3", BIGINT()),
+					FIELD("a4", TIMESTAMP(3)));
+
+			assertThat(
+					DataTypeUtils.appendRowFields(row, Arrays.asList(FIELD("a3", BIGINT()), FIELD("a4", TIMESTAMP(3)))),
+					equalTo(expectedRow));
+		}
+
+		{
+			final DataType row = ROW();
+
+			final DataType expectedRow = ROW(FIELD("a", BOOLEAN()), FIELD("b", INT()));
+
+			assertThat(
+					DataTypeUtils.appendRowFields(row, Arrays.asList(FIELD("a", BOOLEAN()), FIELD("b", INT()))),
+					equalTo(expectedRow));
+		}
+	}
+
+	@Test
 	public void testIsInternalClass() {
 		assertTrue(DataTypeUtils.isInternal(DataTypes.INT()));
 		assertTrue(DataTypeUtils.isInternal(DataTypes.INT().notNull().bridgedTo(int.class)));
 		assertTrue(DataTypeUtils.isInternal(DataTypes.ROW().bridgedTo(RowData.class)));
 		assertFalse(DataTypeUtils.isInternal(DataTypes.ROW()));
+	}
+
+	@Test
+	public void testFlattenToDataTypes() {
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(INT()),
+			equalTo(Collections.singletonList(INT())));
+
+		assertThat(
+			DataTypeUtils.flattenToDataTypes(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN()))),
+			equalTo(Arrays.asList(INT(), BOOLEAN())));
+	}
+
+	@Test
+	public void testFlattenToNames() {
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.emptyList()),
+			equalTo(Collections.singletonList("f0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(INT(), Collections.singletonList("f0")),
+			equalTo(Collections.singletonList("f0_0")));
+
+		assertThat(
+			DataTypeUtils.flattenToNames(ROW(FIELD("a", INT()), FIELD("b", BOOLEAN())), Collections.emptyList()),
+			equalTo(Arrays.asList("a", "b")));
 	}
 
 	@Test
@@ -160,5 +260,24 @@ public class DataTypeUtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testExpandThrowExceptionOnAtomicType() {
 		DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+	}
+
+	@Test
+	public void testDataTypeValidation() {
+		final DataType validDataType = DataTypes.MAP(DataTypes.INT(), DataTypes.STRING());
+
+		DataTypeUtils.validateInputDataType(validDataType);
+		DataTypeUtils.validateOutputDataType(validDataType);
+
+		final DataType inputOnlyDataType = validDataType.bridgedTo(HashMap.class);
+		DataTypeUtils.validateInputDataType(inputOnlyDataType);
+		try {
+			DataTypeUtils.validateOutputDataType(inputOnlyDataType);
+			fail();
+		} catch (ValidationException e) {
+			assertEquals(
+				e.getMessage(),
+				"Data type 'MAP<INT, STRING>' does not support an output conversion to class '" + java.util.HashMap.class.getName() + "'.");
+		}
 	}
 }

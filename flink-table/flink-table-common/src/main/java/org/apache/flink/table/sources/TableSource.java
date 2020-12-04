@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableConnectorUtils;
 
@@ -40,7 +41,12 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  * {@link DefinedFieldMapping} interface.
  *
  * @param <T> The return type of the {@link TableSource}.
+ *
+ * @deprecated This interface has been replaced by {@link DynamicTableSource}. The new interface produces
+ *             internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *             information.
  */
+@Deprecated
 @PublicEvolving
 public interface TableSource<T> {
 
@@ -54,7 +60,7 @@ public interface TableSource<T> {
 		if (legacyType == null) {
 			throw new TableException("Table source does not implement a produced data type.");
 		}
-		return fromLegacyInfoToDataType(legacyType);
+		return fromLegacyInfoToDataType(legacyType).notNull();
 	}
 
 	/**

@@ -36,7 +36,6 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateByteBuffer.wrap;
-import static org.apache.flink.runtime.checkpoint.channel.ChannelStateReaderImplTest.generateData;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -144,6 +143,12 @@ public class ChannelStateSerializerImplTest {
 		} finally {
 			buffer.release();
 		}
+	}
+
+	static byte[] generateData(int len) {
+		byte[] bytes = new byte[len];
+		new Random().nextBytes(bytes);
+		return bytes;
 	}
 
 }

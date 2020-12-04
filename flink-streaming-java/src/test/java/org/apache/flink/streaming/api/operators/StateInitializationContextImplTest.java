@@ -36,7 +36,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -53,6 +53,7 @@ import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -141,11 +142,10 @@ public class StateInitializationContextImplTest {
 			operatorStateHandles.add(operatorStateHandle);
 		}
 
-		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			StateObjectCollection.empty(),
-			new StateObjectCollection<>(operatorStateHandles),
-			StateObjectCollection.empty(),
-			new StateObjectCollection<>(keyedStateHandles));
+		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+			.setRawOperatorState(new StateObjectCollection<>(operatorStateHandles))
+			.setRawKeyedState(new StateObjectCollection<>(keyedStateHandles))
+			.build();
 
 		OperatorID operatorID = new OperatorID();
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
@@ -171,21 +171,22 @@ public class StateInitializationContextImplTest {
 		StateBackend stateBackend = new MemoryStateBackend(1024);
 		StreamTaskStateInitializer streamTaskStateManager = new StreamTaskStateInitializerImpl(
 			environment,
-			stateBackend) {
-
-			@Override
-			protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-				AbstractKeyedStateBackend<K> keyedStatedBackend,
-				KeyContext keyContext,
-				ProcessingTimeService processingTimeService,
-				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-
-				// We do not initialize a timer service manager here, because it would already consume the raw keyed
-				// state as part of initialization. For the purpose of this test, we want an unconsumed raw keyed
-				// stream.
-				return null;
-			}
-		};
+			stateBackend,
+			TtlTimeProvider.DEFAULT,
+			new InternalTimeServiceManager.Provider() {
+				@Override
+				public <K> InternalTimeServiceManager<K> create(
+						CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+						ClassLoader userClassloader,
+						KeyContext keyContext,
+						ProcessingTimeService processingTimeService,
+						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+					// We do not initialize a timer service manager here, because it would already consume the raw keyed
+					// state as part of initialization. For the purpose of this test, we want an unconsumed raw keyed
+					// stream.
+					return null;
+				}
+			});
 
 		AbstractStreamOperator<?> mockOperator = mock(AbstractStreamOperator.class);
 		when(mockOperator.getOperatorID()).thenReturn(operatorID);
@@ -199,7 +200,9 @@ public class StateInitializationContextImplTest {
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
 			closableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0,
+			false);
 
 		this.initializationContext =
 				new StateInitializationContextImpl(

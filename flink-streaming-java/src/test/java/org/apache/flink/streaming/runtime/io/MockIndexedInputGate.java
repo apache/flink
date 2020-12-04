@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -54,8 +52,12 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+	public CompletableFuture<Void> getStateConsumedFuture() {
 		return CompletableFuture.completedFuture(null);
+	}
+
+	@Override
+	public void finishReadRecoveredState() {
 	}
 
 	@Override
@@ -63,7 +65,7 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void resumeConsumption(int channelIndex) {
+	public void resumeConsumption(InputChannelInfo channelInfo) {
 	}
 
 	@Override
@@ -74,6 +76,10 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	@Override
 	public InputChannel getChannel(int channelIndex) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
 	}
 
 	@Override
@@ -104,10 +110,6 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
 	@Override
 	public void close() {
-	}
-
-	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener listener) {
 	}
 
 	@Override

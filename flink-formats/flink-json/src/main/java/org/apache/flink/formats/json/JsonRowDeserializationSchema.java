@@ -27,9 +27,12 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -63,6 +66,8 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -106,6 +111,11 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		this.failOnMissingField = failOnMissingField;
 		this.runtimeConverter = createConverter(this.typeInfo);
 		this.ignoreParseErrors = ignoreParseErrors;
+		RowType rowType = (RowType) fromLegacyInfoToDataType(this.typeInfo).getLogicalType();
+		boolean hasDecimalType = LogicalTypeChecks.hasNested(rowType, t -> t.getTypeRoot().equals(DECIMAL));
+		if (hasDecimalType) {
+			objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+		}
 	}
 
 	/**
@@ -347,7 +357,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		} else if (simpleTypeInfo == Types.BOOLEAN) {
 			return Optional.of(this::convertToBoolean);
 		} else if (simpleTypeInfo == Types.STRING) {
-			return Optional.of((mapper, jsonNode) -> jsonNode.asText());
+			return Optional.of(this::convertToString);
 		} else if (simpleTypeInfo == Types.INT) {
 			return Optional.of(this::convertToInt);
 		} else if (simpleTypeInfo == Types.LONG) {
@@ -378,6 +388,14 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			return Optional.of(this::convertToLocalDateTime);
 		} else {
 			return Optional.empty();
+		}
+	}
+
+	private String convertToString(ObjectMapper mapper, JsonNode jsonNode) {
+		if (jsonNode.isContainerNode()) {
+			return jsonNode.toString();
+		} else {
+			return jsonNode.asText();
 		}
 	}
 

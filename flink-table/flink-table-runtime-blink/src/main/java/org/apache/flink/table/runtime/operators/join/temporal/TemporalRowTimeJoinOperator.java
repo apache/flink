@@ -30,13 +30,13 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
-import org.apache.flink.types.RowKind;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -47,12 +47,17 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
- * This operator works by keeping on the state collection of probe and build records to process
- * on next watermark. The idea is that between watermarks we are collecting those elements
- * and once we are sure that there will be no updates we emit the correct result and clean up the
- * state.
+ * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time, it has no limitation
+ * about message types of the left input and right input, this means the operator deals changelog well.
+ *
+ * <p>For Event-time temporal join, its probe side is a regular table, its build side is a versioned
+ * table, the version of versioned table can extract from the build side state. This operator works by
+ * keeping on the state collection of probe and build records to process on next watermark. The idea
+ * is that between watermarks we are collecting those elements and once we are sure that there will be
+ * no updates we emit the correct result and clean up the expired data in state.
  *
  * <p>Cleaning up the state drops all of the "old" values from the probe side, where "old" is defined
  * as older then the current watermark. Build side is also cleaned up in the similar fashion,
@@ -80,8 +85,9 @@ public class TemporalRowTimeJoinOperator
 	private static final String REGISTERED_TIMER_STATE_NAME = "timer";
 	private static final String TIMERS_STATE_NAME = "timers";
 
-	private final RowDataTypeInfo leftType;
-	private final RowDataTypeInfo rightType;
+	private final boolean isLeftOuterJoin;
+	private final InternalTypeInfo<RowData> leftType;
+	private final InternalTypeInfo<RowData> rightType;
 	private final GeneratedJoinCondition generatedJoinCondition;
 	private final int leftTimeAttribute;
 	private final int rightTimeAttribute;
@@ -117,15 +123,17 @@ public class TemporalRowTimeJoinOperator
 
 	private transient JoinCondition joinCondition;
 	private transient JoinedRowData outRow;
+	private transient GenericRowData rightNullRow;
 
 	public TemporalRowTimeJoinOperator(
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			int leftTimeAttribute,
 			int rightTimeAttribute,
 			long minRetentionTime,
-			long maxRetentionTime) {
+			long maxRetentionTime,
+			boolean isLeftOuterJoin) {
 		super(minRetentionTime, maxRetentionTime);
 		this.leftType = leftType;
 		this.rightType = rightType;
@@ -133,10 +141,12 @@ public class TemporalRowTimeJoinOperator
 		this.leftTimeAttribute = leftTimeAttribute;
 		this.rightTimeAttribute = rightTimeAttribute;
 		this.rightRowtimeComparator = new RowtimeComparator(rightTimeAttribute);
+		this.isLeftOuterJoin = isLeftOuterJoin;
 	}
 
 	@Override
 	public void open() throws Exception {
+		super.open();
 		joinCondition = generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		joinCondition.setRuntimeContext(getRuntimeContext());
 		joinCondition.open(new Configuration());
@@ -152,18 +162,15 @@ public class TemporalRowTimeJoinOperator
 
 		timerService = getInternalTimerService(
 			TIMERS_STATE_NAME, VoidNamespaceSerializer.INSTANCE, this);
-		collector = new TimestampedCollector<>(output);
+
 		outRow = new JoinedRowData();
-		// all the output records should be INSERT only,
-		// because current temporal join only supports INSERT only left stream
-		outRow.setRowKind(RowKind.INSERT);
+		rightNullRow = new GenericRowData(rightType.toRowType().getFieldCount());
+		collector = new TimestampedCollector<>(output);
 	}
 
 	@Override
 	public void processElement1(StreamRecord<RowData> element) throws Exception {
 		RowData row = element.getValue();
-		checkNotRetraction(row);
-
 		leftState.put(getNextLeftIndex(), row);
 		registerSmallestTimer(getLeftTime(row)); // Timer to emit and clean up the state
 
@@ -173,7 +180,6 @@ public class TemporalRowTimeJoinOperator
 	@Override
 	public void processElement2(StreamRecord<RowData> element) throws Exception {
 		RowData row = element.getValue();
-		checkNotRetraction(row);
 
 		long rowTime = getRightTime(row);
 		rightState.put(rowTime, row);
@@ -211,45 +217,64 @@ public class TemporalRowTimeJoinOperator
 	 * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all records
 	 *         have been processed.
 	 */
-	private long emitResultAndCleanUpState(long timerTimestamp) throws Exception {
+	private long emitResultAndCleanUpState(long currentWatermark) throws Exception {
 		List<RowData> rightRowsSorted = getRightRowSorted(rightRowtimeComparator);
 		long lastUnprocessedTime = Long.MAX_VALUE;
 
 		Iterator<Map.Entry<Long, RowData>> leftIterator = leftState.entries().iterator();
+		// the output records' order should keep same with left input records arrival order
+		final Map<Long, RowData> orderedLeftRecords = new TreeMap<>();
+
 		while (leftIterator.hasNext()) {
 			Map.Entry<Long, RowData> entry = leftIterator.next();
+			Long leftSeq = entry.getKey();
 			RowData leftRow = entry.getValue();
 			long leftTime = getLeftTime(leftRow);
-
-			if (leftTime <= timerTimestamp) {
-				Optional<RowData> rightRow = latestRightRowToJoin(rightRowsSorted, leftTime);
-				if (rightRow.isPresent()) {
-					if (joinCondition.apply(leftRow, rightRow.get())) {
-						outRow.replace(leftRow, rightRow.get());
-						collector.collect(outRow);
-					}
-				}
+			if (leftTime <= currentWatermark) {
+				orderedLeftRecords.put(leftSeq, leftRow);
 				leftIterator.remove();
 			} else {
 				lastUnprocessedTime = Math.min(lastUnprocessedTime, leftTime);
 			}
 		}
 
-		cleanupState(timerTimestamp, rightRowsSorted);
+		// iterate the triggered left records in the ascending order of the sequence key, i.e. the arrival order.
+		orderedLeftRecords.forEach((leftSeq, leftRow) -> {
+			long leftTime = getLeftTime(leftRow);
+			Optional<RowData> rightRow = latestRightRowToJoin(rightRowsSorted, leftTime);
+			if (rightRow.isPresent() && RowDataUtil.isAccumulateMsg(rightRow.get())) {
+				if (joinCondition.apply(leftRow, rightRow.get())) {
+					collectJoinedRow(leftRow, rightRow.get());
+				} else {
+					if (isLeftOuterJoin) {
+						collectJoinedRow(leftRow, rightNullRow);
+					}
+				}
+			} else {
+				if (isLeftOuterJoin) {
+					collectJoinedRow(leftRow, rightNullRow);
+				}
+			}
+		});
+		orderedLeftRecords.clear();
+
+		cleanupExpiredVersionInState(currentWatermark, rightRowsSorted);
 		return lastUnprocessedTime;
 	}
 
+	private void collectJoinedRow(RowData leftSideRow, RowData rightRow) {
+		outRow.setRowKind(leftSideRow.getRowKind());
+		outRow.replace(leftSideRow, rightRow);
+		collector.collect(outRow);
+	}
+
 	/**
-	 * Removes all right entries older then the watermark, except the latest one. For example with:
-	 * rightState = [1, 5, 9]
-	 * and
-	 * watermark = 6
-	 * we can not remove "5" from rightState, because left elements with rowtime of 7 or 8 could
-	 * be joined with it later
+	 * Removes all expired version in the versioned table's state according to current watermark.
 	 */
-	private void cleanupState(long timerTimestamp, List<RowData> rightRowsSorted) throws Exception {
+	private void cleanupExpiredVersionInState(long currentWatermark, List<RowData> rightRowsSorted) throws Exception {
 		int i = 0;
-		int indexToKeep = firstIndexToKeep(timerTimestamp, rightRowsSorted);
+		int indexToKeep = firstIndexToKeep(currentWatermark, rightRowsSorted);
+		// clean old version data that behind current watermark
 		while (i < indexToKeep) {
 			long rightTime = getRightTime(rightRowsSorted.get(i));
 			rightState.remove(rightTime);
@@ -293,6 +318,13 @@ public class TemporalRowTimeJoinOperator
 	/**
 	 * Binary search {@code rightRowsSorted} to find the latest right row to join with {@code leftTime}.
 	 * Latest means a right row with largest time that is still smaller or equal to {@code leftTime}.
+	 * For example with: rightState = [1(+I), 4(+U), 7(+U), 9(-D), 12(I)],
+	 *
+	 * <p>If left time is 6, the valid period should be [4, 7), data 4(+U) should be joined.
+	 *
+	 * <p>If left time is 10, the valid period should be [9, 12), but data 9(-D) is a DELETE
+	 * message which means the the correspond version has no data in period [9, 12), data 9(-D)
+	 * should not be correlated.
 	 *
 	 * @return found element or {@code Optional.empty} If such row was not found (either {@code rightRowsSorted}
 	 *         is empty or all {@code rightRowsSorted} are are newer).
@@ -372,14 +404,6 @@ public class TemporalRowTimeJoinOperator
 		return rightRow.getLong(rightTimeAttribute);
 	}
 
-	private void checkNotRetraction(RowData row) {
-		if (RowDataUtil.isRetractMsg(row)) {
-			String className = getClass().getSimpleName();
-			throw new IllegalStateException(
-				"Retractions are not supported by " + className +
-					". If this can happen it should be validated during planning!");
-		}
-	}
 
 	// ------------------------------------------------------------------------------------------
 

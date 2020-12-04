@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -28,7 +30,7 @@ import java.io.Serializable;
  * A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}.
  */
 @Internal
-interface BucketFactory<IN, BucketID> extends Serializable {
+public interface BucketFactory<IN, BucketID> extends Serializable {
 
 	Bucket<IN, BucketID> getNewBucket(
 			final int subtaskIndex,
@@ -37,6 +39,7 @@ interface BucketFactory<IN, BucketID> extends Serializable {
 			final long initialPartCounter,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException;
 
 	Bucket<IN, BucketID> restoreBucket(
@@ -45,5 +48,6 @@ interface BucketFactory<IN, BucketID> extends Serializable {
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException;
 }

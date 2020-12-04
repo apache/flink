@@ -175,7 +175,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * is frequently shared across multiple threads in Flink and must be able to concurrently
  * create input/output streams and list file metadata.
  *
- * <p>The {@link FSDataOutputStream} and {@link FSDataOutputStream} implementations are strictly
+ * <p>The {@link FSDataInputStream} and {@link FSDataOutputStream} implementations are strictly
  * <b>not thread-safe</b>. Instances of the streams should also not be passed between threads
  * in between read or write operations, because there are no guarantees about the visibility of
  * operations across threads (many operations do not create memory fences).
@@ -1067,7 +1067,7 @@ public abstract class FileSystem {
 			try {
 				FileSystemFactory factory = iter.next();
 				list.add(factory);
-				LOG.debug("Added file system {}:{}", factory.getScheme(), factory.getClass().getName());
+				LOG.debug("Added file system {}:{}", factory.getScheme(), factory.toString());
 			}
 			catch (Throwable t) {
 				// catching Throwable here to handle various forms of class loading

@@ -44,10 +44,9 @@ public final class ChangelogCsvFormat implements DecodingFormat<DeserializationS
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public DeserializationSchema<RowData> createRuntimeDecoder(DynamicTableSource.Context context, DataType producedDataType) {
 		// create type information for the DeserializationSchema
-		final TypeInformation<RowData> producedTypeInfo = (TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+		final TypeInformation<RowData> producedTypeInfo = context.createTypeInformation(producedDataType);
 
 		// most of the code in DeserializationSchema will not work on internal data structures
 		// create a converter for conversion at the end

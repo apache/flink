@@ -2054,7 +2054,13 @@ public class TaskExecutorTest extends TestLogger {
 		private final OneShotLatch allocateSlotLatch;
 
 		private AllocateSlotNotifyingTaskSlotTable(OneShotLatch allocateSlotLatch) {
-			super(1, createTotalResourceProfile(1), DEFAULT_RESOURCE_PROFILE, MemoryManager.MIN_PAGE_SIZE, createDefaultTimerService(timeout.toMilliseconds()));
+			super(
+				1,
+				createTotalResourceProfile(1),
+				DEFAULT_RESOURCE_PROFILE,
+				MemoryManager.MIN_PAGE_SIZE,
+				createDefaultTimerService(timeout.toMilliseconds()),
+				Executors.newDirectExecutorService());
 			this.allocateSlotLatch = allocateSlotLatch;
 		}
 
@@ -2080,7 +2086,13 @@ public class TaskExecutorTest extends TestLogger {
 		private final CountDownLatch slotsToActivate;
 
 		private ActivateSlotNotifyingTaskSlotTable(int numberOfDefaultSlots, CountDownLatch slotsToActivate) {
-			super(numberOfDefaultSlots, createTotalResourceProfile(numberOfDefaultSlots), DEFAULT_RESOURCE_PROFILE, MemoryManager.MIN_PAGE_SIZE, createDefaultTimerService(timeout.toMilliseconds()));
+			super(
+				numberOfDefaultSlots,
+				createTotalResourceProfile(numberOfDefaultSlots),
+				DEFAULT_RESOURCE_PROFILE,
+				MemoryManager.MIN_PAGE_SIZE,
+				createDefaultTimerService(timeout.toMilliseconds()),
+				Executors.newDirectExecutorService());
 			this.slotsToActivate = slotsToActivate;
 		}
 

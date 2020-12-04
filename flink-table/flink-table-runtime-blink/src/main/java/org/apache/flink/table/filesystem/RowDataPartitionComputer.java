@@ -42,9 +42,11 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 	protected final String[] partitionColumns;
 	protected final int[] partitionIndexes;
 	protected final LogicalType[] partitionTypes;
+	protected final RowData.FieldGetter[] partitionFieldGetters;
 
 	private final int[] nonPartitionIndexes;
 	private final LogicalType[] nonPartitionTypes;
+	protected final RowData.FieldGetter[] nonPartitionFieldGetters;
 
 	private transient GenericRowData reuseRow;
 
@@ -67,6 +69,9 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 		this.partitionTypes = Arrays.stream(partitionIndexes)
 				.mapToObj(columnTypeList::get)
 				.toArray(LogicalType[]::new);
+		this.partitionFieldGetters = IntStream.range(0, partitionTypes.length)
+			.mapToObj(i -> RowData.createFieldGetter(partitionTypes[i], partitionIndexes[i]))
+			.toArray(RowData.FieldGetter[]::new);
 
 		List<Integer> partitionIndexList = Arrays.stream(partitionIndexes).boxed().collect(Collectors.toList());
 		this.nonPartitionIndexes = IntStream.range(0, columnNames.length)
@@ -75,6 +80,9 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 		this.nonPartitionTypes = Arrays.stream(nonPartitionIndexes)
 				.mapToObj(columnTypeList::get)
 				.toArray(LogicalType[]::new);
+		this.nonPartitionFieldGetters = IntStream.range(0, nonPartitionTypes.length)
+			.mapToObj(i -> RowData.createFieldGetter(nonPartitionTypes[i], nonPartitionIndexes[i]))
+			.toArray(RowData.FieldGetter[]::new);
 	}
 
 	@Override
@@ -82,7 +90,7 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 
 		for (int i = 0; i < partitionIndexes.length; i++) {
-			Object field = RowData.get(in, partitionIndexes[i], partitionTypes[i]);
+			Object field = partitionFieldGetters[i].getFieldOrNull(in);
 			String partitionValue = field != null ? field.toString() : null;
 			if (partitionValue == null || "".equals(partitionValue)) {
 				partitionValue = defaultPartValue;
@@ -103,9 +111,9 @@ public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 		}
 
 		for (int i = 0; i < nonPartitionIndexes.length; i++) {
-			reuseRow.setField(i, RowData.get(
-					in, nonPartitionIndexes[i], nonPartitionTypes[i]));
+			reuseRow.setField(i, nonPartitionFieldGetters[i].getFieldOrNull(in));
 		}
+		reuseRow.setRowKind(in.getRowKind());
 		return reuseRow;
 	}
 }

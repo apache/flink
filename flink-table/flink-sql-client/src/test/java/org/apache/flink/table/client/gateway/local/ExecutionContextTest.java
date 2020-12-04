@@ -67,6 +67,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -80,6 +81,7 @@ public class ExecutionContextTest {
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
 	private static final String FUNCTION_ENVIRONMENT_FILE = "test-sql-client-python-functions.yaml";
+	private static final String EXECUTION_ENVIRONMENT_FILE = "test-sql-client-execution.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
@@ -88,7 +90,7 @@ public class ExecutionContextTest {
 		final TableConfig tableConfig = tableEnv.getConfig();
 
 		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
-		assertEquals(600_000, tableConfig.getMaxIdleStateRetentionTime());
+		assertEquals(1_000 * 3 / 2, tableConfig.getMaxIdleStateRetentionTime());
 		Configuration conf = tableConfig.getConfiguration();
 
 		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
@@ -103,6 +105,30 @@ public class ExecutionContextTest {
 		assertEquals(Duration.ofMillis(99_000), conf.get(
 				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
 		assertEquals(Duration.ofMillis(1_000), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
+	}
+
+	@Test
+	public void testDefaultExecutionConfig() throws Exception {
+		final ExecutionContext<?> context = createExecutionExecutionContext();
+		final TableEnvironment tableEnv = context.getTableEnvironment();
+		final TableConfig tableConfig = tableEnv.getConfig();
+
+		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
+		assertEquals(1_000 * 3 / 2, tableConfig.getMaxIdleStateRetentionTime());
+		Configuration conf = tableConfig.getConfiguration();
+
+		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
+		assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
+
+		assertEquals(TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
+		assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
+
+		assertNull(conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
+		assertEquals(1, conf.getInteger(
+			RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL));
+		assertEquals(Duration.ofMinutes(1), conf.get(
+			RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
+		assertEquals(Duration.ofSeconds(1), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
 	}
 
 	@Test
@@ -304,7 +330,7 @@ public class ExecutionContextTest {
 				flinkConfig,
 				new DefaultClusterClientServiceLoader(),
 				new Options(),
-				Collections.singletonList(new DefaultCLI(flinkConfig))).build();
+				Collections.singletonList(new DefaultCLI())).build();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -320,7 +346,7 @@ public class ExecutionContextTest {
 				flinkConfig,
 				new DefaultClusterClientServiceLoader(),
 				new Options(),
-				Collections.singletonList(new DefaultCLI(flinkConfig)))
+				Collections.singletonList(new DefaultCLI()))
 				.build();
 	}
 
@@ -368,6 +394,11 @@ public class ExecutionContextTest {
 		return createExecutionContext(STREAMING_ENVIRONMENT_FILE, replaceVars);
 	}
 
+	private <T> ExecutionContext<T> createExecutionExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = createDefaultReplaceVars();
+		return createExecutionContext(EXECUTION_ENVIRONMENT_FILE, replaceVars);
+	}
+
 	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
 		return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
 	}
@@ -383,14 +414,16 @@ public class ExecutionContextTest {
 			.parentFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 		private static final Class childFirstCL = FlinkUserCodeClassLoaders
 			.childFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
 				new String[0],
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 
 		TestClassLoaderCatalog(String name) {

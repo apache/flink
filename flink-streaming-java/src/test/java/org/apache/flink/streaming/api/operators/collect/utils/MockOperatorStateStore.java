@@ -32,16 +32,19 @@ import java.util.Set;
 /**
  * An {@link OperatorStateStore} for testing purpose.
  */
+@SuppressWarnings("rawtypes")
 public class MockOperatorStateStore implements OperatorStateStore {
+
+	private final Map<Long, Map<String, TestUtils.MockListState>> historyStateMap;
 
 	private Map<String, TestUtils.MockListState> currentStateMap;
 	private Map<String, TestUtils.MockListState> lastSuccessStateMap;
-	private Map<Long, Map<String, TestUtils.MockListState>> historyStateMap;
 
 	public MockOperatorStateStore() {
+		this.historyStateMap = new HashMap<>();
+
 		this.currentStateMap = new HashMap<>();
 		this.lastSuccessStateMap = new HashMap<>();
-		this.historyStateMap = new HashMap<>();
 	}
 
 	@Override

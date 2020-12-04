@@ -66,6 +66,9 @@ public class Bucket<IN, BucketID> {
 
 	private final OutputFileConfig outputFileConfig;
 
+	@Nullable
+	private final FileLifeCycleListener<BucketID> fileListener;
+
 	private long partCounter;
 
 	@Nullable
@@ -83,6 +86,7 @@ public class Bucket<IN, BucketID> {
 			final long initialPartCounter,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) {
 		this.subtaskIndex = subtaskIndex;
 		this.bucketId = checkNotNull(bucketId);
@@ -90,6 +94,7 @@ public class Bucket<IN, BucketID> {
 		this.partCounter = initialPartCounter;
 		this.bucketWriter = checkNotNull(bucketWriter);
 		this.rollingPolicy = checkNotNull(rollingPolicy);
+		this.fileListener = fileListener;
 
 		this.pendingFileRecoverablesForCurrentCheckpoint = new ArrayList<>();
 		this.pendingFileRecoverablesPerCheckpoint = new TreeMap<>();
@@ -107,6 +112,7 @@ public class Bucket<IN, BucketID> {
 			final BucketWriter<IN, BucketID> partFileFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
 		this(
@@ -116,6 +122,7 @@ public class Bucket<IN, BucketID> {
 				initialPartCounter,
 				partFileFactory,
 				rollingPolicy,
+				fileListener,
 				outputFileConfig);
 
 		restoreInProgressFile(bucketState);
@@ -197,27 +204,34 @@ public class Bucket<IN, BucketID> {
 						subtaskIndex, bucketId, element);
 			}
 
-			rollPartFile(currentTime);
+			inProgressPart = rollPartFile(currentTime);
 		}
 		inProgressPart.write(element, currentTime);
 	}
 
-	private void rollPartFile(final long currentTime) throws IOException {
+	private InProgressFileWriter<IN, BucketID> rollPartFile(final long currentTime) throws IOException {
 		closePartFile();
 
 		final Path partFilePath = assembleNewPartPath();
-		inProgressPart = bucketWriter.openNewInProgressFile(bucketId, partFilePath, currentTime);
+
+		if (fileListener != null) {
+			fileListener.onPartFileOpened(bucketId, partFilePath);
+		}
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",
 					subtaskIndex, partFilePath.getName(), bucketId);
 		}
 
-		partCounter++;
+		return bucketWriter.openNewInProgressFile(bucketId, partFilePath, currentTime);
 	}
 
+	/**
+	 * Constructor a new PartPath and increment the partCounter.
+	 */
 	private Path assembleNewPartPath() {
-		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + partCounter + outputFileConfig.getPartSuffix());
+		long currentPartCounter = partCounter++;
+		return new Path(bucketPath, outputFileConfig.getPartPrefix() + '-' + subtaskIndex + '-' + currentPartCounter + outputFileConfig.getPartSuffix());
 	}
 
 	private InProgressFileWriter.PendingFileRecoverable closePartFile() throws IOException {
@@ -342,6 +356,9 @@ public class Bucket<IN, BucketID> {
 	 * @param bucketPath the path to where the part files for the bucket will be written to.
 	 * @param initialPartCounter the initial counter for the part files of the bucket.
 	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
+	 * @param rollingPolicy the policy based on which a bucket rolls its currently open part file
+	 *                      and opens a new one.
+	 * @param fileListener the listener about the status of file.
 	 * @param <IN> the type of input elements to the sink.
 	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
 	 * @param outputFileConfig the part file configuration.
@@ -354,8 +371,17 @@ public class Bucket<IN, BucketID> {
 			final long initialPartCounter,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) {
-		return new Bucket<>(subtaskIndex, bucketId, bucketPath, initialPartCounter, bucketWriter, rollingPolicy, outputFileConfig);
+		return new Bucket<>(
+				subtaskIndex,
+				bucketId,
+				bucketPath,
+				initialPartCounter,
+				bucketWriter,
+				rollingPolicy,
+				fileListener,
+				outputFileConfig);
 	}
 
 	/**
@@ -363,7 +389,10 @@ public class Bucket<IN, BucketID> {
 	 * @param subtaskIndex the index of the subtask creating the bucket.
 	 * @param initialPartCounter the initial counter for the part files of the bucket.
 	 * @param bucketWriter the {@link BucketWriter} used to write part files in the bucket.
+	 * @param rollingPolicy the policy based on which a bucket rolls its currently open part file
+	 *                      and opens a new one.
 	 * @param bucketState the initial state of the restored bucket.
+	 * @param fileListener the listener about the status of file.
 	 * @param <IN> the type of input elements to the sink.
 	 * @param <BucketID> the type of the identifier of the bucket, as returned by the {@link BucketAssigner}
 	 * @param outputFileConfig the part file configuration.
@@ -375,7 +404,15 @@ public class Bucket<IN, BucketID> {
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException {
-		return new Bucket<>(subtaskIndex, initialPartCounter, bucketWriter, rollingPolicy, bucketState, outputFileConfig);
+		return new Bucket<>(
+				subtaskIndex,
+				initialPartCounter,
+				bucketWriter,
+				rollingPolicy,
+				bucketState,
+				fileListener,
+				outputFileConfig);
 	}
 }

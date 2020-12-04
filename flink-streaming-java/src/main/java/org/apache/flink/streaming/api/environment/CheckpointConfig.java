@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobStatus;
@@ -76,8 +77,16 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
+	/** Flag to force checkpointing in iterative jobs. */
+	private boolean forceUnalignedCheckpoints;
+
 	/** Flag to enable unaligned checkpoints. */
 	private boolean unalignedCheckpointsEnabled;
+
+	private long alignmentTimeout = ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis();
+
+	/** Flag to enable approximate local recovery. */
+	private boolean approximateLocalRecovery;
 
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
@@ -101,7 +110,41 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
+	/**
+	 * Creates a deep copy of the provided {@link CheckpointConfig}.
+	 * @param checkpointConfig the config to copy.
+	 */
+	public CheckpointConfig(final CheckpointConfig checkpointConfig) {
+		checkNotNull(checkpointConfig);
+
+		this.checkpointInterval = checkpointConfig.checkpointInterval;
+		this.checkpointingMode = checkpointConfig.checkpointingMode;
+		this.checkpointTimeout = checkpointConfig.checkpointTimeout;
+		this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
+		this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
+		this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+		this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
+		this.alignmentTimeout = checkpointConfig.alignmentTimeout;
+		this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
+		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
+		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
+		this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+	}
+
+	public CheckpointConfig() {
+
+	}
+
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Disables checkpointing.
+	 */
+	public void disableCheckpointing() {
+		this.checkpointInterval = -1;
+	}
 
 	/**
 	 * Checks whether checkpointing is enabled.
@@ -262,6 +305,26 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
+	 * Checks whether Unaligned Checkpoints are forced, despite iteration feedback.
+	 *
+	 * @return True, if Unaligned Checkpoints are forced, false otherwise.
+	 */
+	@PublicEvolving
+	public boolean isForceUnalignedCheckpoints() {
+		return forceUnalignedCheckpoints;
+	}
+
+	/**
+	 * Checks whether Unaligned Checkpoints are forced, despite currently non-checkpointable iteration feedback.
+	 *
+	 * @param forceUnalignedCheckpoints The flag to force checkpointing.
+	 */
+	@PublicEvolving
+	public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {
+		this.forceUnalignedCheckpoints = forceUnalignedCheckpoints;
+	}
+
+	/**
 	 * This determines the behaviour when meeting checkpoint errors.
 	 * If this returns true, which is equivalent to get tolerableCheckpointFailureNumber as zero, job manager would
 	 * fail the whole job once it received a decline checkpoint message.
@@ -367,16 +430,26 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Returns whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
 	 *
 	 * @return <code>true</code> if a job recovery should fallback to checkpoint.
+	 *
+	 * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
+	 * and duplicate output. This option will soon be removed. See <a href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a>
+	 * for more information.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public boolean isPreferCheckpointForRecovery() {
 		return preferCheckpointForRecovery;
 	}
 
 	/**
 	 * Sets whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 *
+	 * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
+	 * and duplicate output. This option will soon be removed. See <a href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a>
+	 * for more information.
 	 */
 	@PublicEvolving
+	@Deprecated
 	public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
 		this.preferCheckpointForRecovery = preferCheckpointForRecovery;
 	}
@@ -421,6 +494,58 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public boolean isUnalignedCheckpointsEnabled() {
 		return unalignedCheckpointsEnabled;
+	}
+
+	/**
+	 * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+	 *
+	 * <p>If {@link #alignmentTimeout} has value equal to <code>0</code>, checkpoints will always start unaligned.
+	 *
+	 * <p>If {@link #alignmentTimeout} has value greater then <code>0</code>, checkpoints will start aligned.
+	 * If during checkpointing, checkpoint start delay exceeds this {@link #alignmentTimeout}, alignment
+	 * will timeout and checkpoint will start working as unaligned checkpoint.
+	 */
+	@PublicEvolving
+	public void setAlignmentTimeout(long alignmentTimeout) {
+		this.alignmentTimeout = alignmentTimeout;
+	}
+
+	/**
+	 * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(long)} or
+	 * {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+	 */
+	@PublicEvolving
+	public long getAlignmentTimeout() {
+		return alignmentTimeout;
+	}
+
+	/**
+	 * Returns whether approximate local recovery is enabled.
+	 *
+	 * @return <code>true</code> if approximate local recovery is enabled.
+	 */
+	@Experimental
+	public boolean isApproximateLocalRecoveryEnabled() {
+		return approximateLocalRecovery;
+	}
+
+	/**
+	 * Enables the approximate local recovery mode.
+	 *
+	 * <p>In this recovery mode, when a task fails, the entire downstream of the tasks (including the failed task) restart.
+	 *
+	 * <p>Notice that
+	 * 1. Approximate recovery may lead to data loss. The amount of data which leads the failed task
+	 * from the state of the last completed checkpoint to the state when the task fails is lost.
+	 * 2. In the next version, we will support restarting the set of failed set of tasks only.
+	 * In this version, we only support downstream restarts when a task fails.
+	 * 3. It is only an internal feature for now.
+	 *
+	 * @param enabled Flag to indicate whether approximate local recovery is enabled .
+	 */
+	@Experimental
+	public void enableApproximateLocalRecovery(boolean enabled) {
+		approximateLocalRecovery = enabled;
 	}
 
 	/**
@@ -512,5 +637,9 @@ public class CheckpointConfig implements java.io.Serializable {
 			.ifPresent(this::enableExternalizedCheckpoints);
 		configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
 			.ifPresent(this::enableUnalignedCheckpoints);
+		configuration.getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
+			.ifPresent(timeout -> setAlignmentTimeout(timeout.toMillis()));
+		configuration.getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
+			.ifPresent(this::setForceUnalignedCheckpoints);
 	}
 }

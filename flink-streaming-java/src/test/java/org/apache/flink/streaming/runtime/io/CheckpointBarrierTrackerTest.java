@@ -21,23 +21,45 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 import org.junit.After;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
+import static org.hamcrest.Matchers.both;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 
@@ -59,7 +81,7 @@ public class CheckpointBarrierTrackerTest {
 	@Test
 	public void testSingleChannelNoBarriers() throws Exception {
 		BufferOrEvent[] sequence = { createBuffer(0), createBuffer(0), createBuffer(0) };
-		inputGate = createBarrierTracker(1, sequence);
+		inputGate = createCheckpointedInputGate(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -72,7 +94,7 @@ public class CheckpointBarrierTrackerTest {
 				createBuffer(1), createBuffer(0), createBuffer(3),
 				createBuffer(1), createBuffer(1), createBuffer(2)
 		};
-		inputGate = createBarrierTracker(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -92,7 +114,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4, 5, 6);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -112,7 +134,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 3, 4, 6, 7, 10);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -141,7 +163,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -174,7 +196,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 4);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -246,7 +268,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(2, 3, 4, 5, 7, 8, 9, 10);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -269,12 +291,10 @@ public class CheckpointBarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, -4, 5, -6);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -317,12 +337,10 @@ public class CheckpointBarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, -2, 3, -4, 5, -6);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -343,34 +361,153 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(-1, -2);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
+	}
+
+	@Test
+	public void testMetrics() throws Exception {
+		List<BufferOrEvent> output = new ArrayList<>();
+		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
+		int numberOfChannels = 3;
+		inputGate = createCheckpointedInputGate(numberOfChannels, handler);
+		int[] sequenceNumbers = new int[numberOfChannels];
+
+		int bufferSize = 100;
+		long checkpointId = 1;
+		long sleepTime = 10;
+
+		long checkpointBarrierCreation = System.currentTimeMillis();
+		long alignmentStartNanos = System.nanoTime();
+
+		Thread.sleep(sleepTime);
+
+		addSequence(
+			inputGate,
+			output,
+			sequenceNumbers,
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 1, checkpointBarrierCreation),
+			createBuffer(0, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 0),
+			createBuffer(2, bufferSize));
+
+		Thread.sleep(sleepTime);
+
+		addSequence(inputGate,
+			output,
+			sequenceNumbers,
+			createBarrier(checkpointId, 2),
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2));
+
+		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
+		long alignmentDuration = System.nanoTime() - alignmentStartNanos;
+
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, is(both(greaterThanOrEqualTo(sleepTime)).and(lessThanOrEqualTo(startDelay))));
+
+		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
+		assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000, is(both(greaterThanOrEqualTo(sleepTime)).and(lessThanOrEqualTo(alignmentDuration))));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(3L * bufferSize));
+	}
+
+	@Test
+	public void testSingleChannelMetrics() throws Exception {
+		List<BufferOrEvent> output = new ArrayList<>();
+		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
+		int numberOfChannels = 1;
+		inputGate = createCheckpointedInputGate(numberOfChannels, handler);
+		int[] sequenceNumbers = new int[numberOfChannels];
+
+		int bufferSize = 100;
+		long checkpointId = 1;
+		long sleepTime = 10;
+
+		long checkpointBarrierCreation = System.currentTimeMillis();
+
+		Thread.sleep(sleepTime);
+
+		addSequence(
+			inputGate,
+			output,
+			sequenceNumbers,
+			createBuffer(0, bufferSize),
+			createBarrier(checkpointId, 0, checkpointBarrierCreation),
+			createBuffer(0, bufferSize),
+			createEndOfPartition(0));
+
+		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
+
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, greaterThanOrEqualTo(sleepTime));
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, lessThanOrEqualTo(startDelay));
+
+		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
+		assertThat(handler.getLastAlignmentDurationNanos().get(), equalTo(0L));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(0L));
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
-	private static CheckpointedInputGate createBarrierTracker(int numberOfChannels, BufferOrEvent[] sequence) {
-		return createBarrierTracker(numberOfChannels, sequence, new DummyCheckpointInvokable());
+
+	private CheckpointedInputGate createCheckpointedInputGate(int numberOfChannels, AbstractInvokable toNotify) throws IOException {
+		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder().build();
+		SingleInputGate gate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.setupBufferPoolFactory(environment)
+			.build();
+		gate.setInputChannels(
+			IntStream.range(0, numberOfChannels)
+				.mapToObj(channelIndex ->
+					InputChannelBuilder.newBuilder()
+						.setChannelIndex(channelIndex)
+						.setupFromNettyShuffleEnvironment(environment)
+						.setConnectionManager(new TestingConnectionManager())
+						.buildRemoteChannel(gate))
+				.toArray(RemoteInputChannel[]::new));
+
+		gate.setup();
+		gate.requestPartitions();
+
+		return createCheckpointedInputGate(gate, toNotify);
 	}
 
-	private static CheckpointedInputGate createBarrierTracker(
+	private static CheckpointedInputGate createCheckpointedInputGate(int numberOfChannels, BufferOrEvent[] sequence) {
+		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
+	}
+
+	private static CheckpointedInputGate createCheckpointedInputGate(
 			int numberOfChannels,
 			BufferOrEvent[] sequence,
 			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
-		return new CheckpointedInputGate(
-			gate,
-			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint));
+		return createCheckpointedInputGate(gate, toNotifyOnCheckpoint);
 	}
 
-	private static BufferOrEvent createBarrier(long id, int channel) {
-		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()), new InputChannelInfo(0, channel));
+	private static CheckpointedInputGate createCheckpointedInputGate(
+			IndexedInputGate inputGate,
+			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+		return new CheckpointedInputGate(
+			inputGate,
+			new CheckpointBarrierTracker(inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint),
+			new SyncMailboxExecutor());
+	}
+
+	private static BufferOrEvent createBarrier(long checkpointId, int channel) {
+		return createBarrier(checkpointId, channel, System.currentTimeMillis());
+	}
+
+	private static BufferOrEvent createBarrier(long checkpointId, int channel, long creationTimestamp) {
+		return new BufferOrEvent(
+			new CheckpointBarrier(checkpointId, creationTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			new InputChannelInfo(0, channel));
 	}
 
 	private static BufferOrEvent createCancellationBarrier(long id, int channel) {
@@ -380,6 +517,14 @@ public class CheckpointBarrierTrackerTest {
 	private static BufferOrEvent createBuffer(int channel) {
 		return new BufferOrEvent(
 				new NetworkBuffer(MemorySegmentFactory.wrap(new byte[]{1, 2}), FreeingBufferRecycler.INSTANCE), new InputChannelInfo(0, channel));
+	}
+
+	private static BufferOrEvent createBuffer(int channel, int size) {
+		return new BufferOrEvent(TestBufferFactory.createBuffer(size), new InputChannelInfo(0, channel));
+	}
+
+	private static BufferOrEvent createEndOfPartition(int channel) {
+		return new BufferOrEvent(EndOfPartitionEvent.INSTANCE, new InputChannelInfo(0, channel));
 	}
 
 	// ------------------------------------------------------------------------

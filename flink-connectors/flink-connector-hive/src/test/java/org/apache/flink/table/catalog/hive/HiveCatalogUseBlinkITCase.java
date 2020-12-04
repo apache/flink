@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
@@ -41,18 +40,13 @@ import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
-import org.apache.flink.table.util.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.udf.UDFMonth;
 import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
@@ -62,7 +56,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -82,11 +75,7 @@ import static java.lang.String.format;
  * IT case for HiveCatalog.
  * TODO: move to flink-connector-hive-test end-to-end test module once it's setup
  */
-@RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
-
-	@HiveSQL(files = {})
-	private static HiveShell hiveShell;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -98,8 +87,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@BeforeClass
 	public static void createCatalog() {
-		HiveConf hiveConf = hiveShell.getHiveConf();
-		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
+		hiveCatalog = HiveTestUtils.createHiveCatalog();
 		hiveCatalog.open();
 	}
 
@@ -214,8 +202,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					false
 			);
 
-			TableEnvUtil.execInsertSqlAndWaitResult(
-					tEnv, format("insert into %s " + selectSql, sinkTableName));
+			tEnv.executeSql(format("insert into %s " + selectSql, sinkTableName)).await();
 
 			// assert written result
 			StringBuilder builder = new StringBuilder();
@@ -259,12 +246,12 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		tableEnv.executeSql(String.format("create function myyear as '%s'", UDFYear.class.getName()));
 		tableEnv.executeSql("create table src(ts timestamp)");
 		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
 					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
 					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
 					.commit();
 
-			List<Row> results = Lists.newArrayList(
+			List<Row> results = CollectionUtil.iteratorToList(
 					tableEnv.sqlQuery("select myyear(ts) as y from src").execute().collect());
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[2013, 2019]", results.toString());
@@ -282,12 +269,12 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		tableEnv.executeSql(String.format("create function mymonth as '%s'", UDFMonth.class.getName()));
 		tableEnv.executeSql("create table src(dt date)");
 		try {
-			HiveTestUtils.createTextTableInserter(hiveShell, "default", "src")
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
 					.addRow(new Object[]{Date.valueOf("2019-01-19")})
 					.addRow(new Object[]{Date.valueOf("2019-03-02")})
 					.commit();
 
-			List<Row> results = Lists.newArrayList(
+			List<Row> results = CollectionUtil.iteratorToList(
 					tableEnv.sqlQuery("select mymonth(dt) as m from src order by m").execute().collect());
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[1, 3]", results.toString());

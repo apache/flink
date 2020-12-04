@@ -52,7 +52,7 @@ public class RowArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<Row>
 
 	public RowArrowSourceFunctionTest() {
 		super(VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator),
-			new RowSerializer(new TypeSerializer[]{StringSerializer.INSTANCE}, true),
+			new RowSerializer(new TypeSerializer[]{StringSerializer.INSTANCE}, false),
 			Comparator.comparing(o -> (String) (o.getField(0))));
 	}
 

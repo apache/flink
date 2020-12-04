@@ -19,13 +19,18 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
@@ -59,7 +64,7 @@ final class SetOperationFactory {
 			boolean all) {
 		failIfStreaming(type, all);
 		validateSetOperation(type, left, right);
-		return new SetQueryOperation(left, right, type, all);
+		return new SetQueryOperation(left, right, type, all, createCommonTableSchema(left, right));
 	}
 
 	private void validateSetOperation(
@@ -80,19 +85,22 @@ final class SetOperationFactory {
 					rightFieldCount));
 		}
 
-		TypeInformation<?>[] leftFieldTypes = leftSchema.getFieldTypes();
-		TypeInformation<?>[] rightFieldTypes = rightSchema.getFieldTypes();
-		boolean sameSchema = IntStream.range(0, leftFieldCount)
-			.allMatch(idx -> leftFieldTypes[idx].equals(rightFieldTypes[idx]));
+		final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
+		final DataType[] rightDataTypes = rightSchema.getFieldDataTypes();
 
-		if (!sameSchema) {
-			throw new ValidationException(
-				format(
-					"The %s operation on two tables of different schemas: %s and %s is not supported.",
-					operationType.toString().toLowerCase(),
-					leftSchema,
-					rightSchema));
-		}
+		IntStream.range(0, leftFieldCount)
+			.forEach(idx -> {
+				if (!findCommonColumnType(leftDataTypes, rightDataTypes, idx).isPresent()) {
+					throw new ValidationException(
+						format(
+							"Incompatible types for %s operation. " +
+								"Could not find a common type at position %s for '%s' and '%s'.",
+							operationType.toString().toLowerCase(),
+							idx,
+							leftDataTypes[idx],
+							rightDataTypes[idx]));
+				}
+			});
 	}
 
 	private void failIfStreaming(SetQueryOperationType type, boolean all) {
@@ -104,5 +112,31 @@ final class SetOperationFactory {
 					"The %s operation on two unbounded tables is currently not supported.",
 					type));
 		}
+	}
+
+	private TableSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {
+		final TableSchema leftSchema = left.getTableSchema();
+		final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
+		final DataType[] rightDataTypes = right.getTableSchema().getFieldDataTypes();
+
+		final DataType[] resultDataTypes = IntStream.range(0, leftSchema.getFieldCount())
+			.mapToObj(idx ->
+				findCommonColumnType(leftDataTypes, rightDataTypes, idx)
+					.orElseThrow(AssertionError::new)
+			)
+			.map(TypeConversions::fromLogicalToDataType)
+			.toArray(DataType[]::new);
+		return TableSchema.builder()
+			.fields(leftSchema.getFieldNames(), resultDataTypes)
+			.build();
+	}
+
+	private Optional<LogicalType> findCommonColumnType(
+			DataType[] leftDataTypes,
+			DataType[] rightDataTypes,
+			int idx) {
+		final LogicalType leftType = leftDataTypes[idx].getLogicalType();
+		final LogicalType rightType = rightDataTypes[idx].getLogicalType();
+		return LogicalTypeMerging.findCommonType(Arrays.asList(leftType, rightType));
 	}
 }

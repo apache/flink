@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -326,8 +324,7 @@ public class FunctionCatalogTest {
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(NAME),
-				// TODO aggregate functions still use marker interface
-				new AggregateFunctionDefinition(NAME, AGGREGATE_FUNCTION, Types.STRING, Types.STRING)));
+				AGGREGATE_FUNCTION));
 	}
 
 	@Test
@@ -596,8 +593,7 @@ public class FunctionCatalogTest {
 			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
 			returnsFunction(
 				FunctionIdentifier.of(IDENTIFIER),
-				// TODO aggregate functions still use marker interface
-				new AggregateFunctionDefinition(NAME, AGGREGATE_FUNCTION, Types.STRING, Types.STRING)));
+				AGGREGATE_FUNCTION));
 	}
 
 	// --------------------------------------------------------------------------------------------

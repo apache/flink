@@ -89,7 +89,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param containerSpec an abstract container specification for launch time.
 	 * @param taskID the taskID for this worker.
 	 */
-	public LaunchableMesosWorker(
+	LaunchableMesosWorker(
 			MesosArtifactResolver resolver,
 			MesosTaskManagerParameters params,
 			ContainerSpecification containerSpec,
@@ -131,7 +131,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			return params.cpus();
 		}
 
-		public double getGPUs() {
+		double getGPUs() {
 			return params.gpus();
 		}
 
@@ -343,7 +343,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		containerInfo.addAllVolumes(params.containerVolumes());
 		taskInfo.setContainer(containerInfo);
 
-		LOG.debug("Starting TaskExecutor {} with command: {}", slaveId, taskInfo.getCommand().getValue());
+		LOG.info("Starting TaskExecutor {} with command: {}", slaveId, taskInfo.getCommand().getValue());
 
 		return taskInfo.build();
 	}

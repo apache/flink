@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import java.io.Serializable;
 
@@ -32,9 +33,17 @@ public final class ResourceID implements ResourceIDRetrievable, Serializable {
 
 	private final String resourceId;
 
+	private final String metadata;
+
 	public ResourceID(String resourceId) {
-		Preconditions.checkNotNull(resourceId, "ResourceID must not be null");
+		this(resourceId, "");
+	}
+
+	public ResourceID(String resourceId, String metadata) {
+		Preconditions.checkNotNull(resourceId, "The identifier must not be null");
+		Preconditions.checkNotNull(metadata, "The metadata must not be null");
 		this.resourceId = resourceId;
+		this.metadata = metadata;
 	}
 
 	/**
@@ -44,6 +53,10 @@ public final class ResourceID implements ResourceIDRetrievable, Serializable {
 	 */
 	public final String getResourceIdString() {
 		return resourceId;
+	}
+
+	public final String getStringWithMetadata() {
+		return StringUtils.isNullOrWhitespaceOnly(metadata) ? resourceId : String.format("%s(%s)", resourceId, metadata);
 	}
 
 	@Override
@@ -74,6 +87,10 @@ public final class ResourceID implements ResourceIDRetrievable, Serializable {
 	@Override
 	public ResourceID getResourceID() {
 		return this;
+	}
+
+	public String getMetadata() {
+		return metadata;
 	}
 
 	/**

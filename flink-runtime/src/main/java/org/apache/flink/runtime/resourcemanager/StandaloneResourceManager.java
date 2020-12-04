@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -59,7 +60,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			FatalErrorHandler fatalErrorHandler,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
 			Time startupPeriodTime,
-			Time rpcTimeout) {
+			Time rpcTimeout,
+			Executor ioExecutor) {
 		super(
 			rpcService,
 			resourceId,
@@ -71,13 +73,19 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
-			rpcTimeout);
+			rpcTimeout,
+			ioExecutor);
 		this.startupPeriodTime = Preconditions.checkNotNull(startupPeriodTime);
 	}
 
 	@Override
 	protected void initialize() throws ResourceManagerException {
 		// nothing to initialize
+	}
+
+	@Override
+	protected void terminate() {
+		// noop
 	}
 
 	@Override
@@ -101,8 +109,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void startServicesOnLeadership() {
-		super.startServicesOnLeadership();
+	protected void onLeadership() {
 		startStartupPeriod();
 	}
 

@@ -31,7 +31,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -291,8 +291,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-		return new MemoryBackendCheckpointStorage(jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
+	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+		return new MemoryBackendCheckpointStorageAccess(jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
 	}
 
 	// ------------------------------------------------------------------------
@@ -307,7 +307,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		CloseableRegistry cancelStreamRegistry) throws Exception {
 
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			isUsingAsynchronousSnapshots(),
 			stateHandles,
@@ -334,7 +334,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		return new HeapKeyedStateBackendBuilder<>(
 			kvStateRegistry,
 			keySerializer,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),

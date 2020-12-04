@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStat
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
 /**
@@ -47,14 +47,14 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 
 	public StreamingSemiAntiJoinOperator(
 			boolean isAntiJoin,
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
 			boolean[] filterNullKeys,
-			long minRetentionTime) {
-		super(leftType, rightType, generatedJoinCondition, leftInputSideSpec, rightInputSideSpec, filterNullKeys, minRetentionTime);
+			long stateRetentionTime) {
+		super(leftType, rightType, generatedJoinCondition, leftInputSideSpec, rightInputSideSpec, filterNullKeys, stateRetentionTime);
 		this.isAntiJoin = isAntiJoin;
 	}
 
@@ -67,14 +67,14 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 			LEFT_RECORDS_STATE_NAME,
 			leftInputSideSpec,
 			leftType,
-			minRetentionTime);
+			stateRetentionTime);
 
 		this.rightRecordStateView = JoinRecordStateViews.create(
 			getRuntimeContext(),
 			RIGHT_RECORDS_STATE_NAME,
 			rightInputSideSpec,
 			rightType,
-			minRetentionTime);
+			stateRetentionTime);
 	}
 
 	/**

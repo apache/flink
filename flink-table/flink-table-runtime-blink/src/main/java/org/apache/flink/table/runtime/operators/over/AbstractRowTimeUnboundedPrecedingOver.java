@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,14 +26,15 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -68,6 +70,17 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 
 	protected transient AggsHandleFunction function;
 
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	private transient Counter numLateRecordsDropped;
+
+	@VisibleForTesting
+	protected Counter getCounter() {
+		return numLateRecordsDropped;
+	}
+
 	public AbstractRowTimeUnboundedPrecedingOver(
 			long minRetentionTime,
 			long maxRetentionTime,
@@ -92,13 +105,13 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		sortedTimestamps = new LinkedList<Long>();
 
 		// initialize accumulator state
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accStateDesc =
 			new ValueStateDescriptor<RowData>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accStateDesc);
 
 		// input element are all binary row as they are came from network
-		RowDataTypeInfo inputType = new RowDataTypeInfo(inputFieldTypes);
+		InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
 		ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
 		MapStateDescriptor<Long, List<RowData>> inputStateDesc = new MapStateDescriptor<Long, List<RowData>>(
 			"inputState",
@@ -107,6 +120,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		inputState = getRuntimeContext().getMapState(inputStateDesc);
 
 		initCleanupTimeState("RowTimeUnboundedOverCleanupTime");
+
+		// metrics
+		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 	}
 
 	/**
@@ -131,7 +147,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		long timestamp = input.getLong(rowTimeIdx);
 		long curWatermark = ctx.timerService().currentWatermark();
 
-		// discard late record
 		if (timestamp > curWatermark) {
 			// ensure every key just registers one timer
 			// default watermark is Long.Min, avoid overflow we use zero when watermark < 0
@@ -145,6 +160,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			}
 			rowList.add(input);
 			inputState.put(timestamp, rowList);
+		} else {
+			// discard late record
+			numLateRecordsDropped.inc();
 		}
 	}
 

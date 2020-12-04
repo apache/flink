@@ -107,7 +107,8 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			final HighAvailabilityServices haServices,
 			final LibraryCacheManager.ClassLoaderLease classLoaderLease,
 			final Executor executor,
-			final FatalErrorHandler fatalErrorHandler) throws Exception {
+			final FatalErrorHandler fatalErrorHandler,
+			long initializationTimestamp) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -125,7 +126,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		try {
 			userCodeLoader = classLoaderLease.getOrResolveClassLoader(
 				jobGraph.getUserJarBlobKeys(),
-				jobGraph.getClasspaths());
+				jobGraph.getClasspaths()).asClassLoader();
 		} catch (IOException e) {
 			throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
 		}
@@ -137,7 +138,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.leaderGatewayFuture = new CompletableFuture<>();
 
 		// now start the JobManager
-		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
+		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader, initializationTimestamp);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -194,17 +195,14 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 						classLoaderLease.release();
 
+						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
 								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
 						} else {
 							terminationFuture.complete(null);
 						}
-					});
-
-				terminationFuture.whenComplete(
-					(Void ignored, Throwable throwable) -> {
-						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
 					});
 			}
 

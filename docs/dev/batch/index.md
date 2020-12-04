@@ -42,6 +42,19 @@ and gradually add your own
 [transformations](#dataset-transformations). The remaining sections act as references for additional
 operations and advanced features.
 
+{% capture deprecation_note %}
+
+Starting with Flink 1.12 the DataSet has been soft deprecated.  We recommend
+that you use the DataStream API with BATCH [execution mode]({% link
+dev/datastream_execution_mode.md %}). The linked section also outlines cases
+where it makes sense to use the DataSet API but those cases will become rarer
+as development progresses and the DataSet API will eventually be removed.
+Please also see [FLIP-131](https://cwiki.apache.org/confluence/x/NR14CQ) for
+background information on this decision.
+
+{% endcapture %}
+{% include note.html content=deprecation_note %}
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -50,7 +63,7 @@ Example Program
 
 The following program is a complete, working example of WordCount. You can copy &amp; paste the code
 to run it locally. You only have to include the correct Flink's library into your project
-(see Section [Linking with Flink]({{ site.baseurl }}/dev/project-configuration.html)) and specify the imports. Then you are ready
+(see Section [Linking with Flink]({% link dev/project-configuration.md %})) and specify the imports. Then you are ready
 to go!
 
 <div class="codetabs" markdown="1">
@@ -784,12 +797,12 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{% link dev/scala_api_extensions.md %}">Scala API extension</a>.
 
 </div>
 </div>
 
-The [parallelism]({{ site.baseurl }}/dev/parallel.html) of a transformation can be defined by `setParallelism(int)` while
+The [parallelism]({% link dev/parallel.md %}) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
 possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
@@ -2244,7 +2257,7 @@ Distributed Cache
 
 Flink offers a distributed cache, similar to Apache Hadoop, to make files locally accessible to parallel instances of user functions. This functionality can be used to share files that contain static external data such as dictionaries or machine-learned regression models.
 
-The cache works as follows. A program registers a file or directory of a [local or remote filesystem such as HDFS or S3]({{ site.baseurl }}/dev/batch/connectors.html#reading-from-file-systems) under a specific name in its `ExecutionEnvironment` as a cached file. When the program is executed, Flink automatically copies the file or directory to the local filesystem of all workers. A user function can look up the file or directory under the specified name and access it from the worker's local filesystem.
+The cache works as follows. A program registers a file or directory of a [local or remote filesystem such as HDFS or S3]({% link dev/batch/connectors.md %}#reading-from-file-systems) under a specific name in its `ExecutionEnvironment` as a cached file. When the program is executed, Flink automatically copies the file or directory to the local filesystem of all workers. A user function can look up the file or directory under the specified name and access it from the worker's local filesystem.
 
 The distributed cache is used as follows:
 

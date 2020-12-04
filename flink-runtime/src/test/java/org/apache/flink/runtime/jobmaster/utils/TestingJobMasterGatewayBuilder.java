@@ -50,7 +50,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
@@ -88,7 +88,7 @@ public class TestingJobMasterGatewayBuilder {
 	private BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Collections.emptyList());
 	private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer = (ignoredA, ignoredB, ignoredC) -> {};
 	private BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
-	private BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer = (ignoredA, ignoredB) -> {};
+	private BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload> taskManagerHeartbeatConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<ResourceID> resourceManagerHeartbeatConsumer = ignored -> {};
 	private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier = () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	private Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier = () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -166,7 +166,7 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
-	public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatConsumer(BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer) {
+	public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatConsumer(BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload> taskManagerHeartbeatConsumer) {
 		this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
 		return this;
 	}

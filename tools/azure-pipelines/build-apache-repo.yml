@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+    image: rmetzger/flink-ci:ubuntu-amd64-f009d96
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
@@ -74,6 +74,11 @@ stages:
     dependsOn: [] # depending on an empty array makes the stages run in parallel
     condition: or(eq(variables['Build.Reason'], 'Schedule'), eq(variables['MODE'], 'nightly'))
     jobs:
+      - template: build-nightly-dist.yml
+        parameters:
+          stage_name: cron_snapshot_deployment
+          environment: PROFILE=""
+          container: flink-build-container
       - template: jobs-template.yml
         parameters:
           stage_name: cron_azure

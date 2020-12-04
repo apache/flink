@@ -29,7 +29,7 @@ under the License.
 ## 概述
 Checkpoint 使 Flink 的状态具有良好的容错性，通过 checkpoint 机制，Flink 可以对作业的状态和计算位置进行恢复。
 
-参考 [Checkpointing]({{ site.baseurl }}/zh/dev/stream/state/checkpointing.html) 查看如何在 Flink 程序中开启和配置 checkpoint。
+参考 [Checkpointing]({% link dev/stream/state/checkpointing.zh.md %}) 查看如何在 Flink 程序中开启和配置 checkpoint。
 
 ## 保留 Checkpoint
 
@@ -46,7 +46,7 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 
 ### 目录结构
 
-与 [savepoints](savepoints.html) 相似，checkpoint 由元数据文件、数据文件（与 state backend 相关）组成。可通过配置文件中 "state.checkpoints.dir" 配置项来指定元数据文件和数据文件的存储路径，另外也可以在代码中针对单个作业特别指定该配置项。
+与 [savepoints]({% link ops/state/savepoints.zh.md %}) 相似，checkpoint 由元数据文件、数据文件（与 state backend 相关）组成。可通过配置文件中 "state.checkpoints.dir" 配置项来指定元数据文件和数据文件的存储路径，另外也可以在代码中针对单个作业特别指定该配置项。
 
 当前的 checkpoint 目录结构（由 [FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531) 引入）如下所示:
 
@@ -81,13 +81,13 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 
 ### Checkpoint 与 Savepoint 的区别
 
-Checkpoint 与 [savepoints](savepoints.html) 有一些区别，体现在 checkpoint ：
+Checkpoint 与 [savepoints]({% link ops/state/savepoints.zh.md %}) 有一些区别，体现在 checkpoint ：
 - 使用 state backend 特定的数据格式，可能以增量方式存储。
 - 不支持 Flink 的特定功能，比如扩缩容。
 
 ### 从保留的 checkpoint 中恢复状态
 
-与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南](../cli.html#restore-a-savepoint)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#directory-structure))。
+与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南]({% link deployment/cli.zh.md %}#restore-a-savepoint)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#directory-structure))。
 
 {% highlight shell %}
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]

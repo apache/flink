@@ -96,6 +96,9 @@ function start_kubernetes {
             echo "$NON_LINUX_ENV_NOTE"
             exit 1
         fi
+        # Mount Flink dist into minikube virtual machine because we need to mount hostPath as usrlib
+        minikube mount $FLINK_DIR:$FLINK_DIR &
+        export minikube_mount_pid=$!
     else
         setup_kubernetes_for_linux
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
@@ -109,6 +112,7 @@ function start_kubernetes {
 function stop_kubernetes {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo "$NON_LINUX_ENV_NOTE"
+        kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
         stop_command="sudo $MINIKUBE_PATH stop"
@@ -141,10 +145,7 @@ function wait_rest_endpoint_up_k8s {
   # wait at most 30 seconds until the endpoint is up
   local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
-    QUERY_RESULT=$(kubectl logs $jm_pod_name 2> /dev/null)
-
-    # ensure the response adapts with the successful regex
-    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+    if check_logs_output $jm_pod_name $successful_response_regex; then
       echo "REST endpoint is up."
       return
     fi
@@ -154,6 +155,18 @@ function wait_rest_endpoint_up_k8s {
   done
   echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
   exit 1
+}
+
+function check_logs_output {
+  local pod_name=$1
+  local successful_response_regex=$2
+  LOG_CONTENT=$(kubectl logs $pod_name 2> /dev/null)
+
+  # ensure the log content adapts with the successful regex
+  if [[ ${LOG_CONTENT} =~ ${successful_response_regex} ]]; then
+    return 0
+  fi
+  return 1
 }
 
 function cleanup {
@@ -175,6 +188,14 @@ appender.console.type = CONSOLE
 appender.console.layout.type = PatternLayout
 appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
 END
+}
+
+function get_host_machine_address {
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
+    else
+        echo "localhost"
+    fi
 }
 
 on_exit cleanup

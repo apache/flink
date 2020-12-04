@@ -29,7 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 @Experimental
 public abstract class AbstractStreamOperatorFactory<OUT> implements StreamOperatorFactory<OUT>, ProcessingTimeServiceAware {
 
-	protected ChainingStrategy chainingStrategy = ChainingStrategy.ALWAYS;
+	protected ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
 
 	protected transient ProcessingTimeService processingTimeService;
 

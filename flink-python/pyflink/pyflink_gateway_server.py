@@ -153,11 +153,9 @@ def construct_test_classpath():
         "flink-formats/flink-avro/target/flink-avro*.jar",
         "flink-formats/flink-avro/target/avro*.jar",
         "flink-formats/flink-json/target/flink-json*.jar",
-        "flink-connectors/flink-connector-elasticsearch-base/target/flink*.jar",
-        "flink-connectors/flink-connector-kafka-base/target/flink*.jar",
-        "flink-connectors/flink-connector-hbase/target/flink*.jar",
         "flink-ml-parent/flink-ml-api/target/flink-ml-api*.jar",
         "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*.jar",
+        "flink-python/target/data-stream-test/flink*.jar",
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()

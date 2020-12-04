@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.RelOptUtil.InputFinder
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.{Calc, RelFactories}
-import org.apache.calcite.rex.{RexOver, RexProgramBuilder, RexUtil}
+import org.apache.calcite.rex.{RexNode, RexOver, RexProgramBuilder, RexUtil}
 import org.apache.calcite.tools.RelBuilderFactory
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
 
@@ -33,7 +34,8 @@ import scala.collection.JavaConversions._
   *
   * Modification:
   * - Condition in the merged program will be simplified if it exists.
-  * - Don't merge calcs which contain non-deterministic expr
+  * - If the two [[Calc]] can merge into one, each non-deterministic [[RexNode]] of bottom [[Calc]]
+  *   should appear at most once in the project list and filter list of top [[Calc]].
   */
 
 /**
@@ -60,9 +62,49 @@ class FlinkCalcMergeRule(relBuilderFactory: RelBuilderFactory) extends RelOptRul
       return false
     }
 
-    // Don't merge Calcs which contain non-deterministic expr
-    topProgram.getExprList.forall(RexUtil.isDeterministic) &&
-      bottomCalc.getProgram.getExprList.forall(RexUtil.isDeterministic)
+    isMergeable(topCalc, bottomCalc)
+  }
+
+  /**
+   * Return two neighbouring [[Calc]] can merge into one [[Calc]] or not. If the two [[Calc]] can
+   * merge into one, each non-deterministic [[RexNode]] of bottom [[Calc]] should appear at most
+   * once in the project list and filter list of top [[Calc]].
+   */
+  private def isMergeable(topCalc: Calc, bottomCalc: Calc): Boolean = {
+    val topProgram = topCalc.getProgram
+    val bottomProgram = bottomCalc.getProgram
+
+    val topProjectInputIndices = topProgram.getProjectList
+      .map(r => topProgram.expandLocalRef(r))
+      .map(r => InputFinder.bits(r).toArray)
+
+    val topFilterInputIndices = if (topProgram.getCondition != null) {
+      InputFinder.bits(topProgram.expandLocalRef(topProgram.getCondition)).toArray
+    } else {
+      new Array[Int](0)
+    }
+
+    val bottomProjectList = bottomProgram.getProjectList
+      .map(r => bottomProgram.expandLocalRef(r))
+      .toArray
+
+    val topInputIndices = topProjectInputIndices :+ topFilterInputIndices
+
+    bottomProjectList.zipWithIndex.forall {
+      case (project: RexNode, index: Int) => {
+        var nonDeterministicRexRefCnt = 0
+        if (!RexUtil.isDeterministic(project)) {
+          topInputIndices.foreach(
+            indices => indices.foreach(
+              ref => if (ref == index) {
+                nonDeterministicRexRefCnt += 1
+              }
+            )
+          )
+        }
+        nonDeterministicRexRefCnt <= 1
+      }
+    }
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -96,7 +138,7 @@ class FlinkCalcMergeRule(relBuilderFactory: RelBuilderFactory) extends RelOptRul
       // newCalc is equivalent to bottomCalc,
       // which means that topCalc
       // must be trivial. Take it out of the game.
-      call.getPlanner.setImportance(topCalc, 0.0)
+      call.getPlanner.prune(topCalc)
     }
     call.transformTo(newCalc)
   }

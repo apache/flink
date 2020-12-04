@@ -43,9 +43,12 @@ class InFlightRequestTracker {
 
 	/**
 	 * Registers an in-flight request.
+	 *
+	 * @return {@code true} if the request could be registered; {@code false} if the tracker has already
+	 * been terminated.
 	 */
-	public void registerRequest() {
-		phaser.register();
+	public boolean registerRequest() {
+		return phaser.register() >= 0;
 	}
 
 	/**

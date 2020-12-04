@@ -20,11 +20,14 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
+import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -33,6 +36,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.jline.reader.Candidate;
@@ -73,6 +77,7 @@ public class CliClientTest extends TestLogger {
 	private static final String INSERT_INTO_STATEMENT = "INSERT INTO MyTable SELECT * FROM MyOtherTable";
 	private static final String INSERT_OVERWRITE_STATEMENT = "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
+	private static final Row SHOW_ROW = new Row(1);
 
 	@Test
 	public void testUpdateSubmission() throws Exception {
@@ -109,7 +114,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testUseNonExistingDB() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseDatabaseConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
@@ -117,40 +122,29 @@ public class CliClientTest extends TestLogger {
 		SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 
-		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-
-			cliClient.open();
-			assertThat(executor.getNumUseDatabaseCalls(), is(1));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		}
 	}
 
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseCatalogConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
 
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
-			assertThat(executor.getNumUseCatalogCalls(), is(1));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		}
 	}
 
@@ -161,49 +155,65 @@ public class CliClientTest extends TestLogger {
 		// proctimee() is invalid
 		InputStream inputStream = new ByteArrayInputStream("create table tbl(a int, b as proctimee());\n".getBytes());
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			String output = new String(outputStream.toByteArray());
 			assertTrue(output.contains("No match found for function signature proctimee()"));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
 	@Test
-	public void testUseCatalog() throws Exception {
+	public void testUseCatalogAndShowCurrentCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setUseCatalogConsumer((ignored1, catalogName) -> {
-					if (!catalogName.equals("cat")) {
-						throw new SqlExecutionException("unexpected catalog name: " + catalogName);
-					}
-				})
+				.setExecuteSqlConsumer((ignored1, sql) -> {
+					if (sql.toLowerCase().equals("use catalog cat")) {
+						return TestTableResult.TABLE_RESULT_OK;
+					} else if (sql.toLowerCase().equals("show current catalog")){
+						SHOW_ROW.setField(0, "cat");
+						return new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT,
+							TableSchema.builder().field("current catalog name", DataTypes.STRING()).build(),
+							CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+					} else {
+						throw new SqlExecutionException("unexpected sql statement: " + sql);
+					}})
 				.build();
 
 		String output = testExecuteSql(executor, "use catalog cat;");
-		assertThat(executor.getNumUseCatalogCalls(), is(1));
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected catalog name"));
+
+		output = testExecuteSql(executor, "show current catalog;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(2));
+		assertTrue(output.contains("cat"));
 	}
 
 	@Test
-	public void testUseDatabase() throws Exception {
+	public void testUseDatabaseAndShowCurrentDatabase() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setUseDatabaseConsumer((ignored1, databaseName) -> {
-					if (!databaseName.equals("db")) {
-						throw new SqlExecutionException("unexpected database name: " + databaseName);
+				.setExecuteSqlConsumer((ignored1, sql) -> {
+					if (sql.toLowerCase().equals("use db")) {
+						return TestTableResult.TABLE_RESULT_OK;
+					} else if (sql.toLowerCase().equals("show current database")) {
+						SHOW_ROW.setField(0, "db");
+						return new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT,
+							TableSchema.builder().field("current database name", DataTypes.STRING()).build(),
+							CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+					} else {
+						throw new SqlExecutionException("unexpected database name: db");
 					}
 				})
 				.build();
 		String output = testExecuteSql(executor, "use db;");
-		assertThat(executor.getNumUseDatabaseCalls(), is(1));
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected database name"));
+
+		output = testExecuteSql(executor, "show current database;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(2));
+		assertTrue(output.contains("db"));
 	}
 
 	@Test
@@ -213,19 +223,14 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 
 		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
-		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
-			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
-			cliClient.open();
+		Path historyFilePath = historyTempFile();
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, mockExecutor, historyFilePath)) {
+			client.open();
 			List<String> content = Files.readAllLines(historyFilePath);
 			assertEquals(2, content.size());
 			assertTrue(content.get(0).contains("help"));
 			assertTrue(content.get(1).contains("use catalog cat"));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -255,14 +260,16 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testCreateCatalog() throws Exception {
-		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
 	@Test
 	public void testDropCatalog() throws Exception {
-		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "drop catalog c1;");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
@@ -275,18 +282,13 @@ public class CliClientTest extends TestLogger {
 	private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
 		InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			return new String(outputStream.toByteArray());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -297,23 +299,13 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 		mockExecutor.failExecution = failExecution;
 
-		CliClient cli = null;
-		try {
-			cli = new CliClient(
-					TerminalUtils.createDummyTerminal(),
-					sessionId,
-					mockExecutor,
-					File.createTempFile("history", "tmp").toPath());
+		try (CliClient client = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor, historyTempFile())) {
 			if (testFailure) {
-				assertFalse(cli.submitUpdate(statement));
+				assertFalse(client.submitUpdate(statement));
 			} else {
-				assertTrue(cli.submitUpdate(statement));
+				assertTrue(client.submitUpdate(statement));
 				assertEquals(statement, mockExecutor.receivedStatement);
 				assertEquals(context, mockExecutor.receivedContext);
-			}
-		} finally {
-			if (cli != null) {
-				cli.close();
 			}
 		}
 	}
@@ -346,6 +338,10 @@ public class CliClientTest extends TestLogger {
 			results.retainAll(notExpectedHints);
 			assertEquals(0, results.size());
 		}
+	}
+
+	private Path historyTempFile() throws IOException {
+		return File.createTempFile("history", "tmp").toPath();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -393,62 +389,12 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public List<String> listTables(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
 		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
-			return null;
+			return TestTableResult.TABLE_RESULT_OK;
 		}
 
 		@Override
 		public List<String> listModules(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
 			return null;
 		}
 

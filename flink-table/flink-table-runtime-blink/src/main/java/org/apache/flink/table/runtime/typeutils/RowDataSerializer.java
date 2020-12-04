@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -34,15 +33,16 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.NestedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * Serializer for {@link RowData}.
@@ -54,20 +54,21 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 	private BinaryRowDataSerializer binarySerializer;
 	private final LogicalType[] types;
 	private final TypeSerializer[] fieldSerializers;
+	private final RowData.FieldGetter[] fieldGetters;
 
 	private transient BinaryRowData reuseRow;
 	private transient BinaryRowWriter reuseWriter;
 
-	public RowDataSerializer(ExecutionConfig config, RowType rowType) {
+	public RowDataSerializer(RowType rowType) {
 		this(rowType.getChildren().toArray(new LogicalType[0]),
 			rowType.getChildren().stream()
-				.map((LogicalType type) -> InternalSerializers.create(type, config))
+				.map(InternalSerializers::create)
 				.toArray(TypeSerializer[]::new));
 	}
 
-	public RowDataSerializer(ExecutionConfig config, LogicalType... types) {
+	public RowDataSerializer(LogicalType... types) {
 		this(types, Arrays.stream(types)
-			.map((LogicalType type) -> InternalSerializers.create(type, config))
+			.map(InternalSerializers::create)
 			.toArray(TypeSerializer[]::new));
 	}
 
@@ -75,6 +76,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 		this.types = types;
 		this.fieldSerializers = fieldSerializers;
 		this.binarySerializer = new BinaryRowDataSerializer(types.length);
+		this.fieldGetters = IntStream.range(0, types.length)
+			.mapToObj(i -> RowData.createFieldGetter(types[i], i))
+			.toArray(RowData.FieldGetter[]::new);
 	}
 
 	@Override
@@ -119,6 +123,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 		}
 		if (from instanceof BinaryRowData) {
 			return ((BinaryRowData) from).copy();
+		} else if (from instanceof NestedRowData) {
+			return ((NestedRowData) from).copy();
 		} else {
 			return copyRowData(from, new GenericRowData(from.getArity()));
 		}
@@ -135,6 +141,10 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 			return reuse instanceof BinaryRowData
 				? ((BinaryRowData) from).copy((BinaryRowData) reuse)
 				: ((BinaryRowData) from).copy();
+		} else if (from instanceof NestedRowData) {
+			return reuse instanceof NestedRowData
+				? ((NestedRowData) from).copy(reuse)
+				: ((NestedRowData) from).copy();
 		} else {
 			return copyRowData(from, reuse);
 		}
@@ -153,7 +163,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 			if (!from.isNullAt(i)) {
 				ret.setField(
 					i,
-					fieldSerializers[i].copy((RowData.get(from, i, types[i])))
+					fieldSerializers[i].copy((fieldGetters[i].getFieldOrNull(from)))
 				);
 			} else {
 				ret.setField(i, null);
@@ -191,7 +201,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 			if (row.isNullAt(i)) {
 				reuseWriter.setNullAt(i);
 			} else {
-				BinaryWriter.write(reuseWriter, i, RowData.get(row, i, types[i]), types[i], fieldSerializers[i]);
+				BinaryWriter.write(reuseWriter, i, fieldGetters[i].getFieldOrNull(row), types[i], fieldSerializers[i]);
 			}
 		}
 		reuseWriter.complete();
@@ -236,7 +246,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 	public boolean equals(Object obj) {
 		if (obj instanceof RowDataSerializer) {
 			RowDataSerializer other = (RowDataSerializer) obj;
-			return Arrays.equals(types, other.types);
+			return Arrays.equals(fieldSerializers, other.fieldSerializers);
 		}
 
 		return false;
@@ -244,7 +254,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(types);
+		return Arrays.hashCode(fieldSerializers);
 	}
 
 	@Override

@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.util.config.memory.jobmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.FlinkMemory;
+
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,7 +53,8 @@ public class JobManagerFlinkMemory implements FlinkMemory {
 	private final MemorySize jvmHeap;
 	private final MemorySize offHeapMemory;
 
-	JobManagerFlinkMemory(MemorySize jvmHeap, MemorySize offHeapMemory) {
+	@VisibleForTesting
+	public JobManagerFlinkMemory(MemorySize jvmHeap, MemorySize offHeapMemory) {
 		this.jvmHeap = checkNotNull(jvmHeap);
 		this.offHeapMemory = checkNotNull(offHeapMemory);
 	}
@@ -68,5 +72,24 @@ public class JobManagerFlinkMemory implements FlinkMemory {
 	@Override
 	public MemorySize getTotalFlinkMemorySize() {
 		return jvmHeap.add(offHeapMemory);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj instanceof JobManagerFlinkMemory) {
+			JobManagerFlinkMemory that = (JobManagerFlinkMemory) obj;
+			return Objects.equals(this.jvmHeap, that.jvmHeap) &&
+					Objects.equals(this.offHeapMemory, that.offHeapMemory);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+				jvmHeap,
+				offHeapMemory);
 	}
 }

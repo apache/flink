@@ -59,15 +59,19 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 
 	private final Time timeout;
 
+	private final ClassLoader classLoader;
+
 	public EmbeddedJobClient(
 			final JobID jobId,
 			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor retryExecutor,
-			final Time rpcTimeout) {
+			final Time rpcTimeout,
+			final ClassLoader classLoader) {
 		this.jobId = checkNotNull(jobId);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
 		this.retryExecutor = checkNotNull(retryExecutor);
 		this.timeout = checkNotNull(rpcTimeout);
+		this.classLoader = classLoader;
 	}
 
 	@Override
@@ -98,7 +102,7 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(final ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		checkNotNull(classLoader);
 
 		return dispatcherGateway.requestJob(jobId, timeout)
@@ -113,16 +117,17 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
-		checkNotNull(userClassloader);
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+		checkNotNull(classLoader);
 
 		final Time retryPeriod = Time.milliseconds(100L);
 		return JobStatusPollingUtils.getJobResult(dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
 				.thenApply((jobResult) -> {
 					try {
-						return jobResult.toJobExecutionResult(userClassloader);
+						return jobResult.toJobExecutionResult(classLoader);
 					} catch (Throwable t) {
-						throw new CompletionException(new Exception("Job " + jobId + " failed", t));
+						throw new CompletionException(
+								UnsuccessfulExecutionException.fromJobResult(jobResult, classLoader));
 					}
 				});
 	}

@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.SqlProperty;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 import org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec;
@@ -166,13 +167,13 @@ public class HiveDDLUtils {
 	public static void convertDataTypes(SqlNodeList columns) throws ParseException {
 		if (columns != null) {
 			for (SqlNode node : columns) {
-				convertDataTypes((SqlTableColumn) node);
+				convertDataTypes((SqlRegularColumn) node);
 			}
 		}
 	}
 
 	// Check and convert data types to comply with HiveQL, e.g. TIMESTAMP and BINARY
-	public static void convertDataTypes(SqlTableColumn column) throws ParseException {
+	public static void convertDataTypes(SqlRegularColumn column) throws ParseException {
 		column.setType(convertDataTypes(column.getType()));
 	}
 
@@ -180,7 +181,8 @@ public class HiveDDLUtils {
 		SqlTypeNameSpec nameSpec = typeSpec.getTypeNameSpec();
 		SqlTypeNameSpec convertedNameSpec = convertDataTypes(nameSpec);
 		if (nameSpec != convertedNameSpec) {
-			typeSpec = new SqlDataTypeSpec(convertedNameSpec, typeSpec.getTimeZone(), typeSpec.getNullable(),
+			boolean nullable = typeSpec.getNullable() == null ? true : typeSpec.getNullable();
+			typeSpec = new SqlDataTypeSpec(convertedNameSpec, typeSpec.getTimeZone(), nullable,
 					typeSpec.getParserPosition());
 		}
 		return typeSpec;
@@ -311,18 +313,18 @@ public class HiveDDLUtils {
 	public static SqlNodeList deepCopyColList(SqlNodeList colList) {
 		SqlNodeList res = new SqlNodeList(colList.getParserPosition());
 		for (SqlNode node : colList) {
-			res.add(deepCopyTableColumn((SqlTableColumn) node));
+			res.add(deepCopyTableColumn((SqlRegularColumn) node));
 		}
 		return res;
 	}
 
-	public static SqlTableColumn deepCopyTableColumn(SqlTableColumn column) {
-		return new SqlTableColumn(
-				column.getName(),
-				column.getType(),
-				column.getConstraint().orElse(null),
-				column.getComment().orElse(null),
-				column.getParserPosition()
+	public static SqlRegularColumn deepCopyTableColumn(SqlRegularColumn column) {
+		return new SqlTableColumn.SqlRegularColumn(
+			column.getParserPosition(),
+			column.getName(),
+			column.getComment().orElse(null),
+			column.getType(),
+			column.getConstraint().orElse(null)
 		);
 	}
 

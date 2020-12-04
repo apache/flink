@@ -163,7 +163,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val countDist = new CountDistinct
 
    util.addFunction("countFun", countFun)
-   util.addFunction("weightAvgFun", weightAvgFun)
+   util.addTemporarySystemFunction("weightAvgFun", weightAvgFun)
    util.addFunction("countDist", countDist)
 
     val tab1 = table

@@ -202,7 +202,7 @@ try-flink/flink-operations-playground.md %}#observing-failure--recovery).
 - [Checkpoints]({% link ops/state/checkpoints.md %})
 - [Savepoints]({% link ops/state/savepoints.md %})
 - [Tuning Checkpoints and Large State]({% link ops/state/large_state_tuning.md %})
-- [Monitoring Checkpointing]({% link monitoring/checkpoint_monitoring.md %})
+- [Monitoring Checkpointing]({% link ops/monitoring/checkpoint_monitoring.md %})
 - [Task Failure Recovery]({% link dev/task_failure_recovery.md %})
 
 {% top %}

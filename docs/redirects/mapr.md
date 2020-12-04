@@ -2,7 +2,7 @@
 title: "MapR Setup"
 layout: redirect
 redirect: /index.html
-permalink: /ops/deployment/mapr_setup.html
+permalink: /deployment/resource-providers/mapr_setup.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

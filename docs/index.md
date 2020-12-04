@@ -37,7 +37,7 @@ If you’re interested in playing around with Flink, try one of our tutorials:
 * [Local Installation]({% link try-flink/local_installation.md %})
 * [Fraud Detection with the DataStream API]({% link try-flink/datastream_api.md %})
 * [Real Time Reporting with the Table API]({% link try-flink/table_api.md %})
-* [Intro to the Python Table API]({% link try-flink/python_table_api.md %})
+* [Intro to PyFlink]({% link dev/python/index.md %})
 * [Flink Operations Playground]({% link try-flink/flink-operations-playground.md %})
 
 ### Learn Flink
@@ -67,16 +67,16 @@ The reference documentation covers all the details. Some starting points:
 </div>
 <div class="col-sm-6" markdown="1">
 
-* [Configuration]({% link ops/config.md %})
-* [Rest API]({% link monitoring/rest_api.md %})
-* [CLI]({% link ops/cli.md %})
+* [Configuration]({% link deployment/config.md %})
+* [Rest API]({% link ops/rest_api.md %})
+* [CLI]({% link deployment/cli.md %})
 
 </div>
 </div>
 
 ### Deploy Flink
 
-Before putting your Flink job into production, read the [Production Readiness Checklist]({% link ops/production_ready.md %}). For an overview of possible deployment targets, see [Clusters and Deployments]({% link ops/deployment/index.md %}). 
+Before putting your Flink job into production, read the [Production Readiness Checklist]({% link ops/production_ready.md %}). For an overview of possible deployment targets, see [Clusters and Deployments]({% link deployment/resource-providers/index.md %}). 
 
 ### Upgrade Flink
 

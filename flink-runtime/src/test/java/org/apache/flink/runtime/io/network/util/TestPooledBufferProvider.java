@@ -57,7 +57,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public Buffer requestBuffer() throws IOException {
+	public Buffer requestBuffer() {
 		final Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
@@ -67,7 +67,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder() throws IOException {
+	public BufferBuilder requestBufferBuilder() {
 		Buffer buffer = requestBuffer();
 		if (buffer != null) {
 			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
@@ -76,11 +76,11 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+	public BufferBuilder requestBufferBuilder(int targetChannel) {
 		return requestBufferBuilder();
 	}
 
-	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	private Buffer requestBufferBlocking() throws InterruptedException {
 		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
@@ -95,13 +95,13 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
 		Buffer buffer = requestBufferBlocking();
 		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws InterruptedException {
 		return requestBufferBuilderBlocking();
 	}
 

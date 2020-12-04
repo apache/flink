@@ -33,6 +33,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.ForkJoinPool;
+
 /**
  * Simple {@link ResourceManager} implementation for testing purposes.
  */
@@ -59,11 +61,17 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 			new ClusterInformation("localhost", 1234),
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			ForkJoinPool.commonPool());
 	}
 
 	@Override
 	protected void initialize() throws ResourceManagerException {
+		// noop
+	}
+
+	@Override
+	protected void terminate() {
 		// noop
 	}
 

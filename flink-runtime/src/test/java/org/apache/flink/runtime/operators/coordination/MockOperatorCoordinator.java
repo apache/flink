@@ -49,17 +49,22 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
+	public void subtaskReset(int subtask, long checkpointId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void checkpointComplete(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void resetToCheckpoint(byte[] checkpointData) {
+	public void resetToCheckpoint(long checkpointId, byte[] checkpointData) {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -174,6 +174,36 @@ public class NettyShuffleEnvironmentOptions {
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
 	/**
+	 * Minimum number of network buffers required per sort-merge blocking result partition.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_BUFFERS =
+		key("taskmanager.network.sort-shuffle.min-buffers")
+			.intType()
+			.defaultValue(64)
+			.withDescription("Minimum number of network buffers required per sort-merge blocking "
+				+ "result partition. For large scale batch jobs, it is suggested to increase this"
+				+ " config value to improve compression ratio and reduce small network packets. "
+				+ "Note: to increase this config value, you may also need to increase the size of "
+				+ "total network memory to avoid \"insufficient number of network buffers\" error.");
+
+	/**
+	 * Parallelism threshold to switch between sort-merge based blocking shuffle and the default
+	 * hash-based blocking shuffle.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+	public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
+		key("taskmanager.network.sort-shuffle.min-parallelism")
+			.intType()
+			.defaultValue(Integer.MAX_VALUE)
+			.withDescription("Parallelism threshold to switch between sort-merge blocking shuffle "
+				+ "and the default hash-based blocking shuffle, which means for small parallelism,"
+				+ " hash-based blocking shuffle will be used and for large parallelism, sort-merge"
+				+ " blocking shuffle will be used. Note: sort-merge blocking shuffle uses unmanaged"
+				+ " direct memory for shuffle data writing and reading so just increase the size of"
+				+ " direct memory if direct memory OOM error occurs.");
+
+	/**
 	 * Number of max buffers can be used for each output subparition.
 	 */
 	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -297,11 +327,6 @@ public class NettyShuffleEnvironmentOptions {
 			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
 	// ------------------------------------------------------------------------
-
-	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
-	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-		key("taskmanager.network.partition.force-release-on-consumption")
-			.defaultValue(false);
 
 	/** Not intended to be instantiated. */
 	private NettyShuffleEnvironmentOptions() {}

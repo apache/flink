@@ -22,6 +22,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.junit.Test;
 
@@ -46,7 +47,8 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 			path,
 			size,
 			ts,
-			LocalResourceVisibility.PUBLIC);
+			LocalResourceVisibility.PUBLIC,
+			LocalResourceType.FILE);
 
 		final String desc = localResourceDesc.toString();
 		YarnLocalResourceDescriptor newLocalResourceDesc = YarnLocalResourceDescriptor.fromString(desc);
@@ -55,6 +57,7 @@ public class YarnLocalResourceDescriptionTest extends TestLogger {
 		assertThat(newLocalResourceDesc.getSize(), is(size));
 		assertThat(newLocalResourceDesc.getModificationTime(), is(ts));
 		assertThat(newLocalResourceDesc.getVisibility(), is(LocalResourceVisibility.PUBLIC));
+		assertThat(newLocalResourceDesc.getResourceType(), is(LocalResourceType.FILE));
 	}
 
 	@Test

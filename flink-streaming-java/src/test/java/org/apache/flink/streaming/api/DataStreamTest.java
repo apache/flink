@@ -19,18 +19,20 @@ package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -39,7 +41,6 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
@@ -48,7 +49,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -81,7 +81,6 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
@@ -96,9 +95,11 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -304,15 +305,15 @@ public class DataStreamTest extends TestLogger {
 
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				})
-				.name("testWindowFold")
+				.name("testWindowReduce")
 				.print();
 
 		//test functionality through the operator names in the execution plan
@@ -323,7 +324,7 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testCoFlatMap"));
-		assertTrue(plan.contains("testWindowFold"));
+		assertTrue(plan.contains("testWindowReduce"));
 	}
 
 	/**
@@ -331,7 +332,6 @@ public class DataStreamTest extends TestLogger {
 	 * different and correct topologies. Does the some for the {@link ConnectedStreams}.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testPartitioning() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -510,9 +510,9 @@ public class DataStreamTest extends TestLogger {
 		DataStream<Long> windowed = map
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				});
@@ -635,11 +635,11 @@ public class DataStreamTest extends TestLogger {
 		DataStream<Long> windowed = connected
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				});
@@ -703,13 +703,29 @@ public class DataStreamTest extends TestLogger {
 		DataStream<CustomPOJO> flatten = window
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(5)))
-				.fold(new CustomPOJO(), new FoldFunction<String, CustomPOJO>() {
+				.aggregate(new AggregateFunction<String, CustomPOJO, CustomPOJO>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public CustomPOJO fold(CustomPOJO accumulator, String value) throws Exception {
+					public CustomPOJO createAccumulator() {
 						return null;
 					}
+
+					@Override
+					public CustomPOJO add(String value, CustomPOJO accumulator) {
+						return null;
+					}
+
+					@Override
+					public CustomPOJO getResult(CustomPOJO accumulator) {
+						return null;
+					}
+
+					@Override
+					public CustomPOJO merge(CustomPOJO a, CustomPOJO b) {
+						return null;
+					}
+
 				});
 
 		assertEquals(TypeExtractor.getForClass(CustomPOJO.class), flatten.getType());
@@ -977,24 +993,6 @@ public class DataStreamTest extends TestLogger {
 			fail(e.getMessage());
 		}
 
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		SplitStream<Integer> split = unionFilter.split(outputSelector);
-		split.select("dummy").addSink(new DiscardingSink<Integer>());
-		List<OutputSelector<?>> outputSelectors = getStreamGraph(env).getStreamNode(unionFilter.getId()).getOutputSelectors();
-		assertEquals(1, outputSelectors.size());
-		assertEquals(outputSelector, outputSelectors.get(0));
-
-		DataStream<Integer> select = split.select("a");
-		DataStreamSink<Integer> sink = select.print();
-
-		StreamEdge splitEdge = getStreamGraph(env).getStreamEdges(unionFilter.getId(), sink.getTransformation().getId()).get(0);
-		assertEquals("a", splitEdge.getSelectedNames().get(0));
-
-		DataStreamSink<Integer> sinkWithIdentifier = select.print("identifier");
-		StreamEdge newSplitEdge = getStreamGraph(env).getStreamEdges(unionFilter.getId(), sinkWithIdentifier.getTransformation().getId()).get(0);
-		assertEquals("a", newSplitEdge.getSelectedNames().get(0));
-
 		ConnectedStreams<Integer, Integer> connect = map.connect(flatMap);
 		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {
 			private static final long serialVersionUID = 1L;
@@ -1024,6 +1022,22 @@ public class DataStreamTest extends TestLogger {
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testKeyedConnectedStreamsType() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Integer> stream1 = env.fromElements(1, 2);
+		DataStreamSource<Integer> stream2 = env.fromElements(1, 2);
+
+		ConnectedStreams<Integer, Integer> connectedStreams = stream1.connect(stream2)
+			.keyBy(v -> v, v -> v);
+
+		KeyedStream<?, ?> firstKeyedInput = (KeyedStream<?, ?>) connectedStreams.getFirstInput();
+		KeyedStream<?, ?> secondKeyedInput = (KeyedStream<?, ?>) connectedStreams.getSecondInput();
+		assertThat(firstKeyedInput.getKeyType(), equalTo(Types.INT));
+		assertThat(secondKeyedInput.getKeyType(), equalTo(Types.INT));
 	}
 
 	@Test
@@ -1109,91 +1123,6 @@ public class DataStreamTest extends TestLogger {
 				getStreamGraph(env).getStreamEdges(src.getId(),
 						globalSink.getTransformation().getId()).get(0).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
-	}
-
-	/////////////////////////////////////////////////////////////
-	// Split testing
-	/////////////////////////////////////////////////////////////
-
-	@Test
-	public void testConsecutiveSplitRejection() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Integer> src = env.fromElements(0, 0);
-
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		src.split(outputSelector).split(outputSelector).addSink(new DiscardingSink<>());
-
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
-
-		getStreamGraph(env);
-	}
-
-	@Test
-	public void testSplitAfterSideOutputRejection() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Integer> src = env.fromElements(0, 0);
-
-		OutputTag<Integer> outputTag = new OutputTag<Integer>("dummy"){};
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		src.getSideOutput(outputTag).split(outputSelector).addSink(new DiscardingSink<>());
-
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
-
-		getStreamGraph(env);
-	}
-
-	@Test
-	public void testSelectBetweenConsecutiveSplitRejection() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Integer> src = env.fromElements(0, 0);
-
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		src.split(outputSelector).select("dummy").split(outputSelector).addSink(new DiscardingSink<>());
-
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
-
-		getStreamGraph(env);
-	}
-
-	@Test
-	public void testUnionBetweenConsecutiveSplitRejection() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Integer> src = env.fromElements(0, 0);
-
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		src.split(outputSelector).select("dummy").union(src.map(x -> x)).split(outputSelector).addSink(new DiscardingSink<>());
-
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
-
-		getStreamGraph(env);
-	}
-
-	@Test
-	public void testKeybyBetweenConsecutiveSplitRejection() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Integer> src = env.fromElements(0, 0);
-
-		OutputSelector<Integer> outputSelector = new DummyOutputSelector<>();
-
-		src.split(outputSelector).select("dummy").keyBy(x -> x).split(outputSelector).addSink(new DiscardingSink<>());
-
-		expectedException.expect(IllegalStateException.class);
-		expectedException.expectMessage("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
-
-		getStreamGraph(env);
 	}
 
 	/////////////////////////////////////////////////////////////
@@ -1556,12 +1485,5 @@ public class DataStreamTest extends TestLogger {
 
 	private enum TestEnum {
 		FOO, BAR
-	}
-
-	private class DummyOutputSelector<Integer> implements OutputSelector<Integer> {
-		@Override
-		public Iterable<String> select(Integer value) {
-			return null;
-		}
 	}
 }

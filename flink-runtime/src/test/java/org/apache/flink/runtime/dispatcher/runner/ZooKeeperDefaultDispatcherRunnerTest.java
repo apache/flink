@@ -39,8 +39,8 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperRunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -71,6 +71,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
@@ -152,7 +153,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null);
+				null,
+				ForkJoinPool.commonPool());
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 
@@ -190,7 +192,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				dispatcherLeaderElectionService.notLeader();
 
 				// check that the job has been removed from ZooKeeper
-				final ZooKeeperJobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
+				final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
 
 				CommonTestUtils.waitUntilCondition(() -> submittedJobGraphStore.getJobIds().isEmpty(), Deadline.fromNow(VERIFICATION_TIMEOUT), 20L);
 			}
@@ -215,7 +217,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				partialDispatcherServices);
 	}
 
-	private ZooKeeperJobGraphStore createZooKeeperJobGraphStore(CuratorFramework client) {
+	private JobGraphStore createZooKeeperJobGraphStore(CuratorFramework client) {
 		try {
 			return ZooKeeperUtils.createJobGraphs(client, configuration);
 		} catch (Exception e) {

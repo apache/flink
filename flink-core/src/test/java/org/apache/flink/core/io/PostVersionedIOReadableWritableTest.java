@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.EOFException;
 import java.io.IOException;
 
 /**
@@ -35,8 +36,62 @@ public class PostVersionedIOReadableWritableTest {
 
 	@Test
 	public void testReadVersioned() throws IOException {
+		byte[] payload = "test-data".getBytes();
+		byte[] serialized = serializeWithPostVersionedReadableWritable(payload);
+		byte[] restored = restoreWithPostVersionedReadableWritable(serialized, payload.length);
 
-		String payload = "test-data";
+		Assert.assertArrayEquals(payload, restored);
+	}
+
+	@Test
+	public void testReadNonVersioned() throws IOException {
+		byte[] preVersionedPayload = new byte[]{0x00, 0x00, 0x02, 0x33};
+		byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
+		byte[] restored = restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
+
+		Assert.assertArrayEquals(preVersionedPayload, restored);
+	}
+
+	@Test
+	public void testReadNonVersionedWithLongPayload() throws IOException {
+		byte[] preVersionedPayload = "test-data".getBytes();
+		byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
+		byte[] restored = restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
+
+		Assert.assertArrayEquals(preVersionedPayload, restored);
+	}
+
+	@Test
+	public void testReadNonVersionedWithShortPayload() throws IOException {
+		byte[] preVersionedPayload = new byte[]{-15, -51};
+		byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
+		byte[] restored = restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
+
+		Assert.assertArrayEquals(preVersionedPayload, restored);
+	}
+
+	@Test
+	public void testReadNonVersionedWithEmptyPayload() throws IOException {
+		byte[] preVersionedPayload = new byte[0];
+		byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
+		byte[] restored = restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
+
+		Assert.assertArrayEquals(preVersionedPayload, restored);
+	}
+
+	private byte[] serializeWithNonVersionedReadableWritable(byte[] payload) throws IOException {
+		TestNonVersionedReadableWritable versionedReadableWritable = new TestNonVersionedReadableWritable(payload);
+
+		byte[] serialized;
+		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+			versionedReadableWritable.write(new DataOutputViewStreamWrapper(out));
+			serialized = out.toByteArray();
+		}
+
+		return serialized;
+	}
+
+	private byte[] serializeWithPostVersionedReadableWritable(byte[] payload) throws IOException {
 		TestPostVersionedReadableWritable versionedReadableWritable = new TestPostVersionedReadableWritable(payload);
 
 		byte[] serialized;
@@ -45,42 +100,37 @@ public class PostVersionedIOReadableWritableTest {
 			serialized = out.toByteArray();
 		}
 
-		TestPostVersionedReadableWritable restoredVersionedReadableWritable = new TestPostVersionedReadableWritable();
-		try(ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			restoredVersionedReadableWritable.read(in);
-		}
-
-		Assert.assertEquals(payload, restoredVersionedReadableWritable.getData());
+		return serialized;
 	}
 
-	@Test
-	public void testReadNonVersioned() throws IOException {
-		int preVersionedPayload = 563;
+	private byte[] restoreWithPostVersionedReadableWritable(byte[] serialized, int expectedLength) throws IOException {
+		TestPostVersionedReadableWritable restoredVersionedReadableWritable = new TestPostVersionedReadableWritable(expectedLength);
 
-		TestNonVersionedReadableWritable nonVersionedReadableWritable = new TestNonVersionedReadableWritable(preVersionedPayload);
-
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			nonVersionedReadableWritable.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
-
-		TestPostVersionedReadableWritable restoredVersionedReadableWritable = new TestPostVersionedReadableWritable();
-		try(ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+		try(ByteArrayInputStreamWithPos in = new TestByteArrayInputStreamProducingOneByteAtATime(serialized)) {
 			restoredVersionedReadableWritable.read(in);
 		}
 
-		Assert.assertEquals(String.valueOf(preVersionedPayload), restoredVersionedReadableWritable.getData());
+		return restoredVersionedReadableWritable.getData();
+	}
+
+	private static void assertEmpty(DataInputView in) throws IOException {
+		try {
+			in.readByte();
+			Assert.fail();
+		} catch (EOFException ignore) {
+		}
 	}
 
 	static class TestPostVersionedReadableWritable extends PostVersionedIOReadableWritable {
 
 		private static final int VERSION = 1;
-		private String data;
+		private byte[] data;
 
-		TestPostVersionedReadableWritable() {}
+		TestPostVersionedReadableWritable(int len) {
+			this.data = new byte[len];
+		}
 
-		TestPostVersionedReadableWritable(String data) {
+		TestPostVersionedReadableWritable(byte[] data) {
 			this.data = data;
 		}
 
@@ -92,40 +142,54 @@ public class PostVersionedIOReadableWritableTest {
 		@Override
 		public void write(DataOutputView out) throws IOException {
 			super.write(out);
-			out.writeUTF(data);
+			out.write(data);
 		}
 
 		@Override
 		protected void read(DataInputView in, boolean wasVersioned) throws IOException {
-			if (wasVersioned) {
-				this.data = in.readUTF();
-			} else {
-				// in the previous non-versioned format, we wrote integers instead
-				this.data = String.valueOf(in.readInt());
-			}
+			in.readFully(data);
+			assertEmpty(in);
 		}
 
-		public String getData() {
+		public byte[] getData() {
 			return data;
 		}
 	}
 
 	static class TestNonVersionedReadableWritable implements IOReadableWritable {
 
-		private int data;
+		private byte[] data;
 
-		TestNonVersionedReadableWritable(int data) {
+		TestNonVersionedReadableWritable(byte[] data) {
 			this.data = data;
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
-			out.writeInt(data);
+			out.write(data);
 		}
 
 		@Override
 		public void read(DataInputView in) throws IOException {
-			this.data = in.readInt();
+			in.readFully(data);
+			assertEmpty(in);
+		}
+	}
+
+	static class TestByteArrayInputStreamProducingOneByteAtATime extends ByteArrayInputStreamWithPos {
+
+		public TestByteArrayInputStreamProducingOneByteAtATime(byte[] buf) {
+			super(buf);
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) {
+			return super.read(b, off, Math.min(len, 1));
+		}
+
+		@Override
+		public int read(byte[] b) throws IOException {
+			return read(b, 0, b.length);
 		}
 	}
 

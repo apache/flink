@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Checkpoint ITCase for {@link OrcFileSystemFormatFactory}.
+ * Checkpoint ITCase for {@link OrcFileFormatFactory}.
  */
 public class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 
@@ -32,7 +32,7 @@ public class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 	public String[] additionalProperties() {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='orc'");
-		ret.add("'format.orc.compress'='snappy'");
+		ret.add("'orc.compress'='snappy'");
 		return ret.toArray(new String[0]);
 	}
 }

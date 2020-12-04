@@ -27,7 +27,6 @@ import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -101,9 +100,7 @@ final class CalculatedTableFactory {
 			final TableSchema tableSchema = adjustNames(
 				extractSchema(callExpression.getOutputDataType()),
 				aliases,
-				callExpression.getFunctionIdentifier()
-					.map(FunctionIdentifier::asSummaryString)
-					.orElse(functionDefinition.toString()));
+				callExpression.getFunctionName());
 
 			return new CalculatedQueryOperation(
 				functionDefinition,

@@ -18,30 +18,26 @@
 
 package org.apache.flink.table.runtime.operators.python.scalar;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-
+import java.io.IOException;
 import java.util.Collection;
-import java.util.Map;
+import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
@@ -51,10 +47,10 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 public class RowDataPythonScalarFunctionOperatorTest
 		extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.STRING,
-		Types.STRING,
-		Types.LONG
+	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new LogicalType[]{
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.BIGINT().getLogicalType()
 	});
 
 	@Override
@@ -101,7 +97,7 @@ public class RowDataPythonScalarFunctionOperatorTest
 	@Override
 	public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
 		// If not specified, PojoSerializer will be used which doesn't work well with the Arrow data structure.
-		return new RowDataSerializer(new ExecutionConfig(), rowType);
+		return new RowDataSerializer(rowType);
 	}
 
 	private static class PassThroughPythonScalarFunctionOperator extends RowDataPythonScalarFunctionOperator {
@@ -117,24 +113,18 @@ public class RowDataPythonScalarFunctionOperatorTest
 		}
 
 		@Override
-		public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager,
-				Map<String, String> jobOptions) {
-			return new PassThroughPythonScalarFunctionRunner<RowData>(
+		public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+			return new PassThroughPythonScalarFunctionRunner(
 				getRuntimeContext().getTaskName(),
-				resultReceiver,
-				scalarFunctions,
 				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				jobOptions,
-				PythonTestUtils.createMockFlinkMetricContainer()) {
-				@Override
-				public TypeSerializer<RowData> getInputTypeSerializer() {
-					return (RowDataSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
-				}
-			};
+				getFunctionUrn(),
+				getUserDefinedFunctionsProto(),
+				getInputOutputCoderUrn(),
+				new HashMap<>(),
+				PythonTestUtils.createMockFlinkMetricContainer()
+			);
 		}
 	}
 }

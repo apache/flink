@@ -170,7 +170,7 @@ public final class TypeInferenceUtil {
 			TypeInference typeInference,
 			String name,
 			FunctionDefinition definition) {
-		if (typeInference.getNamedArguments().isPresent() || typeInference.getTypedArguments().isPresent()) {
+		if (typeInference.getTypedArguments().isPresent()) {
 			return formatNamedOrTypedArguments(name, typeInference);
 		}
 		return typeInference.getInputTypeStrategy().getExpectedSignatures(definition)

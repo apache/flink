@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Checkpoint ITCase for {@link ParquetFileSystemFormatFactory}.
+ * Checkpoint ITCase for {@link ParquetFileFormatFactory}.
  */
 public class ParquetFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 
@@ -32,7 +32,7 @@ public class ParquetFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
 	public String[] additionalProperties() {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='parquet'");
-		ret.add("'format.parquet.compression'='gzip'");
+		ret.add("'parquet.compression'='gzip'");
 		return ret.toArray(new String[0]);
 	}
 }

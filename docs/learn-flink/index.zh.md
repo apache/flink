@@ -50,7 +50,7 @@ under the License.
 
 在自然环境中，数据的产生原本就是流式的。无论是来自 Web 服务器的事件数据，证券交易所的交易数据，还是来自工厂车间机器上的传感器数据，其数据都是流式的。但是当你分析数据时，可以围绕 _有界流_（_bounded_）或 _无界流_（_unbounded_）两种模型来组织处理数据，当然，选择不同的模型，程序的执行和处理方式也都会不同。
 
-<img src="{{ site.baseurl }}/fig/bounded-unbounded.png" alt="Bounded and unbounded streams" class="offset" width="90%" />
+<img src="{% link /fig/bounded-unbounded.png %}" alt="Bounded and unbounded streams" class="offset" width="90%" />
 
 **批处理**是有界数据流处理的范例。在这种模式下，你可以选择在计算结果输出之前输入整个数据集，这也就意味着你可以对整个数据集的数据进行排序、统计或汇总计算后再输出结果。
 
@@ -58,13 +58,13 @@ under the License.
 
 在 Flink 中，应用程序由用户自定义**算子**转换而来的**流式 dataflows** 所组成。这些流式 dataflows 形成了有向图，以一个或多个**源**（source）开始，并以一个或多个**汇**（sink）结束。
 
-<img src="{{ site.baseurl }}/fig/program_dataflow.svg" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
+<img src="{% link /fig/program_dataflow.svg %}" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
 
 通常，程序代码中的 transformation 和 dataflow 中的算子（operator）之间是一一对应的。但有时也会出现一个 transformation 包含多个算子的情况，如上图所示。
 
 Flink 应用程序可以消费来自消息队列或分布式日志这类流式数据源（例如 Apache Kafka 或 Kinesis）的实时数据，也可以从各种的数据源中消费有界的历史数据。同样，Flink 应用程序生成的结果流也可以发送到各种数据汇中。
 
-<img src="{{ site.baseurl }}/fig/flink-application-sources-sinks.png" alt="Flink application with sources and sinks" class="offset" width="90%" />
+<img src="{% link /fig/flink-application-sources-sinks.png %}" alt="Flink application with sources and sinks" class="offset" width="90%" />
 
 ### 并行 Dataflows
 
@@ -72,7 +72,7 @@ Flink 程序本质上是分布式并行程序。在程序执行期间，一个�
 
 算子子任务数就是其对应算子的**并行度**。在同一程序中，不同算子也可能具有不同的并行度。
 
-<img src="{{ site.baseurl }}/fig/parallel_dataflow.svg" alt="A parallel dataflow" class="offset" width="80%" />
+<img src="{% link /fig/parallel_dataflow.svg %}" alt="A parallel dataflow" class="offset" width="80%" />
 
 Flink 算子之间可以通过*一对一*（*直传*）模式或*重新分发*模式传输数据：
 
@@ -102,11 +102,11 @@ Flink 应用程序可以在分布式群集上并行运行，其中每个算子�
 
 如下图的 Flink 作业，其前三个算子的并行度为 2，最后一个 sink 算子的并行度为 1，其中第三个算子是有状态的，并且你可以看到第二个算子和第三个算子之间是全互联的（fully-connected），它们之间通过网络进行数据分发。通常情况下，实现这种类型的 Flink 程序是为了通过某些键对数据流进行分区，以便将需要一起处理的事件进行汇合，然后做统一计算处理。
 
-<img src="{{ site.baseurl }}/fig/parallel-job.png" alt="State is sharded" class="offset" width="65%" />
+<img src="{% link /fig/parallel-job.png %}" alt="State is sharded" class="offset" width="65%" />
 
 Flink 应用程序的状态访问都在本地进行，因为这有助于其提高吞吐量和降低延迟。通常情况下 Flink 应用程序都是将状态存储在 JVM 堆上，但如果状态太大，我们也可以选择将其以结构化数据格式存储在高速磁盘中。
 
-<img src="{{ site.baseurl }}/fig/local-state.png" alt="State is local" class="offset" width="90%" />
+<img src="{% link /fig/local-state.png %}" alt="State is local" class="offset" width="90%" />
 
 {% top %}
 

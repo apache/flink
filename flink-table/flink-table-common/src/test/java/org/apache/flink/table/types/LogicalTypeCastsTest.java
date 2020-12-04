@@ -62,7 +62,7 @@ public class LogicalTypeCastsTest {
 				// nullability does not match
 				{new SmallIntType(false), new SmallIntType(), true, true},
 
-				{new SmallIntType(), new SmallIntType(false), false, false},
+				{new SmallIntType(), new SmallIntType(false), false, true},
 
 				{
 					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
@@ -105,6 +105,18 @@ public class LogicalTypeCastsTest {
 				},
 
 				{new NullType(), new IntType(), true, true},
+
+				{
+					new NullType(),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					true,
+					true
+				},
 
 				{new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
 

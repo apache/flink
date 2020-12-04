@@ -23,6 +23,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Test;
 
 import javax.management.MBeanAttributeInfo;
@@ -42,6 +44,7 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,6 +61,11 @@ import static org.junit.Assert.assertTrue;
  * Tests for the JMXReporter.
  */
 public class JMXReporterTest extends TestLogger {
+
+	@After
+	public void shutdownService() throws IOException {
+		JMXService.stopInstance();
+	}
 
 	@Test
 	public void testReplaceInvalidChars() {
@@ -205,6 +213,9 @@ public class JMXReporterTest extends TestLogger {
 
 		assertEquals(1, mCon2.getAttribute(objectName1, "Value"));
 		assertEquals(2, mCon2.getAttribute(objectName2, "Value"));
+
+		// JMX Server URL should be identical since we made it static.
+		assertEquals(url1, url2);
 
 		rep1.notifyOfRemovedMetric(g1, "rep1", null);
 		rep1.notifyOfRemovedMetric(g2, "rep2", null);

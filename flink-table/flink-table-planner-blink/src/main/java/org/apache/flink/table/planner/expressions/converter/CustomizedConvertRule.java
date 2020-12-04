@@ -299,7 +299,9 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 					.queryOperation(tableOperation).build(), ImmutableList.of(child));
 		} else {
 			List<RexNode> child = toRexNodes(context, call.getChildren());
-			return context.getRelBuilder().call(FlinkSqlOperatorTable.IN, child);
+			return context.getRelBuilder()
+					.getRexBuilder()
+					.makeIn(child.get(0), child.subList(1, child.size()));
 		}
 	}
 

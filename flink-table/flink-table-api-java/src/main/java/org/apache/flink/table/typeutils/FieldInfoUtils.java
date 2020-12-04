@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
@@ -37,9 +38,13 @@ import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.DataTypeQueryable;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -54,11 +59,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -71,7 +80,7 @@ public class FieldInfoUtils {
 	/**
 	 * Describes fields' names, indices and {@link DataType}s extracted from a {@link TypeInformation} and possibly
 	 * transformed via {@link Expression} application. It is in fact a mapping between {@link TypeInformation} of an
-	 * input and {@link TableSchema} of a {@link org.apache.flink.table.api.Table} that can be created out of it.
+	 * input and {@link TableSchema} of a {@link Table} that can be created out of it.
 	 *
 	 * @see FieldInfoUtils#getFieldsInfo(TypeInformation)
 	 * @see FieldInfoUtils#getFieldsInfo(TypeInformation, Expression[])
@@ -155,12 +164,12 @@ public class FieldInfoUtils {
 	 * used if the input type has a defined field order (tuple, case class, Row) and no of fields
 	 * references a field of the input type.
 	 */
-	private static boolean isReferenceByPosition(CompositeType<?> ct, Expression[] fields) {
-		if (!(ct instanceof TupleTypeInfoBase)) {
+	private static boolean isReferenceByPosition(TypeInformation<?> inputType, Expression[] fields) {
+		if (!isIndexedComposite(inputType)) {
 			return false;
 		}
 
-		List<String> inputNames = Arrays.asList(ct.getFieldNames());
+		List<String> inputNames = Arrays.asList(getFieldNames(inputType));
 
 		// Use the by-position mode if no of the fields exists in the input.
 		// This prevents confusing cases like ('f2, 'f0, 'myName) for a Tuple3 where fields are renamed
@@ -260,14 +269,29 @@ public class FieldInfoUtils {
 			throw new ValidationException(
 				"An input of GenericTypeInfo<Row> cannot be converted to Table. " +
 					"Please specify the type of the input with a RowTypeInfo.");
-		} else if (inputType instanceof TupleTypeInfoBase) {
-			fieldInfos = extractFieldInfosFromTupleType((TupleTypeInfoBase<?>) inputType, exprs);
-		} else if (inputType instanceof PojoTypeInfo) {
-			fieldInfos = extractFieldInfosByNameReference((CompositeType<?>) inputType, exprs);
+		} else if (isIndexedComposite(inputType)) {
+			fieldInfos = extractFieldInfosFromIndexedCompositeType(inputType, exprs);
+		} else if (isNonIndexedComposite(inputType)) {
+			fieldInfos = extractFieldInfosByNameReference(inputType, exprs);
 		} else {
 			fieldInfos = extractFieldInfoFromAtomicType(inputType, exprs);
 		}
 		return fieldInfos;
+	}
+
+	private static boolean isIndexedComposite(TypeInformation<?> inputType) {
+		// type originated from Table API
+		if (inputType instanceof DataTypeQueryable) {
+			final DataType dataType = ((DataTypeQueryable) inputType).getDataType();
+			final LogicalType type = dataType.getLogicalType();
+			return isCompositeType(type); // every composite in Table API is indexed
+		}
+		// type originated from other API
+		return inputType instanceof TupleTypeInfoBase;
+	}
+
+	private static boolean isNonIndexedComposite(TypeInformation<?> inputType) {
+		return inputType instanceof PojoTypeInfo;
 	}
 
 	private static void validateAtMostOneProctimeAttribute(List<FieldInfo> fieldInfos) {
@@ -318,23 +342,30 @@ public class FieldInfoUtils {
 	public static <A> String[] getFieldNames(TypeInformation<A> inputType, List<String> existingNames) {
 		validateInputTypeInfo(inputType);
 
-		String[] fieldNames;
-		if (inputType instanceof CompositeType) {
-			fieldNames = ((CompositeType<A>) inputType).getFieldNames();
-		} else {
-			int i = 0;
-			String fieldName = ATOMIC_FIELD_NAME;
-			while ((null != existingNames) && existingNames.contains(fieldName)) {
-				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+		List<String> fieldNames = null;
+		// type originated from Table API
+		if (inputType instanceof DataTypeQueryable) {
+			final DataType dataType = ((DataTypeQueryable) inputType).getDataType();
+			final LogicalType type = dataType.getLogicalType();
+			if (isCompositeType(type)) {
+				fieldNames = LogicalTypeChecks.getFieldNames(type);
 			}
-			fieldNames = new String[]{fieldName};
+		}
+		// type originated from other API
+		else if (inputType instanceof CompositeType) {
+			fieldNames = Arrays.asList(((CompositeType<A>) inputType).getFieldNames());
 		}
 
-		if (Arrays.asList(fieldNames).contains("*")) {
+		// atomic in any case
+		if (fieldNames == null) {
+			fieldNames = Collections.singletonList(getAtomicName(existingNames));
+		}
+
+		if (fieldNames.contains("*")) {
 			throw new TableException("Field name can not be '*'.");
 		}
 
-		return fieldNames;
+		return fieldNames.toArray(new String[0]);
 	}
 
 	/**
@@ -387,6 +418,23 @@ public class FieldInfoUtils {
 
 	/* Utility methods */
 
+	private static DataType[] getFieldDataTypes(TypeInformation<?> inputType) {
+		validateInputTypeInfo(inputType);
+
+		// type originated from Table API
+		if (inputType instanceof DataTypeQueryable) {
+			final DataType dataType = ((DataTypeQueryable) inputType).getDataType();
+			return dataType.getChildren().toArray(new DataType[0]);
+		}
+		// type originated from other API
+		else {
+			final TypeInformation<?>[] fieldTypes = getFieldTypes(inputType);
+			return Stream.of(fieldTypes)
+				.map(TypeConversions::fromLegacyInfoToDataType)
+				.toArray(DataType[]::new);
+		}
+	}
+
 	private static List<FieldInfo> extractFieldInfoFromAtomicType(TypeInformation<?> atomicType, Expression[] exprs) {
 		List<FieldInfo> fields = new ArrayList<>(exprs.length);
 		boolean alreadyReferenced = false;
@@ -413,7 +461,9 @@ public class FieldInfoUtils {
 		return fields;
 	}
 
-	private static List<FieldInfo> extractFieldInfosFromTupleType(TupleTypeInfoBase<?> inputType, Expression[] exprs) {
+	private static List<FieldInfo> extractFieldInfosFromIndexedCompositeType(
+			TypeInformation<?> inputType,
+			Expression[] exprs) {
 		boolean isRefByPos = isReferenceByPosition(inputType, exprs);
 
 		if (isRefByPos) {
@@ -425,7 +475,9 @@ public class FieldInfoUtils {
 		}
 	}
 
-	private static List<FieldInfo> extractFieldInfosByNameReference(CompositeType<?> inputType, Expression[] exprs) {
+	private static List<FieldInfo> extractFieldInfosByNameReference(
+			TypeInformation<?> inputType,
+			Expression[] exprs) {
 		ExprToFieldInfo exprToFieldInfo = new ExprToFieldInfo(inputType);
 		return Arrays.stream(exprs)
 			.map(expr -> expr.accept(exprToFieldInfo))
@@ -458,18 +510,20 @@ public class FieldInfoUtils {
 
 	private static class IndexedExprToFieldInfo extends ApiExpressionDefaultVisitor<FieldInfo> {
 
-		private final CompositeType<?> inputType;
+		private final String[] fieldNames;
+		private final DataType[] fieldDataTypes;
 		private final int index;
 
-		private IndexedExprToFieldInfo(CompositeType<?> inputType, int index) {
-			this.inputType = inputType;
+		private IndexedExprToFieldInfo(TypeInformation<?> inputType, int index) {
+			this.fieldNames = getFieldNames(inputType);
+			this.fieldDataTypes = getFieldDataTypes(inputType);
 			this.index = index;
 		}
 
 		@Override
 		public FieldInfo visit(UnresolvedReferenceExpression unresolvedReference) {
 			String fieldName = unresolvedReference.getName();
-			return new FieldInfo(fieldName, index, fromLegacyInfoToDataType(getTypeAt(unresolvedReference)));
+			return new FieldInfo(fieldName, index, getTypeAt(unresolvedReference));
 		}
 
 		@Override
@@ -502,29 +556,29 @@ public class FieldInfoUtils {
 		}
 
 		private void validateRowtimeReplacesCompatibleType(UnresolvedCallExpression unresolvedCall) {
-			if (index < inputType.getArity()) {
-				checkRowtimeType(getTypeAt(unresolvedCall));
+			if (index < fieldDataTypes.length) {
+				checkRowtimeType(fromDataTypeToLegacyInfo(getTypeAt(unresolvedCall)));
 			}
 		}
 
 		private void validateProcTimeAttributeAppended(UnresolvedCallExpression unresolvedCall) {
-			if (index < inputType.getArity()) {
+			if (index < fieldDataTypes.length) {
 				throw new ValidationException(String.format("The proctime attribute can only be appended to the" +
 					" table schema and not replace an existing field. Please move '%s' to the end of the" +
 					" schema.", unresolvedCall));
 			}
 		}
 
-		private TypeInformation<Object> getTypeAt(Expression expr) {
-			if (index >= inputType.getArity()) {
+		private DataType getTypeAt(Expression expr) {
+			if (index >= fieldDataTypes.length) {
 				throw new ValidationException(String.format(
 					"Number of expressions does not match number of input fields.\n" +
 						"Available fields: %s\n" +
 						"Could not map: %s",
-					Arrays.toString(inputType.getFieldNames()),
+					Arrays.toString(fieldNames),
 					expr));
 			}
-			return inputType.getTypeAt(index);
+			return fieldDataTypes[index];
 		}
 
 		@Override
@@ -535,18 +589,20 @@ public class FieldInfoUtils {
 
 	private static class ExprToFieldInfo extends ApiExpressionDefaultVisitor<FieldInfo> {
 
-		private final CompositeType ct;
+		private final TypeInformation<?> inputType;
+		private final DataType[] fieldDataTypes;
 
-		private ExprToFieldInfo(CompositeType ct) {
-			this.ct = ct;
+		private ExprToFieldInfo(TypeInformation<?> inputType) {
+			this.inputType = inputType;
+			this.fieldDataTypes = getFieldDataTypes(inputType);
 		}
 
 		private ValidationException fieldNotFound(String name) {
 			return new ValidationException(format(
 				"%s is not a field of type %s. Expected: %s}",
 				name,
-				ct,
-				String.join(", ", ct.getFieldNames())));
+				inputType,
+				String.join(", ", getFieldNames(inputType))));
 		}
 
 		@Override
@@ -585,11 +641,11 @@ public class FieldInfoUtils {
 
 		private FieldInfo createFieldInfo(UnresolvedReferenceExpression unresolvedReference, @Nullable String alias) {
 			String fieldName = unresolvedReference.getName();
-			return referenceByName(fieldName, ct)
+			return referenceByName(fieldName, inputType)
 				.map(idx -> new FieldInfo(
 					alias != null ? alias : fieldName,
 					idx,
-					fromLegacyInfoToDataType(ct.getTypeAt(idx))))
+					fieldDataTypes[idx]))
 				.orElseThrow(() -> fieldNotFound(fieldName));
 		}
 
@@ -602,7 +658,7 @@ public class FieldInfoUtils {
 		}
 
 		private void validateProctimeDoesNotReplaceField(String originalName) {
-			if (referenceByName(originalName, ct).isPresent()) {
+			if (referenceByName(originalName, inputType).isPresent()) {
 				throw new ValidationException(String.format(
 					"The proctime attribute '%s' must not replace an existing field.",
 					originalName));
@@ -618,9 +674,9 @@ public class FieldInfoUtils {
 		}
 
 		private void verifyReferencesValidField(String origName, @Nullable String alias) {
-			Optional<Integer> refId = referenceByName(origName, ct);
+			Optional<Integer> refId = referenceByName(origName, inputType);
 			if (refId.isPresent()) {
-				checkRowtimeType(ct.getTypeAt(refId.get()));
+				checkRowtimeType(fromDataTypeToLegacyInfo(fieldDataTypes[refId.get()]));
 			} else if (alias != null) {
 				throw new ValidationException(String.format("Alias '%s' must reference an existing field.", alias));
 			}
@@ -667,8 +723,9 @@ public class FieldInfoUtils {
 			((UnresolvedCallExpression) origExpr).getFunctionDefinition() == BuiltInFunctionDefinitions.PROCTIME;
 	}
 
-	private static Optional<Integer> referenceByName(String name, CompositeType<?> ct) {
-		int inputIdx = ct.getFieldIndex(name);
+	private static Optional<Integer> referenceByName(String name, TypeInformation<?> inputType) {
+		final String[] fieldNames = getFieldNames(inputType);
+		int inputIdx = Arrays.asList(fieldNames).indexOf(name);
 		if (inputIdx < 0) {
 			return Optional.empty();
 		} else {

@@ -180,7 +180,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val inputValueInterval = fmq.getColumnInterval(filter.getInput, index)
     ColumnIntervalUtil.getColumnIntervalWithFilter(
       Option(inputValueInterval),
-      filter.getCondition,
+      RexUtil.expandSearch(
+        filter.getCluster.getRexBuilder,
+        null,
+        filter.getCondition),
       index,
       filter.getCluster.getRexBuilder)
   }
@@ -273,6 +276,11 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           .map(operands(_))
           .map(getRexNodeInterval(_, baseNode, mq))
         possibleValueIntervals.reduceLeft(ValueInterval.union)
+
+      case searchCall: RexCall if searchCall.getKind == SqlKind.SEARCH =>
+        val expanded = RexUtil.expandSearch(
+          baseNode.getCluster.getRexBuilder, null, searchCall)
+        getRexNodeInterval(expanded, baseNode, mq)
 
       // TODO supports ScalarSqlFunctions.IF
       // TODO supports CAST

@@ -20,7 +20,6 @@ package org.apache.flink.table.api.bridge.scala.internal
 
 import java.util.{Collections, List => JList}
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 import org.apache.flink.table.api.TableConfig
@@ -32,6 +31,7 @@ import org.apache.flink.types.Row
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert.assertThat
 import org.junit.Test
+import java.time.Duration
 
 /**
  * Tests for [[StreamTableEnvironmentImpl]].
@@ -43,18 +43,17 @@ class StreamTableEnvironmentImplTest {
     val elements = env.fromElements(1, 2, 3)
     val tEnv: StreamTableEnvironmentImpl = getStreamTableEnvironment(env, elements)
 
-    val minRetention = Time.minutes(1)
-    val maxRetention = Time.minutes(10)
-    tEnv.getConfig.setIdleStateRetentionTime(minRetention, maxRetention)
+    val retention = Duration.ofMinutes(1)
+    tEnv.getConfig.setIdleStateRetention(retention)
     val table = tEnv.fromDataStream(elements)
     tEnv.toAppendStream[Row](table)
 
     assertThat(
       tEnv.getConfig.getMinIdleStateRetentionTime,
-      equalTo(minRetention.toMilliseconds))
+      equalTo(retention.toMillis))
     assertThat(
       tEnv.getConfig.getMaxIdleStateRetentionTime,
-      equalTo(maxRetention.toMilliseconds))
+      equalTo(retention.toMillis * 3 / 2))
   }
 
   @Test
@@ -63,18 +62,17 @@ class StreamTableEnvironmentImplTest {
     val elements = env.fromElements(1, 2, 3)
     val tEnv: StreamTableEnvironmentImpl = getStreamTableEnvironment(env, elements)
 
-    val minRetention = Time.minutes(1)
-    val maxRetention = Time.minutes(10)
-    tEnv.getConfig.setIdleStateRetentionTime(minRetention, maxRetention)
+    val retention = Duration.ofMinutes(1)
+    tEnv.getConfig.setIdleStateRetention(retention)
     val table = tEnv.fromDataStream(elements)
     tEnv.toRetractStream[Row](table)
 
     assertThat(
       tEnv.getConfig.getMinIdleStateRetentionTime,
-      equalTo(minRetention.toMilliseconds))
+      equalTo(retention.toMillis))
     assertThat(
       tEnv.getConfig.getMaxIdleStateRetentionTime,
-      equalTo(maxRetention.toMilliseconds))
+      equalTo(retention.toMillis * 3 / 2))
   }
 
   private def getStreamTableEnvironment(
@@ -91,7 +89,8 @@ class StreamTableEnvironmentImplTest {
       env,
       new TestPlanner(elements.javaStream.getTransformation),
       new ExecutorMock,
-      true)
+      true,
+      this.getClass.getClassLoader)
   }
 
   private class TestPlanner(transformation: Transformation[_]) extends PlannerMock {

@@ -51,7 +51,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val table = tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("12345,55,12345").mkString("\n")
@@ -77,7 +77,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val table = tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("12345,55,12345").mkString("\n")
@@ -105,7 +105,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val table = tEnv.from("Table3")
       .select('a.cast(DataTypes.STRING()), 'b.cast(DataTypes.DECIMAL(10, 2)))
       .distinct()
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("1,0.100000000000000000", "2,0.200000000000000000",
@@ -137,7 +137,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
    val table = tEnv.from("MyTable")
         .groupBy('a)
         .select('a, 'b.sum())
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val result = sink.getUpsertResults.sorted
     val expected = List(
@@ -158,7 +158,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
         .select('a, 'b)
         .where('a < 3)
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val result = sink.getRawResults.sorted
     val expected = List(
@@ -187,7 +187,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
     val table = tEnv.from("MyTable")
         .groupBy('a)
         .select('a, 'b.sum())
-    execInsertTableAndWaitResult(table, "testSink")
+    table.executeInsert("testSink").await()
 
     val result = sink.getRawResults.sorted
     val expected = List(

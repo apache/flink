@@ -279,6 +279,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
+    boolean ifNotExists = false;
     SqlIdentifier tableName;
     SqlNodeList primaryKeyList = SqlNodeList.EMPTY;
     List<SqlNodeList> uniqueKeysList = new ArrayList<SqlNodeList>();
@@ -297,6 +298,11 @@ SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
 {
     [ <EXTERNAL> { isExternal = true; } ]
     <TABLE> { propertyList = new SqlNodeList(getPos()); }
+
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
 
     tableName = CompoundIdentifier()
     [
@@ -365,7 +371,8 @@ SqlCreate SqlCreateTable(Span s, boolean isTemporary) :
                 isExternal,
                 rowFormat,
                 storedAs,
-                location);
+                location,
+                ifNotExists);
     }
 }
 
@@ -390,42 +397,52 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
     }
 }
 
-void TableColumn2(List<SqlNode> list) :
+void RegularColumn(List<SqlNode> list) :
 {
-    SqlParserPos pos;
     SqlIdentifier name;
     SqlDataTypeSpec type;
-    SqlCharStringLiteral comment = null;
+    SqlNode comment = null;
 }
 {
     name = SimpleIdentifier()
     type = ExtendedDataType()
-    [ <COMMENT> <QUOTED_STRING> {
-        comment = createStringLiteral(token.image, getPos());
-    }]
+    [
+        <COMMENT>
+        comment = StringLiteral()
+    ]
     {
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
-        list.add(tableColumn);
+        SqlTableColumn regularColumn = new SqlTableColumn.SqlRegularColumn(
+            getPos(),
+            name,
+            comment,
+            type,
+            null);
+        list.add(regularColumn);
     }
 }
 
 void PartColumnDef(List<SqlNode> list) :
 {
-    SqlParserPos pos;
     SqlIdentifier name;
     SqlDataTypeSpec type;
-    SqlCharStringLiteral comment = null;
+    SqlNode comment = null;
 }
 {
     name = SimpleIdentifier()
     type = DataType()
-    [ <COMMENT> <QUOTED_STRING> {
-        comment = createStringLiteral(token.image, getPos());
-    }]
+    [
+        <COMMENT>
+        comment = StringLiteral()
+    ]
     {
         type = type.withNullable(true);
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
-        list.add(tableColumn);
+        SqlTableColumn regularColumn = new SqlTableColumn.SqlRegularColumn(
+            getPos(),
+            name,
+            comment,
+            type,
+            null);
+        list.add(regularColumn);
     }
 }
 
@@ -508,7 +525,12 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
             context.notNullTraits.add(constraintTrait);
             context.notNullCols.add(name);
         }
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
+        SqlTableColumn tableColumn = new SqlTableColumn.SqlRegularColumn(
+            getPos(),
+            name,
+            comment,
+            type,
+            null);
         context.columnList.add(tableColumn);
     }
     [ <COMMENT> <QUOTED_STRING> {
@@ -1041,6 +1063,23 @@ SqlShowCatalogs SqlShowCatalogs() :
     }
 }
 
+SqlCall SqlShowCurrentCatalogOrDatabase() :
+{
+}
+{
+    <SHOW> <CURRENT> (
+        <CATALOG>
+        {
+            return new SqlShowCurrentCatalog(getPos());
+        }
+    |
+        <DATABASE>
+        {
+            return new SqlShowCurrentDatabase(getPos());
+        }
+    )
+}
+
 SqlDescribeCatalog SqlDescribeCatalog() :
 {
     SqlIdentifier catalogName;
@@ -1213,9 +1252,9 @@ SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdenti
     {
       List<SqlNode> cols = new ArrayList();
     }
-    TableColumn2(cols)
+    RegularColumn(cols)
     (
-      <COMMA> TableColumn2(cols)
+      <COMMA> RegularColumn(cols)
     )*
   <RPAREN>
   [
@@ -1258,13 +1297,21 @@ SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier
     |
     <RESTRICT>
   ]
-  { return new SqlAlterHiveTableChangeColumn(startPos.plus(getPos()),
-                                             tableIdentifier,
-                                             cascade,
-                                             oldName,
-                                             new SqlTableColumn(newName, newType, null, comment, newName.getParserPosition()),
-                                             first,
-                                             after); }
+  {
+    return new SqlAlterHiveTableChangeColumn(
+      startPos.plus(getPos()),
+      tableIdentifier,
+      cascade,
+      oldName,
+      new SqlTableColumn.SqlRegularColumn(
+        newName.getParserPosition(),
+        newName,
+        comment,
+        newType,
+        null),
+      first,
+      after);
+  }
 }
 
 SqlAlterTable SqlAlterHiveTableSerDe(SqlParserPos startPos, SqlIdentifier tableIdentifier, SqlNodeList partitionSpec) :
@@ -1444,4 +1491,22 @@ SqlAlterTable SqlDropPartitions(SqlParserPos startPos, SqlIdentifier tableIdenti
     }
   )*
   { return new SqlDropPartitions(startPos.plus(getPos()), tableIdentifier, ifExists, partSpecs); }
+}
+
+/**
+ * Hive syntax:
+ *
+ * SHOW PARTITIONS table_name [PARTITION partition_spec];
+ */
+SqlShowPartitions SqlShowPartitions() :
+{
+     SqlParserPos pos;
+     SqlIdentifier tableIdentifier;
+     SqlNodeList partitionSpec = null;
+}
+{
+    <SHOW> <PARTITIONS> { pos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    [ <PARTITION> { partitionSpec = new SqlNodeList(getPos()); PartitionSpecCommaList(new SqlNodeList(getPos()), partitionSpec); } ]
+    { return new SqlShowPartitions(pos, tableIdentifier, partitionSpec); }
 }
