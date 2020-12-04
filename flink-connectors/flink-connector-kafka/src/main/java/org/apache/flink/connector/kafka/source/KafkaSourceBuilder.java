@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -326,6 +327,20 @@ public class KafkaSourceBuilder<OUT> {
 	 */
 	public KafkaSourceBuilder<OUT> setDeserializer(KafkaRecordDeserializationSchema<OUT> recordDeserializer) {
 		this.deserializationSchema = recordDeserializer;
+		return this;
+	}
+
+	/**
+	 * Sets the {@link KafkaRecordDeserializationSchema deserializer} of the
+	 * {@link org.apache.kafka.clients.consumer.ConsumerRecord ConsumerRecord} for KafkaSource.
+	 * The given {@link DeserializationSchema} will be used to deserialize the ConsumerRecord from
+	 * its value. The other information in a ConsumerRecord will be ignored.
+	 *
+	 * @param deserializationSchema the {@link DeserializationSchema} to use for deserialization.
+	 * @return this KafkaSourceBuilder.
+	 */
+	public KafkaSourceBuilder<OUT> setValueOnlyDeserializer(DeserializationSchema<OUT> deserializationSchema) {
+		this.deserializationSchema = KafkaRecordDeserializationSchema.valueOnly(deserializationSchema);
 		return this;
 	}
 
