@@ -339,7 +339,6 @@ Calc(select=[c, g])
   <TestCase name="testInnerJoinWithEquiPred">
     <Resource name="sql">
       <![CDATA[SELECT c, g FROM MyTable1, MyTable2 WHERE a = d]]>
-
     </Resource>
     <Resource name="planBefore">
       <![CDATA[

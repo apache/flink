@@ -297,7 +297,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
                +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt], reuse_id=[1])
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])(reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
       +- Calc(select=[a])
@@ -348,7 +348,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
                +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt], reuse_id=[1])
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])(reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
       +- Calc(select=[a])

@@ -259,7 +259,7 @@ LogicalUnion(all=[true])
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[rowtime])
-:- Calc(select=[rowtime], reuse_id=[1])
+:- Calc(select=[rowtime])(reuse_id=[1])
 :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 +- Reused(reference_id=[1])
 ]]>
@@ -365,7 +365,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[long, CAST(EXPR$1) AS sum], reuse_id=[1])
+Calc(select=[long, CAST(EXPR$1) AS sum])(reuse_id=[1])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, proctime, 10000)], select=[long, SUM(int) AS EXPR$1])
    +- Exchange(distribution=[hash[long]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
