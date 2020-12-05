@@ -91,6 +91,7 @@ public class SourceOperatorTest {
 	@After
 	public void cleanUp() throws Exception {
 		operator.close();
+		operator.dispose();
 		assertTrue(mockSourceReader.isClosed());
 	}
 
@@ -175,6 +176,17 @@ public class SourceOperatorTest {
 		operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
 		operator.notifyCheckpointAborted(100L);
 		assertEquals(100L, (long) mockSourceReader.getAbortedCheckpoints().get(0));
+	}
+
+	@Test
+	public void testDisposeAfterCloseOnlyClosesReaderOnce() throws Exception {
+		// Initialize the operator.
+		operator.initializeState(getStateContext());
+		// Open the operator.
+		operator.open();
+		operator.close();
+		operator.dispose();
+		assertEquals(1, mockSourceReader.getTimesClosed());
 	}
 
 	// ---------------- helper methods -------------------------
