@@ -117,7 +117,7 @@ SELECT * from employee_information WHERE DeptId = 1;
 
 While not designed initially with streaming semantics in mind, SQL is a powerful tool for building continuous data pipelines. Where Flink SQL differs from traditional database queries is that is continuously consuming rows as the arrives and produces updates to its results. 
 
-A [continuous query](/table/streaming/dynamic_tables.html#continuous-queries) never terminates and produces a dynamic table as a result. [Dynamic tables](/table/streaming/dynamic_tables.html) are the core concept of Flink's Table API and SQL support for streaming data. 
+A [continuous query]({% link dev/table/streaming/dynamic_tables.md %}#continuous-queries) never terminates and produces a dynamic table as a result. [Dynamic tables]({% link dev/table/streaming/dynamic_tables.md %}#continuous-queries) are the core concept of Flink's Table API and SQL support for streaming data. 
 
 Aggregations on continuous streams need to store aggregated results continuously during the execution of the query. For example, suppose you need to count the number of employees for each department from an incoming data stream. The query needs to maintain the most up to date count for each department to output timely results as new rows are processed.
 
