@@ -200,6 +200,9 @@ public class SourceOperatorStreamTaskTest {
 		// checkpoint is completed will block.
 		getSourceReaderFromTask(testHarness).markAvailable();
 		processUntil(testHarness, checkpointFuture::isDone);
+		Future<Void> checkpointNotified =
+			testHarness.getStreamTask().notifyCheckpointCompleteAsync(checkpointId);
+		processUntil(testHarness, checkpointNotified::isDone);
 		waitForAcknowledgeLatch.await();
 	}
 

@@ -59,6 +59,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	}
 
 	@Override
+	protected CompletableFuture<Void> getCompletionFuture() {
+		return super.getCompletionFuture();
+	}
+
+	@Override
 	public void init() throws Exception {
 		final SourceOperator<T, ?> sourceOperator = this.mainOperator;
 		// reader initialization, which cannot happen in the constructor due to the

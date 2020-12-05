@@ -231,13 +231,24 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 	@Override
 	public void close() throws Exception {
-		if (sourceReader != null) {
-			sourceReader.close();
-		}
 		if (eventTimeLogic != null) {
 			eventTimeLogic.stopPeriodicWatermarkEmits();
 		}
+		if (sourceReader != null) {
+			sourceReader.close();
+			// Set the field to null so the reader won't be closed again in dispose().
+			sourceReader = null;
+		}
 		super.close();
+	}
+
+	@Override
+	public void dispose() throws Exception {
+		// We also need to close the source reader to make sure the resources
+		// are released if the task does not finish normally.
+		if (sourceReader != null) {
+			sourceReader.close();
+		}
 	}
 
 	@Override
