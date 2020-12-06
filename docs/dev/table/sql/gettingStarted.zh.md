@@ -46,7 +46,7 @@ Once started, the Flink WebUI on [localhost:8081](localhost:8081) is available l
 
 ### SQL Client
 
-The [SQL Client]({% link dev/table/sqlClient.md %}) is an interactive client to submit SQL queries to Flink and visualize the results. 
+The [SQL Client]({% link dev/table/sqlClient.zh.md %}) is an interactive client to submit SQL queries to Flink and visualize the results. 
 To start the SQL client, run the `sql-client` script from the installation folder.
 
  {% highlight bash %}
@@ -62,7 +62,7 @@ Let's start with printing 'Hello World', using the following simple query:
 SELECT 'Hello World';
 {% endhighlight %}
 
-Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({% link dev/table/functions/systemFunctions.md %}).
+Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({% link dev/table/functions/systemFunctions.zh.md %}).
 
 {% highlight sql %}
 SHOW FUNCTIONS;
@@ -88,7 +88,7 @@ Flink data processing pipelines begin with source tables. Source tables produce 
 
 Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({{ site.baseurl }}/dev/table/sql) similar to traditional SQL. Standard SQL DDL is used to [create]({{ site.baseurl }}/dev/table/sql/create.html), [alter]({{ site.baseurl }}/dev/table/sql/alter.html), [drop]({{ site.baseurl }}/dev/table/sql/drop.html) tables. 
 
-Flink has a support for different [connectors]({% link dev/table/connect.md %}) and [formats]({%link dev/table/connectors/formats/index.md %}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({%link dev/table/connectors/formats/csv.md %}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
+Flink has a support for different [connectors]({% link dev/table/connect.zh.md %}) and [formats]({%link dev/table/connectors/formats/index.zh.md %}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({%link dev/table/connectors/formats/csv.zh.md %}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
 
 {% highlight sql %}
 CREATE TABLE employee_information (
