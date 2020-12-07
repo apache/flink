@@ -18,20 +18,23 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Default JDBC dialects.
  */
 public final class JdbcDialects {
 
-	private static final List<JdbcDialect> DIALECTS = Arrays.asList(
-		new DerbyDialect(),
-		new MySQLDialect(),
-		new PostgresDialect()
-	);
+	private static final List<JdbcDialect> DIALECTS;
+
+	static {
+		ArrayList<JdbcDialect> r = new ArrayList<>();
+
+		for (JdbcDialect d : ServiceLoader.load(JdbcDialect.class)) {
+			r.add(d);
+		}
+		DIALECTS = Collections.unmodifiableList(r);
+	}
 
 	/**
 	 * Fetch the JdbcDialect class corresponding to a given database url.

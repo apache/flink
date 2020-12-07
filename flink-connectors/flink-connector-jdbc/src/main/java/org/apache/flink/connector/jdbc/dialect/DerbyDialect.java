@@ -27,7 +27,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-class DerbyDialect extends AbstractDialect {
+/**
+ * dialect for Derby.
+ */
+public class DerbyDialect extends AbstractDialect {
 
 	private static final long serialVersionUID = 1L;
 

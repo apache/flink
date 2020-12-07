@@ -1,0 +1,4 @@
+org.apache.flink.connector.jdbc.dialect.ClickhouseDialect
+org.apache.flink.connector.jdbc.dialect.DerbyDialect
+org.apache.flink.connector.jdbc.dialect.MySQLDialect
+org.apache.flink.connector.jdbc.dialect.PostgresDialect

@@ -38,6 +38,7 @@ under the License.
 	<properties>
 		<postgres.version>42.2.10</postgres.version>
 		<otj-pg-embedded.version>0.13.3</otj-pg-embedded.version>
+		<clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
 	</properties>
 
 	<dependencies>
@@ -57,7 +58,13 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-
+		<!-- Clickhouse dependencies -->
+		<dependency>
+			<groupId>ru.yandex.clickhouse</groupId>
+			<artifactId>clickhouse-jdbc</artifactId>
+			<version>${clickhouse-jdbc.version}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- Postgres dependencies -->
 
 		<dependency>
