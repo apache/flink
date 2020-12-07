@@ -402,7 +402,7 @@ CREATE TABLE fs_table (
 );
 
 -- streaming sql, insert into file system table
-INSERT INTO TABLE fs_table SELECT user_id, order_amount, DATE_FORMAT(log_ts, 'yyyy-MM-dd'), DATE_FORMAT(log_ts, 'HH') FROM kafka_table;
+INSERT INTO fs_table SELECT user_id, order_amount, DATE_FORMAT(log_ts, 'yyyy-MM-dd'), DATE_FORMAT(log_ts, 'HH') FROM kafka_table;
 
 -- batch sql, select with partition pruning
 SELECT * FROM fs_table WHERE dt='2020-05-20' and hour='12';
