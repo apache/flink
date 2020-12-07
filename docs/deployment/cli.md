@@ -46,7 +46,9 @@ initiating the job execution. For the sake of this example, we select a long-run
 `examples/streaming/StateMachineExample.jar`. Feel free to select any other JAR archive from the 
 `examples/` folder or deploy your own job.
 {% highlight bash %}
-./bin/flink run --detached ./examples/streaming/StateMachineExample.jar
+$ ./bin/flink run \
+      --detached \
+      ./examples/streaming/StateMachineExample.jar
 {% endhighlight %}
 Submitting the job using `--detached` will make the command return after the submission is done.
 The output contains (besides other things) the ID of the newly submitted job.
@@ -68,7 +70,7 @@ The usage information printed lists job-related parameters that can be added to 
 submission command if necessary. For the purpose of readability, we assume that the returned JobID is 
 stored in a variable `JOB_ID` for the commands below:
 {% highlight bash %}
-export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
+$ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 {% endhighlight %}
 
 There is another action called `run-application` available to run the job in 
@@ -79,7 +81,7 @@ this action individually as it works similarly to the `run` action in terms of t
 
 You can monitor any running jobs using the `list` action:
 {% highlight bash %}
-./bin/flink list
+$ ./bin/flink list
 {% endhighlight %}
 ```
 Waiting for response...
@@ -94,7 +96,9 @@ Jobs that were submitted but not started, yet, would be listed under "Scheduled 
 
 [Savepoints]({% link ops/state/savepoints.md %}) can be created to save the current state a job is in. All that's needed is the JobID:
 {% highlight bash %}
-./bin/flink savepoint $JOB_ID /tmp/flink-savepoints
+$ ./bin/flink savepoint \
+      $JOB_ID \ 
+      /tmp/flink-savepoints
 {% endhighlight %}
 ```
 Triggering savepoint for job cca7bc1061d61cf15238e92312c2fc20.
@@ -112,7 +116,10 @@ The path to the savepoint can be used later on to [restart the Flink job](#start
 The `savepoint` action can be also used to remove savepoints. `--dispose` with the corresponding 
 savepoint path needs to be added:
 {% highlight bash %}
-./bin/flink savepoint --dispose /tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab $JOB_ID
+$ ./bin/flink savepoint \ 
+      --dispose \
+      /tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab \ 
+      $JOB_ID
 {% endhighlight %}
 ```
 Disposing savepoint '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab'.
@@ -124,9 +131,9 @@ If you use custom state instances (for example custom reducing state or RocksDB 
 specify the path to the program JAR with which the savepoint was triggered. Otherwise, you will run 
 into a `ClassNotFoundException`:
 {% highlight bash %}
-./bin/flink savepoint \
-    -d <savepointPath> \ 
-    -j <jarFile>
+$ ./bin/flink savepoint \
+      -d <savepointPath> \ 
+      -j <jarFile>
 {% endhighlight %}
 
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
@@ -142,7 +149,9 @@ be requested to send the last checkpoint barrier that will trigger a savepoint, 
 completion of that savepoint, they will finish by calling their	`cancel()` method. 
 
 {% highlight bash %}
-./bin/flink stop --savepointPath /tmp-flink-savepoints $JOB_ID
+$ ./bin/flink stop \
+      --savepointPath /tmp-flink-savepoints \
+      $JOB_ID
 {% endhighlight %}
 ```
 Suspending job "cca7bc1061d61cf15238e92312c2fc20" with a savepoint.
@@ -160,7 +169,7 @@ shut down. This allows the job to finish processing all in-flight data.
 
 Cancelling a job can be achieved through the `cancel` action:
 {% highlight bash %}
-./bin/flink cancel $JOB_ID
+$ ./bin/flink cancel $JOB_ID
 {% endhighlight %}
 ```
 Cancelling job cca7bc1061d61cf15238e92312c2fc20.
@@ -179,7 +188,10 @@ will be stopped.
 
 Starting a job from a savepoint can be achieved using the `run` (and `run-application`) action.
 {% highlight bash %}
-./bin/flink run --detached --fromSavepoint /tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab ./examples/streaming/StateMachineExample.jar
+$ ./bin/flink run \
+      --detached \ 
+      --fromSavepoint /tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab \
+      ./examples/streaming/StateMachineExample.jar
 {% endhighlight %}
 ```
 Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms>]
@@ -207,9 +219,9 @@ allow to skip savepoint state that cannot be restored with the new job you can s
 that was part of the program when the savepoint was triggered and you still want to use the savepoint.
 
 {% highlight bash %}
-./bin/flink run \
-    --fromSavepoint <savepointPath> \
-    --allowNonRestoredState ...
+$ ./bin/flink run \
+      --fromSavepoint <savepointPath> \
+      --allowNonRestoredState ...
 {% endhighlight %}
 This is useful if your program dropped an operator that was part of the savepoint.
 
