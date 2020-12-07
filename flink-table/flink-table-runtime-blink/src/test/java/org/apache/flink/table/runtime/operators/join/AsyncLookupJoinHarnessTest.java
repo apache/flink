@@ -18,16 +18,24 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.collector.TableFunctionCollector;
+import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
 import org.apache.flink.table.runtime.generated.GeneratedResultFutureWrapper;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
@@ -43,14 +51,28 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
+import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /**
  * Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}.
  */
-public class AsyncLookupJoinHarnessTest extends AsyncLookupJoinTestBase {
+public class AsyncLookupJoinHarnessTest {
 
 	private static final int ASYNC_BUFFER_CAPACITY = 100;
 	private static final int ASYNC_TIMEOUT_MS = 3000;
@@ -233,6 +255,40 @@ public class AsyncLookupJoinHarnessTest extends AsyncLookupJoinTestBase {
 			inSerializer);
 	}
 
+	@Test
+	public void testCloseAsyncLookupJoinRunner() throws Exception {
+		final InternalTypeInfo<RowData> rightRowTypeInfo = InternalTypeInfo.ofFields(
+				DataTypes.INT().getLogicalType(),
+				DataTypes.STRING().getLogicalType());
+		final AsyncLookupJoinRunner joinRunner = new AsyncLookupJoinRunner(
+				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+				rightRowTypeInfo,
+				rightRowTypeInfo,
+				true,
+				100);
+		assertNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+		joinRunner.open(new Configuration());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+
+		joinRunner.open(new Configuration());
+		joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
+		assertNotNull(joinRunner.getAllResultFutures());
+		closeAsyncLookupJoinRunner(joinRunner);
+	}
+
+	private void closeAsyncLookupJoinRunner(AsyncLookupJoinRunner joinRunner) throws Exception {
+		try {
+			joinRunner.close();
+		} catch (NullPointerException e) {
+			fail("Unexpected close to fail with null pointer exception.");
+		}
+	}
+
 	/**
 	 * Whether this is a inner join or left join.
 	 */
@@ -250,6 +306,67 @@ public class AsyncLookupJoinHarnessTest extends AsyncLookupJoinTestBase {
 	}
 
 	// ---------------------------------------------------------------------------------
+
+	/**
+	 * The {@link TestingFetcherFunction} only accepts a single integer lookup key and
+	 * returns zero or one or more RowData.
+	 */
+	public static final class TestingFetcherFunction
+			extends AbstractRichFunction
+			implements AsyncFunction<RowData, RowData> {
+
+		private static final long serialVersionUID = 4018474964018227081L;
+
+		private static final Map<Integer, List<RowData>> data = new HashMap<>();
+
+		static {
+			data.put(1, Collections.singletonList(
+				GenericRowData.of(1, fromString("Julian"))));
+			data.put(3, Arrays.asList(
+				GenericRowData.of(3, fromString("Jark")),
+				GenericRowData.of(3, fromString("Jackson"))));
+			data.put(4, Collections.singletonList(
+				GenericRowData.of(4, fromString("Fabian"))));
+		}
+
+		private transient ExecutorService executor;
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+			this.executor = Executors.newSingleThreadExecutor();
+		}
+
+		@Override
+		public void asyncInvoke(RowData input, ResultFuture<RowData> resultFuture) throws Exception {
+			int id = input.getInt(0);
+			CompletableFuture
+				.supplyAsync((Supplier<Collection<RowData>>) () -> data.get(id), executor)
+				.thenAcceptAsync(resultFuture::complete, executor);
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			if (null != executor && !executor.isShutdown()) {
+				executor.shutdown();
+			}
+		}
+	}
+
+	/**
+	 * The {@link TestingFetcherResultFuture} is a simple implementation of
+	 * {@link TableFunctionCollector} which forwards the collected collection.
+	 */
+	public static final class TestingFetcherResultFuture extends TableFunctionResultFuture<RowData> {
+		private static final long serialVersionUID = -312754413938303160L;
+
+		@Override
+		public void complete(Collection<RowData> result) {
+			//noinspection unchecked
+			getResultFuture().complete((Collection) result);
+		}
+	}
 
 	/**
 	 * The {@link CalculateOnTemporalTable} is a filter on temporal table which only accepts
