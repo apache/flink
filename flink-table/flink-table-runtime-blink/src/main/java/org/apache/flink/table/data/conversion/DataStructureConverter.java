@@ -27,7 +27,8 @@ import java.io.Serializable;
 /**
  * Converter between internal and external data structure.
  *
- * <p>Converters are serializable and can be passed to runtime operators.
+ * <p>Converters are serializable and can be passed to runtime operators. However, converters are
+ * not thread-safe.
  *
  * @param <I> internal data structure (see {@link RowData})
  * @param <E> external data structure (see {@link DataType#getConversionClass()})
@@ -76,5 +77,14 @@ public interface DataStructureConverter<I, E> extends Serializable {
 			return null;
 		}
 		return toExternal(internal);
+	}
+
+	/**
+	 * Returns whether this conversion is a no-op.
+	 *
+	 * <p>An identity conversion means that the type is already an internal data structure.
+	 */
+	default boolean isIdentityConversion() {
+		return false;
 	}
 }
