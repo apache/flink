@@ -134,25 +134,6 @@ the storage but makes Flink clean up the savepoint-related metadata as well.
 
 ### Terminating a Job
 
-#### Cancelling a Job Ungracefully
-
-Cancelling a job can be achieved through the `cancel` action:
-{% highlight bash %}
-./bin/flink cancel $JOB_ID
-{% endhighlight %}
-```
-Cancelling job cca7bc1061d61cf15238e92312c2fc20.
-Cancelled job cca7bc1061d61cf15238e92312c2fc20.
-```
-The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
-will be stopped.
-
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">	
-    <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
-    savepoint as part of the job cancellation. This feature is deprecated. Use the 
-    <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
-</p>
-
 #### Stopping a Job Gracefully Creating a Final Savepoint
 
 Another action for stopping a job is `stop`. It is a more graceful way of stopping a running streaming 
@@ -174,6 +155,25 @@ If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted befor
 barrier. This will result all registered event-time timers to fire, thus flushing out any state that 
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
 shut down. This allows the job to finish processing all in-flight data.
+
+#### Cancelling a Job Ungracefully
+
+Cancelling a job can be achieved through the `cancel` action:
+{% highlight bash %}
+./bin/flink cancel $JOB_ID
+{% endhighlight %}
+```
+Cancelling job cca7bc1061d61cf15238e92312c2fc20.
+Cancelled job cca7bc1061d61cf15238e92312c2fc20.
+```
+The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
+will be stopped.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">	
+    <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
+    savepoint as part of the job cancellation. This feature is deprecated. Use the 
+    <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
+</p>
 
 ### Starting a Job from a Savepoint
 
