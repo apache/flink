@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -27,6 +28,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.types.Row;
 
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -222,6 +224,42 @@ public class JavaUserDefinedScalarFunctions {
 		@Override
 		public TypeInformation<?> getResultType(Class<?>[] signature) {
 			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
+		}
+	}
+
+	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class RowPythonScalarFunction extends ScalarFunction implements PythonFunction {
+
+		private final String name;
+
+		public RowPythonScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public Row eval(int a) {
+			return Row.of(a + 1, Row.of(a * a));
+		}
+
+		@Override
+		public TypeInformation<?> getResultType(Class<?>[] signature) {
+			return Types.ROW(BasicTypeInfo.INT_TYPE_INFO, Types.ROW(BasicTypeInfo.INT_TYPE_INFO));
 		}
 
 		@Override

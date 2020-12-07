@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPandasScalarFunction, BooleanPythonScalarFunction, PandasScalarFunction, PythonScalarFunction}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPandasScalarFunction, BooleanPythonScalarFunction, PandasScalarFunction, PythonScalarFunction, RowPythonScalarFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -59,6 +59,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
     util.addFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
     util.addFunction("pyFunc4", new BooleanPythonScalarFunction("pyFunc4"))
+    util.addFunction("pyFunc5", new RowPythonScalarFunction("pyFunc5"))
     util.addFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
     util.addFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
     util.addFunction("pandasFunc3", new PandasScalarFunction("pandasFunc3"))
@@ -201,6 +202,25 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   @Test
   def testPandasFunctionWithCompositeInputs(): Unit = {
     val sqlQuery = "SELECT a, pandasFunc1(b, d._1) FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeOutputs(): Unit = {
+    val sqlQuery = "SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithMultipleCompositeOutputs(): Unit = {
+    val sqlQuery = "SELECT e.*, f.* FROM " +
+      "(SELECT pyFunc5(a) as e, pyFunc5(b) as f FROM MyTable) AS T"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeInputsAndOutputs(): Unit = {
+    val sqlQuery = "SELECT e.* FROM (SELECT pyFunc5(d._1) as e FROM MyTable) AS T"
     util.verifyPlan(sqlQuery)
   }
 }

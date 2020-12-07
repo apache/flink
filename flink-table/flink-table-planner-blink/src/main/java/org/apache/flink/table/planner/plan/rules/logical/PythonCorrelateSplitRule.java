@@ -190,10 +190,14 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 	}
 
 	private ScalarFunctionSplitter createScalarFunctionSplitter(
+		RexProgram program,
+		RexBuilder rexBuilder,
 		int primitiveLeftFieldCount,
 		ArrayBuffer<RexNode> extractedRexNodes,
 		RexNode tableFunctionNode) {
 		return new ScalarFunctionSplitter(
+			program,
+			rexBuilder,
 			primitiveLeftFieldCount,
 			extractedRexNodes,
 			node -> {
@@ -226,6 +230,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			rightNewInput = createNewScan(
 				scan,
 				createScalarFunctionSplitter(
+					null,
+					rexBuilder,
 					primitiveLeftFieldCount,
 					extractedRexNodes,
 					scan.getCall()));
@@ -235,6 +241,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
 			FlinkLogicalCalc mergedCalc = StreamExecCorrelateRule.getMergedCalc(calc);
 			FlinkLogicalTableFunctionScan newScan = createNewScan(scan,
 				createScalarFunctionSplitter(
+					null,
+					rexBuilder,
 					primitiveLeftFieldCount,
 					extractedRexNodes,
 					scan.getCall()));

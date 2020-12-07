@@ -759,6 +759,27 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.dropColumns(fields[0]), self._t_env)
 
+    def map(self, func: Union[str, Expression]) -> 'Table':
+        """
+        Performs a map operation with a user-defined scalar function.
+
+        Example:
+        ::
+
+            >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(add(tab.a)).alias("a, b")
+
+        :param func: user-defined scalar function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.map(func), self._t_env)
+        else:
+            return Table(self._j_table.map(func._j_expr), self._t_env)
+
     def insert_into(self, table_path: str):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
