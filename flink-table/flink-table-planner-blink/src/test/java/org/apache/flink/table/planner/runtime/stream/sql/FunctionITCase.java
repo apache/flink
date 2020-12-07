@@ -743,7 +743,7 @@ public class FunctionITCase extends StreamingTestBase {
 				e,
 				hasMessage(
 					equalTo(
-						"Could not find an implementation method 'eval' in class '" + CustomScalarFunction.class +
+						"Could not find an implementation method 'eval' in class '" + CustomScalarFunction.class.getName() +
 						"' for function 'CustomScalarFunction' that matches the following signature:\n" +
 						"java.lang.String eval(java.lang.String)")));
 		}

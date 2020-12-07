@@ -279,7 +279,7 @@ public final class UserDefinedFunctionHelper {
 					"Could not find an implementation method '%s' in class '%s' for function '%s' that " +
 						"matches the following signature:\n%s",
 					methodName,
-					functionClass,
+					functionClass.getName(),
 					functionName,
 					ExtractionUtils.createMethodSignatureString(methodName, argumentClasses, outputClass)
 				)
