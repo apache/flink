@@ -551,7 +551,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						"  order_time TIMESTAMP(3),\n" +
 						"  quantity INT,\n" +
 						"  purchaser STRING,\n" +
-						"  WATERMARK FOR order_time AS order_time\n" +
+						"  WATERMARK FOR order_time AS order_time - INTERVAL '1' SECOND\n" +
 						") WITH (\n" +
 						"  'connector' = 'kafka',\n" +
 						"  'topic' = '%s',\n" +
@@ -572,7 +572,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 				+ "('o_003', 'p_001', TIMESTAMP '2020-10-01 12:00:00', 2, 'Tom'),"
 				+ "('o_004', 'p_002', TIMESTAMP '2020-10-01 12:00:00', 2, 'King'),"
 				+ "('o_005', 'p_001', TIMESTAMP '2020-10-01 18:00:00', 10, 'Leonard'),"
-				+ "('o_006', 'p_002', TIMESTAMP '2020-10-01 18:00:00', 10, 'Leonard')";
+				+ "('o_006', 'p_002', TIMESTAMP '2020-10-01 18:00:00', 10, 'Leonard'),"
+				+ "('o_007', 'p_002', TIMESTAMP '2020-10-01 18:00:01', 10, 'Robinson')"; // used to advance watermark
 		tEnv.executeSql(orderInitialValues).await();
 
 		// create product table and set initial values
@@ -583,7 +584,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 						"  product_price DECIMAL(10, 4),\n" +
 						"  update_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n" +
 						"  PRIMARY KEY(product_id) NOT ENFORCED,\n" +
-						"  WATERMARK FOR update_time AS update_time\n" +
+						"  WATERMARK FOR update_time AS update_time - INTERVAL '1' SECOND\n" +
 						") WITH (\n" +
 						"  'connector' = 'kafka',\n" +
 						"  'topic' = '%s',\n" +
