@@ -185,6 +185,18 @@ See how the command is equal to the [initial run command](#submitting-a-job) exc
 [previously cancelled job](#cancelling-a-job). A new JobID is generated that can be used to 
 maintain the job.
 
+By default, we try to match the whole savepoint state to the job being submitted. If you want to 
+allow to skip savepoint state that cannot be restored with the new job you can set the 
+`--allowNonRestoredState` flag. You need to allow this if you removed an operator from your program 
+that was part of the program when the savepoint was triggered and you still want to use the savepoint.
+
+{% highlight bash %}
+./bin/flink run \
+    --fromSavepoint <savepointPath> \
+    --allowNonRestoredState ...
+{% endhighlight %}
+This is useful if your program dropped an operator that was part of the savepoint.
+
 {% top %}
 
 ## CLI Actions
