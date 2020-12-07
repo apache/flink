@@ -34,6 +34,9 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(
         groups = {
             @ConfigGroup(
+                    name = "ExponentialDelayRestartStrategy",
+                    keyPrefix = "restart-strategy.exponential-delay"),
+            @ConfigGroup(
                     name = "FixedDelayRestartStrategy",
                     keyPrefix = "restart-strategy.fixed-delay"),
             @ConfigGroup(
@@ -68,6 +71,13 @@ public class RestartStrategyOptions {
                                                     code("failure-rate"),
                                                     link(
                                                             "../dev/task_failure_recovery.html#failure-rate-restart-strategy",
+                                                            "here")),
+                                            text(
+                                                    "%s, %s: Exponential delay restart strategy. More details can be found %s.",
+                                                    code("exponentialdelay"),
+                                                    code("exponential-delay"),
+                                                    link(
+                                                            "../dev/task_failure_recovery.html#exponential-delay-restart-strategy",
                                                             "here")))
                                     .text(
                                             "If checkpointing is disabled, the default value is %s. "
@@ -137,6 +147,71 @@ public class RestartStrategyOptions {
                                             "Delay between two consecutive restart attempts if %s has been set to %s. "
                                                     + "It can be specified using notation: \"1 min\", \"20 s\"",
                                             code(RESTART_STRATEGY.key()), code("failure-rate"))
+                                    .build());
+
+    public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF =
+            ConfigOptions.key("restart-strategy.exponential-delay.initial-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Starting duration between restarts if %s has been set to %s. "
+                                                    + "It can be specified using notation: \"1 min\", \"20 s\"",
+                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                    .build());
+
+    public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF =
+            ConfigOptions.key("restart-strategy.exponential-delay.max-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The highest possible duration between restarts if %s has been set to %s. "
+                                                    + "It can be specified using notation: \"1 min\", \"20 s\"",
+                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                    .build());
+
+    public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER =
+            ConfigOptions.key("restart-strategy.exponential-delay.backoff-multiplier")
+                    .doubleType()
+                    .defaultValue(2.0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Backoff value is multiplied by this value after every failure,"
+                                                    + "until max backoff is reached if %s has been set to %s.",
+                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
+                                    .build());
+
+    public static final ConfigOption<Duration>
+            RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD =
+                    ConfigOptions.key("restart-strategy.exponential-delay.reset-backoff-threshold")
+                            .durationType()
+                            .defaultValue(Duration.ofHours(1))
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Threshold when the backoff is reset to its initial value if %s has been set to %s. "
+                                                            + "It specifies how long the job must be running without failure "
+                                                            + "to reset the exponentially increasing backoff to its initial value. "
+                                                            + "It can be specified using notation: \"1 min\", \"20 s\"",
+                                                    code(RESTART_STRATEGY.key()),
+                                                    code("exponential-delay"))
+                                            .build());
+
+    public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR =
+            ConfigOptions.key("restart-strategy.exponential-delay.jitter-factor")
+                    .doubleType()
+                    .defaultValue(0.1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Jitter specified as a portion of the backoff if %s has been set to %s. "
+                                                    + "It represents how large random value will be added or subtracted to the backoff. "
+                                                    + "Useful when you want to avoid restarting multiple jobs at the same time.",
+                                            code(RESTART_STRATEGY.key()), code("exponential-delay"))
                                     .build());
 
     private RestartStrategyOptions() {
