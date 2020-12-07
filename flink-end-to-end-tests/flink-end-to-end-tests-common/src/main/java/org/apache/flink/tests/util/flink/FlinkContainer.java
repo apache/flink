@@ -311,7 +311,7 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
 							.build()
 					)
 					.withFileFromPath("flink", flinkDist)
-					.get(1, TimeUnit.MINUTES);
+					.get(4, TimeUnit.MINUTES);
 			}
 			return baseImage;
 		}

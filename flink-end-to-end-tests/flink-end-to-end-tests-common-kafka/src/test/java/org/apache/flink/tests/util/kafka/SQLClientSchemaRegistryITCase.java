@@ -70,7 +70,7 @@ public class SQLClientSchemaRegistryITCase {
 	public final Network network = Network.newNetwork();
 
 	@ClassRule
-	public static final Timeout TIMEOUT = new Timeout(8, TimeUnit.MINUTES);
+	public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
 
 	@Rule
 	public final KafkaContainer kafka = new KafkaContainer(
