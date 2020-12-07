@@ -37,4 +37,9 @@ public class IdentityConverter<I> implements DataStructureConverter<I, I> {
 	public I toExternal(I internal) {
 		return internal;
 	}
+
+	@Override
+	public boolean isIdentityConversion() {
+		return true;
+	}
 }
