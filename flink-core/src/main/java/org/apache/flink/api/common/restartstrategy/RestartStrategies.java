@@ -92,6 +92,25 @@ public class RestartStrategies {
                 failureRate, failureInterval, delayInterval);
     }
 
+    /**
+     * Generates a ExponentialDelayRestartStrategyConfiguration.
+     *
+     * @param initialBackoff Starting duration between restarts
+     * @param maxBackoff The highest possible duration between restarts
+     * @param backoffMultiplier Delay multiplier how many times is the delay longer than before
+     * @param resetBackoffThreshold How long the job must run smoothly to reset the time interval
+     * @param jitterFactor How much the delay may differ (in percentage)
+     */
+    public static ExponentialDelayRestartStrategyConfiguration exponentialDelayRestart(
+            Time initialBackoff,
+            Time maxBackoff,
+            double backoffMultiplier,
+            Time resetBackoffThreshold,
+            double jitterFactor) {
+        return new ExponentialDelayRestartStrategyConfiguration(
+                initialBackoff, maxBackoff, backoffMultiplier, resetBackoffThreshold, jitterFactor);
+    }
+
     /** Abstract configuration for restart strategies. */
     public abstract static class RestartStrategyConfiguration implements Serializable {
         private static final long serialVersionUID = 6285853591578313960L;
@@ -185,6 +204,90 @@ public class RestartStrategies {
             return String.format(
                     "Restart with fixed delay (%s). #%d restart attempts.",
                     delayBetweenAttemptsInterval, restartAttempts);
+        }
+    }
+
+    /** Configuration representing an exponential delay restart strategy. */
+    public static final class ExponentialDelayRestartStrategyConfiguration
+            extends RestartStrategyConfiguration {
+        private static final long serialVersionUID = 1467941615941965194L;
+
+        private final Time initialBackoff;
+        private final Time maxBackoff;
+        private final double backoffMultiplier;
+        private final Time resetBackoffThreshold;
+        private final double jitterFactor;
+
+        public ExponentialDelayRestartStrategyConfiguration(
+                Time initialBackoff,
+                Time maxBackoff,
+                double backoffMultiplier,
+                Time resetBackoffThreshold,
+                double jitterFactor) {
+            this.initialBackoff = initialBackoff;
+            this.maxBackoff = maxBackoff;
+            this.backoffMultiplier = backoffMultiplier;
+            this.resetBackoffThreshold = resetBackoffThreshold;
+            this.jitterFactor = jitterFactor;
+        }
+
+        public Time getInitialBackoff() {
+            return initialBackoff;
+        }
+
+        public Time getMaxBackoff() {
+            return maxBackoff;
+        }
+
+        public double getBackoffMultiplier() {
+            return backoffMultiplier;
+        }
+
+        public Time getResetBackoffThreshold() {
+            return resetBackoffThreshold;
+        }
+
+        public double getJitterFactor() {
+            return jitterFactor;
+        }
+
+        @Override
+        public String getDescription() {
+            return String.format(
+                    "Restart with exponential delay: starting at %s, increasing by %f, with maximum %s. "
+                            + "Delay resets after %s with jitter %f",
+                    initialBackoff,
+                    backoffMultiplier,
+                    maxBackoff,
+                    resetBackoffThreshold,
+                    jitterFactor);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ExponentialDelayRestartStrategyConfiguration that =
+                    (ExponentialDelayRestartStrategyConfiguration) o;
+            return Double.compare(that.backoffMultiplier, backoffMultiplier) == 0
+                    && Double.compare(that.jitterFactor, jitterFactor) == 0
+                    && Objects.equals(initialBackoff, that.initialBackoff)
+                    && Objects.equals(maxBackoff, that.maxBackoff)
+                    && Objects.equals(resetBackoffThreshold, that.resetBackoffThreshold);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = initialBackoff.hashCode();
+            result = 31 * result + maxBackoff.hashCode();
+            result = 31 * result + (int) backoffMultiplier;
+            result = 31 * result + resetBackoffThreshold.hashCode();
+            result = 31 * result + (int) jitterFactor;
+            return result;
         }
     }
 
@@ -304,6 +407,34 @@ public class RestartStrategies {
                         configuration.get(
                                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
                 return fixedDelayRestart(attempts, delay.toMillis());
+            case "exponentialdelay":
+            case "exponential-delay":
+                Duration initialBackoff =
+                        configuration.get(
+                                RestartStrategyOptions
+                                        .RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF);
+                Duration maxBackoff =
+                        configuration.get(
+                                RestartStrategyOptions
+                                        .RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF);
+                double backoffMultiplier =
+                        configuration.get(
+                                RestartStrategyOptions
+                                        .RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER);
+                Duration resetBackoffThreshold =
+                        configuration.get(
+                                RestartStrategyOptions
+                                        .RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD);
+                double jitter =
+                        configuration.get(
+                                RestartStrategyOptions
+                                        .RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR);
+                return exponentialDelayRestart(
+                        Time.milliseconds(initialBackoff.toMillis()),
+                        Time.milliseconds(maxBackoff.toMillis()),
+                        backoffMultiplier,
+                        Time.milliseconds(resetBackoffThreshold.toMillis()),
+                        jitter);
             case "failurerate":
             case "failure-rate":
                 int maxFailures =
