@@ -333,14 +333,16 @@ Connector Options
     <tr>
       <td><h5>sink.partitioner</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">'default'</td>
       <td>String</td>
       <td>Output partitioning from Flink's partitions into Kafka's partitions. Valid values are
       <ul>
+        <li><code>default</code>: use the kafka default partitioner to partition records.</li>
         <li><code>fixed</code>: each Flink partition ends up in at most one Kafka partition.</li>
-        <li><code>round-robin</code>: a Flink partition is distributed to Kafka partitions round-robin.</li>
+        <li><code>round-robin</code>: a Flink partition is distributed to Kafka partitions sticky round-robin. It only works when record's keys are not specified.</li>
         <li>Custom <code>FlinkKafkaPartitioner</code> subclass: e.g. <code>'org.mycompany.MyPartitioner'</code>.</li>
       </ul>
+      See the following <a href="#sink-partitioning">Sink Partitioning</a> for more details.
       </td>
     </tr>
     <tr>
@@ -525,9 +527,9 @@ See more about how to use the CDC formats in [debezium-json]({% link dev/table/c
 ### Sink Partitioning
 
 The config option `sink.partitioner` specifies output partitioning from Flink's partitions into Kafka's partitions.
-By default, a Kafka sink writes to at most as many partitions as its own parallelism (each parallel instance of the sink writes to exactly one partition).
-In order to distribute the writes to more partitions or control the routing of rows into partitions, a custom sink partitioner can be provided. The `round-robin` partitioner is useful to avoid an unbalanced partitioning.
-However, it will cause a lot of network connections between all the Flink instances and all the Kafka brokers.
+By default, Flink uses the [Kafka default partitioner](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/producer/internals/DefaultPartitioner.java) to parititon records. It uses the [sticky partition strategy](https://www.confluent.io/blog/apache-kafka-producer-improvements-sticky-partitioner/) for records with null keys and uses a murmur2 hash to compute the partition for a record with the key defined.
+
+In order to control the routing of rows into partitions, a custom sink partitioner can be provided. The 'fixed' partitioner will write the records in the same Flink partition into the same Kafka partition, which could reduce the cost of the network connections.
 
 ### Consistency guarantees
 
