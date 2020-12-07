@@ -176,11 +176,12 @@ public class KafkaOptions {
 	public static final ConfigOption<String> SINK_PARTITIONER = ConfigOptions
 			.key("sink.partitioner")
 			.stringType()
-			.noDefaultValue()
+			.defaultValue("default")
 			.withDescription("Optional output partitioning from Flink's partitions\n"
 					+ "into Kafka's partitions valid enumerations are\n"
+					+ "\"default\": (use kafka default partitioner to partition records),\n"
 					+ "\"fixed\": (each Flink partition ends up in at most one Kafka partition),\n"
-					+ "\"round-robin\": (a Flink partition is distributed to Kafka partitions round-robin)\n"
+					+ "\"round-robin\": (a Flink partition is distributed to Kafka partitions round-robin when 'key.fields' is not specified.)\n"
 					+ "\"custom class name\": (use a custom FlinkKafkaPartitioner subclass)");
 
 	public static final ConfigOption<String> SINK_SEMANTIC = ConfigOptions.key("sink.semantic")
@@ -207,12 +208,9 @@ public class KafkaOptions {
 			SCAN_STARTUP_MODE_VALUE_TIMESTAMP));
 
 	// Sink partitioner.
+	public static final String SINK_PARTITIONER_VALUE_DEFAULT = "default";
 	public static final String SINK_PARTITIONER_VALUE_FIXED = "fixed";
 	public static final String SINK_PARTITIONER_VALUE_ROUND_ROBIN = "round-robin";
-
-	private static final Set<String> SINK_PARTITIONER_ENUMS = new HashSet<>(Arrays.asList(
-			SINK_PARTITIONER_VALUE_FIXED,
-			SINK_PARTITIONER_VALUE_ROUND_ROBIN));
 
 	// Sink semantic
 	public static final String SINK_SEMANTIC_VALUE_EXACTLY_ONCE = "exactly-once";
@@ -314,12 +312,12 @@ public class KafkaOptions {
 	private static void validateSinkPartitioner(ReadableConfig tableOptions) {
 		tableOptions.getOptional(SINK_PARTITIONER)
 				.ifPresent(partitioner -> {
-					if (!SINK_PARTITIONER_ENUMS.contains(partitioner.toLowerCase())) {
-						if (partitioner.isEmpty()) {
-							throw new ValidationException(
-									String.format("Option '%s' should be a non-empty string.",
-											SINK_PARTITIONER.key()));
-						}
+					if (partitioner.equals(SINK_PARTITIONER_VALUE_ROUND_ROBIN) && tableOptions.getOptional(KEY_FIELDS).isPresent()) {
+						throw new ValidationException("Currently 'round-robin' partitioner only works when option 'key.fields' is not specified.");
+					} else if (partitioner.isEmpty()) {
+						throw new ValidationException(
+								String.format("Option '%s' should be a non-empty string.",
+										SINK_PARTITIONER.key()));
 					}
 				});
 	}
@@ -440,6 +438,7 @@ public class KafkaOptions {
 					switch (partitioner) {
 					case SINK_PARTITIONER_VALUE_FIXED:
 						return Optional.of(new FlinkFixedPartitioner<>());
+					case SINK_PARTITIONER_VALUE_DEFAULT:
 					case SINK_PARTITIONER_VALUE_ROUND_ROBIN:
 						return Optional.empty();
 					// Default fallback to full class name of the partitioner.
