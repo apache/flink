@@ -35,20 +35,40 @@ import java.util.stream.Stream;
 @Internal
 public final class TypeConversions {
 
+	/**
+	 * @deprecated Please don't use this method anymore. It will be removed soon and we should not
+	 *             make the removal more painful.
+	 */
+	@Deprecated
 	public static DataType fromLegacyInfoToDataType(TypeInformation<?> typeInfo) {
 		return LegacyTypeInfoDataTypeConverter.toDataType(typeInfo);
 	}
 
+	/**
+	 * @deprecated Please don't use this method anymore. It will be removed soon and we should not
+	 *             make the removal more painful.
+	 */
+	@Deprecated
 	public static DataType[] fromLegacyInfoToDataType(TypeInformation<?>[] typeInfo) {
 		return Stream.of(typeInfo)
 			.map(TypeConversions::fromLegacyInfoToDataType)
 			.toArray(DataType[]::new);
 	}
 
+	/**
+	 * @deprecated Please don't use this method anymore. It will be removed soon and we should not
+	 *             make the removal more painful.
+	 */
+	@Deprecated
 	public static TypeInformation<?> fromDataTypeToLegacyInfo(DataType dataType) {
 		return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(dataType);
 	}
 
+	/**
+	 * @deprecated Please don't use this method anymore. It will be removed soon and we should not
+	 *             make the removal more painful.
+	 */
+	@Deprecated
 	public static TypeInformation<?>[] fromDataTypeToLegacyInfo(DataType[] dataType) {
 		return Stream.of(dataType)
 			.map(TypeConversions::fromDataTypeToLegacyInfo)
