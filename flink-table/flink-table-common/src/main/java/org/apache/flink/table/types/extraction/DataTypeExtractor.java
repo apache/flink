@@ -25,6 +25,13 @@ import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -46,9 +53,11 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.collectStructuredFields;
@@ -72,6 +81,17 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCom
  */
 @Internal
 public final class DataTypeExtractor {
+
+	private static final Set<Class<?>> INTERNAL_DATA_STRUCTURES = new HashSet<>();
+	static {
+		INTERNAL_DATA_STRUCTURES.add(RowData.class);
+		INTERNAL_DATA_STRUCTURES.add(StringData.class);
+		INTERNAL_DATA_STRUCTURES.add(TimestampData.class);
+		INTERNAL_DATA_STRUCTURES.add(DecimalData.class);
+		INTERNAL_DATA_STRUCTURES.add(ArrayData.class);
+		INTERNAL_DATA_STRUCTURES.add(MapData.class);
+		INTERNAL_DATA_STRUCTURES.add(RawValueData.class);
+	}
 
 	private final DataTypeFactory typeFactory;
 
@@ -377,6 +397,11 @@ public final class DataTypeExtractor {
 					"Usually, this indicates that class information is missing or got lost. " +
 					"Please specify a more concrete class or treat it as a RAW type.",
 				Object.class.getName());
+		} else if (INTERNAL_DATA_STRUCTURES.contains(clazz)) {
+			throw extractionError(
+				"Cannot extract a data type from an internal '%s' class without further information. " +
+					"Please use annotations to define the full logical type.",
+				clazz.getName());
 		} else if (clazz.getName().startsWith("scala.Tuple")) {
 			throw extractionError(
 				"Scala tuples are not supported. Use case classes or '%s' instead.",
