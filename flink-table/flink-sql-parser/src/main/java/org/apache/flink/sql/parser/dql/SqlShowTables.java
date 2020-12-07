@@ -47,7 +47,7 @@ public class SqlShowTables extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 
 	@Override

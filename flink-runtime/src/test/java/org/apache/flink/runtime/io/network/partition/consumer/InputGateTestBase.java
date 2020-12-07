@@ -22,13 +22,8 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.Before;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -38,15 +33,13 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test base for {@link InputGate}.
  */
-@RunWith(Parameterized.class)
 public abstract class InputGateTestBase {
 
-	@Parameter
-	public boolean enableCreditBasedFlowControl;
+	int gateIndex;
 
-	@Parameters(name = "Credit-based = {0}")
-	public static List<Boolean> parameters() {
-		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+	@Before
+	public void resetGateIndex() {
+		gateIndex = 0;
 	}
 
 	protected void testIsAvailable(
@@ -102,8 +95,8 @@ public abstract class InputGateTestBase {
 
 		SingleInputGateBuilder builder = new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfInputChannels)
-			.setResultPartitionType(partitionType)
-			.setIsCreditBased(enableCreditBasedFlowControl);
+			.setSingleInputGateIndex(gateIndex++)
+			.setResultPartitionType(partitionType);
 
 		if (environment != null) {
 			builder = builder.setupBufferPoolFactory(environment);

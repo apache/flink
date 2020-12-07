@@ -18,15 +18,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.memory.ManagedMemoryUseCase
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc
 
 /**
   * Batch physical RelNode for Python ScalarFunctions.
@@ -49,12 +51,18 @@ class BatchExecPythonCalc(
     new BatchExecPythonCalc(cluster, traitSet, child, program, outputRowType)
   }
 
-  override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[BaseRow] = {
+  override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    createPythonOneInputTransformation(
+      .asInstanceOf[Transformation[RowData]]
+    val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
-      "BatchExecPythonCalc")
+      "BatchExecPythonCalc",
+      getConfig(planner.getExecEnv, planner.getTableConfig))
+
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
+    }
+    ret
   }
 }

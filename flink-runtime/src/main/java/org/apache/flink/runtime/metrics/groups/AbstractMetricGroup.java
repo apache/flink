@@ -35,8 +35,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -71,7 +73,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	protected final A parent;
 
 	/** The map containing all variables and their associated values, lazily computed. */
-	protected volatile Map<String, String> variables;
+	protected volatile Map<String, String>[] variables;
 
 	/** The registry that this metrics group belongs to. */
 	protected final MetricRegistry registry;
@@ -102,24 +104,53 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	// ------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	public AbstractMetricGroup(MetricRegistry registry, String[] scope, A parent) {
 		this.registry = checkNotNull(registry);
 		this.scopeComponents = checkNotNull(scope);
 		this.parent = parent;
 		this.scopeStrings = new String[registry.getNumberReporters()];
 		this.logicalScopeStrings = new String[registry.getNumberReporters()];
+		this.variables = new Map[registry.getNumberReporters() + 1];
 	}
 
+	@Override
 	public Map<String, String> getAllVariables() {
-		if (variables == null) {
-			Map<String, String> tmpVariables = new HashMap<>();
-			putVariables(tmpVariables);
-			if (parent != null) { // not true for Job-/TaskManagerMetricGroup
-				tmpVariables.putAll(parent.getAllVariables());
-			}
-			variables = tmpVariables;
+		return internalGetAllVariables(0, Collections.emptySet());
+	}
+
+	public Map<String, String> getAllVariables(int reporterIndex, Set<String> excludedVariables) {
+		if (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length) {
+			// invalid reporter index; either a programming mistake, or we try to retrieve variables outside of a reporter
+			reporterIndex = -1;
 		}
-		return variables;
+
+		// offset cache location to account for general cache at position 0
+		reporterIndex += 1;
+
+		// if no variables are excluded (which is the default!) we re-use the general variables map to save space
+		return internalGetAllVariables(excludedVariables.isEmpty() ? 0 : reporterIndex, excludedVariables);
+	}
+
+	private Map<String, String> internalGetAllVariables(int cachingIndex, Set<String> excludedVariables) {
+		if (variables[cachingIndex] == null) {
+			Map<String, String> tmpVariables = new HashMap<>();
+
+			putVariables(tmpVariables);
+			excludedVariables.forEach(tmpVariables::remove);
+
+			if (parent != null) { // not true for Job-/TaskManagerMetricGroup
+				// explicitly call getAllVariables() to prevent cascading caching operations upstream, to prevent
+				// caching in groups which are never directly passed to reporters
+				for (Map.Entry<String, String> entry : parent.getAllVariables().entrySet()) {
+					if (!excludedVariables.contains(entry.getKey())) {
+						tmpVariables.put(entry.getKey(), entry.getValue());
+					}
+				}
+			}
+			variables[cachingIndex]  = tmpVariables;
+		}
+		return variables[cachingIndex];
 	}
 
 	/**
@@ -193,6 +224,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 *
 	 * @see #getMetricIdentifier(String)
 	 */
+	@Override
 	public String[] getScopeComponents() {
 		return scopeComponents;
 	}
@@ -225,6 +257,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param metricName metric name
 	 * @return fully qualified metric name
 	 */
+	@Override
 	public String getMetricIdentifier(String metricName) {
 		return getMetricIdentifier(metricName, null);
 	}
@@ -237,8 +270,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @return fully qualified metric name
 	 */
+	@Override
 	public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-		return getMetricIdentifier(metricName, filter, -1);
+		return getMetricIdentifier(metricName, filter, -1, registry.getDelimiter());
 	}
 
 	/**
@@ -248,11 +282,11 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.
 	 * @param reporterIndex index of the reporter whose delimiter should be used
+	 * @param delimiter delimiter to use
 	 * @return fully qualified metric name
 	 */
-	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex) {
+	public String getMetricIdentifier(String metricName, CharacterFilter filter, int reporterIndex, char delimiter) {
 		if (scopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
-			char delimiter = registry.getDelimiter();
 			String newScopeString;
 			if (filter != null) {
 				newScopeString = ScopeFormat.concat(filter, delimiter, scopeComponents);
@@ -262,7 +296,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			}
 			return newScopeString + delimiter + metricName;
 		} else {
-			char delimiter = registry.getDelimiter(reporterIndex);
 			if (scopeStrings[reporterIndex] == null) {
 				if (filter != null) {
 					scopeStrings[reporterIndex] = ScopeFormat.concat(filter, delimiter, scopeComponents);

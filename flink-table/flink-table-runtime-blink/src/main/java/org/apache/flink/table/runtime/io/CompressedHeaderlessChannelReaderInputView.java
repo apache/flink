@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
+import org.apache.flink.runtime.io.compression.BlockCompressor;
+import org.apache.flink.runtime.io.compression.BlockDecompressor;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -28,9 +31,6 @@ import org.apache.flink.runtime.io.disk.iomanager.RequestDoneCallback;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
-import org.apache.flink.table.runtime.compression.BlockCompressor;
-import org.apache.flink.table.runtime.compression.BlockDecompressor;
 
 import java.io.EOFException;
 import java.io.IOException;

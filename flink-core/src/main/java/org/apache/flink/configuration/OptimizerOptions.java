@@ -35,7 +35,7 @@ public class OptimizerOptions {
 	public static final ConfigOption<Integer> DELIMITED_FORMAT_MAX_LINE_SAMPLES =
 		key("compiler.delimited-informat.max-line-samples")
 			.defaultValue(10)
-			.withDescription("he maximum number of line samples taken by the compiler for delimited inputs. The samples" +
+			.withDescription("The maximum number of line samples taken by the compiler for delimited inputs. The samples" +
 				" are used to estimate the number of records. This value can be overridden for a specific input with the" +
 				" input format’s parameters.");
 

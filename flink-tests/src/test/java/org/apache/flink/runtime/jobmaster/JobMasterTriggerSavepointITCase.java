@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -30,7 +30,6 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -62,6 +61,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isOneOf;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean, Time)}.
@@ -110,11 +110,12 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				true,
 				false,
+				false,
 				0),
 			null));
 
-		ClientUtils.submitJob(clusterClient, jobGraph);
-		invokeLatch.await(60, TimeUnit.SECONDS);
+		clusterClient.submitJob(jobGraph).get();
+		assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
 		waitForJob();
 	}
 
@@ -233,7 +234,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 			final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
-				new OperatorSubtaskState());
+				OperatorSubtaskState.builder().build());
 
 			getEnvironment().acknowledgeCheckpoint(
 				checkpointMetaData.getCheckpointId(),
@@ -247,6 +248,11 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
 		@Override
 		public Future<Void> notifyCheckpointCompleteAsync(final long checkpointId) {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
 			return CompletableFuture.completedFuture(null);
 		}
 	}

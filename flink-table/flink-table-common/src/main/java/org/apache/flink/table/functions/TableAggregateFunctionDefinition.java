@@ -18,19 +18,23 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * The function definition of an user-defined table aggregate function.
+ * A "marker" function definition of an user-defined table aggregate function that uses the old type
+ * system stack.
  *
  * <p>This class can be dropped once we introduce a new type inference.
  */
-@PublicEvolving
+@Internal
 public final class TableAggregateFunctionDefinition implements FunctionDefinition {
 
 	private final String name;
@@ -49,6 +53,10 @@ public final class TableAggregateFunctionDefinition implements FunctionDefinitio
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	public TableAggregateFunction<?, ?> getTableAggregateFunction() {
 		return aggregateFunction;
 	}
@@ -64,6 +72,11 @@ public final class TableAggregateFunctionDefinition implements FunctionDefinitio
 	@Override
 	public FunctionKind getKind() {
 		return FunctionKind.TABLE_AGGREGATE;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		throw new TableException("Functions implemented for the old type system are not supported.");
 	}
 
 	@Override

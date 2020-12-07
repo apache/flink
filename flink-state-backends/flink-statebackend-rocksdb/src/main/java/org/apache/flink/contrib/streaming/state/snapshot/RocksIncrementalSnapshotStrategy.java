@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -64,6 +62,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -180,6 +179,13 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long abortedCheckpointId) {
+		synchronized (materializedSstFiles) {
+			materializedSstFiles.keySet().remove(abortedCheckpointId);
+		}
+	}
+
 	@Nonnull
 	private SnapshotDirectory prepareLocalSnapshotDirectory(long checkpointId) throws IOException {
 
@@ -190,7 +196,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 			if (!directory.exists() && !directory.mkdirs()) {
 				throw new IOException("Local state base directory for checkpoint " + checkpointId +
-					" already exists: " + directory);
+					" does not exist and could not be created: " + directory);
 			}
 
 			// introduces an extra directory because RocksDB wants a non-existing directory for native checkpoints.
@@ -200,7 +206,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				FileUtils.deleteDirectory(rdbSnapshotDir);
 			}
 
-			Path path = new Path(rdbSnapshotDir.toURI());
+			Path path = rdbSnapshotDir.toPath();
 			// create a "permanent" snapshot directory because local recovery is active.
 			try {
 				return SnapshotDirectory.permanent(path);
@@ -246,7 +252,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		try (
 			ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource();
 			Checkpoint checkpoint = Checkpoint.create(db)) {
-			checkpoint.createCheckpoint(outputDirectory.getDirectory().getPath());
+			checkpoint.createCheckpoint(outputDirectory.getDirectory().toString());
 		} catch (Exception ex) {
 			try {
 				outputDirectory.cleanup();
@@ -417,9 +423,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			Map<StateHandleID, Path> sstFilePaths = new HashMap<>();
 			Map<StateHandleID, Path> miscFilePaths = new HashMap<>();
 
-			FileStatus[] fileStatuses = localBackupDirectory.listStatus();
-			if (fileStatuses != null) {
-				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
+			Path[] files = localBackupDirectory.listDirectory();
+			if (files != null) {
+				createUploadFilePaths(files, sstFiles, sstFilePaths, miscFilePaths);
 
 				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
 					sstFilePaths,
@@ -433,13 +439,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		}
 
 		private void createUploadFilePaths(
-			FileStatus[] fileStatuses,
+			Path[] files,
 			Map<StateHandleID, StreamStateHandle> sstFiles,
 			Map<StateHandleID, Path> sstFilePaths,
 			Map<StateHandleID, Path> miscFilePaths) {
-			for (FileStatus fileStatus : fileStatuses) {
-				final Path filePath = fileStatus.getPath();
-				final String fileName = filePath.getName();
+			for (Path filePath : files) {
+				final String fileName = filePath.getFileName().toString();
 				final StateHandleID stateHandleID = new StateHandleID(fileName);
 
 				if (fileName.endsWith(SST_FILE_SUFFIX)) {

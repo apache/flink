@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -68,8 +68,7 @@ public class CompileUtilsTest {
 			"  int j;\n" +
 			"}";
 
-		thrown.expect(InvalidProgramException.class);
-		thrown.expectMessage("Table program cannot be compiled. This is a bug. Please file an issue.");
+		thrown.expect(FlinkRuntimeException.class);
 		CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
 	}
 

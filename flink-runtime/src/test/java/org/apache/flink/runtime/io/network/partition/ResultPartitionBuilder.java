@@ -22,9 +22,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -40,6 +39,8 @@ public class ResultPartitionBuilder {
 
 	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
 
+	private int partitionIndex = 0;
+
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -48,18 +49,33 @@ public class ResultPartitionBuilder {
 
 	private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1, 1);
+	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
 	private int networkBuffersPerChannel = 1;
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int sortShuffleMinBuffers = 100;
+
+	private int sortShuffleMinParallelism = Integer.MAX_VALUE;
+
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
+
 	private int networkBufferSize = 1;
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
+	private Optional<SupplierWithException<BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
-	private boolean releasedOnConsumption;
+	private boolean blockingShuffleCompressionEnabled = false;
+
+	private boolean sslEnabled = false;
+
+	private String compressionCodec = "LZ4";
+
+	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
+		this.partitionIndex = partitionIndex;
+		return this;
+	}
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
@@ -95,7 +111,9 @@ public class ResultPartitionBuilder {
 		return setNetworkBuffersPerChannel(environment.getConfiguration().networkBuffersPerChannel())
 			.setFloatingNetworkBuffersPerGate(environment.getConfiguration().floatingNetworkBuffersPerGate())
 			.setNetworkBufferSize(environment.getConfiguration().networkBufferSize())
-			.setNetworkBufferPool(environment.getNetworkBufferPool());
+			.setNetworkBufferPool(environment.getNetworkBufferPool())
+			.setSortShuffleMinBuffers(environment.getConfiguration().sortShuffleMinBuffers())
+			.setSortShuffleMinParallelism(environment.getConfiguration().sortShuffleMinParallelism());
 	}
 
 	public ResultPartitionBuilder setNetworkBufferPool(NetworkBufferPool networkBufferPool) {
@@ -119,19 +137,39 @@ public class ResultPartitionBuilder {
 	}
 
 	public ResultPartitionBuilder setBufferPoolFactory(
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 		this.bufferPoolFactory = Optional.of(bufferPoolFactory);
 		return this;
 	}
 
-	public ResultPartitionBuilder isReleasedOnConsumption(boolean releasedOnConsumption) {
-		this.releasedOnConsumption = releasedOnConsumption;
+	public ResultPartitionBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		return this;
+	}
+
+	public ResultPartitionBuilder setSortShuffleMinBuffers(int sortShuffleMinBuffers) {
+		this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+		return this;
+	}
+
+	public ResultPartitionBuilder setSortShuffleMinParallelism(int sortShuffleMinParallelism) {
+		this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+		return this;
+	}
+
+	public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
+		this.compressionCodec = compressionCodec;
 		return this;
 	}
 
 	ResultPartitionBuilder setBoundedBlockingSubpartitionType(
 			@SuppressWarnings("SameParameterValue") BoundedBlockingSubpartitionType blockingSubpartitionType) {
 		this.blockingSubpartitionType = blockingSubpartitionType;
+		return this;
+	}
+
+	public ResultPartitionBuilder setSSLEnabled(boolean sslEnabled) {
+		this.sslEnabled = sslEnabled;
 		return this;
 	}
 
@@ -144,13 +182,19 @@ public class ResultPartitionBuilder {
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize,
-			releasedOnConsumption);
+			blockingShuffleCompressionEnabled,
+			compressionCodec,
+			maxBuffersPerChannel,
+			sortShuffleMinBuffers,
+			sortShuffleMinParallelism,
+			sslEnabled);
 
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
+		SupplierWithException<BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
 
 		return resultPartitionFactory.create(
 			"Result Partition task",
+			partitionIndex,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,

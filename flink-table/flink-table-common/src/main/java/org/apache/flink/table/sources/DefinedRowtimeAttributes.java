@@ -21,13 +21,19 @@ package org.apache.flink.table.sources;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 
 import java.util.List;
 
 /**
  * Extends a {@link TableSource} to specify rowtime attributes via a
  * {@link RowtimeAttributeDescriptor}.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use the concept of computed columns instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface DefinedRowtimeAttributes {
 

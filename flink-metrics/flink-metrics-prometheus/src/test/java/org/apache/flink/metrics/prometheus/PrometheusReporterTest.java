@@ -32,6 +32,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
@@ -85,7 +86,9 @@ public class PrometheusReporterTest extends TestLogger {
 		registry = new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
 			Collections.singletonList(createReporterSetup("test1", portRangeProvider.next())));
-		metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
+		metricGroup = new FrontMetricGroup<>(
+			createReporterScopedSettings(),
+			new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 	}
 
@@ -172,11 +175,15 @@ public class PrometheusReporterTest extends TestLogger {
 		String metricName = "metric";
 
 		Counter metric1 = new SimpleCounter();
-		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(
+			createReporterScopedSettings(),
+			new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
 		reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
 
 		Counter metric2 = new SimpleCounter();
-		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(
+			createReporterScopedSettings(),
+			new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
 		reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
 		reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);
@@ -337,5 +344,9 @@ public class PrometheusReporterTest extends TestLogger {
 			base += 100;
 			return String.valueOf(lowEnd) + "-" + String.valueOf(highEnd);
 		}
+	}
+
+	private static ReporterScopedSettings createReporterScopedSettings() {
+		return new ReporterScopedSettings(0, ',', Collections.emptySet());
 	}
 }

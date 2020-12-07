@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.api.batch.table.stringexpr
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class SetOperatorsTest extends TableTestBase {
 
@@ -34,7 +35,7 @@ class SetOperatorsTest extends TableTestBase {
     val t = util.addTable[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
     val elements = t.where("b === 'two'").select("a").as("a1")
-    val in = t.select("*").where(s"c.in($elements)")
+    val in = t.select($"*").where(s"c.in($elements)")
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -71,7 +72,7 @@ class SetOperatorsTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(t),
-      term("select", "IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2")
+      term("select", "=(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2")
     )
 
     util.verifyTable(in, expected)

@@ -38,7 +38,8 @@ public class PluginLoaderTest extends PluginTestBase {
 
 		final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
-		PluginDescriptor pluginDescriptorA = new PluginDescriptor("A", new URL[]{classpathA}, new String[0]);
+		String[] parentPatterns = { TestSpi.class.getName(), OtherTestSpi.class.getName() };
+		PluginDescriptor pluginDescriptorA = new PluginDescriptor("A", new URL[]{classpathA}, parentPatterns);
 		ClassLoader pluginClassLoaderA = PluginLoader.createPluginClassLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 		Assert.assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
 		final PluginLoader pluginLoaderA = new PluginLoader(pluginClassLoaderA);

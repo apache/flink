@@ -48,7 +48,7 @@ receive the responses concurrently. That way, the waiting time can be overlayed 
 receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher
 streaming throughput.
 
-<img src="{{ site.baseurl }}/fig/async_io.svg" class="center" width="50%" />
+<img src="{% link /fig/async_io.svg %}" class="center" width="50%" />
 
 *Note:* Improving throughput by just scaling the `MapFunction` to a very high parallelism is in some cases possible as well, but usually
 comes at a very high resource cost: Having many more parallel MapFunction instances means more tasks, threads, Flink-internal network
@@ -216,7 +216,7 @@ To control in which order the resulting records are emitted, Flink offers two mo
 
 ### Event Time
 
-When the streaming application works with [event time]({{ site.baseurl }}/dev/event_time.html), watermarks will be handled correctly by the
+When the streaming application works with [event time]({% link dev/event_time.md %}), watermarks will be handled correctly by the
 asynchronous I/O operator. That means concretely the following for the two order modes:
 
   - **Unordered**: Watermarks do not overtake records and vice versa, meaning watermarks establish an *order boundary*.
@@ -227,7 +227,7 @@ asynchronous I/O operator. That means concretely the following for the two order
     That means that in the presence of watermarks, the *unordered* mode introduces some of the same latency and management
     overhead as the *ordered* mode does. The amount of that overhead depends on the watermark frequency.
 
-  - **Ordered**: Order of watermarks an records is preserved, just like order between records is preserved. There is no
+  - **Ordered**: Order of watermarks and records is preserved, just like order between records is preserved. There is no
     significant change in overhead, compared to working with *processing time*.
 
 Please recall that *Ingestion Time* is a special case of *event time* with automatically generated watermarks that

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.emulator;
 
-import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.MessageReceiver;
@@ -32,18 +31,18 @@ import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
-import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PullRequest;
-import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.Topic;
+import com.google.pubsub.v1.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 
 /**
  * A helper class to make managing the testing topics a bit easier.
@@ -52,7 +51,7 @@ public class PubsubHelper {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PubsubHelper.class);
 
-	private TransportChannelProvider channelProvider = null;
+	private TransportChannelProvider channelProvider;
 
 	private TopicAdminClient topicClient;
 	private SubscriptionAdminClient subscriptionAdminClient;
@@ -61,15 +60,11 @@ public class PubsubHelper {
 		this.channelProvider = channelProvider;
 	}
 
-	public TransportChannelProvider getChannelProvider() {
-		return channelProvider;
-	}
-
 	public TopicAdminClient getTopicAdminClient() throws IOException {
 		if (topicClient == null) {
 			TopicAdminSettings topicAdminSettings = TopicAdminSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 			topicClient = TopicAdminClient.create(topicAdminSettings);
 		}
@@ -78,17 +73,17 @@ public class PubsubHelper {
 
 	public Topic createTopic(String project, String topic) throws IOException {
 		deleteTopic(project, topic);
-		ProjectTopicName topicName = ProjectTopicName.of(project, topic);
+		TopicName topicName = TopicName.of(project, topic);
 		TopicAdminClient adminClient = getTopicAdminClient();
 		LOG.info("CreateTopic {}", topicName);
 		return adminClient.createTopic(topicName);
 	}
 
 	public void deleteTopic(String project, String topic) throws IOException {
-		deleteTopic(ProjectTopicName.of(project, topic));
+		deleteTopic(TopicName.of(project, topic));
 	}
 
-	public void deleteTopic(ProjectTopicName topicName) throws IOException {
+	public void deleteTopic(TopicName topicName) throws IOException {
 		TopicAdminClient adminClient = getTopicAdminClient();
 		try {
 			adminClient.getTopic(topicName);
@@ -114,7 +109,7 @@ public class PubsubHelper {
 				SubscriptionAdminSettings
 					.newBuilder()
 					.setTransportChannelProvider(channelProvider)
-					.setCredentialsProvider(NoCredentialsProvider.create())
+					.setCredentialsProvider(EmulatorCredentialsProvider.create())
 					.build();
 			subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings);
 		}
@@ -129,14 +124,12 @@ public class PubsubHelper {
 
 		deleteSubscription(subscriptionName);
 
-		SubscriptionAdminClient adminClient = getSubscriptionAdminClient();
-
-		ProjectTopicName topicName = ProjectTopicName.of(topicProject, topic);
+		TopicName topicName = TopicName.of(topicProject, topic);
 
 		PushConfig pushConfig = PushConfig.getDefaultInstance();
 
 		LOG.info("CreateSubscription {}", subscriptionName);
-		getSubscriptionAdminClient().createSubscription(subscriptionName, topicName, pushConfig, 1);
+		getSubscriptionAdminClient().createSubscription(subscriptionName, topicName, pushConfig, 1).isInitialized();
 	}
 
 	public void deleteSubscription(String subscriptionProject, String subscription) throws IOException {
@@ -159,43 +152,44 @@ public class PubsubHelper {
 		}
 	}
 
+	//
 	// Mostly copied from the example on https://cloud.google.com/pubsub/docs/pull
+	// Licensed under the Apache 2.0 License to "Google LLC" from https://github.com/googleapis/google-cloud-java/blob/master/google-cloud-examples/src/main/java/com/google/cloud/examples/pubsub/snippets/SubscriberSnippets.java.
+	//
 	public List<ReceivedMessage> pullMessages(String projectId, String subscriptionId, int maxNumberOfMessages) throws Exception {
 		SubscriberStubSettings subscriberStubSettings =
 			SubscriberStubSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 		try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
-			// String projectId = "my-project-id";
-			// String subscriptionId = "my-subscription-id";
-			// int numOfMessages = 10;   // max number of messages to be pulled
 			String subscriptionName = ProjectSubscriptionName.format(projectId, subscriptionId);
 			PullRequest pullRequest =
 				PullRequest.newBuilder()
 					.setMaxMessages(maxNumberOfMessages)
-					.setReturnImmediately(false) // return immediately if messages are not available
 					.setSubscription(subscriptionName)
 					.build();
 
-			// use pullCallable().futureCall to asynchronously perform this operation
-			PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
-			List<String> ackIds = new ArrayList<>();
-			for (ReceivedMessage message : pullResponse.getReceivedMessagesList()) {
-				// handle received message
-				// ...
-				ackIds.add(message.getAckId());
-			}
-			// acknowledge received messages
-			AcknowledgeRequest acknowledgeRequest =
-				AcknowledgeRequest.newBuilder()
-					.setSubscription(subscriptionName)
-					.addAllAckIds(ackIds)
-					.build();
-			// use acknowledgeCallable().futureCall to asynchronously perform this operation
-			subscriber.acknowledgeCallable().call(acknowledgeRequest);
-			return pullResponse.getReceivedMessagesList();
+			List<ReceivedMessage> receivedMessages = subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
+			acknowledgeIds(subscriber, subscriptionName, receivedMessages);
+			return receivedMessages;
 		}
+	}
+
+	private void acknowledgeIds(SubscriberStub subscriber, String subscriptionName, List<ReceivedMessage> receivedMessages) {
+		if (receivedMessages.isEmpty()) {
+			return;
+		}
+
+		List<String> ackIds = receivedMessages.stream().map(ReceivedMessage::getAckId).collect(Collectors.toList());
+		// acknowledge received messages
+		AcknowledgeRequest acknowledgeRequest =
+			AcknowledgeRequest.newBuilder()
+							.setSubscription(subscriptionName)
+							.addAllAckIds(ackIds)
+							.build();
+		// use acknowledgeCallable().futureCall to asynchronously perform this operation
+		subscriber.acknowledgeCallable().call(acknowledgeRequest);
 	}
 
 	public Subscriber subscribeToSubscription(String project, String subscription, MessageReceiver messageReceiver) {
@@ -204,7 +198,7 @@ public class PubsubHelper {
 			Subscriber
 				.newBuilder(subscriptionName, messageReceiver)
 				.setChannelProvider(channelProvider)
-				.setCredentialsProvider(NoCredentialsProvider.create())
+				.setCredentialsProvider(EmulatorCredentialsProvider.create())
 				.build();
 		subscriber.startAsync();
 		return subscriber;
@@ -212,9 +206,9 @@ public class PubsubHelper {
 
 	public Publisher createPublisher(String project, String topic) throws IOException {
 		return Publisher
-			.newBuilder(ProjectTopicName.of(project, topic))
+			.newBuilder(TopicName.of(project, topic))
 			.setChannelProvider(channelProvider)
-			.setCredentialsProvider(NoCredentialsProvider.create())
+			.setCredentialsProvider(EmulatorCredentialsProvider.create())
 			.build();
 	}
 

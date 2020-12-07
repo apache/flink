@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.runtime.rest.handler.resourcemanager.AbstractResourceManagerHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsInfo;
@@ -51,7 +52,7 @@ import java.util.concurrent.CompletionException;
 /**
  * Handler which serves detailed TaskManager information.
  */
-public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
+public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
 
 	private final MetricFetcher metricFetcher;
 	private final MetricStore metricStore;
@@ -88,10 +89,10 @@ public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<Restfu
 				final TaskManagerMetricsInfo taskManagerMetricsInfo;
 
 				if (tmMetrics != null) {
-					log.debug("Create metrics info for TaskManager {}.", taskManagerResourceId);
+					log.debug("Create metrics info for TaskManager {}.", taskManagerResourceId.getStringWithMetadata());
 					taskManagerMetricsInfo = createTaskManagerMetricsInfo(tmMetrics);
 				} else {
-					log.debug("No metrics for TaskManager {}.", taskManagerResourceId);
+					log.debug("No metrics for TaskManager {}.", taskManagerResourceId.getStringWithMetadata());
 					taskManagerMetricsInfo = TaskManagerMetricsInfo.empty();
 				}
 
@@ -136,8 +137,13 @@ public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<Restfu
 		long mappedUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
 		long mappedMax = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
 
-		long memorySegmentsAvailable = Long.valueOf(tmMetrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
-		long memorySegmentsTotal = Long.valueOf(tmMetrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+		long networkMemorySegmentsAvailable = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.AvailableMemorySegments", "0"));
+		long networkMemorySegmentsUsed = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.UsedMemorySegments", "0"));
+		long networkMemorySegmentsTotal = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.TotalMemorySegments", "0"));
+
+		long networkMemoryAvailable = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.AvailableMemory", "0"));
+		long networkMemoryUsed = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.UsedMemory", "0"));
+		long networkMemoryTotal = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.TotalMemory", "0"));
 
 		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfo = createGarbageCollectorInfo(tmMetrics);
 
@@ -154,8 +160,12 @@ public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<Restfu
 			mappedCount,
 			mappedUsed,
 			mappedMax,
-			memorySegmentsAvailable,
-			memorySegmentsTotal,
+			networkMemorySegmentsAvailable,
+			networkMemorySegmentsUsed,
+			networkMemorySegmentsTotal,
+			networkMemoryAvailable,
+			networkMemoryUsed,
+			networkMemoryTotal,
 			garbageCollectorInfo);
 	}
 

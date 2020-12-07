@@ -111,9 +111,9 @@ class RocksDBReducingState<K, N, V>
 					setCurrentNamespace(source);
 					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
+						backend.db.delete(columnFamily, writeOptions, sourceKey);
 						dataInputView.setBuffer(valueBytes);
 						V value = valueSerializer.deserialize(dataInputView);
 

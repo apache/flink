@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -140,8 +140,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * @see ListCheckpointed
  * @see RuntimeContext
  */
-@PublicEvolving
-@SuppressWarnings("deprecation")
+@Public
 public interface CheckpointedFunction {
 
 	/**
@@ -150,7 +149,7 @@ public interface CheckpointedFunction {
 	 * the Function was initialized, or offered now by {@link FunctionSnapshotContext} itself.
 	 *
 	 * @param context the context for drawing a snapshot of the operator
-	 * @throws Exception
+	 * @throws Exception Thrown, if state could not be created ot restored.
 	 */
 	void snapshotState(FunctionSnapshotContext context) throws Exception;
 
@@ -159,8 +158,7 @@ public interface CheckpointedFunction {
 	 * execution. Functions typically set up their state storing data structures in this method.
 	 *
 	 * @param context the context for initializing the operator
-	 * @throws Exception
+	 * @throws Exception Thrown, if state could not be created ot restored.
 	 */
 	void initializeState(FunctionInitializationContext context) throws Exception;
-
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +31,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.function.Supplier;
 
 /**
  * Tests for {@link ClosureCleaner}.
@@ -230,6 +230,15 @@ public class ClosureCleanerTest {
 		WithWriteReplace writeReplace = new WithWriteReplace(new WithWriteReplace.Payload("text"));
 		Assert.assertEquals("text", writeReplace.getPayload().getRaw());
 		ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
+
+	/**
+	 * Verify that ClosureCleaner works correctly on Object, which doesn't have any superclasses
+	 * or interfaces that it implements.
+	 */
+	@Test(expected = InvalidProgramException.class)
+	public void testCleanObject() {
+		ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 }
 
@@ -443,11 +452,6 @@ class OuterMapCreator implements MapCreator {
 	public MapFunction<Integer, Integer> getMap() {
 		return new OuterStaticClass().getMap();
 	}
-}
-
-@FunctionalInterface
-interface SerializableSupplier<T> extends Supplier<T>, Serializable {
-
 }
 
 class NestedSelfReferencing implements Serializable {

@@ -35,7 +35,7 @@ import java.util.List;
  */
 public class SqlUseCatalog extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER_DDL);
 	private final SqlIdentifier catalogName;
 
 	public SqlUseCatalog(SqlParserPos pos, SqlIdentifier catalogName) {
@@ -53,8 +53,8 @@ public class SqlUseCatalog extends SqlCall {
 		return Collections.singletonList(catalogName);
 	}
 
-	public String getCatalogName() {
-		return catalogName.getSimple();
+	public SqlIdentifier getCatalogName() {
+		return catalogName;
 	}
 
 	@Override
@@ -64,5 +64,9 @@ public class SqlUseCatalog extends SqlCall {
 			int rightPrec) {
 		writer.keyword("USE CATALOG");
 		catalogName.unparse(writer, leftPrec, rightPrec);
+	}
+
+	public String catalogName() {
+		return catalogName.getSimple();
 	}
 }

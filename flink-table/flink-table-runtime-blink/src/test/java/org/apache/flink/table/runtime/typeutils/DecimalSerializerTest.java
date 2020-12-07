@@ -19,16 +19,16 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
 
 /**
- * A test for the {@link DecimalSerializer}.
+ * A test for the {@link DecimalDataSerializer}.
  */
-public class DecimalSerializerTest extends SerializerTestBase<Decimal> {
+public class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
 
 	@Override
-	protected DecimalSerializer createSerializer() {
-		return new DecimalSerializer(5, 2);
+	protected DecimalDataSerializer createSerializer() {
+		return new DecimalDataSerializer(5, 2);
 	}
 
 	@Override
@@ -37,17 +37,17 @@ public class DecimalSerializerTest extends SerializerTestBase<Decimal> {
 	}
 
 	@Override
-	protected Class<Decimal> getTypeClass() {
-		return Decimal.class;
+	protected Class<DecimalData> getTypeClass() {
+		return DecimalData.class;
 	}
 
 	@Override
-	protected Decimal[] getTestData() {
-		return new Decimal[] {
-				Decimal.fromLong(1, 5, 2),
-				Decimal.fromLong(2, 5, 2),
-				Decimal.fromLong(3, 5, 2),
-				Decimal.fromLong(4, 5, 2)
+	protected DecimalData[] getTestData() {
+		return new DecimalData[] {
+				DecimalData.fromUnscaledLong(1, 5, 2),
+				DecimalData.fromUnscaledLong(2, 5, 2),
+				DecimalData.fromUnscaledLong(3, 5, 2),
+				DecimalData.fromUnscaledLong(4, 5, 2)
 		};
 	}
 }

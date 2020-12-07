@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
@@ -43,7 +44,9 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 		final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
 			new MinMaxAvgStatistics(1L, 1L, 1L),
 			new MinMaxAvgStatistics(2L, 2L, 2L),
-			new MinMaxAvgStatistics(3L, 3L, 3L));
+			new MinMaxAvgStatistics(3L, 3L, 3L),
+			new MinMaxAvgStatistics(4L, 4L, 4L),
+			new MinMaxAvgStatistics(5L, 5L, 5L));
 
 		final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask = new HashMap<>(2);
 
@@ -56,6 +59,8 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 				2L,
 				3L,
 				4L,
+				7,
+				8,
 				5,
 				6));
 
@@ -68,6 +73,8 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 				3L,
 				4L,
 				5L,
+				8,
+				9,
 				6,
 				7));
 
@@ -80,8 +87,11 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			1337L,
 			1L,
 			0L,
+			43L,
+			44L,
 			10,
 			10,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap(),
 			null,
 			false);
@@ -95,8 +105,11 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			43L,
 			1L,
 			0L,
+			31337L,
+			4244L,
 			9,
 			9,
+			CheckpointType.SAVEPOINT,
 			checkpointStatisticsPerTask,
 			"externalPath",
 			false);
@@ -110,8 +123,11 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			4L,
 			2L,
 			0L,
+			21L,
+			22L,
 			11,
 			9,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap(),
 			100L,
 			"Test failure");
@@ -131,8 +147,11 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			1337L,
 			1L,
 			0L,
+			15L,
+			16L,
 			10,
 			10,
+			CheckpointType.CHECKPOINT,
 			Collections.emptyMap()
 		);
 

@@ -22,10 +22,10 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamExecRank}
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.table.planner.plan.utils.UndefinedStrategy
 
 /**
   * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamExecRank]].
@@ -66,7 +66,8 @@ class StreamExecRankRule
       rank.rankType,
       rank.rankRange,
       rank.rankNumberType,
-      rank.outputRankNumber)
+      rank.outputRankNumber,
+      UndefinedStrategy)
   }
 }
 

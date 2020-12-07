@@ -22,9 +22,15 @@
         </tr>
         <tr>
             <td><h5>pipeline.auto-watermark-interval</h5></td>
-            <td style="word-wrap: break-word;">0ms</td>
+            <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
             <td>The interval of the automatic watermark emission. Watermarks are used throughout the streaming system to keep track of the progress of time. They are used, for example, for time based windowing.</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.cached-files</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><span markdown="span">`name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2``</span></td>
         </tr>
         <tr>
             <td><h5>pipeline.classpaths</h5></td>
@@ -81,10 +87,22 @@
             <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.name</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The job name used for printing and logging.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.object-reuse</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>When enabled objects that Flink internally uses for deserialization and passing data to user-code functions will be reused. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behaviour.</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.operator-chaining</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Operator chaining allows non-shuffle operations to be co-located in the same thread fully avoiding serialization and de-serialization.</td>
         </tr>
         <tr>
             <td><h5>pipeline.registered-kryo-types</h5></td>

@@ -43,37 +43,14 @@ public class NettyBufferPoolTest {
 		assertTrue(nettyBufferPool.ioBuffer(128).isDirect());
 		assertTrue(nettyBufferPool.ioBuffer(128, 256).isDirect());
 
-		// Disallow heap buffers
-		try {
-			nettyBufferPool.heapBuffer();
-			fail("Unexpected heap buffer operation");
-		} catch (UnsupportedOperationException ignored) {
-		}
+		// Currently we fakes the heap buffer allocation with direct buffers
+		assertTrue(nettyBufferPool.heapBuffer().isDirect());
+		assertTrue(nettyBufferPool.heapBuffer(128).isDirect());
+		assertTrue(nettyBufferPool.heapBuffer(128, 256).isDirect());
 
-		try {
-			nettyBufferPool.heapBuffer(128);
-			fail("Unexpected heap buffer operation");
-		} catch (UnsupportedOperationException ignored) {
-		}
-
-		try {
-			nettyBufferPool.heapBuffer(128, 256);
-			fail("Unexpected heap buffer operation");
-		} catch (UnsupportedOperationException ignored) {
-		}
-
-		// Disallow composite heap buffers
-		try {
-			nettyBufferPool.compositeHeapBuffer();
-			fail("Unexpected heap buffer operation");
-		} catch (UnsupportedOperationException ignored) {
-		}
-
-		try {
-			nettyBufferPool.compositeHeapBuffer(2);
-			fail("Unexpected heap buffer operation");
-		} catch (UnsupportedOperationException ignored) {
-		}
+		// Composite buffers allocates the corresponding type of buffers when extending its capacity
+		assertTrue(nettyBufferPool.compositeHeapBuffer().capacity(1024).isDirect());
+		assertTrue(nettyBufferPool.compositeHeapBuffer(10).capacity(1024).isDirect());
 
 		// Is direct buffer pooled!
 		assertTrue(nettyBufferPool.isDirectBufferPooled());

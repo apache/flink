@@ -18,9 +18,14 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.apache.flink.tests.util.parameters.ParameterProperty;
+import org.apache.flink.tests.util.util.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
@@ -29,9 +34,18 @@ import java.util.Optional;
 public final class LocalStandaloneFlinkResourceFactory implements FlinkResourceFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResourceFactory.class);
 
+	private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY = new ParameterProperty<>("logBackupDir", Paths::get);
+
 	@Override
-	public Optional<FlinkResource> create() {
-		LOG.info("Created {}.", LocalStandaloneFlinkResource.class.getSimpleName());
-		return Optional.of(new LocalStandaloneFlinkResource());
+	public FlinkResource create(FlinkResourceSetup setup) {
+		Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
+		if (!logBackupDirectory.isPresent()) {
+			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+		}
+		return new LocalStandaloneFlinkResource(
+			FileUtils.findFlinkDist(),
+			logBackupDirectory.orElse(null),
+			setup);
 	}
 }
+

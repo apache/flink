@@ -57,24 +57,16 @@ public class JSONGenerator {
 		ObjectNode json = mapper.createObjectNode();
 		ArrayNode nodes = mapper.createArrayNode();
 		json.put("nodes", nodes);
-		List<Integer> operatorIDs = new ArrayList<Integer>(streamGraph.getVertexIDs());
-		Collections.sort(operatorIDs, new Comparator<Integer>() {
-			@Override
-			public int compare(Integer idOne, Integer idTwo) {
-				boolean isIdOneSinkId = streamGraph.getSinkIDs().contains(idOne);
-				boolean isIdTwoSinkId = streamGraph.getSinkIDs().contains(idTwo);
-				// put sinks at the back
-				if (isIdOneSinkId == isIdTwoSinkId) {
-					return idOne.compareTo(idTwo);
-				} else if (isIdOneSinkId) {
-					return 1;
-				} else {
-					return -1;
-				}
-			}
-		});
-		visit(nodes, operatorIDs, new HashMap<Integer, Integer>());
-		return json.toString();
+
+		List<Integer> operatorIDs = new ArrayList<>(streamGraph.getVertexIDs());
+		Comparator<Integer> operatorIDComparator = Comparator
+			.comparingInt((Integer id) -> streamGraph.getSinkIDs().contains(id) ? 1 : 0)
+			.thenComparingInt(id -> id);
+		operatorIDs.sort(operatorIDComparator);
+
+		visit(nodes, operatorIDs, new HashMap<>());
+
+		return json.toPrettyString();
 	}
 
 	private void visit(ArrayNode jsonArray, List<Integer> toVisit,

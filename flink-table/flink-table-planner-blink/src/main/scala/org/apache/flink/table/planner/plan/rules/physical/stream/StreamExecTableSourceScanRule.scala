@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecChangelogNormalize, StreamExecTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.planner.plan.utils.ScanUtil
+import org.apache.flink.table.planner.sources.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -31,6 +35,9 @@ import org.apache.calcite.rel.core.TableScan
 
 /**
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[StreamExecTableSourceScan]].
+ *
+ * <p>Depends whether this is a scan source, this rule will also generate
+ * [[StreamExecChangelogNormalize]] to materialize the upsert stream.
   */
 class StreamExecTableSourceScanRule
   extends ConverterRule(
@@ -39,14 +46,14 @@ class StreamExecTableSourceScanRule
     FlinkConventions.STREAM_PHYSICAL,
     "StreamExecTableSourceScanRule") {
 
-  /** Rule must only match if TableScan targets a [[StreamTableSource]] */
+  /** Rule must only match if TableScan targets a [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
     tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+      case tst: TableSourceTable =>
         tst.tableSource match {
-          case _: StreamTableSource[_] => true
+          case _: ScanTableSource => true
           case _ => false
         }
       case _ => false
@@ -54,17 +61,42 @@ class StreamExecTableSourceScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: FlinkLogicalTableSourceScan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
+    val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val config = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
+    val table = scan.getTable.asInstanceOf[TableSourceTable]
 
-    new StreamExecTableSourceScan(
+    val newScan = new StreamExecTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable.asInstanceOf[TableSourceTable[_]]
-    )
+      table)
+
+    if (isUpsertSource(table.catalogTable, table.tableSource) ||
+        isSourceChangeEventsDuplicate(table.catalogTable, table.tableSource, config)) {
+      // generate changelog normalize node
+      // primary key has been validated in CatalogSourceTable
+      val primaryKey = table.catalogTable.getSchema.getPrimaryKey.get()
+      val keyFields = primaryKey.getColumns
+      val inputFieldNames = newScan.getRowType.getFieldNames
+      val primaryKeyIndices = ScanUtil.getPrimaryKeyIndices(inputFieldNames, keyFields)
+      val requiredDistribution = FlinkRelDistribution.hash(primaryKeyIndices, requireStrict = true)
+      val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
+        .replace(requiredDistribution)
+        .replace(FlinkConventions.STREAM_PHYSICAL)
+      val newInput: RelNode = RelOptRule.convert(newScan, requiredTraitSet)
+
+      new StreamExecChangelogNormalize(
+        scan.getCluster,
+        traitSet,
+        newInput,
+        primaryKeyIndices)
+    } else {
+      newScan
+    }
   }
 }
 
 object StreamExecTableSourceScanRule {
-  val INSTANCE: RelOptRule = new StreamExecTableSourceScanRule
+  val INSTANCE = new StreamExecTableSourceScanRule
 }
+

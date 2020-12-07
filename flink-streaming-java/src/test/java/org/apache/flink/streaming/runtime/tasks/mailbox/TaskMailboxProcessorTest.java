@@ -18,12 +18,18 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.RunnableWithException;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,6 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TaskMailboxProcessorTest {
 
 	public static final int DEFAULT_PRIORITY = 0;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testRejectIfNotOpen() {
@@ -48,9 +57,29 @@ public class TaskMailboxProcessorTest {
 	}
 
 	@Test
+	public void testSubmittingRunnableWithException() throws Exception {
+		expectedException.expectMessage("Expected");
+		try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
+			final Thread submitThread = new Thread(() -> {
+				mailboxProcessor.getMainMailboxExecutor().execute(
+					this::throwFlinkException,
+					"testSubmittingRunnableWithException");
+			});
+
+			submitThread.start();
+			mailboxProcessor.runMailboxLoop();
+			submitThread.join();
+		}
+	}
+
+	private void throwFlinkException() throws FlinkException {
+		throw new FlinkException("Expected");
+	}
+
+	@Test
 	public void testShutdown() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
-		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
+		FutureTaskWithException<Void> testRunnableFuture = new FutureTaskWithException<>(() -> {});
 		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture, "testRunnableFuture");
 		mailboxProcessor.prepareClose();
 
@@ -209,6 +238,62 @@ public class TaskMailboxProcessorTest {
 		mailboxProcessor.allActionsCompleted();
 	}
 
+	@Test
+	public void testNoIdleTimeWhenBusy() throws InterruptedException {
+		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
+		final int totalSwitches = 10;
+
+		AtomicInteger count = new AtomicInteger();
+		MailboxThread mailboxThread = new MailboxThread() {
+			@Override
+			public void runDefaultAction(Controller controller) {
+				int currentCount = count.incrementAndGet();
+				if (currentCount == totalSwitches) {
+					controller.allActionsCompleted();
+				}
+			}
+		};
+		mailboxThread.start();
+		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+
+		mailboxThread.signalStart();
+		mailboxThread.join();
+
+		Assert.assertEquals(0, mailboxProcessor.getIdleTime().getCount());
+		Assert.assertEquals(totalSwitches, count.get());
+	}
+
+	@Test
+	public void testIdleTime() throws InterruptedException {
+		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
+		final int totalSwitches = 2;
+
+		CountDownLatch syncLock = new CountDownLatch(1);
+		MailboxThread mailboxThread = new MailboxThread() {
+			int count = 0;
+
+			@Override
+			public void runDefaultAction(Controller controller) {
+				// If this is violated, it means that the default action was invoked while we assumed suspension
+				Assert.assertTrue(suspendedActionRef.compareAndSet(null, controller.suspendDefaultAction()));
+				++count;
+				if (count == totalSwitches) {
+					controller.allActionsCompleted();
+				}
+				syncLock.countDown();
+			}
+		};
+		mailboxThread.start();
+		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+		mailboxThread.signalStart();
+
+		syncLock.await();
+		Thread.sleep(10);
+		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspendedActionRef.get()::resume, "resume");
+		mailboxThread.join();
+		Assert.assertThat(mailboxProcessor.getIdleTime().getCount(), Matchers.greaterThan(0L));
+	}
+
 	private static MailboxProcessor start(MailboxThread mailboxThread) {
 		mailboxThread.start();
 		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
@@ -238,7 +323,7 @@ public class TaskMailboxProcessorTest {
 		final MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY);
 		AtomicInteger index = new AtomicInteger();
 		mailboxExecutor.execute(
-			new Runnable() {
+			new RunnableWithException() {
 				@Override
 				public void run() {
 					mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());

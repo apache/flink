@@ -66,6 +66,28 @@ public interface AvailabilityProvider {
 		return getAvailableFuture() == AVAILABLE;
 	}
 
+	static CompletableFuture<?> and(CompletableFuture<?> first, CompletableFuture<?> second) {
+		if (first == AVAILABLE && second == AVAILABLE) {
+			return AVAILABLE;
+		}
+		else if (first == AVAILABLE) {
+			return second;
+		}
+		else if (second == AVAILABLE) {
+			return first;
+		}
+		else {
+			return CompletableFuture.allOf(first, second);
+		}
+	}
+
+	static CompletableFuture<?> or(CompletableFuture<?> first, CompletableFuture<?> second) {
+		if (first == AVAILABLE || second == AVAILABLE) {
+			return AVAILABLE;
+		}
+		return CompletableFuture.anyOf(first, second);
+	}
+
 	/**
 	 * A availability implementation for providing the helpful functions of resetting the
 	 * available/unavailable states.
@@ -73,6 +95,22 @@ public interface AvailabilityProvider {
 	final class AvailabilityHelper implements AvailabilityProvider {
 
 		private CompletableFuture<?> availableFuture = new CompletableFuture<>();
+
+		public CompletableFuture<?> and(CompletableFuture<?> other) {
+			return AvailabilityProvider.and(availableFuture, other);
+		}
+
+		public CompletableFuture<?> and(AvailabilityProvider other) {
+			return and(other.getAvailableFuture());
+		}
+
+		public CompletableFuture<?> or(CompletableFuture<?> other) {
+			return AvailabilityProvider.or(availableFuture, other);
+		}
+
+		public CompletableFuture<?> or(AvailabilityProvider other) {
+			return or(other.getAvailableFuture());
+		}
 
 		/**
 		 * Judges to reset the current available state as unavailable.

@@ -21,9 +21,9 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecOverAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecOverAggregate, BatchExecOverAggregateBase, BatchExecPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
-
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel._
@@ -31,6 +31,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.tools.ValidationException
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.python.PythonFunctionKind
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -61,7 +63,7 @@ class BatchExecOverAggregateRule
     val inputTypeWithConstants = typeFactory.buildRelNodeRowType(
       inputNamesWithConstants, inputTypesWithConstants)
 
-    var overWindowAgg: BatchExecOverAggregate = null
+    var overWindowAgg: BatchExecOverAggregateBase = null
 
     var lastGroup: Window.Group = null
     val groupBuffer = ArrayBuffer[Window.Group]()
@@ -101,17 +103,53 @@ class BatchExecOverAggregateRule
         groupToAggCallToAggFunction.flatMap(_._2).map(_._1))
 
       val providedTraitSet = call.getPlanner.emptyTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-      overWindowAgg = new BatchExecOverAggregate(logicWindow.getCluster, call.builder(),
-        providedTraitSet,
-        newInput,
-        outputRowType,
-        newInput.getRowType,
-        groupSet,
-        orderKeyIndexes,
-        orders,
-        nullIsLasts,
-        groupToAggCallToAggFunction,
-        logicWindow)
+      // TODO: split pandas udaf, general python udaf, java/scala udaf into different node
+      val existGeneralPythonFunction = groupToAggCallToAggFunction
+        .map(_._2)
+        .exists(_.map(_._1).exists(isPythonAggregate(_, PythonFunctionKind.GENERAL)))
+      val existPandasFunction = groupToAggCallToAggFunction
+        .map(_._2)
+        .exists(_.map(_._1).exists(isPythonAggregate(_, PythonFunctionKind.PANDAS)))
+      val existJavaFunction = groupToAggCallToAggFunction
+        .map(_._2)
+        .exists(_.map(_._1).exists(!isPythonAggregate(_)))
+      if (existPandasFunction || existGeneralPythonFunction) {
+        if (existJavaFunction) {
+          throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.")
+        }
+        if (existPandasFunction && existGeneralPythonFunction) {
+          throw new TableException("Pandas UDAF and non-Pandas UDAF cannot be used together.")
+        }
+      }
+      overWindowAgg = if (existJavaFunction) {
+        new BatchExecOverAggregate(
+          logicWindow.getCluster,
+          call.builder(),
+          providedTraitSet,
+          newInput,
+          outputRowType,
+          newInput.getRowType,
+          groupSet,
+          orderKeyIndexes,
+          orders,
+          nullIsLasts,
+          groupToAggCallToAggFunction,
+          logicWindow)
+      } else {
+        new BatchExecPythonOverAggregate(
+          logicWindow.getCluster,
+          call.builder(),
+          providedTraitSet,
+          newInput,
+          outputRowType,
+          newInput.getRowType,
+          groupSet,
+          orderKeyIndexes,
+          orders,
+          nullIsLasts,
+          groupToAggCallToAggFunction,
+          logicWindow)
+      }
 
       input = overWindowAgg
       inputRowType = outputRowType

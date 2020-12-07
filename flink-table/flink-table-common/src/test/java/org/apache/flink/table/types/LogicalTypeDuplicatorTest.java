@@ -114,7 +114,7 @@ public class LogicalTypeDuplicatorTest {
 		return new DistinctType.Builder(
 				ObjectIdentifier.of("cat", "db", "Money"),
 				replacedType)
-			.setDescription("Money type desc.")
+			.description("Money type desc.")
 			.build();
 	}
 
@@ -127,27 +127,25 @@ public class LogicalTypeDuplicatorTest {
 	}
 
 	private static StructuredType createHumanType() {
-		return new StructuredType.Builder(
-				ObjectIdentifier.of("cat", "db", "Human"),
+		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "Human"), Human.class)
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", new VarCharType(), "Description.")))
-			.setDescription("Human type desc.")
+			.description("Human type desc.")
 			.setFinal(false)
 			.setInstantiable(false)
-			.setImplementationClass(Human.class)
 			.build();
 	}
 
 	private static StructuredType createUserType(LogicalType replacedType) {
-		return new StructuredType.Builder(
-				ObjectIdentifier.of("cat", "db", "User"),
+		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
+			.attributes(
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", replacedType)))
-			.setDescription("User type desc.")
+			.description("User type desc.")
 			.setFinal(false)
 			.setInstantiable(true)
-			.setImplementationClass(User.class)
-			.setSuperType(createHumanType())
+			.superType(createHumanType())
 			.build();
 	}
 

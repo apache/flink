@@ -24,9 +24,12 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
+
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -41,7 +44,8 @@ class FlinkLogicalJoin(
     right: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, left, right, condition, Set.empty[CorrelationId], joinType)
+  extends Join(cluster, traitSet, Collections.emptyList[RelHint](),
+    left, right, condition, Set.empty[CorrelationId], joinType)
   with FlinkLogicalRel {
 
   override def copy(

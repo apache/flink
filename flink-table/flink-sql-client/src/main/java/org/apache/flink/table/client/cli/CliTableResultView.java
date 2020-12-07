@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
 import org.jline.keymap.KeyMap;
@@ -88,7 +89,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		// take snapshot
 		TypedResult<Integer> result;
 		try {
-			result = client.getExecutor().snapshotResult(client.getContext(), resultDescriptor.getResultId(), getVisibleMainHeight());
+			result = client.getExecutor().snapshotResult(client.getSessionId(), resultDescriptor.getResultId(), getVisibleMainHeight());
 		} catch (SqlExecutionException e) {
 			close(e);
 			return;
@@ -262,7 +263,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		// convert page
 		final List<String[]> stringRows = rows
 				.stream()
-				.map(CliUtils::rowToString)
+				.map(PrintUtils::rowToString)
 				.collect(Collectors.toList());
 
 		// update results

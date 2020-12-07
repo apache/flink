@@ -19,23 +19,30 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
-import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelConversionException}
+import org.apache.calcite.sql.validate.SqlValidator
+import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
+import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * NOTE: this is heavily inspired by Calcite's PlannerImpl.
@@ -44,10 +51,10 @@ import scala.collection.JavaConversions._
   * The main difference is that we do not create a new RelOptPlanner in the ready() method.
   */
 class FlinkPlannerImpl(
-    config: FrameworkConfig,
+    val config: FrameworkConfig,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
-    cluster: RelOptCluster) extends FlinkToRelContext {
+    cluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   val parser: CalciteParser = new CalciteParser(config.getParserConfig)
@@ -55,14 +62,14 @@ class FlinkPlannerImpl(
   val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
 
   var validator: FlinkCalciteSqlValidator = _
-  var root: RelRoot = _
 
   def getCompletionHints(sql: String, cursor: Int): Array[String] = {
     val advisorValidator = new SqlAdvisorValidator(
       operatorTable,
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
-      config.getParserConfig.conformance())
+      SqlValidator.Config.DEFAULT
+        .withSqlConformance(config.getParserConfig.conformance()))
     val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
     val replaced = Array[String](null)
     val hints = advisor.getCompletionHints(sql, cursor, replaced)
@@ -82,52 +89,80 @@ class FlinkPlannerImpl(
   def getOrCreateSqlValidator(): FlinkCalciteSqlValidator = {
     if (validator == null) {
       val catalogReader = catalogReaderSupplier.apply(false)
-      validator = new FlinkCalciteSqlValidator(
-        operatorTable,
-        catalogReader,
-        typeFactory)
-      validator.setIdentifierExpansion(true)
-      validator.setDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
-      // Disable implicit type coercion for now.
-      validator.setEnableTypeCoercion(false)
+      validator = createSqlValidator(catalogReader)
     }
     validator
   }
 
+  private def createSqlValidator(catalogReader: CalciteCatalogReader) = {
+    val validator = new FlinkCalciteSqlValidator(
+      operatorTable,
+      catalogReader,
+      typeFactory,
+      SqlValidator.Config.DEFAULT
+        .withIdentifierExpansion(true)
+        .withDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
+        .withTypeCoercionEnabled(false)) // Disable implicit type coercion for now.
+    validator
+  }
+
   def validate(sqlNode: SqlNode): SqlNode = {
-    val catalogReader = catalogReaderSupplier.apply(false)
-    // do pre-validate rewrite.
-    sqlNode.accept(new PreValidateReWriter(catalogReader, typeFactory))
-    // do extended validation.
-    sqlNode match {
-      case node: ExtendedSqlNode =>
-        node.validate()
-      case _ =>
-    }
-    // no need to validate row type for DDL and insert nodes.
-    if (sqlNode.getKind.belongsTo(SqlKind.DDL)
-      || sqlNode.getKind == SqlKind.INSERT) {
-      return sqlNode
-    }
+    val validator = getOrCreateSqlValidator()
+    validate(sqlNode, validator)
+  }
+
+  private def validate(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
     try {
-      getOrCreateSqlValidator().validate(sqlNode)
-    } catch {
+      sqlNode.accept(new PreValidateReWriter(
+        validator, typeFactory))
+      // do extended validation.
+      sqlNode match {
+        case node: ExtendedSqlNode =>
+          node.validate()
+        case _ =>
+      }
+      // no need to validate row type for DDL and insert nodes.
+      if (sqlNode.getKind.belongsTo(SqlKind.DDL)
+        || sqlNode.getKind == SqlKind.INSERT
+        || sqlNode.getKind == SqlKind.CREATE_FUNCTION
+        || sqlNode.getKind == SqlKind.DROP_FUNCTION
+        || sqlNode.getKind == SqlKind.OTHER_DDL
+        || sqlNode.isInstanceOf[SqlShowCatalogs]
+        || sqlNode.isInstanceOf[SqlShowCurrentCatalog]
+        || sqlNode.isInstanceOf[SqlShowDatabases]
+        || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
+        || sqlNode.isInstanceOf[SqlShowTables]
+        || sqlNode.isInstanceOf[SqlShowFunctions]
+        || sqlNode.isInstanceOf[SqlShowViews]
+        || sqlNode.isInstanceOf[SqlShowPartitions]
+        || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
+        return sqlNode
+      }
+      sqlNode match {
+        case explain: SqlExplain =>
+          val validated = validator.validate(explain.getExplicandum)
+          explain.setOperand(0, validated)
+          explain
+        case _ =>
+          validator.validate(sqlNode)
+      }
+    }
+    catch {
       case e: RuntimeException =>
         throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
     }
   }
 
   def rel(validatedSqlNode: SqlNode): RelRoot = {
+    rel(validatedSqlNode, getOrCreateSqlValidator())
+  }
+
+  private def rel(validatedSqlNode: SqlNode, sqlValidator: FlinkCalciteSqlValidator) = {
     try {
       assert(validatedSqlNode != null)
-      val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        this,
-        getOrCreateSqlValidator(),
-        catalogReaderSupplier.apply(false),
-        cluster,
-        convertletTable,
-        sqlToRelConverterConfig)
-      root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
+      val sqlToRelConverter: SqlToRelConverter = createSqlToRelConverter(sqlValidator)
+
+      sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types
       // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
@@ -136,49 +171,87 @@ class FlinkPlannerImpl(
       // root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
       // convert time indicators
       // root = root.withRel(RelTimeIndicatorConverter.convert(root.rel, rexBuilder))
-      root
     } catch {
       case e: RelConversionException => throw new TableException(e.getMessage)
     }
   }
 
+  def rex(sqlNode: SqlNode, inputRowType: RelDataType): RexNode = {
+    rex(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  }
+
+  private def rex(
+      sqlNode: SqlNode,
+      sqlValidator: FlinkCalciteSqlValidator,
+      inputRowType: RelDataType) = {
+    try {
+      val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
+      val nameToTypeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, field.getType)
+        }
+        .toMap[String, RelDataType]
+        .asJava
+      val validatedSqlNode = sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
+      val nameToNodeMap = inputRowType
+        .getFieldList
+        .asScala
+        .map { field =>
+          (field.getName, RexInputRef.of(field.getIndex, inputRowType))
+        }
+        .toMap[String, RexNode]
+        .asJava
+      sqlToRelConverter.convertExpression(validatedSqlNode, nameToNodeMap)
+    } catch {
+      case e: RelConversionException => throw new TableException(e.getMessage)
+    }
+  }
+
+  private def createSqlToRelConverter(sqlValidator: SqlValidator): SqlToRelConverter = {
+    new SqlToRelConverter(
+        createToRelContext(),
+        sqlValidator,
+        sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
+        cluster,
+        convertletTable,
+        sqlToRelConverterConfig)
+  }
+
   /**
-    * Creates a new instance of [[SqlExprToRexConverter]] to convert SQL expression
-    * to RexNode.
+    * Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]].
     */
-  def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter = {
-    new SqlExprToRexConverterImpl(config, typeFactory, cluster, tableRowType)
-  }
+  def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
 
-  override def getCluster: RelOptCluster = cluster
+  /**
+    * Implements [[RelOptTable.ToRelContext]] interface for [[RelOptTable]] and
+    * [[org.apache.calcite.tools.Planner]].
+    */
+  class ToRelContextImpl extends RelOptTable.ToRelContext {
 
-  override def expandView(
-      rowType: RelDataType,
-      queryString: String,
-      schemaPath: util.List[String],
-      viewPath: util.List[String]): RelRoot = {
+    override def expandView(
+        rowType: RelDataType,
+        queryString: String,
+        schemaPath: util.List[String],
+        viewPath: util.List[String])
+    : RelRoot = {
+      val parsed = parser.parse(queryString)
+      val originalReader = catalogReaderSupplier.apply(false)
+      val readerWithPathAdjusted = new FlinkCalciteCatalogReader(
+        originalReader.getRootSchema,
+        List(schemaPath, schemaPath.subList(0, 1)).asJava,
+        originalReader.getTypeFactory,
+        originalReader.getConfig
+      )
+      val validator = createSqlValidator(readerWithPathAdjusted)
+      val validated = validate(parsed, validator)
+      rel(validated, validator)
+    }
 
-    val sqlNode = parser.parse(queryString)
-    val catalogReader = catalogReaderSupplier.apply(false)
-      .withSchemaPath(schemaPath)
-    val validator =
-      new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
-    validator.setIdentifierExpansion(true)
-    val validatedSqlNode = validator.validate(sqlNode)
-    val sqlToRelConverter = new SqlToRelConverter(
-      this,
-      validator,
-      catalogReader,
-      cluster,
-      convertletTable,
-      sqlToRelConverterConfig)
-    var root: RelRoot = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
-    root = root.withRel(sqlToRelConverter.flattenTypes(root.project(), true))
-    root.withRel(RelDecorrelator.decorrelateQuery(root.project()))
-  }
+    override def getCluster: RelOptCluster = cluster
 
-  override def createRelBuilder(): RelBuilder = {
-    sqlToRelConverterConfig.getRelBuilderFactory.create(cluster, null)
+    override def getTableHints: util.List[RelHint] = ImmutableList.of()
   }
 }
 

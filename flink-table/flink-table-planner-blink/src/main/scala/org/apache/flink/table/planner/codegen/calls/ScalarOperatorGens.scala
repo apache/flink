@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.dataformat._
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.data.binary.BinaryArrayData
+import org.apache.flink.table.data.util.{DataFormatConverters, MapDataUtil}
+import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.planner.typeutils.TypeCoercion
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -31,14 +35,16 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 
 import java.lang.{StringBuilder => JStringBuilder}
 import java.nio.charset.StandardCharsets
+import java.util.Arrays.asList
 
 import scala.collection.JavaConversions._
 
@@ -124,7 +130,7 @@ object ScalarOperatorGens {
         val rightCasted = castToDec(right.resultType)(rightTerm)
         val precision = resultType.getPrecision
         val scale = resultType.getScale
-        s"$DECIMAL_TERM.$method($leftCasted, $rightCasted, $precision, $scale)"
+        s"$DECIMAL_UTIL.$method($leftCasted, $rightCasted, $precision, $scale)"
       }
     }
   }
@@ -141,7 +147,7 @@ object ScalarOperatorGens {
     generateUnaryOperatorIfNotNull(ctx, resultType, operand) {
       operandTerm =>
         if (isDecimal(operand.resultType) && operator == "-") {
-          s"$operandTerm.negate()"
+          s"$DECIMAL_UTIL.negate($operandTerm)"
         } else if (isDecimal(operand.resultType) && operator == "+") {
           s"$operandTerm"
         } else {
@@ -171,32 +177,50 @@ object ScalarOperatorGens {
         resultType.getTypeRoot match {
           case DATE =>
             generateOperatorIfNotNull(ctx, new DateType(), left, right) {
-              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+              (l, r) => s"$l $op (java.lang.Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
             }
           case TIMESTAMP_WITHOUT_TIME_ZONE =>
-            generateOperatorIfNotNull(ctx, new TimestampType(), left, right) {
-              (l, r) => s"($l * ${MILLIS_PER_DAY}L) $op $r"
+            generateOperatorIfNotNull(ctx, resultType, left, right) {
+              (l, r) => s"$TIMESTAMP_DATA.fromEpochMillis(($l * ${MILLIS_PER_DAY}L) $op $r)"
             }
         }
 
       case (DATE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, new DateType(), left, right) {
-          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+          (l, r) => s"${qualifyMethod(BuiltInMethods.ADD_MONTHS)}($l, $op($r))"
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
-          (l, r) => s"$l $op ((int) ($r))"
+          (l, r) => s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
+            s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
+        }
+
+      case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
+        generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
+          (l, r) => s"$l"
         }
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
-          (l, r) => s"$l $op $r"
+          (l, r) => {
+            val leftTerm = s"$l.getMillisecond()"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
+            s"$TIMESTAMP_DATA.fromEpochMillis($leftTerm $op $r, $nanoTerm)"
+          }
         }
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
-          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+          (l, r) => {
+            val leftTerm = s"$l.getMillisecond()"
+            val nanoTerm = s"$l.getNanoOfMillisecond()"
+            s"""
+               |$TIMESTAMP_DATA.fromEpochMillis(
+               |  ${qualifyMethod(BuiltInMethods.ADD_MONTHS)}($leftTerm, $op($r)),
+               |  $nanoTerm)
+             """.stripMargin
+          }
         }
 
       // minus arithmetic of time points (i.e. for TIMESTAMPDIFF)
@@ -207,13 +231,25 @@ object ScalarOperatorGens {
             generateOperatorIfNotNull(ctx, resultType, left, right) {
               (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
-                    s"($ll, $rr * ${MILLIS_PER_DAY}L)"
+                  val leftTerm = s"$ll.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}" +
+                    s"($leftTerm, $rr * ${MILLIS_PER_DAY}L)"
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
-                    s"($ll * ${MILLIS_PER_DAY}L, $rr)"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}" +
+                    s"($ll * ${MILLIS_PER_DAY}L, $rightTerm)"
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rightTerm)"
+                case (TIMESTAMP_WITHOUT_TIME_ZONE, _) =>
+                  val leftTerm = s"$ll.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm, $rr)"
+                case (_, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rightTerm)"
                 case _ =>
-                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
+                  s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rr)"
               }
             }
 
@@ -221,13 +257,17 @@ object ScalarOperatorGens {
             generateOperatorIfNotNull(ctx, resultType, left, right) {
               (ll, rr) => (left.resultType.getTypeRoot, right.resultType.getTypeRoot) match {
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-                  s"$ll $op $rr"
+                  val leftTerm = s"$ll.getMillisecond()"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"$leftTerm $op $rightTerm"
                 case (DATE, DATE) =>
                   s"($ll * ${MILLIS_PER_DAY}L) $op ($rr * ${MILLIS_PER_DAY}L)"
                 case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
-                  s"$ll $op ($rr * ${MILLIS_PER_DAY}L)"
+                  val leftTerm = s"$ll.getMillisecond()"
+                  s"$leftTerm $op ($rr * ${MILLIS_PER_DAY}L)"
                 case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-                  s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
+                  val rightTerm = s"$rr.getMillisecond()"
+                  s"($ll * ${MILLIS_PER_DAY}L) $op $rightTerm"
               }
             }
         }
@@ -263,9 +303,8 @@ object ScalarOperatorGens {
     if (haystack.forall(_.literal)) {
 
       // determine common numeric type
-      val widerType = TypeCoercion.widerTypeOf(
-        needle.resultType,
-        haystack.head.resultType)
+      val widerType = toScala(findCommonType(asList(needle.resultType, haystack.head.resultType)))
+        .orElse(throw new CodeGenException(s"Unable to find common type of $needle and $haystack."))
 
       // we need to normalize the values for the hash set
       val castNumeric = widerType match {
@@ -348,11 +387,37 @@ object ScalarOperatorGens {
     }
     // map types
     else if (isMap(left.resultType) && canEqual) {
-      generateMapComparison(ctx, left, right)
+      val mapType = left.resultType.asInstanceOf[MapType]
+      generateMapComparison(ctx, left, right, mapType.getKeyType, mapType.getValueType)
+    }
+    // multiset types
+    else if (isMultiset(left.resultType) && canEqual) {
+      val multisetType = left.resultType.asInstanceOf[MultisetType]
+      generateMapComparison(ctx, left, right, multisetType.getElementType, new IntType(false))
     }
     // comparable types of same type
     else if (isComparable(left.resultType) && canEqual) {
       generateComparison(ctx, "==", left, right)
+    }
+    // generic types of same type
+    else if (isRaw(left.resultType) && canEqual) {
+      val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+      val genericSer = ctx.addReusableTypeSerializer(left.resultType)
+      val ser = s"$genericSer.getInnerSerializer()"
+      val resultType = new BooleanType()
+      val code = s"""
+         |${left.code}
+         |${right.code}
+         |boolean $nullTerm = ${left.nullTerm} || ${right.nullTerm};
+         |boolean $resultTerm = ${primitiveDefaultValue(resultType)};
+         |if (!$nullTerm) {
+         |  ${left.resultTerm}.ensureMaterialized($ser);
+         |  ${right.resultTerm}.ensureMaterialized($ser);
+         |  $resultTerm =
+         |    ${left.resultTerm}.getBinarySection().equals(${right.resultTerm}.getBinarySection());
+         |}
+         |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, code, resultType)
     }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
@@ -466,13 +531,27 @@ object ScalarOperatorGens {
       // either side is decimal
       if (isDecimal(left.resultType) || isDecimal(right.resultType)) {
         (leftTerm, rightTerm) => {
-          s"${className[Decimal]}.compare($leftTerm, $rightTerm) $operator 0"
+          s"$DECIMAL_UTIL.compare($leftTerm, $rightTerm) $operator 0"
         }
       }
       // both sides are numeric
       else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
+
+      // both sides are timestamp
+      else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {
+        (leftTerm, rightTerm) =>
+          s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
+
+      // both sides are timestamp with local zone
+      else if (isTimestampWithLocalZone(left.resultType) &&
+          isTimestampWithLocalZone(right.resultType)) {
+        (leftTerm, rightTerm) =>
+          s"$leftTerm.compareTo($rightTerm) $operator 0"
+      }
+
       // both sides are temporal of same type
       else if (isTemporal(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
@@ -492,8 +571,9 @@ object ScalarOperatorGens {
       // both sides are binary type
       else if (isBinaryString(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
+        val utilName = classOf[SqlFunctionUtils].getCanonicalName
         (leftTerm, rightTerm) =>
-          s"java.util.Arrays.equals($leftTerm, $rightTerm)"
+          s"$utilName.byteArrayCompare($leftTerm, $rightTerm) $operator 0"
       }
       // both sides are same comparable type
       else if (isComparable(left.resultType) &&
@@ -513,7 +593,7 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression): GeneratedExpression = {
     if (ctx.nullCheck) {
-      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
@@ -522,10 +602,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} == null;
            |""".stripMargin
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("false", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
@@ -539,7 +619,7 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = !${operand.nullTerm};
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("result")
@@ -548,10 +628,10 @@ object ScalarOperatorGens {
            |${operand.code}
            |boolean $resultTerm = ${operand.resultTerm} != null;
            |""".stripMargin.trim
-      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
+      GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
     else {
-      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType())
+      GeneratedExpression("true", NEVER_NULL, operand.code, new BooleanType(false))
     }
   }
 
@@ -754,10 +834,8 @@ object ScalarOperatorGens {
     // Interval Months -> Long
     case (DATE, INTEGER) |
          (TIME_WITHOUT_TIME_ZONE, INTEGER) |
-         (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) |
          (INTEGER, DATE) |
          (INTEGER, TIME_WITHOUT_TIME_ZONE) |
-         (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (INTEGER, INTERVAL_YEAR_MONTH) |
          (BIGINT, INTERVAL_DAY_TIME) |
          (INTERVAL_YEAR_MONTH, INTEGER) |
@@ -767,8 +845,22 @@ object ScalarOperatorGens {
          (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
 
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"$operandTerm.getMillisecond()"
+      }
+
+    case (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis($operandTerm)"
+      }
+
     case (from, to) =>
-      throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      if (from == to) {
+        operand
+      } else {
+        throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
+      }
   }
 
   def generateCast(
@@ -783,22 +875,71 @@ object ScalarOperatorGens {
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-      operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+        // just replace the DataType
+        operand.copy(resultType = new TimestampType(operand.resultType.isNullable, 3))
+
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[TimestampType]
+      val toType = targetType.asInstanceOf[TimestampType]
+      if (fromType.getPrecision <= toType.getPrecision) {
+        operand.copy(resultType = targetType)
+      } else {
+        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"$method($operandTerm, ${toType.getPrecision})"
+        }
+      }
 
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[TimestampType]
+      val toType = targetType.asInstanceOf[LocalZonedTimestampType]
       val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          val timeZone = ctx.addReusableTimeZone()
-          s"$method($operandTerm, $timeZone)"
+      if (fromType.getPrecision < toType.getPrecision) {
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            val timeZone = ctx.addReusableSessionTimeZone()
+            s"$method($operandTerm, $timeZone)"
+        }
+      } else {
+        val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            val timeZone = ctx.addReusableSessionTimeZone()
+            s"$truncate_method($method($operandTerm, $timeZone), ${toType.getPrecision})"
+        }
       }
 
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
+      val toType = targetType.asInstanceOf[TimestampType]
       val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_ZONE_TO_TIMESTAMP)
-      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm =>
-          val zone = ctx.addReusableTimeZone()
-          s"$method($operandTerm, $zone)"
+      if (fromType.getPrecision < toType.getPrecision) {
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            val zone = ctx.addReusableSessionTimeZone()
+            s"$method($operandTerm, $zone)"
+        }
+      } else {
+        val truncate_method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            val zone = ctx.addReusableSessionTimeZone()
+            s"$truncate_method($method($operandTerm, $zone), ${toType.getPrecision})"
+        }
+      }
+
+    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      val fromType = operand.resultType.asInstanceOf[LocalZonedTimestampType]
+      val toType = targetType.asInstanceOf[LocalZonedTimestampType]
+      if (fromType.getPrecision <= toType.getPrecision) {
+        operand.copy(resultType = targetType)
+      } else {
+        val method = qualifyMethod(BuiltInMethods.TRUNCATE_SQL_TIMESTAMP)
+        generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+          operandTerm =>
+            s"$method($operandTerm, ${toType.getPrecision})"
+        }
       }
 
     // identity casting
@@ -833,7 +974,7 @@ object ScalarOperatorGens {
       generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
 
     // Byte array -> String UTF-8
-    case (VARBINARY, VARCHAR | CHAR) =>
+    case (BINARY | VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
@@ -846,9 +987,9 @@ object ScalarOperatorGens {
 
     // composite type -> String
     case (ROW, VARCHAR | CHAR) =>
-      generateCastBaseRowToString(ctx, operand, operand.resultType.asInstanceOf[RowType])
+      generateCastRowDataToString(ctx, operand, operand.resultType.asInstanceOf[RowType])
 
-    case (ANY, VARCHAR | CHAR) =>
+    case (RAW, VARCHAR | CHAR) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms =>
           val converter = DataFormatConverters.getConverterForDataType(
@@ -871,7 +1012,7 @@ object ScalarOperatorGens {
         targetType,
         operand,
         resultNullable = true) {
-        operandTerm => s"$STRING_UTIL.toBooleanSQL($operandTerm)"
+        operandTerm => s"$BINARY_STRING_UTIL.toBooleanSQL($operandTerm)"
       }
 
     // String -> NUMERIC TYPE (not Character)
@@ -880,7 +1021,7 @@ object ScalarOperatorGens {
       targetType match {
         case dt: DecimalType =>
           generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-            s"$STRING_UTIL.toDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
+            s"$BINARY_STRING_UTIL.toDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
           }
         case _ =>
           val methodName = targetType.getTypeRoot match {
@@ -898,7 +1039,7 @@ object ScalarOperatorGens {
             targetType,
             operand,
             resultNullable = true) {
-            operandTerm => s"($STRING_UTIL.$methodName($operandTerm.trim()))"
+            operandTerm => s"($BINARY_STRING_UTIL.$methodName($operandTerm.trim()))"
           }
       }
 
@@ -916,9 +1057,9 @@ object ScalarOperatorGens {
     // String -> Time
     case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
@@ -927,28 +1068,28 @@ object ScalarOperatorGens {
     // String -> Timestamp
     case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
-        ctx, 
+        ctx,
         targetType,
-        operand, 
+        operand,
         resultNullable = true) {
         operandTerm =>
           s"""
-             |${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}($operandTerm.toString())
+             |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
            """.stripMargin
       }
 
     case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
         ctx, targetType, operand, resultNullable = true) { operandTerm =>
-        val zone = ctx.addReusableTimeZone()
+        val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP_TIME_ZONE)
-        s"$method($operandTerm.toString(), $zone)"
+        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm.toString(), $zone))"
       }
 
     // String -> binary
     case (VARCHAR | CHAR, VARBINARY | BINARY) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm.getBytes()"
+        operandTerm => s"$operandTerm.toBytes()"
       }
 
     // Note: SQL2003 $6.12 - casting is not allowed between boolean and numeric types.
@@ -958,7 +1099,7 @@ object ScalarOperatorGens {
     case (BOOLEAN, DECIMAL) =>
       val dt = targetType.asInstanceOf[DecimalType]
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_TERM.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
+        operandTerm => s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
       }
 
     // Boolean -> NUMERIC TYPE
@@ -971,13 +1112,14 @@ object ScalarOperatorGens {
     // DECIMAL -> Boolean
     case (DECIMAL, BOOLEAN) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_TERM.castToBoolean($operandTerm)"
+        operandTerm => s"$DECIMAL_UTIL.castToBoolean($operandTerm)"
       }
 
     // DECIMAL -> Timestamp
     case (DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_TERM.castToTimestamp($operandTerm)"
+        operandTerm =>
+          s"$TIMESTAMP_DATA.fromEpochMillis($DECIMAL_UTIL.castToTimestamp($operandTerm))"
       }
 
     // NUMERIC TYPE -> Boolean
@@ -997,7 +1139,10 @@ object ScalarOperatorGens {
     case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
-          s"$operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY"
+          s"""
+             |$TIMESTAMP_DATA.fromEpochMillis(
+             |  $operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
+           """.stripMargin
       }
 
     // Timestamp -> Date
@@ -1005,14 +1150,16 @@ object ScalarOperatorGens {
       val targetTypeTerm = primitiveTypeTermForType(targetType)
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
-          s"($targetTypeTerm) ($operandTerm / " +
-            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+          s"""
+             |($targetTypeTerm) ($operandTerm.getMillisecond() /
+             |  ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)
+           """.stripMargin
       }
 
     // Time -> Timestamp
     case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm"
+        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis($operandTerm)"
       }
 
     // Timestamp -> Time
@@ -1020,48 +1167,52 @@ object ScalarOperatorGens {
       val targetTypeTerm = primitiveTypeTermForType(targetType)
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm =>
-          s"($targetTypeTerm) ($operandTerm % " +
+          s"($targetTypeTerm) ($operandTerm.getMillisecond() % " +
             s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
       }
 
     // Date -> Timestamp with local time zone
     case (DATE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableTimeZone()
+        val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$method($operandTerm, $zone)"
+        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
       }
 
     // Timestamp with local time zone -> Date
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DATE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableTimeZone()
+        val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
-        s"$method($operandTerm, $zone)"
+        s"$method($operandTerm.getMillisecond(), $zone)"
       }
 
     // Time -> Timestamp with local time zone
     case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableTimeZone()
+        val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-        s"$method($operandTerm, $zone)"
+        s"$TIMESTAMP_DATA.fromEpochMillis($method($operandTerm, $zone))"
       }
 
     // Timestamp with local time zone -> Time
     case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
-        val zone = ctx.addReusableTimeZone()
+        val zone = ctx.addReusableSessionTimeZone()
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
-        s"$method($operandTerm, $zone)"
+        s"$method($operandTerm.getMillisecond(), $zone)"
       }
 
     // Timestamp -> Decimal
     case  (TIMESTAMP_WITHOUT_TIME_ZONE, DECIMAL) =>
       val dt = targetType.asInstanceOf[DecimalType]
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$DECIMAL_TERM.castFrom" +
-          s"(((double) ($operandTerm / 1000.0)), ${dt.getPrecision}, ${dt.getScale})"
+        operandTerm =>
+          s"""
+             |$DECIMAL_UTIL.castFrom(
+             |  ((double) ($operandTerm.getMillisecond() / 1000.0)),
+             |  ${dt.getPrecision}, ${dt.getScale})
+           """.stripMargin
       }
 
     // Tinyint -> Timestamp
@@ -1073,7 +1224,7 @@ object ScalarOperatorGens {
          (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"(((long) $operandTerm) * 1000)"
+        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis(((long) $operandTerm) * 1000)"
       }
 
     // Float -> Timestamp
@@ -1081,43 +1232,43 @@ object ScalarOperatorGens {
     case (FLOAT, TIMESTAMP_WITHOUT_TIME_ZONE) |
          (DOUBLE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((long) ($operandTerm * 1000))"
+        operandTerm => s"$TIMESTAMP_DATA.fromEpochMillis((long) ($operandTerm * 1000))"
       }
 
     // Timestamp -> Tinyint
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TINYINT) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((byte) ($operandTerm / 1000))"
+        operandTerm => s"((byte) ($operandTerm.getMillisecond() / 1000))"
       }
 
     // Timestamp -> Smallint
     case (TIMESTAMP_WITHOUT_TIME_ZONE, SMALLINT) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((short) ($operandTerm / 1000))"
+        operandTerm => s"((short) ($operandTerm.getMillisecond() / 1000))"
       }
 
     // Timestamp -> Int
     case (TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((int) ($operandTerm / 1000))"
+        operandTerm => s"((int) ($operandTerm.getMillisecond() / 1000))"
       }
 
     // Timestamp -> BigInt
     case (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((long) ($operandTerm / 1000))"
+        operandTerm => s"((long) ($operandTerm.getMillisecond() / 1000))"
       }
 
     // Timestamp -> Float
     case (TIMESTAMP_WITHOUT_TIME_ZONE, FLOAT) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((float) ($operandTerm / 1000.0))"
+        operandTerm => s"((float) ($operandTerm.getMillisecond() / 1000.0))"
       }
 
     // Timestamp -> Double
     case (TIMESTAMP_WITHOUT_TIME_ZONE, DOUBLE) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"((double) ($operandTerm / 1000.0))"
+        operandTerm => s"((double) ($operandTerm.getMillisecond() / 1000.0))"
       }
 
     // internal temporal casting
@@ -1146,8 +1297,11 @@ object ScalarOperatorGens {
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
 
-    case (from, to) =>
-      throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
+    case (ROW, ROW) if LogicalTypeCasts.supportsExplicitCast(operand.resultType, targetType) =>
+      generateCastRowToRow(ctx, operand, targetType)
+
+    case (_, _) =>
+      throw new CodeGenException(s"Unsupported cast from '${operand.resultType}' to '$targetType'.")
   }
 
   def generateIfElse(
@@ -1171,21 +1325,26 @@ object ScalarOperatorGens {
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
       val resultTypeTerm = primitiveTypeTermForType(resultType)
+      val defaultValue = primitiveDefaultValue(resultType)
 
       val operatorCode = if (ctx.nullCheck) {
         s"""
            |${condition.code}
-           |$resultTypeTerm $resultTerm;
+           |$resultTypeTerm $resultTerm = $defaultValue;
            |boolean $nullTerm;
            |if (${condition.resultTerm}) {
            |  ${trueAction.code}
-           |  $resultTerm = ${trueAction.resultTerm};
            |  $nullTerm = ${trueAction.nullTerm};
+           |  if (!$nullTerm) {
+           |    $resultTerm = ${trueAction.resultTerm};
+           |  }
            |}
            |else {
            |  ${falseAction.code}
-           |  $resultTerm = ${falseAction.resultTerm};
            |  $nullTerm = ${falseAction.nullTerm};
+           |  if (!$nullTerm) {
+           |    $resultTerm = ${falseAction.resultTerm};
+           |  }
            |}
            |""".stripMargin.trim
       }
@@ -1463,7 +1622,7 @@ object ScalarOperatorGens {
     val arrayTerm = newName("array")
     val writerTerm = newName("writer")
     val writerCls = className[BinaryArrayWriter]
-    val elementSize = BinaryArray.calculateFixLengthPartSize(elementType)
+    val elementSize = BinaryArrayData.calculateFixLengthPartSize(elementType)
 
     val writeCode = elements.zipWithIndex.map {
       case (element, idx) =>
@@ -1494,6 +1653,10 @@ object ScalarOperatorGens {
     GeneratedExpression(arrayTerm, GeneratedExpression.NEVER_NULL, code, arrayType)
   }
 
+  /**
+   * Return null when array index out of bounds which follows Calcite's behaviour.
+   * @see [[org.apache.calcite.sql.fun.SqlStdOperatorTable.ITEM]]
+   */
   def generateArrayElementAt(
       ctx: CodeGeneratorContext,
       array: GeneratedExpression,
@@ -1503,19 +1666,25 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(componentInfo)
     val defaultTerm = primitiveDefaultValue(componentInfo)
 
+    index.literalValue match {
+      case Some(v: Int) if v < 1 =>
+        throw new ValidationException(
+          s"Array element access needs an index starting at 1 but was $v.")
+      case _ => //nothing
+    }
     val idxStr = s"${index.resultTerm} - 1"
     val arrayIsNull = s"${array.resultTerm}.isNullAt($idxStr)"
     val arrayGet =
-      baseRowFieldReadAccess(ctx, idxStr, array.resultTerm, componentInfo)
+      rowFieldReadAccess(ctx, idxStr, array.resultTerm, componentInfo)
 
     val arrayAccessCode =
-      s"""
-         |${array.code}
-         |${index.code}
-         |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} || $arrayIsNull;
-         |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
-         |""".stripMargin
-
+    s"""
+        |${array.code}
+        |${index.code}
+        |boolean $nullTerm = ${array.nullTerm} || ${index.nullTerm} ||
+        |   $idxStr < 0 || $idxStr >= ${array.resultTerm}.size() || $arrayIsNull;
+        |$resultTypeTerm $resultTerm = $nullTerm ? $defaultTerm : $arrayGet;
+        |""".stripMargin
     GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
   }
 
@@ -1527,9 +1696,9 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
-    val arrayLengthCode = s"${array.nullTerm} ? 0 : ${array.resultTerm}.numElements()"
+    val arrayLengthCode = s"${array.nullTerm} ? 0 : ${array.resultTerm}.size()"
 
-    val arrayGet = baseRowFieldReadAccess(ctx, 0, array.resultTerm, resultType)
+    val arrayGet = rowFieldReadAccess(ctx, 0, array.resultTerm, resultType)
     val arrayAccessCode =
       s"""
          |${array.code}
@@ -1557,7 +1726,7 @@ object ScalarOperatorGens {
       array: GeneratedExpression)
     : GeneratedExpression = {
     generateUnaryOperatorIfNotNull(ctx, new IntType(), array) {
-      _ => s"${array.resultTerm}.numElements()"
+      _ => s"${array.resultTerm}.size()"
     }
   }
 
@@ -1583,7 +1752,7 @@ object ScalarOperatorGens {
     val isValueFixLength = isPrimitive(valueType)
 
     // construct binary map
-    ctx.addReusableMember(s"$BASE_MAP $baseMap = null;")
+    ctx.addReusableMember(s"$MAP_DATA $baseMap = null;")
 
     val code = if (isKeyFixLength && isValueFixLength) {
       val binaryMap = newName("binaryMap")
@@ -1638,9 +1807,7 @@ object ScalarOperatorGens {
     val keyTypeTerm = primitiveTypeTermForType(keyType)
     val valueTypeTerm = primitiveTypeTermForType(valueType)
     val valueDefault = primitiveDefaultValue(valueType)
-    val binaryMapTypeTerm = classOf[BinaryMap].getCanonicalName
     val binaryMapTerm = newName("binaryMap")
-    val genericMapTypeTerm = classOf[GenericMap].getCanonicalName
     val genericMapTerm = newName("genericMap")
     val boxedValueTypeTerm = boxedTypeTermForType(valueType)
 
@@ -1649,9 +1816,9 @@ object ScalarOperatorGens {
     val equal = generateEquals(ctx, key, GeneratedExpression(tmpKey, NEVER_NULL, NO_CODE, keyType))
     val code =
       s"""
-         |if ($mapTerm instanceof $binaryMapTypeTerm) {
-         |  $binaryMapTypeTerm $binaryMapTerm = ($binaryMapTypeTerm) $mapTerm;
-         |  final int $length = $binaryMapTerm.numElements();
+         |if ($mapTerm instanceof $BINARY_MAP) {
+         |  $BINARY_MAP $binaryMapTerm = ($BINARY_MAP) $mapTerm;
+         |  final int $length = $binaryMapTerm.size();
          |  final $BINARY_ARRAY $keys = $binaryMapTerm.keyArray();
          |  final $BINARY_ARRAY $values = $binaryMapTerm.valueArray();
          |
@@ -1667,7 +1834,7 @@ object ScalarOperatorGens {
          |    }
          |  } else {
          |    while ($index < $length && !$found) {
-         |      final $keyTypeTerm $tmpKey = ${baseRowFieldReadAccess(ctx, index, keys, keyType)};
+         |      final $keyTypeTerm $tmpKey = ${rowFieldReadAccess(ctx, index, keys, keyType)};
          |      ${equal.code}
          |      if (${equal.resultTerm}) {
          |        $found = true;
@@ -1680,10 +1847,10 @@ object ScalarOperatorGens {
          |  if (!$found || $values.isNullAt($index)) {
          |    $nullTerm = true;
          |  } else {
-         |    $resultTerm = ${baseRowFieldReadAccess(ctx, index, values, valueType)};
+         |    $resultTerm = ${rowFieldReadAccess(ctx, index, values, valueType)};
          |  }
          |} else {
-         |  $genericMapTypeTerm $genericMapTerm = ($genericMapTypeTerm) $mapTerm;
+         |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
          |  $boxedValueTypeTerm $tmpValue =
          |    ($boxedValueTypeTerm) $genericMapTerm.get(($keyTypeTerm) ${key.resultTerm});
          |  if ($tmpValue == null) {
@@ -1712,13 +1879,42 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       map: GeneratedExpression): GeneratedExpression = {
     generateUnaryOperatorIfNotNull(ctx, new IntType(), map) {
-      _ => s"${map.resultTerm}.numElements()"
+      _ => s"${map.resultTerm}.size()"
     }
   }
 
   // ----------------------------------------------------------------------------------------
   // private generate utils
   // ----------------------------------------------------------------------------------------
+
+  private def generateCastRowToRow(
+      ctx: CodeGeneratorContext,
+      operand: GeneratedExpression,
+      targetRowType: LogicalType)
+    : GeneratedExpression = {
+    // assumes that the arity has been checked before
+    generateCallWithStmtIfArgsNotNull(ctx, targetRowType, Seq(operand)) { case Seq(rowTerm) =>
+      val fieldExprs = operand
+        .resultType
+        .getChildren
+        .zip(targetRowType.getChildren)
+        .zipWithIndex
+        .map { case ((sourceType, targetType), idx) =>
+          val sourceTypeTerm = primitiveTypeTermForType(sourceType)
+          val sourceTerm = newName("field")
+          val sourceAccessCode = rowFieldReadAccess(ctx, idx, rowTerm, sourceType)
+          val sourceExpr = GeneratedExpression(
+            sourceTerm,
+            s"$rowTerm.isNullAt($idx)",
+            s"$sourceTypeTerm $sourceTerm = ($sourceTypeTerm) $sourceAccessCode;",
+            sourceType)
+          generateCast(ctx, sourceExpr, targetType)
+        }
+
+      val generateRowExpr = generateRow(ctx, targetRowType, fieldExprs)
+      (generateRowExpr.code, generateRowExpr.resultTerm)
+    }
+  }
 
   private def generateCastStringLiteralToDateTime(
       ctx: CodeGeneratorContext,
@@ -1760,7 +1956,7 @@ object ScalarOperatorGens {
              |boolean $elementNullTerm = $arrayTerm.isNullAt($indexTerm);
              |if (!$elementNullTerm) {
              |  $elementTerm = ($elementCls) ${
-            baseRowFieldReadAccess(ctx, indexTerm, arrayTerm, elementType)};
+            rowFieldReadAccess(ctx, indexTerm, arrayTerm, elementType)};
              |}
              """.stripMargin
         val elementExpr = GeneratedExpression(
@@ -1771,7 +1967,7 @@ object ScalarOperatorGens {
           s"""
              |$builderTerm.setLength(0);
              |$builderTerm.append("[");
-             |int $numTerm = $arrayTerm.numElements();
+             |int $numTerm = $arrayTerm.size();
              |for (int $indexTerm = 0; $indexTerm < $numTerm; $indexTerm++) {
              |  if ($indexTerm != 0) {
              |    $builderTerm.append(", ");
@@ -1802,11 +1998,8 @@ object ScalarOperatorGens {
         ctx.addReusableMember(s"$builderCls $builderTerm = new $builderCls();")
 
         val mapTerm = terms.head
-        val genericMapCls = classOf[GenericMap].getCanonicalName
         val genericMapTerm = newName("genericMap")
-        val binaryMapCls = classOf[BinaryMap].getCanonicalName
         val binaryMapTerm = newName("binaryMap")
-        val arrayCls = classOf[BaseArray].getCanonicalName
         val keyArrayTerm = newName("keyArray")
         val valueArrayTerm = newName("valueArray")
 
@@ -1823,7 +2016,7 @@ object ScalarOperatorGens {
              |boolean $keyNullTerm = $keyArrayTerm.isNullAt($indexTerm);
              |if (!$keyNullTerm) {
              |  $keyTerm = ($keyCls) ${
-            baseRowFieldReadAccess(ctx, indexTerm, keyArrayTerm, keyType)};
+            rowFieldReadAccess(ctx, indexTerm, keyArrayTerm, keyType)};
              |}
              """.stripMargin
         val keyExpr = GeneratedExpression(keyTerm, keyNullTerm, keyCode, keyType)
@@ -1839,7 +2032,7 @@ object ScalarOperatorGens {
              |boolean $valueNullTerm = $valueArrayTerm.isNullAt($indexTerm);
              |if (!$valueNullTerm) {
              |  $valueTerm = ($valueCls) ${
-            baseRowFieldReadAccess(ctx, indexTerm, valueArrayTerm, valueType)};
+            rowFieldReadAccess(ctx, indexTerm, valueArrayTerm, valueType)};
              |}
              """.stripMargin
         val valueExpr = GeneratedExpression(valueTerm, valueNullTerm, valueCode, valueType)
@@ -1848,15 +2041,15 @@ object ScalarOperatorGens {
         val stmt =
           s"""
              |String $resultTerm;
-             |if ($mapTerm instanceof $binaryMapCls) {
-             |  $binaryMapCls $binaryMapTerm = ($binaryMapCls) $mapTerm;
-             |  $arrayCls $keyArrayTerm = $binaryMapTerm.keyArray();
-             |  $arrayCls $valueArrayTerm = $binaryMapTerm.valueArray();
+             |if ($mapTerm instanceof $BINARY_MAP) {
+             |  $BINARY_MAP $binaryMapTerm = ($BINARY_MAP) $mapTerm;
+             |  $ARRAY_DATA $keyArrayTerm = $binaryMapTerm.keyArray();
+             |  $ARRAY_DATA $valueArrayTerm = $binaryMapTerm.valueArray();
              |
              |  $builderTerm.setLength(0);
              |  $builderTerm.append("{");
              |
-             |  int $numTerm = $binaryMapTerm.numElements();
+             |  int $numTerm = $binaryMapTerm.size();
              |  for (int $indexTerm = 0; $indexTerm < $numTerm; $indexTerm++) {
              |    if ($indexTerm != 0) {
              |      $builderTerm.append(", ");
@@ -1881,14 +2074,14 @@ object ScalarOperatorGens {
              |
              |  $resultTerm = $builderTerm.toString();
              |} else {
-             |  $genericMapCls $genericMapTerm = ($genericMapCls) $mapTerm;
+             |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
              |  $resultTerm = $genericMapTerm.toString();
              |}
              """.stripMargin
         (stmt, resultTerm)
     }
 
-  private def generateCastBaseRowToString(
+  private def generateCastRowDataToString(
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
       brt: RowType): GeneratedExpression =
@@ -1906,7 +2099,7 @@ object ScalarOperatorGens {
             val elementTerm = newName("element")
             val elementExpr = GeneratedExpression(
               elementTerm, s"$rowTerm.isNullAt($idx)",
-              s"$elementCls $elementTerm = ($elementCls) ${baseRowFieldReadAccess(
+              s"$elementCls $elementTerm = ($elementCls) ${rowFieldReadAccess(
                 ctx, idx, rowTerm, elementType)};", elementType)
             val castExpr = generateCast(ctx, elementExpr, new VarCharType(VarCharType.MAX_LENGTH))
             s"""
@@ -1940,7 +2133,6 @@ object ScalarOperatorGens {
         val rightTerm = args(1)
 
         val resultTerm = newName("compareResult")
-        val binaryArrayCls = classOf[BinaryArray].getCanonicalName
 
         val elementType = left.resultType.asInstanceOf[ArrayType].getElementType
         val elementCls = primitiveTypeTermForType(elementType)
@@ -1962,24 +2154,24 @@ object ScalarOperatorGens {
         val stmt =
           s"""
              |boolean $resultTerm;
-             |if ($leftTerm instanceof $binaryArrayCls && $rightTerm instanceof $binaryArrayCls) {
+             |if ($leftTerm instanceof $BINARY_ARRAY && $rightTerm instanceof $BINARY_ARRAY) {
              |  $resultTerm = $leftTerm.equals($rightTerm);
              |} else {
-             |  if ($leftTerm.numElements() == $rightTerm.numElements()) {
+             |  if ($leftTerm.size() == $rightTerm.size()) {
              |    $resultTerm = true;
-             |    for (int $indexTerm = 0; $indexTerm < $leftTerm.numElements(); $indexTerm++) {
+             |    for (int $indexTerm = 0; $indexTerm < $leftTerm.size(); $indexTerm++) {
              |      $elementCls $leftElementTerm = $elementDefault;
              |      boolean $leftElementNullTerm = $leftTerm.isNullAt($indexTerm);
              |      if (!$leftElementNullTerm) {
              |        $leftElementTerm =
-             |          ${baseRowFieldReadAccess(ctx, indexTerm, leftTerm, elementType)};
+             |          ${rowFieldReadAccess(ctx, indexTerm, leftTerm, elementType)};
              |      }
              |
              |      $elementCls $rightElementTerm = $elementDefault;
              |      boolean $rightElementNullTerm = $rightTerm.isNullAt($indexTerm);
              |      if (!$rightElementNullTerm) {
              |        $rightElementTerm =
-             |          ${baseRowFieldReadAccess(ctx, indexTerm, rightTerm, elementType)};
+             |          ${rowFieldReadAccess(ctx, indexTerm, rightTerm, elementType)};
              |      }
              |
              |      ${elementEqualsExpr.code}
@@ -1999,50 +2191,52 @@ object ScalarOperatorGens {
   private def generateMapComparison(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression =
+      right: GeneratedExpression,
+      keyType: LogicalType,
+      valueType: LogicalType)
+    : GeneratedExpression =
     generateCallWithStmtIfArgsNotNull(ctx, new BooleanType(), Seq(left, right)) {
       args =>
         val leftTerm = args.head
         val rightTerm = args(1)
 
         val resultTerm = newName("compareResult")
-        val binaryMapCls = classOf[BinaryMap].getCanonicalName
 
-        val mapType = left.resultType.asInstanceOf[MapType]
-        val mapCls = classOf[java.util.Map[AnyRef, AnyRef]].getCanonicalName
-        val keyCls = boxedTypeTermForType(mapType.getKeyType)
-        val valueCls = boxedTypeTermForType(mapType.getValueType)
+        val mapCls = className[java.util.Map[_, _]]
+        val keyCls = boxedTypeTermForType(keyType)
+        val valueCls = boxedTypeTermForType(valueType)
 
         val leftMapTerm = newName("leftMap")
         val leftKeyTerm = newName("leftKey")
         val leftValueTerm = newName("leftValue")
         val leftValueNullTerm = newName("leftValueIsNull")
         val leftValueExpr =
-          GeneratedExpression(leftValueTerm, leftValueNullTerm, "", mapType.getValueType)
+          GeneratedExpression(leftValueTerm, leftValueNullTerm, "", valueType)
 
         val rightMapTerm = newName("rightMap")
         val rightValueTerm = newName("rightValue")
         val rightValueNullTerm = newName("rightValueIsNull")
         val rightValueExpr =
-          GeneratedExpression(rightValueTerm, rightValueNullTerm, "", mapType.getValueType)
+          GeneratedExpression(rightValueTerm, rightValueNullTerm, "", valueType)
 
         val entryTerm = newName("entry")
         val entryCls = classOf[java.util.Map.Entry[AnyRef, AnyRef]].getCanonicalName
         val valueEqualsExpr = generateEquals(ctx, leftValueExpr, rightValueExpr)
 
         val internalTypeCls = classOf[LogicalType].getCanonicalName
-        val keyTypeTerm =
-          ctx.addReusableObject(mapType.getKeyType, "keyType", internalTypeCls)
-        val valueTypeTerm =
-          ctx.addReusableObject(mapType.getValueType, "valueType", internalTypeCls)
+        val keyTypeTerm = ctx.addReusableObject(keyType, "keyType", internalTypeCls)
+        val valueTypeTerm = ctx.addReusableObject(valueType, "valueType", internalTypeCls)
+        val mapDataUtil = className[MapDataUtil]
 
         val stmt =
           s"""
              |boolean $resultTerm;
-             |if ($leftTerm.numElements() == $rightTerm.numElements()) {
+             |if ($leftTerm.size() == $rightTerm.size()) {
              |  $resultTerm = true;
-             |  $mapCls $leftMapTerm = $leftTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
-             |  $mapCls $rightMapTerm = $rightTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
+             |  $mapCls $leftMapTerm = $mapDataUtil
+             |      .convertToJavaMap($leftTerm, $keyTypeTerm, $valueTypeTerm);
+             |  $mapCls $rightMapTerm = $mapDataUtil
+             |      .convertToJavaMap($rightTerm, $keyTypeTerm, $valueTypeTerm);
              |
              |  for ($entryCls $entryTerm : $leftMapTerm.entrySet()) {
              |    $keyCls $leftKeyTerm = ($keyCls) $entryTerm.getKey();
@@ -2068,7 +2262,7 @@ object ScalarOperatorGens {
              """.stripMargin
         (stmt, resultTerm)
     }
-  
+
   // ------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(
@@ -2129,18 +2323,18 @@ object ScalarOperatorGens {
     else if (isDecimal(resultType) && isDecimal(operandType)) {
       val dt = resultType.asInstanceOf[DecimalType]
       operandTerm =>
-        s"$DECIMAL_TERM.castToDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
+        s"$DECIMAL_UTIL.castToDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
     }
     // non_decimal_numeric to decimal
     else if (isDecimal(resultType) && isNumeric(operandType)) {
       val dt = resultType.asInstanceOf[DecimalType]
       operandTerm =>
-        s"$DECIMAL_TERM.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
+        s"$DECIMAL_UTIL.castFrom($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
     }
     // decimal to non_decimal_numeric
     else if (isNumeric(resultType) && isDecimal(operandType) ) {
       operandTerm =>
-        s"$DECIMAL_TERM.${decToPrimMethod(resultType)}($operandTerm)"
+        s"$DECIMAL_UTIL.${decToPrimMethod(resultType)}($operandTerm)"
     }
     // numeric to numeric
     // TODO: Create a wrapper layer that handles type conversion between numeric.
@@ -2169,7 +2363,7 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
-           |${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}($operandTerm.toString())
+           |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
            |""".stripMargin
       case _ => throw new UnsupportedOperationException
     }
@@ -2184,11 +2378,15 @@ object ScalarOperatorGens {
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        s"${qualifyMethod(BuiltInMethod.UNIX_TIMESTAMP_TO_STRING.method)}($operandTerm, 3)"
+        // The interpreted string conforms to the definition of timestamp literal
+        // SQL 2011 Part 2 Section 6.13 General Rules 11) d)
+        val precision = fromType.asInstanceOf[TimestampType].getPrecision
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, $precision)"
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
-        val zone = ctx.addReusableTimeZone()
-        s"$method($operandTerm, 3, $zone)"
+        val zone = ctx.addReusableSessionTimeZone()
+        val precision = fromType.asInstanceOf[LocalZonedTimestampType].getPrecision
+        s"$method($operandTerm, $zone, $precision)"
     }
 
 }

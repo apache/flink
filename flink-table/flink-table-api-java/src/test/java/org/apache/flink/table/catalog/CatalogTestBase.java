@@ -33,6 +33,7 @@ public abstract class CatalogTestBase extends CatalogTest {
 		return new CatalogDatabaseImpl(
 			new HashMap<String, String>() {{
 				put("k1", "v1");
+				putAll(getGenericFlag(isGeneric()));
 			}},
 			TEST_COMMENT
 		);
@@ -43,6 +44,7 @@ public abstract class CatalogTestBase extends CatalogTest {
 		return new CatalogDatabaseImpl(
 			new HashMap<String, String>() {{
 				put("k2", "v2");
+				putAll(getGenericFlag(isGeneric()));
 			}},
 			TEST_COMMENT
 		);
@@ -118,22 +120,6 @@ public abstract class CatalogTestBase extends CatalogTest {
 			createAnotherTableSchema(),
 			getBatchTableProperties(),
 			"This is another view");
-	}
-
-	@Override
-	protected CatalogFunction createFunction() {
-		return new CatalogFunctionImpl(
-			"test.class.name",
-			getGenericFlag(isGeneric())
-		);
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new CatalogFunctionImpl(
-			"test.another.class.name",
-			getGenericFlag(isGeneric())
-		);
 	}
 
 	protected Map<String, String> getBatchTableProperties() {

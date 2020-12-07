@@ -18,26 +18,27 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
-import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * A {@link KeyedCoProcessOperator} that supports holding back watermarks with a static delay.
  */
 public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
-		extends LegacyKeyedCoProcessOperator<K, IN1, IN2, OUT> {
+		extends KeyedCoProcessOperator<K, IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = -7435774708099223442L;
 
 	private final Consumer<Watermark> emitter;
 
-	public KeyedCoProcessOperatorWithWatermarkDelay(CoProcessFunction<IN1, IN2, OUT> flatMapper, long watermarkDelay) {
+	public KeyedCoProcessOperatorWithWatermarkDelay(KeyedCoProcessFunction<K, IN1, IN2, OUT> flatMapper, long watermarkDelay) {
 		super(flatMapper);
 		Preconditions.checkArgument(watermarkDelay >= 0, "The watermark delay should be non-negative.");
 		if (watermarkDelay == 0) {
@@ -52,10 +53,10 @@ public class KeyedCoProcessOperatorWithWatermarkDelay<K, IN1, IN2, OUT>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		if (timeServiceManager != null) {
-			timeServiceManager.advanceWatermark(mark);
+		Optional<InternalTimeServiceManager<?>> timeServiceManager = getTimeServiceManager();
+		if (timeServiceManager.isPresent()) {
+			timeServiceManager.get().advanceWatermark(mark);
 		}
 		emitter.accept(mark);
 	}
-
 }

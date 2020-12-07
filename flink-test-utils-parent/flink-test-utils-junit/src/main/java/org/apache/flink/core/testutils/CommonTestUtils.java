@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.testutils;
 
+import org.junit.Assert;
+
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,7 +29,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * This class contains reusable utility methods for unit tests.
@@ -160,5 +170,44 @@ public class CommonTestUtils {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Checks whether an exception with a message occurs when running a piece of code.
+	 */
+	public static void assertThrows(String msg, Class<? extends Exception> expected, Callable<?> code) {
+		try {
+			Object result = code.call();
+			Assert.fail("Previous method call should have failed but it returned: " + result);
+		} catch (Exception e) {
+			assertThat(e, instanceOf(expected));
+			assertThat(e.getMessage(), containsString(msg));
+		}
+	}
+
+	/**
+	 * Wait util the given condition is met or timeout.
+	 *
+	 * @param condition the condition to wait for.
+	 * @param timeout the maximum time to wait for the condition to become true.
+	 * @param errorMsg the error message to include in the <code>TimeoutException</code>
+	 * 				   if the condition was not met before timeout.
+	 * @throws TimeoutException if the condition is not met before timeout.
+	 * @throws InterruptedException if the thread is interrupted.
+	 */
+	@SuppressWarnings("BusyWait")
+	public static void waitUtil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
+			throws TimeoutException, InterruptedException {
+		long timeoutMs = timeout.toMillis();
+		if (timeoutMs <= 0) {
+			throw new IllegalArgumentException("The timeout must be positive.");
+		}
+		long startingTime = System.currentTimeMillis();
+		while (!condition.get() && System.currentTimeMillis() - startingTime < timeoutMs) {
+			Thread.sleep(1);
+		}
+		if (!condition.get()) {
+			throw new TimeoutException(errorMsg);
+		}
 	}
 }

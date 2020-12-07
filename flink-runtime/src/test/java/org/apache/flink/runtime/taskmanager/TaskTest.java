@@ -19,23 +19,16 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -64,10 +57,9 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -75,7 +67,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -84,7 +78,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -174,9 +170,14 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testLibraryCacheRegistrationFailed() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
+		final IOException testException = new IOException("Could not load classloader");
 		final Task task = createTaskBuilder()
 			.setTaskManagerActions(taskManagerActions)
-			.setLibraryCacheManager(mock(LibraryCacheManager.class)) // inactive manager
+			.setClassLoaderHandle(TestingClassLoaderLease.newBuilder()
+				.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> {
+					throw testException;
+				})
+				.build())
 			.build();
 
 		// task should be new and perfect
@@ -190,57 +191,11 @@ public class TaskTest extends TestLogger {
 		// verify final state
 		assertEquals(ExecutionState.FAILED, task.getExecutionState());
 		assertTrue(task.isCanceledOrFailed());
-		assertNotNull(task.getFailureCause());
-		assertNotNull(task.getFailureCause().getMessage());
-		assertTrue(task.getFailureCause().getMessage().contains("classloader"));
+		assertThat(task.getFailureCause(), is(testException));
 
 		assertNull(task.getInvokable());
 
-		taskManagerActions.validateListenerMessage(
-			ExecutionState.FAILED, task, new Exception("No user code classloader available."));
-	}
-
-	@Test
-	public void testExecutionFailsInBlobsMissing() throws Exception {
-		final PermanentBlobKey missingKey = new PermanentBlobKey();
-
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-			TEMPORARY_FOLDER.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
-
-		final BlobServer blobServer = new BlobServer(config, new VoidBlobStore());
-		blobServer.start();
-		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
-		final PermanentBlobCache permanentBlobCache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
-
-		final BlobLibraryCacheManager libraryCacheManager =
-			new BlobLibraryCacheManager(
-				permanentBlobCache,
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0]);
-
-		final Task task = createTaskBuilder()
-			.setRequiredJarFileBlobKeys(Collections.singletonList(missingKey))
-			.setLibraryCacheManager(libraryCacheManager)
-			.build();
-
-		// task should be new and perfect
-		assertEquals(ExecutionState.CREATED, task.getExecutionState());
-		assertFalse(task.isCanceledOrFailed());
-		assertNull(task.getFailureCause());
-
-		// should fail
-		task.run();
-
-		// verify final state
-		assertEquals(ExecutionState.FAILED, task.getExecutionState());
-		assertTrue(task.isCanceledOrFailed());
-		assertNotNull(task.getFailureCause());
-		assertNotNull(task.getFailureCause().getMessage());
-		assertTrue(task.getFailureCause().getMessage().contains("Failed to fetch BLOB"));
-
-		assertNull(task.getInvokable());
+		taskManagerActions.validateListenerMessage(ExecutionState.FAILED, task, testException);
 	}
 
 	@Test
@@ -252,7 +207,7 @@ public class TaskTest extends TestLogger {
 			shuffleDescriptor,
 			1,
 			false);
-		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
+		testExecutionFailsInNetworkRegistration(Collections.singletonList(dummyPartition), Collections.emptyList());
 	}
 
 	@Test
@@ -263,12 +218,12 @@ public class TaskTest extends TestLogger {
 			ResultPartitionType.PIPELINED,
 			0,
 			new ShuffleDescriptor[] { dummyChannel });
-		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
+		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singletonList(dummyGate));
 	}
 
 	private void testExecutionFailsInNetworkRegistration(
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
-			Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
+			List<ResultPartitionDeploymentDescriptor> resultPartitions,
+			List<InputGateDeploymentDescriptor> inputGates) throws Exception {
 		final String errorMessage = "Network buffer pool has already been destroyed.";
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
@@ -795,12 +750,13 @@ public class TaskTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorAfterUnInterruptibleInvoke() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
 
 		final Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10);
 
 		final Task task = createTaskBuilder()
 			.setInvokable(InvokableUnInterruptibleBlockingInvoke.class)
@@ -816,12 +772,51 @@ public class TaskTest extends TestLogger {
 			task.cancelExecution();
 
 			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, is(notNullValue()));
 		} finally {
 			// Interrupt again to clean up Thread
 			triggerLatch.trigger();
 			task.getExecutingThread().interrupt();
 			task.getExecutingThread().join();
+		}
+	}
+
+	/**
+	 * Tests that a fatal error gotten from canceling task is notified.
+	 */
+	@Test
+	public void testFatalErrorOnCanceling() throws Exception {
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
+
+		final Configuration config = new Configuration();
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+
+		final Task task = spy(createTaskBuilder()
+			.setInvokable(InvokableBlockingWithTrigger.class)
+			.setTaskManagerConfig(config)
+			.setTaskManagerActions(taskManagerActions)
+			.build());
+
+		final Class<OutOfMemoryError> fatalErrorType = OutOfMemoryError.class;
+		doThrow(fatalErrorType).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
+
+		try {
+			task.startTaskThread();
+
+			awaitLatch.await();
+
+			task.cancelExecution();
+
+			// wait for the notification of notifyFatalError
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, instanceOf(fatalErrorType));
+		} finally {
+			triggerLatch.trigger();
 		}
 	}
 
@@ -968,18 +963,6 @@ public class TaskTest extends TestLogger {
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
 			throw new RuntimeException("Unexpected FatalError notification");
-		}
-	}
-
-	/**
-	 * Customized TaskManagerActions that waits for a call of notifyFatalError.
-	 */
-	private static class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
-		private final OneShotLatch latch = new OneShotLatch();
-
-		@Override
-		public void notifyFatalError(String message, Throwable cause) {
-			latch.trigger();
 		}
 	}
 

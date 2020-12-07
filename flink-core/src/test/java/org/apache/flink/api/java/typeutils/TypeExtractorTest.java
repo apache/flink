@@ -349,6 +349,18 @@ public class TypeExtractorTest {
 	}
 
 	@Test
+	public void testMethodChainingPojo() {
+		CustomChainingPojoType t = new CustomChainingPojoType();
+		t.setMyField1("World").setMyField2(1);
+		TypeInformation<?> ti = TypeExtractor.getForObject(t);
+
+		Assert.assertFalse(ti.isBasicType());
+		Assert.assertFalse(ti.isTupleType());
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		Assert.assertEquals(ti.getTypeClass(), CustomChainingPojoType.class);
+	}
+
+	@Test
 	public void testRow() {
 		Row row = new Row(2);
 		row.setField(0, "string");
@@ -377,6 +389,32 @@ public class TypeExtractorTest {
 		public CustomType(String myField1, int myField2) {
 			this.myField1 = myField1;
 			this.myField2 = myField2;
+		}
+	}
+
+	public static class CustomChainingPojoType {
+		private String myField1;
+		private int myField2;
+
+		public CustomChainingPojoType() {
+		}
+
+		public CustomChainingPojoType setMyField1(String myField1) {
+			this.myField1 = myField1;
+			return this;
+		}
+
+		public CustomChainingPojoType setMyField2(int myField2) {
+			this.myField2 = myField2;
+			return this;
+		}
+
+		public String getMyField1() {
+			return myField1;
+		}
+
+		public int getMyField2() {
+			return myField2;
 		}
 	}
 

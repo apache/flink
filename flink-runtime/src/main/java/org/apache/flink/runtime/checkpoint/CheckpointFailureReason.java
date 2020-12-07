@@ -25,9 +25,9 @@ public enum CheckpointFailureReason {
 
 	PERIODIC_SCHEDULER_SHUTDOWN(true, "Periodic checkpoint scheduler is shut down."),
 
-	ALREADY_QUEUED(true, "Another checkpoint request has already been queued."),
-
 	TOO_MANY_CONCURRENT_CHECKPOINTS(true, "The maximum number of concurrent checkpoints is exceeded"),
+
+	TOO_MANY_CHECKPOINT_REQUESTS(true, "The maximum number of queued checkpoint requests exceeded"),
 
 	MINIMUM_TIME_BETWEEN_CHECKPOINTS(true, "The minimum time between checkpoints is still pending. " +
 			"Checkpoint will be triggered after the minimum time."),
@@ -36,6 +36,8 @@ public enum CheckpointFailureReason {
 
 	EXCEPTION(true, "An Exception occurred while triggering the checkpoint."),
 
+	CHECKPOINT_ASYNC_EXCEPTION(false, "Asynchronous task checkpoint failed."),
+
 	CHECKPOINT_EXPIRED(false, "Checkpoint expired before completing."),
 
 	CHECKPOINT_SUBSUMED(false, "Checkpoint has been subsumed."),
@@ -43,6 +45,8 @@ public enum CheckpointFailureReason {
 	CHECKPOINT_DECLINED(false, "Checkpoint was declined."),
 
 	CHECKPOINT_DECLINED_TASK_NOT_READY(false, "Checkpoint was declined (tasks not ready)"),
+
+	CHECKPOINT_DECLINED_TASK_CLOSING(false, "Checkpoint was declined (task's operators partially closed)"),
 
 	CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING(false, "Task does not support checkpointing"),
 
@@ -62,7 +66,11 @@ public enum CheckpointFailureReason {
 
 	JOB_FAILOVER_REGION(false, "FailoverRegion is restarting."),
 
+	TASK_FAILURE(false, "Task has failed."),
+
 	TASK_CHECKPOINT_FAILURE(false, "Task local checkpoint failure."),
+
+	UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE(false, "Unknown task for the checkpoint to notify."),
 
 	FINALIZE_CHECKPOINT_FAILURE(false, "Failure to finalize checkpoint."),
 

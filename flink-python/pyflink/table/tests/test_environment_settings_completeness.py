@@ -15,13 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import unittest
 
 from pyflink.table import EnvironmentSettings
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
-class EnvironmentSettingsCompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
+class EnvironmentSettingsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """
     Tests whether the Python :class:`EnvironmentSettings` is consistent with
     Java `org.apache.flink.table.api.EnvironmentSettings`.
@@ -41,7 +40,7 @@ class EnvironmentSettingsCompletenessTests(PythonAPICompletenessTestCase, unitte
         return {'toPlannerProperties', 'toExecutorProperties'}
 
 
-class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
+class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """
     Tests whether the Python :class:`EnvironmentSettings.Builder` is consistent with
     Java `org.apache.flink.table.api.EnvironmentSettings$Builder`.

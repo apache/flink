@@ -262,14 +262,14 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 	private void checkPutStateConditions() {
 		if (state != OPEN) {
-			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
+			throw new MailboxClosedException("Mailbox is in state " + state + ", but is required to be in state " +
 				OPEN + " for put operations.");
 		}
 	}
 
 	private void checkTakeStateConditions() {
 		if (state == CLOSED) {
-			throw new IllegalStateException("Mailbox is in state " + state + ", but is required to be in state " +
+			throw new MailboxClosedException("Mailbox is in state " + state + ", but is required to be in state " +
 				OPEN + " or " + QUIESCED + " for take operations.");
 		}
 	}
@@ -311,6 +311,9 @@ public class TaskMailboxImpl implements TaskMailbox {
 	@Nonnull
 	@Override
 	public State getState() {
+		if (isMailboxThread()) {
+			return state;
+		}
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {

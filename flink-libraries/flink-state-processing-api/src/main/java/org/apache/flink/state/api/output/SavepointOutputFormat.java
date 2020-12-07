@@ -24,12 +24,12 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
@@ -40,12 +40,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * An output format to serialize {@link Savepoint} metadata to distributed storage.
+ * An output format to serialize {@link CheckpointMetadata} metadata to distributed storage.
  *
  * <p>This format may only be executed with parallelism 1.
  */
 @Internal
-public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
+public class SavepointOutputFormat extends RichOutputFormat<CheckpointMetadata> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -70,10 +70,10 @@ public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
 	}
 
 	@Override
-	public void writeRecord(Savepoint savepoint) throws IOException {
+	public void writeRecord(CheckpointMetadata metadata) throws IOException {
 		String path = LambdaUtil.withContextClassLoader(getRuntimeContext().getUserCodeClassLoader(), () -> {
 				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-					Checkpoints.storeCheckpointMetadata(savepoint, out);
+					Checkpoints.storeCheckpointMetadata(metadata, out);
 					CompletedCheckpointStorageLocation finalizedLocation = out.closeAndFinalizeCheckpoint();
 					return finalizedLocation.getExternalPointer();
 				}
@@ -86,14 +86,14 @@ public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
 	public void close() {}
 
 	private static CheckpointStorageLocation createSavepointLocation(Path location) throws IOException {
-		final CheckpointStorageLocationReference reference = AbstractFsCheckpointStorage.encodePathAsReference(location);
+		final CheckpointStorageLocationReference reference = AbstractFsCheckpointStorageAccess.encodePathAsReference(location);
 		return new FsCheckpointStorageLocation(
 			location.getFileSystem(),
 			location,
 			location,
 			location,
 			reference,
-			CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue(),
+			(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes(),
 			CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue());
 	}
 }

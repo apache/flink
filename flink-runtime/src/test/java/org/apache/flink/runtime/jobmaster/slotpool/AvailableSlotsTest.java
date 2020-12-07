@@ -33,9 +33,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link SlotPoolImpl.AvailableSlots}.
+ */
 public class AvailableSlotsTest extends TestLogger {
 
-	static final ResourceProfile DEFAULT_TESTING_PROFILE = new ResourceProfile(1.0, 512);
+	static final ResourceProfile DEFAULT_TESTING_PROFILE = ResourceProfile.fromResources(1.0, 512);
 
 	@Test
 	public void testAddAndRemove() {

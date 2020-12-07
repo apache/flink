@@ -53,7 +53,9 @@ public final class Tumble {
 	 *
 	 * @param size the size of the window as time or row-count interval.
 	 * @return a partially defined tumbling window
+	 * @deprecated use {@link #over(Expression)}
 	 */
+	@Deprecated
 	public static TumbleWithSize over(String size) {
 		return over(ExpressionParser.parseExpression(size));
 	}

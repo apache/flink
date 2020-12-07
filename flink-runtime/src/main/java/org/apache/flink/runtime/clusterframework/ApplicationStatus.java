@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 
 /**
  * The status of an application.

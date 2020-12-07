@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
@@ -57,33 +56,39 @@ public class ResultStore {
 	/**
 	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
 	 */
-	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
-
-		final RowTypeInfo outputType = new RowTypeInfo(schema.getFieldTypes(), schema.getFieldNames());
+	public <T> DynamicResult<T> createResult(
+			Environment env,
+			TableSchema schema,
+			ExecutionConfig config) {
 
 		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
 			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());
 
-			if (env.getExecution().isChangelogMode()) {
-				return new ChangelogCollectStreamResult<>(outputType, schema, config, gatewayAddress, gatewayPort);
+			if (env.getExecution().isChangelogMode() || env.getExecution().isTableauMode()) {
+				return new ChangelogCollectStreamResult<>(
+						schema,
+						config,
+						gatewayAddress,
+						gatewayPort);
 			} else {
 				return new MaterializedCollectStreamResult<>(
-					outputType,
-					schema,
-					config,
-					gatewayAddress,
-					gatewayPort,
-					env.getExecution().getMaxTableResultRows());
+						schema,
+						config,
+						gatewayAddress,
+						gatewayPort,
+						env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {
 			// Batch Execution
-			if (!env.getExecution().isTableMode()) {
-				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
+			if (env.getExecution().isTableMode() || env.getExecution().isTableauMode()) {
+				return new MaterializedCollectBatchResult<>(schema, config);
+			} else {
+				throw new SqlExecutionException(
+						"Results of batch queries can only be served in table or tableau mode.");
 			}
-			return new MaterializedCollectBatchResult<>(schema, outputType, config);
 		}
 	}
 
@@ -130,19 +135,19 @@ public class ResultStore {
 			if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
 				try {
 					return ConnectionUtils.findConnectingAddress(
-						new InetSocketAddress(jobManagerAddress, jobManagerPort),
-						deploy.getResponseTimeout(),
-						400);
+							new InetSocketAddress(jobManagerAddress, jobManagerPort),
+							deploy.getResponseTimeout(),
+							400);
 				} catch (Exception e) {
 					throw new SqlClientException("Could not determine address of the gateway for result retrieval " +
-						"by connecting to the job manager. Please specify the gateway address manually.", e);
+							"by connecting to the job manager. Please specify the gateway address manually.", e);
 				}
 			} else {
 				try {
 					return InetAddress.getLocalHost();
 				} catch (UnknownHostException e) {
 					throw new SqlClientException("Could not determine address of the gateway for result retrieval. " +
-						"Please specify the gateway address manually.", e);
+							"Please specify the gateway address manually.", e);
 				}
 			}
 		}

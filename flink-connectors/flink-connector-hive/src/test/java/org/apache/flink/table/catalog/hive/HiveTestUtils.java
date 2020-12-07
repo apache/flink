@@ -18,27 +18,29 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
+import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTest;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.planner.sinks.CollectRowTableSink;
-import org.apache.flink.table.planner.sinks.CollectTableSink;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import com.klarna.hiverunner.HiveShell;
+import org.apache.calcite.config.Lex;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
@@ -51,7 +53,6 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -68,7 +69,7 @@ public class HiveTestUtils {
 	private static final int MIN_EPH_PORT = 49152;
 	private static final int MAX_EPH_PORT = 61000;
 
-	private static final byte[] SEPARATORS = new byte[]{(byte) 1, (byte) 2, (byte) 3};
+	private static final byte[] SEPARATORS = new byte[]{(byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8};
 
 	/**
 	 * Create a HiveCatalog with an embedded Hive Metastore.
@@ -79,11 +80,16 @@ public class HiveTestUtils {
 
 	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
 		return new HiveCatalog(name, null, createHiveConf(),
-				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
+				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion, true);
+	}
+
+	public static HiveCatalog createHiveCatalog(String name, String hiveConfDir, String hadoopConfDir, String hiveVersion) {
+		return new HiveCatalog(name, null, hiveConfDir, hadoopConfDir,
+			StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion());
+		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion(), true);
 	}
 
 	public static HiveConf createHiveConf() {
@@ -122,33 +128,42 @@ public class HiveTestUtils {
 		throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
 	}
 
-	public static TableEnvironment createTableEnv() {
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
+		return createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+	}
+
+	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode(SqlDialect dialect) {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
-		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		tableEnv.getConfig().setSqlDialect(dialect);
 		return tableEnv;
 	}
 
-	public static List<Row> collectTable(TableEnvironment tableEnv, Table table) throws Exception {
-		CollectTableSink sink = new CollectRowTableSink();
-		TableSchema tableSchema = table.getSchema();
-		sink = (CollectTableSink) sink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
-		final String id = new AbstractID().toString();
-		TypeSerializer serializer = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType())
-				.createSerializer(new ExecutionConfig());
-		sink.init(serializer, id);
-		String sinkName = UUID.randomUUID().toString();
-		tableEnv.registerTableSink(sinkName, sink);
-		tableEnv.insertInto(table, sinkName);
-		JobExecutionResult result = tableEnv.execute("collect-table");
-		ArrayList<byte[]> data = result.getAccumulatorResult(id);
-		return SerializedListAccumulator.deserializeList(data, serializer);
+	public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+			StreamExecutionEnvironment env) {
+		return createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.DEFAULT);
+	}
+
+	public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+			StreamExecutionEnvironment env, SqlDialect dialect) {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+		tableEnv.getConfig().setSqlDialect(dialect);
+		return tableEnv;
+	}
+
+	public static TableEnvironment createTableEnvWithHiveCatalog(HiveCatalog catalog) {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.registerCatalog(catalog.getName(), catalog);
+		tableEnv.useCatalog(catalog.getName());
+		return tableEnv;
 	}
 
 	// Insert into a single partition of a text table.
-	public static TextTableInserter createTextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
-		return new TextTableInserter(hiveShell, dbName, tableName);
+	public static TextTableInserter createTextTableInserter(HiveCatalog hiveCatalog, String dbName, String tableName) {
+		return new TextTableInserter(hiveCatalog, dbName, tableName);
 	}
 
 	/**
@@ -156,13 +171,16 @@ public class HiveTestUtils {
 	 */
 	public static class TextTableInserter {
 
-		private final HiveShell hiveShell;
+		private final HiveCatalog hiveCatalog;
+		private final TableEnvironment tableEnv;
 		private final String dbName;
 		private final String tableName;
 		private final List<Object[]> rows;
 
-		public TextTableInserter(HiveShell hiveShell, String dbName, String tableName) {
-			this.hiveShell = hiveShell;
+		public TextTableInserter(HiveCatalog hiveCatalog, String dbName, String tableName) {
+			this.hiveCatalog = hiveCatalog;
+			tableEnv = createTableEnvWithHiveCatalog(hiveCatalog);
+			tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
 			this.dbName = dbName;
 			this.tableName = tableName;
 			rows = new ArrayList<>();
@@ -173,29 +191,42 @@ public class HiveTestUtils {
 			return this;
 		}
 
-		public void commit() {
+		public void commit() throws Exception {
 			commit(null);
 		}
 
-		public void commit(String partitionSpec) {
-			try {
-				File file = File.createTempFile("table_data_", null);
-				try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-					for (int i = 0; i < rows.size(); i++) {
-						if (i > 0) {
-							writer.newLine();
-						}
-						writer.write(toText(rows.get(i)));
+		public void commit(String partitionSpec) throws Exception {
+			File file = File.createTempFile("table_data_", null);
+			try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+				for (int i = 0; i < rows.size(); i++) {
+					if (i > 0) {
+						writer.newLine();
 					}
+					writer.write(toText(rows.get(i)));
 				}
-				String load = String.format("load data local inpath '%s' into table %s.%s", file.getAbsolutePath(), dbName, tableName);
-				if (partitionSpec != null) {
-					load += String.format(" partition (%s)", partitionSpec);
-				}
-				hiveShell.execute(load);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+				// new line at the end of file
+				writer.newLine();
 			}
+			Path src = new Path(file.toURI());
+			Path dest;
+			ObjectPath tablePath = new ObjectPath(dbName, tableName);
+			Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+			if (partitionSpec != null) {
+				String ddl = String.format("alter table `%s`.`%s` add if not exists partition (%s)", dbName, tableName, partitionSpec);
+				tableEnv.executeSql(ddl);
+				// we need parser to parse the partition spec
+				SqlParser parser = SqlParser.create(
+						ddl,
+						SqlParser.config().withParserFactory(FlinkHiveSqlParserImpl.FACTORY).withLex(Lex.JAVA));
+				SqlAddHivePartitions sqlAddPart = (SqlAddHivePartitions) parser.parseStmt();
+				Map<String, String> spec = SqlPartitionUtils.getPartitionKVs(sqlAddPart.getPartSpecs().get(0));
+				Partition hivePart = hiveCatalog.getHivePartition(hiveTable, new CatalogPartitionSpec(spec));
+				dest = new Path(hivePart.getSd().getLocation(), src.getName());
+			} else {
+				dest = new Path(hiveTable.getSd().getLocation(), src.getName());
+			}
+			FileSystem fs = dest.getFileSystem(hiveCatalog.getHiveConf());
+			Preconditions.checkState(fs.rename(src, dest));
 		}
 
 		private String toText(Object[] row) {
@@ -204,15 +235,15 @@ public class HiveTestUtils {
 				if (builder.length() > 0) {
 					builder.appendCodePoint(SEPARATORS[0]);
 				}
-				String colStr = toText(col);
+				String colStr = toText(col, 1);
 				if (colStr != null) {
-					builder.append(toText(col));
+					builder.append(colStr);
 				}
 			}
 			return builder.toString();
 		}
 
-		private String toText(Object obj) {
+		private String toText(Object obj, final int level) {
 			if (obj == null) {
 				return null;
 			}
@@ -220,26 +251,26 @@ public class HiveTestUtils {
 			if (obj instanceof Map) {
 				for (Object key : ((Map) obj).keySet()) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(key));
-					builder.appendCodePoint(SEPARATORS[2]);
-					builder.append(toText(((Map) obj).get(key)));
+					builder.append(toText(key, level + 2));
+					builder.appendCodePoint(SEPARATORS[level + 1]);
+					builder.append(toText(((Map) obj).get(key), level + 2));
 				}
 			} else if (obj instanceof Object[]) {
 				Object[] array = (Object[]) obj;
 				for (Object element : array) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(element));
+					builder.append(toText(element, level + 1));
 				}
 			} else if (obj instanceof List) {
 				for (Object element : (List) obj) {
 					if (builder.length() > 0) {
-						builder.appendCodePoint(SEPARATORS[1]);
+						builder.appendCodePoint(SEPARATORS[level]);
 					}
-					builder.append(toText(element));
+					builder.append(toText(element, level + 1));
 				}
 			} else {
 				builder.append(obj);

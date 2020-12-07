@@ -73,7 +73,7 @@ a timestamp that falls into this interval arrives, and it will remove it when th
 timestamp.
 
 In addition, each window will have a `Trigger` (see [Triggers](#triggers)) and a function (`ProcessWindowFunction`, `ReduceFunction`,
-`AggregateFunction` or `FoldFunction`) (see [Window Functions](#window-functions)) attached to it. The function will contain the computation to
+or `AggregateFunction`) (see [Window Functions](#window-functions)) attached to it. The function will contain the computation to
 be applied to the contents of the window, while the `Trigger` specifies the conditions under which the window is
 considered ready for the function to be applied. A triggering policy might be something like "when the number of elements
 in the window is more than 4", or "when the watermark passes the end of the window". A trigger can also decide to
@@ -94,7 +94,7 @@ Using the `keyBy(...)` will split your infinite stream into logical keyed stream
 stream is not keyed.
 
 In the case of keyed streams, any attribute of your incoming events can be used as a key
-(more details [here]({{ site.baseurl }}/dev/api_concepts.html#specifying-keys)). Having a keyed stream will
+(more details [here]({% link dev/stream/state/state.zh.md %}#keyed-datastream)). Having a keyed stream will
 allow your windowed computation to be performed in parallel by multiple tasks, as each logical keyed stream can be processed
 independently from the rest. All elements referring to the same key will be sent to the same parallel task.
 
@@ -112,7 +112,7 @@ with pre-defined window assigners for the most common use cases, namely *tumblin
 *sliding windows*, *session windows* and *global windows*. You can also implement a custom window assigner by
 extending the `WindowAssigner` class. All built-in window assigners (except the global
 windows) assign elements to windows based on time, which can either be processing time or event
-time. Please take a look at our section on [event time]({{ site.baseurl }}/dev/event_time.html) to learn
+time. Please take a look at our section on [event time]({% link dev/event_time.zh.md %}) to learn
 about the difference between processing time and event time and how timestamps and watermarks are generated.
 
 Time-based windows have a *start timestamp* (inclusive) and an *end timestamp* (exclusive)
@@ -132,7 +132,7 @@ Tumbling windows have a fixed size and do not overlap. For example, if you speci
 window with a size of 5 minutes, the current window will be evaluated and a new window will be
 started every five minutes as illustrated by the following figure.
 
-<img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/tumbling-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use tumbling windows.
 
@@ -210,7 +210,7 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 5 minutes a window that contains the events that arrived during the last 10 minutes as depicted by the
 following figure.
 
-<img src="{{ site.baseurl }}/fig/sliding-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/sliding-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use sliding windows.
 
@@ -285,7 +285,7 @@ inactivity occurred. A session window assigner can be configured with either a s
 *session gap extractor* function which defines how long the period of inactivity is. When this period expires, 
 the current session closes and subsequent elements are assigned to a new session window.
 
-<img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/session-windows.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use session windows.
 
@@ -375,7 +375,6 @@ creates a new window for each arriving record and merges windows together if the
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging
 [Window Function](#window-functions), such as `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`
-(`FoldFunction` cannot merge.)
 
 ### Global Windows
 
@@ -384,7 +383,7 @@ This windowing scheme is only useful if you also specify a custom [trigger](#tri
 no computation will be performed, as the global window does not have a natural end at
 which we could process the aggregated elements.
 
-<img src="{{ site.baseurl }}/fig/non-windowed.svg" class="center" style="width: 100%;" />
+<img src="{% link /fig/non-windowed.svg %}" class="center" style="width: 100%;" />
 
 The following code snippets show how to use a global window.
 
@@ -419,14 +418,14 @@ to perform on each of these windows. This is the responsibility of the *window f
 elements of each (possibly keyed) window once the system determines that a window is ready for processing
 (see [triggers](#triggers) for how Flink determines when a window is ready).
 
-The window function can be one of `ReduceFunction`, `AggregateFunction`, `FoldFunction` or `ProcessWindowFunction`. The first
+The window function can be one of `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`. The first
 two can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
 the elements for each window as they arrive. A `ProcessWindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
 A windowed transformation with a `ProcessWindowFunction` cannot be executed as efficiently as the other
 cases because Flink has to buffer *all* elements for a window internally before invoking the function.
-This can be mitigated by combining a `ProcessWindowFunction` with a `ReduceFunction`, `AggregateFunction`, or `FoldFunction` to
+This can be mitigated by combining a `ProcessWindowFunction` with a `ReduceFunction`, or `AggregateFunction` to
 get both incremental aggregation of window elements and the additional window metadata that the
 `ProcessWindowFunction` receives. We will look at examples for each of these variants.
 
@@ -552,46 +551,6 @@ input
 </div>
 
 The above example computes the average of the second field of the elements in the window.
-
-### FoldFunction
-
-A `FoldFunction` specifies how an input element of the window is combined with an element of
-the output type. The `FoldFunction` is incrementally called for each element that is added
-to the window and the current output value. The first element is combined with a pre-defined initial value of the output type.
-
-A `FoldFunction` can be defined and used like this:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<Tuple2<String, Long>> input = ...;
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .fold("", new FoldFunction<Tuple2<String, Long>, String>> {
-       public String fold(String acc, Tuple2<String, Long> value) {
-         return acc + value.f1;
-       }
-    });
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .fold("") { (acc, v) => acc + v._2 }
-{% endhighlight %}
-</div>
-</div>
-
-The above example appends all input `Long` values to an initially empty `String`.
-
-<span class="label label-danger">Attention</span> `fold()` cannot be used with session windows or other mergeable windows.
 
 ### ProcessWindowFunction
 
@@ -725,7 +684,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .timeWindow(Time.minutes(5))
+  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -752,7 +711,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(_._1)
-  .timeWindow(Time.minutes(5))
+  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
   .process(new MyProcessWindowFunction())
 
 /* ... */
@@ -777,7 +736,7 @@ The example shows a `ProcessWindowFunction` that counts the elements in a window
 
 ### ProcessWindowFunction with Incremental Aggregation
 
-A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, an `AggregateFunction`, or a `FoldFunction` to
+A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, or an `AggregateFunction` to
 incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `ProcessWindowFunction` will be provided with the aggregated result.
 This allows it to incrementally compute windows while having access to the
@@ -799,7 +758,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -832,7 +791,7 @@ val input: DataStream[SensorReading] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
@@ -862,7 +821,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -915,7 +874,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -943,73 +902,6 @@ class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Dou
     out.collect((key, average))
   }
 }
-
-{% endhighlight %}
-</div>
-</div>
-
-#### Incremental Window Aggregation with FoldFunction
-
-The following example shows how an incremental `FoldFunction` can be combined with
-a `ProcessWindowFunction` to extract the number of events in the window and return also
-the key and end time of the window.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<SensorReading> input = ...;
-
-input
-  .keyBy(<key selector>)
-  .timeWindow(<duration>)
-  .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
-
-// Function definitions
-
-private static class MyFoldFunction
-    implements FoldFunction<SensorReading, Tuple3<String, Long, Integer> > {
-
-  public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
-      Integer cur = acc.getField(2);
-      acc.setField(cur + 1, 2);
-      return acc;
-  }
-}
-
-private static class MyProcessWindowFunction
-    extends ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
-
-  public void process(String key,
-                    Context context,
-                    Iterable<Tuple3<String, Long, Integer>> counts,
-                    Collector<Tuple3<String, Long, Integer>> out) {
-    Integer count = counts.iterator().next().getField(2);
-    out.collect(new Tuple3<String, Long, Integer>(key, context.window().getEnd(),count));
-  }
-}
-
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-
-val input: DataStream[SensorReading] = ...
-
-input
- .keyBy(<key selector>)
- .timeWindow(<duration>)
- .fold (
-    ("", 0L, 0),
-    (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
-    ( key: String,
-      window: TimeWindow,
-      counts: Iterable[(String, Long, Int)],
-      out: Collector[(String, Long, Int)] ) =>
-      {
-        val count = counts.iterator.next()
-        out.collect((key, window.getEnd, count._3))
-      }
-  )
 
 {% endhighlight %}
 </div>
@@ -1151,7 +1043,7 @@ Two things to notice about the above methods are:
 Once a trigger determines that a window is ready for processing, it fires, *i.e.*, it returns `FIRE` or `FIRE_AND_PURGE`. This is the signal for the window operator
 to emit the result of the current window. Given a window with a `ProcessWindowFunction`
 all elements are passed to the `ProcessWindowFunction` (possibly after passing them to an evictor).
-Windows with `ReduceFunction`, `AggregateFunction`, or `FoldFunction` simply emit their eagerly aggregated result.
+Windows with `ReduceFunction`, or `AggregateFunction` simply emit their eagerly aggregated result.
 
 When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. While `FIRE` keeps the contents of the window, `FIRE_AND_PURGE` removes its content.
 By default, the pre-implemented triggers simply `FIRE` without purging the window state.
@@ -1239,7 +1131,7 @@ necessarily the ones that arrive first or last.
 
 When working with *event-time* windowing, it can happen that elements arrive late, *i.e.* the watermark that Flink uses to
 keep track of the progress of event-time is already past the end timestamp of a window to which an element belongs. See
-[event time]({{ site.baseurl }}/dev/event_time.html) and especially [late elements]({{ site.baseurl }}/dev/event_time.html#late-elements) for a more thorough
+[event time]({% link dev/event_time.zh.md %}) and especially [late elements]({% link dev/event_time.zh.md %}#late-elements) for a more thorough
 discussion of how Flink deals with event time.
 
 By default, late elements are dropped when the watermark is past the end of the window. However,
@@ -1288,7 +1180,7 @@ data is ever considered late because the end timestamp of the global window is `
 
 ### Getting late data as a side output
 
-Using Flink's [side output]({{ site.baseurl }}/dev/stream/side_output.html) feature you can get a stream of the data
+Using Flink's [side output]({% link dev/stream/side_output.zh.md %}) feature you can get a stream of the data
 that was discarded as late.
 
 You first need to specify that you want to get late data using `sideOutputLateData(OutputTag)` on
@@ -1359,7 +1251,7 @@ will cover this after taking a look how watermarks interact with windows.
 ### Interaction of watermarks and windows
 
 Before continuing in this section you might want to take a look at our section about
-[event time and watermarks]({{ site.baseurl }}/dev/event_time.html).
+[event time and watermarks]({% link dev/event_time.zh.md %}).
 
 When watermarks arrive at the window operator this triggers two things:
 
@@ -1421,7 +1313,7 @@ Windows can be defined over long periods of time (such as days, weeks, or months
 
 1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly one window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
 
-2. `ReduceFunction`, `AggregateFunction`, and `FoldFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
+2. `ReduceFunction` and `AggregateFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
 
 3. Using an `Evictor` prevents any pre-aggregation, as all the elements of a window have to be passed through the evictor before applying the computation (see [Evictors](#evictors)).
 

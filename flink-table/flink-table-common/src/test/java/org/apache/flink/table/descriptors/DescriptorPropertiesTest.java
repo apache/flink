@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.LogicalTypeParserTest;
 
 import org.junit.Test;
 
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -174,39 +176,119 @@ public class DescriptorPropertiesTest {
 	@Test
 	public void testTableSchema() {
 		TableSchema schema = TableSchema.builder()
-			.field("f0", DataTypes.BIGINT())
-			.field("f1", DataTypes.ROW(
+			.add(TableColumn.physical("f0", DataTypes.BIGINT().notNull()))
+			.add(TableColumn.physical("f1", DataTypes.ROW(
 				DataTypes.FIELD("q1", DataTypes.STRING()),
-				// the "bridgedTo" is a temporary solution because the type string format is based on TypeInformation.
-				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class))))
-			.field("f2", DataTypes.STRING())
-			.field("f3", DataTypes.BIGINT(), "f0 + 1")
+				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(9)))))
+			.add(TableColumn.physical("f2", DataTypes.STRING().notNull()))
+			.add(TableColumn.computed("f3", DataTypes.BIGINT().notNull(), "f0 + 1"))
+			.add(TableColumn.physical("f4", DataTypes.DECIMAL(10, 3)))
+			.add(TableColumn.metadata("f5", DataTypes.DECIMAL(10, 3)))
+			.add(TableColumn.metadata("f6", DataTypes.INT(), "other.key"))
+			.add(TableColumn.metadata("f7", DataTypes.INT(), true))
+			.add(TableColumn.metadata("f8", DataTypes.INT(), "other.key", true))
 			.watermark(
 				"f1.q2",
 				"`f1`.`q2` - INTERVAL '5' SECOND",
 				DataTypes.TIMESTAMP(3))
+			.primaryKey("constraint1", new String[] {"f0", "f2"})
 			.build();
 
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putTableSchema("schema", schema);
 		Map<String, String> actual = properties.asMap();
 		Map<String, String> expected = new HashMap<>();
+
 		expected.put("schema.0.name", "f0");
-		expected.put("schema.0.type", "BIGINT");
+		expected.put("schema.0.data-type", "BIGINT NOT NULL");
+
 		expected.put("schema.1.name", "f1");
-		expected.put("schema.1.type", "ROW<q1 VARCHAR, q2 TIMESTAMP>");
+		expected.put("schema.1.data-type", "ROW<`q1` VARCHAR(2147483647), `q2` TIMESTAMP(9)>");
+
 		expected.put("schema.2.name", "f2");
-		expected.put("schema.2.type", "VARCHAR");
+		expected.put("schema.2.data-type", "VARCHAR(2147483647) NOT NULL");
+
 		expected.put("schema.3.name", "f3");
-		expected.put("schema.3.type", "BIGINT");
+		expected.put("schema.3.data-type", "BIGINT NOT NULL");
 		expected.put("schema.3.expr", "f0 + 1");
+
+		expected.put("schema.4.name", "f4");
+		expected.put("schema.4.data-type", "DECIMAL(10, 3)");
+
+		expected.put("schema.5.name", "f5");
+		expected.put("schema.5.data-type", "DECIMAL(10, 3)");
+		expected.put("schema.5.metadata", "f5");
+		expected.put("schema.5.virtual", "false");
+
+		expected.put("schema.6.name", "f6");
+		expected.put("schema.6.data-type", "INT");
+		expected.put("schema.6.metadata", "other.key");
+		expected.put("schema.6.virtual", "false");
+
+		expected.put("schema.7.name", "f7");
+		expected.put("schema.7.data-type", "INT");
+		expected.put("schema.7.metadata", "f7");
+		expected.put("schema.7.virtual", "true");
+
+		expected.put("schema.8.name", "f8");
+		expected.put("schema.8.data-type", "INT");
+		expected.put("schema.8.metadata", "other.key");
+		expected.put("schema.8.virtual", "true");
+
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
-		expected.put("schema.watermark.0.strategy.datatype", "TIMESTAMP(3)");
+		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
+
+		expected.put("schema.primary-key.name", "constraint1");
+		expected.put("schema.primary-key.columns", "f0,f2");
+
 		assertEquals(expected, actual);
 
 		TableSchema restored = properties.getTableSchema("schema");
 		assertEquals(schema, restored);
+	}
+
+	@Test
+	public void testLegacyTableSchema() {
+		DescriptorProperties properties = new DescriptorProperties();
+		Map<String, String> map = new HashMap<>();
+		map.put("schema.0.name", "f0");
+		map.put("schema.0.type", "VARCHAR");
+		map.put("schema.1.name", "f1");
+		map.put("schema.1.type", "BIGINT");
+		map.put("schema.2.name", "f2");
+		map.put("schema.2.type", "DECIMAL");
+		map.put("schema.3.name", "f3");
+		map.put("schema.3.type", "TIMESTAMP");
+		map.put("schema.4.name", "f4");
+		map.put("schema.4.type", "MAP<TINYINT, SMALLINT>");
+		map.put("schema.5.name", "f5");
+		map.put("schema.5.type", "ANY<java.lang.Class>");
+		map.put("schema.6.name", "f6");
+		map.put("schema.6.type", "PRIMITIVE_ARRAY<DOUBLE>");
+		map.put("schema.7.name", "f7");
+		map.put("schema.7.type", "OBJECT_ARRAY<TIME>");
+		map.put("schema.8.name", "f8");
+		map.put("schema.8.type", "ROW<q1 VARCHAR, q2 DATE>");
+		map.put("schema.9.name", "f9");
+		map.put("schema.9.type", "POJO<org.apache.flink.table.types.LogicalTypeParserTest$MyPojo>");
+		properties.putProperties(map);
+		TableSchema restored = properties.getTableSchema("schema");
+
+		TableSchema expected = TableSchema.builder()
+			.field("f0", Types.STRING)
+			.field("f1", Types.LONG)
+			.field("f2", Types.BIG_DEC)
+			.field("f3", Types.SQL_TIMESTAMP)
+			.field("f4", Types.MAP(Types.BYTE, Types.SHORT))
+			.field("f5", Types.GENERIC(Class.class))
+			.field("f6", Types.PRIMITIVE_ARRAY(Types.DOUBLE))
+			.field("f7", Types.OBJECT_ARRAY(Types.SQL_TIME))
+			.field("f8", Types.ROW_NAMED(new String[]{"q1", "q2"}, Types.STRING, Types.SQL_DATE))
+			.field("f9", Types.POJO(LogicalTypeParserTest.MyPojo.class))
+			.build();
+
+		assertEquals(expected, restored);
 	}
 
 	private void testArrayValidation(

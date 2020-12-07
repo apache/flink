@@ -22,6 +22,8 @@
 _on_exit_commands=()
 
 function _on_exit_callback {
+  # Export the exit code so that it could be used by the callback commands
+  export TRAPPED_EXIT_CODE=$?
   # Un-register the callback, to avoid multiple invocations: some shells may treat some signals as subset of others.
   trap "" INT EXIT
   # Fast exit, if there is another keyboard interrupt.

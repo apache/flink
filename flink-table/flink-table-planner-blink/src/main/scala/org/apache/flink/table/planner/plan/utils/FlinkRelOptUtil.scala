@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
@@ -30,13 +30,11 @@ import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, Rex
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.util.ImmutableBitSet
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
-import java.util
 import java.util.Calendar
 
 import scala.collection.JavaConversions._
@@ -58,16 +56,16 @@ object FlinkRelOptUtil {
     * @param rel                the RelNode to convert
     * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
     * @param withIdPrefix       whether including ID of RelNode as prefix
-    * @param withRetractTraits  whether including Retraction Traits of RelNode (only apply to
-    * StreamPhysicalRel node at present)
+    * @param withChangelogTraits  whether including changelog traits of RelNode (only applied to
+    *                             StreamPhysicalRel node at present)
     * @param withRowType        whether including output rowType
     * @return explain plan of RelNode
     */
   def toString(
       rel: RelNode,
-      detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withIdPrefix: Boolean = false,
-      withRetractTraits: Boolean = false,
+      withChangelogTraits: Boolean = false,
       withRowType: Boolean = false): String = {
     if (rel == null) {
       return null
@@ -77,9 +75,69 @@ object FlinkRelOptUtil {
       new PrintWriter(sw),
       detailLevel,
       withIdPrefix,
-      withRetractTraits,
-      withRowType)
+      withChangelogTraits,
+      withRowType,
+      withTreeStyle = true)
     rel.explain(planWriter)
+    sw.toString
+  }
+
+  /**
+    * Gets the digest for a rel tree.
+    *
+    * The digest of RelNode should contain the result of RelNode#explain method, retraction traits
+    * (for StreamPhysicalRel) and RelNode's row type.
+    *
+    * Row type is part of the digest for the rare occasion that similar
+    * expressions have different types, e.g.
+    * "WITH
+    * t1 AS (SELECT CAST(a as BIGINT) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as BIGINT)),
+    * t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
+    * SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b"
+    *
+    * the physical plan is:
+    * {{{
+    *  HashJoin(where=[=(b, b0)], join=[a, b, a0, b0], joinType=[InnerJoin],
+    *    isBroadcast=[true], build=[right])
+    *  :- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+    *  :  +- Exchange(distribution=[hash[a]])
+    *  :     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+    *  :        +- Calc(select=[CAST(a) AS a, b])
+    *  :           +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
+    *  +- Exchange(distribution=[broadcast])
+    *     +- HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
+    *        +- Exchange(distribution=[hash[a]])
+    *           +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+    *              +- Calc(select=[CAST(a) AS a, b])
+    *                 +- ScanTable(table=[[builtin, default, x]], fields=[a, b, c])
+    * }}}
+    *
+    * The sub-plan of `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])`
+    * are different because `CAST(a) AS a` has different types, where one is BIGINT type
+    * and another is DOUBLE type.
+    *
+    * If use the result of `RelOptUtil.toString(aggregate, SqlExplainLevel.DIGEST_ATTRIBUTES)`
+    * on `HashAggregate(groupBy=[a], select=[a, Final_SUM(sum$0) AS b])` as digest,
+    * we will get incorrect result. So rewrite `explain_` method of `RelWriterImpl` to
+    * add row-type to digest value.
+    *
+    * @param rel rel node tree
+    * @return The digest of given rel tree.
+    */
+  def getDigest(rel: RelNode): String = {
+    val sw = new StringWriter
+    rel.explain(new RelTreeWriterImpl(
+      new PrintWriter(sw),
+      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      // ignore id, only contains RelNode's attributes
+      withIdPrefix = false,
+      // add retraction traits to digest for StreamPhysicalRel node
+      withChangelogTraits = true,
+      // add row type to digest to avoid corner case that similar
+      // expressions have different types
+      withRowType = true,
+      // ignore tree style, only contains RelNode's attributes
+      withTreeStyle = false))
     sw.toString
   }
 
@@ -137,7 +195,7 @@ object FlinkRelOptUtil {
   }
 
   def getTableConfigFromContext(rel: RelNode): TableConfig = {
-    rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
   }
 
   /** Get max cnf node limit by context of rel */
@@ -147,25 +205,22 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Gets values of RexLiteral
+    * Gets values of [[RexLiteral]] by its broad type.
+   *
+   * <p> All number value (TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL)
+   * will be converted to BigDecimal
     *
     * @param literal input RexLiteral
-    * @return values of the input RexLiteral
+    * @return value of the input RexLiteral
     */
-  def getLiteralValue(literal: RexLiteral): Comparable[_] = {
+  def getLiteralValueByBroadType(literal: RexLiteral): Comparable[_] = {
     if (literal.isNull) {
       null
     } else {
-      val literalType = literal.getType
-      literalType.getSqlTypeName match {
+      literal.getTypeName match {
         case BOOLEAN => RexLiteral.booleanValue(literal)
-        case TINYINT => literal.getValueAs(classOf[JByte])
-        case SMALLINT => literal.getValueAs(classOf[JShort])
-        case INTEGER => literal.getValueAs(classOf[Integer])
-        case BIGINT => literal.getValueAs(classOf[JLong])
-        case FLOAT => literal.getValueAs(classOf[JFloat])
-        case DOUBLE => literal.getValueAs(classOf[JDouble])
-        case DECIMAL => literal.getValue3.asInstanceOf[BigDecimal]
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL =>
+          literal.getValue3.asInstanceOf[BigDecimal]
         case VARCHAR | CHAR => literal.getValueAs(classOf[String])
 
         // temporal types
@@ -176,40 +231,9 @@ object FlinkRelOptUtil {
         case TIMESTAMP =>
           new Timestamp(literal.getValueAs(classOf[Calendar]).getTimeInMillis)
         case _ =>
-          throw new IllegalArgumentException(s"Literal type $literalType is not supported!")
+          throw new IllegalArgumentException(
+            s"Literal type ${literal.getTypeName} is not supported!")
       }
-    }
-  }
-
-  private def fix(operands: util.List[RexNode], before: Int, after: Int): Unit = {
-    if (before == after) {
-      return
-    }
-    operands.indices.foreach { i =>
-      val node = operands.get(i)
-      operands.set(i, RexUtil.shift(node, before, after - before))
-    }
-  }
-
-  /**
-    * Categorizes whether a bit set contains bits left and right of a line.
-    */
-  private object Side extends Enumeration {
-    type Side = Value
-    val LEFT, RIGHT, BOTH, EMPTY = Value
-
-    private[plan] def of(bitSet: ImmutableBitSet, middle: Int): Side = {
-      val firstBit = bitSet.nextSetBit(0)
-      if (firstBit < 0) {
-        return EMPTY
-      }
-      if (firstBit >= middle) {
-        return RIGHT
-      }
-      if (bitSet.nextSetBit(middle) < 0) {
-        return LEFT
-      }
-      BOTH
     }
   }
 
@@ -381,23 +405,23 @@ object FlinkRelOptUtil {
     * ------------------------------------------------
     * |    A        |    B        |   merged result
     * ------------------------------------------------
-    * | R, I_1 == 0 | R, I_2      |  R, gcd(I_1, I_2)
+    * | R, I_a == 0 | R, I_b      |  R, gcd(I_a, I_b)
     * ------------------------------------------------
-    * | R, I_1 == 0 | P, I_2      |  R, I_2
+    * | R, I_a == 0 | P, I_b      |  R, I_b
     * ------------------------------------------------
-    * | R, I_1 > 0  | R, I_2      |  R, gcd(I_1, I_2)
+    * | R, I_a > 0  | R, I_b      |  R, gcd(I_a, I_b)
     * ------------------------------------------------
-    * | R, I_1 > 0  | P, I_2      |  R, I_1
+    * | R, I_a > 0  | P, I_b      |  R, I_a
     * ------------------------------------------------
-    * | R, I_1 = -1 | R, I_2      |  R, I_1
+    * | R, I_a = -1 | R, I_b      |  R, I_a
     * ------------------------------------------------
-    * | R, I_1 = -1 | P, I_2      |  R, I_1
+    * | R, I_a = -1 | P, I_b      |  R, I_a
     * ------------------------------------------------
-    * | P, I_1      | R, I_2 == 0 |  R, I_1
+    * | P, I_a      | R, I_b == 0 |  R, I_a
     * ------------------------------------------------
-    * | P, I_1      | R, I_2 > 0  |  R, I_2
+    * | P, I_a      | R, I_b > 0  |  R, I_b
     * ------------------------------------------------
-    * | P, I_1      | P, I_2 > 0  |  P, I_1
+    * | P, I_a      | P, I_b > 0  |  P, I_a
     * ------------------------------------------------
     */
   def mergeMiniBatchInterval(
@@ -434,5 +458,4 @@ object FlinkRelOptUtil {
         }
     }
   }
-
 }

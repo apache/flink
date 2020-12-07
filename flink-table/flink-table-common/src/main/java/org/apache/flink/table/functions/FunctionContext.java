@@ -20,11 +20,13 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.io.File;
+import java.util.Set;
 
 /**
  * A {@link FunctionContext} allows to obtain global runtime information about the context in which the
@@ -75,10 +77,16 @@ public class FunctionContext {
 	 */
 	public String getJobParameter(String key, String defaultValue) {
 		final GlobalJobParameters conf = context.getExecutionConfig().getGlobalJobParameters();
-		if (conf != null && conf.toMap().containsKey(key)) {
-			return conf.toMap().get(key);
-		} else {
-			return defaultValue;
+		if (conf != null) {
+			return conf.toMap().getOrDefault(key, defaultValue);
 		}
+		return defaultValue;
+	}
+
+	/**
+	 * Get the external resource information.
+	 */
+	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+		return context.getExternalResourceInfos(resourceName);
 	}
 }

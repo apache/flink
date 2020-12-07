@@ -62,7 +62,7 @@ abstract class AbstractTtlDecorator<T> {
 	}
 
 	<V> V getUnexpired(TtlValue<V> ttlValue) {
-		return ttlValue == null || (expired(ttlValue) && !returnExpired) ? null : ttlValue.getUserValue();
+		return ttlValue == null || (!returnExpired && expired(ttlValue)) ? null : ttlValue.getUserValue();
 	}
 
 	<V> boolean expired(TtlValue<V> ttlValue) {

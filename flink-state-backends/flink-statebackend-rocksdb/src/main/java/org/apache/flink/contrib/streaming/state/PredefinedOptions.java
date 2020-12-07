@@ -23,6 +23,10 @@ import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.InfoLogLevel;
+
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
@@ -31,6 +35,9 @@ import org.rocksdb.DBOptions;
  *
  * <p>Some of these settings are based on experiments by the Flink community, some follow
  * guides from the RocksDB project.
+ *
+ * <p>All of them effectively disable the RocksDB log by default because this file would grow
+ * indefinitely and will be deleted with the TM anyway.
  */
 public enum PredefinedOptions {
 
@@ -40,17 +47,26 @@ public enum PredefinedOptions {
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
 	 * there is no need to sync data to stable storage.
+	 *
+	 * <p>The following options are set:
+	 * <ul>
+	 *     <li>setUseFsync(false)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
+	 * </ul>
 	 */
 	DEFAULT {
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
-					.setUseFsync(false);
+					.setUseFsync(false)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions();
 		}
 
@@ -71,6 +87,8 @@ public enum PredefinedOptions {
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 * </ul>
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
@@ -79,16 +97,17 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
-
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true);
@@ -114,6 +133,8 @@ public enum PredefinedOptions {
 	 *     <li>setMaxWriteBufferNumber(4)</li>
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 *     <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)</li>
 	 *     <li>BlockBasedTableConfigsetBlockSize(128 KBytes)</li>
 	 * </ul>
@@ -124,21 +145,25 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED_HIGH_MEM {
 
 		@Override
-		public DBOptions createDBOptions() {
-
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 
 			final long blockCacheSize = 256 * 1024 * 1024;
 			final long blockSize = 128 * 1024;
 			final long targetFileSize = 256 * 1024 * 1024;
 			final long writeBufferSize = 64 * 1024 * 1024;
+
+			BloomFilter bloomFilter = new BloomFilter();
+			handlesToClose.add(bloomFilter);
 
 			return new ColumnFamilyOptions()
 					.setCompactionStyle(CompactionStyle.LEVEL)
@@ -152,7 +177,7 @@ public enum PredefinedOptions {
 							new BlockBasedTableConfig()
 									.setBlockCacheSize(blockCacheSize)
 									.setBlockSize(blockSize)
-									.setFilter(new BloomFilter())
+									.setFilter(bloomFilter)
 					);
 		}
 	},
@@ -169,6 +194,8 @@ public enum PredefinedOptions {
 	 *     <li>setUseFsync(false)</li>
 	 *     <li>setDisableDataSync(true)</li>
 	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)</li>
+	 *     <li>setStatsDumpPeriodSec(0)</li>
 	 * </ul>
 	 *
 	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
@@ -177,15 +204,17 @@ public enum PredefinedOptions {
 	FLASH_SSD_OPTIMIZED {
 
 		@Override
-		public DBOptions createDBOptions() {
+		public DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose) {
 			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
-					.setMaxOpenFiles(-1);
+					.setMaxOpenFiles(-1)
+					.setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
+					.setStatsDumpPeriodSec(0);
 		}
 
 		@Override
-		public ColumnFamilyOptions createColumnOptions() {
+		public ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose) {
 			return new ColumnFamilyOptions();
 		}
 	};
@@ -195,15 +224,33 @@ public enum PredefinedOptions {
 	/**
 	 * Creates the {@link DBOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract DBOptions createDBOptions();
+	public abstract DBOptions createDBOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public DBOptions createDBOptions() {
+		return createDBOptions(new ArrayList<>());
+	}
 
 	/**
 	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
 	 *
+	 * @param handlesToClose The collection to register newly created {@link org.rocksdb.RocksObject}s.
 	 * @return The pre-defined options object.
 	 */
-	public abstract ColumnFamilyOptions createColumnOptions();
+	public abstract ColumnFamilyOptions createColumnOptions(Collection<AutoCloseable> handlesToClose);
+
+	/**
+	 * @return The pre-defined options object.
+	 * @deprecated use {@link #createColumnOptions(Collection)} instead.
+	 */
+	public ColumnFamilyOptions createColumnOptions() {
+		return createColumnOptions(new ArrayList<>());
+	}
 
 }

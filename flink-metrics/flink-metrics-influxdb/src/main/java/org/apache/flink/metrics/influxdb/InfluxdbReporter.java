@@ -24,8 +24,10 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.util.NetUtils;
 
 import okhttp3.OkHttpClient;
 import org.influxdb.InfluxDB;
@@ -51,11 +53,13 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getScheme;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via InfluxDB.
  */
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.influxdb.InfluxdbReporterFactory")
 public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implements Scheduled {
 
 	private String database;
@@ -70,15 +74,16 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	@Override
 	public void open(MetricConfig config) {
 		String host = getString(config, HOST);
+		InfluxdbReporterOptions.Scheme scheme = getScheme(config);
 		int port = getInteger(config, PORT);
-		if (!isValidHost(host) || !isValidPort(port)) {
+		if (!isValidHost(host) || !NetUtils.isValidClientPort(port)) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
 		String database = getString(config, DB);
 		if (database == null) {
 			throw new IllegalArgumentException("'" + DB.key() + "' configuration option is not set");
 		}
-		String url = String.format("http://%s:%d", host, port);
+		String url = String.format("%s://%s:%d", scheme, host, port);
 		String username = getString(config, USERNAME);
 		String password = getString(config, PASSWORD);
 
@@ -153,7 +158,4 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		return host != null && !host.isEmpty();
 	}
 
-	private static boolean isValidPort(int port) {
-		return 0 < port && port <= 65535;
-	}
 }

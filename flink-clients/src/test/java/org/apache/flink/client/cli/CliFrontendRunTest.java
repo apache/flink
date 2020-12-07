@@ -58,30 +58,24 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		// test without parallelism, should use parallelism default
 		{
 			String[] parameters = {"-v",  getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 4, false);
+			verifyCliFrontend(configuration, getCli(), parameters, 4, false);
 		}
 		//  test parallelism in detached mode, should use parallelism default
 		{
 			String[] parameters = {"-v", "-d", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 4, true);
+			verifyCliFrontend(configuration, getCli(), parameters, 4, true);
 		}
 
 		// test configure parallelism
 		{
 			String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 42, false);
-		}
-
-		// test configure sysout logging
-		{
-			String[] parameters = {"-p", "2", "-q", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 2, false);
+			verifyCliFrontend(configuration, getCli(), parameters, 42, false);
 		}
 
 		// test detached mode
 		{
 			String[] parameters = {"-p", "2", "-d", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 2, true);
+			verifyCliFrontend(configuration, getCli(), parameters, 2, true);
 		}
 
 		// test configure savepoint path (no ignore flag)
@@ -89,7 +83,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
@@ -103,7 +97,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			String[] parameters = {"-s", "expectedSavepointPath", "-n", getTestJarPath()};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			ExecutionConfigAccessor executionOptions = ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
 
 			SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
@@ -118,7 +112,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 				{ getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 			assertEquals("-arg1", programOptions.getProgramArgs()[0]);
 			assertEquals("value1", programOptions.getProgramArgs()[1]);
@@ -135,7 +129,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.run(parameters);
 	}
 
@@ -146,7 +140,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.run(parameters);
 	}
 
@@ -157,30 +151,42 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.run(parameters);
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	public static void verifyCliFrontend(
-		AbstractCustomCommandLine cli,
-		String[] parameters,
-		int expectedParallelism,
-		boolean isDetached) throws Exception {
+			Configuration configuration,
+			AbstractCustomCommandLine cli,
+			String[] parameters,
+			int expectedParallelism,
+			boolean isDetached) throws Exception {
 		RunTestingCliFrontend testFrontend =
-			new RunTestingCliFrontend(new DefaultClusterClientServiceLoader(), cli, expectedParallelism, isDetached);
+				new RunTestingCliFrontend(
+						configuration,
+						new DefaultClusterClientServiceLoader(),
+						cli,
+						expectedParallelism,
+						isDetached);
 		testFrontend.run(parameters); // verifies the expected values (see below)
 	}
 
 	public static void verifyCliFrontend(
-		ClusterClientServiceLoader clusterClientServiceLoader,
-		AbstractCustomCommandLine cli,
-		String[] parameters,
-		int expectedParallelism,
-		boolean isDetached) throws Exception {
+			Configuration configuration,
+			ClusterClientServiceLoader clusterClientServiceLoader,
+			AbstractCustomCommandLine cli,
+			String[] parameters,
+			int expectedParallelism,
+			boolean isDetached) throws Exception {
 		RunTestingCliFrontend testFrontend =
-			new RunTestingCliFrontend(clusterClientServiceLoader, cli, expectedParallelism, isDetached);
+				new RunTestingCliFrontend(
+						configuration,
+						clusterClientServiceLoader,
+						cli,
+						expectedParallelism,
+						isDetached);
 		testFrontend.run(parameters); // verifies the expected values (see below)
 	}
 
@@ -190,12 +196,13 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		private final boolean isDetached;
 
 		private RunTestingCliFrontend(
+				Configuration configuration,
 				ClusterClientServiceLoader clusterClientServiceLoader,
 				AbstractCustomCommandLine cli,
 				int expectedParallelism,
 				boolean isDetached) {
 			super(
-				cli.getConfiguration(),
+				configuration,
 				clusterClientServiceLoader,
 				Collections.singletonList(cli));
 			this.expectedParallelism = expectedParallelism;

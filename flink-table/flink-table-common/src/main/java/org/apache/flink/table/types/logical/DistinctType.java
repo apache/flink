@@ -38,7 +38,7 @@ import java.util.Objects;
  *
  * <p>Distinct types are implicitly final and do not support super types.
  *
- * <p>Most other properties are forwarded from the source type. Thus, ordering and comparision among
+ * <p>Most other properties are forwarded from the source type. Thus, ordering and comparison among
  * the same distinct types are supported.
  *
  * <p>The serialized string representation is the fully qualified name of this type which means that
@@ -67,7 +67,7 @@ public final class DistinctType extends UserDefinedType {
 				"Source type must not be a user-defined type.");
 		}
 
-		public Builder setDescription(String description) {
+		public Builder description(String description) {
 			this.description = Preconditions.checkNotNull(description, "Description must not be null");
 			return this;
 		}
@@ -92,6 +92,13 @@ public final class DistinctType extends UserDefinedType {
 		this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
 	}
 
+	/**
+	 * Creates a builder for a {@link DistinctType}.
+	 */
+	public static DistinctType.Builder newBuilder(ObjectIdentifier objectIdentifier, LogicalType sourceType) {
+		return new DistinctType.Builder(objectIdentifier, sourceType);
+	}
+
 	public LogicalType getSourceType() {
 		return sourceType;
 	}
@@ -99,7 +106,7 @@ public final class DistinctType extends UserDefinedType {
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new DistinctType(
-			getObjectIdentifier(),
+			getObjectIdentifier().orElseThrow(IllegalStateException::new),
 			sourceType.copy(isNullable),
 			getDescription().orElse(null));
 	}

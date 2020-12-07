@@ -41,7 +41,6 @@ public class SlotOffer implements Serializable {
 	private final ResourceProfile resourceProfile;
 
 	public SlotOffer(final AllocationID allocationID, final int index, final ResourceProfile resourceProfile) {
-		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.allocationId = Preconditions.checkNotNull(allocationID);
 		this.slotIndex = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);

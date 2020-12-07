@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -101,7 +101,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testNoManualRestart() throws Exception {
 		ExecutionGraph eg = TestingExecutionGraphBuilder
 			.newBuilder()
-			.setSlotProvider(new SimpleSlotProvider(TEST_JOB_ID, NUM_TASKS))
+			.setSlotProvider(new SimpleSlotProvider(NUM_TASKS))
 			.setJobGraph(createJobGraph())
 			.build();
 
@@ -558,7 +558,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final int parallelism = 10;
 		final JobVertex vertex = createNoOpVertex(parallelism);
 		final NotCancelAckingTaskGateway taskManagerGateway = new NotCancelAckingTaskGateway();
-		final SlotProvider slots = new SimpleSlotProvider(TEST_JOB_ID, parallelism, taskManagerGateway);
+		final SlotProvider slots = new SimpleSlotProvider(parallelism, taskManagerGateway);
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
 
 		final JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "Test Job", vertex);

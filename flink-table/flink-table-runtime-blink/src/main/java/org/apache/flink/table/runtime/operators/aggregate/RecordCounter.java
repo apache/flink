@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.Serializable;
 
@@ -35,7 +35,7 @@ public abstract class RecordCounter implements Serializable {
 	 *
 	 * @return true if input record count is zero, false if not.
 	 */
-	abstract boolean recordCountIsZero(BaseRow acc);
+	abstract boolean recordCountIsZero(RowData acc);
 
 	/**
 	 * Creates a {@link RecordCounter} depends on the index of count(*).
@@ -53,9 +53,8 @@ public abstract class RecordCounter implements Serializable {
 		}
 	}
 
-
 	/**
-	 * {@link RecordCounters.AccumulationRecordCounter} is a {@link RecordCounter} whose input stream
+	 * {@link RecordCounter.AccumulationRecordCounter} is a {@link RecordCounter} whose input stream
 	 * is append only.
 	 */
 	private static final class AccumulationRecordCounter extends RecordCounter {
@@ -63,14 +62,14 @@ public abstract class RecordCounter implements Serializable {
 		private static final long serialVersionUID = -7035867949179573822L;
 
 		@Override
-		public boolean recordCountIsZero(BaseRow acc) {
+		public boolean recordCountIsZero(RowData acc) {
 			// when all the inputs are accumulations, the count will never be zero
 			return acc == null;
 		}
 	}
 
 	/**
-	 * {@link RecordCounters.RetractionRecordCounter} is a {@link RecordCounter} whose input stream
+	 * {@link RecordCounter.RetractionRecordCounter} is a {@link RecordCounter} whose input stream
 	 * contains retraction.
 	 */
 	private static final class RetractionRecordCounter extends RecordCounter {
@@ -84,7 +83,7 @@ public abstract class RecordCounter implements Serializable {
 		}
 
 		@Override
-		public boolean recordCountIsZero(BaseRow acc) {
+		public boolean recordCountIsZero(RowData acc) {
 			// We store the counter in the accumulator and the counter is never be null
 			return acc == null || acc.getLong(indexOfCountStar) == 0;
 		}

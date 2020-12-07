@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
@@ -40,13 +41,17 @@ import java.nio.channels.FileChannel;
  * <p>The encoding is the same across FileChannel and ByteBuffer, so this class can
  * write to a file and read from the byte buffer that results from mapping this file to memory.
  */
-final class BufferReaderWriterUtil {
+public final class BufferReaderWriterUtil {
 
 	static final int HEADER_LENGTH = 8;
 
-	static final int HEADER_VALUE_IS_BUFFER = 0;
+	private static final short HEADER_VALUE_IS_BUFFER = 0;
 
-	static final int HEADER_VALUE_IS_EVENT = 1;
+	private static final short HEADER_VALUE_IS_EVENT = 1;
+
+	private static final short BUFFER_IS_COMPRESSED = 1;
+
+	private static final short BUFFER_IS_NOT_COMPRESSED = 0;
 
 	// ------------------------------------------------------------------------
 	//  ByteBuffer read / write
@@ -59,7 +64,8 @@ final class BufferReaderWriterUtil {
 			return false;
 		}
 
-		memory.putInt(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		memory.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		memory.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
 		memory.putInt(bufferSize);
 		memory.put(buffer.getNioBufferReadable());
 		return true;
@@ -76,7 +82,8 @@ final class BufferReaderWriterUtil {
 			return null;
 		}
 
-		final int header = memory.getInt();
+		final boolean isEvent = memory.getShort() == HEADER_VALUE_IS_EVENT;
+		final boolean isCompressed = memory.getShort() == BUFFER_IS_COMPRESSED;
 		final int size = memory.getInt();
 
 		memory.limit(memory.position() + size);
@@ -86,11 +93,8 @@ final class BufferReaderWriterUtil {
 
 		MemorySegment memorySegment = MemorySegmentFactory.wrapOffHeapMemory(buf);
 
-		return bufferFromMemorySegment(
-				memorySegment,
-				FreeingBufferRecycler.INSTANCE,
-				size,
-				header == HEADER_VALUE_IS_EVENT);
+		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		return new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE, dataType, isCompressed, size);
 	}
 
 	// ------------------------------------------------------------------------
@@ -104,7 +108,8 @@ final class BufferReaderWriterUtil {
 
 		final ByteBuffer headerBuffer = arrayWithHeaderBuffer[0];
 		headerBuffer.clear();
-		headerBuffer.putInt(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		headerBuffer.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		headerBuffer.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
 		headerBuffer.putInt(buffer.getSize());
 		headerBuffer.flip();
 
@@ -136,6 +141,53 @@ final class BufferReaderWriterUtil {
 		return -1L;
 	}
 
+	static long writeToByteChannel(
+			FileChannel channel,
+			Buffer buffer,
+			ByteBuffer writeDataCache,
+			ByteBuffer[] arrayWithHeaderBuffer) throws IOException {
+
+		final long bytesToWrite = HEADER_LENGTH + buffer.readableBytes();
+		if (bytesToWrite > writeDataCache.remaining()) {
+			writeDataCache.flip();
+			writeBuffer(channel, writeDataCache);
+			writeDataCache.clear();
+		}
+
+		if (bytesToWrite > writeDataCache.remaining()) {
+			return writeToByteChannel(channel, buffer, arrayWithHeaderBuffer);
+		}
+
+		writeDataCache.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		writeDataCache.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
+		writeDataCache.putInt(buffer.getSize());
+		writeDataCache.put(buffer.getNioBufferReadable());
+
+		return bytesToWrite;
+	}
+
+	@Nullable
+	static Buffer readFileRegionFromByteChannel(FileChannel channel, ByteBuffer headerBuffer) throws IOException {
+		headerBuffer.clear();
+		if (!tryReadByteBuffer(channel, headerBuffer)) {
+			return null;
+		}
+		headerBuffer.flip();
+
+		final boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
+		final Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		final boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
+		final int size = headerBuffer.getInt();
+
+		// the file region does not advance position. it must not, because it gets written
+		// interleaved with these calls, which would completely mess up the reading.
+		// so we advance the positions always and only here.
+		final long position = channel.position();
+		channel.position(position + size);
+
+		return new FileRegionBuffer(channel, position, size, dataType, isCompressed);
+	}
+
 	@Nullable
 	static Buffer readFromByteChannel(
 			FileChannel channel,
@@ -150,11 +202,13 @@ final class BufferReaderWriterUtil {
 		headerBuffer.flip();
 
 		final ByteBuffer targetBuf;
-		final int header;
+		final boolean isEvent;
+		final boolean isCompressed;
 		final int size;
 
 		try {
-			header = headerBuffer.getInt();
+			isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
+			isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
 			size = headerBuffer.getInt();
 			targetBuf = memorySegment.wrap(0, size);
 		}
@@ -167,7 +221,8 @@ final class BufferReaderWriterUtil {
 
 		readByteBufferFully(channel, targetBuf);
 
-		return bufferFromMemorySegment(memorySegment, bufferRecycler, size, header == HEADER_VALUE_IS_EVENT);
+		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		return new NetworkBuffer(memorySegment, bufferRecycler, dataType, isCompressed, size);
 	}
 
 	static ByteBuffer allocatedHeaderBuffer() {
@@ -194,7 +249,7 @@ final class BufferReaderWriterUtil {
 		}
 	}
 
-	private static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
+	static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
 		// the post-checked loop here gets away with one less check in the normal case
 		do {
 			if (channel.read(b) == -1) {
@@ -204,7 +259,23 @@ final class BufferReaderWriterUtil {
 		while (b.hasRemaining());
 	}
 
-	private static void writeBuffer(FileChannel channel, ByteBuffer buffer) throws IOException {
+	public static void readByteBufferFully(
+			final FileChannel channel,
+			final ByteBuffer b,
+			long position) throws IOException {
+
+		// the post-checked loop here gets away with one less check in the normal case
+		do {
+			final int numRead = channel.read(b, position);
+			if (numRead == -1) {
+				throwPrematureEndOfFile();
+			}
+			position += numRead;
+		}
+		while (b.hasRemaining());
+	}
+
+	static void writeBuffer(FileChannel channel, ByteBuffer buffer) throws IOException {
 		while (buffer.hasRemaining()) {
 			channel.write(buffer);
 		}
@@ -227,22 +298,6 @@ final class BufferReaderWriterUtil {
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
-
-	static Buffer bufferFromMemorySegment(
-			MemorySegment memorySegment,
-			BufferRecycler memorySegmentRecycler,
-			int size,
-			boolean isEvent) {
-
-		final Buffer buffer = new NetworkBuffer(memorySegment, memorySegmentRecycler);
-		buffer.setSize(size);
-
-		if (isEvent) {
-			buffer.tagAsEvent();
-		}
-
-		return buffer;
-	}
 
 	static void configureByteBuffer(ByteBuffer buffer) {
 		buffer.order(ByteOrder.nativeOrder());

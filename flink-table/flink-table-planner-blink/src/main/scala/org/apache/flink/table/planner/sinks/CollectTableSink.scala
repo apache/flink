@@ -42,10 +42,6 @@ class CollectTableSink[T](produceOutputType: (Array[TypeInformation[_]] => TypeI
       .name("collect")
   }
 
-  override def emitDataStream(dataStream: DataStream[T]): Unit = {
-    consumeDataStream(dataStream)
-  }
-
   override protected def copy: TableSinkBase[T] = {
     new CollectTableSink(produceOutputType)
   }

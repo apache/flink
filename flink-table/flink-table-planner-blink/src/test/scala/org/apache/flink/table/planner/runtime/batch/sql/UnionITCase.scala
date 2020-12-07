@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.dataformat.BinaryString.fromString
+import org.apache.flink.table.data.StringData.fromString
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.{binaryRow, row}
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
 import org.junit._
@@ -32,14 +32,14 @@ import scala.collection.Seq
 
 class UnionITCase extends BatchTestBase {
 
-  val type6 = new BaseRowTypeInfo(
+  val type6 = InternalTypeInfo.ofFields(
     new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
 
   val data6 = Seq(
-    binaryRow(type6.getLogicalTypes, 1, 1L, fromString("Hi")),
-    binaryRow(type6.getLogicalTypes, 2, 2L, fromString("Hello")),
-    binaryRow(type6.getLogicalTypes, 3, 2L, fromString("Hello world")),
-    binaryRow(type6.getLogicalTypes, 4, 3L, fromString("Hello world, how are you?"))
+    binaryRow(type6.toRowFieldTypes, 1, 1L, fromString("Hi")),
+    binaryRow(type6.toRowFieldTypes, 2, 2L, fromString("Hello")),
+    binaryRow(type6.toRowFieldTypes, 3, 2L, fromString("Hello world")),
+    binaryRow(type6.toRowFieldTypes, 4, 3L, fromString("Hello world, how are you?"))
   )
 
   @Before
@@ -109,7 +109,7 @@ class UnionITCase extends BatchTestBase {
   }
 
   /**
-    * Test different types of two union inputs(One is GenericRow, the other is BinaryRow).
+    * Test different types of two union inputs(One is GenericRowData, the other is BinaryRowData).
     */
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {

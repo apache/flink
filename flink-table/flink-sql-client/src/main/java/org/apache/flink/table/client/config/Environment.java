@@ -26,7 +26,6 @@ import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
 import org.apache.flink.table.client.config.entries.ModuleEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -69,7 +68,7 @@ public class Environment {
 	private DeploymentEntry deployment;
 
 	public Environment() {
-		this.modules = Collections.emptyMap();
+		this.modules = new LinkedHashMap<>();
 		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
@@ -83,7 +82,7 @@ public class Environment {
 	}
 
 	public void setModules(List<Map<String, Object>> modules) {
-		this.modules = new HashMap<>(modules.size());
+		this.modules = new LinkedHashMap<>(modules.size());
 
 		modules.forEach(config -> {
 			final ModuleEntry entry = ModuleEntry.create(config);
@@ -235,7 +234,7 @@ public class Environment {
 		final Environment mergedEnv = new Environment();
 
 		// merge modules
-		final Map<String, ModuleEntry> modules = new HashMap<>(env1.getModules());
+		final Map<String, ModuleEntry> modules = new LinkedHashMap<>(env1.getModules());
 		modules.putAll(env2.getModules());
 		mergedEnv.modules = modules;
 
@@ -266,25 +265,26 @@ public class Environment {
 		return mergedEnv;
 	}
 
+	public Environment clone() {
+		return enrich(this, Collections.emptyMap());
+	}
+
 	/**
-	 * Enriches an environment with new/modified properties or views and returns the new instance.
+	 * Enriches an environment with new/modified properties and returns the new instance.
 	 */
-	public static Environment enrich(
-			Environment env,
-			Map<String, String> properties,
-			Map<String, ViewEntry> views) {
+	public static Environment enrich(Environment env, Map<String, String> properties) {
 		final Environment enrichedEnv = new Environment();
 
+		// copy modules
 		enrichedEnv.modules = new LinkedHashMap<>(env.getModules());
 
-		// merge catalogs
+		// copy catalogs
 		enrichedEnv.catalogs = new LinkedHashMap<>(env.getCatalogs());
 
-		// merge tables
+		// copy tables
 		enrichedEnv.tables = new LinkedHashMap<>(env.getTables());
-		enrichedEnv.tables.putAll(views);
 
-		// merge functions
+		// copy functions
 		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
 		// enrich execution properties

@@ -1,7 +1,7 @@
 ---
 title: "Monitoring REST API"
 layout: redirect
-redirect: /monitoring/rest_api.html
+redirect: /ops/rest_api.html
 permalink: /internals/monitoring_rest_api.html
 ---
 <!--

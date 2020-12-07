@@ -39,15 +39,15 @@ class TestingDispatcher extends Dispatcher {
 
 	TestingDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
 			recoveredJobs,
+			dispatcherBootstrapFactory,
 			dispatcherServices);
 
 		this.startFuture = new CompletableFuture<>();

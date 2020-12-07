@@ -15,29 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortOperator
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -55,7 +55,7 @@ class BatchExecSort(
     sortCollation: RelCollation)
   extends Sort(cluster, traitSet, inputRel, sortCollation)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   require(sortCollation.getFieldCollations.size() > 0)
   private val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(
@@ -92,21 +92,24 @@ class BatchExecSort(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior = DamBehavior.FULL_DAM
+  override def getInputNodes: util.List[ExecNode[_]] =
+    List(getInput.asInstanceOf[ExecNode[_]])
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build())
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
     val conf = planner.getTableConfig
     val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
@@ -116,24 +119,18 @@ class BatchExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
-    val memText = conf.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
-    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
-
     val operator = new SortOperator(
-      managedMemory,
       codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
       codeGen.generateRecordComparator("BatchExecSortComparator"))
 
-    val ret = new OneInputTransformation(
+    val sortMemory = MemorySize.parse(conf.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
-      operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
-      BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      SimpleOperatorFactory.of(operator.asInstanceOf[OneInputStreamOperator[RowData, RowData]]),
+      InternalTypeInfo.of(outputType),
+      input.getParallelism,
+      sortMemory)
   }
 }

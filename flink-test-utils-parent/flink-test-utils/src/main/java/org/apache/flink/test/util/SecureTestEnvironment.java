@@ -107,8 +107,8 @@ public class SecureTestEnvironment {
 
 			File keytabFile = new File(baseDirForSecureRun, "test-users.keytab");
 			testKeytab = keytabFile.getAbsolutePath();
-			testZkServerPrincipal = "zookeeper/127.0.0.1";
-			testZkClientPrincipal = "zk-client/127.0.0.1";
+			testZkServerPrincipal = "zookeeper/" + hostName;
+			testZkClientPrincipal = "zk-client/" + hostName;
 			testKafkaServerPrincipal = "kafka/" + hostName;
 			hadoopServicePrincipal = "hadoop/" + hostName;
 			testPrincipal = "client/" + hostName;
@@ -150,7 +150,7 @@ public class SecureTestEnvironment {
 			populateJavaPropertyVariables();
 
 		} catch (Exception e) {
-			throw new RuntimeException("Exception occured while preparing secure environment.", e);
+			throw new RuntimeException("Exception occurred while preparing secure environment.", e);
 		}
 
 	}

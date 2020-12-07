@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;
 
 import org.jline.keymap.KeyMap;
@@ -41,7 +42,6 @@ import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
-import static org.apache.flink.table.client.cli.CliUtils.rowToString;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -106,7 +106,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 		// retrieve change record
 		final TypedResult<List<Tuple2<Boolean, Row>>> result;
 		try {
-			result = client.getExecutor().retrieveResultChanges(client.getContext(), resultDescriptor.getResultId());
+			result = client.getExecutor().retrieveResultChanges(client.getSessionId(), resultDescriptor.getResultId());
 		} catch (SqlExecutionException e) {
 			close(e);
 			return;
@@ -127,7 +127,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 				for (Tuple2<Boolean, Row> change : changes) {
 					// convert row
 					final String[] changeRow = new String[change.f1.getArity() + 1];
-					final String[] row = rowToString(change.f1);
+					final String[] row = PrintUtils.rowToString(change.f1);
 					System.arraycopy(row, 0, changeRow, 1, row.length);
 					if (change.f0) {
 						changeRow[0] = "+";

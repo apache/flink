@@ -29,8 +29,8 @@ import java.io.Serializable;
 /**
  * Remote rpc invocation message which is used when the actor communication is remote and, thus, the
  * message has to be serialized.
- * <p>
- * In order to fail fast and report an appropriate error message to the user, the method name, the
+ *
+ * <p>In order to fail fast and report an appropriate error message to the user, the method name, the
  * parameter types and the arguments are eagerly serialized. In case the invocation call
  * contains a non-serializable object, then an {@link IOException} is thrown.
  */
@@ -138,7 +138,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 	// -------------------------------------------------------------------
 
 	/**
-	 * Wrapper class for the method invocation information
+	 * Wrapper class for the method invocation information.
 	 */
 	private static final class MethodInvocation implements Serializable {
 		private static final long serialVersionUID = 9187962608946082519L;

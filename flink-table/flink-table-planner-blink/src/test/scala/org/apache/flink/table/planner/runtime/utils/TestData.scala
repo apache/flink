@@ -22,12 +22,16 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL_DATE_TIME, LOCAL_TIME}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.{JHashMap, JInt}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
 
+import java.lang.{Long => JLong, Boolean => JBool}
 import java.math.{BigDecimal => JBigDecimal}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import scala.collection.{Seq, mutable}
 
@@ -266,6 +270,31 @@ object TestData {
     data
   }
 
+  lazy val deepNestedRow: Seq[Row] = {
+    Seq(
+      Row.of(new JLong(1),
+        Row.of(
+          Row.of("Sarah", new JInt(100)),
+          Row.of(new JInt(1000), new JBool(true))
+        ),
+        Row.of("Peter", new JInt(10000)),
+        "Mary"),
+      Row.of(new JLong(2),
+        Row.of(
+          Row.of("Rob", new JInt(200)),
+          Row.of(new JInt(2000), new JBool(false))
+        ),
+        Row.of("Lucy", new JInt(20000)),
+        "Bob"),
+      Row.of(new JLong(3),
+        Row.of(
+          Row.of("Mike", new JInt(300)),
+          Row.of(new JInt(3000), new JBool(true))
+        ),
+        Row.of("Betty", new JInt(30000)),
+        "Liz"))
+  }
+
   lazy val tupleData5: Seq[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
@@ -473,4 +502,148 @@ object TestData {
       INT_TYPE_INFO, STRING_TYPE_INFO)
 
   val nullablesOfProjectionTestData = Array(true, true, true, true, true, true, true, true)
+
+  // kind[user_id, user_name, email, balance]
+  val userChangelog: Seq[Row] = Seq(
+    changelogRow("+I", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("-U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+    changelogRow("+I", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+I", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+    changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
+  val userUpsertlog: Seq[Row] = Seq(
+    changelogRow("+U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+U", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+    changelogRow("+U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+U", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+    changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
+  // [amount, currency]
+  val ordersData: Seq[Row] = Seq(
+    row(2L, "Euro"),
+    row(1L, "US Dollar"),
+    row(50L, "Yen"),
+    row(3L, "Euro"),
+    row(5L, "US Dollar")
+  )
+
+  // [city, state, population]
+  val citiesData: Seq[Row] = Seq(
+    row("Los_Angeles", "CA", 3979576),
+    row("Phoenix", "AZ", 1680992),
+    row("Houston", "TX", 2320268),
+    row("San_Diego", "CA", 1423851),
+    row("San_Francisco", "CA", 881549),
+    row("New_York", "NY", 8336817),
+    row("Dallas", "TX", 1343573),
+    row("San_Antonio", "TX", 1547253),
+    row("San_Jose", "CA", 1021795),
+    row("Chicago", "IL", 2695598),
+    row("Austin", "TX", 978908))
+
+  // kind[currency, rate]
+  val ratesHistoryData: Seq[Row] = Seq(
+    changelogRow("+I", "US Dollar", JLong.valueOf(102L)),
+    changelogRow("+I", "Euro", JLong.valueOf(114L)),
+    changelogRow("+I", "Yen", JLong.valueOf(1L)),
+    changelogRow("-U", "Euro", JLong.valueOf(114L)),
+    changelogRow("+U", "Euro", JLong.valueOf(116L)),
+    changelogRow("-U", "Euro", JLong.valueOf(116L)),
+    changelogRow("+U", "Euro", JLong.valueOf(119L)),
+    changelogRow("-D", "Yen", JLong.valueOf(1L))
+  )
+
+  val ratesUpsertData: Seq[Row] = Seq(
+    changelogRow("+U", "US Dollar", JLong.valueOf(102L)),
+    changelogRow("+U", "Euro", JLong.valueOf(114L)),
+    changelogRow("+U", "Yen", JLong.valueOf(1L)),
+    changelogRow("+U", "Euro", JLong.valueOf(116L)),
+    changelogRow("+U", "Euro", JLong.valueOf(119L)),
+    changelogRow("-D", "Yen", JLong.valueOf(1L))
+  )
+
+  val fullDataTypesData: Seq[Row] = {
+    val bools = List(true, false, true, false, null)
+    val bytes = List(Byte.MaxValue, Byte.MinValue, 0.byteValue(), 5.byteValue(), null)
+    val shorts = List(Short.MaxValue, Short.MinValue, 0.shortValue(), 4.shortValue(), null)
+    val ints = List(Int.MaxValue, Int.MinValue, 0, 123, null)
+    val longs = List(Long.MaxValue, Long.MinValue, 0L, 1234L, null)
+    val floats = List(-1.123F, 3.4F, 0.12F, 1.2345F, null)
+    val doubles = List(-1.123D, 3.4D, 0.12D, 1.2345D, null)
+    val decimals = List(
+      new JBigDecimal("5.1"), new JBigDecimal("6.1"), new JBigDecimal("7.1"),
+      new JBigDecimal("8.123"), null)
+    val varchars = List("1", "12", "123", "1234", null)
+    val chars = List("1", "12", "123", "1234", null)
+    val dates = List(
+      LocalDate.of(1969, 1, 1),
+      LocalDate.of(1970, 9, 30),
+      LocalDate.of(1990, 12, 24),
+      LocalDate.of(2020, 5, 1),
+      null)
+    val times = List(
+      LocalTime.of(0, 0, 0, 123000000),
+      LocalTime.of(1, 1, 1, 123000000),
+      LocalTime.of(8, 10, 24, 123000000),
+      LocalTime.of(23, 23, 23, 0),
+      null)
+    val datetimes = List(
+      LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789),
+      LocalDateTime.of(1970, 9, 30, 1, 1, 1, 123456000),
+      LocalDateTime.of(1990, 12, 24, 8, 10, 24, 123000000),
+      LocalDateTime.of(2020, 5, 1, 23, 23, 23, 0),
+      null)
+    val instants = new mutable.MutableList[Instant]
+    for (i <- datetimes.indices) {
+      if (datetimes(i) == null) {
+        instants += null
+      } else {
+        // Assume the time zone of source side is UTC
+        instants += datetimes(i).toInstant(ZoneId.of("UTC").getRules.getOffset(datetimes(i)))
+      }
+    }
+    val arrays = List(
+      array(1L, 2L, 3L),
+      array(4L, 5L),
+      array(6L, null, 7L),
+      array(8L),
+      null)
+    val rows = List(
+      row(1L, "a", 2.3D),
+      row(null, "b", 4.56D),
+      row(3L, null, 7.86D),
+      row(4L, "c", null),
+      null)
+    val maps = List(
+      map(("k1", 1)),
+      map(("k2", 2), ("k4", 4)),
+      map(("k3", null)),
+      map((null, 3)),
+      null)
+
+    val data = new mutable.MutableList[Row]
+    for (i <- ints.indices) {
+      data += row(
+        bools(i), bytes(i), shorts(i), ints(i), longs(i), floats(i), doubles(i),
+        decimals(i), varchars(i), chars(i), dates(i), times(i), datetimes(i), instants(i),
+        arrays(i), rows(i), maps(i))
+    }
+    data
+  }
+
+  private def map(keyValue: (String, JInt)*): JHashMap[String, JInt] = {
+    val hashMap = new JHashMap[String, JInt]
+    keyValue.foreach(kv => hashMap.put(kv._1, kv._2))
+    hashMap
+  }
+
+  private def array(longs: JLong*): Array[JLong] = {
+    longs.toArray
+  }
 }

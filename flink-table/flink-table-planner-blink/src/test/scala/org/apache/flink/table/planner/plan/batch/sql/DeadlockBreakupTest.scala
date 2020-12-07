@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -87,7 +87,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,HashAgg")
     util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
@@ -146,7 +146,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       """
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
@@ -181,4 +181,72 @@ class DeadlockBreakupTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testSubplanReuse_BuildAndProbeNoCommonSuccessors_HashJoin(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+    val sqlQuery =
+      s"""
+         |WITH
+         |  T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
+         |  T2 AS (SELECT d, COUNT(*) AS cnt2 FROM y GROUP BY d)
+         |SELECT * FROM
+         |  (SELECT cnt1, cnt2 FROM T1 LEFT JOIN T2 ON a = d)
+         |  UNION ALL
+         |  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSubplanReuse_AddSingletonExchange(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,HashAgg")
+    val sqlQuery =
+      s"""
+         |WITH
+         |  T1 AS (SELECT COUNT(*) AS cnt FROM x),
+         |  T2 AS (SELECT cnt FROM T1 WHERE cnt > 3),
+         |  T3 AS (SELECT cnt FROM T1 WHERE cnt < 5)
+         |SELECT * FROM T2 FULL JOIN T3 ON T2.cnt <> T3.cnt
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSubplanReuse_DeadlockCausedByReusingExchange(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sqlQuery =
+      s"""
+         |WITH T1 AS (SELECT a FROM x)
+         |SELECT * FROM T1
+         |  INNER JOIN T1 AS T2 ON T1.a = T2.a
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSubplanReuse_DeadlockCausedByReusingExchangeInAncestor(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sqlQuery =
+      """
+        |WITH T1 AS (
+        |  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+        |  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+        |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+        |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }

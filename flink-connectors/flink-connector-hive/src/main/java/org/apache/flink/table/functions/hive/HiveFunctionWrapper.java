@@ -53,7 +53,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
 		} else {
 			UDFType func = null;
 			try {
-				func = (UDFType) Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
+				func = getUDFClass().newInstance();
 			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
 				throw new FlinkHiveUDFException(
 					String.format("Failed to create function from %s", className), e);
@@ -85,7 +85,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
 	 * @throws ClassNotFoundException thrown when the class is not found in classpath
 	 */
 	public Class<UDFType> getUDFClass() throws ClassNotFoundException {
-		return (Class<UDFType>) Class.forName(className);
+		return (Class<UDFType>) Thread.currentThread().getContextClassLoader().loadClass(className);
 	}
 }
 

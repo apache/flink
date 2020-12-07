@@ -20,15 +20,15 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * Utility class for loading {@link Savepoint} metadata.
+ * Utility class for loading {@link CheckpointMetadata} metadata.
  */
 @Internal
 public final class SavepointLoader {
@@ -45,12 +45,12 @@ public final class SavepointLoader {
 	 * @throws IOException Thrown, if the path cannot be resolved, the file system not accessed, or
 	 *     the path points to a location that does not seem to be a savepoint.
 	 */
-	public static Savepoint loadSavepoint(String savepointPath) throws IOException {
-		CompletedCheckpointStorageLocation location = AbstractFsCheckpointStorage
+	public static CheckpointMetadata loadSavepointMetadata(String savepointPath) throws IOException {
+		CompletedCheckpointStorageLocation location = AbstractFsCheckpointStorageAccess
 			.resolveCheckpointPointer(savepointPath);
 
 		try (DataInputStream stream = new DataInputStream(location.getMetadataHandle().openInputStream())) {
-			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader());
+			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader(), savepointPath);
 		}
 	}
 }

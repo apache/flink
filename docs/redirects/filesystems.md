@@ -1,7 +1,7 @@
 ---
 title: "File Systems"
 layout: redirect
-redirect: /ops/filesystems/index.html
+redirect: /deployment/filesystems/index.html
 permalink: /ops/filesystems.html
 ---
 <!--

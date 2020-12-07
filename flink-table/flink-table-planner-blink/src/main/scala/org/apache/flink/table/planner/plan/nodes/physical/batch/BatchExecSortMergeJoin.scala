@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.generateProjection
@@ -29,19 +30,18 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -184,31 +184,34 @@ class BatchExecSortMergeJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * Now must be full dam without two input operator chain.
-    * TODO two input operator chain will return different value.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
+  override def getInputNodes: util.List[ExecNode[_]] =
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+  // this method must be in sync with the behavior of SortMergeJoinOperator.
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build(),
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build())
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val leftInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val rightInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val rightType = rightInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val leftType = leftInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rightType = rightInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
 
     val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
 
@@ -219,15 +222,13 @@ class BatchExecSortMergeJoin(
       leftType,
       rightType)
 
-    val externalBufferMemText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
-    val externalBufferMemoryInMB = MemorySize.parse(externalBufferMemText).getMebiBytes
-    val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val externalBufferMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
+    val sortMemory = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)).getBytes
+    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
 
-    val sortMemText = config.getConfiguration.getString(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-    val sortMemoryInMB = MemorySize.parse(sortMemText).getMebiBytes
-    val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
+    val managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
       val originalOrders = originalKeys.map(_ => true)
@@ -243,9 +244,7 @@ class BatchExecSortMergeJoin(
     val rightSortGen = newSortGen(rightAllKey, rightType)
 
     val operator = new SortMergeJoinOperator(
-      sortMemory,
-      sortMemory,
-      externalBufferMemory,
+      externalBufferMemory.toDouble / managedMemory,
       flinkJoinType,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
       condFunc,
@@ -260,18 +259,14 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
-    val managedMemoryInMB = externalBufferMemoryInMB * externalBufferNum + sortMemoryInMB * 2
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    ExecNodeUtil.createTwoInputTransformation(
       leftInput,
       rightInput,
       getRelDetailedDescription,
-      operator,
-      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      rightInput.getParallelism)
-    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
-    ret.setResources(resource, resource)
-    ret
+      SimpleOperatorFactory.of(operator),
+      InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      rightInput.getParallelism,
+      managedMemory)
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {

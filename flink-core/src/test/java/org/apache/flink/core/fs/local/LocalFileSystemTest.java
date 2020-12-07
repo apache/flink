@@ -29,6 +29,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
@@ -367,6 +368,23 @@ public class LocalFileSystemTest extends TestLogger {
 		} finally {
 			final long timeout = 10000L;
 			ExecutorUtils.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, executor);
+		}
+	}
+
+	/**
+	 * This test verifies the issue https://issues.apache.org/jira/browse/FLINK-18612.
+	 */
+	@Test
+	public void testCreatingFileInCurrentDirectoryWithRelativePath() throws IOException {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+
+		Path filePath = new Path("local_fs_test_" + RandomStringUtils.randomAlphanumeric(16));
+		try (FSDataOutputStream outputStream = fs.create(filePath, WriteMode.OVERWRITE)) {
+			// Do nothing.
+		} finally {
+			for (int i = 0; i < 10 && fs.exists(filePath); ++i) {
+				fs.delete(filePath, true);
+			}
 		}
 	}
 

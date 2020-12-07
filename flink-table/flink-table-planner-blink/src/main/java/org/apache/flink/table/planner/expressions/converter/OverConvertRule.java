@@ -72,7 +72,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
 		if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
 			FlinkTypeFactory typeFactory = context.getTypeFactory();
 			Expression agg = children.get(0);
-			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(typeFactory));
+			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(context.getRelBuilder()));
 			RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
 				fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
 
@@ -181,9 +181,9 @@ public class OverConvertRule implements CallExpressionConvertRule {
 			SqlNode node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO);
 
 			ValueLiteralExpression literalExpr = (ValueLiteralExpression) bound;
-			RexNode literalRexNode = literalExpr.getValueAs(Double.class).map(
-				v -> context.getRelBuilder().literal(BigDecimal.valueOf((Double) v))).orElse(
-				context.getRelBuilder().literal(extractValue(literalExpr, Object.class)));
+			RexNode literalRexNode = literalExpr.getValueAs(BigDecimal.class)
+				.map(v -> context.getRelBuilder().literal(v))
+				.orElse(context.getRelBuilder().literal(extractValue(literalExpr, Object.class)));
 
 			List<RexNode> expressions = new ArrayList<>();
 			expressions.add(literalRexNode);

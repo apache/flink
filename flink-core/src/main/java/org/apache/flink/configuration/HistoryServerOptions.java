@@ -19,8 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /**
  * The set of configuration options relating to the HistoryServer.
@@ -98,6 +100,16 @@ public class HistoryServerOptions {
 			.defaultValue(false)
 			.withDescription("Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the" +
 				" global SSL flag security.ssl.enabled is set to true.");
+
+	public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
+		key("historyserver.archive.retained-jobs")
+			.intType()
+			.defaultValue(-1)
+			.withDescription(Description.builder()
+				.text(String.format("The maximum number of jobs to retain in each archive directory defined by `%s`. ", HISTORY_SERVER_ARCHIVE_DIRS.key()))
+				.text("If set to `-1`(default), there is no limit to the number of archives. ")
+				.text("If set to `0` or less than `-1` HistoryServer will throw an %s. ", code("IllegalConfigurationException"))
+				.build());
 
 	private HistoryServerOptions() {
 	}

@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
+
+import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
@@ -30,19 +36,82 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
+@PublicEvolving
 public class ExecutionConfigOptions {
+
+	// ------------------------------------------------------------------------
+	//  State Options
+	// ------------------------------------------------------------------------
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	public static final ConfigOption<Duration> IDLE_STATE_RETENTION =
+		key("table.exec.state.ttl")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
+			.withDescription("Specifies a minimum time interval for how long idle state " +
+					"(i.e. state which was not updated), will be retained. State will never be " +
+					"cleared until it was idle for less than the minimum time, and will be cleared " +
+					"at some time after it was idle. Default is never clean-up the state. " +
+					"NOTE: Cleaning up state requires additional overhead for bookkeeping. " +
+					"Default value is 0, which means that it will never clean up state.");
 
 	// ------------------------------------------------------------------------
 	//  Source Options
 	// ------------------------------------------------------------------------
+
 	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_SOURCE_IDLE_TIMEOUT =
+	public static final ConfigOption<Duration> TABLE_EXEC_SOURCE_IDLE_TIMEOUT =
 		key("table.exec.source.idle-timeout")
-			.defaultValue("-1 ms")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
 			.withDescription("When a source do not receive any elements for the timeout time, " +
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
-				"watermarks from this source while it is idle.");
+				"watermarks from this source while it is idle. " +
+				"Default value is 0, which means detecting source idleness is not enabled.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	public static final ConfigOption<Boolean> TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE =
+		key("table.exec.source.cdc-events-duplicate")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(Description.builder()
+				.text("Indicates whether the CDC (Change Data Capture) sources " +
+					"in the job will produce duplicate change events that requires the " +
+					"framework to deduplicate and get consistent result. CDC source refers to the " +
+					"source that produces full change events, including INSERT/UPDATE_BEFORE/" +
+					"UPDATE_AFTER/DELETE, for example Kafka source with Debezium format. " +
+					"The value of this configuration is false by default.")
+				.linebreak().linebreak()
+				.text("However, it's a common case that there are duplicate change events. " +
+					"Because usually the CDC tools (e.g. Debezium) work in at-least-once delivery " +
+					"when failover happens. Thus, in the abnormal situations Debezium may deliver " +
+					"duplicate change events to Kafka and Flink will get the duplicate events. " +
+					"This may cause Flink query to get wrong results or unexpected exceptions.")
+				.linebreak().linebreak()
+				.text("Therefore, it is recommended to turn on this configuration if your CDC tool " +
+					"is at-least-once delivery. Enabling this configuration requires to define " +
+					"PRIMARY KEY on the CDC sources. The primary key will be used to deduplicate " +
+					"change events and generate normalized changelog stream at the cost of " +
+					"an additional stateful operator.")
+				.build()
+			);
+
+	// ------------------------------------------------------------------------
+	//  Sink Options
+	// ------------------------------------------------------------------------
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<NotNullEnforcer> TABLE_EXEC_SINK_NOT_NULL_ENFORCER =
+		key("table.exec.sink.not-null-enforcer")
+			.enumType(NotNullEnforcer.class)
+			.defaultValue(NotNullEnforcer.ERROR)
+			.withDescription("The NOT NULL column constraint on a table enforces that " +
+				"null values can't be inserted into the table. Flink supports " +
+				"'error' (default) and 'drop' enforcement behavior. By default, " +
+				"Flink will check values and throw runtime exception when null values writing " +
+				"into NOT NULL columns. Users can change the behavior to 'drop' to " +
+				"silently drop such records without throwing exception.");
 
 	// ------------------------------------------------------------------------
 	//  Sort Options
@@ -100,29 +169,45 @@ public class ExecutionConfigOptions {
 					"default parallelism is set, then it will fallback to use the parallelism " +
 					"of StreamExecutionEnvironment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
 		key("table.exec.resource.external-buffer-memory")
 			.defaultValue("10 mb")
-			.withDescription("Sets the external buffer memory size that is used in sort merge join and nested join and over window.");
+			.withDescription("Sets the external buffer memory size that is used in sort merge join" +
+					" and nested join and over window. Note: memory size is only a weight hint," +
+					" it will affect the weight of memory that can be applied by a single operator" +
+					" in the task, the actual memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
 		key("table.exec.resource.hash-agg.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed memory size of hash aggregate operator.");
+			.withDescription("Sets the managed memory size of hash aggregate operator." +
+					" Note: memory size is only a weight hint, it will affect the weight of memory" +
+					" that can be applied by a single operator in the task, the actual memory used" +
+					" depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
 		key("table.exec.resource.hash-join.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed memory for hash join operator. It defines the lower limit.");
+			.withDescription("Sets the managed memory for hash join operator. It defines the lower" +
+					" limit. Note: memory size is only a weight hint, it will affect the weight of" +
+					" memory that can be applied by a single operator in the task, the actual" +
+					" memory used depends on the running environment.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.ExcludeFromDocumentation("Beginning from Flink 1.10, this is interpreted as a weight hint " +
+		"instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_SORT_MEMORY =
 		key("table.exec.resource.sort.memory")
 			.defaultValue("128 mb")
-			.withDescription("Sets the managed buffer memory size for sort operator.");
+			.withDescription("Sets the managed buffer memory size for sort operator. Note: memory" +
+					" size is only a weight hint, it will affect the weight of memory that can be" +
+					" applied by a single operator in the task, the actual memory used depends on" +
+					" the running environment.");
 
 	// ------------------------------------------------------------------------
 	//  Agg Options
@@ -147,9 +232,10 @@ public class ExecutionConfigOptions {
 			.withDescription("The max number of async i/o operation that the async lookup join can trigger.");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT =
+	public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT =
 		key("table.exec.async-lookup.timeout")
-			.defaultValue("3 min")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(3))
 			.withDescription("The async timeout for the asynchronous operation to complete.");
 
 	// ------------------------------------------------------------------------
@@ -166,9 +252,10 @@ public class ExecutionConfigOptions {
 				"'table.exec.mini-batch.size' must be set.");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_MINIBATCH_ALLOW_LATENCY =
+	public static final ConfigOption<Duration> TABLE_EXEC_MINIBATCH_ALLOW_LATENCY =
 		key("table.exec.mini-batch.allow-latency")
-			.defaultValue("-1 ms")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
 			.withDescription("The maximum latency can be used for MiniBatch to buffer input records. " +
 				"MiniBatch is an optimization to buffer input records to reduce state access. " +
 				"MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. " +
@@ -200,9 +287,52 @@ public class ExecutionConfigOptions {
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
 		key("table.exec.shuffle-mode")
-			.defaultValue("batch")
-			.withDescription("Sets exec shuffle mode. Only batch or pipeline can be set.\n" +
-				"batch: the job will run stage by stage. \n" +
-				"pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
-				"the sender holds resource to wait to send data to the receiver.");
+			.stringType()
+			.defaultValue("ALL_EDGES_BLOCKING")
+			.withDescription(
+				Description.builder()
+					.text("Sets exec shuffle mode.")
+					.linebreak()
+					.text("Accepted values are:")
+					.list(
+						text("%s: All edges will use blocking shuffle.",
+							code("ALL_EDGES_BLOCKING")),
+						text(
+							"%s: Forward edges will use pipelined shuffle, others blocking.",
+							code("FORWARD_EDGES_PIPELINED")),
+						text(
+							"%s: Pointwise edges will use pipelined shuffle, others blocking. " +
+								"Pointwise edges include forward and rescale edges.",
+							code("POINTWISE_EDGES_PIPELINED")),
+						text(
+							"%s: All edges will use pipelined shuffle.",
+							code("ALL_EDGES_PIPELINED")),
+						text(
+							"%s: the same as %s. Deprecated.",
+							code("batch"), code("ALL_EDGES_BLOCKING")),
+						text(
+							"%s: the same as %s. Deprecated.",
+							code("pipelined"), code("ALL_EDGES_PIPELINED"))
+					)
+					.text("Note: Blocking shuffle means data will be fully produced before sent to consumer tasks. " +
+						"Pipelined shuffle means data will be sent to consumer tasks once produced.")
+					.build());
+
+	// ------------------------------------------------------------------------------------------
+	// Enum option types
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * The enforcer to guarantee NOT NULL column constraint when writing data into sink.
+	 */
+	public enum NotNullEnforcer {
+		/**
+		 * Throws runtime exception when writing null values into NOT NULL column.
+		 */
+		ERROR,
+		/**
+		 * Drop records when writing null values into NOT NULL column.
+		 */
+		DROP
+	}
 }

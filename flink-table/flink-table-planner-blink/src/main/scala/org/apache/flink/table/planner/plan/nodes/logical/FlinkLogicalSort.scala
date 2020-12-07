@@ -104,7 +104,7 @@ class FlinkLogicalSortBatchConverter extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[LogicalSort]
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
-    val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val enableRangeSort = config.getConfiguration.getBoolean(TABLE_EXEC_SORT_RANGE_ENABLED)
     val limitValue = config.getConfiguration.getInteger(TABLE_EXEC_SORT_DEFAULT_LIMIT)
     val (offset, fetch) = if (sort.fetch == null && sort.offset == null

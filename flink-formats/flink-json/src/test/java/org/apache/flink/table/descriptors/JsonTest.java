@@ -60,14 +60,14 @@ public class JsonTest extends DescriptorTestBase {
 	}
 
 	@Test(expected = ValidationException.class)
-	public void testMissingSchema() {
-		removePropertyAndVerify(descriptors().get(0), "format.json-schema");
-	}
-
-	@Test(expected = ValidationException.class)
 	public void testDuplicateSchema() {
 		// we add an additional non-json schema
 		addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testInvalidIgnoreParseErrors() {
+		addPropertyAndVerify(descriptors().get(0), "format.ignore-parse-errors", "DDD");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -87,7 +87,13 @@ public class JsonTest extends DescriptorTestBase {
 
 		final Descriptor desc4 = new Json().deriveSchema();
 
-		return Arrays.asList(desc1, desc2, desc3, desc4);
+		final Descriptor desc5 = new Json().failOnMissingField(false);
+
+		final Descriptor desc6 = new Json().jsonSchema(JSON_SCHEMA).ignoreParseErrors(false);
+
+		final Descriptor desc7 = new Json().ignoreParseErrors(true);
+
+		return Arrays.asList(desc1, desc2, desc3, desc4, desc5, desc6, desc7);
 	}
 
 	@Override
@@ -114,7 +120,23 @@ public class JsonTest extends DescriptorTestBase {
 		props4.put("format.property-version", "1");
 		props4.put("format.derive-schema", "true");
 
-		return Arrays.asList(props1, props2, props3, props4);
+		final Map<String, String> props5 = new HashMap<>();
+		props5.put("format.type", "json");
+		props5.put("format.property-version", "1");
+		props5.put("format.fail-on-missing-field", "false");
+
+		final Map<String, String> props6 = new HashMap<>();
+		props6.put("format.type", "json");
+		props6.put("format.property-version", "1");
+		props6.put("format.json-schema", JSON_SCHEMA);
+		props6.put("format.ignore-parse-errors", "false");
+
+		final Map<String, String> props7 = new HashMap<>();
+		props7.put("format.type", "json");
+		props7.put("format.property-version", "1");
+		props7.put("format.ignore-parse-errors", "true");
+
+		return Arrays.asList(props1, props2, props3, props4, props5, props6, props7);
 	}
 
 	@Override

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, TIMESTAMP_DATA}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
@@ -69,24 +69,47 @@ class FloorCeilCallGen(
             case YEAR | QUARTER | MONTH | DAY | HOUR
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
-              val timeZone = ctx.addReusableTimeZone()
+              val timeZone = ctx.addReusableSessionTimeZone()
+              val longTerm = s"${terms.head}.getMillisecond()"
               s"""
-                 |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)},
-                 |                                                     ${terms.head},
-                 |                                                     $timeZone)
+                 |$TIMESTAMP_DATA.fromEpochMillis(
+                 |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
+                 |  $longTerm,
+                 |  $timeZone))
                  |""".stripMargin
 
             // for Unix Date / Unix Time
             case YEAR | MONTH =>
-              s"""
-                |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)}, ${terms.head})
-                |""".stripMargin
+              operand.resultType.getTypeRoot match {
+                case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+                  val longTerm = s"${terms.head}.getMillisecond()"
+                  s"""
+                     |$TIMESTAMP_DATA.fromEpochMillis(
+                     |  ${qualifyMethod(temporalMethod.get)}(${terms(1)}, $longTerm))
+                   """.stripMargin
+                case _ =>
+                  s"""
+                     |($internalType) ${qualifyMethod(temporalMethod.get)}(
+                     |  ${terms(1)}, ${terms.head})
+                     |""".stripMargin
+              }
             case _ =>
-              s"""
-                |${qualifyMethod(arithmeticMethod)}(
-                |  ($internalType) ${terms.head},
-                |  ($internalType) ${unit.startUnit.multiplier.intValue()})
-                |""".stripMargin
+              operand.resultType.getTypeRoot match {
+                case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
+                  val longTerm = s"${terms.head}.getMillisecond()"
+                  s"""
+                     |$TIMESTAMP_DATA.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
+                     |  $longTerm,
+                     |  (long) ${unit.startUnit.multiplier.intValue()}))
+                   """.stripMargin
+                case _ =>
+                  s"""
+                     |${qualifyMethod(arithmeticMethod)}(
+                     |  ($internalType) ${terms.head},
+                     |  ($internalType) ${unit.startUnit.multiplier.intValue()})
+                     |""".stripMargin
+              }
+
           }
       }
   }

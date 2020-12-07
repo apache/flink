@@ -36,7 +36,7 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 
 	
 	public MissingTypeInfo(String functionName) {
-		this(functionName, new InvalidTypesException("An unknown error occured."));
+		this(functionName, new InvalidTypesException("An unknown error occurred."));
 	}
 
 	public MissingTypeInfo(String functionName, InvalidTypesException typeException) {

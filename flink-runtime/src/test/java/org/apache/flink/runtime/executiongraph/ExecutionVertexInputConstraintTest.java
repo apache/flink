@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -247,7 +247,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		}
 
 		final JobGraph jobGraph = new JobGraph(orderedVertices.toArray(new JobVertex[0]));
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobGraph.getJobID(), numSlots);
+		final SlotProvider slotProvider = new SimpleSlotProvider(numSlots);
 
 		return TestingExecutionGraphBuilder
 			.newBuilder()

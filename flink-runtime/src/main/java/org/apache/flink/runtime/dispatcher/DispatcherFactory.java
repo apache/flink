@@ -22,7 +22,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
-import java.util.UUID;
 
 /**
  * {@link Dispatcher} factory interface.
@@ -33,16 +32,9 @@ public interface DispatcherFactory {
 	 * Create a {@link Dispatcher}.
 	 */
 	Dispatcher createDispatcher(
-		RpcService rpcService,
-		DispatcherId fencingToken,
-		Collection<JobGraph> recoveredJobs,
-		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
-
-	default String generateEndpointIdWithUUID() {
-		return getEndpointId() + UUID.randomUUID();
-	}
-
-	default String getEndpointId() {
-		return Dispatcher.DISPATCHER_NAME;
-	}
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 }

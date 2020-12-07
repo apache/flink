@@ -1,8 +1,8 @@
 ---
 title: "Aliyun Object Storage Service (OSS)"
 layout: redirect
-redirect: /ops/filesystems/oss.html
-permalink: /ops/deployment/oss.html
+redirect: /deployment/filesystems/oss.html
+permalink: /ops/filesystems/oss.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

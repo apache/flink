@@ -34,6 +34,9 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
@@ -48,11 +51,29 @@ import java.util.Optional;
 public interface Catalog {
 
 	/**
+	 * Returns a factory for creating instances from catalog objects.
+	 *
+	 * <p>This method enables bypassing the discovery process. Implementers can directly pass internal
+	 * catalog-specific objects to their own factory. For example, a custom {@link CatalogTable} can
+	 * be processed by a custom {@link DynamicTableFactory}.
+	 *
+	 * <p>Because all factories are interfaces, the returned {@link Factory} instance can implement multiple
+	 * supported extension points. An {@code instanceof} check is performed by the caller that checks
+	 * whether a required factory is implemented; otherwise the discovery process is used.
+	 */
+	default Optional<Factory> getFactory() {
+		return Optional.empty();
+	}
+
+	/**
 	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
 	 * instances stored in this catalog, instances such as source/sink.
 	 *
 	 * @return an optional TableFactory instance
+	 * @deprecated Use {@link #getFactory()} for the new factory stack. The new factory stack uses the
+	 *             new table sources and sinks defined in FLIP-95 and a slightly different discovery mechanism.
 	 */
+	@Deprecated
 	default Optional<TableFactory> getTableFactory() {
 		return Optional.empty();
 	}
@@ -144,7 +165,27 @@ public interface Catalog {
 	 * @throws DatabaseNotExistException if the given database does not exist
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+	default void dropDatabase(String name, boolean ignoreIfNotExists) throws DatabaseNotExistException,
+			DatabaseNotEmptyException, CatalogException{
+		dropDatabase(name, ignoreIfNotExists, false);
+	}
+
+	/**
+	 * Drop a database.
+	 *
+	 * @param name              Name of the database to be dropped.
+	 * @param ignoreIfNotExists Flag to specify behavior when the database does not exist:
+	 *                           if set to false, throw an exception,
+	 *                           if set to true, do nothing.
+	 * @param cascade          Flag to specify behavior when the database contains table or function:
+	 *                           if set to true, delete all tables and functions in the database and then delete the
+	 *                             database,
+	 *                           if set to false, throw an exception.
+	 * @throws DatabaseNotExistException if the given database does not exist
+	 * @throws DatabaseNotEmptyException if the given database is not empty and isRestrict is true
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	void dropDatabase(String name, boolean ignoreIfNotExists, boolean cascade) throws DatabaseNotExistException,
 		DatabaseNotEmptyException, CatalogException;
 
 	/**
@@ -286,6 +327,29 @@ public interface Catalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException;
+
+	/**
+	 * Get CatalogPartitionSpec of partitions by expression filters in the table.
+	 *
+	 * <p>NOTE: For FieldReferenceExpression, the field index is based on schema of this table
+	 * instead of partition columns only.
+	 *
+	 * <p>The passed in predicates have been translated in conjunctive form.
+	 *
+	 * <p>If catalog does not support this interface at present, throw an {@link UnsupportedOperationException}
+	 * directly. If the catalog does not have a valid filter, throw the {@link UnsupportedOperationException}
+	 * directly. Planner will fallback to get all partitions and filter by itself.
+	 *
+	 * @param tablePath	path of the table
+	 * @param filters filters to push down filter to catalog
+	 * @return a list of CatalogPartitionSpec that is under the given CatalogPartitionSpec in the table
+	 *
+	 * @throws TableNotExistException thrown if the table does not exist in the catalog
+	 * @throws TableNotPartitionedException thrown if the table is not partitioned
+	 * @throws CatalogException in case of any runtime exception
+	 */
+	List<CatalogPartitionSpec> listPartitionsByFilter(ObjectPath tablePath, List<Expression> filters)
 		throws TableNotExistException, TableNotPartitionedException, CatalogException;
 
 	/**

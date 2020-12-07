@@ -43,9 +43,11 @@ public interface QueryOperationVisitor<T> {
 
 	T visit(SortQueryOperation sort);
 
-	<U> T visit(CalculatedQueryOperation<U> calculatedTable);
+	T visit(CalculatedQueryOperation calculatedTable);
 
 	T visit(CatalogQueryOperation catalogTable);
+
+	T visit(ValuesQueryOperation values);
 
 	<U> T visit(TableSourceQueryOperation<U> tableSourceTable);
 

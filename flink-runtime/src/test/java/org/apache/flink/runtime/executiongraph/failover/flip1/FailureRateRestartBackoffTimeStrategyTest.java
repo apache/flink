@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.util.clock.ManualClock;
+import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;

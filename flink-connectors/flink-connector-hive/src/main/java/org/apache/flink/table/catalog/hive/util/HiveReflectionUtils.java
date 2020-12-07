@@ -69,25 +69,7 @@ public class HiveReflectionUtils {
 			return (ObjectInspector) method.newInstance(value);
 		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to instantiate JavaConstantDateObjectInspector", e);
-		}
-	}
-
-	public static Object convertToHiveDate(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getDateDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Date.valueOf()", e);
-		}
-	}
-
-	public static Object convertToHiveTimestamp(HiveShim hiveShim, String s) throws FlinkHiveUDFException {
-		try {
-			Method method = hiveShim.getTimestampDataTypeClass().getMethod("valueOf", String.class);
-			return method.invoke(null, s);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkHiveUDFException("Failed to invoke Hive's Timestamp.valueOf()", e);
+			throw new FlinkHiveUDFException("Failed to instantiate java constant object inspector", e);
 		}
 	}
 

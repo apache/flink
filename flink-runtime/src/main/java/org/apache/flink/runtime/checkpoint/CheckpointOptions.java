@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,6 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointOptions implements Serializable {
 
+	public static final long NO_ALIGNMENT_TIME_OUT = Long.MAX_VALUE;
+
 	private static final long serialVersionUID = 5010126558083292915L;
 
 	/** Type of the checkpoint. */
@@ -42,12 +46,58 @@ public class CheckpointOptions implements Serializable {
 	/** Target location for the checkpoint. */
 	private final CheckpointStorageLocationReference targetLocation;
 
+	private final boolean isExactlyOnceMode;
+
+	private final boolean isUnalignedCheckpoint;
+
+	private final long alignmentTimeout;
+
+	public static CheckpointOptions create(
+			CheckpointType checkpointType,
+			CheckpointStorageLocationReference locationReference,
+			boolean isExactlyOnceMode,
+			boolean unalignedCheckpointsEnabled,
+			long alignmentTimeout) {
+		boolean canBeUnaligned = checkpointType == CheckpointType.CHECKPOINT && unalignedCheckpointsEnabled;
+		return new CheckpointOptions(
+			checkpointType,
+			locationReference,
+			isExactlyOnceMode,
+			canBeUnaligned && alignmentTimeout == 0,
+			canBeUnaligned ? alignmentTimeout : NO_ALIGNMENT_TIME_OUT);
+	}
+
+	@VisibleForTesting
 	public CheckpointOptions(
 			CheckpointType checkpointType,
 			CheckpointStorageLocationReference targetLocation) {
+		this(checkpointType, targetLocation, true, false, NO_ALIGNMENT_TIME_OUT);
+	}
+
+	public CheckpointOptions(
+			CheckpointType checkpointType,
+			CheckpointStorageLocationReference targetLocation,
+			boolean isExactlyOnceMode,
+			boolean isUnalignedCheckpoint,
+			long alignmentTimeout) {
 
 		this.checkpointType = checkNotNull(checkpointType);
 		this.targetLocation = checkNotNull(targetLocation);
+		this.isExactlyOnceMode = isExactlyOnceMode;
+		this.isUnalignedCheckpoint = isUnalignedCheckpoint;
+		this.alignmentTimeout = alignmentTimeout;
+	}
+
+	public boolean needsAlignment() {
+		return isExactlyOnceMode() && (getCheckpointType().isSavepoint() || !isUnalignedCheckpoint());
+	}
+
+	public long getAlignmentTimeout() {
+		return alignmentTimeout;
+	}
+
+	public boolean isTimeoutable() {
+		return alignmentTimeout > 0 && alignmentTimeout != NO_ALIGNMENT_TIME_OUT;
 	}
 
 	// ------------------------------------------------------------------------
@@ -66,11 +116,24 @@ public class CheckpointOptions implements Serializable {
 		return targetLocation;
 	}
 
+	public boolean isExactlyOnceMode() {
+		return isExactlyOnceMode;
+	}
+
+	public boolean isUnalignedCheckpoint() {
+		return isUnalignedCheckpoint;
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		return 31 * targetLocation.hashCode() + checkpointType.hashCode();
+		return Objects.hash(
+			targetLocation,
+			checkpointType,
+			isExactlyOnceMode,
+			isUnalignedCheckpoint,
+			alignmentTimeout);
 	}
 
 	@Override
@@ -81,7 +144,10 @@ public class CheckpointOptions implements Serializable {
 		else if (obj != null && obj.getClass() == CheckpointOptions.class) {
 			final CheckpointOptions that = (CheckpointOptions) obj;
 			return this.checkpointType == that.checkpointType &&
-					this.targetLocation.equals(that.targetLocation);
+					this.targetLocation.equals(that.targetLocation) &&
+					this.isExactlyOnceMode == that.isExactlyOnceMode &&
+					this.isUnalignedCheckpoint == that.isUnalignedCheckpoint &&
+					this.alignmentTimeout == that.alignmentTimeout;
 		}
 		else {
 			return false;
@@ -90,7 +156,13 @@ public class CheckpointOptions implements Serializable {
 
 	@Override
 	public String toString() {
-		return "CheckpointOptions: " + checkpointType + " @ " + targetLocation;
+		return "CheckpointOptions {" +
+			"checkpointType = " + checkpointType +
+			", targetLocation = " + targetLocation +
+			", isExactlyOnceMode = " + isExactlyOnceMode +
+			", isUnalignedCheckpoint = " + isUnalignedCheckpoint +
+			", alignmentTimeout = " + alignmentTimeout +
+			"}";
 	}
 
 	// ------------------------------------------------------------------------
@@ -100,7 +172,20 @@ public class CheckpointOptions implements Serializable {
 	private static final CheckpointOptions CHECKPOINT_AT_DEFAULT_LOCATION =
 			new CheckpointOptions(CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
 
+	@VisibleForTesting
 	public static CheckpointOptions forCheckpointWithDefaultLocation() {
 		return CHECKPOINT_AT_DEFAULT_LOCATION;
+	}
+
+	public static CheckpointOptions forCheckpointWithDefaultLocation(
+			boolean isExactlyOnceMode,
+			boolean isUnalignedCheckpoint,
+			long alignmentTimeout) {
+		return new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			CheckpointStorageLocationReference.getDefault(),
+			isExactlyOnceMode,
+			isUnalignedCheckpoint,
+			alignmentTimeout);
 	}
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.dataformat.BinaryRow
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -26,15 +26,15 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAg
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.TimeUnitRange._
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.{RelMdUtil, RelMetadataQuery}
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil, RexVisitorImpl}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName.{TIME, TIMESTAMP}
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
@@ -220,6 +220,32 @@ object FlinkRelMdUtil {
       pushable.add(fun)
     }
     RexUtil.composeConjunction(rexBuilder, pushable, true)
+  }
+
+  /**
+   * Returns the number of distinct values provided numSelected are selected
+   * where there are domainSize distinct values.
+   *
+   * <p>Current implementation of RelMdUtil#numDistinctVals in Calcite 1.26
+   * has precision problem, so we treat small and large inputs differently
+   * here and handle large inputs with the old implementation of
+   * RelMdUtil#numDistinctVals in Calcite 1.22.
+   *
+   * <p>This method should be removed once CALCITE-4351 is fixed. See CALCITE-4351
+   * and FLINK-19780.
+   */
+  def numDistinctVals(domainSize: Double, numSelected: Double): Double = {
+    val EPS = 1e-9
+    if (Math.abs(1 / domainSize) < EPS) {
+      // ln(1+x) ~= x for small x
+      val dSize = RelMdUtil.capInfinity(domainSize)
+      val numSel = RelMdUtil.capInfinity(numSelected)
+      val res = if (dSize > 0) (1.0 - Math.exp(-1 * numSel / dSize)) * dSize else 0
+      // fix the boundary cases
+      Math.max(0, Math.min(res, Math.min(dSize, numSel)))
+    } else {
+      RelMdUtil.numDistinctVals(domainSize, numSelected)
+    }
   }
 
   /**
@@ -525,7 +551,7 @@ object FlinkRelMdUtil {
     var length = 0d
     columnSizes.zip(binaryType.getChildren).foreach {
       case (columnSize, internalType) =>
-        if (BinaryRow.isInFixedLengthPart(internalType)) {
+        if (BinaryRowData.isInFixedLengthPart(internalType)) {
           length += 8
         } else {
           if (columnSize == null) {
@@ -538,7 +564,7 @@ object FlinkRelMdUtil {
           }
         }
     }
-    length += BinaryRow.calculateBitSetWidthInBytes(columnSizes.size())
+    length += BinaryRowData.calculateBitSetWidthInBytes(columnSizes.size())
     length
   }
 
@@ -548,7 +574,7 @@ object FlinkRelMdUtil {
     val normalizedKeyBytes = 16
     val rowCount = mq.getRowCount(inputOfSort)
     val averageRowSize = binaryRowAverageSize(inputOfSort)
-    val recordAreaInBytes = rowCount * (averageRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES)
+    val recordAreaInBytes = rowCount * (averageRowSize + LENGTH_SIZE_IN_BYTES)
     val indexAreaInBytes = rowCount * (normalizedKeyBytes + BinaryIndexedSortable.OFFSET_LEN)
     recordAreaInBytes + indexAreaInBytes
   }
@@ -653,12 +679,12 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        RelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
+        FlinkRelMdUtil.numDistinctVals(distinctRowCount, mq.getAverageRowSize(calc))
       }
     }
 
     override def visitLiteral(literal: RexLiteral): JDouble = {
-      RelMdUtil.numDistinctVals(1D, mq.getAverageRowSize(calc))
+      FlinkRelMdUtil.numDistinctVals(1D, mq.getAverageRowSize(calc))
     }
 
     override def visitCall(call: RexCall): JDouble = {
@@ -733,7 +759,7 @@ object FlinkRelMdUtil {
       if (distinctRowCount == null) {
         null
       } else {
-        RelMdUtil.numDistinctVals(distinctRowCount, rowCount)
+        FlinkRelMdUtil.numDistinctVals(distinctRowCount, rowCount)
       }
     }
 

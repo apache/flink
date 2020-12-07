@@ -20,13 +20,13 @@ package org.apache.flink.table.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
+import org.apache.flink.runtime.io.compression.BlockCompressor;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
-import org.apache.flink.table.runtime.compression.BlockCompressor;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;

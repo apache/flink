@@ -25,12 +25,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.After;
@@ -59,7 +59,7 @@ public class BinaryExternalSorterTest {
 	private static final Logger LOG = LoggerFactory.getLogger(BinaryExternalSorterTest.class);
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
-	private BinaryRowSerializer serializer;
+	private BinaryRowDataSerializer serializer;
 	private Configuration conf;
 
 	public BinaryExternalSorterTest(
@@ -96,7 +96,7 @@ public class BinaryExternalSorterTest {
 	@Before
 	public void beforeTest() {
 		this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
-		this.serializer = new BinaryRowSerializer(2);
+		this.serializer = new BinaryRowDataSerializer(2);
 		this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
 	}
 
@@ -128,15 +128,15 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 1f);
 		sorter.startThreads();
 		sorter.write(reader);
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals(i, next.getInt(0));
@@ -162,15 +162,15 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
 		sorter.write(reader);
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals(i, next.getInt(0));
@@ -192,7 +192,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				new IntNormalizedKeyComputer() {
 					@Override
 					public boolean isKeyFullyDetermines() {
@@ -206,9 +206,9 @@ public class BinaryExternalSorterTest {
 		sorter.write(new MockBinaryRowReader(size));
 		sorter.write(new MockBinaryRowReader(size));
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < 3; j++) {
 				next = iterator.next(next);
@@ -234,15 +234,15 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
 		sorter.write(reader);
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals(i, next.getInt(0));
@@ -266,7 +266,7 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				new IntNormalizedKeyComputer() {
 					@Override
 					public boolean invertKey() {
@@ -275,7 +275,7 @@ public class BinaryExternalSorterTest {
 				},
 				new IntRecordComparator() {
 					@Override
-					public int compare(BaseRow o1, BaseRow o2) {
+					public int compare(RowData o1, RowData o2) {
 						return -super.compare(o1, o2);
 					}
 				},
@@ -283,7 +283,7 @@ public class BinaryExternalSorterTest {
 		sorter.startThreads();
 		sorter.write(reader);
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
 		List<Tuple2<Integer, String>> data = new ArrayList<>();
 		for (int i = 0; i < size; i++) {
@@ -291,7 +291,7 @@ public class BinaryExternalSorterTest {
 		}
 		data.sort((o1, o2) -> -o1.f0.compareTo(o2.f0));
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals((int) data.get(i).f0, next.getInt(0));
@@ -317,15 +317,15 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
 		sorter.write(reader);
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals(i, next.getInt(0));
@@ -349,13 +349,13 @@ public class BinaryExternalSorterTest {
 				new Object(),
 				this.memoryManager,
 				minMemorySize,
-				this.ioManager, (AbstractRowSerializer) serializer, serializer,
+				this.ioManager, (AbstractRowDataSerializer) serializer, serializer,
 				IntNormalizedKeyComputer.INSTANCE, IntRecordComparator.INSTANCE,
 				conf, 0.7f);
 		sorter.startThreads();
 
-		List<BinaryRow> data = new ArrayList<>();
-		BinaryRow row = serializer.createInstance();
+		List<BinaryRowData> data = new ArrayList<>();
+		BinaryRowData row = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			row = reader.next(row);
 			data.add(row.copy());
@@ -367,11 +367,11 @@ public class BinaryExternalSorterTest {
 			sorter.write(data.get(i));
 		}
 
-		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
+		MutableObjectIterator<BinaryRowData> iterator = sorter.getIterator();
 
 		data.sort(Comparator.comparingInt(o -> o.getInt(0)));
 
-		BinaryRow next = serializer.createInstance();
+		BinaryRowData next = serializer.createInstance();
 		for (int i = 0; i < size; i++) {
 			next = iterator.next(next);
 			Assert.assertEquals(data.get(i).getInt(0), next.getInt(0));
@@ -384,32 +384,32 @@ public class BinaryExternalSorterTest {
 	/**
 	 * Mock reader for binary row.
 	 */
-	public class MockBinaryRowReader implements MutableObjectIterator<BinaryRow> {
+	public class MockBinaryRowReader implements MutableObjectIterator<BinaryRowData> {
 
 		private int size;
 		private int count;
-		private BinaryRow row;
+		private BinaryRowData row;
 		private BinaryRowWriter writer;
 
 		public MockBinaryRowReader(int size) {
 			this.size = size;
-			this.row = new BinaryRow(2);
+			this.row = new BinaryRowData(2);
 			this.writer = new BinaryRowWriter(row);
 		}
 
 		@Override
-		public BinaryRow next(BinaryRow reuse) {
+		public BinaryRowData next(BinaryRowData reuse) {
 			return next();
 		}
 
 		@Override
-		public BinaryRow next() {
+		public BinaryRowData next() {
 			if (count >= size) {
 				return null;
 			}
 			writer.reset();
 			writer.writeInt(0, count);
-			writer.writeString(1, BinaryString.fromString(getString(count)));
+			writer.writeString(1, StringData.fromString(getString(count)));
 			writer.complete();
 			count++;
 			return row;

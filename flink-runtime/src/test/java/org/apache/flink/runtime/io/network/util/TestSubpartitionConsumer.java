@@ -98,7 +98,7 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 				}
 
 				if (bufferAndBacklog != null) {
-					if (bufferAndBacklog.isMoreAvailable()) {
+					if (bufferAndBacklog.isDataAvailable()) {
 						dataAvailableNotification.set(true);
 					}
 					if (bufferAndBacklog.buffer().isBuffer()) {

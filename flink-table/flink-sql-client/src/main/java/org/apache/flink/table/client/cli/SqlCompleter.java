@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.jline.reader.Candidate;
@@ -30,6 +29,7 @@ import org.jline.utils.AttributedString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -41,12 +41,12 @@ public class SqlCompleter implements Completer {
 
 	public static final String[] COMMAND_HINTS = getCommandHints();
 
-	private SessionContext context;
+	private String sessionId;
 
 	private Executor executor;
 
-	public SqlCompleter(SessionContext context, Executor executor) {
-		this.context = context;
+	public SqlCompleter(String sessionId, Executor executor) {
+		this.sessionId = sessionId;
 		this.executor = executor;
 	}
 
@@ -62,17 +62,35 @@ public class SqlCompleter implements Completer {
 		final String statementNormalized = statement.toUpperCase().trim();
 		for (String commandHint : COMMAND_HINTS) {
 			if (commandHint.startsWith(statementNormalized) && line.cursor() < commandHint.length()) {
-				candidates.add(createCandidate(commandHint));
+				candidates.add(createCandidate(getCompletionHint(statementNormalized, commandHint)));
 			}
 		}
 
 		// fallback to Table API hinting
 		try {
-			executor.completeStatement(context, statement, line.cursor())
+			executor.completeStatement(sessionId, statement, line.cursor())
 				.forEach(hint -> candidates.add(createCandidate(hint)));
 		} catch (SqlExecutionException e) {
 			LOG.debug("Could not complete statement at " + line.cursor() + ":" + statement, e);
 		}
+	}
+
+	private String getCompletionHint(String statementNormalized, String commandHint) {
+		if (statementNormalized.length() == 0) {
+			return commandHint;
+		}
+		int cursorPos = statementNormalized.length() - 1;
+		int returnStartPos;
+		if (Character.isWhitespace(commandHint.charAt(cursorPos + 1))) {
+			returnStartPos = Math.min(commandHint.length() - 1, cursorPos + 2);
+		} else {
+			returnStartPos = cursorPos;
+			while (returnStartPos > 0 && !Character.isWhitespace(commandHint.charAt(returnStartPos - 1))) {
+				returnStartPos--;
+			}
+		}
+
+		return commandHint.substring(returnStartPos);
 	}
 
 	private Candidate createCandidate(String hint) {
@@ -80,17 +98,15 @@ public class SqlCompleter implements Completer {
 	}
 
 	private static String[] getCommandHints() {
-		final SqlCommandParser.SqlCommand[] commands = SqlCommandParser.SqlCommand.values();
-		final String[] hints = new String[commands.length];
-		for (int i = 0; i < commands.length; i++) {
-			final SqlCommandParser.SqlCommand command = commands[i];
-			// add final ";" for convenience if no operands can follow
-			if (command.hasOperands()) {
-				hints[i] = command.toString();
-			} else {
-				hints[i] = command.toString() + ";";
-			}
-		}
-		return hints;
+		return Arrays.stream(SqlCommandParser.SqlCommand.values())
+				.filter(SqlCommandParser.SqlCommand::hasRegexPattern)
+				.map(cmd -> {
+					// add final ";" for convenience if no operands can follow
+					if (cmd.hasOperands()) {
+						return cmd.toString();
+					} else {
+						return cmd.toString() + ";";
+					}
+				}).toArray(String[]::new);
 	}
 }

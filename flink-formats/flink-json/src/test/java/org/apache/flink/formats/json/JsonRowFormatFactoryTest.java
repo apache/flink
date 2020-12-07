@@ -106,6 +106,20 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(properties);
 	}
 
+	@Test
+	public void testSchemaDerivationByDefault() {
+		final Map<String, String> properties = toMap(
+			new Schema()
+				.field("field1", Types.BOOLEAN())
+				.field("field2", Types.INT())
+				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
+			new Json());
+
+		testSchemaSerializationSchema(properties);
+
+		testSchemaDeserializationSchema(properties);
+	}
+
 	private void testSchemaDeserializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
@@ -136,7 +150,9 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema.Builder(JSON_SCHEMA).build();
+		final SerializationSchema<?> expected1 = JsonRowSerializationSchema.builder()
+			.withTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA))
+			.build();
 		assertEquals(expected1, actual1);
 	}
 

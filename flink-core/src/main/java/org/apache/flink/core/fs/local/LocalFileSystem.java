@@ -35,15 +35,10 @@ import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
@@ -52,6 +47,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
@@ -59,8 +55,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class LocalFileSystem extends FileSystem {
-
-	private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
 	/** The URI representing the local file system. */
 	private static final URI LOCAL_URI = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
@@ -76,32 +70,22 @@ public class LocalFileSystem extends FileSystem {
 	 * Because Paths are not immutable, we cannot cache the proper path here. */
 	private final URI homeDir;
 
-	/** The host name of this machine. */
-	private final String hostName;
-
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
 		this.workingDir = new File(System.getProperty("user.dir")).toURI();
 		this.homeDir = new File(System.getProperty("user.home")).toURI();
-
-		String tmp = "unknownHost";
-		try {
-			tmp = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			LOG.error("Could not resolve local host", e);
-		}
-		this.hostName = tmp;
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-		return new BlockLocation[] {
-				new LocalBlockLocation(hostName, file.getLen())
-		};
+		if (file instanceof LocalFileStatus) {
+			return ((LocalFileStatus) file).getBlockLocations();
+		}
+		throw new IOException("File status does not belong to the LocalFileSystem: " + file);
 	}
 
 	@Override
@@ -307,15 +291,22 @@ public class LocalFileSystem extends FileSystem {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Converts the given Path to a File for this file system.
-	 *
-	 * <p>If the path is not absolute, it is interpreted relative to this FileSystem's working directory.
+	 * Converts the given Path to a File for this file system. If the path is empty,
+	 * we will return <tt>new File(".")</tt> instead of <tt>new File("")</tt>, since
+	 * the latter returns <tt>false</tt> for <tt>isDirectory</tt> judgement (See issue
+	 * https://issues.apache.org/jira/browse/FLINK-18612).
 	 */
 	public File pathToFile(Path path) {
-		if (!path.isAbsolute()) {
-			path = new Path(getWorkingDirectory(), path);
+		String localPath = path.getPath();
+		checkState(
+			localPath != null,
+			"Cannot convert a null path to File");
+
+		if (localPath.length() == 0) {
+			return new File(".");
 		}
-		return new File(path.toUri().getPath());
+
+		return new File(localPath);
 	}
 
 	// ------------------------------------------------------------------------

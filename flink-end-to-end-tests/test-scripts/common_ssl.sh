@@ -80,7 +80,7 @@ function _set_conf_ssl_helper {
         git clone https://github.com/apache/flink-shaded.git
         cd flink-shaded
         git checkout "release-${FLINK_SHADED_VERSION}"
-        mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
+        run_mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
         cp flink-shaded-netty-tcnative-static/target/flink-shaded-netty-tcnative-static-*.jar $FLINK_DIR/lib/
         cd ..
         rm -rf flink-shaded

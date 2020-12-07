@@ -25,10 +25,11 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 import java.util.Arrays;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -46,8 +47,8 @@ import static org.apache.flink.table.planner.functions.InternalFunctionDefinitio
 public abstract class SingleValueAggFunction extends DeclarativeAggregateFunction {
 
 	private static final long serialVersionUID = 8850662568341069949L;
-	private static final Expression ZERO = literal(0, DataTypes.INT());
-	private static final Expression ONE = literal(1, DataTypes.INT());
+	private static final Expression ZERO = literal(0, DataTypes.INT().notNull());
+	private static final Expression ONE = literal(1, DataTypes.INT().notNull());
 	private static final String ERROR_MSG = "SingleValueAggFunction received more than one element.";
 	private UnresolvedReferenceExpression value = unresolvedRef("value");
 	private UnresolvedReferenceExpression count = unresolvedRef("count");
@@ -284,9 +285,15 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 
 		private static final long serialVersionUID = 320495723666949978L;
 
+		private final TimestampType type;
+
+		public TimestampSingleValueAggFunction(TimestampType type) {
+			this.type = type;
+		}
+
 		@Override
 		public DataType getResultType() {
-			return DataTypes.TIMESTAMP(3);
+			return DataTypes.TIMESTAMP(type.getPrecision());
 		}
 	}
 }

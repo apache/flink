@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
+
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -2679,15 +2679,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1017-11-29 22:58:58.998")
 
     val QUARTER = Seq(
-      "2018-03-01 22:58:58.998",
-      "2018-08-31 22:58:58.998",
+      "2018-02-28 22:58:58.998",
+      "2018-08-29 22:58:58.998",
       "2017-08-29 22:58:58.998",
       "2002-08-29 22:58:58.998",
       "1767-11-29 22:58:58.998")
 
     val MONTH = Seq(
       "2017-12-29 22:58:58.998",
-      "2018-03-01 22:58:58.998",
+      "2018-02-28 22:58:58.998",
       "2017-10-29 22:58:58.998",
       "2012-10-29 22:58:58.998",
       "1934-07-29 22:58:58.998")
@@ -2857,6 +2857,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-03-31'.toDate - 1.week",
       "timestampadd(WEEK, -1, date '2016-03-31')",
       "2016-03-24")
+
+    // test TIMESTAMPADD with positive time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, 1, time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, 1, time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, 15, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, 3, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, 6, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, 1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, 10, time '23:59:59')", "23:59:59")
+
+    // test TIMESTAMPADD with negative time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, -1, time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(HOUR, -1, time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, -1, time '23:59:59')", "23:59:59")
   }
 
   // ----------------------------------------------------------------------------------------------

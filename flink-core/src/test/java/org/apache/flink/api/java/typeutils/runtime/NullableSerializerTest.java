@@ -71,7 +71,7 @@ public class NullableSerializerTest extends SerializerTestBase<Integer> {
 
 	@Override
 	protected Integer[] getTestData() {
-		return new Integer[] { 5, -1, 0, null };
+		return new Integer[] { 5, -1, null, 5 };
 	}
 
 	@Test

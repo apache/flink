@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBu
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
@@ -37,7 +39,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -112,7 +114,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
 		final TestingStandaloneResourceManager rm = new TestingStandaloneResourceManager(
 			rmServices.rpcService,
-			UUID.randomUUID().toString(),
 			ResourceID.generate(),
 			rmServices.highAvailabilityServices,
 			rmServices.heartbeatServices,
@@ -135,7 +136,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
 		private TestingStandaloneResourceManager(
 				RpcService rpcService,
-				String resourceManagerEndpointId,
 				ResourceID resourceId,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
@@ -148,16 +148,18 @@ public class StandaloneResourceManagerTest extends TestLogger {
 				MockResourceManagerRuntimeServices rmServices) {
 			super(
 				rpcService,
-				resourceManagerEndpointId,
 				resourceId,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
+				NoOpResourceManagerPartitionTracker::get,
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
 				resourceManagerMetricGroup,
-				startupPeriodTime);
+				startupPeriodTime,
+				RpcUtils.INF_TIMEOUT,
+				ForkJoinPool.commonPool());
 			this.rmServices = rmServices;
 		}
 	}

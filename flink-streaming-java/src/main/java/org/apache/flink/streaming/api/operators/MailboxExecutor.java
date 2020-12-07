@@ -18,21 +18,22 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Interface for an {@link Executor} build around a mailbox-based execution model (see {@link TaskMailbox}). {@code
- * MailboxExecutor} can also execute downstream messages of a mailbox by yielding control from the task thread.
+ * {@link java.util.concurrent.Executor} like interface for an  build around a mailbox-based execution model (see {@link TaskMailbox}).
+ * {@code MailboxExecutor} can also execute downstream messages of a mailbox by yielding control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further processing in a
  * FIFO fashion.
@@ -89,7 +90,7 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * 		quiesced or closed.
 	 */
-	default void execute(@Nonnull Runnable command, String description) {
+	default void execute(ThrowingRunnable<? extends Exception> command, String description) {
 		execute(command, description, EMPTY_ARGS);
 	}
 
@@ -106,23 +107,7 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * 		quiesced or closed.
 	 */
-	void execute(@Nonnull Runnable command, String descriptionFormat, Object... descriptionArgs);
-
-	/**
-	 * Executes the given command at the next possible time in the mailbox thread. Repeated calls will result in the
-	 * last executed command being executed first.
-	 *
-	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
-	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
-	 * syntax. The actual description is only formatted on demand.
-	 *
-	 * @param command the runnable task to add to the mailbox for execution.
-	 * @param descriptionFormat the optional description for the command that is used for debugging and error-reporting.
-	 * @param descriptionArgs the parameters used to format the final description string.
-	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
-	 *                                    quiesced or closed.
-	 */
-	void executeFirst(@Nonnull Runnable command, String descriptionFormat, Object... descriptionArgs);
+	void execute(ThrowingRunnable<? extends Exception> command, String descriptionFormat, Object... descriptionArgs);
 
 	/**
 	 * Submits the given command for execution in the future in the mailbox thread and returns a Future representing
@@ -139,8 +124,8 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * quiesced or closed.
 	 */
-	default @Nonnull Future<Void> submit(@Nonnull Runnable command, String descriptionFormat, Object... descriptionArgs) {
-		FutureTask<Void> future = new FutureTask<>(Executors.callable(command, null));
+	default @Nonnull Future<Void> submit(@Nonnull RunnableWithException command, String descriptionFormat, Object... descriptionArgs) {
+		FutureTaskWithException<Void> future = new FutureTaskWithException<>(command);
 		execute(future, descriptionFormat, descriptionArgs);
 		return future;
 	}
@@ -159,8 +144,8 @@ public interface MailboxExecutor {
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
 	 * quiesced or closed.
 	 */
-	default @Nonnull Future<Void> submit(@Nonnull Runnable command, String description) {
-		FutureTask<Void> future = new FutureTask<>(Executors.callable(command, null));
+	default @Nonnull Future<Void> submit(@Nonnull RunnableWithException command, String description) {
+		FutureTaskWithException<Void> future = new FutureTaskWithException<>(command);
 		execute(future, description, EMPTY_ARGS);
 		return future;
 	}
@@ -181,7 +166,7 @@ public interface MailboxExecutor {
 	 * quiesced or closed.
 	 */
 	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String descriptionFormat, Object... descriptionArgs) {
-		FutureTask<T> future = new FutureTask<>(command);
+		FutureTaskWithException<T> future = new FutureTaskWithException<>(command);
 		execute(future, descriptionFormat, descriptionArgs);
 		return future;
 	}
@@ -201,7 +186,7 @@ public interface MailboxExecutor {
 	 * quiesced or closed.
 	 */
 	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String description) {
-		FutureTask<T> future = new FutureTask<>(command);
+		FutureTaskWithException<T> future = new FutureTaskWithException<>(command);
 		execute(future, description, EMPTY_ARGS);
 		return future;
 	}
@@ -214,8 +199,9 @@ public interface MailboxExecutor {
 	 *
 	 * @throws InterruptedException on interruption.
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
+	 * @throws FlinkRuntimeException if executed {@link RunnableWithException} thrown an exception.
 	 */
-	void yield() throws InterruptedException;
+	void yield() throws InterruptedException, FlinkRuntimeException;
 
 	/**
 	 * This methods attempts to run the command at the head of the mailbox. This is intended to be used by the mailbox
@@ -225,23 +211,7 @@ public interface MailboxExecutor {
 	 *
 	 * @return true on successful yielding to another command, false if there was no command to yield to.
 	 * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for yielding.
+	 * @throws RuntimeException if executed {@link RunnableWithException} thrown an exception.
 	 */
-	boolean tryYield();
-
-	/**
-	 * Provides an {@link Executor} view on this {@code MailboxExecutor}, where submitted tasks will receive the
-	 * given description. The {@link Executor} can be used with {@link java.util.concurrent.CompletableFuture}.
-	 *
-	 * <p>An optional description can (and should) be added to ease debugging and error-reporting. The description
-	 * may contain placeholder that refer to the provided description arguments using {@link java.util.Formatter}
-	 * syntax. The actual description is only formatted on demand.
-	 *
-	 * @param descriptionFormat the optional description for all commands that is used for debugging and
-	 * error-reporting.
-	 * @param descriptionArgs the parameters used to format the final description string.
-	 * @return an {@code Executor} view on this {@code MailboxExecutor}
-	 */
-	default Executor asExecutor(String descriptionFormat, Object... descriptionArgs) {
-		return command -> execute(command, descriptionFormat, descriptionArgs);
-	}
+	boolean tryYield() throws FlinkRuntimeException;
 }

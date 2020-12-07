@@ -35,13 +35,12 @@ import java.util.List;
  */
 public class SqlUseDatabase extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE DATABASE", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE DATABASE", SqlKind.OTHER_DDL);
 	private final SqlIdentifier databaseName;
 
 	public SqlUseDatabase(SqlParserPos pos, SqlIdentifier databaseName) {
 		super(pos);
 		this.databaseName = databaseName;
-
 	}
 
 	@Override

@@ -18,253 +18,255 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
-import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.util.FileUtils;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.iterableWithSize;
+import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link BucketStateSerializer}.
+ * Tests for the {@link BucketStateSerializer} that verify we can still read snapshots written using
+ * an older version of the serializer. We keep snapshots for all previous versions in version
+ * control (including the current version). The tests verify that the current version of the
+ * serializer can still read data from all previous versions.
  */
+@RunWith(Parameterized.class)
 public class BucketStateSerializerTest {
+
+	private static final int CURRENT_VERSION = 2;
+
+	@Parameterized.Parameters(name = "Previous Version = {0}")
+	public static Collection<Integer> previousVersions() {
+		return Arrays.asList(1, 2);
+	}
+
+	@Parameterized.Parameter
+	public Integer previousVersion;
 
 	private static final String IN_PROGRESS_CONTENT = "writing";
 	private static final String PENDING_CONTENT = "wrote";
 
+	private static final String BUCKET_ID = "test-bucket";
+
+	private static final java.nio.file.Path BASE_PATH = Paths.get("src/test/resources/")
+			.resolve("bucket-state-migration-test");
+
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
+	private final BucketStateGenerator generator = new BucketStateGenerator(
+			BUCKET_ID,
+			IN_PROGRESS_CONTENT,
+			PENDING_CONTENT,
+			BASE_PATH,
+			CURRENT_VERSION);
+
+	@Test
+	@Ignore
+	public void prepareDeserializationEmpty() throws IOException {
+		generator.prepareDeserializationEmpty();
+	}
+
 	@Test
 	public void testSerializationEmpty() throws IOException {
-		final File testFolder = tempFolder.newFolder();
-		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final RecoverableWriter writer = fs.createRecoverableWriter();
 
-		final Path testBucket = new Path(testFolder.getPath(), "test");
+		final String scenarioName = "empty";
+		final BucketStatePathResolver pathResolver = new BucketStatePathResolver(BASE_PATH, previousVersion);
 
-		final BucketState<String> bucketState = new BucketState<>(
-				"test", testBucket, Long.MAX_VALUE, null, new HashMap<>());
+		final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
+		final Path testBucketPath = new Path(outputPath.resolve(BUCKET_ID).toString());
+		final BucketState<String> recoveredState = readBucketState(scenarioName, previousVersion);
 
-		final SimpleVersionedSerializer<BucketState<String>> serializer =
-				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
-						SimpleVersionedStringSerializer.INSTANCE
-				);
+		final Bucket<String, String> bucket = restoreBucket(0, recoveredState);
 
-		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
-		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		Assert.assertEquals(testBucketPath, bucket.getBucketPath());
+		Assert.assertNull(bucket.getInProgressPart());
+		Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
+	}
 
-		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgressResumableFile());
-		Assert.assertTrue(recoveredState.getCommittableFilesPerCheckpoint().isEmpty());
+	@Test
+	@Ignore
+	public void prepareDeserializationOnlyInProgress() throws IOException {
+		generator.prepareDeserializationOnlyInProgress();
 	}
 
 	@Test
 	public void testSerializationOnlyInProgress() throws IOException {
-		final File testFolder = tempFolder.newFolder();
-		final FileSystem fs = FileSystem.get(testFolder.toURI());
 
-		final Path testBucket = new Path(testFolder.getPath(), "test");
+		final String scenarioName = "only-in-progress";
+		final BucketStatePathResolver pathResolver = new BucketStatePathResolver(BASE_PATH, previousVersion);
 
-		final RecoverableWriter writer = fs.createRecoverableWriter();
-		final RecoverableFsDataOutputStream stream = writer.open(testBucket);
-		stream.write(IN_PROGRESS_CONTENT.getBytes(Charset.forName("UTF-8")));
+		final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
 
-		final RecoverableWriter.ResumeRecoverable current = stream.persist();
+		final Path testBucketPath = new Path(outputPath.resolve(BUCKET_ID).toString());
 
-		final BucketState<String> bucketState = new BucketState<>(
-				"test", testBucket, Long.MAX_VALUE, current, new HashMap<>());
+		final BucketState<String> recoveredState = readBucketState(scenarioName, previousVersion);
 
-		final SimpleVersionedSerializer<BucketState<String>> serializer =
-				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
-						SimpleVersionedStringSerializer.INSTANCE
-				);
+		final Bucket<String, String> bucket = restoreBucket(0, recoveredState);
 
-		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
+		Assert.assertEquals(testBucketPath, bucket.getBucketPath());
 
-		// to simulate that everything is over for file.
-		stream.close();
+		//check restore the correct in progress file writer
+		Assert.assertEquals(8, bucket.getInProgressPart().getSize());
 
-		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		long numFiles = Files.list(Paths.get(testBucketPath.toString()))
+			.map(file -> {
+				assertThat(
+					file.getFileName().toString(),
+					startsWith(".part-0-0.inprogress"));
+				return 1;
+			})
+			.count();
 
-		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
+		assertThat(numFiles, is(1L));
+	}
 
-		FileStatus[] statuses = fs.listStatus(testBucket.getParent());
-		Assert.assertEquals(1L, statuses.length);
-		Assert.assertTrue(
-				statuses[0].getPath().getPath().startsWith(
-						(new Path(testBucket.getParent(), ".test.inprogress")).getPath())
-		);
+	@Test
+	@Ignore
+	public void prepareDeserializationFull() throws IOException {
+		generator.prepareDeserializationFull();
 	}
 
 	@Test
 	public void testSerializationFull() throws IOException {
-		final int noOfTasks = 5;
+		testDeserializationFull(true, "full");
+	}
 
-		final File testFolder = tempFolder.newFolder();
-		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final RecoverableWriter writer = fs.createRecoverableWriter();
-
-		final Path bucketPath = new Path(testFolder.getPath());
-
-		// pending for checkpoints
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> commitRecoverables = new HashMap<>();
-		for (int i = 0; i < noOfTasks; i++) {
-			final List<RecoverableWriter.CommitRecoverable> recoverables = new ArrayList<>();
-			for (int j = 0; j < 2 + i; j++) {
-				final Path part = new Path(bucketPath, "part-" + i + '-' + j);
-
-				final RecoverableFsDataOutputStream stream = writer.open(part);
-				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
-				recoverables.add(stream.closeForCommit().getRecoverable());
-			}
-			commitRecoverables.put((long) i, recoverables);
-		}
-
-		// in-progress
-		final Path testBucket = new Path(bucketPath, "test-2");
-		final RecoverableFsDataOutputStream stream = writer.open(testBucket);
-		stream.write(IN_PROGRESS_CONTENT.getBytes(Charset.forName("UTF-8")));
-
-		final RecoverableWriter.ResumeRecoverable current = stream.persist();
-
-		final BucketState<String> bucketState = new BucketState<>(
-				"test-2", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
-		final SimpleVersionedSerializer<BucketState<String>> serializer =
-				new BucketStateSerializer<>(
-						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer(),
-						SimpleVersionedStringSerializer.INSTANCE
-				);
-		stream.close();
-
-		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
-
-		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
-
-		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
-
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
-		Assert.assertEquals(5L, recoveredRecoverables.size());
-
-		// recover and commit
-		for (Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry: recoveredRecoverables.entrySet()) {
-			for (RecoverableWriter.CommitRecoverable recoverable: entry.getValue()) {
-				writer.recoverForCommit(recoverable).commit();
-			}
-		}
-
-		FileStatus[] filestatuses = fs.listStatus(bucketPath);
-		Set<String> paths = new HashSet<>(filestatuses.length);
-		for (FileStatus filestatus : filestatuses) {
-			paths.add(filestatus.getPath().getPath());
-		}
-
-		for (int i = 0; i < noOfTasks; i++) {
-			for (int j = 0; j < 2 + i; j++) {
-				final String part = new Path(bucketPath, "part-" + i + '-' + j).getPath();
-				Assert.assertTrue(paths.contains(part));
-				paths.remove(part);
-			}
-		}
-
-		// only the in-progress must be left
-		Assert.assertEquals(1L, paths.size());
-
-		// verify that the in-progress file is still there
-		Assert.assertTrue(paths.iterator().next().startsWith(
-				(new Path(testBucket.getParent(), ".test-2.inprogress").getPath())));
+	@Test
+	@Ignore
+	public void prepareDeserializationNullInProgress() throws IOException {
+		generator.prepareDeserializationNullInProgress();
 	}
 
 	@Test
 	public void testSerializationNullInProgress() throws IOException {
-		final int noOfTasks = 5;
+		testDeserializationFull(false, "full-no-in-progress");
+	}
 
-		final File testFolder = tempFolder.newFolder();
-		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final RecoverableWriter writer = fs.createRecoverableWriter();
+	private void testDeserializationFull(final boolean withInProgress, final String scenarioName) throws IOException {
 
-		final Path bucketPath = new Path(testFolder.getPath());
+		final BucketStatePathResolver pathResolver = new BucketStatePathResolver(BASE_PATH, previousVersion);
 
-		// pending for checkpoints
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> commitRecoverables = new HashMap<>();
-		for (int i = 0; i < noOfTasks; i++) {
-			final List<RecoverableWriter.CommitRecoverable> recoverables = new ArrayList<>();
-			for (int j = 0; j < 2 + i; j++) {
-				final Path part = new Path(bucketPath, "test-" + i + '-' + j);
+		try {
+			final java.nio.file.Path outputPath = pathResolver.getOutputPath(scenarioName);
+			final Path testBucketPath = new Path(outputPath.resolve(BUCKET_ID).toString());
+			// restore the state
+			final BucketState<String> recoveredState = readBucketStateFromTemplate(scenarioName, previousVersion);
+			final int noOfPendingCheckpoints = 5;
 
-				final RecoverableFsDataOutputStream stream = writer.open(part);
-				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
-				recoverables.add(stream.closeForCommit().getRecoverable());
+			// there are 5 checkpoint does not complete.
+			final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>>
+				pendingFileRecoverables = recoveredState.getPendingFileRecoverablesPerCheckpoint();
+			Assert.assertEquals(5L, pendingFileRecoverables.size());
+
+			final Set<String> beforeRestorePaths = Files.list(outputPath.resolve(BUCKET_ID))
+				.map(file -> file.getFileName().toString())
+				.collect(Collectors.toSet());
+
+			// before retsoring all file has "inprogress"
+			for (int i = 0; i < noOfPendingCheckpoints; i++) {
+				final String part = ".part-0-" + i + ".inprogress";
+				assertThat(beforeRestorePaths, hasItem(startsWith(part)));
 			}
-			commitRecoverables.put((long) i, recoverables);
-		}
 
-		final RecoverableWriter.ResumeRecoverable current = null;
+			// recover and commit
+			final Bucket bucket = restoreBucket(noOfPendingCheckpoints + 1, recoveredState);
+			Assert.assertEquals(testBucketPath, bucket.getBucketPath());
+			Assert.assertEquals(0, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
 
-		final BucketState<String> bucketState = new BucketState<>(
-				"", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
+			final Set<String> afterRestorePaths = Files.list(outputPath.resolve(BUCKET_ID))
+				.map(file -> file.getFileName().toString())
+				.collect(Collectors.toSet());
 
-		final SimpleVersionedSerializer<BucketState<String>> serializer = new BucketStateSerializer<>(
-				writer.getResumeRecoverableSerializer(),
-				writer.getCommitRecoverableSerializer(),
-				SimpleVersionedStringSerializer.INSTANCE
-		);
-
-		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
-
-		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
-
-		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgressResumableFile());
-
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
-		Assert.assertEquals(5L, recoveredRecoverables.size());
-
-		// recover and commit
-		for (Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>> entry: recoveredRecoverables.entrySet()) {
-			for (RecoverableWriter.CommitRecoverable recoverable: entry.getValue()) {
-				writer.recoverForCommit(recoverable).commit();
+			// after restoring all pending files are comitted.
+			// there is no "inporgress" in file name for the committed files.
+			for (int i = 0; i < noOfPendingCheckpoints; i++) {
+				final String part = "part-0-" + i;
+				assertThat(afterRestorePaths, hasItem(part));
+				afterRestorePaths.remove(part);
 			}
-		}
 
-		FileStatus[] filestatuses = fs.listStatus(bucketPath);
-		Set<String> paths = new HashSet<>(filestatuses.length);
-		for (FileStatus filestatus : filestatuses) {
-			paths.add(filestatus.getPath().getPath());
-		}
+			if (withInProgress) {
+				// only the in-progress must be left
+				assertThat(afterRestorePaths, iterableWithSize(1));
 
-		for (int i = 0; i < noOfTasks; i++) {
-			for (int j = 0; j < 2 + i; j++) {
-				final String part = new Path(bucketPath, "test-" + i + '-' + j).getPath();
-				Assert.assertTrue(paths.contains(part));
-				paths.remove(part);
+				// verify that the in-progress file is still there
+				assertThat(afterRestorePaths, hasItem(startsWith(".part-0-" + noOfPendingCheckpoints + ".inprogress")));
+			} else {
+				assertThat(afterRestorePaths, empty());
 			}
+		} finally {
+			FileUtils.deleteDirectory(pathResolver.getResourcePath(scenarioName).toFile());
 		}
+	}
 
-		// only the in-progress must be left
-		Assert.assertTrue(paths.isEmpty());
+	private static Bucket<String, String> restoreBucket(final int initialPartCounter, final BucketState<String> bucketState) throws IOException {
+		return Bucket.restore(
+			0,
+			initialPartCounter,
+			createBucketWriter(),
+			DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+			bucketState,
+			null,
+			OutputFileConfig.builder().build());
+	}
+
+	private static RowWiseBucketWriter<String, String> createBucketWriter() throws IOException {
+		return new RowWiseBucketWriter<>(FileSystem.getLocalFileSystem().createRecoverableWriter(), new SimpleStringEncoder<>());
+	}
+
+	private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer() throws IOException {
+		final RowWiseBucketWriter<String, String> bucketWriter = createBucketWriter();
+		return new BucketStateSerializer<>(
+			bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+			bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
+			SimpleVersionedStringSerializer.INSTANCE);
+	}
+
+	private static BucketState<String> readBucketState(final String scenarioName, final int version) throws IOException {
+		final BucketStatePathResolver pathResolver = new BucketStatePathResolver(BASE_PATH, version);
+		byte[] bytes = Files.readAllBytes(pathResolver.getSnapshotPath(scenarioName));
+		return SimpleVersionedSerialization.readVersionAndDeSerialize(bucketStateSerializer(), bytes);
+	}
+
+	private static BucketState<String> readBucketStateFromTemplate(final String scenarioName, final int version) throws IOException {
+		final BucketStatePathResolver pathResolver = new BucketStatePathResolver(BASE_PATH, version);
+		final java.nio.file.Path scenarioPath = pathResolver.getResourcePath(scenarioName);
+
+		// clear the scenario files first
+		FileUtils.deleteDirectory(scenarioPath.toFile());
+
+		// prepare the scenario files
+		FileUtils.copy(new Path(scenarioPath.toString() + "-template"), new Path(scenarioPath.toString()), false);
+
+		return readBucketState(scenarioName, version);
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
@@ -33,17 +34,15 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
-import org.apache.flink.runtime.minicluster.TestingMiniCluster;
-import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -58,7 +57,6 @@ import static org.junit.Assert.assertThat;
 /**
  * Integration tests for the {@link TaskExecutor}.
  */
-@Category(AlsoRunWithSchedulerNG.class)
 public class TaskExecutorITCase extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -66,16 +64,15 @@ public class TaskExecutorITCase extends TestLogger {
 	private static final int SLOTS_PER_TM = 2;
 	private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-	private TestingMiniCluster miniCluster;
+	private MiniCluster miniCluster;
 
 	@Before
 	public void setup() throws Exception  {
-		miniCluster = new TestingMiniCluster(
-			new TestingMiniClusterConfiguration.Builder()
+		miniCluster = new MiniCluster(
+			new MiniClusterConfiguration.Builder()
 				.setNumTaskManagers(NUM_TMS)
 				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
-				.build(),
-			null);
+				.build());
 
 		miniCluster.start();
 	}
@@ -98,19 +95,19 @@ public class TaskExecutorITCase extends TestLogger {
 		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
 		// kill one TaskExecutor which should fail the job execution
-		miniCluster.terminateTaskExecutor(0);
+		miniCluster.terminateTaskManager(0);
 
 		final JobResult jobResult = jobResultFuture.get();
 
 		assertThat(jobResult.isSuccess(), is(false));
 
-		miniCluster.startTaskExecutor();
+		miniCluster.startTaskManager();
 
+		final JobGraph newJobGraph = createJobGraph(PARALLELISM);
 		BlockingOperator.unblock();
+		miniCluster.submitJob(newJobGraph).get();
 
-		miniCluster.submitJob(jobGraph).get();
-
-		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+		miniCluster.requestJobResult(newJobGraph.getJobID()).get();
 	}
 
 	/**
@@ -123,9 +120,9 @@ public class TaskExecutorITCase extends TestLogger {
 		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
 		// start an additional TaskExecutor
-		miniCluster.startTaskExecutor();
+		miniCluster.startTaskManager();
 
-		miniCluster.terminateTaskExecutor(0).get(); // this should fail the job
+		miniCluster.terminateTaskManager(0).get(); // this should fail the job
 
 		BlockingOperator.unblock();
 
@@ -153,7 +150,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 		return () -> {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
-			return allExecutionsRunning.test(executionGraph);
+			return allExecutionsRunning.test(executionGraph) && executionGraph.getState() == JobStatus.RUNNING;
 		};
 	}
 

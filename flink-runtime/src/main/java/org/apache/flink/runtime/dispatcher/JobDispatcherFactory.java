@@ -40,6 +40,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 
@@ -49,10 +50,10 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 
 		return new MiniDispatcher(
 			rpcService,
-			getEndpointId(),
 			fencingToken,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
 			jobGraph,
+			dispatcherBootstrapFactory,
 			executionMode);
 	}
 }

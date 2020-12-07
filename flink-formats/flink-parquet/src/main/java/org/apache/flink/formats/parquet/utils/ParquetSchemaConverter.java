@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
@@ -71,7 +74,7 @@ public class ParquetSchemaConverter {
 		return (MessageType) convertField(null, typeInformation, Type.Repetition.OPTIONAL, legacyMode);
 	}
 
-	private static TypeInformation<?> convertFields(List<Type> parquetFields) {
+	public static TypeInformation<?> convertFields(List<Type> parquetFields) {
 		List<TypeInformation<?>> types = new ArrayList<>();
 		List<String> names = new ArrayList<>();
 		for (Type field : parquetFields) {
@@ -89,7 +92,7 @@ public class ParquetSchemaConverter {
 			names.toArray(new String[0]));
 	}
 
-	private static TypeInformation<?> convertParquetTypeToTypeInfo(final Type fieldType) {
+	public static TypeInformation<?> convertParquetTypeToTypeInfo(final Type fieldType) {
 		TypeInformation<?> typeInfo;
 		if (fieldType.isPrimitive()) {
 			OriginalType originalType = fieldType.getOriginalType();
@@ -225,16 +228,7 @@ public class ParquetSchemaConverter {
 							// If the repeated field is a group with multiple fields, then its type is the element
 							// type and elements are required.
 							if (elementType.getFieldCount() > 1) {
-
-								for (Type type : elementType.getFields()) {
-									if (!type.isRepetition(Type.Repetition.REQUIRED)) {
-										throw new UnsupportedOperationException(
-											String.format("List field [%s] in List [%s] has to be required. ",
-												type.toString(), fieldType.getName()));
-									}
-								}
-								typeInfo = ObjectArrayTypeInfo.getInfoFor(
-									convertParquetTypeToTypeInfo(elementType));
+								typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, elementType);
 							} else {
 								Type internalType = elementType.getType(0);
 								if (internalType.isPrimitive()) {
@@ -247,9 +241,7 @@ public class ParquetSchemaConverter {
 										typeInfo = ObjectArrayTypeInfo.getInfoFor(
 											convertParquetTypeToTypeInfo(internalType));
 									} else {
-										throw new UnsupportedOperationException(
-											String.format("Unrecgonized List schema [%s] according to Parquet"
-												+ " standard", parquetGroupType.toString()));
+										typeInfo = convertGroupElementToArrayTypeInfo(parquetGroupType, tupleGroup);
 									}
 								}
 							}
@@ -301,6 +293,18 @@ public class ParquetSchemaConverter {
 		}
 
 		return typeInfo;
+	}
+
+	private static ObjectArrayTypeInfo convertGroupElementToArrayTypeInfo(GroupType arrayFieldType, GroupType elementType) {
+		for (Type type : elementType.getFields()) {
+			if (!type.isRepetition(Type.Repetition.REQUIRED)) {
+				throw new UnsupportedOperationException(
+					String.format("List field [%s] in List [%s] has to be required. ",
+						type.toString(), arrayFieldType.getName()));
+			}
+		}
+		return ObjectArrayTypeInfo.getInfoFor(
+			convertParquetTypeToTypeInfo(elementType));
 	}
 
 	private static TypeInformation<?> convertParquetPrimitiveListToFlinkArray(Type type) {
@@ -371,17 +375,33 @@ public class ParquetSchemaConverter {
 			GroupType componentGroup = (GroupType) convertField(LIST_ELEMENT, objectArrayTypeInfo.getComponentInfo(),
 					Type.Repetition.REQUIRED, legacyMode);
 
-			GroupType elementGroup = Types.repeatedGroup().named(LIST_ELEMENT);
-			elementGroup = elementGroup.withNewFields(componentGroup.getFields());
-			fieldType = Types.buildGroup(repetition)
-				.addField(elementGroup)
-				.as(OriginalType.LIST)
-				.named(fieldName);
+			if (legacyMode) {
+				// LegacyMode is 2 Level List schema
+				fieldType = Types.buildGroup(repetition)
+					.addField(componentGroup)
+					.as(OriginalType.LIST)
+					.named(fieldName);
+			} else {
+				// Add extra layer of Group according to Parquet's standard
+				Type listGroup = Types.repeatedGroup()
+					.addField(componentGroup).named(LIST_GROUP_NAME);
+				fieldType = Types.buildGroup(repetition)
+					.addField(listGroup)
+					.as(OriginalType.LIST)
+					.named(fieldName);
+			}
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo basicArrayType = (BasicArrayTypeInfo) typeInfo;
 
+			// LegacyMode is 2 Level List schema
 			if (legacyMode) {
-
+				PrimitiveType primitiveTyp =
+					convertField(fieldName, basicArrayType.getComponentInfo(),
+						Type.Repetition.REQUIRED, legacyMode).asPrimitiveType();
+				fieldType = Types.buildGroup(repetition)
+					.addField(primitiveTyp)
+					.as(OriginalType.LIST).named(fieldName);
+			} else {
 				// Add extra layer of Group according to Parquet's standard
 				Type listGroup = Types.repeatedGroup().addField(
 					convertField(LIST_ELEMENT, basicArrayType.getComponentInfo(),
@@ -389,15 +409,6 @@ public class ParquetSchemaConverter {
 
 				fieldType = Types.buildGroup(repetition)
 					.addField(listGroup)
-					.as(OriginalType.LIST).named(fieldName);
-			} else {
-				PrimitiveType primitiveTyp =
-					convertField(fieldName, basicArrayType.getComponentInfo(),
-						Type.Repetition.REQUIRED, legacyMode).asPrimitiveType();
-				fieldType = Types.buildGroup(repetition)
-					.repeated(primitiveTyp.getPrimitiveTypeName())
-					.as(primitiveTyp.getOriginalType())
-					.named(LIST_ARRAY_TYPE)
 					.as(OriginalType.LIST).named(fieldName);
 			}
 		} else if (typeInfo instanceof SqlTimeTypeInfo) {
@@ -431,5 +442,88 @@ public class ParquetSchemaConverter {
 		}
 
 		return fieldType;
+	}
+
+	public static MessageType convertToParquetMessageType(String name, RowType rowType) {
+		Type[] types = new Type[rowType.getFieldCount()];
+		for (int i = 0; i < rowType.getFieldCount(); i++) {
+			types[i] = convertToParquetType(
+					rowType.getFieldNames().get(i), rowType.getTypeAt(i));
+		}
+		return new MessageType(name, types);
+	}
+
+	private static Type convertToParquetType(String name, LogicalType type) {
+		return convertToParquetType(name, type, Type.Repetition.OPTIONAL);
+	}
+
+	private static Type convertToParquetType(
+			String name, LogicalType type, Type.Repetition repetition) {
+		switch (type.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+				return Types
+						.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition)
+						.as(OriginalType.UTF8)
+						.named(name);
+			case BOOLEAN:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.BOOLEAN, repetition).named(name);
+			case BINARY:
+			case VARBINARY:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition).named(name);
+			case DECIMAL:
+				int precision = ((DecimalType) type).getPrecision();
+				int scale = ((DecimalType) type).getScale();
+				int numBytes = computeMinBytesForDecimalPrecision(precision);
+				return Types.primitive(
+						PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, repetition)
+						.precision(precision)
+						.scale(scale)
+						.length(numBytes)
+						.as(OriginalType.DECIMAL)
+						.named(name);
+			case TINYINT:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
+						.as(OriginalType.INT_8)
+						.named(name);
+			case SMALLINT:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
+						.as(OriginalType.INT_16)
+						.named(name);
+			case INTEGER:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
+						.named(name);
+			case BIGINT:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, repetition)
+						.named(name);
+			case FLOAT:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.FLOAT, repetition).named(name);
+			case DOUBLE:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.DOUBLE, repetition).named(name);
+			case DATE:
+				return Types
+						.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
+						.as(OriginalType.DATE)
+						.named(name);
+			case TIME_WITHOUT_TIME_ZONE:
+				return Types
+						.primitive(PrimitiveType.PrimitiveTypeName.INT32, repetition)
+						.as(OriginalType.TIME_MILLIS)
+						.named(name);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return Types.primitive(PrimitiveType.PrimitiveTypeName.INT96, repetition)
+						.named(name);
+			default:
+				throw new UnsupportedOperationException("Unsupported type: " + type);
+		}
+	}
+
+	public static int computeMinBytesForDecimalPrecision(int precision) {
+		int numBytes = 1;
+		while (Math.pow(2.0, 8 * numBytes - 1) < Math.pow(10.0, precision)) {
+			numBytes += 1;
+		}
+		return numBytes;
 	}
 }

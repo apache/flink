@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -42,18 +41,18 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 	private GeneratedAggsHandleFunction aggsHandleFunction;
 
 	private transient AggsHandleFunction processor;
-	transient BaseRowSerializer inputSer;
-	private transient BaseRowSerializer valueSer;
+	transient RowDataSerializer inputSer;
+	private transient RowDataSerializer valueSer;
 
 	transient ResettableExternalBuffer.BufferIterator inputIterator;
 
 	/** The next row from `input`. */
-	transient BinaryRow nextRow;
+	transient BinaryRowData nextRow;
 
 	/** The rows within current sliding window. */
-	transient ArrayDeque<BaseRow> buffer;
+	transient ArrayDeque<RowData> buffer;
 
-	private transient BaseRow accValue;
+	private transient RowData accValue;
 
 	public SlidingOverFrame(
 			RowType inputType,
@@ -66,9 +65,8 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
-		ExecutionConfig conf = ctx.getRuntimeContext().getExecutionConfig();
-		this.inputSer = new BaseRowSerializer(conf, inputType);
-		this.valueSer = new BaseRowSerializer(conf, valueType);
+		this.inputSer = new RowDataSerializer(inputType);
+		this.valueSer = new RowDataSerializer(valueType);
 
 		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
 		processor = aggsHandleFunction.newInstance(cl);
@@ -89,12 +87,12 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 		processor.setAccumulators(processor.createAccumulators());
 	}
 
-	BaseRow accumulateBuffer(boolean bufferUpdated) throws Exception {
+	RowData accumulateBuffer(boolean bufferUpdated) throws Exception {
 		// Only recalculate and update when the buffer changes.
 		if (bufferUpdated) {
 			//cleanup the retired accumulators value
 			processor.setAccumulators(processor.createAccumulators());
-			for (BaseRow row : buffer) {
+			for (RowData row : buffer) {
 				processor.accumulate(row);
 			}
 			accValue = valueSer.copy(processor.getValue());

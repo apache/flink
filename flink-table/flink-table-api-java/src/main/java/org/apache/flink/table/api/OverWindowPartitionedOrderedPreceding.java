@@ -70,7 +70,9 @@ public final class OverWindowPartitionedOrderedPreceding {
 	 *
 	 * @param following following offset that relative to the current row.
 	 * @return an over window with defined following
+	 * @deprecated use {@link #following(Expression)}
 	 */
+	@Deprecated
 	public OverWindowPartitionedOrderedPreceding following(String following) {
 		return this.following(ExpressionParser.parseExpression(following));
 	}

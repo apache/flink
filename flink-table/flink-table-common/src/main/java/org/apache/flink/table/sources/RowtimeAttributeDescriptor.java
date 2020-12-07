@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sources;
 
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
 
@@ -25,7 +26,12 @@ import java.util.Objects;
 
 /**
  * Describes a rowtime attribute of a {@link TableSource}.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use the concept of computed columns instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 public final class RowtimeAttributeDescriptor {
 
 	private final String attributeName;

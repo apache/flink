@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
 import org.junit.Assert.assertEquals
@@ -429,5 +428,17 @@ class OverAggregateTest extends TableTestBase {
 
     verifyPlanIdentical(sql, sql2)
     util.verifyPlan(sql)
+  }
+
+  @Test
+  def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
+    val sqlQuery = "SELECT a, " +
+      "  SUM(c) OVER (" +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "  MIN(c) OVER (" +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "FROM MyTable"
+
+    util.verifyPlan(sqlQuery)
   }
 }

@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Types, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.{ExpressionTestBase, _}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions._
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.types.Row
 
 import org.junit.Test
 
 import java.lang.{Boolean => JBoolean}
+import java.time.ZoneId
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
@@ -144,6 +145,13 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func0(Null(INT))",
       "Func0(NULL)",
       "-1")
+
+    val JavaFunc1 = new JavaFunc1()
+    testAllApis(
+      JavaFunc1(nullOf(DataTypes.TIME), 15, nullOf(DataTypes.TIMESTAMP(3))),
+      "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
+      "JavaFunc1(NULL, 15, NULL)",
+      "null and 15 and null")
   }
 
   @Test
@@ -239,7 +247,83 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func10(f6)",
       "Func10(f6)",
       "1990-10-14 12:10:10.000")
+
+    testAllApis(
+      Func26('f6),
+      "Func26(f6)",
+      "Func26(f6)",
+      "1990-10-14 12:10:10.000")
   }
+
+  @Test
+  def testLiteralTemporalParameters(): Unit = {
+    testSqlApi("DateFunction(DATE '2020-03-27')", "2020-03-27")
+    testSqlApi("LocalDateFunction(DATE '2020-03-27')", "2020-03-27")
+    testSqlApi("TimeFunction(TIME '18:30:55')", "18:30:55")
+    testSqlApi("LocalTimeFunction(TIME '18:30:55')", "18:30:55")
+    testSqlApi("DateTimeFunction(TIMESTAMP '2020-03-27 18:30:55')", "2020-03-27T18:30:55")
+    testSqlApi("TimestampFunction(TIMESTAMP '2020-03-27 18:30:55')", "2020-03-27 18:30:55.0")
+  }
+
+  @Test
+  def testTimePointsOnPrimitivesInShanghai(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    testAllApis(
+      Func27('f17),
+      "Func27(f17)",
+      "Func27(f17)",
+      "1990-10-14 12:10:10.000")
+
+    // Func28 needs a Long parameter, pass a Instant
+    testAllApis(
+      Func28('f17),
+      "Func28(f17)",
+      "Func28(f17)",
+      "1990-10-14 12:10:10.000")
+
+    testAllApis(
+      Func30('f17),
+      "Func30(f17)",
+      "Func30(f17)",
+      "1990-10-14 12:10:10.000"
+    )
+
+    // Func29 declares return a Instant, but returns a Long actually
+    // the framework helps convert Long to Instant
+    testAllApis(
+      Func29('f18),
+      "Func29(f18)",
+      "Func29(f18)",
+      "1970-01-01 08:00:00.000")
+  }
+
+  @Test
+  def testTimePointsOnPrimitivesInLosAngeles(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
+
+    testAllApis(
+      Func27('f17),
+      "Func27(f17)",
+      "Func27(f17)",
+      "1990-10-14 12:10:10.000")
+
+    // Func28 needs a Long parameter, pass a Instant
+    testAllApis(
+      Func28('f17),
+      "Func28(f17)",
+      "Func28(f17)",
+      "1990-10-14 12:10:10.000")
+
+    // Func29 declares return a Instant, but returns a Long actually
+    // the framework helps convert Long to Instant
+    testAllApis(
+      Func29('f18),
+      "Func29(f18)",
+      "Func29(f18)",
+      "1969-12-31 16:00:00.000")
+  }
+
 
   @Test
   def testTimeIntervalsOnPrimitives(): Unit = {
@@ -401,7 +485,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(17)
+    val testData = new Row(19)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -423,6 +507,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     )
     testData.setField(15, new GraduatedStudent("Bob"))
     testData.setField(16, Array(new GraduatedStudent("Bob")))
+    testData.setField(17, DateTimeTestUtil.localDateTime("1990-10-14 12:10:10")
+      .atZone(config.getLocalTimeZone).toInstant)
+    testData.setField(18, 0L)
     testData
   }
 
@@ -444,7 +531,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.FLOAT,
       Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)),
       TypeInformation.of(classOf[GraduatedStudent]),
-      TypeInformation.of(classOf[Array[GraduatedStudent]])
+      TypeInformation.of(classOf[Array[GraduatedStudent]]),
+      BasicTypeInfo.INSTANT_TYPE_INFO,
+      Types.LONG
     )
   }
 
@@ -472,6 +561,11 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func17" -> Func17,
     "Func19" -> Func19,
     "Func20" -> Func20,
+    "Func26" -> Func26,
+    "Func27" -> Func27,
+    "Func28" -> Func28,
+    "Func29" -> Func29,
+    "Func30" -> Func30,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,
@@ -479,7 +573,13 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "JavaFunc4" -> new JavaFunc4,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
-    "RichFunc2" -> new RichFunc2
+    "RichFunc2" -> new RichFunc2,
+    "DateFunction" -> DateFunction,
+    "LocalDateFunction" -> LocalDateFunction,
+    "TimeFunction" -> TimeFunction,
+    "LocalTimeFunction" -> LocalTimeFunction,
+    "DateTimeFunction" -> DateTimeFunction,
+    "TimestampFunction" -> TimestampFunction
   )
 }
 

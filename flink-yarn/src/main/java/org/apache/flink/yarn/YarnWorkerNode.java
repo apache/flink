@@ -32,9 +32,10 @@ public class YarnWorkerNode implements ResourceIDRetrievable {
 	private final ResourceID resourceID;
 	private final Container container;
 
-	public YarnWorkerNode(Container container) {
+	public YarnWorkerNode(Container container, ResourceID resourceID) {
 		Preconditions.checkNotNull(container);
-		this.resourceID = new ResourceID(container.getId().toString());
+		Preconditions.checkNotNull(resourceID);
+		this.resourceID = resourceID;
 		this.container = container;
 	}
 

@@ -18,23 +18,17 @@
 
 package org.apache.flink.client.deployment;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.TaskManagerOptions;
-
 /**
  * Description of the cluster to start by the {@link ClusterDescriptor}.
  */
 public final class ClusterSpecification {
 	private final int masterMemoryMB;
 	private final int taskManagerMemoryMB;
-	private final int numberTaskManagers;
 	private final int slotsPerTaskManager;
 
-	private ClusterSpecification(int masterMemoryMB, int taskManagerMemoryMB, int numberTaskManagers, int slotsPerTaskManager) {
+	private ClusterSpecification(int masterMemoryMB, int taskManagerMemoryMB, int slotsPerTaskManager) {
 		this.masterMemoryMB = masterMemoryMB;
 		this.taskManagerMemoryMB = taskManagerMemoryMB;
-		this.numberTaskManagers = numberTaskManagers;
 		this.slotsPerTaskManager = slotsPerTaskManager;
 	}
 
@@ -46,10 +40,6 @@ public final class ClusterSpecification {
 		return taskManagerMemoryMB;
 	}
 
-	public int getNumberTaskManagers() {
-		return numberTaskManagers;
-	}
-
 	public int getSlotsPerTaskManager() {
 		return slotsPerTaskManager;
 	}
@@ -59,23 +49,8 @@ public final class ClusterSpecification {
 		return "ClusterSpecification{" +
 			"masterMemoryMB=" + masterMemoryMB +
 			", taskManagerMemoryMB=" + taskManagerMemoryMB +
-			", numberTaskManagers=" + numberTaskManagers +
 			", slotsPerTaskManager=" + slotsPerTaskManager +
 			'}';
-	}
-
-	public static ClusterSpecification fromConfiguration(Configuration configuration) {
-		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
-
-		int jobManagerMemoryMb = ConfigurationUtils.getJobManagerHeapMemory(configuration).getMebiBytes();
-		int taskManagerMemoryMb = ConfigurationUtils.getTaskManagerHeapMemory(configuration).getMebiBytes();
-
-		return new ClusterSpecificationBuilder()
-			.setMasterMemoryMB(jobManagerMemoryMb)
-			.setTaskManagerMemoryMB(taskManagerMemoryMb)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(slots)
-			.createClusterSpecification();
 	}
 
 	/**
@@ -83,8 +58,7 @@ public final class ClusterSpecification {
 	 */
 	public static class ClusterSpecificationBuilder {
 		private int masterMemoryMB = 768;
-		private int taskManagerMemoryMB = 768;
-		private int numberTaskManagers = 1;
+		private int taskManagerMemoryMB = 1024;
 		private int slotsPerTaskManager = 1;
 
 		public ClusterSpecificationBuilder setMasterMemoryMB(int masterMemoryMB) {
@@ -97,11 +71,6 @@ public final class ClusterSpecification {
 			return this;
 		}
 
-		public ClusterSpecificationBuilder setNumberTaskManagers(int numberTaskManagers) {
-			this.numberTaskManagers = numberTaskManagers;
-			return this;
-		}
-
 		public ClusterSpecificationBuilder setSlotsPerTaskManager(int slotsPerTaskManager) {
 			this.slotsPerTaskManager = slotsPerTaskManager;
 			return this;
@@ -111,7 +80,6 @@ public final class ClusterSpecification {
 			return new ClusterSpecification(
 				masterMemoryMB,
 				taskManagerMemoryMB,
-				numberTaskManagers,
 				slotsPerTaskManager);
 		}
 	}

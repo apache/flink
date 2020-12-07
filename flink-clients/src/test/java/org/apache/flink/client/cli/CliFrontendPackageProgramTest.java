@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
@@ -74,7 +75,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		frontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(new DefaultCLI()));
 	}
 
 	@Test
@@ -96,12 +97,12 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		ProgramOptions programOptions = mock(ProgramOptions.class);
 		when(programOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
 		when(programOptions.getProgramArgs()).thenReturn(new String[0]);
+		when(programOptions.getSavepointRestoreSettings()).thenReturn(SavepointRestoreSettings.none());
 
 		try {
 			frontend.buildProgram(programOptions);
 			fail("should throw an exception");
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			// that's what we want
 		}
 	}
@@ -117,7 +118,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -140,7 +141,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = new String[] {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -163,7 +164,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -191,7 +192,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] reducedArguments = {"--debug", "true", "arg1", "arg2"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(arguments[4], programOptions.getJarFilePath());
 		assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -211,7 +212,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		String[] arguments = {"/some/none/existing/path"};
 
 		CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-		ProgramOptions programOptions = new ProgramOptions(commandLine);
+		ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		assertEquals(arguments[0], programOptions.getJarFilePath());
 		assertArrayEquals(new String[0], programOptions.getProgramArgs());
@@ -271,7 +272,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			String[] reducedArguments = { "true", "arg1", "arg2" };
 
 			CommandLine commandLine = CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, arguments, true);
-			ProgramOptions programOptions = new ProgramOptions(commandLine);
+			ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 			assertEquals(getTestJarPath(), programOptions.getJarFilePath());
 			assertArrayEquals(classpath, programOptions.getClasspaths().toArray());
@@ -300,7 +301,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
 			// we expect this to fail with a "ClassNotFoundException"
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, 666);
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, c, 666, true);
 			FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 			fail("Should have failed with a ClassNotFoundException");
 		}

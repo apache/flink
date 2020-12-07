@@ -46,19 +46,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class MiniDispatcher extends Dispatcher {
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
+	private boolean jobCancelled = false;
 
 	public MiniDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
 			JobGraph jobGraph,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
 			Collections.singleton(jobGraph),
+			dispatcherBootstrapFactory,
 			dispatcherServices);
 
 		this.executionMode = checkNotNull(executionMode);
@@ -90,28 +91,40 @@ public class MiniDispatcher extends Dispatcher {
 				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
 						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
 
+				log.info("Shutting down cluster because someone retrieved the job result.");
 				shutDownFuture.complete(status);
 			});
+		} else {
+			log.info("Not shutting down cluster after someone retrieved the job result.");
 		}
 
 		return jobResultFuture;
 	}
 
 	@Override
-	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
-		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+		jobCancelled = true;
+		return super.cancelJob(jobId, timeout);
+	}
 
-		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
-			// shut down since we don't have to wait for the execution result retrieval
+	@Override
+	protected CleanupJobState jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
+		final CleanupJobState cleanupHAState = super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+
+		if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
+			// shut down if job is cancelled or we don't have to wait for the execution result retrieval
+			log.info("Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}", archivedExecutionGraph.getState(), jobCancelled, executionMode);
 			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
+
+		return cleanupHAState;
 	}
 
 	@Override
 	protected void jobNotFinished(JobID jobId) {
 		super.jobNotFinished(jobId);
-
 		// shut down since we have done our job
+		log.info("Shutting down cluster because job not finished");
 		shutDownFuture.complete(ApplicationStatus.UNKNOWN);
 	}
 }

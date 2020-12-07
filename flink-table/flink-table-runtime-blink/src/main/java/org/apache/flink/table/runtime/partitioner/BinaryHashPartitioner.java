@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.runtime.partitioner;
 
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.util.MathUtils;
@@ -30,9 +31,9 @@ import org.apache.flink.util.MathUtils;
 import java.util.Arrays;
 
 /**
- * Hash partitioner for {@link BinaryRow}.
+ * Hash partitioner for {@link BinaryRowData}.
  */
-public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
+public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
 
 	private GeneratedHashFunction genHashFunc;
 
@@ -45,14 +46,19 @@ public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
 	}
 
 	@Override
-	public StreamPartitioner<BaseRow> copy() {
+	public StreamPartitioner<RowData> copy() {
 		return this;
 	}
 
 	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<BaseRow>> record) {
+	public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
 		return MathUtils.murmurHash(
 				getHashFunc().hashCode(record.getInstance().getValue())) % numberOfChannels;
+	}
+
+	@Override
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.FULL;
 	}
 
 	private HashFunction getHashFunc() {

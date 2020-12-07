@@ -171,7 +171,7 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 								strippedFailure);
 						} else {
 							log.info(
-								"Could not resolve {} address {}, retrying in {} ms: {}.",
+								"Could not resolve {} address {}, retrying in {} ms: {}",
 								targetName,
 								targetAddress,
 								retryingRegistrationConfiguration.getErrorDelayMillis(),
@@ -201,7 +201,7 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 		}
 
 		try {
-			log.info("Registration at {} attempt {} (timeout={}ms)", targetName, attempt, timeoutMillis);
+			log.debug("Registration at {} attempt {} (timeout={}ms)", targetName, attempt, timeoutMillis);
 			CompletableFuture<RegistrationResponse> registrationFuture = invokeRegistration(gateway, fencingToken, timeoutMillis);
 
 			// if the registration was successful, let the TaskExecutor know

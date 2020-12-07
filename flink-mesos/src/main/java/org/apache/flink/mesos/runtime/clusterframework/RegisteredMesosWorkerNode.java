@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * A representation of a registered Mesos task managed by the {@link MesosResourceManager}.
+ * A representation of a registered Mesos task managed by the {@link MesosResourceManagerDriver}.
  */
 public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
 
@@ -46,7 +46,7 @@ public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrie
 
 	@Override
 	public ResourceID getResourceID() {
-		return MesosResourceManager.extractResourceID(worker.taskID());
+		return MesosResourceManagerDriver.extractResourceID(worker.taskID());
 	}
 
 	@Override

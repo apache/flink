@@ -19,11 +19,11 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -94,7 +94,7 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.list(parameters);
 	}
 

@@ -52,7 +52,7 @@ class BatchExecSortRule extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput
-    val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val enableRangeSort = config.getConfiguration.getBoolean(
       BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED)
     val distribution = if (enableRangeSort) {

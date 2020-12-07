@@ -18,18 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
-import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Testing utility and factory methods for {@link TaskSlotTable} and {@link TaskSlot}s. */
 public enum TaskSlotUtils {
@@ -37,42 +32,51 @@ public enum TaskSlotUtils {
 
 	private static final long DEFAULT_SLOT_TIMEOUT = 10000L;
 
-	private static final ResourceProfile DEFAULT_RESOURCE_PROFILE =
-		new ResourceProfile(
-			new CPUResource(Double.MAX_VALUE),
-			MemorySize.MAX_VALUE,
-			MemorySize.MAX_VALUE,
-			new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE),
-			new MemorySize(0),
-			MemorySize.MAX_VALUE,
-			Collections.emptyMap());
+	public static final ResourceProfile DEFAULT_RESOURCE_PROFILE = ResourceProfile.newBuilder()
+		.setCpuCores(1.0)
+		.setTaskHeapMemory(new MemorySize(100 * 1024))
+		.setTaskOffHeapMemory(MemorySize.ZERO)
+		.setManagedMemory(new MemorySize(10 * MemoryManager.MIN_PAGE_SIZE))
+		.setNetworkMemory(new MemorySize(100 * 1024))
+		.build();
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots) {
+	public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(int numberOfSlots) {
 		return createTaskSlotTable(
 			numberOfSlots,
-			createDefaultTimerService(DEFAULT_SLOT_TIMEOUT));
+			createDefaultTimerService());
 	}
 
-	public static TaskSlotTable createTaskSlotTable(int numberOfSlots, Time timeout) {
+	public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(int numberOfSlots, Time timeout) {
 		return createTaskSlotTable(
 			numberOfSlots,
 			createDefaultTimerService(timeout.toMilliseconds()));
 	}
 
-	private static TaskSlotTable createTaskSlotTable(
+	private static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(
 			int numberOfSlots,
 			TimerService<AllocationID> timerService) {
-		return new TaskSlotTable(createDefaultSlots(numberOfSlots), timerService);
+		return new TaskSlotTableImpl<>(
+			numberOfSlots,
+			createTotalResourceProfile(numberOfSlots),
+			DEFAULT_RESOURCE_PROFILE,
+			MemoryManager.MIN_PAGE_SIZE,
+			timerService,
+			Executors.newDirectExecutorService());
+	}
+
+	public static ResourceProfile createTotalResourceProfile(int numberOfSlots) {
+		ResourceProfile result = DEFAULT_RESOURCE_PROFILE;
+		for (int i = 0; i < numberOfSlots - 1; ++i) {
+			result = result.merge(DEFAULT_RESOURCE_PROFILE);
+		}
+		return result;
+	}
+
+	public static TimerService<AllocationID> createDefaultTimerService() {
+		return createDefaultTimerService(DEFAULT_SLOT_TIMEOUT);
 	}
 
 	public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {
 		return new TimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
-	}
-
-	public static List<TaskSlot> createDefaultSlots(int numberOfSlots) {
-		return IntStream
-			.range(0, numberOfSlots)
-			.mapToObj(index -> new TaskSlot(index, DEFAULT_RESOURCE_PROFILE, MemoryManager.MIN_PAGE_SIZE))
-			.collect(Collectors.toList());
 	}
 }

@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import javax.annotation.Nonnull;
@@ -38,7 +40,7 @@ import javax.annotation.Nullable;
  * <p>This interface also offers the complementary method that provides access to previously saved state of operator
  * instances in the task for restore purposes.
  */
-public interface TaskStateManager extends CheckpointListener {
+public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 
 	/**
 	 * Report the state snapshots for the operator instances running in the owning task.
@@ -69,4 +71,6 @@ public interface TaskStateManager extends CheckpointListener {
 	 */
 	@Nonnull
 	LocalRecoveryConfig createLocalRecoveryConfig();
+
+	SequentialChannelStateReader getSequentialChannelStateReader();
 }

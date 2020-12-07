@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
+import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptSchema;
@@ -38,7 +38,7 @@ import java.util.List;
  * {@link org.apache.flink.table.operations.QueryOperation} to
  * {@link org.apache.calcite.rel.RelNode}.
  */
-public class QueryOperationCatalogViewTable extends FlinkPreparingTableBase {
+public class QueryOperationCatalogViewTable extends ExpandingPreparingTable {
 	private final QueryOperationCatalogView catalogView;
 
 	/** Creates a QueryOperationCatalogViewTable. */
@@ -67,8 +67,11 @@ public class QueryOperationCatalogViewTable extends FlinkPreparingTableBase {
 	}
 
 	@Override
-	public RelNode toRel(RelOptTable.ToRelContext context) {
-		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), this);
+	public RelNode convertToRel(RelOptTable.ToRelContext context) {
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(
+				context,
+				context.getCluster(),
+				this.getRelOptSchema());
 
 		return relBuilder.queryOperation(catalogView.getQueryOperation()).build();
 	}

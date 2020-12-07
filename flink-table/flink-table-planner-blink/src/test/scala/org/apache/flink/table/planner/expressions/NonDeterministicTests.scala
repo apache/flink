@@ -19,75 +19,76 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 /**
-  * Tests that can only be checked manually as they are non-deterministic.
+  * Tests that check all non-deterministic functions can be executed.
   */
 class NonDeterministicTests extends ExpressionTestBase {
 
-  @Ignore
   @Test
   def testCurrentDate(): Unit = {
     testAllApis(
-      currentDate(),
-      "currentDate()",
-      "CURRENT_DATE",
-      "PLEASE CHECK MANUALLY")
+      currentDate().isGreater("1970-01-01".toDate),
+      "currentDate() > '1970-01-01'.toDate",
+      "CURRENT_DATE > DATE '1970-01-01'",
+      "true")
   }
 
-  @Ignore
   @Test
   def testCurrentTime(): Unit = {
     testAllApis(
-      currentTime(),
-      "currentTime()",
-      "CURRENT_TIME",
-      "PLEASE CHECK MANUALLY")
+      currentTime().isGreaterOrEqual("00:00:00".toTime),
+      "currentTime() >= '00:00:00'.toTime",
+      "CURRENT_TIME >= TIME '00:00:00'",
+      "true")
   }
 
-  @Ignore
   @Test
   def testCurrentTimestamp(): Unit = {
     testAllApis(
-      currentTimestamp(),
-      "currentTimestamp()",
-      "CURRENT_TIMESTAMP",
-      "PLEASE CHECK MANUALLY")
+      currentTimestamp().isGreater("1970-01-01 00:00:00".toTimestamp),
+      "currentTimestamp() > '1970-01-01 00:00:00'.toTimestamp",
+      "CURRENT_TIMESTAMP > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
   }
 
-  @Ignore
+  @Test
+  def testNow(): Unit = {
+    testSqlApi(
+      "NOW() > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
+  }
+
   @Test
   def testLocalTimestamp(): Unit = {
     testAllApis(
-      localTimestamp(),
-      "localTimestamp()",
-      "LOCALTIMESTAMP",
-      "PLEASE CHECK MANUALLY")
+      localTimestamp().isGreater("1970-01-01 00:00:00".toTimestamp),
+      "localTimestamp() > '1970-01-01 00:00:00'.toTimestamp",
+      "LOCALTIMESTAMP > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
   }
 
-  @Ignore
   @Test
   def testLocalTime(): Unit = {
     testAllApis(
-      localTime(),
-      "localTime()",
-      "LOCALTIME",
-      "PLEASE CHECK MANUALLY")
+      localTime().isGreaterOrEqual("00:00:00".toTime),
+      "localTime() >= '00:00:00'.toTime",
+      "LOCALTIME >= TIME '00:00:00'",
+      "true")
   }
 
-  @Ignore
   @Test
   def testUUID(): Unit = {
     testAllApis(
-      uuid(),
-      "uuid()",
-      "UUID()",
-      "PLEASE CHECK MANUALLY")
+      uuid().charLength(),
+      "uuid().charLength",
+      "CHARACTER_LENGTH(UUID())",
+      "36")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -50,16 +50,11 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	}
 
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
+	protected void initializeSplit(FileInputSplit split, Long offset) throws IOException {
+		super.initializeSplit(split, offset);
 
 		@SuppressWarnings("unchecked")
 		FieldParser<Object>[] fieldParsers = (FieldParser<Object>[]) getFieldParsers();
-
-		//throw exception if no field parsers are available
-		if (fieldParsers.length == 0) {
-			throw new IOException("CsvInputFormat.open(FileInputSplit split) - no field parsers to parse input");
-		}
 
 		// create the value holders
 		this.parsedValues = new Object[fieldParsers.length];

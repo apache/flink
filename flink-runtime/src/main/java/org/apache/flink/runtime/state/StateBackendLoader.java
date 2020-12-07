@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -29,10 +30,12 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,6 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class StateBackendLoader {
 
+	private static final Logger LOG = LoggerFactory.getLogger(StateBackendLoader.class);
 	// ------------------------------------------------------------------------
 	//  Configuration shortcut names
 	// ------------------------------------------------------------------------
@@ -65,7 +69,7 @@ public class StateBackendLoader {
 	 * <p>The state backends can be specified either via their shortcut name, or via the class name
 	 * of a {@link StateBackendFactory}. If a StateBackendFactory class name is specified, the factory
 	 * is instantiated (via its zero-argument constructor) and its
-	 * {@link StateBackendFactory#createFromConfig(Configuration, ClassLoader)} method is called.
+	 * {@link StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
 	 *
 	 * <p>Recognized shortcut names are '{@value StateBackendLoader#MEMORY_STATE_BACKEND_NAME}',
 	 * '{@value StateBackendLoader#FS_STATE_BACKEND_NAME}', and
@@ -87,14 +91,14 @@ public class StateBackendLoader {
 	 *             May be thrown by the StateBackendFactory when instantiating the state backend
 	 */
 	public static StateBackend loadStateBackendFromConfig(
-			Configuration config,
+			ReadableConfig config,
 			ClassLoader classLoader,
 			@Nullable Logger logger) throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
 
 		checkNotNull(config, "config");
 		checkNotNull(classLoader, "classLoader");
 
-		final String backendName = config.getString(CheckpointingOptions.STATE_BACKEND);
+		final String backendName = config.get(CheckpointingOptions.STATE_BACKEND);
 		if (backendName == null) {
 			return null;
 		}
@@ -162,10 +166,10 @@ public class StateBackendLoader {
 	 * default state backend (the {@link MemoryStateBackend}). 
 	 *
 	 * <p>If an application-defined state backend is found, and the state backend is a
-	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(Configuration, ClassLoader)}
+	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(ReadableConfig, ClassLoader)}
 	 * on the state backend.
 	 *
-	 * <p>Refer to {@link #loadStateBackendFromConfig(Configuration, ClassLoader, Logger)} for details on
+	 * <p>Refer to {@link #loadStateBackendFromConfig(ReadableConfig, ClassLoader, Logger)} for details on
 	 * how the state backend is loaded from the configuration.
 	 *
 	 * @param config The configuration to load the state backend from
@@ -196,15 +200,11 @@ public class StateBackendLoader {
 
 		// (1) the application defined state backend has precedence
 		if (fromApplication != null) {
-			if (logger != null) {
-				logger.info("Using application-defined state backend: {}", fromApplication);
-			}
-
 			// see if this is supposed to pick up additional configuration parameters
 			if (fromApplication instanceof ConfigurableStateBackend) {
 				// needs to pick up configuration
 				if (logger != null) {
-					logger.info("Configuring application-defined state backend with job/cluster config");
+					logger.info("Using job/cluster config to configure application-defined state backend: {}", fromApplication);
 				}
 
 				backend = ((ConfigurableStateBackend) fromApplication).configure(config, classLoader);
@@ -212,6 +212,10 @@ public class StateBackendLoader {
 			else {
 				// keep as is!
 				backend = fromApplication;
+			}
+
+			if (logger != null) {
+				logger.info("Using application-defined state backend: {}", backend);
 			}
 		}
 		else {
@@ -230,6 +234,41 @@ public class StateBackendLoader {
 		}
 
 		return backend;
+	}
+
+	/**
+	 * Checks whether state backend uses managed memory, without having to deserialize or load the state backend.
+	 * @param config Cluster configuration.
+	 * @param stateBackendFromApplicationUsesManagedMemory Whether the application-defined backend uses Flink's managed
+	 *                                                       memory. Empty if application has not defined a backend.
+	 * @param classLoader User code classloader.
+	 * @return Whether the state backend uses managed memory.
+	 */
+	public static boolean stateBackendFromApplicationOrConfigOrDefaultUseManagedMemory(
+			Configuration config,
+			Optional<Boolean> stateBackendFromApplicationUsesManagedMemory,
+			ClassLoader classLoader) {
+
+		checkNotNull(config, "config");
+
+		// (1) the application defined state backend has precedence
+		if (stateBackendFromApplicationUsesManagedMemory.isPresent()) {
+			return stateBackendFromApplicationUsesManagedMemory.get();
+		}
+
+		// (2) check if the config defines a state backend
+		try {
+			final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, LOG);
+			if (fromConfig != null) {
+				return fromConfig.useManagedMemory();
+			}
+		} catch (IllegalConfigurationException | DynamicCodeLoadingException | IOException e) {
+			LOG.warn("Cannot decide whether state backend uses managed memory. Will reserve managed memory by default.", e);
+			return true;
+		}
+
+		// (3) use the default MemoryStateBackend
+		return false;
 	}
 
 	// ------------------------------------------------------------------------

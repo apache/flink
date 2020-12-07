@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -35,7 +34,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
-import org.apache.flink.queryablestate.client.state.ImmutableFoldingState;
 import org.apache.flink.queryablestate.client.state.ImmutableListState;
 import org.apache.flink.queryablestate.client.state.ImmutableMapState;
 import org.apache.flink.queryablestate.client.state.ImmutableReducingState;
@@ -47,6 +45,7 @@ import org.apache.flink.queryablestate.network.Client;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -88,8 +87,7 @@ public class QueryableStateClient {
 			Tuple2.of(ListStateDescriptor.class, (StateFactory) ImmutableListState::createState),
 			Tuple2.of(MapStateDescriptor.class, (StateFactory) ImmutableMapState::createState),
 			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) ImmutableAggregatingState::createState),
-			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) ImmutableReducingState::createState),
-			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) ImmutableFoldingState::createState)
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) ImmutableReducingState::createState)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {
@@ -120,8 +118,8 @@ public class QueryableStateClient {
 	 * @param remotePort the port of the proxy to connect to.
 	 */
 	public QueryableStateClient(final InetAddress remoteAddress, final int remotePort) {
-		Preconditions.checkArgument(remotePort >= 0 && remotePort <= 65536,
-				"Remote Port " + remotePort + " is out of valid port range (0-65536).");
+		Preconditions.checkArgument(NetUtils.isValidHostPort(remotePort),
+				"Remote Port " + remotePort + " is out of valid port range [0-65535].");
 
 		this.remoteAddress = new InetSocketAddress(remoteAddress, remotePort);
 

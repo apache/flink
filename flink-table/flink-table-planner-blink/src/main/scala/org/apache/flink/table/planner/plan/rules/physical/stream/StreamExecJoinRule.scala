@@ -24,12 +24,10 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecJoin
-import org.apache.flink.table.planner.plan.utils.{TemporalJoinUtil, WindowJoinUtil}
-
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -53,7 +51,7 @@ class StreamExecJoinRule
     }
     val left: FlinkLogicalRel = call.rel(1).asInstanceOf[FlinkLogicalRel]
     val right: FlinkLogicalRel = call.rel(2).asInstanceOf[FlinkLogicalRel]
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val joinRowType = join.getRowType
 
     if (left.isInstanceOf[FlinkLogicalSnapshot]) {
@@ -67,7 +65,7 @@ class StreamExecJoinRule
       return false
     }
 
-    val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, remainingPreds) = IntervalJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       joinRowType,
@@ -80,7 +78,7 @@ class StreamExecJoinRule
 
     // remaining predicate must not access time attributes
     val remainingPredsAccessTime = remainingPreds.isDefined &&
-      WindowJoinUtil.accessesTimeAttribute(remainingPreds.get, joinRowType)
+      IntervalJoinUtil.accessesTimeAttribute(remainingPreds.get, joinRowType)
 
     val rowTimeAttrInOutput = joinRowType.getFieldList
       .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))

@@ -19,27 +19,27 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * The factory of {@link AsyncWaitOperator}.
  *
  * @param <OUT> The output type of the operator
  */
-public class AsyncWaitOperatorFactory<IN, OUT> implements OneInputStreamOperatorFactory<IN, OUT>, YieldingOperatorFactory<OUT> {
+public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFactory<OUT>
+	implements OneInputStreamOperatorFactory<IN, OUT>, YieldingOperatorFactory<OUT> {
+
 	private final AsyncFunction<IN, OUT> asyncFunction;
 	private final long timeout;
 	private final int capacity;
 	private final AsyncDataStream.OutputMode outputMode;
 	private MailboxExecutor mailboxExecutor;
-	private ChainingStrategy strategy = ChainingStrategy.HEAD;
 
 	public AsyncWaitOperatorFactory(
 			AsyncFunction<IN, OUT> asyncFunction,
@@ -50,6 +50,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> implements OneInputStreamOperator
 		this.timeout = timeout;
 		this.capacity = capacity;
 		this.outputMode = outputMode;
+		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
@@ -58,25 +59,16 @@ public class AsyncWaitOperatorFactory<IN, OUT> implements OneInputStreamOperator
 	}
 
 	@Override
-	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
+	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
 		AsyncWaitOperator asyncWaitOperator = new AsyncWaitOperator(
 				asyncFunction,
 				timeout,
 				capacity,
 				outputMode,
+				processingTimeService,
 				mailboxExecutor);
-		asyncWaitOperator.setup(containingTask, config, output);
-		return asyncWaitOperator;
-	}
-
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.strategy = strategy;
-	}
-
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return strategy;
+		asyncWaitOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+		return (T) asyncWaitOperator;
 	}
 
 	@Override

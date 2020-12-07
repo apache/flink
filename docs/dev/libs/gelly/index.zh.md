@@ -63,7 +63,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 </div>
 </div>
 
-Note that Gelly is not part of the binary distribution. See [linking]({{ site.baseurl }}/dev/projectsetup/dependencies.html) for
+Note that Gelly is not part of the binary distribution. See [linking]({% link dev/project-configuration.zh.md %}) for
 instructions on packaging Gelly libraries into Flink user programs.
 
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink DataSet API.

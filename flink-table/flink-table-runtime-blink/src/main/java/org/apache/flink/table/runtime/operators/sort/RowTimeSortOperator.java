@@ -27,10 +27,10 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -48,14 +48,14 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RowTimeSortOperator.class);
 
-	private final BaseRowTypeInfo inputRowType;
+	private final InternalTypeInfo<RowData> inputRowType;
 	private final int rowTimeIdx;
 
 	private GeneratedRecordComparator gComparator;
 	private transient RecordComparator comparator;
 
 	// State to collect rows between watermarks.
-	private transient MapState<Long, List<BaseRow>> dataState;
+	private transient MapState<Long, List<RowData>> dataState;
 	// State to keep the last triggering timestamp. Used to filter late events.
 	private transient ValueState<Long> lastTriggeringTsState;
 
@@ -64,9 +64,9 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	 * @param rowTimeIdx The index of the rowTime field.
 	 * @param gComparator generated comparator, could be null if only sort on RowTime field
 	 */
-	public RowTimeSortOperator(BaseRowTypeInfo inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
+	public RowTimeSortOperator(InternalTypeInfo<RowData> inputRowType, int rowTimeIdx, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
-		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.getArity(),
+		Preconditions.checkArgument(rowTimeIdx >= 0 && rowTimeIdx < inputRowType.toRowSize(),
 				"RowTimeIdx must be 0 or positive number and smaller than input row arity!");
 		this.rowTimeIdx = rowTimeIdx;
 		this.gComparator = gComparator;
@@ -83,8 +83,8 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 		}
 
 		BasicTypeInfo<Long> keyTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
-		ListTypeInfo<BaseRow> valueTypeInfo = new ListTypeInfo<>(inputRowType);
-		MapStateDescriptor<Long, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<>(
+		ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
+		MapStateDescriptor<Long, List<RowData>> mapStateDescriptor = new MapStateDescriptor<>(
 				"dataState", keyTypeInfo, valueTypeInfo);
 		dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
@@ -94,8 +94,8 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 
 		// timestamp of the processed row
 		long rowTime = input.getLong(rowTimeIdx);
@@ -105,12 +105,12 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 		// check if the row is late and drop it if it is late
 		if (lastTriggeringTs == null || rowTime > lastTriggeringTs) {
 			// get list for timestamp
-			List<BaseRow> rows = dataState.get(rowTime);
+			List<RowData> rows = dataState.get(rowTime);
 			if (null != rows) {
 				rows.add(input);
 				dataState.put(rowTime, rows);
 			} else {
-				List<BaseRow> newRows = new ArrayList<>();
+				List<RowData> newRows = new ArrayList<>();
 				newRows.add(input);
 				dataState.put(rowTime, newRows);
 
@@ -122,11 +122,11 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	}
 
 	@Override
-	public void onEventTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
+	public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
 		long timestamp = timer.getTimestamp();
 
 		// gets all rows for the triggering timestamps
-		List<BaseRow> inputs = dataState.get(timestamp);
+		List<RowData> inputs = dataState.get(timestamp);
 		if (inputs != null) {
 			// sort rows on secondary fields if necessary
 			if (comparator != null) {
@@ -134,7 +134,7 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 			}
 
 			// emit rows in order
-			inputs.forEach((BaseRow row) -> collector.collect(row));
+			inputs.forEach((RowData row) -> collector.collect(row));
 
 			// remove emitted rows from state
 			dataState.remove(timestamp);
@@ -143,7 +143,7 @@ public class RowTimeSortOperator extends BaseTemporalSortOperator {
 	}
 
 	@Override
-	public void onProcessingTime(InternalTimer<BaseRow, VoidNamespace> timer) throws Exception {
+	public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
 		throw new UnsupportedOperationException("Now Sort only is supported based event time here!");
 	}
 

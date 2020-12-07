@@ -146,7 +146,7 @@ public class SimpleVersionedSerialization {
 	public static <T> T readVersionAndDeSerialize(SimpleVersionedSerializer<T> serializer, byte[] bytes) throws IOException {
 		checkNotNull(serializer, "serializer");
 		checkNotNull(bytes, "bytes");
-		checkArgument(bytes.length >= 4, "byte array below minimum length (4 bytes)");
+		checkArgument(bytes.length >= 8, "byte array below minimum length (8 bytes)");
 
 		final byte[] dataOnly = Arrays.copyOfRange(bytes, 8, bytes.length);
 		final int version =

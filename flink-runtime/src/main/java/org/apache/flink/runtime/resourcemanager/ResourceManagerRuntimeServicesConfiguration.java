@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
@@ -35,9 +36,12 @@ public class ResourceManagerRuntimeServicesConfiguration {
 
 	private final SlotManagerConfiguration slotManagerConfiguration;
 
-	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout, SlotManagerConfiguration slotManagerConfiguration) {
+	private final boolean enableDeclarativeResourceManagement;
+
+	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout, SlotManagerConfiguration slotManagerConfiguration, boolean enableDeclarativeResourceManagement) {
 		this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
 		this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
+		this.enableDeclarativeResourceManagement = enableDeclarativeResourceManagement;
 	}
 
 	public Time getJobTimeout() {
@@ -48,9 +52,15 @@ public class ResourceManagerRuntimeServicesConfiguration {
 		return slotManagerConfiguration;
 	}
 
+	public boolean isDeclarativeResourceManagementEnabled() {
+		return enableDeclarativeResourceManagement;
+	}
+
 	// ---------------------------- Static methods ----------------------------------
 
-	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(
+			Configuration configuration,
+			WorkerResourceSpecFactory defaultWorkerResourceSpecFactory) throws ConfigurationException {
 
 		final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
 		final Time jobTimeout;
@@ -62,8 +72,12 @@ public class ResourceManagerRuntimeServicesConfiguration {
 				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
 		}
 
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+		final WorkerResourceSpec defaultWorkerResourceSpec = defaultWorkerResourceSpecFactory.createDefaultWorkerResourceSpec(configuration);
+		final SlotManagerConfiguration slotManagerConfiguration =
+			SlotManagerConfiguration.fromConfiguration(configuration, defaultWorkerResourceSpec);
 
-		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration);
+		final boolean enableDeclarativeResourceManagement = ClusterOptions.isDeclarativeResourceManagementEnabled(configuration);
+
+		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration, enableDeclarativeResourceManagement);
 	}
 }

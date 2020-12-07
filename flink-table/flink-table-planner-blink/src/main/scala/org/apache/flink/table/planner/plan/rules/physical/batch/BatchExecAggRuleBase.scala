@@ -18,21 +18,25 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BinaryRow
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashAggregate, BatchExecLocalSortAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Aggregate
-import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
+import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._
@@ -158,7 +162,7 @@ trait BatchExecAggRuleBase {
   protected def isAggBufferFixedLength(aggBufferTypes: Array[Array[LogicalType]]): Boolean = {
     val aggBuffAttributesTypes = aggBufferTypes.flatten
     val isAggBufferFixedLength = aggBuffAttributesTypes.forall(
-      t => BinaryRow.isMutable(t))
+      t => BinaryRowData.isMutable(t))
     // it means grouping without aggregate functions
     aggBuffAttributesTypes.isEmpty || isAggBufferFixedLength
   }
@@ -170,4 +174,65 @@ trait BatchExecAggRuleBase {
     }
     RelCollations.of(fields)
   }
+
+  protected def getGlobalAggGroupSetPair(
+      localAggGroupSet: Array[Int], localAggAuxGroupSet: Array[Int]): (Array[Int], Array[Int]) = {
+    val globalGroupSet = localAggGroupSet.indices.toArray
+    val globalAuxGroupSet = (localAggGroupSet.length until localAggGroupSet.length +
+      localAggAuxGroupSet.length).toArray
+    (globalGroupSet, globalAuxGroupSet)
+  }
+
+  protected def createLocalAgg(
+      cluster: RelOptCluster,
+      relBuilder: RelBuilder,
+      traitSet: RelTraitSet,
+      input: RelNode,
+      originalAggRowType: RelDataType,
+      grouping: Array[Int],
+      auxGrouping: Array[Int],
+      aggBufferTypes: Array[Array[DataType]],
+      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+      isLocalHashAgg: Boolean): BatchExecGroupAggregateBase = {
+    val inputRowType = input.getRowType
+    val aggFunctions = aggCallToAggFunction.map(_._2).toArray
+
+    val typeFactory = input.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val aggCallNames = Util.skip(
+      originalAggRowType.getFieldNames, grouping.length + auxGrouping.length).toList.toArray
+
+    val localAggRowType = inferLocalAggType(
+      inputRowType,
+      typeFactory,
+      aggCallNames,
+      grouping,
+      auxGrouping,
+      aggFunctions,
+      aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
+
+    if (isLocalHashAgg) {
+      new BatchExecLocalHashAggregate(
+        cluster,
+        relBuilder,
+        traitSet,
+        input,
+        localAggRowType,
+        inputRowType,
+        grouping,
+        auxGrouping,
+        aggCallToAggFunction)
+    } else {
+      new BatchExecLocalSortAggregate(
+        cluster,
+        relBuilder,
+        traitSet,
+        input,
+        localAggRowType,
+        inputRowType,
+        grouping,
+        auxGrouping,
+        aggCallToAggFunction)
+    }
+  }
+
 }

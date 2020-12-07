@@ -117,27 +117,25 @@ public class FileCacheDirectoriesTest {
 
 	@Test
 	public void testDirectoryDownloadedFromBlob() throws Exception {
-		JobID jobID = new JobID();
-		ExecutionAttemptID attemptID = new ExecutionAttemptID();
-
-		final String fileName = "test_file";
-		// copy / create the file
 		final DistributedCache.DistributedCacheEntry entry = new DistributedCache.DistributedCacheEntry(
-			fileName,
+			"test_file",
 			false,
 			InstantiationUtil.serializeObject(permanentBlobKey),
 			true);
-		Future<Path> copyResult = fileCache.createTmpFile(fileName, entry, jobID, attemptID);
 
-		final Path dstPath = copyResult.get();
-		final FileSystem fs = dstPath.getFileSystem();
-		final FileStatus fileStatus = fs.getFileStatus(dstPath);
-		assertTrue(fileStatus.isDir());
+		testDirectoryDownloaded(entry);
+	}
 
-		final Path cacheFile = new Path(dstPath, "cacheFile");
-		assertTrue(fs.exists(cacheFile));
-		final String actualContent = FileUtils.readFileUtf8(new File(cacheFile.getPath()));
-		assertEquals(testFileContent, actualContent);
+	@Test
+	public void testDirectoryDownloadedFromDFS() throws Exception {
+		final String zippedFile = blobService.getFile(new JobID(), permanentBlobKey).getAbsolutePath();
+		final DistributedCache.DistributedCacheEntry entry = new DistributedCache.DistributedCacheEntry(
+			zippedFile,
+			false,
+			null,
+			true);
+
+		testDirectoryDownloaded(entry);
 	}
 
 	@Test
@@ -198,5 +196,24 @@ public class FileCacheDirectoriesTest {
 				return super.schedule(command, delay, unit);
 			}
 		}
+	}
+
+	private void testDirectoryDownloaded(DistributedCache.DistributedCacheEntry entry) throws Exception {
+		JobID jobID = new JobID();
+		ExecutionAttemptID attemptID = new ExecutionAttemptID();
+
+		// copy / create the file
+		final String fileName = "test_file";
+		Future<Path> copyResult = fileCache.createTmpFile(fileName, entry, jobID, attemptID);
+
+		final Path dstPath = copyResult.get();
+		final FileSystem fs = dstPath.getFileSystem();
+		final FileStatus fileStatus = fs.getFileStatus(dstPath);
+		assertTrue(fileStatus.isDir());
+
+		final Path cacheFile = new Path(dstPath, "cacheFile");
+		assertTrue(fs.exists(cacheFile));
+		final String actualContent = FileUtils.readFileUtf8(new File(cacheFile.getPath()));
+		assertEquals(testFileContent, actualContent);
 	}
 }

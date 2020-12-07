@@ -22,10 +22,8 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
@@ -40,8 +38,6 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	private LibraryCacheManager libraryCacheManager;
 
-	private RestartStrategyFactory restartStrategyFactory;
-
 	private BackPressureRequestCoordinator backPressureSampleCoordinator;
 
 	private BackPressureStatsTracker backPressureStatsTracker;
@@ -51,7 +47,6 @@ public class TestingJobManagerSharedServicesBuilder {
 	public TestingJobManagerSharedServicesBuilder() {
 		scheduledExecutorService = TestingUtils.defaultExecutor();
 		libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
-		restartStrategyFactory = new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
 		backPressureSampleCoordinator = new BackPressureRequestCoordinator(Runnable::run, 10000);
 		backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
 		blobWriter = VoidBlobWriter.getInstance();
@@ -66,11 +61,6 @@ public class TestingJobManagerSharedServicesBuilder {
 		this.libraryCacheManager = libraryCacheManager;
 		return this;
 
-	}
-
-	public TestingJobManagerSharedServicesBuilder setRestartStrategyFactory(RestartStrategyFactory restartStrategyFactory) {
-		this.restartStrategyFactory = restartStrategyFactory;
-		return this;
 	}
 
 	public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(BackPressureRequestCoordinator backPressureSampleCoordinator) {
@@ -92,7 +82,6 @@ public class TestingJobManagerSharedServicesBuilder {
 		return new JobManagerSharedServices(
 			scheduledExecutorService,
 			libraryCacheManager,
-			restartStrategyFactory,
 			backPressureSampleCoordinator,
 			backPressureStatsTracker,
 			blobWriter);

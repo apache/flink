@@ -19,7 +19,8 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -36,81 +37,79 @@ public interface Executor {
 	void start() throws SqlExecutionException;
 
 	/**
+	 * Open a new session by using the given {@link SessionContext}.
+	 *
+	 * @param session context to create new session.
+	 * @return session identifier to track the session.
+	 * @throws SqlExecutionException if any error happen
+	 */
+	String openSession(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Close the resources of session for given session id.
+	 *
+	 * @param sessionId session identifier
+	 * @throws SqlExecutionException if any error happen
+	 */
+	void closeSession(String sessionId) throws SqlExecutionException;
+
+	/**
 	 * Lists all session properties that are defined by the executor and the session.
 	 */
-	Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException;
+	Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException;
 
 	/**
-	 * Lists all registered catalogs.
+	 * Reset all the properties for the given session identifier.
+	 *
+	 * @param sessionId to identifier the session
+	 * @throws SqlExecutionException if any error happen.
 	 */
-	List<String> listCatalogs(SessionContext session) throws SqlExecutionException;
+	void resetSessionProperties(String sessionId) throws SqlExecutionException;
 
 	/**
-	 * Lists all databases in the current catalog.
+	 * Set given key's session property to the specific value.
+	 *
+	 * @param key   of the session property
+	 * @param value of the session property
+	 * @throws SqlExecutionException if any error happen.
 	 */
-	List<String> listDatabases(SessionContext session) throws SqlExecutionException;
+	void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException;
 
 	/**
-	 * Lists all tables in the current database of the current catalog.
+	 * Executes a SQL statement, and return {@link TableResult} as execution result.
 	 */
-	List<String> listTables(SessionContext session) throws SqlExecutionException;
-
-	/**
-	 * Lists all user-defined functions known to the executor.
-	 */
-	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
-
-	/**
-	 * Lists all functions known to the executor.
-	 */
-	List<String> listFunctions(SessionContext session) throws SqlExecutionException;
+	TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
 
 	/**
 	 * Lists all modules known to the executor in their loaded order.
 	 */
-	List<String> listModules(SessionContext session) throws SqlExecutionException;
+	List<String> listModules(String sessionId) throws SqlExecutionException;
 
 	/**
-	 * Sets a catalog with given name as the current catalog.
+	 * Returns a sql parser instance.
 	 */
-	void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException;
-
-	/**
-	 * Sets a database with given name as the current database of the current catalog.
-	 */
-	void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException;
-
-	/**
-	 * Returns the schema of a table. Throws an exception if the table could not be found. The
-	 * schema might contain time attribute types for helping the user during debugging a query.
-	 */
-	TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException;
-
-	/**
-	 * Returns a string-based explanation about AST and execution plan of the given statement.
-	 */
-	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
+	Parser getSqlParser(String sessionId);
 
 	/**
 	 * Returns a list of completion hints for the given statement at the given position.
 	 */
-	List<String> completeStatement(SessionContext session, String statement, int position);
+	List<String> completeStatement(String sessionId, String statement, int position);
 
 	/**
 	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
-	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
+	ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException;
 
 	/**
 	 * Asks for the next changelog results (non-blocking).
 	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session, String resultId) throws SqlExecutionException;
+	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException;
 
 	/**
 	 * Creates an immutable result snapshot of the running Flink job. Throws an exception if no Flink job can be found.
 	 * Returns the number of pages.
 	 */
-	TypedResult<Integer> snapshotResult(SessionContext session, String resultId, int pageSize) throws SqlExecutionException;
+	TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize) throws SqlExecutionException;
 
 	/**
 	 * Returns the rows that are part of the current page or throws an exception if the snapshot has been expired.
@@ -121,24 +120,14 @@ public interface Executor {
 	 * Cancels a table program and stops the result retrieval. Blocking until cancellation command has
 	 * been sent to cluster.
 	 */
-	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
+	void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
 
 	/**
 	 * Submits a Flink SQL update statement such as INSERT INTO.
 	 *
-	 * @param session context in with the statement is executed
+	 * @param sessionId to identify the user session.
 	 * @param statement SQL update statement (currently only INSERT INTO is supported)
 	 * @return information about the target of the submitted Flink job
 	 */
-	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
-
-	/**
-	 * Validates the current session. For example, it checks whether all views are still valid.
-	 */
-	void validateSession(SessionContext session) throws SqlExecutionException;
-
-	/**
-	 * Stops the executor.
-	 */
-	void stop(SessionContext session);
+	ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException;
 }

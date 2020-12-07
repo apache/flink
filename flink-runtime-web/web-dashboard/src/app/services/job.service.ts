@@ -117,8 +117,7 @@ export class JobService {
       map(job => this.convertJob(job)),
       tap(job => {
         this.jobDetail$.next(job);
-      }),
-      catchError(() => EMPTY)
+      })
     );
   }
 
@@ -155,9 +154,12 @@ export class JobService {
   /**
    * Get job exception
    * @param jobId
+   * @param maxExceptions
    */
-  loadExceptions(jobId: string) {
-    return this.httpClient.get<JobExceptionInterface>(`${BASE_URL}/jobs/${jobId}/exceptions`);
+  loadExceptions(jobId: string, maxExceptions: number) {
+    return this.httpClient.get<JobExceptionInterface>(
+      `${BASE_URL}/jobs/${jobId}/exceptions?maxExceptions=${maxExceptions}`
+    );
   }
 
   /**

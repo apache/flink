@@ -18,12 +18,21 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sources.{DefinedFieldMapping, TableSource, TableSourceValidation}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.utils.{DataTypeUtils, TypeConversions}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.utils.TypeMappingUtils
+
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{TableSource, TableSourceUtil, TableSourceValidation}
+
+import java.util.function.{Function => JFunction}
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
@@ -34,12 +43,13 @@ import org.apache.flink.table.sources.{TableSource, TableSourceUtil, TableSource
   * @param statistic The table statistics.
   */
 class TableSourceTable[T](
+    val tableSchema: TableSchema,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
     val statistic: FlinkStatistic)
   extends AbstractTable {
 
-  TableSourceValidation.validateTableSource(tableSource)
+  TableSourceValidation.validateTableSource(tableSource, tableSchema)
 
   /**
     * Returns statistics of current table
@@ -48,11 +58,53 @@ class TableSourceTable[T](
     */
   override def getStatistic: Statistic = statistic
 
+  // We must enrich logical schema from catalog table with physical type coming from table source.
+  // Schema coming from catalog table might not have proper conversion classes. Those must be
+  // extracted from produced type, before converting to RelDataType
   def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
+
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+
+    val fieldNames = tableSchema.getFieldNames
+
+    val nameMapping: JFunction[String, String] = tableSource match {
+      case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+        new JFunction[String, String] {
+          override def apply(t: String): String = mapping.getFieldMapping.get(t)
+        }
+      case _ => JFunction.identity()
+    }
+
+    val producedDataType = tableSource.getProducedDataType
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
       tableSource,
-      None,
+      tableSchema.getTableColumns,
       isStreamingMode,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
+      nameMapping
+    )
+
+    val typeInfos = if (LogicalTypeChecks.isCompositeType(producedDataType.getLogicalType)) {
+      val physicalSchema = DataTypeUtils.expandCompositeTypeToSchema(producedDataType)
+      fieldIndexes.map(mapIndex(_,
+        idx =>
+          TypeConversions.fromDataTypeToLegacyInfo(physicalSchema.getFieldDataType(idx).get()))
+      )
+    } else {
+      fieldIndexes.map(mapIndex(_, _ => TypeConversions.fromDataTypeToLegacyInfo(producedDataType)))
+    }
+
+    flinkTypeFactory.buildLogicalRowType(fieldNames, typeInfos)
+  }
+
+  def mapIndex(idx: Int, mapNonMarker: Int => TypeInformation[_]): TypeInformation[_] = {
+    idx match {
+      case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER => Types.SQL_TIMESTAMP()
+      case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER => Types.SQL_TIMESTAMP()
+      case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+        TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+      case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+      case _ =>
+       mapNonMarker(idx)
+    }
   }
 }

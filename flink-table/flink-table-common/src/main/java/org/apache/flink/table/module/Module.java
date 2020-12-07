@@ -42,7 +42,7 @@ public interface Module {
 	}
 
 	/**
-	 * Get an optional of {@link FunctionDefinition} by a give name.
+	 * Get an optional of {@link FunctionDefinition} by a given name.
 	 *
 	 * @param name name of the {@link FunctionDefinition}.
 	 * @return an optional function definition

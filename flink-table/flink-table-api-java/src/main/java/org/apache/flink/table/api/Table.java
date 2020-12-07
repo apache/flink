@@ -100,7 +100,9 @@ public interface Table {
 	 *   tab.select("key, value.avg + ' The average' as average")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #select(Expression...)}
 	 */
+	@Deprecated
 	Table select(String fields);
 
 	/**
@@ -111,7 +113,15 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select('key, 'value.avg + " The average" as 'average)
+	 *   tab.select($("key"), $("value").avg().plus(" The average").as("average"));
+	 * }
+	 * </pre>
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.select($"key", $"value".avg + " The average" as "average")
 	 * }
 	 * </pre>
 	 */
@@ -135,7 +145,9 @@ public interface Table {
 	 *        It takes one single argument, the {@code timeAttribute}, for which it returns
 	 *        matching version of the {@link Table}, from which {@link TemporalTableFunction}
 	 *        was created.
+	 * @deprecated use {@link #createTemporalTableFunction(Expression, Expression)}
 	 */
+	@Deprecated
 	TemporalTableFunction createTemporalTableFunction(String timeAttribute, String primaryKey);
 
 	/**
@@ -167,24 +179,34 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.as("a, b")
+	 *   tab.as("a", "b")
 	 * }
 	 * </pre>
 	 */
-	Table as(String fields);
+	Table as(String field, String... fields);
 
 	/**
 	 * Renames the fields of the expression result. Use this to disambiguate fields before
 	 * joining to operations.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.as($("a"), $("b"))
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.as('a, 'b)
+	 *   tab.as($"a", $"b")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #as(String, String...)}
 	 */
+	@Deprecated
 	Table as(Expression... fields);
 
 	/**
@@ -198,18 +220,28 @@ public interface Table {
 	 *   tab.filter("name = 'Fred'")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #filter(Expression)}
 	 */
+	@Deprecated
 	Table filter(String predicate);
 
 	/**
 	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
 	 * clause.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.filter($("name").isEqual("Fred"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.filter('name === "Fred")
+	 *   tab.filter($"name" === "Fred")
 	 * }
 	 * </pre>
 	 */
@@ -226,18 +258,28 @@ public interface Table {
 	 *   tab.where("name = 'Fred'")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #where(Expression)}
 	 */
+	@Deprecated
 	Table where(String predicate);
 
 	/**
 	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
 	 * clause.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.where($("name").isEqual("Fred"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.where('name === "Fred")
+	 *   tab.where($"name" === "Fred")
 	 * }
 	 * </pre>
 	 */
@@ -254,7 +296,9 @@ public interface Table {
 	 *   tab.groupBy("key").select("key, value.avg")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #groupBy(Expression...)}
 	 */
+	@Deprecated
 	GroupedTable groupBy(String fields);
 
 	/**
@@ -265,7 +309,15 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.groupBy('key).select('key, 'value.avg)
+	 *   tab.groupBy($("key")).select($("key"), $("value").avg());
+	 * }
+	 * </pre>
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.groupBy($"key").select($"key", $"value".avg)
 	 * }
 	 * </pre>
 	 */
@@ -278,7 +330,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.select("key, value").distinct()
+	 *   tab.select($("key"), $("value")).distinct();
 	 * }
 	 * </pre>
 	 */
@@ -295,7 +347,9 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.join(right).where("a = b && c > 3").select("a, b, d")
+	 *   left.join(right)
+	 *       .where($("a").isEqual($("b")).and($("c").isGreater(3))
+	 *       .select($("a"), $("b"), $("d"));
 	 * }
 	 * </pre>
 	 */
@@ -314,7 +368,9 @@ public interface Table {
 	 *   left.join(right, "a = b")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #join(Table, Expression)}
 	 */
+	@Deprecated
 	Table join(Table right, String joinPredicate);
 
 	/**
@@ -323,11 +379,21 @@ public interface Table {
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   left.join(right, $("a").isEqual($("b")))
+	 *       .select($("a"), $("b"), $("d"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.join(right, 'a === 'b).select('a, 'b, 'd)
+	 *   left.join(right, $"a" === $"b")
+	 *       .select($"a", $"b", $"d")
 	 * }
 	 * </pre>
 	 */
@@ -344,7 +410,8 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.leftOuterJoin(right).select("a, b, d")
+	 *   left.leftOuterJoin(right)
+	 *       .select($("a"), $("b"), $("d"));
 	 * }
 	 * </pre>
 	 */
@@ -364,7 +431,9 @@ public interface Table {
 	 *   left.leftOuterJoin(right, "a = b").select("a, b, d")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #leftOuterJoin(Table, Expression)}
 	 */
+	@Deprecated
 	Table leftOuterJoin(Table right, String joinPredicate);
 
 	/**
@@ -374,11 +443,21 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   left.leftOuterJoin(right, $("a").isEqual($("b")))
+	 *       .select($("a"), $("b"), $("d"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.leftOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
+	 *   left.leftOuterJoin(right, $"a" === $"b")
+	 *       .select($"a", $"b", $"d")
 	 * }
 	 * </pre>
 	 */
@@ -398,7 +477,9 @@ public interface Table {
 	 *   left.rightOuterJoin(right, "a = b").select("a, b, d")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #rightOuterJoin(Table, Expression)}
 	 */
+	@Deprecated
 	Table rightOuterJoin(Table right, String joinPredicate);
 
 	/**
@@ -408,11 +489,21 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   left.rightOuterJoin(right, $("a").isEqual($("b")))
+	 *       .select($("a"), $("b"), $("d"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.rightOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
+	 *   left.rightOuterJoin(right, $"a" === $"b")
+	 *       .select($"a", $"b", $"d")
 	 * }
 	 * </pre>
 	 */
@@ -432,7 +523,9 @@ public interface Table {
 	 *   left.fullOuterJoin(right, "a = b").select("a, b, d")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #fullOuterJoin(Table, Expression)}
 	 */
+	@Deprecated
 	Table fullOuterJoin(Table right, String joinPredicate);
 
 	/**
@@ -442,11 +535,21 @@ public interface Table {
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
 	 * {@code TableConfig} must have null check enabled (default).
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   left.fullOuterJoin(right, $("a").isEqual($("b")))
+	 *       .select($("a"), $("b"), $("d"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.fullOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
+	 *   left.fullOuterJoin(right, $"a" === $"b")
+	 *       .select($"a", $"b", $"d")
 	 * }
 	 * </pre>
 	 */
@@ -472,13 +575,30 @@ public interface Table {
 	 *   table.joinLateral("split(c) as (s)").select("a, b, c, s");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #joinLateral(Expression)}
 	 */
+	@Deprecated
 	Table joinLateral(String tableFunctionCall);
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
 	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
 	 * table is joined with all rows produced by the table function.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   class MySplitUDTF extends TableFunction<String> {
+	 *     public void eval(String str) {
+	 *       str.split("#").forEach(this::collect);
+	 *     }
+	 *   }
+	 *
+	 *   table.joinLateral(call(MySplitUDTF.class, $("c")).as("s"))
+	 *        .select($("a"), $("b"), $("c"), $("s"));
+	 * }
+	 * </pre>
 	 *
 	 * <p>Scala Example:
 	 *
@@ -491,7 +611,8 @@ public interface Table {
 	 *   }
 	 *
 	 *   val split = new MySplitUDTF()
-	 *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+	 *   table.joinLateral(split($"c") as "s")
+	 *        .select($"a", $"b", $"c", $"s")
 	 * }
 	 * </pre>
 	 */
@@ -517,13 +638,30 @@ public interface Table {
 	 *   table.joinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #joinLateral(Expression, Expression)}
 	 */
+	@Deprecated
 	Table joinLateral(String tableFunctionCall, String joinPredicate);
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
 	 * a SQL inner join but works with a table function. Each row of the table is joined with all
 	 * rows produced by the table function.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   class MySplitUDTF extends TableFunction<String> {
+	 *     public void eval(String str) {
+	 *       str.split("#").forEach(this::collect);
+	 *     }
+	 *   }
+	 *
+	 *   table.joinLateral(call(MySplitUDTF.class, $("c")).as("s"), $("a").isEqual($("s")))
+	 *        .select($("a"), $("b"), $("c"), $("s"));
+	 * }
+	 * </pre>
 	 *
 	 * <p>Scala Example:
 	 *
@@ -536,7 +674,8 @@ public interface Table {
 	 *   }
 	 *
 	 *   val split = new MySplitUDTF()
-	 *   table.joinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+	 *   table.joinLateral(split($"c") as "s", $"a" === $"s")
+	 *        .select($"a", $"b", $"c", $"s")
 	 * }
 	 * </pre>
 	 */
@@ -563,7 +702,9 @@ public interface Table {
 	 *   table.leftOuterJoinLateral("split(c) as (s)").select("a, b, c, s");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #leftOuterJoinLateral(Expression)}
 	 */
+	@Deprecated
 	Table leftOuterJoinLateral(String tableFunctionCall);
 
 	/**
@@ -571,6 +712,21 @@ public interface Table {
 	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   class MySplitUDTF extends TableFunction<String> {
+	 *     public void eval(String str) {
+	 *       str.split("#").forEach(this::collect);
+	 *     }
+	 *   }
+	 *
+	 *   table.leftOuterJoinLateral(call(MySplitUDTF.class, $("c")).as("s"))
+	 *        .select($("a"), $("b"), $("c"), $("s"));
+	 * }
+	 * </pre>
 	 *
 	 * <p>Scala Example:
 	 *
@@ -583,7 +739,8 @@ public interface Table {
 	 *   }
 	 *
 	 *   val split = new MySplitUDTF()
-	 *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+	 *   table.leftOuterJoinLateral(split($"c") as "s")
+	 *        .select($"a", $"b", $"c", $"s")
 	 * }
 	 * </pre>
 	 */
@@ -610,7 +767,9 @@ public interface Table {
 	 *   table.leftOuterJoinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #leftOuterJoinLateral(Expression, Expression)}
 	 */
+	@Deprecated
 	Table leftOuterJoinLateral(String tableFunctionCall, String joinPredicate);
 
 	/**
@@ -618,6 +777,21 @@ public interface Table {
 	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   class MySplitUDTF extends TableFunction<String> {
+	 *     public void eval(String str) {
+	 *       str.split("#").forEach(this::collect);
+	 *     }
+	 *   }
+	 *
+	 *   table.leftOuterJoinLateral(call(MySplitUDTF.class, $("c")).as("s"), $("a").isEqual($("s")))
+	 *        .select($("a"), $("b"), $("c"), $("s"));
+	 * }
+	 * </pre>
 	 *
 	 * <p>Scala Example:
 	 *
@@ -630,7 +804,8 @@ public interface Table {
 	 *   }
 	 *
 	 *   val split = new MySplitUDTF()
-	 *   table.leftOuterJoinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+	 *   table.leftOuterJoinLateral(split($"c") as "s", $"a" === $"s")
+	 *        .select($"a", $"b", $"c", $"s")
 	 * }
 	 * </pre>
 	 */
@@ -648,7 +823,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.minus(right)
+	 *   left.minus(right);
 	 * }
 	 * </pre>
 	 */
@@ -667,7 +842,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.minusAll(right)
+	 *   left.minusAll(right);
 	 * }
 	 * </pre>
 	 */
@@ -683,7 +858,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.union(right)
+	 *   left.union(right);
 	 * }
 	 * </pre>
 	 */
@@ -699,7 +874,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.unionAll(right)
+	 *   left.unionAll(right);
 	 * }
 	 * </pre>
 	 */
@@ -717,7 +892,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.intersect(right)
+	 *   left.intersect(right);
 	 * }
 	 * </pre>
 	 */
@@ -735,7 +910,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   left.intersectAll(right)
+	 *   left.intersectAll(right);
 	 * }
 	 * </pre>
 	 */
@@ -752,64 +927,94 @@ public interface Table {
 	 *   tab.orderBy("name.desc")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #orderBy(Expression...)}
 	 */
+	@Deprecated
 	Table orderBy(String fields);
 
 	/**
-	 * Sorts the given {@link Table}. Similar to SQL ORDER BY.
-	 * The resulting Table is globally sorted across all parallel partitions.
+	 * Sorts the given {@link Table}. Similar to SQL {@code ORDER BY}.
+	 *
+	 * <p>The resulting Table is globally sorted across all parallel partitions.
+	 *
+	 * <p>Java Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.orderBy($("name").desc());
+	 * }
+	 * </pre>
 	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.orderBy('name.desc)
+	 *   tab.orderBy($"name".desc)
 	 * }
 	 * </pre>
+	 *
+	 * <p>For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
+	 * fetch operation.
 	 */
 	Table orderBy(Expression... fields);
 
 	/**
-	 * Limits a sorted result from an offset position.
-	 * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-	 * thus must be preceded by it.
+	 * Limits a (possibly sorted) result from an offset position.
 	 *
-	 * {@link Table#offset(int offset)} can be combined with a subsequent
-	 * {@link Table#fetch(int fetch)} call to return n rows after skipping the first o rows.
+	 * <p>This method can be combined with a preceding {@link #orderBy(Expression...)} call for a deterministic
+	 * order and a subsequent {@link #fetch(int)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
 	 *   // skips the first 3 rows and returns all following rows.
-	 *   tab.orderBy("name.desc").offset(3)
+	 *   tab.orderBy($("name").desc()).offset(3);
 	 *   // skips the first 10 rows and returns the next 5 rows.
-	 *   tab.orderBy("name.desc").offset(10).fetch(5)
+	 *   tab.orderBy($("name").desc()).offset(10).fetch(5);
 	 * }
 	 * </pre>
+	 *
+	 * <p>For unbounded tables, this operation requires a subsequent fetch operation.
 	 *
 	 * @param offset number of records to skip
 	 */
 	Table offset(int offset);
 
 	/**
-	 * Limits a sorted result to the first n rows.
-	 * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-	 * thus must be preceded by it.
+	 * Limits a (possibly sorted) result to the first n rows.
 	 *
-	 * {@link Table#fetch(int fetch)} can be combined with a preceding
-	 * {@link Table#offset(int offset)} call to return n rows after skipping the first o rows.
+	 * <p>This method can be combined with a preceding {@link #orderBy(Expression...)} call for a deterministic
+	 * order and {@link #offset(int)} call to return n rows after skipping the first o rows.
 	 *
 	 * <pre>
 	 * {@code
 	 *   // returns the first 3 records.
-	 *   tab.orderBy("name.desc").fetch(3)
+	 *   tab.orderBy($("name").desc()).fetch(3);
 	 *   // skips the first 10 rows and returns the next 5 rows.
-	 *   tab.orderBy("name.desc").offset(10).fetch(5)
+	 *   tab.orderBy($("name").desc()).offset(10).fetch(5);
 	 * }
 	 * </pre>
 	 *
 	 * @param fetch the number of records to return. Fetch must be >= 0.
 	 */
 	Table fetch(int fetch);
+
+	/**
+	 * Limits a (possibly sorted) result to the first n rows.
+	 *
+	 * <p>This method is a synonym for {@link #fetch(int)}.
+	 */
+	default Table limit(int fetch) {
+		return fetch(fetch);
+	}
+
+	/**
+	 * Limits a (possibly sorted) result to the first n rows from an offset position.
+	 *
+	 * <p>This method is a synonym for {@link #offset(int)} followed by {@link #fetch(int)}.
+	 */
+	default Table limit(int offset, int fetch) {
+		return offset(offset).fetch(fetch);
+	}
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
@@ -823,45 +1028,11 @@ public interface Table {
 	 *
 	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
 	 *        written.
+	 * @deprecated use {@link #executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	void insertInto(String tablePath);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
-	 * in the built-in catalog.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
-	 * @param conf The {@link QueryConfig} to use.
-	 * @deprecated use {@link #insertInto(String)}
-	 */
-	@Deprecated
-	void insertInto(String tableName, QueryConfig conf);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
-	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
-	 *
-	 * <p>A batch {@link Table} can only be written to a
-	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
-	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
-	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
-	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
-	 *
-	 * @param conf The {@link QueryConfig} to use.
-	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String)}
-	 */
-	@Deprecated
-	void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued);
 
 	/**
 	 * Groups the records of a table by assigning them to windows defined by a time or row interval.
@@ -893,8 +1064,18 @@ public interface Table {
 	 * <pre>
 	 * {@code
 	 *   table
-	 *     .window(Over partitionBy 'c orderBy 'rowTime preceding 10.seconds as 'ow)
-	 *     .select('c, 'b.count over 'ow, 'e.sum over 'ow)
+	 *     .window(Over.partitionBy($("c")).orderBy($("rowTime")).preceding(lit(10).seconds()).as("ow")
+	 *     .select($("c"), $("b").count().over($("ow")), $("e").sum().over($("ow")));
+	 * }
+	 * </pre>
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   table
+	 *     .window(Over partitionBy $"c" orderBy $"rowTime" preceding 10.seconds as "ow")
+	 *     .select($"c", $"b".count over $"ow", $"e".sum over $"ow")
 	 * }
 	 * </pre>
 	 *
@@ -921,7 +1102,9 @@ public interface Table {
 	 *   tab.addColumns("a + 1 as a1, concat(b, 'sunny') as b1")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #addColumns(Expression...)}
 	 */
+	@Deprecated
 	Table addColumns(String fields);
 
 	/**
@@ -929,11 +1112,25 @@ public interface Table {
 	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
 	 * if the added fields already exist.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.addColumns(
+	 *      $("a").plus(1).as("a1"),
+	 *      concat($("b"), "sunny").as("b1")
+	 *   );
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.addColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 *   tab.addColumns(
+	 *      $"a" + 1 as "a1",
+	 *      concat($"b", "sunny") as "b1"
+	 *   )
 	 * }
 	 * </pre>
 	 */
@@ -951,7 +1148,9 @@ public interface Table {
 	 *   tab.addOrReplaceColumns("a + 1 as a1, concat(b, 'sunny') as b1")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #addOrReplaceColumns(Expression...)}
 	 */
+	@Deprecated
 	Table addOrReplaceColumns(String fields);
 
 	/**
@@ -959,10 +1158,25 @@ public interface Table {
 	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
 	 * replaced. If the added fields have duplicate field name, then the last one is used.
 	 *
-	 * <p>Scala Example:
+	 * <p>Example:
+	 *
 	 * <pre>
 	 * {@code
-	 *   tab.addOrReplaceColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 *   tab.addOrReplaceColumns(
+	 *      $("a").plus(1).as("a1"),
+	 *      concat($("b"), "sunny").as("b1")
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.addOrReplaceColumns(
+	 *      $"a" + 1 as "a1",
+	 *      concat($"b", "sunny") as "b1"
+	 *   )
 	 * }
 	 * </pre>
 	 */
@@ -979,18 +1193,34 @@ public interface Table {
 	 *   tab.renameColumns("a as a1, b as b1")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #renameColumns(Expression...)}
 	 */
+	@Deprecated
 	Table renameColumns(String fields);
 
 	/**
 	 * Renames existing columns. Similar to a field alias statement. The field expressions
 	 * should be alias expressions, and only the existing fields can be renamed.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.renameColumns(
+	 *      $("a").as("a1"),
+	 *      $("b").as("b1")
+	 *   );
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.renameColumns('a as 'a1, 'b as 'b1)
+	 *   tab.renameColumns(
+	 *      $"a" as "a1",
+	 *      $"b" as "b1"
+	 *   )
 	 * }
 	 * </pre>
 	 */
@@ -1006,16 +1236,25 @@ public interface Table {
 	 *   tab.dropColumns("a, b")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #dropColumns(Expression...)}
 	 */
+	@Deprecated
 	Table dropColumns(String fields);
 
 	/**
 	 * Drops existing columns. The field expressions should be field reference expressions.
 	 *
+	 * <p>Example:
+	 * <pre>
+	 * {@code
+	 *   tab.dropColumns($("a"), $("b"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 * <pre>
 	 * {@code
-	 *   tab.dropColumns('a, 'b)
+	 *   tab.dropColumns($"a", $"b")
 	 * }
 	 * </pre>
 	 */
@@ -1034,19 +1273,29 @@ public interface Table {
 	 *   tab.map("func(c)");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #map(Expression)}
 	 */
+	@Deprecated
 	Table map(String mapFunction);
 
 	/**
 	 * Performs a map operation with an user-defined scalar function or built-in scalar function.
 	 * The output will be flattened if the output type is a composite type.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.map(call(MyMapFunction.class, $("c")))
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   val func = new MyMapFunction()
-	 *   tab.map(func('c))
+	 *   tab.map(func($"c"))
 	 * }
 	 * </pre>
 	 */
@@ -1065,19 +1314,29 @@ public interface Table {
 	 *   table.flatMap("func(c)");
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #flatMap(Expression)}
 	 */
+	@Deprecated
 	Table flatMap(String tableFunction);
 
 	/**
 	 * Performs a flatMap operation with an user-defined table function or built-in table function.
 	 * The output will be flattened if the output type is a composite type.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.flatMap(call(MyFlatMapFunction.class, $("c")))
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   val func = new MyFlatMapFunction
-	 *   table.flatMap(func('c))
+	 *   val func = new MyFlatMapFunction()
+	 *   tab.flatMap(func($"c"))
 	 * }
 	 * </pre>
 	 */
@@ -1098,7 +1357,9 @@ public interface Table {
 	 *     .select("f0, f1")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #aggregate(Expression)}
 	 */
+	@Deprecated
 	AggregatedTable aggregate(String aggregateFunction);
 
 	/**
@@ -1106,13 +1367,22 @@ public interface Table {
 	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
 	 * output type is a composite type.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.aggregate(call(MyAggregateFunction.class, $("a"), $("b")).as("f0", "f1", "f2"))
+	 *     .select($("f0"), $("f1"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   val aggFunc = new MyAggregateFunction
-	 *   table.aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
-	 *     .select('f0, 'f1)
+	 *   table.aggregate(aggFunc($"a", $"b") as ("f0", "f1", "f2"))
+	 *     .select($"f0", $"f1")
 	 * }
 	 * </pre>
 	 */
@@ -1132,22 +1402,113 @@ public interface Table {
 	 *     .select("x, y, z")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #flatAggregate(Expression)}
 	 */
+	@Deprecated
 	FlatAggregateTable flatAggregate(String tableAggregateFunction);
 
 	/**
 	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
 	 * which returns multiple rows. Use a selection after the flatAggregate.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.flatAggregate(call(MyTableAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))
+	 *     .select($("x"), $("y"), $("z"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   val tableAggFunc = new MyTableAggregateFunction
-	 *   tab.flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
-	 *     .select('x, 'y, 'z)
+	 *   val tableAggFunc: TableAggregateFunction = new MyTableAggregateFunction
+	 *   tab.flatAggregate(tableAggFunc($"a", $"b") as ("x", "y", "z"))
+	 *     .select($"x", $"y", $"z")
 	 * }
 	 * </pre>
 	 */
 	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
+	 * and then execute the insert operation.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * <p>A batch {@link Table} can only be written to a
+	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
+	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
+	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
+	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.executeInsert("MySink");
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 *
+	 * @param tablePath The path of the registered TableSink to which the Table is written.
+	 * @return The insert operation execution result.
+	 */
+	TableResult executeInsert(String tablePath);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
+	 * and then execute the insert operation.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * <p>A batch {@link Table} can only be written to a
+	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
+	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
+	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
+	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.executeInsert("MySink", true);
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 *
+	 * @param tablePath The path of the registered TableSink to which the Table is written.
+	 * @param overwrite The flag that indicates whether the insert should overwrite existing data or not.
+	 * @return The insert operation execution result.
+	 */
+	TableResult executeInsert(String tablePath, boolean overwrite);
+
+	/**
+	 * Collects the contents of the current table local client.
+	 *
+	 *  <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.execute();
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 */
+	TableResult execute();
+
+	/**
+	 * Returns the AST of this table and the execution plan to compute
+	 * the result of this table.
+	 *
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, changelog mode for streaming
+	 * @return AST and the execution plan.
+	 */
+	String explain(ExplainDetail... extraDetails);
 }

@@ -29,9 +29,10 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
@@ -43,10 +44,10 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.apache.flink.table.runtime.hashtable.BaseHybridHashTable.partitionLevelHash;
 import static org.apache.flink.table.runtime.hashtable.LongHybridHashTable.hashLong;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -93,8 +94,8 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	private final int segmentSizeMask;
 
 	private int partitionNum;
-	private final BinaryRowSerializer buildSideSerializer;
-	private final BinaryRow buildReuseRow;
+	private final BinaryRowDataSerializer buildSideSerializer;
+	private final BinaryRowData buildReuseRow;
 	private int recursionLevel;
 
 	// The minimum key
@@ -136,7 +137,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	LongHashPartition(
 			LongHybridHashTable longTable,
 			int partitionNum,
-			BinaryRowSerializer buildSideSerializer,
+			BinaryRowDataSerializer buildSideSerializer,
 			double estimatedRowCount,
 			int maxSegs,
 			int recursionLevel) {
@@ -158,7 +159,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	LongHashPartition(
 			LongHybridHashTable longTable,
 			int partitionNum,
-			BinaryRowSerializer buildSideSerializer,
+			BinaryRowDataSerializer buildSideSerializer,
 			int bucketNumSegs,
 			int recursionLevel,
 			List<MemorySegment> buffers,
@@ -181,7 +182,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	 */
 	LongHashPartition(
 			LongHybridHashTable longTable,
-			BinaryRowSerializer buildSideSerializer,
+			BinaryRowDataSerializer buildSideSerializer,
 			MemorySegment[] partitionBuffers) {
 		super(0);
 		this.longTable = longTable;
@@ -198,7 +199,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 
 	private static MemorySegment[] listToArray(List<MemorySegment> list) {
 		if (list != null) {
-			return list.toArray(new MemorySegment[list.size()]);
+			return list.toArray(new MemorySegment[0]);
 		}
 		return null;
 	}
@@ -225,35 +226,31 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		this.numKeys = 0;
 	}
 
-	static long toAddrAndLen(long address, int size) {
+	private static long toAddrAndLen(long address, int size) {
 		return (address << SIZE_BITS) | size;
 	}
 
-	static long toAddress(long addrAndLen) {
+	private static long toAddress(long addrAndLen) {
 		return addrAndLen >>> SIZE_BITS;
 	}
 
-	static int toLength(long addrAndLen) {
+	private static int toLength(long addrAndLen) {
 		return (int) (addrAndLen & SIZE_MASK);
 	}
 
 	/**
-	 * Returns an iterator of BinaryRow for multiple linked values.
+	 * Returns an iterator of BinaryRowData for multiple linked values.
 	 */
 	MatchIterator valueIter(long address) {
 		iterator.set(address);
 		return iterator;
 	}
 
-//	public MatchIterator get(long key) {
-//		return get(key, hashLong(key, recursionLevel));
-//	}
-
 	/**
 	 * Returns an iterator for all the values for the given key, or null if no value found.
 	 */
 	public MatchIterator get(long key, int hashCode) {
-		int bucket = hashCode & numBucketsMask;
+		int bucket = findBucket(hashCode);
 
 		int bucketOffset = bucket << 4;
 		MemorySegment segment = buckets[bucketOffset >>> segmentSizeBits];
@@ -291,7 +288,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			MemorySegment dataSegment,
 			int currentPositionInSegment) throws IOException {
 		assert (numKeys <= numBuckets / 2);
-		int bucketId = hashCode & numBucketsMask;
+		int bucketId = findBucket(hashCode);
 
 		// each bucket occupied 16 bytes (long key + long pointer to data address)
 		int bucketOffset = bucketId * SPARSE_BUCKET_ELEMENT_SIZE_IN_BYTES;
@@ -340,6 +337,10 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			dataSegment.putLong(currentPositionInSegment, toAddrAndLen(currAddress, size));
 			segment.putLong(segOffset + 8, address);
 		}
+	}
+
+	private int findBucket(int hash) {
+		return partitionLevelHash(hash) & this.numBucketsMask;
 	}
 
 	private void resize() throws IOException {
@@ -416,10 +417,6 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 
 	BlockChannelWriter<MemorySegment> getBuildSideChannel() {
 		return this.buildSideChannel;
-	}
-
-	FileIOChannel.ID getProbeSideChannelID() {
-		return probeSideBuffer.getChannel().getChannelID();
 	}
 
 	int getPartitionNumber() {
@@ -557,8 +554,8 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	}
 
 	final void insertIntoProbeBuffer(
-			BinaryRowSerializer probeSer,
-			BinaryRow record) throws IOException {
+			BinaryRowDataSerializer probeSer,
+			BinaryRowData record) throws IOException {
 		probeSer.serialize(record, this.probeSideBuffer);
 		this.probeSideRecordCounter++;
 	}
@@ -593,7 +590,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		updateIndex(key, hashCode, address, size, partitionBuffers[bufferNum], offset);
 	}
 
-	void insertIntoTable(long key, int hashCode, BinaryRow row) throws IOException {
+	void insertIntoTable(long key, int hashCode, BinaryRowData row) throws IOException {
 		this.buildSideRecordCounter++;
 		updateMinMax(key);
 		int sizeInBytes = row.getSizeInBytes();
@@ -622,14 +619,14 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			if (row.getSegments().length == 1) {
 				buildSideWriteBuffer.write(row.getSegments()[0], row.getOffset(), sizeInBytes);
 			} else {
-				buildSideSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
+				BinaryRowDataSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
 			}
 		} else {
 			serializeToPages(row);
 		}
 	}
 
-	public void serializeToPages(BinaryRow row) throws IOException {
+	public void serializeToPages(BinaryRowData row) throws IOException {
 
 		int sizeInBytes = row.getSizeInBytes();
 		checkWriteAdvance();
@@ -642,7 +639,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		if (row.getSegments().length == 1) {
 			buildSideWriteBuffer.write(row.getSegments()[0], row.getOffset(), sizeInBytes);
 		} else {
-			buildSideSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
+			BinaryRowDataSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
 		}
 	}
 
@@ -729,8 +726,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 
 			if (this.writer == null) {
 				this.targetList.add(current);
-				MemorySegment[] buffers =
-						this.targetList.toArray(new MemorySegment[this.targetList.size()]);
+				MemorySegment[] buffers = this.targetList.toArray(new MemorySegment[0]);
 				this.targetList.clear();
 				return buffers;
 			} else {
@@ -743,7 +739,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	/**
 	 * Iterator for probe match.
 	 */
-	public class MatchIterator implements RowIterator<BinaryRow> {
+	public class MatchIterator implements RowIterator<BinaryRowData> {
 		private long address;
 
 		public void set(long address) {
@@ -769,18 +765,18 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return buildReuseRow;
 		}
 	}
 
-	void clearAllMemory(List<MemorySegment> target) {
+	void clearAllMemory(LazyMemorySegmentPool pool) {
 		// return current buffers from build side and probe side
 		if (this.buildSideWriteBuffer != null) {
 			if (this.buildSideWriteBuffer.getCurrentSegment() != null) {
-				target.add(this.buildSideWriteBuffer.getCurrentSegment());
+				pool.returnPage(this.buildSideWriteBuffer.getCurrentSegment());
 			}
-			target.addAll(this.buildSideWriteBuffer.targetList);
+			pool.returnAll(this.buildSideWriteBuffer.targetList);
 			this.buildSideWriteBuffer.targetList.clear();
 			this.buildSideWriteBuffer = null;
 		}
@@ -788,7 +784,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 
 		// return the partition buffers
 		if (this.partitionBuffers != null) {
-			Collections.addAll(target, this.partitionBuffers);
+			pool.returnAll(Arrays.asList(this.partitionBuffers));
 			this.partitionBuffers = null;
 		}
 
@@ -813,11 +809,11 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 	 * store all the build side data.
 	 * (After bulk load to memory, see {@link BulkBlockChannelReader}).
 	 */
-	final class PartitionIterator implements RowIterator<BinaryRow> {
+	final class PartitionIterator implements RowIterator<BinaryRowData> {
 
 		private long currentPointer;
 
-		private BinaryRow reuse;
+		private BinaryRowData reuse;
 
 		private PartitionIterator() {
 			this.reuse = buildSideSerializer.createInstance();
@@ -848,7 +844,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		}
 
 		@Override
-		public BinaryRow getRow() {
+		public BinaryRowData getRow() {
 			return this.reuse;
 		}
 	}
@@ -867,12 +863,12 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		}
 	}
 
-	private static boolean shouldAdvance(int available, BinaryRowSerializer serializer) {
+	private static boolean shouldAdvance(int available, BinaryRowDataSerializer serializer) {
 		return available < 8 + serializer.getFixedLengthPartSize();
 	}
 
-	static void deserializeFromPages(BinaryRow reuse, ChannelReaderInputView inView,
-			BinaryRowSerializer buildSideSerializer) throws IOException {
+	static void deserializeFromPages(BinaryRowData reuse, ChannelReaderInputView inView,
+			BinaryRowDataSerializer buildSideSerializer) throws IOException {
 		if (shouldAdvance(
 				inView.getCurrentSegmentLimit() - inView.getCurrentPositionInSegment(),
 				buildSideSerializer)) {

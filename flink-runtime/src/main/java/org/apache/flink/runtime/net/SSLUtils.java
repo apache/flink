@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
@@ -32,6 +33,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSslX509KeyManager
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
 import javax.annotation.Nullable;
 import javax.net.ServerSocketFactory;
@@ -234,8 +236,16 @@ public class SSLUtils {
 			trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
 		}
 
-		TrustManagerFactory tmf =
-			TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		String certFingerprint = config.getString(
+			internal ? SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT : SecurityOptions.SSL_REST_CERT_FINGERPRINT);
+
+		TrustManagerFactory tmf;
+		if (StringUtils.isNullOrWhitespaceOnly(certFingerprint)) {
+			tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+		} else {
+			tmf = new FingerprintTrustManagerFactory(certFingerprint.split(","));
+		}
+
 		tmf.init(trustStore);
 
 		return tmf;

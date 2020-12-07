@@ -1,7 +1,7 @@
 ---
 title: "Java Lambda Expressions"
-nav-parent_id: api-concepts
-nav-pos: 20
+nav-parent_id: streaming
+nav-pos: 300
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,8 +28,9 @@ passing functions in a straightforward way without having to declare additional 
 
 <span class="label label-danger">Attention</span> Flink supports the usage of lambda expressions for all operators of the Java API, however, whenever a lambda expression uses Java generics you need to declare type information *explicitly*. 
 
-This document shows how to use lambda expressions and describes current limitations. For a general introduction to the
-Flink API, please refer to the [Programming Guide]({{ site.baseurl }}/dev/api_concepts.html)
+This document shows how to use lambda expressions and describes current
+limitations. For a general introduction to the Flink API, please refer to the
+[DataSteam API overview]({% link dev/datastream_api.md %})
 
 ### Examples and Limitations
 

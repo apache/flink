@@ -17,23 +17,41 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Encapsulates meta-information the TaskExecutor requires to be kept for each partition.
  */
 public final class TaskExecutorPartitionInfo {
 
+	private final ResultPartitionID resultPartitionId;
 	private final IntermediateDataSetID intermediateDataSetId;
 
-	public TaskExecutorPartitionInfo(IntermediateDataSetID intermediateDataSetId) {
-		this.intermediateDataSetId = intermediateDataSetId;
+	private final int numberOfPartitions;
+
+	public TaskExecutorPartitionInfo(ResultPartitionID resultPartitionId, IntermediateDataSetID intermediateDataSetId, int numberOfPartitions) {
+		this.resultPartitionId = checkNotNull(resultPartitionId);
+		this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
+		checkArgument(numberOfPartitions > 0);
+		this.numberOfPartitions = numberOfPartitions;
 	}
 
 	public IntermediateDataSetID getIntermediateDataSetId() {
 		return intermediateDataSetId;
+	}
+
+	public ResultPartitionID getResultPartitionId() {
+		return resultPartitionId;
+	}
+
+	public int getNumberOfPartitions() {
+		return numberOfPartitions;
 	}
 
 	@Override
@@ -53,5 +71,12 @@ public final class TaskExecutorPartitionInfo {
 	public int hashCode() {
 		// only use the dataset ID here, so we can use this as an efficient place for meta data
 		return Objects.hash(intermediateDataSetId);
+	}
+
+	public static TaskExecutorPartitionInfo from(ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
+		return new TaskExecutorPartitionInfo(
+			resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID(),
+			resultPartitionDeploymentDescriptor.getResultId(),
+			resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions());
 	}
 }

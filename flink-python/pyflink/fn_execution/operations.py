@@ -15,290 +15,578 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import abc
+import time
+from functools import reduce
+from itertools import chain
 
-import datetime
-from abc import abstractmethod, ABCMeta
+from apache_beam.coders import PickleCoder
+from typing import Tuple, Any
 
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import bundle_processor
-from apache_beam.runners.worker.operations import Operation
+from pyflink.datastream import TimeDomain
+from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction, \
+    KeyedProcessFunction
+from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
+from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
+from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
+from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, \
+    GroupAggFunction, extract_data_view_specs, DistinctViewDescriptor
+from pyflink.metrics.metricbase import GenericMetricGroup
+from pyflink.table import FunctionContext, Row
 
-from pyflink.fn_execution import flink_fn_execution_pb2
-from pyflink.serializers import PickleSerializer
 
+# table operations
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
+TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
+PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
+PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
+    "flink:transform:batch_over_window_aggregate_function:arrow:v1"
+
+# datastream operations
+DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
+PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
+KEYED_PROCESS_FUNCTION_URN = "flink:transform:keyed_process_function:v1"
 
 
-class InputGetter(object):
-    """
-    Base class for get an input argument for a :class:`UserDefinedFunction`.
-    """
-    __metaclass__ = ABCMeta
-
-    def open(self):
-        pass
-
-    def close(self):
-        pass
-
-    @abstractmethod
-    def get(self, value):
-        pass
-
-
-class OffsetInputGetter(InputGetter):
-    """
-    InputGetter for the input argument which is a column of the input row.
-
-    :param input_offset: the offset of the column in the input row
-    """
-
-    def __init__(self, input_offset):
-        self.input_offset = input_offset
-
-    def get(self, value):
-        return value[self.input_offset]
-
-
-class ScalarFunctionInputGetter(InputGetter):
-    """
-    InputGetter for the input argument which is a Python :class:`ScalarFunction`. This is used for
-    chaining Python functions.
-
-    :param scalar_function_proto: the proto representation of the Python :class:`ScalarFunction`
-    """
-
-    def __init__(self, scalar_function_proto):
-        self.scalar_function_invoker = create_scalar_function_invoker(scalar_function_proto)
-
-    def open(self):
-        self.scalar_function_invoker.invoke_open()
-
-    def close(self):
-        self.scalar_function_invoker.invoke_close()
-
-    def get(self, value):
-        return self.scalar_function_invoker.invoke_eval(value)
-
-
-class ConstantInputGetter(InputGetter):
-    """
-    InputGetter for the input argument which is a constant value.
-
-    :param constant_value: the constant value of the column
-    """
-
-    def __init__(self, constant_value):
-        j_type = constant_value[0]
-        serializer = PickleSerializer()
-        pickled_data = serializer.loads(constant_value[1:])
-        # the type set contains
-        # TINYINT,SMALLINT,INTEGER,BIGINT,FLOAT,DOUBLE,DECIMAL,CHAR,VARCHAR,NULL,BOOLEAN
-        # the pickled_data doesn't need to transfer to anther python object
-        if j_type == 0:
-            self._constant_value = pickled_data
-        # the type is DATE
-        elif j_type == 1:
-            self._constant_value = \
-                datetime.date(year=1970, month=1, day=1) + datetime.timedelta(days=pickled_data)
-        # the type is TIME
-        elif j_type == 2:
-            seconds, milliseconds = divmod(pickled_data, 1000)
-            minutes, seconds = divmod(seconds, 60)
-            hours, minutes = divmod(minutes, 60)
-            self._constant_value = datetime.time(hours, minutes, seconds, milliseconds * 1000)
-        # the type is TIMESTAMP
-        elif j_type == 3:
-            self._constant_value = \
-                datetime.datetime(year=1970, month=1, day=1, hour=0, minute=0, second=0) \
-                + datetime.timedelta(milliseconds=pickled_data)
+class Operation(abc.ABC):
+    def __init__(self, spec):
+        super(Operation, self).__init__()
+        self.spec = spec
+        self.func, self.user_defined_funcs = self.generate_func(self.spec.serialized_fn)
+        if self.spec.serialized_fn.metric_enabled:
+            self.base_metric_group = GenericMetricGroup(None, None)
         else:
-            raise Exception("Unknown type %s, should never happen" % str(j_type))
-
-    def get(self, value):
-        return self._constant_value
-
-
-class ScalarFunctionInvoker(object):
-    """
-    An abstraction that can be used to execute :class:`ScalarFunction` methods.
-
-    A ScalarFunctionInvoker describes a particular way for invoking methods of a
-    :class:`ScalarFunction`.
-
-    :param scalar_function: the :class:`ScalarFunction` to execute
-    :param inputs: the input arguments for the :class:`ScalarFunction`
-    """
-
-    def __init__(self, scalar_function, inputs):
-        self.scalar_function = scalar_function
-        self.input_getters = []
-        for input in inputs:
-            if input.HasField("udf"):
-                # for chaining Python UDF input: the input argument is a Python ScalarFunction
-                self.input_getters.append(ScalarFunctionInputGetter(input.udf))
-            elif input.HasField("inputOffset"):
-                # the input argument is a column of the input row
-                self.input_getters.append(OffsetInputGetter(input.inputOffset))
-            else:
-                # the input argument is a constant value
-                self.input_getters.append(ConstantInputGetter(input.inputConstant))
-
-    def invoke_open(self):
-        """
-        Invokes the ScalarFunction.open() function.
-        """
-        for input_getter in self.input_getters:
-            input_getter.open()
-        # set the FunctionContext to None for now
-        self.scalar_function.open(None)
-
-    def invoke_close(self):
-        """
-        Invokes the ScalarFunction.close() function.
-        """
-        for input_getter in self.input_getters:
-            input_getter.close()
-        self.scalar_function.close()
-
-    def invoke_eval(self, value):
-        """
-        Invokes the ScalarFunction.eval() function.
-
-        :param value: the input element for which eval() method should be invoked
-        """
-        args = [input_getter.get(value) for input_getter in self.input_getters]
-        return self.scalar_function.eval(*args)
-
-
-def create_scalar_function_invoker(scalar_function_proto):
-    """
-    Creates :class:`ScalarFunctionInvoker` from the proto representation of a
-    :class:`ScalarFunction`.
-
-    :param scalar_function_proto: the proto representation of the Python :class:`ScalarFunction`
-    :return: :class:`ScalarFunctionInvoker`.
-    """
-    import cloudpickle
-    scalar_function = cloudpickle.loads(scalar_function_proto.payload)
-    return ScalarFunctionInvoker(scalar_function, scalar_function_proto.inputs)
-
-
-class ScalarFunctionRunner(object):
-    """
-    The runner which is responsible for executing the scalar functions and send the
-    execution results back to the remote Java operator.
-
-    :param udfs_proto: protocol representation for the scalar functions to execute
-    """
-
-    def __init__(self, udfs_proto):
-        self.scalar_function_invokers = [create_scalar_function_invoker(f) for f in
-                                         udfs_proto]
-
-    def setup(self, main_receivers):
-        """
-        Set up the ScalarFunctionRunner.
-
-        :param main_receivers: Receiver objects which is responsible for sending the execution
-                               results back the the remote Java operator
-        """
-        from apache_beam.runners.common import _OutputProcessor
-        self.output_processor = _OutputProcessor(
-            window_fn=None,
-            main_receivers=main_receivers,
-            tagged_receivers=None,
-            per_element_output_counter=None)
+            self.base_metric_group = None
 
     def open(self):
-        for invoker in self.scalar_function_invokers:
-            invoker.invoke_open()
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'open'):
+                user_defined_func.open(FunctionContext(self.base_metric_group))
 
     def close(self):
-        for invoker in self.scalar_function_invokers:
-            invoker.invoke_close()
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'close'):
+                user_defined_func.close()
 
-    def process(self, windowed_value):
-        results = [invoker.invoke_eval(windowed_value.value) for invoker in
-                   self.scalar_function_invokers]
-        from pyflink.table import Row
-        result = Row(*results)
-        # send the execution results back
-        self.output_processor.process_outputs(windowed_value, [result])
+    def finish(self):
+        self._update_gauge(self.base_metric_group)
+
+    def _update_gauge(self, base_metric_group):
+        if base_metric_group is not None:
+            for name in base_metric_group._flink_gauge:
+                flink_gauge = base_metric_group._flink_gauge[name]
+                beam_gauge = base_metric_group._beam_gauge[name]
+                beam_gauge.set(flink_gauge())
+            for sub_group in base_metric_group._sub_groups:
+                self._update_gauge(sub_group)
+
+    @abc.abstractmethod
+    def generate_func(self, serialized_fn) -> Tuple:
+        pass
 
 
 class ScalarFunctionOperation(Operation):
-    """
-    An operation that will execute ScalarFunctions for each input element.
-    """
+    def __init__(self, spec):
+        super(ScalarFunctionOperation, self).__init__(spec)
 
-    def __init__(self, name, spec, counter_factory, sampler, consumers):
-        super(ScalarFunctionOperation, self).__init__(name, spec, counter_factory, sampler)
-        for tag, op_consumers in consumers.items():
-            for consumer in op_consumers:
-                self.add_receiver(consumer, 0)
+    def generate_func(self, serialized_fn):
+        """
+        Generates a lambda function based on udfs.
+        :param serialized_fn: serialized function which contains a list of the proto
+                              representation of the Python :class:`ScalarFunction`
+        :return: the generated lambda function
+        """
+        scalar_functions, variable_dict, user_defined_funcs = reduce(
+            lambda x, y: (
+                ','.join([x[0], y[0]]),
+                dict(chain(x[1].items(), y[1].items())),
+                x[2] + y[2]),
+            [operation_utils.extract_user_defined_function(udf) for udf in serialized_fn.udfs])
+        generate_func = eval('lambda value: [%s]' % scalar_functions, variable_dict)
+        return generate_func, user_defined_funcs
 
-        self.scalar_function_runner = ScalarFunctionRunner(self.spec.serialized_fn)
-        self.scalar_function_runner.open()
 
-    def setup(self):
-        with self.scoped_start_state:
-            super(ScalarFunctionOperation, self).setup()
-            self.scalar_function_runner.setup(self.receivers[0])
+class TableFunctionOperation(Operation):
+    def __init__(self, spec):
+        super(TableFunctionOperation, self).__init__(spec)
 
-    def start(self):
-        with self.scoped_start_state:
-            super(ScalarFunctionOperation, self).start()
+    def generate_func(self, serialized_fn):
+        """
+        Generates a lambda function based on udtfs.
+        :param serialized_fn: serialized function which contains the proto representation of
+                              the Python :class:`TableFunction`
+        :return: the generated lambda function
+        """
+        table_function, variable_dict, user_defined_funcs = \
+            operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
+        generate_func = eval('lambda value: %s' % table_function, variable_dict)
+        return generate_func, user_defined_funcs
 
-    def process(self, o):
-        with self.scoped_process_state:
-            self.scalar_function_runner.process(o)
+
+class PandasAggregateFunctionOperation(Operation):
+    def __init__(self, spec):
+        super(PandasAggregateFunctionOperation, self).__init__(spec)
+
+    def generate_func(self, serialized_fn):
+        pandas_functions, variable_dict, user_defined_funcs = reduce(
+            lambda x, y: (
+                ','.join([x[0], y[0]]),
+                dict(chain(x[1].items(), y[1].items())),
+                x[2] + y[2]),
+            [operation_utils.extract_user_defined_function(udf, True)
+             for udf in serialized_fn.udfs])
+        variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
+        generate_func = eval('lambda value: wrap_pandas_result([%s])' %
+                             pandas_functions, variable_dict)
+        return generate_func, user_defined_funcs
+
+
+class PandasBatchOverWindowAggregateFunctionOperation(Operation):
+    def __init__(self, spec):
+        super(PandasBatchOverWindowAggregateFunctionOperation, self).__init__(spec)
+        self.windows = [window for window in self.spec.serialized_fn.windows]
+        # the index among all the bounded range over window
+        self.bounded_range_window_index = [-1 for _ in range(len(self.windows))]
+        # Whether the specified position window is a bounded range window.
+        self.is_bounded_range_window = []
+        window_types = flink_fn_execution_pb2.OverWindow
+
+        bounded_range_window_nums = 0
+        for i, window in enumerate(self.windows):
+            window_type = window.window_type
+            if (window_type is window_types.RANGE_UNBOUNDED_PRECEDING) or (
+                    window_type is window_types.RANGE_UNBOUNDED_FOLLOWING) or (
+                    window_type is window_types.RANGE_SLIDING):
+                self.bounded_range_window_index[i] = bounded_range_window_nums
+                self.is_bounded_range_window.append(True)
+                bounded_range_window_nums += 1
+            else:
+                self.is_bounded_range_window.append(False)
+
+    def generate_func(self, serialized_fn):
+        user_defined_funcs = []
+        self.window_indexes = []
+        self.mapper = []
+        for udf in serialized_fn.udfs:
+            pandas_agg_function, variable_dict, user_defined_func, window_index = \
+                operation_utils.extract_over_window_user_defined_function(udf)
+            user_defined_funcs.extend(user_defined_func)
+            self.window_indexes.append(window_index)
+            self.mapper.append(eval('lambda value: %s' % pandas_agg_function, variable_dict))
+        return self.wrapped_over_window_function, user_defined_funcs
+
+    def wrapped_over_window_function(self, boundaries_series):
+        import pandas as pd
+        OverWindow = flink_fn_execution_pb2.OverWindow
+        input_series = boundaries_series[-1]
+        # the row number of the arrow format data
+        input_cnt = len(input_series[0])
+        results = []
+        # loop every agg func
+        for i in range(len(self.window_indexes)):
+            window_index = self.window_indexes[i]
+            # the over window which the agg function belongs to
+            window = self.windows[window_index]
+            window_type = window.window_type
+            func = self.mapper[i]
+            result = []
+            if self.is_bounded_range_window[window_index]:
+                window_boundaries = boundaries_series[
+                    self.bounded_range_window_index[window_index]]
+                if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
+                    # range unbounded preceding window
+                    for j in range(input_cnt):
+                        end = window_boundaries[j]
+                        series_slices = [s.iloc[:end] for s in input_series]
+                        result.append(func(series_slices))
+                elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
+                    # range unbounded following window
+                    for j in range(input_cnt):
+                        start = window_boundaries[j]
+                        series_slices = [s.iloc[start:] for s in input_series]
+                        result.append(func(series_slices))
+                else:
+                    # range sliding window
+                    for j in range(input_cnt):
+                        start = window_boundaries[j * 2]
+                        end = window_boundaries[j * 2 + 1]
+                        series_slices = [s.iloc[start:end] for s in input_series]
+                        result.append(func(series_slices))
+            else:
+                # unbounded range window or unbounded row window
+                if (window_type is OverWindow.RANGE_UNBOUNDED) or (
+                        window_type is OverWindow.ROW_UNBOUNDED):
+                    series_slices = [s.iloc[:] for s in input_series]
+                    func_result = func(series_slices)
+                    result = [func_result for _ in range(input_cnt)]
+                elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
+                    # row unbounded preceding window
+                    window_end = window.upper_boundary
+                    for j in range(input_cnt):
+                        end = min(j + window_end + 1, input_cnt)
+                        series_slices = [s.iloc[: end] for s in input_series]
+                        result.append(func(series_slices))
+                elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
+                    # row unbounded following window
+                    window_start = window.lower_boundary
+                    for j in range(input_cnt):
+                        start = max(j + window_start, 0)
+                        series_slices = [s.iloc[start: input_cnt] for s in input_series]
+                        result.append(func(series_slices))
+                else:
+                    # row sliding window
+                    window_start = window.lower_boundary
+                    window_end = window.upper_boundary
+                    for j in range(input_cnt):
+                        start = max(j + window_start, 0)
+                        end = min(j + window_end + 1, input_cnt)
+                        series_slices = [s.iloc[start: end] for s in input_series]
+                        result.append(func(series_slices))
+            results.append(pd.Series(result))
+        return results
+
+
+class StatefulFunctionOperation(Operation):
+
+    def __init__(self, spec, keyed_state_backend):
+        self.keyed_state_backend = keyed_state_backend
+        super(StatefulFunctionOperation, self).__init__(spec)
 
     def finish(self):
-        with self.scoped_finish_state:
-            super(ScalarFunctionOperation, self).finish()
-
-    def needs_finalization(self):
-        return False
-
-    def reset(self):
-        super(ScalarFunctionOperation, self).reset()
-
-    def teardown(self):
-        with self.scoped_finish_state:
-            self.scalar_function_runner.close()
-
-    def progress_metrics(self):
-        metrics = super(ScalarFunctionOperation, self).progress_metrics()
-        metrics.processed_elements.measured.output_element_counts.clear()
-        tag = None
-        receiver = self.receivers[0]
-        metrics.processed_elements.measured.output_element_counts[
-            str(tag)] = receiver.opcounter.element_counter.value()
-        return metrics
+        super().finish()
+        if self.keyed_state_backend:
+            self.keyed_state_backend.commit()
 
 
-@bundle_processor.BeamTransformFactory.register_urn(
-    SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter.udfs)
+TRIGGER_TIMER = 1
 
 
-def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
-                                            operation_cls=ScalarFunctionOperation):
-    output_tags = list(transform_proto.outputs.keys())
-    output_coders = factory.get_output_coders(transform_proto)
-    spec = operation_specs.WorkerDoFn(
-        serialized_fn=udfs_proto,
-        output_tags=output_tags,
-        input=None,
-        side_inputs=None,
-        output_coders=[output_coders[tag] for tag in output_tags])
+class StreamGroupAggregateOperation(StatefulFunctionOperation):
 
-    return operation_cls(
-        transform_proto.unique_name,
-        spec,
-        factory.counter_factory,
-        factory.state_sampler,
-        consumers)
+    def __init__(self, spec, keyed_state_backend):
+        self.generate_update_before = spec.serialized_fn.generate_update_before
+        self.grouping = [i for i in spec.serialized_fn.grouping]
+        self.group_agg_function = None
+        # If the upstream generates retract message, we need to add an additional count1() agg
+        # to track current accumulated messages count. If all the messages are retracted, we need
+        # to send a DELETE message to downstream.
+        self.index_of_count_star = spec.serialized_fn.index_of_count_star
+        self.count_star_inserted = spec.serialized_fn.count_star_inserted
+        self.state_cache_size = spec.serialized_fn.state_cache_size
+        self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
+        self.data_view_specs = extract_data_view_specs(spec.serialized_fn.udfs)
+        super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def open(self):
+        self.group_agg_function.open(FunctionContext(self.base_metric_group))
+
+    def close(self):
+        self.group_agg_function.close()
+
+    def generate_func(self, serialized_fn):
+        user_defined_aggs = []
+        input_extractors = []
+        filter_args = []
+        # stores the indexes of the distinct views which the agg functions used
+        distinct_indexes = []
+        # stores the indexes of the functions which share the same distinct view
+        # and the filter args of them
+        distinct_info_dict = {}
+        for i in range(len(serialized_fn.udfs)):
+            user_defined_agg, input_extractor, filter_arg, distinct_index = \
+                extract_user_defined_aggregate_function(
+                    i, serialized_fn.udfs[i], distinct_info_dict)
+            user_defined_aggs.append(user_defined_agg)
+            input_extractors.append(input_extractor)
+            filter_args.append(filter_arg)
+            distinct_indexes.append(distinct_index)
+        distinct_view_descriptors = {}
+        for agg_index_list, filter_arg_list in distinct_info_dict.values():
+            if -1 in filter_arg_list:
+                # If there is a non-filter call, we don't need to check filter or not before
+                # writing the distinct data view.
+                filter_arg_list = []
+            # use the agg index of the first function as the key of shared distinct view
+            distinct_view_descriptors[agg_index_list[0]] = DistinctViewDescriptor(
+                input_extractors[agg_index_list[0]], filter_arg_list)
+        aggs_handler_function = SimpleAggsHandleFunction(
+            user_defined_aggs,
+            input_extractors,
+            self.index_of_count_star,
+            self.count_star_inserted,
+            self.data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors)
+        key_selector = RowKeySelector(self.grouping)
+        if len(self.data_view_specs) > 0:
+            state_value_coder = DataViewFilterCoder(self.data_view_specs)
+        else:
+            state_value_coder = PickleCoder()
+        self.group_agg_function = GroupAggFunction(
+            aggs_handler_function,
+            key_selector,
+            self.keyed_state_backend,
+            state_value_coder,
+            self.generate_update_before,
+            self.state_cleaning_enabled,
+            self.index_of_count_star)
+        return self.process_element_or_timer, []
+
+    def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
+        # the structure of the input data:
+        # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
+        # all the fields are nullable except the "element_type"
+        if input_data[0] != TRIGGER_TIMER:
+            return self.group_agg_function.process_element(input_data[1])
+        else:
+            self.group_agg_function.on_timer(input_data[3])
+            return []
+
+
+class DataStreamStatelessFunctionOperation(Operation):
+
+    def __init__(self, spec):
+        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
+
+    def open(self):
+        for user_defined_func in self.user_defined_funcs:
+            if hasattr(user_defined_func, 'open'):
+                runtime_context = RuntimeContext(
+                    self.spec.serialized_fn.runtime_context.task_name,
+                    self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                    self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                    self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                    self.spec.serialized_fn.runtime_context.attempt_number,
+                    {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters}
+                )
+                user_defined_func.open(runtime_context)
+
+    def generate_func(self, serialized_fn):
+        func, user_defined_func = operation_utils.extract_data_stream_stateless_function(
+            serialized_fn)
+        return func, [user_defined_func]
+
+
+class ProcessFunctionOperation(DataStreamStatelessFunctionOperation):
+
+    def __init__(self, spec):
+        self.collector = ProcessFunctionOperation.InternalCollector()
+        self.timer_service = ProcessFunctionOperation.InternalTimerService()
+        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
+            self.timer_service)
+        super(ProcessFunctionOperation, self).__init__(spec)
+
+    def generate_func(self, serialized_fn) -> tuple:
+        func, proc_func = operation_utils.extract_process_function(
+            serialized_fn, self.function_context, self.collector)
+        return func, [proc_func]
+
+    class InternalCollector(Collector):
+        """
+        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
+        There will be a header flag for each data type. 0 means it is a proc time timer registering
+        request, while 1 means it is an event time timer and 2 means it is a normal data. When
+        registering a timer, it must take along with the corresponding key for it.
+
+        For a ProcessFunction, it will only collect normal data.
+        """
+
+        def __init__(self):
+            self.buf = []
+
+        def collect(self, a: Any):
+            self.buf.append((2, a))
+
+        def clear(self):
+            self.buf.clear()
+
+    class InternalProcessFunctionContext(ProcessFunction.Context):
+        """
+        Internal implementation of ProcessFunction.Context.
+        """
+
+        def __init__(self, timer_service: TimerService):
+            self._timer_service = timer_service
+            self._timestamp = None
+
+        def timer_service(self):
+            return self._timer_service
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
+
+    class InternalTimerService(TimerService):
+        """
+        Internal implementation of TimerService.
+        """
+        def __init__(self):
+            self._current_watermark = None
+
+        def current_processing_time(self) -> int:
+            return int(time.time() * 1000)
+
+        def current_watermark(self):
+            return self._current_watermark
+
+        def set_current_watermark(self, wm):
+            self._current_watermark = wm
+
+        def register_processing_time_timer(self, t: int):
+            raise Exception("Register timers is only supported on a keyed stream.")
+
+        def register_event_time_timer(self, t: int):
+            raise Exception("Register timers is only supported on a keyed stream.")
+
+
+class KeyedProcessFunctionOperation(StatefulFunctionOperation):
+
+    def __init__(self, spec, keyed_state_backend):
+        self._collector = KeyedProcessFunctionOperation.InternalCollector()
+        internal_timer_service = KeyedProcessFunctionOperation.InternalTimerService(
+            self._collector, keyed_state_backend)
+        self.function_context = KeyedProcessFunctionOperation.InternalKeyedProcessFunctionContext(
+            internal_timer_service)
+        self.on_timer_ctx = KeyedProcessFunctionOperation\
+            .InternalKeyedProcessFunctionOnTimerContext(internal_timer_service)
+        super(KeyedProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
+
+    def generate_func(self, serialized_fn) -> Tuple:
+        func, proc_func = operation_utils.extract_keyed_process_function(
+            serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
+            self.keyed_state_backend)
+        return func, [proc_func]
+
+    class InternalCollector(Collector):
+        """
+        Internal implementation of the Collector. It uses a buffer list to store data to be emitted.
+        There will be a header flag for each data type. 0 means it is a proc time timer registering
+        request, while 1 means it is an event time timer and 2 means it is a normal data. When
+        registering a timer, it must take along with the corresponding key for it.
+        """
+
+        def __init__(self):
+            self.buf = []
+
+        def collect_reg_proc_timer(self, a: Any, key: Any):
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_PROC_TIMER.value,
+                 a, key, None))
+
+        def collect_reg_event_timer(self, a: Any, key: Any):
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.REGISTER_EVENT_TIMER.value,
+                 a, key, None))
+
+        def collect_del_proc_timer(self, a: Any, key: Any):
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_PROC_TIMER.value,
+                 a, key, None))
+
+        def collect_del_event_timer(self, a: Any, key: Any):
+            self.buf.append(
+                (operation_utils.KeyedProcessFunctionOutputFlag.DEL_EVENT_TIMER.value,
+                 a, key, None))
+
+        def collect(self, a: Any):
+            self.buf.append((operation_utils.KeyedProcessFunctionOutputFlag.NORMAL_DATA.value, a))
+
+        def clear(self):
+            self.buf.clear()
+
+    class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext):
+        """
+        Internal implementation of ProcessFunction.OnTimerContext.
+        """
+
+        def __init__(self, timer_service: TimerService):
+            self._timer_service = timer_service
+            self._time_domain = None
+            self._timestamp = None
+            self._current_key = None
+
+        def get_current_key(self):
+            return self._current_key
+
+        def set_current_key(self, current_key):
+            self._current_key = current_key
+
+        def timer_service(self) -> TimerService:
+            return self._timer_service
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
+
+        def time_domain(self) -> TimeDomain:
+            return self._time_domain
+
+        def set_time_domain(self, td: TimeDomain):
+            self._time_domain = td
+
+    class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context):
+        """
+        Internal implementation of KeyedProcessFunction.Context.
+        """
+
+        def __init__(self, timer_service: TimerService):
+            self._timer_service = timer_service
+            self._timestamp = None
+            self._current_key = None
+
+        def get_current_key(self):
+            return self._current_key
+
+        def set_current_key(self, current_key):
+            self._current_key = current_key
+
+        def timer_service(self) -> TimerService:
+            return self._timer_service
+
+        def timestamp(self) -> int:
+            return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
+
+    class InternalTimerService(TimerService):
+        """
+        Internal implementation of TimerService.
+        """
+
+        def __init__(self, collector, keyed_state_backend):
+            self._collector = collector
+            self._keyed_state_backend = keyed_state_backend
+            self._current_watermark = None
+
+        def current_processing_time(self) -> int:
+            return int(time.time() * 1000)
+
+        def current_watermark(self) -> int:
+            return self._current_watermark
+
+        def set_current_watermark(self, wm):
+            self._current_watermark = wm
+
+        def register_processing_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_reg_proc_timer(t, current_key)
+
+        def register_event_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_reg_event_timer(t, current_key)
+
+        def delete_processing_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_del_proc_timer(t, current_key)
+
+        def delete_event_time_timer(self, t: int):
+            current_key = self._keyed_state_backend.get_current_key()
+            self._collector.collect_del_event_timer(t, current_key)

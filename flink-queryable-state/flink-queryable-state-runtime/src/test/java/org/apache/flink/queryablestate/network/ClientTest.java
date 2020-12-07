@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -97,7 +98,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link Client}.
  */
-public class ClientTest {
+public class ClientTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientTest.class);
 
@@ -673,7 +674,7 @@ public class ClientTest {
 				registry[i] = new KvStateRegistry();
 				serverStats[i] = new AtomicKvStateRequestStats();
 				server[i] = new KvStateServerImpl(
-						InetAddress.getLocalHost(),
+						InetAddress.getLocalHost().getHostName(),
 						Collections.singletonList(0).iterator(),
 						numServerEventLoopThreads,
 						numServerQueryThreads,

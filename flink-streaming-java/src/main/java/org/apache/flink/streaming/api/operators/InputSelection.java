@@ -27,12 +27,14 @@ import java.io.Serializable;
 @PublicEvolving
 public final class InputSelection implements Serializable {
 
+	public static final int NONE_AVAILABLE = -1;
+
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select all inputs.
 	 */
-	public static final InputSelection ALL = new InputSelection(-1, Boolean.TRUE);
+	public static final InputSelection ALL = new InputSelection(-1);
 
 	/**
 	 * The {@code InputSelection} instance which indicates to select the first input.
@@ -46,11 +48,11 @@ public final class InputSelection implements Serializable {
 
 	private final long inputMask;
 
-	private final boolean isALLMaskOf2;
-
-	private InputSelection(long inputMask, boolean isALLMaskOf2) {
+	/**
+	 * @param inputMask -1 to mark if all inputs are selected.
+	 */
+	private InputSelection(long inputMask) {
 		this.inputMask = inputMask;
-		this.isALLMaskOf2 = isALLMaskOf2;
 	}
 
 	public long getInputMask() {
@@ -77,24 +79,16 @@ public final class InputSelection implements Serializable {
 	}
 
 	/**
-	 * Tells whether or not the input mask includes all of two inputs.
-	 *
-	 * @return {@code true} if the input mask includes all of two inputs, {@code false} otherwise.
-	 */
-	public boolean isALLMaskOf2() {
-		return isALLMaskOf2;
-	}
-
-	/**
 	 * Fairly select one of the two inputs for reading. When {@code inputMask} includes two inputs and
 	 * both inputs are available, alternately select one of them. Otherwise, select the available one
-	 * of {@code inputMask}, or return -1 to indicate no input is selected.
+	 * of {@code inputMask}, or return {@link InputSelection#NONE_AVAILABLE} to indicate no input is
+	 * selected.
 	 *
 	 * <p>Note that this supports only two inputs for performance reasons.
 	 *
 	 * @param availableInputsMask The mask of all available inputs.
 	 * @param lastReadInputIndex The index of last read input.
-	 * @return the index of the input for reading or -1, and -1 indicates no input is selected (
+	 * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
 	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
 	 */
 	public int fairSelectNextIndexOutOf2(int availableInputsMask, int lastReadInputIndex) {
@@ -110,8 +104,36 @@ public final class InputSelection implements Serializable {
 		throw new UnsupportedOperationException("Only two inputs are supported.");
 	}
 
-	private static boolean isALLMaskOf2(long inputMask) {
-		return (3 & inputMask) == 3;
+	/**
+	 * Fairly select one of the available inputs for reading.
+	 *
+	 * @param availableInputsMask The mask of all available inputs. Note -1 for this is interpreted
+	 *                            as all of the 32 inputs are available.
+	 * @param lastReadInputIndex The index of last read input.
+	 * @return the index of the input for reading or {@link InputSelection#NONE_AVAILABLE} (if
+	 *         {@code inputMask} is empty or the inputs in {@code inputMask} are unavailable).
+	 */
+	public int fairSelectNextIndex(long availableInputsMask, int lastReadInputIndex) {
+		long combineMask = availableInputsMask & inputMask;
+
+		if (combineMask == 0) {
+			return NONE_AVAILABLE;
+		}
+
+		int nextReadInputIndex = selectFirstBitRightFromNext(combineMask, lastReadInputIndex + 1);
+		if (nextReadInputIndex >= 0) {
+			return nextReadInputIndex;
+		}
+		return selectFirstBitRightFromNext(combineMask, 0);
+	}
+
+	private int selectFirstBitRightFromNext(long bits, int next) {
+		if (next >= 64) {
+			return NONE_AVAILABLE;
+		}
+		for (bits >>>= next; bits != 0 && (bits & 1) != 1; bits >>>= 1, next++) {
+		}
+		return bits != 0 ? next : NONE_AVAILABLE;
 	}
 
 	@Override
@@ -169,8 +191,26 @@ public final class InputSelection implements Serializable {
 			return this;
 		}
 
+		/**
+		 * Build normalized mask, if all inputs were manually selected, inputMask will be normalized
+		 * to -1.
+		 */
+		public InputSelection build(int inputCount) {
+			long allSelectedMask = (1L << inputCount) - 1;
+			if (inputMask == allSelectedMask) {
+				inputMask = -1;
+			}
+			else if (inputMask > allSelectedMask) {
+				throw new IllegalArgumentException(
+					String.format("inputMask [%d] selects more than expected number of inputs [%d]",
+						inputMask,
+						inputCount));
+			}
+			return build();
+		}
+
 		public InputSelection build() {
-			return new InputSelection(inputMask, isALLMaskOf2(inputMask));
+			return new InputSelection(inputMask);
 		}
 	}
 }

@@ -30,16 +30,24 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
-import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -69,6 +77,42 @@ public class AbstractMetricGroupTest extends TestLogger {
 		assertTrue(group.getAllVariables().isEmpty());
 
 		registry.shutdown().get();
+	}
+
+	@Test
+	public void testGetAllVariablesWithOutExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertThat(group.getAllVariables(), IsMapContaining.hasKey(ScopeFormat.SCOPE_HOST));
+	}
+
+	@Test
+	public void testGetAllVariablesWithExclusions() {
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
+
+		AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
+		assertEquals(group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)).size(), 0);
+	}
+
+	@Test
+	public void testGetAllVariablesWithExclusionsForReporters() {
+		MetricRegistry registry = TestingMetricRegistry.builder().setNumberReporters(2).build();
+
+		AbstractMetricGroup<?> group = new GenericMetricGroup(registry, null, "test") {
+			@Override
+			protected void putVariables(Map<String, String> variables) {
+				variables.put("k1", "v1");
+				variables.put("k2", "v2");
+			}
+		};
+
+		group.getAllVariables(-1, Collections.emptySet());
+
+		assertThat(group.getAllVariables(0, Collections.singleton("k1")), not(IsMapContaining.hasKey("k1")));
+		assertThat(group.getAllVariables(0, Collections.singleton("k1")), IsMapContaining.hasKey("k2"));
+		assertThat(group.getAllVariables(1, Collections.singleton("k2")), IsMapContaining.hasKey("k1"));
+		assertThat(group.getAllVariables(1, Collections.singleton("k2")), not(IsMapContaining.hasKey("k2")));
 	}
 
 	// ========================================================================
@@ -266,8 +310,8 @@ public class AbstractMetricGroupTest extends TestLogger {
 			// no caching should occur
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B));
 			// invalid reporter indices do not throw errors
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
-			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
+			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
 		} finally {
 			testRegistry.shutdown().get();
 		}
@@ -275,7 +319,16 @@ public class AbstractMetricGroupTest extends TestLogger {
 
 	@Test
 	public void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
-		final TestMetricRegistry registry = new TestMetricRegistry();
+		final BlockerSync parentSync = new BlockerSync();
+		final BlockerSync childSync = new BlockerSync();
+
+		AtomicReference<BlockerSync> syncRef = new AtomicReference<>();
+		final MetricRegistry registry = TestingMetricRegistry.builder()
+			.setRegisterConsumer((metric, metricName, group) -> {
+				syncRef.get().blockNonInterruptible();
+				group.getAllVariables();
+			})
+			.build();
 
 		final MetricGroup parent = new GenericMetricGroup(registry, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(), "parent");
 		final MetricGroup child = parent.addGroup("child");
@@ -283,16 +336,13 @@ public class AbstractMetricGroupTest extends TestLogger {
 		final Thread parentRegisteringThread = new Thread(() -> parent.counter("parent_counter"));
 		final Thread childRegisteringThread = new Thread(() -> child.counter("child_counter"));
 
-		final BlockerSync parentSync = new BlockerSync();
-		final BlockerSync childSync = new BlockerSync();
-
 		try {
 			// start both threads and have them block in the registry, so they acquire the lock of their respective group
-			registry.setOnRegistrationAction(childSync::blockNonInterruptible);
+			syncRef.set(childSync);
 			childRegisteringThread.start();
 			childSync.awaitBlocker();
 
-			registry.setOnRegistrationAction(parentSync::blockNonInterruptible);
+			syncRef.set(parentSync);
 			parentRegisteringThread.start();
 			parentSync.awaitBlocker();
 
@@ -310,45 +360,6 @@ public class AbstractMetricGroupTest extends TestLogger {
 			childSync.releaseBlocker();
 			parentRegisteringThread.join();
 			childRegisteringThread.join();
-		}
-	}
-
-	private static final class TestMetricRegistry implements MetricRegistry {
-
-		private Runnable onRegistrationAction;
-
-		void setOnRegistrationAction(Runnable onRegistrationAction) {
-			this.onRegistrationAction = onRegistrationAction;
-		}
-
-		@Override
-		public char getDelimiter() {
-			return 0;
-		}
-
-		@Override
-		public char getDelimiter(int index) {
-			return 0;
-		}
-
-		@Override
-		public int getNumberReporters() {
-			return 0;
-		}
-
-		@Override
-		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-			onRegistrationAction.run();
-			group.getAllVariables();
-		}
-
-		@Override
-		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-		}
-
-		@Override
-		public ScopeFormats getScopeFormats() {
-			return null;
 		}
 	}
 }

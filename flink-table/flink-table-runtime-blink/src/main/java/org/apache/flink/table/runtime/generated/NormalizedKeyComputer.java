@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
 
 /**
@@ -31,7 +31,7 @@ public interface NormalizedKeyComputer {
 	/**
 	 * Writes a normalized key for the given record into the target {@link MemorySegment}.
 	 */
-	void putKey(BaseRow record, MemorySegment target, int offset);
+	void putKey(RowData record, MemorySegment target, int offset);
 
 	/**
 	 * Compares two normalized keys in respective {@link MemorySegment}.

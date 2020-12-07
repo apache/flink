@@ -37,7 +37,7 @@ import java.util.Map;
  * <p>Example:
  * <pre>{@code
  *    EnvironmentSettings.newInstance()
- *      .useOldPlanner()
+ *      .useBlinkPlanner()
  *      .inStreamingMode()
  *      .withBuiltInCatalogName("default_catalog")
  *      .withBuiltInDatabaseName("default_database")
@@ -159,16 +159,15 @@ public class EnvironmentSettings {
 		private static final String BLINK_PLANNER_FACTORY = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
 		private static final String BLINK_EXECUTOR_FACTORY = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
 
-		private String plannerClass = OLD_PLANNER_FACTORY;
-		private String executorClass = OLD_EXECUTOR_FACTORY;
+		private String plannerClass = BLINK_PLANNER_FACTORY;
+		private String executorClass = BLINK_EXECUTOR_FACTORY;
 		private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
 		private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
 		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module.
-		 *
-		 * <p>This is the default behavior.
+		 * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
+		 * is enabled.
 		 */
 		public Builder useOldPlanner() {
 			this.plannerClass = OLD_PLANNER_FACTORY;
@@ -177,8 +176,9 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
-		 * enabled.
+		 * Sets the Blink planner as the required module.
+		 *
+		 * <p>This is the default behavior.
 		 */
 		public Builder useBlinkPlanner() {
 			this.plannerClass = BLINK_PLANNER_FACTORY;
@@ -191,7 +191,7 @@ public class EnvironmentSettings {
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
 		 *
-		 * <p>By default, {@link #useOldPlanner()} is enabled.
+		 * <p>By default, {@link #useBlinkPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;

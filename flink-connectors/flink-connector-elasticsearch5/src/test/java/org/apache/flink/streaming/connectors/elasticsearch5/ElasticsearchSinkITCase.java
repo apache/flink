@@ -22,8 +22,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -34,16 +37,42 @@ import java.util.List;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
- *
- * <p>The Elasticsearch ITCases for 5.x CANNOT be executed in the IDE directly, since it is required that the
- * Log4J-to-SLF4J adapter dependency must be excluded from the test classpath for the Elasticsearch embedded
- * node used in the tests to work properly.
  */
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
+
+	protected static final String CLUSTER_NAME = "test-cluster";
+
+	@ClassRule
+	public static ElasticsearchResource elasticsearchResource = new ElasticsearchResource(CLUSTER_NAME);
+
+	@Override
+	protected String getClusterName() {
+		return CLUSTER_NAME;
+	}
+
+	@Override
+	protected final Client getClient() {
+		return elasticsearchResource.getClient();
+	}
 
 	@Test
 	public void testElasticsearchSink() throws Exception {
 		runElasticsearchSinkTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithCbor() throws Exception {
+		runElasticsearchSinkCborTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithSmile() throws Exception {
+		runElasticsearchSinkSmileTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithYaml() throws Exception {
+		runElasticsearchSinkYamlTest();
 	}
 
 	@Test

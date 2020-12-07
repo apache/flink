@@ -27,6 +27,12 @@
             <td>Interval in milliseconds for refreshing the archived job directories.</td>
         </tr>
         <tr>
+            <td><h5>historyserver.archive.retained-jobs</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <span markdown="span">`IllegalConfigurationException`</span>. </td>
+        </tr>
+        <tr>
             <td><h5>historyserver.web.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

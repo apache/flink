@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -28,15 +27,16 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
+import org.apache.flink.types.RowKind;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,25 +48,25 @@ import java.util.List;
 /**
  * Operator for stream sort.
  */
-public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
-		OneInputStreamOperator<BaseRow, BaseRow> {
+public class StreamSortOperator extends TableStreamOperator<RowData> implements
+		OneInputStreamOperator<RowData, RowData> {
 
 	private static final long serialVersionUID = 9042068324817807379L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamSortOperator.class);
 
-	private final BaseRowTypeInfo inputRowType;
+	private final InternalTypeInfo<RowData> inputRowType;
 	private GeneratedRecordComparator gComparator;
 	private transient RecordComparator comparator;
-	private transient BaseRowSerializer baseRowSerializer;
-	private transient StreamRecordCollector<BaseRow> collector;
+	private transient RowDataSerializer rowDataSerializer;
+	private transient StreamRecordCollector<RowData> collector;
 
-	private transient ListState<Tuple2<BaseRow, Long>> bufferState;
+	private transient ListState<Tuple2<RowData, Long>> bufferState;
 
-	// inputBuffer buffers all input elements, key is BaseRow, value is appear times.
-	private transient HashMap<BaseRow, Long> inputBuffer;
+	// inputBuffer buffers all input elements, key is RowData, value is appear times.
+	private transient HashMap<RowData, Long> inputBuffer;
 
-	public StreamSortOperator(BaseRowTypeInfo inputRowType, GeneratedRecordComparator gComparator) {
+	public StreamSortOperator(InternalTypeInfo<RowData> inputRowType, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
 		this.gComparator = gComparator;
 	}
@@ -76,8 +76,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 		super.open();
 
 		LOG.info("Opening StreamSortOperator");
-		ExecutionConfig executionConfig = getExecutionConfig();
-		this.baseRowSerializer = inputRowType.createSerializer(executionConfig);
+		this.rowDataSerializer = inputRowType.toRowSerializer();
 
 		comparator = gComparator.newInstance(getContainingTask().getUserCodeClassLoader());
 		gComparator = null;
@@ -87,21 +86,21 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 
 		// restore state
 		if (bufferState != null) {
-			bufferState.get().forEach((Tuple2<BaseRow, Long> input) -> inputBuffer.put(input.f0, input.f1));
+			bufferState.get().forEach((Tuple2<RowData, Long> input) -> inputBuffer.put(input.f0, input.f1));
 		}
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow originalInput = element.getValue();
-		BinaryRow input = baseRowSerializer.toBinaryRow(originalInput).copy();
-		BaseRowUtil.setAccumulate(input);
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData originalInput = element.getValue();
+		BinaryRowData input = rowDataSerializer.toBinaryRow(originalInput).copy();
+		input.setRowKind(RowKind.INSERT); // erase RowKind for state updating
 		long count = inputBuffer.getOrDefault(input, 0L);
-		if (BaseRowUtil.isAccumulateMsg(originalInput)) {
+		if (RowDataUtil.isAccumulateMsg(originalInput)) {
 			inputBuffer.put(input, count + 1);
 		} else {
 			if (count == 0L) {
-				throw new RuntimeException("BaseRow not exist!");
+				throw new RuntimeException("RowData not exist!");
 			} else if (count == 1) {
 				inputBuffer.remove(input);
 			} else {
@@ -113,7 +112,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-		TupleTypeInfo<Tuple2<BaseRow, Long>> tupleType = new TupleTypeInfo<>(inputRowType, Types.LONG);
+		TupleTypeInfo<Tuple2<RowData, Long>> tupleType = new TupleTypeInfo<>(inputRowType, Types.LONG);
 		this.bufferState = context.getOperatorStateStore()
 				.getListState(new ListStateDescriptor<>("localBufferState", tupleType));
 	}
@@ -124,7 +123,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 		// clear state first
 		bufferState.clear();
 
-		List<Tuple2<BaseRow, Long>> dataToFlush = new ArrayList<>(inputBuffer.size());
+		List<Tuple2<RowData, Long>> dataToFlush = new ArrayList<>(inputBuffer.size());
 		inputBuffer.forEach((key, value) -> dataToFlush.add(Tuple2.of(key, value)));
 
 		// batch put
@@ -137,13 +136,13 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 
 		// BoundedOneInput can not coexistence with checkpoint, so we emit output in close.
 		if (!inputBuffer.isEmpty()) {
-			List<BaseRow> rowsSet = new ArrayList<>();
+			List<RowData> rowsSet = new ArrayList<>();
 			rowsSet.addAll(inputBuffer.keySet());
 			// sort the rows
 			rowsSet.sort(comparator);
 
 			// Emit the rows in order
-			rowsSet.forEach((BaseRow row) -> {
+			rowsSet.forEach((RowData row) -> {
 				long count = inputBuffer.get(row);
 				for (int i = 1; i <= count; i++) {
 					collector.collect(row);

@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.DecimalData;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -54,7 +55,7 @@ public final class DecimalType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		BigDecimal.class.getName(),
-		"org.apache.flink.table.dataformat.Decimal");
+		DecimalData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = BigDecimal.class;
 

@@ -42,6 +42,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -51,6 +52,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -147,7 +150,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
-				.setTerminationFutureSupplier(() -> dispatcherServiceTerminationFuture)
+				.setTerminationFuture(dispatcherServiceTerminationFuture)
+				.withManualTerminationFutureCompletion()
 				.build())
 			.build();
 
@@ -170,6 +174,46 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 			// verify that we completed the dispatcher leader process shut down
 			terminationFuture.get();
 		}
+	}
+
+	@Test
+	public void unexpectedDispatcherServiceTerminationWhileRunning_callsFatalErrorHandler() {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
+				.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
+						.setTerminationFuture(terminationFuture)
+						.build())
+				.build();
+		final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess();
+		dispatcherLeaderProcess.start();
+
+		final FlinkException expectedFailure = new FlinkException("Expected test failure.");
+		terminationFuture.completeExceptionally(expectedFailure);
+
+		final Throwable error = fatalErrorHandler.getErrorFuture().join();
+		assertThat(error, containsCause(expectedFailure));
+
+		fatalErrorHandler.clearError();
+	}
+
+	@Test
+	public void unexpectedDispatcherServiceTerminationWhileNotRunning_doesNotCallFatalErrorHandler() {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
+				.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
+						.setTerminationFuture(terminationFuture)
+						.withManualTerminationFutureCompletion()
+						.build())
+				.build();
+		final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess();
+		dispatcherLeaderProcess.start();
+
+		dispatcherLeaderProcess.closeAsync();
+
+		final FlinkException expectedFailure = new FlinkException("Expected test failure.");
+		terminationFuture.completeExceptionally(expectedFailure);
+
+		assertThat(fatalErrorHandler.getErrorFuture(), willNotComplete(Duration.ofMillis(10)));
 	}
 
 	@Test

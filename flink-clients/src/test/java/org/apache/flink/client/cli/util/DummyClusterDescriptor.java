@@ -20,7 +20,9 @@ package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -41,21 +43,28 @@ public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 	}
 
 	@Override
-	public ClusterClient<T> retrieve(T clusterId) {
-		return clusterClient;
+	public ClusterClientProvider<T> retrieve(T clusterId) {
+		return () -> clusterClient;
 	}
 
 	@Override
-	public ClusterClient<T> deploySessionCluster(ClusterSpecification clusterSpecification) {
-		return clusterClient;
+	public ClusterClientProvider<T> deploySessionCluster(ClusterSpecification clusterSpecification) {
+		return () -> clusterClient;
 	}
 
 	@Override
-	public ClusterClient<T> deployJobCluster(
+	public ClusterClientProvider<T> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) {
+		throw new UnsupportedOperationException("Application Mode not supported.");
+	}
+
+	@Override
+	public ClusterClientProvider<T> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) {
-		return clusterClient;
+		return () -> clusterClient;
 	}
 
 	@Override

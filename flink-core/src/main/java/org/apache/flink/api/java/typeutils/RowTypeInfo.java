@@ -287,10 +287,18 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 	}
 
 	/**
-	 * Returns the field types of the row. The order matches the order of the field names.
+	 * Creates a serializer for the old {@link Row} format before Flink 1.11.
+	 *
+	 * <p>The serialization format has changed from 1.10 to 1.11 and added {@link Row#getKind()}.
 	 */
-	public TypeInformation<?>[] getFieldTypes() {
-		return types;
+	@Deprecated
+	public TypeSerializer<Row> createLegacySerializer(ExecutionConfig config) {
+		int len = getArity();
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer[len];
+		for (int i = 0; i < len; i++) {
+			fieldSerializers[i] = types[i].createSerializer(config);
+		}
+		return new RowSerializer(fieldSerializers, true);
 	}
 
 	/**

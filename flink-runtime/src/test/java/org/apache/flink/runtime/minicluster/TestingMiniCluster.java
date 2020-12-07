@@ -22,17 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.TestingDefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -67,17 +64,6 @@ public class TestingMiniCluster extends MiniCluster {
 		this(miniClusterConfiguration, null);
 	}
 
-	@Nonnull
-	@Override
-	public CompletableFuture<Void> terminateTaskExecutor(int index) {
-		return super.terminateTaskExecutor(index);
-	}
-
-	@Override
-	public void startTaskExecutor() throws Exception {
-		super.startTaskExecutor();
-	}
-
 	@Override
 	protected boolean useLocalCommunication() {
 		return localCommunication;
@@ -102,7 +88,7 @@ public class TestingMiniCluster extends MiniCluster {
 			MetricRegistry metricRegistry,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createTestingDispatcherResourceManagerComponentFactory();
+		DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory();
 
 		final List<DispatcherResourceManagerComponent> result = new ArrayList<>(numberDispatcherResourceManagerComponents);
 
@@ -127,11 +113,5 @@ public class TestingMiniCluster extends MiniCluster {
 	@Override
 	public CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
 		return super.getDispatcherGatewayFuture();
-	}
-
-	private DispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {
-		return TestingDefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE),
-			StandaloneResourceManagerWithUUIDFactory.INSTANCE);
 	}
 }

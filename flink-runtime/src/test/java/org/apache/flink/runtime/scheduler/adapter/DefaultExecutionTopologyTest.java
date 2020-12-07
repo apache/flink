@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
@@ -36,6 +34,7 @@ import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +44,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -82,11 +82,10 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		jobVertices[0].setInputDependencyConstraint(ALL);
 		jobVertices[1].setInputDependencyConstraint(ANY);
 		executionGraph = createSimpleTestGraph(
-			new JobID(),
 			taskManagerGateway,
 			triggeredRestartStrategy,
 			jobVertices);
-		adapter = new DefaultExecutionTopology(executionGraph);
+		adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
 	}
 
 	@Test
@@ -100,8 +99,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
 			for (Map.Entry<IntermediateResultPartitionID, IntermediateResultPartition> entry : vertex.getProducedPartitions().entrySet()) {
 				IntermediateResultPartition partition = entry.getValue();
-				DefaultResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey())
-					.orElseThrow(() -> new IllegalArgumentException("can not find partition " + entry.getKey()));
+				DefaultResultPartition schedulingResultPartition = adapter.getResultPartition(entry.getKey());
 
 				assertPartitionEquals(partition, schedulingResultPartition);
 			}
@@ -117,8 +115,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 			.get();
 
 		final DefaultResultPartition schedulingResultPartition = adapter
-			.getResultPartition(intermediateResultPartition.getPartitionId())
-			.get();
+			.getResultPartition(intermediateResultPartition.getPartitionId());
 
 		assertEquals(ResultPartitionState.CREATED, schedulingResultPartition.getState());
 
@@ -129,7 +126,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testGetVertexOrThrow() {
 		try {
-			adapter.getVertexOrThrow(new ExecutionVertexID(new JobVertexID(), 0));
+			adapter.getVertex(new ExecutionVertexID(new JobVertexID(), 0));
 			fail("get not exist vertex");
 		} catch (IllegalArgumentException exception) {
 			// expected
@@ -139,47 +136,44 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 	@Test
 	public void testResultPartitionOrThrow() {
 		try {
-			adapter.getResultPartitionOrThrow(new IntermediateResultPartitionID());
+			adapter.getResultPartition(new IntermediateResultPartitionID());
 			fail("get not exist result partition");
 		} catch (IllegalArgumentException exception) {
 			// expected
 		}
 	}
 
-	@Test
-	public void testWithCoLocationConstraints() throws Exception {
-		ExecutionGraph executionGraph = createExecutionGraphWithCoLocationConstraint();
-		adapter = new DefaultExecutionTopology(executionGraph);
-		assertTrue(adapter.containsCoLocationConstraints());
+	public void testGetAllPipelinedRegions() {
+		final Iterable<DefaultSchedulingPipelinedRegion> allPipelinedRegions = adapter.getAllPipelinedRegions();
+		assertEquals(1, Iterables.size(allPipelinedRegions));
 	}
 
 	@Test
-	public void testWithoutCoLocationConstraints() {
-		assertFalse(adapter.containsCoLocationConstraints());
+	public void testGetPipelinedRegionOfVertex() {
+		for (DefaultExecutionVertex vertex : adapter.getVertices()) {
+			final DefaultSchedulingPipelinedRegion pipelinedRegion = adapter.getPipelinedRegionOfVertex(vertex.getId());
+			assertRegionContainsAllVertices(pipelinedRegion);
+		}
 	}
 
-	private ExecutionGraph createExecutionGraphWithCoLocationConstraint() throws Exception {
-		JobVertex[] jobVertices = new JobVertex[2];
+	@Test(expected = IllegalStateException.class)
+	public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
 		int parallelism = 3;
-		jobVertices[0] = createNoOpVertex("v1", parallelism);
-		jobVertices[1] = createNoOpVertex("v2", parallelism);
-		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
+		final JobVertex v1 = createNoOpVertex(parallelism);
+		final JobVertex v2 = createNoOpVertex(parallelism);
 
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-		jobVertices[0].setSlotSharingGroup(slotSharingGroup);
-		jobVertices[1].setSlotSharingGroup(slotSharingGroup);
+		v1.setSlotSharingGroup(slotSharingGroup);
+		v2.setSlotSharingGroup(slotSharingGroup);
+		v1.setStrictlyCoLocatedWith(v2);
 
-		CoLocationGroup coLocationGroup = new CoLocationGroup();
-		coLocationGroup.addVertex(jobVertices[0]);
-		coLocationGroup.addVertex(jobVertices[1]);
-		jobVertices[0].updateCoLocationGroup(coLocationGroup);
-		jobVertices[1].updateCoLocationGroup(coLocationGroup);
+		final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+		DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+	}
 
-		return createSimpleTestGraph(
-			new JobID(),
-			taskManagerGateway,
-			triggeredRestartStrategy,
-			jobVertices);
+	private void assertRegionContainsAllVertices(final DefaultSchedulingPipelinedRegion pipelinedRegionOfVertex) {
+		final Set<DefaultExecutionVertex> allVertices = Sets.newHashSet(pipelinedRegionOfVertex.getVertices());
+		assertEquals(Sets.newHashSet(adapter.getVertices()), allVertices);
 	}
 
 	private static void assertGraphEquals(

@@ -26,15 +26,32 @@ function setup_elasticsearch {
     mkdir -p $TEST_DATA_DIR
 
     local downloadUrl=$1
-    local elasticsearch_version=${2-0}
+    local elasticsearch_version=$2
+
+    if [ -z $elasticsearch_version ]; then
+      echo "Elasticsearch version not declared."
+      exit 1
+    fi
 
     # start downloading Elasticsearch
-    echo "Downloading Elasticsearch from $downloadUrl ..."
-    curl "$downloadUrl" > $TEST_DATA_DIR/elasticsearch.tar.gz
-
     local elasticsearchDir=$TEST_DATA_DIR/elasticsearch
     mkdir -p $elasticsearchDir
-    tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
+    echo "Downloading Elasticsearch from $downloadUrl ..."
+    for i in {1..10};
+    do
+        wget "$downloadUrl" -O $TEST_DATA_DIR/elasticsearch.tar.gz
+        if [ $? -eq 0 ]; then
+            echo "Download successful."
+            echo "Extracting..."
+            tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
+            if [ $? -eq 0 ]; then
+                break
+            fi
+        fi
+        echo "Attempt $i failed."
+        sleep 5
+    done
+    echo "Extraction successful."
 
     if [ `uname -i` == 'aarch64' ] && [ $elasticsearch_version -ge 6 ]; then
       echo xpack.ml.enabled: false >> $elasticsearchDir/config/elasticsearch.yml
@@ -74,7 +91,7 @@ function verify_result_line_number {
     while : ; do
       curl "localhost:9200/${index}/_search?q=*&pretty&size=21" > $TEST_DATA_DIR/output || true
 
-      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
+      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ] || [ -n "$(grep "\"value\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
           echo "Elasticsearch end to end test pass."
           break
       else

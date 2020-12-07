@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BinaryOperator;
 
 /**
  * Column statistics.
@@ -215,6 +217,92 @@ public final class ColumnStats {
 			return new ColumnStats(this.ndv, this.nullCount, this.avgLen, this.maxLen,
 					this.max, this.min);
 		}
+	}
+
+	/**
+	 * Merges two column stats.
+	 * When the stats are unknown, whatever the other are, we need return unknown stats.
+	 * The unknown definition for column stats is null.
+	 *
+	 * @param other The other column stats to merge.
+	 * @return The merged column stats.
+	 */
+	public ColumnStats merge(ColumnStats other) {
+		Long ndv = combineIfNonNull(Long::sum, this.ndv, other.ndv);
+		Long nullCount = combineIfNonNull(Long::sum, this.nullCount, other.nullCount);
+		Double avgLen = combineIfNonNull((a1, a2) -> (a1 + a2) / 2, this.avgLen, other.avgLen);
+		Integer maxLen = combineIfNonNull(Math::max, this.maxLen, other.maxLen);
+
+		Number maxValue = combineIfNonNull(
+				(n1, n2) -> n1.doubleValue() > n2.doubleValue() ? n1 : n2,
+				this.maxValue,
+				other.maxValue);
+		Number minValue = combineIfNonNull(
+				(n1, n2) -> n1.doubleValue() < n2.doubleValue() ? n1 : n2,
+				this.minValue,
+				other.minValue);
+
+		@SuppressWarnings("unchecked")
+		Comparable max = combineIfNonNull(
+				(c1, c2) -> ((Comparable) c1).compareTo(c2) > 0 ? c1 : c2,
+				this.max,
+				other.max);
+		@SuppressWarnings("unchecked")
+		Comparable min = combineIfNonNull(
+				(c1, c2) -> ((Comparable) c1).compareTo(c2) < 0 ? c1 : c2,
+				this.min,
+				other.min);
+
+		if (max != null || min != null) {
+			return new ColumnStats(
+					ndv,
+					nullCount,
+					avgLen,
+					maxLen,
+					max,
+					min
+			);
+		} else {
+			return new ColumnStats(
+					ndv,
+					nullCount,
+					avgLen,
+					maxLen,
+					maxValue,
+					minValue
+			);
+		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ColumnStats that = (ColumnStats) o;
+		return Objects.equals(ndv, that.ndv) &&
+				Objects.equals(nullCount, that.nullCount) &&
+				Objects.equals(avgLen, that.avgLen) &&
+				Objects.equals(maxLen, that.maxLen) &&
+				Objects.equals(maxValue, that.maxValue) &&
+				Objects.equals(max, that.max) &&
+				Objects.equals(minValue, that.minValue) &&
+				Objects.equals(min, that.min);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(ndv, nullCount, avgLen, maxLen, maxValue, max, minValue, min);
+	}
+
+	private static <T> T combineIfNonNull(BinaryOperator<T> op, T t1, T t2) {
+		if (t1 == null || t2 == null) {
+			return null;
+		}
+		return op.apply(t1, t2);
 	}
 
 	/**

@@ -34,9 +34,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus;
-import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.minicluster.TestingMiniCluster;
-import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration.Builder;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -52,20 +50,22 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +93,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
+import static org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -122,7 +122,6 @@ import static org.junit.Assert.assertThat;
  *   lost results.
  * </ul>
  */
-@Category(AlsoRunWithSchedulerNG.class)
 public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchFineGrainedRecoveryITCase.class);
 
@@ -156,13 +155,10 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		.map(i ->
 			// exception failure:
 				1 + // this mapper
-				i + // previous mappers
 			// TM failure:
 				(MAP_NUMBER - i - 1) + // subsequent mappers after PartitionNotFoundException
 				1 + // this mapper
-				1 + // this mapper after PartitionNotFoundException
-				i + // previous mappers
-				i) // previous mappers after PartitionNotFoundException
+				1) // this mapper after PartitionNotFoundException
 		.toArray();
 
 	private static final String TASK_NAME_PREFIX = "Test partition mapper ";
@@ -170,7 +166,16 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final List<Long> EXPECTED_JOB_OUTPUT =
 		LongStream.range(MAP_NUMBER, EMITTED_RECORD_NUMBER + MAP_NUMBER).boxed().collect(Collectors.toList());
 
-	private static TestingMiniCluster miniCluster;
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration
+			.Builder()
+			.setConfiguration(createConfiguration())
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(1)
+			.build());
+
+	private static MiniCluster miniCluster;
 
 	private static MiniClusterClient client;
 
@@ -183,19 +188,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	@SuppressWarnings("OverlyBroadThrowsClause")
 	@Before
 	public void setup() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, PIPELINED_REGION_RESTART_STRATEGY_NAME);
-
-		miniCluster = new TestingMiniCluster(
-			new Builder()
-				.setNumTaskManagers(1)
-				.setNumSlotsPerTaskManager(1)
-				.setConfiguration(configuration)
-				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-				.build(),
-			null);
-		miniCluster.start();
-
+		miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
 		client = new MiniClusterClient(miniCluster);
 
 		lastTaskManagerIndexInMiniCluster = new AtomicInteger(0);
@@ -205,10 +198,6 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
-		if (miniCluster != null) {
-			miniCluster.close();
-		}
-
 		if (client != null) {
 			client.close();
 		}
@@ -227,6 +216,12 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
 		assertThat(input.collect(), is(EXPECTED_JOB_OUTPUT));
 		failureTracker.verify(getMapperAttempts());
+	}
+
+	private static Configuration createConfiguration() {
+		Configuration configuration = new Configuration();
+		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, PIPELINED_REGION_RESTART_STRATEGY_NAME);
+		return configuration;
 	}
 
 	private static FailureStrategy createFailureStrategy(int trackingIndex) {
@@ -255,9 +250,9 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static void restartTaskManager() throws Exception {
 		int tmi = lastTaskManagerIndexInMiniCluster.getAndIncrement();
 		try {
-			miniCluster.terminateTaskExecutor(tmi).get();
+			miniCluster.terminateTaskManager(tmi).get();
 		} finally {
-			miniCluster.startTaskExecutor();
+			miniCluster.startTaskManager();
 		}
 	}
 
@@ -396,14 +391,16 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		@Override
 		void fail(int trackingIndex) throws Exception {
 			//noinspection OverlyBroadCatchBlock
-			try {
-				restartTaskManager();
-			} catch (InterruptedException e) {
-				// ignore the exception, task should have been failed while stopping TM
-				Thread.currentThread().interrupt();
-			} catch (Throwable t) {
-				failureTracker.unrelatedFailure(t);
-				throw t;
+			try (TemporaryClassLoaderContext unused = TemporaryClassLoaderContext.of(ClassLoader.getSystemClassLoader())) {
+				try {
+					restartTaskManager();
+				} catch (InterruptedException e) {
+					// ignore the exception, task should have been failed while stopping TM
+					Thread.currentThread().interrupt();
+				} catch (Throwable t) {
+					failureTracker.unrelatedFailure(t);
+					throw t;
+				}
 			}
 		}
 	}
@@ -528,7 +525,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		private final ExecutorService executorService;
 		private final URI restAddress;
 
-		private MiniClusterClient(TestingMiniCluster miniCluster) throws ConfigurationException {
+		private MiniClusterClient(MiniCluster miniCluster) throws ConfigurationException {
 			restAddress = miniCluster.getRestAddress().join();
 			executorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClient-IO"));
 			restClient = createRestClient();

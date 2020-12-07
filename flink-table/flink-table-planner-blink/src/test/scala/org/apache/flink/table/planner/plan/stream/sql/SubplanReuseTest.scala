@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -157,9 +156,13 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-    util.addFunction("MyLast", new LongLastValueAggFunction)
+    // FirstValueAggFunction and LastValueAggFunction are not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.INT().getLogicalType))
+    util.addTemporarySystemFunction(
+      "MyLast",
+      new FirstValueAggFunction(DataTypes.BIGINT().getLogicalType))
 
     val sqlQuery =
       """
@@ -248,9 +251,10 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction is deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-
+    // FirstValueAggFunction is not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.STRING().getLogicalType))
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
@@ -297,4 +301,49 @@ class SubplanReuseTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testEnableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    testReuseOnNewSource()
+  }
+
+  @Test
+  def testDisableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    testReuseOnNewSource()
+  }
+
+  private def testReuseOnNewSource(): Unit = {
+    util.addTable(
+      s"""
+         |create table newX(
+         |  a int,
+         |  b bigint,
+         |  c varchar
+         |) with (
+         |  'connector' = 'values'
+         |)
+       """.stripMargin)
+    util.addTable(
+      s"""
+         |create table newY(
+         |  d int,
+         |  e bigint,
+         |  f varchar
+         |) with (
+         |  'connector' = 'values'
+         |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        |WITH t AS (
+        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+        |  FROM newX, newY
+        |  WHERE newX.a = newY.d)
+        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }

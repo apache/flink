@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -45,6 +45,8 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
+import org.apache.commons.io.IOUtils;
+
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
@@ -54,6 +56,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
 
 /**
  * Implementation of heap restore operation.
@@ -103,7 +107,6 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 	@Override
 	public Void restore() throws Exception {
 
-		final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
 		registeredKVStates.clear();
 		registeredPQStates.clear();
 
@@ -116,9 +119,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 			}
 
 			if (!(keyedStateHandle instanceof KeyGroupsStateHandle)) {
-				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected: " + KeyGroupsStateHandle.class +
-					", but found: " + keyedStateHandle.getClass());
+				throw unexpectedStateHandleException(KeyGroupsStateHandle.class, keyedStateHandle.getClass());
 			}
 
 			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
@@ -134,12 +135,16 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 				serializationProxy.read(inView);
 
 				if (!keySerializerRestored) {
+					// fetch current serializer now because if it is incompatible, we can't access
+					// it anymore to improve the error message
+					TypeSerializer<K> currentSerializer =
+						keySerializerProvider.currentSchemaSerializer();
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
 					TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
 						keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(serializationProxy.getKeySerializerSnapshot());
 					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
-						throw new StateMigrationException("The new key serializer must be compatible.");
+						throw new StateMigrationException("The new key serializer (" + currentSerializer + ") must be compatible with the previous key serializer (" + keySerializerProvider.previousSchemaSerializer() + ").");
 					}
 
 					keySerializerRestored = true;
@@ -147,6 +152,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 
 				List<StateMetaInfoSnapshot> restoredMetaInfos =
 					serializationProxy.getStateMetaInfoSnapshots();
+
+				final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
 
 				createOrCheckStateForMetaInfo(restoredMetaInfos, kvStatesById);
 
@@ -198,9 +205,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 						metaInfoSnapshot.getBackendStateType() + ".");
 			}
 
-			if (registeredState == null) {
-				kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
-			}
+			// always put metaInfo into kvStatesById, because kvStatesById is KeyGroupsStateHandle related
+			kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
 		}
 	}
 

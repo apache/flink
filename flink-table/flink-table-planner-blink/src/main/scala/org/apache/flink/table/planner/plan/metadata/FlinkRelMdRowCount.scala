@@ -174,7 +174,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       ndvOfGroupKeysOnGlobalAgg
     } else {
       val inputRowCnt = mq.getRowCount(input)
-      val config = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+      val config = rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
       val parallelism = (inputRowCnt /
           config.getConfiguration.getLong(
             FlinkRelMdRowCount.TABLE_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt

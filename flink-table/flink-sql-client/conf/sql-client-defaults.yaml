@@ -96,20 +96,20 @@ catalogs: [] # empty list
 
 execution:
   # select the implementation responsible for planning table programs
-  # possible values are 'old' (used by default) or 'blink'
-  planner: old
+  # possible values are 'blink' (used by default) or 'old'
+  planner: blink
   # 'batch' or 'streaming' execution
   type: streaming
   # allow 'event-time' or only 'processing-time' in sources
   time-characteristic: event-time
   # interval in ms for emitting periodic watermarks
   periodic-watermarks-interval: 200
-  # 'changelog' or 'table' presentation of results
+  # 'changelog', 'table' or 'tableau' presentation of results
   result-mode: table
   # maximum number of maintained rows in 'table' presentation of results
   max-table-result-rows: 1000000
   # parallelism of the program
-  parallelism: 1
+  # parallelism: 1
   # maximum parallelism
   max-parallelism: 128
   # minimum idle state retention in ms
@@ -121,10 +121,10 @@ execution:
   # current database of the current catalog (default database of the catalog by default)
   current-database: default_database
   # controls how table programs are restarted in case of a failures
-  restart-strategy:
+  # restart-strategy:
     # strategy type
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
-    type: fallback
+    # type: fallback
 
 #==============================================================================
 # Configuration options

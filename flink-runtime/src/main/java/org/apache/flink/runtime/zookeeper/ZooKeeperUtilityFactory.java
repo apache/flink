@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.shared.SharedCount;
-import org.apache.curator.framework.recipes.shared.SharedValue;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedValue;
 
 import java.io.Serializable;
 

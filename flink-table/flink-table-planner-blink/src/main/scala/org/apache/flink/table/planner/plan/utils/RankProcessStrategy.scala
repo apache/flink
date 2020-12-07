@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.`trait`.TraitUtil
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-
+import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.calcite.rel.RelFieldCollation.Direction
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import scala.collection.JavaConversions._
 
@@ -33,10 +32,25 @@ import scala.collection.JavaConversions._
   */
 sealed trait RankProcessStrategy
 
+/**
+ * A placeholder strategy which will be inferred after [[FlinkChangelogModeInferenceProgram]]
+ */
+case object UndefinedStrategy extends RankProcessStrategy
+
+/**
+ * A strategy which only works when input only contains insertion changes
+ */
 case object AppendFastStrategy extends RankProcessStrategy
 
+/**
+ * A strategy which works when input contains update or deletion changes
+ */
 case object RetractStrategy extends RankProcessStrategy
 
+/**
+ * A strategy which only works when input shouldn't contains deletion changes and input should
+ * have the given [[primaryKeys]] and should be monotonic on the order by field.
+ */
 case class UpdateFastStrategy(primaryKeys: Array[Int]) extends RankProcessStrategy {
   override def toString: String = "UpdateFastStrategy" + primaryKeys.mkString("[", ",", "]")
 }
@@ -46,24 +60,23 @@ object RankProcessStrategy {
   /**
     * Gets [[RankProcessStrategy]] based on input, partitionKey and orderKey.
     */
-  def analyzeRankProcessStrategy(
-      input: RelNode,
+  def analyzeRankProcessStrategies(
+      rank: StreamPhysicalRel,
       partitionKey: ImmutableBitSet,
-      orderKey: RelCollation,
-      mq: RelMetadataQuery): RankProcessStrategy = {
+      orderKey: RelCollation): Seq[RankProcessStrategy] = {
 
+    val mq = rank.getCluster.getMetadataQuery
     val fieldCollations = orderKey.getFieldCollations
-    val isUpdateStream = !UpdatingPlanChecker.isAppendOnly(input)
+    val isUpdateStream = !ChangelogPlanUtils.inputInsertOnly(rank)
+    val input = rank.getInput(0)
 
     if (isUpdateStream) {
-      val inputIsAccRetract = TraitUtil.isAccRetract(input)
       val uniqueKeys = mq.getUniqueKeys(input)
-      if (inputIsAccRetract || uniqueKeys == null || uniqueKeys.isEmpty
-        // unique key should contains partition key
-        || !uniqueKeys.exists(k => k.contains(partitionKey))) {
-        // input is AccRetract or extract the unique keys failed,
+      if (uniqueKeys == null || uniqueKeys.isEmpty
+          // unique key should contains partition key
+          || !uniqueKeys.exists(k => k.contains(partitionKey))) {
         // and we fall back to using retract rank
-        RetractStrategy
+        Seq(RetractStrategy)
       } else {
         val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
         val monotonicity = fmq.getRelModifiedMonotonicity(input)
@@ -98,13 +111,13 @@ object RankProcessStrategy {
 
         if (isMonotonic) {
           //FIXME choose a set of primary key
-          UpdateFastStrategy(uniqueKeys.iterator().next().toArray)
+          Seq(UpdateFastStrategy(uniqueKeys.iterator().next().toArray), RetractStrategy)
         } else {
-          RetractStrategy
+          Seq(RetractStrategy)
         }
       }
     } else {
-      AppendFastStrategy
+      Seq(AppendFastStrategy)
     }
   }
 }

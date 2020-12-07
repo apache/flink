@@ -229,6 +229,48 @@ public class NettyClientServerSslTest extends TestLogger {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
+	@Test
+	public void testSslPinningForValidFingerprint() throws Exception {
+		NettyProtocol protocol = new NoOpProtocol();
+
+		Configuration config = createSslConfig();
+
+		// pin the certificate based on internal cert
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
+
+		NettyConfig nettyConfig = createNettyConfig(config);
+
+		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+
+		Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	@Test
+	public void testSslPinningForInvalidFingerprint() throws Exception {
+		NettyProtocol protocol = new NoOpProtocol();
+
+		Configuration config = createSslConfig();
+
+		// pin the certificate based on internal cert
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test").replaceAll("[0-9A-Z]", "0"));
+
+		NettyConfig nettyConfig = createNettyConfig(config);
+
+		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+
+		Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
 	private Configuration createSslConfig() {
 		return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(sslProvider);
 	}
@@ -245,7 +287,7 @@ public class NettyClientServerSslTest extends TestLogger {
 	private static final class NoOpProtocol extends NettyProtocol {
 
 		NoOpProtocol() {
-			super(null, null, true);
+			super(null, null);
 		}
 
 		@Override

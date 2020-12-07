@@ -35,7 +35,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.internal.BatchTableEnvImpl
-import org.apache.flink.table.api.{BatchQueryConfig, TableConfig, TableException, Types}
+import org.apache.flink.table.api.{TableConfig, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonJoin
@@ -116,9 +116,7 @@ class DataSetJoin(
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvImpl,
-      queryConfig: BatchQueryConfig): DataSet[Row] = {
+  override def translateToPlan(tableEnv: BatchTableEnvImpl): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
@@ -163,8 +161,8 @@ class DataSetJoin(
       })
     }
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     joinType match {
       case JoinRelType.INNER =>

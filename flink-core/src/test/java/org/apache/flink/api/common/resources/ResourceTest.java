@@ -98,6 +98,62 @@ public class ResourceTest extends TestLogger {
 		v1.subtract(v2);
 	}
 
+	@Test
+	public void testDivide() {
+		final Resource resource = new TestResource(0.04);
+		final BigDecimal by = BigDecimal.valueOf(0.1);
+		assertTestResourceValueEquals(0.4, resource.divide(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideNegative() {
+		final Resource resource = new TestResource(1.2);
+		final BigDecimal by = BigDecimal.valueOf(-0.5);
+		resource.divide(by);
+	}
+
+	@Test
+	public void testDivideInteger() {
+		final Resource resource = new TestResource(0.12);
+		final int by = 4;
+		assertTestResourceValueEquals(0.03, resource.divide(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideNegativeInteger() {
+		final Resource resource = new TestResource(1.2);
+		final int by = -5;
+		resource.divide(by);
+	}
+
+	@Test
+	public void testMultiply() {
+		final Resource resource = new TestResource(0.3);
+		final BigDecimal by = BigDecimal.valueOf(0.2);
+		assertTestResourceValueEquals(0.06, resource.multiply(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testMutiplyNegative() {
+		final Resource resource = new TestResource(0.3);
+		final BigDecimal by = BigDecimal.valueOf(-0.2);
+		resource.multiply(by);
+	}
+
+	@Test
+	public void testMultiplyInteger() {
+		final Resource resource = new TestResource(0.3);
+		final int by = 2;
+		assertTestResourceValueEquals(0.6, resource.multiply(by));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testMutiplyNegativeInteger() {
+		final Resource resource = new TestResource(0.3);
+		final int by = -2;
+		resource.multiply(by);
+	}
+
 	private static void assertTestResourceValueEquals(final double value, final Resource resource) {
 		assertEquals(new TestResource(value), resource);
 	}

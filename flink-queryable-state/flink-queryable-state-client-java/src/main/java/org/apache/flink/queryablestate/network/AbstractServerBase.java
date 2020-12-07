@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.BindException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -74,8 +73,8 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	/** The name of the server, useful for debugging. */
 	private final String serverName;
 
-	/** The {@link InetAddress address} to listen to. */
-	private final InetAddress bindAddress;
+	/** The address to listen to. */
+	private final String bindAddress;
 
 	/** A port range on which to try to connect. */
 	private final Set<Integer> bindPortRange;
@@ -113,7 +112,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 */
 	protected AbstractServerBase(
 			final String serverName,
-			final InetAddress bindAddress,
+			final String bindAddress,
 			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads) {

@@ -19,11 +19,12 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 /**
@@ -43,8 +44,17 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testExpressionReductionWithRichUDF(): Unit = {
     util.addFunction("MyUdf", new RichFunc1)
-    util.getTableEnv.getConfig.getConfiguration.setString("int.value", "10")
+    util.getTableEnv.getConfig.addJobParameter("int.value", "10")
     util.verifyPlan("SELECT myUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithRichUDFAndInvalidOpen(): Unit = {
+    util.addFunction("MyUdf", new RichFunc1)
+    // FunctionContext.getCachedFile will fail during expression reduction
+    // it will be executed during runtime though
+    util.getTableEnv.getConfig.addJobParameter("fail-for-cached-file", "true")
+    util.verifyPlan("SELECT myUdf(1 + 1) FROM MyTable")
   }
 
   @Test
@@ -55,6 +65,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   }
 }
 
+@SerialVersionUID(1L)
 object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1

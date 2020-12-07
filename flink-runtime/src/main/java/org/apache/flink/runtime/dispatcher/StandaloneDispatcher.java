@@ -32,15 +32,15 @@ import java.util.Collection;
 public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
 			recoveredJobs,
+			dispatcherBootstrapFactory,
 			dispatcherServices);
 	}
 }

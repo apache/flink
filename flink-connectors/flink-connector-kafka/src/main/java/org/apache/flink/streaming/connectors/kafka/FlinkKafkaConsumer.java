@@ -18,17 +18,16 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
-import org.apache.flink.streaming.connectors.kafka.internal.KafkaFetcher;
-import org.apache.flink.streaming.connectors.kafka.internal.KafkaPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.util.PropertiesUtil;
@@ -71,6 +70,8 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
  */
 @PublicEvolving
 public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
+
+	private static final long serialVersionUID = 1L;
 
 	/**  Configuration key to change the polling timeout. **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
@@ -211,8 +212,7 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	protected AbstractFetcher<T, ?> createFetcher(
 		SourceContext<T> sourceContext,
 		Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
-		SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
-		SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+		SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
 		StreamingRuntimeContext runtimeContext,
 		OffsetCommitMode offsetCommitMode,
 		MetricGroup consumerMetricGroup,
@@ -225,8 +225,7 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		return new KafkaFetcher<>(
 			sourceContext,
 			assignedPartitionsWithInitialOffsets,
-			watermarksPeriodic,
-			watermarksPunctuated,
+			watermarkStrategy,
 			runtimeContext.getProcessingTimeService(),
 			runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 			runtimeContext.getUserCodeClassLoader(),
@@ -246,17 +245,6 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		int numParallelSubtasks) {
 
 		return new KafkaPartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Timestamp-based startup
-	// ------------------------------------------------------------------------
-
-	@Override
-	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
-		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
-		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
-		return super.setStartFromTimestamp(startupOffsetsTimestamp);
 	}
 
 	@Override

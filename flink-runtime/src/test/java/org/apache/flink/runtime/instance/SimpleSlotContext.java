@@ -85,4 +85,9 @@ public class SimpleSlotContext implements SlotContext {
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
+
+	@Override
+	public boolean willBeOccupiedIndefinitely() {
+		return true;
+	}
 }

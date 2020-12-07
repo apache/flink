@@ -20,15 +20,15 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
@@ -41,14 +41,14 @@ import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
-import org.apache.flink.table.util.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
-import com.klarna.hiverunner.HiveShell;
-import com.klarna.hiverunner.annotations.HiveSQL;
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.udf.UDFMonth;
+import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -56,15 +56,15 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -75,11 +75,7 @@ import static java.lang.String.format;
  * IT case for HiveCatalog.
  * TODO: move to flink-connector-hive-test end-to-end test module once it's setup
  */
-@RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
-
-	@HiveSQL(files = {})
-	private static HiveShell hiveShell;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -91,8 +87,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@BeforeClass
 	public static void createCatalog() {
-		HiveConf hiveConf = hiveShell.getHiveConf();
-		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
+		hiveCatalog = HiveTestUtils.createHiveCatalog();
 		hiveCatalog.open();
 	}
 
@@ -131,19 +126,19 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudf"),
-				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveSimpleUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "mygenericudf"),
-				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveGenericUDF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudtf"),
-				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(TestHiveUDTF.class.getCanonicalName()),
 				false);
 		hiveCatalog.createFunction(
 				new ObjectPath(HiveCatalog.DEFAULT_DB, "myudaf"),
-				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName(), new HashMap<>()),
+				new CatalogFunctionImpl(GenericUDAFSum.class.getCanonicalName()),
 				false);
 
 		testUdf(true);
@@ -151,6 +146,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 	}
 
 	private void testUdf(boolean batch) throws Exception {
+		StreamExecutionEnvironment env = null;
 		TableEnvironment tEnv;
 		EnvironmentSettings.Builder envBuilder = EnvironmentSettings.newInstance().useBlinkPlanner();
 		if (batch) {
@@ -161,8 +157,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		if (batch) {
 			tEnv = TableEnvironment.create(envBuilder.build());
 		} else {
-			tEnv = StreamTableEnvironment.create(
-					StreamExecutionEnvironment.getExecutionEnvironment(), envBuilder.build());
+			env = StreamExecutionEnvironment.getExecutionEnvironment();
+			tEnv = StreamTableEnvironment.create(env, envBuilder.build());
 		}
 
 		BatchTestBase.configForMiniCluster(tEnv.getConfig());
@@ -206,8 +202,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					false
 			);
 
-			tEnv.sqlUpdate(format("insert into %s " + selectSql, sinkTableName));
-			tEnv.execute("myjob");
+			tEnv.executeSql(format("insert into %s " + selectSql, sinkTableName)).await();
 
 			// assert written result
 			StringBuilder builder = new StringBuilder();
@@ -233,13 +228,59 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			streamTEnv.toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
 					.map(new JavaToScala())
 					.addSink((SinkFunction) sink);
-			streamTEnv.execute("");
+			env.execute("");
 			results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
 		}
 
 		results = new ArrayList<>(results);
 		results.sort(String::compareTo);
 		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
+	}
+
+	@Test
+	public void testTimestampUDF() throws Exception {
+
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		tableEnv.executeSql(String.format("create function myyear as '%s'", UDFYear.class.getName()));
+		tableEnv.executeSql("create table src(ts timestamp)");
+		try {
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
+					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
+					.commit();
+
+			List<Row> results = CollectionUtil.iteratorToList(
+					tableEnv.sqlQuery("select myyear(ts) as y from src").execute().collect());
+			Assert.assertEquals(2, results.size());
+			Assert.assertEquals("[2013, 2019]", results.toString());
+		} finally {
+			tableEnv.executeSql("drop table src");
+		}
+	}
+
+	@Test
+	public void testDateUDF() throws Exception {
+
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		tableEnv.executeSql(String.format("create function mymonth as '%s'", UDFMonth.class.getName()));
+		tableEnv.executeSql("create table src(dt date)");
+		try {
+			HiveTestUtils.createTextTableInserter(hiveCatalog, "default", "src")
+					.addRow(new Object[]{Date.valueOf("2019-01-19")})
+					.addRow(new Object[]{Date.valueOf("2019-03-02")})
+					.commit();
+
+			List<Row> results = CollectionUtil.iteratorToList(
+					tableEnv.sqlQuery("select mymonth(dt) as m from src order by m").execute().collect());
+			Assert.assertEquals(2, results.size());
+			Assert.assertEquals("[1, 3]", results.toString());
+		} finally {
+			tableEnv.executeSql("drop table src");
+		}
 	}
 
 	private static class JavaToScala implements MapFunction<Tuple2<Boolean, Row>, scala.Tuple2<Boolean, Row>> {

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
@@ -39,7 +39,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
  * the contents of the pane should be processed to emit results. When a trigger fires,
- * the given {@link NamespaceTableAggsHandleFunction#emitValue(Object, BaseRow, Collector)}
+ * the given {@link NamespaceTableAggsHandleFunction#emitValue(Object, RowData, Collector)}
  * is invoked to produce the results that are emitted for the pane to which the {@code Trigger}
  * belongs.
  *
@@ -63,7 +63,7 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
 		LogicalType[] aggResultTypes,
 		LogicalType[] windowPropertyTypes,
 		int rowtimeIndex,
-		boolean sendRetraction,
+		boolean produceUpdates,
 		long allowedLateness) {
 		super(windowTableAggregator,
 			windowAssigner,
@@ -74,7 +74,7 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
 			aggResultTypes,
 			windowPropertyTypes,
 			rowtimeIndex,
-			sendRetraction,
+			produceUpdates,
 			allowedLateness);
 		this.tableAggWindowAggregator = windowTableAggregator;
 	}
@@ -116,6 +116,6 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
 	@Override
 	protected void emitWindowResult(W window) throws Exception {
 		windowFunction.prepareAggregateAccumulatorForEmit(window);
-		tableAggWindowAggregator.emitValue(window, (BaseRow) getCurrentKey(), collector);
+		tableAggWindowAggregator.emitValue(window, (RowData) getCurrentKey(), collector);
 	}
 }

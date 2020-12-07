@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.util.TestLogger;
@@ -65,7 +67,21 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 
 	private static final int TASK_MANAGER_DATA_PORT = 12345;
 
+	private static final int TASK_MANAGER_JMX_PORT = 23456;
+
 	private static final HardwareDescription TASK_MANAGER_HARDWARE_DESCRIPTION = HardwareDescription.extractFromSystem(Long.MAX_VALUE);
+
+	private static final TaskExecutorMemoryConfiguration TASK_MANAGER_MEMORY_CONFIGURATION = new TaskExecutorMemoryConfiguration(
+		1L,
+		2L,
+		3L,
+		4L,
+		5L,
+		6L,
+		7L,
+		8L,
+		9L,
+		10L);
 
 	private TestingRpcService rpcService;
 
@@ -77,16 +93,18 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 	public void testResourceManagerRegistration() throws Exception {
 		final TaskExecutorToResourceManagerConnection resourceManagerRegistration = createTaskExecutorToResourceManagerConnection();
 
-		testingResourceManagerGateway.setRegisterTaskExecutorFunction(tuple -> {
-			final String actualAddress = tuple.f0;
-			final ResourceID actualResourceId = tuple.f1;
-			final Integer actualDataPort = tuple.f2;
-			final HardwareDescription actualHardwareDescription = tuple.f3;
+		testingResourceManagerGateway.setRegisterTaskExecutorFunction(taskExecutorRegistration -> {
+			final String actualAddress = taskExecutorRegistration.getTaskExecutorAddress();
+			final ResourceID actualResourceId = taskExecutorRegistration.getResourceId();
+			final Integer actualDataPort = taskExecutorRegistration.getDataPort();
+			final HardwareDescription actualHardwareDescription = taskExecutorRegistration.getHardwareDescription();
+			final TaskExecutorMemoryConfiguration actualMemoryConfiguration = taskExecutorRegistration.getMemoryConfiguration();
 
 			assertThat(actualAddress, is(equalTo(TASK_MANAGER_ADDRESS)));
 			assertThat(actualResourceId, is(equalTo(TASK_MANAGER_RESOURCE_ID)));
 			assertThat(actualDataPort, is(equalTo(TASK_MANAGER_DATA_PORT)));
 			assertThat(actualHardwareDescription, is(equalTo(TASK_MANAGER_HARDWARE_DESCRIPTION)));
+			assertThat(actualMemoryConfiguration, is(TASK_MANAGER_MEMORY_CONFIGURATION));
 
 			return CompletableFuture.completedFuture(successfulRegistration());
 		});
@@ -96,18 +114,25 @@ public class TaskExecutorToResourceManagerConnectionTest extends TestLogger {
 	}
 
 	private TaskExecutorToResourceManagerConnection createTaskExecutorToResourceManagerConnection() {
+		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
+			TASK_MANAGER_ADDRESS,
+			TASK_MANAGER_RESOURCE_ID,
+			TASK_MANAGER_DATA_PORT,
+			TASK_MANAGER_JMX_PORT,
+			TASK_MANAGER_HARDWARE_DESCRIPTION,
+			TASK_MANAGER_MEMORY_CONFIGURATION,
+			ResourceProfile.ZERO,
+			ResourceProfile.ZERO
+		);
 		return new TaskExecutorToResourceManagerConnection(
 			LOGGER,
 			rpcService,
-			TASK_MANAGER_ADDRESS,
-			TASK_MANAGER_RESOURCE_ID,
 			RetryingRegistrationConfiguration.defaultConfiguration(),
-			TASK_MANAGER_DATA_PORT,
-			TASK_MANAGER_HARDWARE_DESCRIPTION,
 			RESOURCE_MANAGER_ADDRESS,
 			RESOURCE_MANAGER_ID,
 			Executors.directExecutor(),
-			new TestRegistrationConnectionListener<>());
+			new TestRegistrationConnectionListener<>(),
+			taskExecutorRegistration);
 	}
 
 	private static TaskExecutorRegistrationSuccess successfulRegistration() {

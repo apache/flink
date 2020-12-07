@@ -26,12 +26,14 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -48,7 +50,8 @@ class FlinkLogicalAggregate(
     aggCalls: util.List[AggregateCall],
     /* flag indicating whether to skip SplitAggregateRule */
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
-  extends Aggregate(cluster, traitSet, child, groupSet, groupSets, aggCalls)
+  extends Aggregate(cluster, traitSet, Collections.emptyList[RelHint](),
+    child, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
 
   def setPartialFinalType(partialFinalType: PartialFinalType): Unit = {
@@ -78,7 +81,6 @@ class FlinkLogicalAggregate(
       planner.getCostFactory.makeCost(rowCnt, cpuCost, rowCnt * rowSize)
     }
   }
-
 }
 
 private class FlinkLogicalAggregateBatchConverter
@@ -157,6 +159,6 @@ object FlinkLogicalAggregate {
       aggCalls: util.List[AggregateCall]): FlinkLogicalAggregate = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalAggregate(cluster,traitSet, input, groupSet, groupSets, aggCalls)
+    new FlinkLogicalAggregate(cluster, traitSet, input, groupSet, groupSets, aggCalls)
   }
 }

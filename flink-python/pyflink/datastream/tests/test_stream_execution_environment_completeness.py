@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import unittest
 
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
 class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
-                                                  unittest.TestCase):
+                                                  PyFlinkTestCase):
 
     @classmethod
     def python_class(cls):
@@ -48,7 +47,9 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile', 'addSource',
-                'setNumberOfExecutionRetries'}
+                'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
+                'clearJobListeners', 'getJobListeners', "fromSource", "fromSequence",
+                'setRuntimeMode'}
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.RowType;
@@ -65,7 +65,7 @@ public class RowSlidingOverFrame extends SlidingOverFrame {
 	}
 
 	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
+	public RowData process(int index, RowData current) throws Exception {
 		boolean bufferUpdated = index == 0;
 
 		// Drop all rows from the buffer util left bound.

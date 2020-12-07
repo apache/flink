@@ -18,71 +18,188 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.util.ExceptionUtils
+import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Test
 
-import org.junit._
-
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 class TableSinkITCase extends BatchTestBase {
 
   @Test
-  def testDecimalOutputFormatTableSink(): Unit = {
-    MemoryTableSourceSinkUtil.clear()
+  def testDecimalOnOutputFormatTableSink(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `c` VARCHAR(5),
+         |  `b` DECIMAL(10, 0),
+         |  `d` CHAR(5)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true',
+         |  'runtime-sink' = 'OutputFormat'
+         |)
+         |""".stripMargin)
 
-    val schema = TableSchema.builder()
-        .field("c", DataTypes.VARCHAR(5))
-        .field("b", DataTypes.DECIMAL(10, 0))
-        .field("d", DataTypes.CHAR(5))
-        .build()
-    val sink = new DataTypeOutputFormatTableSink(schema)
-    tEnv.registerTableSink("testSink", sink)
+    registerCollection("MyTable", data3, type3, "a, b, c", nullablesOfData3)
 
-    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
+    val table = tEnv.from("MyTable")
+      .where('a > 20)
+      .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+    table.executeInsert("sink").await()
 
-    tEnv.scan("Table3")
-        .where('a > 20)
-        .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
-
-    tEnv.execute("")
-
-    val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
-    val expected = Seq("12345,55,12345").mkString("\n")
-
-    TestBaseUtils.compareResultAsText(results, expected)
+    val result = TestValuesTableFactory.getResults("sink")
+    val expected = Seq("12345,55,12345")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
-  def testDecimalAppendStreamTableSink(): Unit = {
-    MemoryTableSourceSinkUtil.clear()
+  def testDecimalOnSinkFunctionTableSink(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `c` VARCHAR(5),
+         |  `b` DECIMAL(10, 0),
+         |  `d` CHAR(5)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
-    val schema = TableSchema.builder()
-        .field("c", DataTypes.VARCHAR(5))
-        .field("b", DataTypes.DECIMAL(10, 0))
-        .field("d", DataTypes.CHAR(5))
-        .build()
-    val sink = new DataTypeAppendStreamTableSink(schema)
-    tEnv.registerTableSink("testSink", sink)
+    registerCollection("MyTable", data3, type3, "a, b, c", nullablesOfData3)
 
-    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
+    val table = tEnv.from("MyTable")
+      .where('a > 20)
+      .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+    table.executeInsert("sink").await()
 
-    tEnv.scan("Table3")
-        .where('a > 20)
-        .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
+    val result = TestValuesTableFactory.getResults("sink")
+    val expected = Seq("12345,55,12345")
+    assertEquals(expected.sorted, result.sorted)
+  }
 
-    tEnv.execute("")
+  @Test
+  def testSinkWithKey(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` DOUBLE,
+         |  PRIMARY KEY (a) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
-    val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
-    val expected = Seq("12345,55,12345").mkString("\n")
+    registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
 
-    TestBaseUtils.compareResultAsText(results, expected)
+    val table = tEnv.from("MyTable")
+      .groupBy('a)
+      .select('a, 'b.sum())
+    table.executeInsert("testSink").await()
+
+    val result = TestValuesTableFactory.getResults("testSink")
+    val expected = List(
+      "1,0.1",
+      "2,0.4",
+      "3,1.0",
+      "4,2.2",
+      "5,3.9")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testSinkWithoutKey(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+
+    registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
+
+    val table = tEnv.from("MyTable")
+      .groupBy('a)
+      .select('a, 'b.sum())
+    table.executeInsert("testSink").await()
+
+    val result = TestValuesTableFactory.getResults("testSink")
+    val expected = List(
+      "1,0.1",
+      "2,0.4",
+      "3,1.0",
+      "4,2.2",
+      "5,3.9")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testNotNullEnforcer(): Unit = {
+    innerTestNotNullEnforcer("SinkFunction")
+  }
+
+  @Test
+  def testDataStreamNotNullEnforcer(): Unit = {
+    innerTestNotNullEnforcer("DataStream")
+  }
+  def innerTestNotNullEnforcer(provider: String): Unit = {
+    val dataId = TestValuesTableFactory.registerData(nullData4)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE nullable_src (
+         |  category STRING,
+         |  shopId INT,
+         |  num INT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE not_null_sink (
+         |  category STRING,
+         |  shopId INT,
+         |  num INT NOT NULL
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true',
+         |  'runtime-sink' = '$provider'
+         |)
+         |""".stripMargin)
+
+    // default should fail, because there are null values in the source
+    try {
+      tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
+      fail("Execution should fail.")
+    } catch {
+      case t: Throwable =>
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          "Column 'num' is NOT NULL, however, a null value is being written into it. " +
+            "You can set job configuration 'table.exec.sink.not-null-enforcer'='drop' " +
+            "to suppress this exception and drop such records silently.")
+        assertTrue(exception.isPresent)
+    }
+
+    // enable drop enforcer to make the query can run
+    tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
+    tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
+
+    val result = TestValuesTableFactory.getResults("not_null_sink")
+    val expected = List("book,1,12", "book,4,11", "fruit,3,44")
+    assertEquals(expected.sorted, result.sorted)
   }
 }

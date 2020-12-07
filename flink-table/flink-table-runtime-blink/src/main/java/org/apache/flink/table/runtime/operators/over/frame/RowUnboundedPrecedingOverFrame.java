@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
@@ -51,7 +51,7 @@ public class RowUnboundedPrecedingOverFrame extends UnboundedPrecedingOverFrame 
 	}
 
 	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
+	public RowData process(int index, RowData current) throws Exception {
 		boolean bufferUpdated = index == 0;
 
 		// Add all rows to the aggregates util right bound.

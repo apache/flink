@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -47,7 +46,13 @@ public class NettyShuffleMetricFactory {
 	// shuffle environment level metrics: Shuffle.Netty.*
 
 	private static final String METRIC_TOTAL_MEMORY_SEGMENT = "TotalMemorySegments";
+	private static final String METRIC_TOTAL_MEMORY = "TotalMemory";
+
 	private static final String METRIC_AVAILABLE_MEMORY_SEGMENT = "AvailableMemorySegments";
+	private static final String METRIC_AVAILABLE_MEMORY = "AvailableMemory";
+
+	private static final String METRIC_USED_MEMORY_SEGMENT = "UsedMemorySegments";
+	private static final String METRIC_USED_MEMORY = "UsedMemory";
 
 	// task level metric group structure: Shuffle.Netty.<Input|Output>.Buffers
 
@@ -79,19 +84,42 @@ public class NettyShuffleMetricFactory {
 		checkNotNull(networkBufferPool);
 
 		//noinspection deprecation
-		registerShuffleMetrics(METRIC_GROUP_NETWORK_DEPRECATED, metricGroup, networkBufferPool);
-		registerShuffleMetrics(METRIC_GROUP_NETTY, metricGroup.addGroup(METRIC_GROUP_SHUFFLE), networkBufferPool);
+		internalRegisterDeprecatedNetworkMetrics(metricGroup, networkBufferPool);
+		internalRegisterShuffleMetrics(metricGroup, networkBufferPool);
 	}
 
-	private static void registerShuffleMetrics(
-			String groupName,
-			MetricGroup metricGroup,
-			NetworkBufferPool networkBufferPool) {
-		MetricGroup networkGroup = metricGroup.addGroup(groupName);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_TOTAL_MEMORY_SEGMENT,
+	@Deprecated
+	private static void internalRegisterDeprecatedNetworkMetrics(
+		MetricGroup parentMetricGroup,
+		NetworkBufferPool networkBufferPool) {
+		MetricGroup networkGroup = parentMetricGroup.addGroup(METRIC_GROUP_NETWORK_DEPRECATED);
+
+		networkGroup.gauge(METRIC_TOTAL_MEMORY_SEGMENT,
 			networkBufferPool::getTotalNumberOfMemorySegments);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
+		networkGroup.gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
 			networkBufferPool::getNumberOfAvailableMemorySegments);
+	}
+
+	private static void internalRegisterShuffleMetrics(
+			MetricGroup parentMetricGroup,
+			NetworkBufferPool networkBufferPool) {
+		MetricGroup shuffleGroup = parentMetricGroup.addGroup(METRIC_GROUP_SHUFFLE);
+		MetricGroup networkGroup = shuffleGroup.addGroup(METRIC_GROUP_NETTY);
+
+		networkGroup.gauge(METRIC_TOTAL_MEMORY_SEGMENT,
+			networkBufferPool::getTotalNumberOfMemorySegments);
+		networkGroup.gauge(METRIC_TOTAL_MEMORY,
+			networkBufferPool::getTotalMemory);
+
+		networkGroup.gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
+			networkBufferPool::getNumberOfAvailableMemorySegments);
+		networkGroup.gauge(METRIC_AVAILABLE_MEMORY,
+			networkBufferPool::getAvailableMemory);
+
+		networkGroup.gauge(METRIC_USED_MEMORY_SEGMENT,
+			networkBufferPool::getNumberOfUsedMemorySegments);
+		networkGroup.gauge(METRIC_USED_MEMORY,
+			networkBufferPool::getUsedMemory);
 	}
 
 	public static MetricGroup createShuffleIOOwnerMetricGroup(MetricGroup parentGroup) {
@@ -109,7 +137,6 @@ public class NettyShuffleMetricFactory {
 	@Deprecated
 	public static void registerLegacyNetworkMetrics(
 			boolean isDetailedMetrics,
-			boolean isCreditBased,
 			MetricGroup metricGroup,
 			ResultPartitionWriter[] producedPartitions,
 			InputGate[] inputGates) {
@@ -129,7 +156,7 @@ public class NettyShuffleMetricFactory {
 		registerOutputMetrics(isDetailedMetrics, outputGroup, buffersGroup, resultPartitions);
 
 		SingleInputGate[] singleInputGates = Arrays.copyOf(inputGates, inputGates.length, SingleInputGate[].class);
-		registerInputMetrics(isDetailedMetrics, isCreditBased, inputGroup, buffersGroup, singleInputGates);
+		registerInputMetrics(isDetailedMetrics, inputGroup, buffersGroup, singleInputGates);
 	}
 
 	public static void registerOutputMetrics(
@@ -157,12 +184,10 @@ public class NettyShuffleMetricFactory {
 
 	public static void registerInputMetrics(
 			boolean isDetailedMetrics,
-			boolean isCreditBased,
 			MetricGroup inputGroup,
 			SingleInputGate[] inputGates) {
 		registerInputMetrics(
 			isDetailedMetrics,
-			isCreditBased,
 			inputGroup,
 			inputGroup.addGroup(METRIC_GROUP_BUFFERS),
 			inputGates);
@@ -170,7 +195,6 @@ public class NettyShuffleMetricFactory {
 
 	private static void registerInputMetrics(
 			boolean isDetailedMetrics,
-			boolean isCreditBased,
 			MetricGroup inputGroup,
 			MetricGroup buffersGroup,
 			SingleInputGate[] inputGates) {
@@ -180,18 +204,14 @@ public class NettyShuffleMetricFactory {
 
 		buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
 
-		if (isCreditBased) {
-			FloatingBuffersUsageGauge floatingBuffersUsageGauge = new FloatingBuffersUsageGauge(inputGates);
-			ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge = new ExclusiveBuffersUsageGauge(inputGates);
-			CreditBasedInputBuffersUsageGauge creditBasedInputBuffersUsageGauge = new CreditBasedInputBuffersUsageGauge(
-				floatingBuffersUsageGauge,
-				exclusiveBuffersUsageGauge,
-				inputGates);
-			buffersGroup.gauge(METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE, exclusiveBuffersUsageGauge);
-			buffersGroup.gauge(METRIC_INPUT_FLOATING_BUFFERS_USAGE, floatingBuffersUsageGauge);
-			buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, creditBasedInputBuffersUsageGauge);
-		} else {
-			buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
-		}
+		FloatingBuffersUsageGauge floatingBuffersUsageGauge = new FloatingBuffersUsageGauge(inputGates);
+		ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge = new ExclusiveBuffersUsageGauge(inputGates);
+		CreditBasedInputBuffersUsageGauge creditBasedInputBuffersUsageGauge = new CreditBasedInputBuffersUsageGauge(
+			floatingBuffersUsageGauge,
+			exclusiveBuffersUsageGauge,
+			inputGates);
+		buffersGroup.gauge(METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE, exclusiveBuffersUsageGauge);
+		buffersGroup.gauge(METRIC_INPUT_FLOATING_BUFFERS_USAGE, floatingBuffersUsageGauge);
+		buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, creditBasedInputBuffersUsageGauge);
 	}
 }

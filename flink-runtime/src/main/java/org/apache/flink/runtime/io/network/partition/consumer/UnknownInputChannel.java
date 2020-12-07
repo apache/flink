@@ -18,16 +18,18 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
+import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -38,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * An input channel place holder to be replaced by either a {@link RemoteInputChannel}
  * or {@link LocalInputChannel} at runtime.
  */
-class UnknownInputChannel extends InputChannel {
+class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
 
 	private final ResultPartitionManager partitionManager;
 
@@ -51,10 +53,12 @@ class UnknownInputChannel extends InputChannel {
 
 	private final int maxBackoff;
 
+	private final int networkBuffersPerChannel;
+
 	private final InputChannelMetrics metrics;
 
-	@Nonnull
-	private final MemorySegmentProvider memorySegmentProvider;
+	@Nullable
+	private ChannelStateWriter channelStateWriter;
 
 	public UnknownInputChannel(
 			SingleInputGate gate,
@@ -65,8 +69,8 @@ class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			InputChannelMetrics metrics,
-			@Nonnull MemorySegmentProvider memorySegmentProvider) {
+			int networkBuffersPerChannel,
+			InputChannelMetrics metrics) {
 
 		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
 
@@ -76,7 +80,12 @@ class UnknownInputChannel extends InputChannel {
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
-		this.memorySegmentProvider = memorySegmentProvider;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+	}
+
+	@Override
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("UnknownInputChannel should never be blocked.");
 	}
 
 	@Override
@@ -122,11 +131,37 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress),
-			connectionManager, initialBackoff, maxBackoff, metrics, memorySegmentProvider);
+		return new RemoteInputChannel(
+			inputGate,
+			getChannelIndex(),
+			partitionId,
+			checkNotNull(producerAddress),
+			connectionManager,
+			initialBackoff,
+			maxBackoff,
+			networkBuffersPerChannel,
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter(),
+			channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics);
+		return new LocalInputChannel(
+			inputGate,
+			getChannelIndex(),
+			partitionId,
+			partitionManager,
+			taskEventPublisher,
+			initialBackoff,
+			maxBackoff,
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter(),
+			channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter);
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		Preconditions.checkState(this.channelStateWriter == null);
+		this.channelStateWriter = channelStateWriter;
 	}
 }

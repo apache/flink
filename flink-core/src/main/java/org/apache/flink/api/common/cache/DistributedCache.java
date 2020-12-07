@@ -19,7 +19,9 @@
 package org.apache.flink.api.common.cache;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.Path;
 
 import java.io.File;
@@ -28,11 +30,15 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * DistributedCache provides static methods to write the registered cache files into job configuration or decode
@@ -77,6 +83,28 @@ public class DistributedCache {
 		/** Server-side constructor used during job-submission for files. */
 		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey){
 			this(filePath, isExecutable, blobKey, false);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			DistributedCacheEntry that = (DistributedCacheEntry) o;
+			return isZipped == that.isZipped &&
+				Objects.equals(filePath, that.filePath) &&
+				Objects.equals(isExecutable, that.isExecutable) &&
+				Arrays.equals(blobKey, that.blobKey);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Objects.hash(filePath, isExecutable, isZipped);
+			result = 31 * result + Arrays.hashCode(blobKey);
+			return result;
 		}
 
 		@Override
@@ -158,6 +186,25 @@ public class DistributedCache {
 			cacheFiles.put(name, new DistributedCacheEntry(filePath, isExecutable, blobKey, isDirectory));
 		}
 		return cacheFiles.entrySet();
+	}
+
+	/**
+	 * Parses a list of distributed cache entries encoded in a string. Can be used to parse a config option
+	 * described by {@link org.apache.flink.configuration.PipelineOptions#CACHED_FILES}.
+	 *
+	 * <p>See {@link org.apache.flink.configuration.PipelineOptions#CACHED_FILES} for the format.
+	 *
+	 * @param files List of string encoded distributed cache entries.
+	 */
+	public static List<Tuple2<String, DistributedCacheEntry>> parseCachedFilesFromString(List<String> files) {
+		return files.stream()
+			.map(ConfigurationUtils::parseMap)
+			.map(m -> Tuple2.of(
+				m.get("name"),
+				new DistributedCacheEntry(
+					m.get("path"),
+					Optional.ofNullable(m.get("executable")).map(Boolean::parseBoolean).orElse(false)))
+			).collect(Collectors.toList());
 	}
 
 	private static final String CACHE_FILE_NUM = "DISTRIBUTED_CACHE_FILE_NUM";

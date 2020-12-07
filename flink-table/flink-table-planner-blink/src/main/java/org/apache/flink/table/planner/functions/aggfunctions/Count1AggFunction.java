@@ -23,7 +23,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
@@ -59,7 +59,7 @@ public class Count1AggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* count1 = */ literal(0L, getResultType())
+				/* count1 = */ literal(0L, getResultType().notNull())
 		};
 	}
 

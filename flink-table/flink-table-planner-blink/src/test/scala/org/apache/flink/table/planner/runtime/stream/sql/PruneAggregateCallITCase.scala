@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
@@ -99,7 +99,7 @@ class PruneAggregateCallITCase(
 
   private def checkResult(str: String, rows: Seq[Row]): Unit = {
     super.before()
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, String)](
       tEnv,
       "MyTable",
       failingDataSource(TestData.smallTupleData3).javaStream,
@@ -108,7 +108,7 @@ class PruneAggregateCallITCase(
       Some(FlinkStatistic.UNKNOWN)
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, Int, String, Long)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
       failingDataSource(TestData.smallTupleData5).javaStream,

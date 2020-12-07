@@ -18,8 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Over, Table}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
@@ -41,9 +40,9 @@ class OverWindowTest extends TableTestBase {
       .select(
         plusOne('a.sum over 'w as 'wsum) as 'd,
         ('a.count over 'w).exp(),
-        (weightedAvg('c, 'a) over 'w) + 1,
-        "AVG:".toExpr + (weightedAvg('c, 'a) over 'w),
-        array(weightedAvg('c, 'a) over 'w, 'a.count over 'w))
+        (call(weightedAvg, 'c, 'a) over 'w) + 1,
+        "AVG:".toExpr + (call(weightedAvg, 'c, 'a) over 'w),
+        array(call(weightedAvg, 'c, 'a) over 'w, 'a.count over 'w))
     streamUtil.verifyPlan(result)
   }
 
@@ -53,7 +52,7 @@ class OverWindowTest extends TableTestBase {
 
     val result = table
       .window(Over partitionBy 'b orderBy 'proctime preceding 2.rows following CURRENT_ROW as 'w)
-      .select('c, weightedAvg('c, 'a) over 'w)
+      .select('c, call(weightedAvg, 'c, 'a) over 'w)
     streamUtil.verifyPlan(result)
   }
 
@@ -64,7 +63,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(
         Over partitionBy 'a orderBy 'proctime preceding 2.hours following CURRENT_RANGE as 'w)
-      .select('a, weightedAvg('c, 'a) over 'w as 'myAvg)
+      .select('a, call(weightedAvg, 'c, 'a) over 'w as 'myAvg)
     streamUtil.verifyPlan(result)
   }
 
@@ -90,11 +89,11 @@ class OverWindowTest extends TableTestBase {
 
     val result = table
       .window(Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
+      .select('a, 'c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w)
 
     val result2 = table
       .window(Over partitionBy 'c orderBy 'proctime as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
+      .select('a, 'c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w)
 
     verifyTableEquals(result, result2)
     streamUtil.verifyPlan(result)
@@ -107,7 +106,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(
         Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW following CURRENT_ROW as 'w)
-      .select('c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
+      .select('c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w)
     streamUtil.verifyPlan(result)
   }
 
@@ -136,7 +135,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(
         Over partitionBy 'b orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
-      .select('c, 'b.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+      .select('c, 'b.count over 'w, call(weightedAvg, 'c, 'a) over 'w as 'wAvg)
 
     streamUtil.verifyPlan(result)
   }
@@ -148,7 +147,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(
         Over partitionBy 'a orderBy 'rowtime preceding 2.hours following CURRENT_RANGE as 'w)
-      .select('a, 'c.avg over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+      .select('a, 'c.avg over 'w, call(weightedAvg, 'c, 'a) over 'w as 'wAvg)
 
     streamUtil.verifyPlan(result)
   }
@@ -178,11 +177,11 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_RANGE following
          CURRENT_RANGE as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+      .select('a, 'c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w as 'wAvg)
 
     val result2 = table
       .window(Over partitionBy 'c orderBy 'rowtime as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+      .select('a, 'c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w as 'wAvg)
 
     verifyTableEquals(result, result2)
 
@@ -196,7 +195,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_ROW following
          CURRENT_ROW as 'w)
-      .select('c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
+      .select('c, 'a.count over 'w, call(weightedAvg, 'c, 'a) over 'w as 'wAvg)
     streamUtil.verifyPlan(result)
   }
 

@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 /**
  * A factory containing all the necessary information for creating clients to Flink clusters.
  */
@@ -62,4 +64,13 @@ public interface ClusterClientFactory<ClusterID> {
 	 * @return the corresponding {@link ClusterSpecification} for a new Flink cluster
 	 */
 	ClusterSpecification getClusterSpecification(Configuration configuration);
+
+	/**
+	 * Returns the option to be used when trying to execute an application in Application Mode
+	 * using this cluster client factory, or an {@link Optional#empty()} if the environment of
+	 * this cluster client factory does not support Application Mode.
+	 */
+	default Optional<String> getApplicationTargetName() {
+		return Optional.empty();
+	}
 }

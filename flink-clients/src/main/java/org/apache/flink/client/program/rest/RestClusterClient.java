@@ -20,7 +20,7 @@ package org.apache.flink.client.program.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
@@ -37,10 +37,12 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
@@ -68,6 +70,9 @@ import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalRequest;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
@@ -89,7 +94,7 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.OptionalFailure;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
@@ -119,6 +124,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -150,15 +156,28 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
 	private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
 
+	private final AtomicBoolean running = new AtomicBoolean(true);
+
 	/** ExecutorService to run operations that can be retried on exceptions. */
 	private ScheduledExecutorService retryExecutorService;
 
 	public RestClusterClient(Configuration config, T clusterId) throws Exception {
 		this(
 			config,
+			clusterId,
+			HighAvailabilityServicesUtils.createClientHAService(config));
+	}
+
+	public RestClusterClient(
+			Configuration config,
+			T clusterId,
+			ClientHighAvailabilityServices clientHAServices) throws Exception {
+		this(
+			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L));
+			new ExponentialWaitStrategy(10L, 2000L),
+			clientHAServices);
 	}
 
 	@VisibleForTesting
@@ -167,7 +186,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		@Nullable RestClient restClient,
 		T clusterId,
 		WaitStrategy waitStrategy) throws Exception {
+		this(
+			configuration,
+			restClient,
+			clusterId,
+			waitStrategy,
+			HighAvailabilityServicesUtils.createClientHAService(configuration));
+	}
 
+	private RestClusterClient(
+		Configuration configuration,
+		@Nullable RestClient restClient,
+		T clusterId,
+		WaitStrategy waitStrategy,
+		ClientHighAvailabilityServices clientHAServices) throws Exception {
 		this.configuration = checkNotNull(configuration);
 
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
@@ -181,7 +213,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		this.waitStrategy = checkNotNull(waitStrategy);
 		this.clusterId = checkNotNull(clusterId);
 
-		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
+		this.clientHAServices = checkNotNull(clientHAServices);
 
 		this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
@@ -199,21 +231,23 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
 	@Override
 	public void close() {
-		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
+		if (running.compareAndSet(true, false)) {
+			ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
-		this.restClient.shutdown(Time.seconds(5));
-		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
+			this.restClient.shutdown(Time.seconds(5));
+			ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 
-		try {
-			webMonitorRetrievalService.stop();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
-		}
+			try {
+				webMonitorRetrievalService.stop();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
+			}
 
-		try {
-			clientHAServices.close();
-		} catch (Exception e) {
-			LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			try {
+				clientHAServices.close();
+			} catch (Exception e) {
+				LOG.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+			}
 		}
 	}
 
@@ -258,14 +292,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			});
 	}
 
-	/**
-	 * Submits the given {@link JobGraph} to the dispatcher.
-	 *
-	 * @param jobGraph to submit
-	 * @return Future which is completed with the submission response
-	 */
 	@Override
-	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
+	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
@@ -291,8 +319,17 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			}
 
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+				final Path artifactFilePath = new Path(artifacts.getValue().filePath);
+				try {
+					// Only local artifacts need to be uploaded.
+					if (!artifactFilePath.getFileSystem().isDistributedFS()) {
+						artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), artifactFilePath.getName()));
+						filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+					}
+				} catch (IOException e) {
+					throw new CompletionException(
+						new FlinkException("Failed to get the FileSystem of artifact " + artifactFilePath + ".", e));
+				}
 			}
 
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
@@ -323,8 +360,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		});
 
 		return submissionFuture
-			.thenApply(
-				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
+			.thenApply(ignore -> jobGraph.getJobID())
 			.exceptionally(
 				(Throwable throwable) -> {
 					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
@@ -382,6 +418,36 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		return triggerSavepoint(jobId, savepointDirectory, false);
 	}
 
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
+			JobID jobId,
+			OperatorID operatorId,
+			CoordinationRequest request) {
+		ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
+		ClientCoordinationMessageParameters params = new ClientCoordinationMessageParameters();
+		params.jobPathParameter.resolve(jobId);
+		params.operatorPathParameter.resolve(operatorId);
+
+		SerializedValue<CoordinationRequest> serializedRequest;
+		try {
+			serializedRequest = new SerializedValue<>(request);
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
+
+		ClientCoordinationRequestBody requestBody = new ClientCoordinationRequestBody(serializedRequest);
+		return sendRequest(headers, params, requestBody).thenApply(
+			responseBody -> {
+				try {
+					return responseBody
+						.getSerializedCoordinationResponse()
+						.deserializeValue(getClass().getClassLoader());
+				} catch (IOException | ClassNotFoundException e) {
+					throw new CompletionException("Failed to deserialize coordination response", e);
+				}
+			});
+	}
+
 	private CompletableFuture<String> triggerSavepoint(
 			final JobID jobId,
 			final @Nullable String savepointDirectory,
@@ -408,7 +474,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, OptionalFailure<Object>>> getAccumulators(JobID jobID, ClassLoader loader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators(JobID jobID, ClassLoader loader) {
 		final JobAccumulatorsHeaders accumulatorsHeaders = JobAccumulatorsHeaders.getInstance();
 		final JobAccumulatorsMessageParameters accMsgParams = accumulatorsHeaders.getUnresolvedMessageParameters();
 		accMsgParams.jobPathParameter.resolve(jobID);
@@ -418,18 +484,15 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			accumulatorsHeaders,
 			accMsgParams);
 
-		return responseFuture.thenApply((JobAccumulatorsInfo accumulatorsInfo) -> {
-			try {
-				return AccumulatorHelper.deserializeAccumulators(
-					accumulatorsInfo.getSerializedUserAccumulators(),
-					loader);
-			} catch (Exception e) {
-				throw new CompletionException(
-					new FlinkException(
-						String.format("Deserialization of accumulators for job %s failed.", jobID),
-						e));
-			}
-		});
+		return responseFuture
+			.thenApply(JobAccumulatorsInfo::getSerializedUserAccumulators)
+			.thenApply(accumulators -> {
+				try {
+					return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, loader);
+				} catch (Exception e) {
+					throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
+				}
+			});
 	}
 
 	private CompletableFuture<SavepointInfo> pollSavepointAsync(

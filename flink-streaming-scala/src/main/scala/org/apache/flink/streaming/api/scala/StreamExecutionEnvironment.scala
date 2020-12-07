@@ -19,24 +19,28 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.source.{Source, SourceSplit}
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.AbstractStateBackend
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
-import scala.collection.JavaConverters._
 import _root_.scala.language.implicitConversions
+import scala.collection.JavaConverters._
 
 @Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
@@ -57,6 +61,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getCachedFiles = javaEnv.getCachedFiles
 
   /**
+    * Gets the config JobListeners.
+    */
+  @PublicEvolving
+  def getJobListeners = javaEnv.getJobListeners
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
@@ -64,6 +74,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+    * Sets the runtime execution mode for the application (see [[RuntimeExecutionMode]]).
+    * This is equivalent to setting the "execution.runtime-mode" in your application's
+    * configuration file.
+    *
+    * We recommend users to NOT use this method but set the "execution.runtime-mode"
+    * using the command-line when submitting the application. Keeping the application code
+    * configuration-free allows for more flexibility as the same application will be able to
+    * be executed in any execution mode.
+    *
+    * @param executionMode the desired execution mode.
+    * @return The execution environment of your application.
+    */
+  @PublicEvolving
+  def setRuntimeMode(executionMode: RuntimeExecutionMode): StreamExecutionEnvironment = {
+    javaEnv.setRuntimeMode(executionMode)
+    this
   }
 
   /**
@@ -252,15 +281,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * @deprecated Use [[StreamExecutionEnvironment.setStateBackend(StateBackend)]] instead.
-   */
-  @Deprecated
-  @PublicEvolving
-  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
-    setStateBackend(backend.asInstanceOf[StateBackend])
-  }
-
-  /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
   @PublicEvolving
@@ -389,7 +409,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]]
    *
    * @param characteristic The time characteristic.
+   * @deprecated In Flink 1.12 the default stream time characteristic has been changed to
+   *             [[TimeCharacteristic.EventTime]], thus you don't need to call this method for
+   *             enabling event-time support anymore. Explicitly using processing-time windows and
+   *             timers works in event-time mode. If you need to disable watermarks, please use
+   *             [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long]]. If
+   *             you are using [[TimeCharacteristic.IngestionTime]], please manually set an
+   *             appropriate [[WatermarkStrategy]]. If you are using generic "time window"
+   *             operations (for example [[KeyedStream.timeWindow()]] that change behaviour based
+   *             on the time characteristic, please use equivalent operations that explicitly
+   *             specify processing time or event time.
    */
+  @deprecated
   @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
@@ -404,6 +435,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   @PublicEvolving
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
+  /**
+   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * [[org.apache.flink.streaming.api.environment.StreamPipelineOptions#TIME_CHARACTERISTIC]].
+   * It will reconfigure [[StreamExecutionEnvironment]],
+   * [[org.apache.flink.api.common.ExecutionConfig]] and
+   * [[org.apache.flink.streaming.api.environment.CheckpointConfig]].
+   *
+   * It will change the value of a setting only if a corresponding option was set in the
+   * `configuration`. If a key is not present, the current value of a field will remain
+   * untouched.
+   *
+   * @param configuration a configuration to read the values from
+   * @param classLoader   a class loader to use when loading classes
+   */
+  @PublicEvolving
+  def configure(configuration: ReadableConfig, classLoader: ClassLoader): Unit = {
+    javaEnv.configure(configuration, classLoader)
+  }
+
   // --------------------------------------------------------------------------------------------
   // Data stream creations
   // --------------------------------------------------------------------------------------------
@@ -411,9 +461,34 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
    * If you manually set the parallelism to `1` the emitted elements are in order.
+   *
+   * @deprecated Use [[fromSequence(long, long)]] instead to create a new data stream
+   *             that contains [[NumberSequenceSource]].
    */
+  @deprecated
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.generateSequence(from, to))
+      .asInstanceOf[DataStream[Long]]
+  }
+
+  /**
+   * Creates a new data stream that contains a sequence of numbers (longs) and is useful for
+   * testing and for cases that just need a stream of N events of any kind.
+   *
+   * The generated source splits the sequence into as many parallel sub-sequences as there are
+   * parallel source readers. Each sub-sequence will be produced in order. If the parallelism is
+   * limited to one, the source will produce one sequence in order.
+   *
+   * This source is always bounded. For very long sequences (for example over the entire domain
+   * of long integer values), you may consider executing the application in a streaming manner
+   * because of the end bound that is pretty far away.
+   *
+   * Use [[fromSource(Source,WatermarkStrategy, String)]] together with
+   * [[NumberSequenceSource]] if you required more control over the created sources. For
+   * example, if you want to set a [[WatermarkStrategy]].
+   */
+  def fromSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.fromSequence(from, to))
       .asInstanceOf[DataStream[Long]]
   }
 
@@ -635,12 +710,27 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+    * Create a DataStream using a [[Source]].
+    */
+  @Experimental
+  def fromSource[T: TypeInformation](
+      source: Source[T, _ <: SourceSplit, _],
+      watermarkStrategy: WatermarkStrategy[T],
+      sourceName: String): DataStream[T] = {
+
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.fromSource(source, watermarkStrategy, sourceName, typeInfo))
+  }
+
+  /**
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
    * 
    * The program execution will be logged and displayed with a generated
    * default name.
+   *
+   * @return The result of the job execution, containing elapsed time and accumulators.
    */
   def execute() = javaEnv.execute()
 
@@ -650,8 +740,63 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * for example printing results or forwarding them to a message queue.
    * 
    * The program execution will be logged and displayed with the provided name.
+   *
+   * @return The result of the job execution, containing elapsed time and accumulators.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
+
+  /**
+   * Register a [[JobListener]] in this environment. The [[JobListener]] will be
+   * notified on specific job status changed.
+   */
+  @PublicEvolving
+  def registerJobListener(jobListener: JobListener): Unit = {
+    javaEnv.registerJobListener(jobListener)
+  }
+
+  /**
+   * Clear all registered [[JobListener]]s.
+   */
+  @PublicEvolving def clearJobListeners(): Unit = {
+    javaEnv.clearJobListeners()
+  }
+
+  /**
+   * Triggers the program execution asynchronously. The environment will execute all parts of
+   * the program that have resulted in a "sink" operation. Sink operations are
+   * for example printing results or forwarding them to a message queue.
+   *
+   * The program execution will be logged and displayed with a generated
+   * default name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(): JobClient = javaEnv.executeAsync()
+
+  /**
+   * Triggers the program execution asynchronously. The environment will execute all parts of
+   * the program that have resulted in a "sink" operation. Sink operations are
+   * for example printing results or forwarding them to a message queue.
+   *
+   * The program execution will be logged and displayed with the provided name.
+   *
+   * <b>ATTENTION:</b> The caller of this method is responsible for managing the lifecycle
+   * of the returned [[JobClient]]. This means calling [[JobClient#close()]] at the end of
+   * its usage. In other case, there may be resource leaks depending on the JobClient
+   * implementation.
+   *
+   * @return A [[JobClient]] that can be used to communicate with the submitted job,
+   *         completed on submission succeeded.
+   */
+  @PublicEvolving
+  def executeAsync(jobName: String): JobClient = javaEnv.executeAsync(jobName)
 
   /**
    * Creates the plan with which the system will execute the program, and
@@ -663,11 +808,39 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   * This call clears previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]].
    *
    * @return The StreamGraph representing the transformations
    */
   @Internal
   def getStreamGraph = javaEnv.getStreamGraph
+
+  /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
+   * This call clears previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]].
+   *
+   * @param jobName Desired name of the job
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String) = javaEnv.getStreamGraph(jobName)
+
+  /**
+   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job
+   * with the option to clear previously registered
+   * [[org.apache.flink.api.dag.Transformation transformations]]. Clearing the transformations
+   * allows, for example, to not re-execute the same operations when calling
+   * [[execute()]] multiple times.
+   *
+   * @param jobName Desired name of the job
+   * @param clearTransformations Whether or not to clear previously registered transformations
+   * @return The StreamGraph representing the transformations
+   */
+  @Internal
+  def getStreamGraph(jobName: String, clearTransformations: Boolean) =
+    javaEnv.getStreamGraph(jobName, clearTransformations)
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
@@ -696,10 +869,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
     *                 "hdfs://host:port/and/path")
@@ -715,10 +888,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache, if needed.
     *
-    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
-    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
-    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
-    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
+    * via [[org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()]] and
+    * provides access [[org.apache.flink.api.common.cache.DistributedCache]] via
+    * [[org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()]].
     *
     * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
     *                   "hdfs://host:port/and/path")
@@ -728,6 +901,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
   }
+
+  /**
+   * Returns whether Unaligned Checkpoints are enabled.
+   */
+  def isUnalignedCheckpointsEnabled: Boolean = javaEnv.isUnalignedCheckpointsEnabled
+
+  /**
+   * Returns whether Unaligned Checkpoints are force-enabled.
+   */
+  def isForceUnalignedCheckpoints: Boolean = javaEnv.isForceUnalignedCheckpoints
 }
 
 object StreamExecutionEnvironment {

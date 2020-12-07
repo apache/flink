@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -36,7 +38,8 @@ public interface NetworkSequenceViewReader {
 		ResultPartitionID resultPartitionId,
 		int subPartitionIndex) throws IOException;
 
-	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
+	@Nullable
+	BufferAndAvailability getNextBuffer() throws IOException;
 
 	/**
 	 * The credits from consumer are added in incremental way.
@@ -44,6 +47,11 @@ public interface NetworkSequenceViewReader {
 	 * @param creditDeltas The credit deltas
 	 */
 	void addCredit(int creditDeltas);
+
+	/**
+	 * Resumes data consumption after an exactly once checkpoint.
+	 */
+	void resumeConsumption();
 
 	/**
 	 * Checks whether this reader is available or not.
@@ -68,6 +76,4 @@ public interface NetworkSequenceViewReader {
 	Throwable getFailureCause();
 
 	InputChannelID getReceiverId();
-
-	int getSequenceNumber();
 }

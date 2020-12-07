@@ -21,7 +21,7 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
@@ -34,7 +34,7 @@ import org.apache.flink.types.Row
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
-  * @param queryConfig     the configuration for the query to generate
+  * @param config          configuration that determines runtime behavior
   */
   abstract class NonWindowOuterJoinWithNonEquiPredicates(
     leftType: TypeInformation[Row],
@@ -42,14 +42,16 @@ import org.apache.flink.types.Row
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
-    queryConfig: StreamQueryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends NonWindowOuterJoin(
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
-    queryConfig) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   // how many matched rows from the right table for each left row. Index 0 is used for left
   // stream, index 1 is used for right stream.

@@ -22,8 +22,10 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.output.FileCopyFunction;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
+import org.apache.flink.state.api.output.StatePathExtractor;
 import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
@@ -90,8 +92,21 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
 		List<OperatorState> existingOperators = metadata.getExistingOperators();
 
-		DataSet<OperatorState> finalOperatorStates = unionOperatorStates(newOperatorStates, existingOperators);
+		DataSet<OperatorState> finalOperatorStates;
+		if (existingOperators.isEmpty()) {
+			finalOperatorStates = newOperatorStates;
+		} else {
+			DataSet<OperatorState> existingOperatorStates = newOperatorStates.getExecutionEnvironment()
+				.fromCollection(existingOperators);
 
+			existingOperatorStates
+				.flatMap(new StatePathExtractor())
+				.setParallelism(1)
+				.output(new FileCopyFunction(path));
+
+			finalOperatorStates = newOperatorStates.union(existingOperatorStates);
+
+		}
 		finalOperatorStates
 			.reduceGroup(new MergeOperatorStates(metadata.getMasterStates()))
 			.name("reduce(OperatorState)")
@@ -99,29 +114,15 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			.name(path);
 	}
 
-	private DataSet<OperatorState> unionOperatorStates(DataSet<OperatorState> newOperatorStates, List<OperatorState> existingOperators) {
-		DataSet<OperatorState> finalOperatorStates;
-		if (existingOperators.isEmpty()) {
-			finalOperatorStates = newOperatorStates;
-		} else {
-			DataSet<OperatorState> wrappedCollection = newOperatorStates
-				.getExecutionEnvironment()
-				.fromCollection(existingOperators);
-
-			finalOperatorStates = newOperatorStates.union(wrappedCollection);
-		}
-		return finalOperatorStates;
-	}
-
 	private DataSet<OperatorState> writeOperatorStates(
-			List<BootstrapTransformationWithID<?>> newOperatorStates,
-			Path savepointWritePath) {
+		List<BootstrapTransformationWithID<?>> newOperatorStates,
+		Path savepointWritePath) {
 		return newOperatorStates
 			.stream()
 			.map(newOperatorState -> newOperatorState
 				.getBootstrapTransformation()
 				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.getMaxParallelism(), savepointWritePath))
 			.reduce(DataSet::union)
-			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
+			.orElseThrow(() -> new IllegalStateException("Savepoint must contain at least one operator"));
 	}
 }

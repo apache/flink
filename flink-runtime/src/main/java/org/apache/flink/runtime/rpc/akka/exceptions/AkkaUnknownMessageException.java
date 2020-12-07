@@ -22,7 +22,7 @@ package org.apache.flink.runtime.rpc.akka.exceptions;
  * Exception which indicates that the AkkaRpcActor has received an
  * unknown message type.
  */
-public class AkkaUnknownMessageException extends AkkaRpcException {
+public class AkkaUnknownMessageException extends AkkaRpcRuntimeException {
 
 	private static final long serialVersionUID = 1691338049911020814L;
 

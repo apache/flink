@@ -49,7 +49,7 @@ class LogicalWindowAggregate(
     for (property <- namedProperties) {
       pw.item(property.name, property.property)
     }
-    pw
+    pw.item("window", window.toString)
   }
 
   override def copy(

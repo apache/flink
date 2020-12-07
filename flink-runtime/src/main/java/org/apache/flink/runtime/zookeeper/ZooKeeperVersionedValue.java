@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.curator.framework.recipes.shared.VersionedValue;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
+
 import org.apache.flink.util.Preconditions;
 
 /**

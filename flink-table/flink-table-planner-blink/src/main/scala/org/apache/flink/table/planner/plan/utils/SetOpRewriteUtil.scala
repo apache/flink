@@ -93,12 +93,15 @@ object SetOpRewriteUtil {
       function)
 
     val cluster = builder.peek().getCluster
+    // TODO use relBuilder.functionScan() once we remove TableSqlFunction
     val scan = LogicalTableFunctionScan.create(
       cluster,
       new util.ArrayList[RelNode](),
-      builder.call(
-        sqlFunction,
-        builder.fields(Util.range(fields.size() + 1))),
+      builder.getRexBuilder
+        .makeCall(
+          function.getRowType(typeFactory),
+          sqlFunction,
+          builder.fields(Util.range(fields.size() + 1))),
       function.getElementType(null),
       UserDefinedFunctionUtils.buildRelDataType(
         builder.getTypeFactory,

@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.scala.{currentDate, currentTime, currentTimestamp, localTime, localTimestamp, nullOf, temporalOverlaps, _}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -893,6 +893,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('aGVsbG8gd29ybGQ=')",
       "hello world")
 
+    testSqlApi(
+      "CONCAT(FROM_BASE64('5L2g5aW9'), ' flink')",
+      "你好 flink")
+
     //null test
     testSqlApi(
       "FROM_BASE64(f33)",
@@ -902,6 +906,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64('5L2g5aW9')",
       "你好"
     )
+
+    testSqlApi(
+      "FROM_BASE64(CAST(x'6147567362473867643239796247513D' AS VARBINARY))",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(x'6147567362473867643239796247513D')",
+      "hello world")
+
+    testSqlApi(
+      "FROM_BASE64(f58)",
+      "你好")
   }
 
   @Test
@@ -1449,145 +1465,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
-  @Test
-  def testAdd(): Unit = {
-
-    testAllApis(
-      1514356320000L + 6000,
-      "1514356320000L + 6000",
-      "1514356320000 + 6000",
-      "1514356326000")
-
-    testAllApis(
-      'f34 + 6,
-      "f34 + 6",
-      "f34 + 6",
-      "1514356320006")
-
-    testAllApis(
-      'f34 + 'f34,
-      "f34 + f34",
-      "f34 + f34",
-      "3028712640000")
-  }
-
-  @Test
-  def testSubtract(): Unit = {
-
-    testAllApis(
-      1514356320000L - 6000,
-      "1514356320000L - 6000",
-      "1514356320000 - 6000",
-      "1514356314000")
-
-    testAllApis(
-      'f34 - 6,
-      "f34 - 6",
-      "f34 - 6",
-      "1514356319994")
-
-    testAllApis(
-      'f34 - 'f34,
-      "f34 - f34",
-      "f34 - f34",
-      "0")
-  }
-
-  @Test
-  def testMultiply(): Unit = {
-
-    testAllApis(
-      1514356320000L * 60000,
-      "1514356320000L * 60000",
-      "1514356320000 * 60000",
-      "90861379200000000")
-
-    testAllApis(
-      'f34 * 6,
-      "f34 * 6",
-      "f34 * 6",
-      "9086137920000")
-
-
-    testAllApis(
-      'f34 * 'f34,
-      "f34 * f34",
-      "f34 * f34",
-      "2293275063923942400000000")
-
-  }
-
-  @Test
-  def testDivide(): Unit = {
-
-    testAllApis(
-      1514356320000L / 60000, // the `/` is Scala operator, not Flink TableApi operator
-      "1514356320000L / 60000",
-      "1514356320000 / 60000",
-      "25239272")
-
-    testAllApis(
-      'f7 / 2,
-      "f7 / 2",
-      "f7 / 2",
-      "1")
-
-    // f34 => Decimal(19,0)
-    // 6 => Integer => Decimal(10,0)
-    // Decimal(19,0) / Decimal(10,0) => Decimal(30,11)
-    testAllApis(
-      'f34 / 6,
-      "f34 / 6",
-      "f34 / 6",
-      "252392720000.00000000000")
-
-    // Decimal(19,0) / Decimal(19,0) => Decimal(39,20) => Decimal(38,19)
-    testAllApis(
-      'f34 / 'f34,
-      "f34 / f34",
-      "f34 / f34",
-      "1.0000000000000000000")
-  }
-
-  @Test
-  def testMod(): Unit = {
-
-    testAllApis(
-      1514356320000L % 60000,
-      "1514356320000L % 60000",
-      "mod(1514356320000,60000)",
-      "0")
-
-    testAllApis(
-      'f34.mod('f34),
-      "f34.mod(f34)",
-      "mod(f34,f34)",
-      "0")
-
-    testAllApis(
-      'f34.mod(6),
-      "f34.mod(6)",
-      "mod(f34,6)",
-      "0")
-
-    testAllApis(
-      'f4.mod('f7),
-      "f4.mod(f7)",
-      "MOD(f4, f7)",
-      "2")
-
-    testAllApis(
-      'f4.mod(3),
-      "mod(f4, 3)",
-      "MOD(f4, 3)",
-      "2")
-
-    testAllApis(
-      'f4 % 3,
-      "mod(44, 3)",
-      "MOD(44, 3)",
-      "2")
-  }
 
   @Test
   def testExp(): Unit = {
@@ -3029,6 +2906,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996-11-10 00:00:00.000")
 
     testAllApis(
+      'f18.floor(TimeIntervalUnit.HOUR),
+      "f18.floor(HOUR)",
+      "FLOOR(f18 TO HOUR)",
+      "1996-11-10 06:00:00.000")
+
+    testAllApis(
       'f18.floor(TimeIntervalUnit.MINUTE),
       "f18.floor(MINUTE)",
       "FLOOR(f18 TO MINUTE)",
@@ -3087,6 +2970,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f18.ceil(DAY)",
       "CEIL(f18 TO DAY)",
       "1996-11-11 00:00:00.000")
+
+    testAllApis(
+      'f18.ceil(TimeIntervalUnit.HOUR),
+      "f18.ceil(HOUR)",
+      "CEIL(f18 TO HOUR)",
+      "1996-11-10 07:00:00.000")
 
     testAllApis(
       'f18.ceil(TimeIntervalUnit.MINUTE),
@@ -3166,6 +3055,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       localTime().cast(DataTypes.STRING).charLength() >= 5,
       "localTime().cast(STRING).charLength() >= 5",
       "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
+      "true")
+
+    testSqlApi(
+      "CHAR_LENGTH(CAST(NOW() AS VARCHAR)) >= 12",
       "true")
 
     // comparisons are deterministic
@@ -3370,15 +3263,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1017-11-29 22:58:58.998")
 
     val QUARTER = Seq(
-      "2018-03-01 22:58:58.998",
-      "2018-08-31 22:58:58.998",
+      "2018-02-28 22:58:58.998",
+      "2018-08-29 22:58:58.998",
       "2017-08-29 22:58:58.998",
       "2002-08-29 22:58:58.998",
       "1767-11-29 22:58:58.998")
 
     val MONTH = Seq(
       "2017-12-29 22:58:58.998",
-      "2018-03-01 22:58:58.998",
+      "2018-02-28 22:58:58.998",
       "2017-10-29 22:58:58.998",
       "2012-10-29 22:58:58.998",
       "1934-07-29 22:58:58.998")
@@ -3522,25 +3415,38 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "timestampadd(DAY, 1, date '2016-06-15')",
       "2016-06-16")
 
-    testAllApis("2016-06-15".toTimestamp - 1.hour,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.hour,
       "'2016-06-15'.toTimestamp - 1.hour",
-      "timestampadd(HOUR, -1, date '2016-06-15')",
       "2016-06-14 23:00:00.000")
+    testSqlApi(
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.minute,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.minute,
       "'2016-06-15'.toTimestamp + 1.minute",
-      "timestampadd(MINUTE, 1, date '2016-06-15')",
       "2016-06-15 00:01:00.000")
+    testSqlApi("timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.000000")
 
-    testAllApis("2016-06-15".toTimestamp - 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp - 1.second,
       "'2016-06-15'.toTimestamp - 1.second",
-      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
       "2016-06-14 23:59:59.000")
+    testSqlApi("timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.000000")
 
-    testAllApis("2016-06-15".toTimestamp + 1.second,
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi("2016-06-15".toTimestamp + 1.second,
       "'2016-06-15'.toTimestamp + 1.second",
-      "timestampadd(SECOND, 1, date '2016-06-15')",
       "2016-06-15 00:00:01.000")
+    testSqlApi("timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.000000")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
@@ -3572,6 +3478,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-03-31'.toDate - 1.week",
       "timestampadd(WEEK, -1, date '2016-03-31')",
       "2016-03-24")
+
+    // test TIMESTAMPADD with positive time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, 1, time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, 1, time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, 15, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, 3, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, 6, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, 1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, 10, time '23:59:59')", "23:59:59")
+
+    // test TIMESTAMPADD with negative time interval in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, -1, time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(HOUR, -1, time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, -1, time '23:59:59')", "23:59:59")
   }
 
   @Test
@@ -4120,5 +4048,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IS_ALPHA(f33)",
       "false")
+  }
+
+  @Test
+  def testRawTypeEquality(): Unit = {
+    testSqlApi(
+      "f55=f56",
+      "false")
+
+    testSqlApi(
+      "f55=f57",
+      "true")
   }
 }

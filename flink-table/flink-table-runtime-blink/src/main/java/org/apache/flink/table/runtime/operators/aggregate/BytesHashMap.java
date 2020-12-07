@@ -21,14 +21,13 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
@@ -93,7 +92,7 @@ public class BytesHashMap {
 	private final RecordArea recordArea;
 	/**
 	 * Set true when valueTypeInfos.length == 0. Usually in this case the BytesHashMap will be used as a HashSet.
-	 * The value from {@link BytesHashMap#append(LookupInfo info, BinaryRow value)}
+	 * The value from {@link BytesHashMap#append(LookupInfo info, BinaryRowData value)}
 	 * will be ignored when hashSetMode set.
 	 * The reusedValue will always point to a 16 bytes long MemorySegment acted as
 	 * each BytesHashMap entry's value part when appended to make the BytesHashMap's spilling work compatible.
@@ -102,25 +101,23 @@ public class BytesHashMap {
 	/**
 	 * Used to serialize hash map key and value into RecordArea's MemorySegments.
 	 */
-	private final BinaryRowSerializer valueSerializer;
-	private final BinaryRowSerializer keySerializer;
+	private final BinaryRowDataSerializer valueSerializer;
+	private final BinaryRowDataSerializer keySerializer;
 	/**
 	 * Used as a reused object which lookup returned.
 	 */
 	private final LookupInfo reuseLookInfo;
 
-	private final MemoryManager memoryManager;
-
 	/**
 	 * Used as a reused object when retrieve the map's value by key and iteration.
 	 */
-	private BinaryRow reusedValue;
+	private BinaryRowData reusedValue;
 	/**
 	 * Used as a reused object when lookup and iteration.
 	 */
-	private BinaryRow reusedKey;
+	private BinaryRowData reusedKey;
 
-	private final List<MemorySegment> freeMemorySegments;
+	private final LazyMemorySegmentPool memoryPool;
 	private List<MemorySegment> bucketSegments;
 
 	private long numElements = 0;
@@ -159,29 +156,24 @@ public class BytesHashMap {
 			boolean inferBucketMemory) {
 		this.segmentSize = memoryManager.getPageSize();
 		this.reservedNumBuffers = (int) (memorySize / segmentSize);
-		this.memoryManager = memoryManager;
-		try {
-			this.freeMemorySegments = memoryManager.allocatePages(owner, reservedNumBuffers);
-		} catch (MemoryAllocationException e) {
-			throw new IllegalArgumentException("BytesHashMap can't allocate " + reservedNumBuffers + " pages", e);
-		}
+		this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, reservedNumBuffers);
 		this.numBucketsPerSegment = segmentSize / BUCKET_SIZE;
 		this.numBucketsPerSegmentBits = MathUtils.log2strict(this.numBucketsPerSegment);
 		this.numBucketsPerSegmentMask = (1 << this.numBucketsPerSegmentBits) - 1;
 		this.lastBucketPosition = (numBucketsPerSegment - 1) * BUCKET_SIZE;
 
 		checkArgument(keyTypes.length > 0);
-		this.keySerializer = new BinaryRowSerializer(keyTypes.length);
+		this.keySerializer = new BinaryRowDataSerializer(keyTypes.length);
 		this.reusedKey = this.keySerializer.createInstance();
 
 		if (valueTypes.length == 0) {
-			this.valueSerializer = new BinaryRowSerializer(0);
+			this.valueSerializer = new BinaryRowDataSerializer(0);
 			this.hashSetMode = true;
-			this.reusedValue = new BinaryRow(0);
+			this.reusedValue = new BinaryRowData(0);
 			this.reusedValue.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
 			LOG.info("BytesHashMap with hashSetMode = true.");
 		} else {
-			this.valueSerializer = new BinaryRowSerializer(valueTypes.length);
+			this.valueSerializer = new BinaryRowDataSerializer(valueTypes.length);
 			this.hashSetMode = false;
 			this.reusedValue = this.valueSerializer.createInstance();
 		}
@@ -208,7 +200,7 @@ public class BytesHashMap {
 	static int getVariableLength(LogicalType[] types) {
 		int length = 0;
 		for (LogicalType type : types) {
-			if (!BinaryRow.isInFixedLengthPart(type)) {
+			if (!BinaryRowData.isInFixedLengthPart(type)) {
 				// find a better way of computing generic type field variable-length
 				// right now we use a small value assumption
 				length += 16;
@@ -246,10 +238,10 @@ public class BytesHashMap {
 
 	/**
 	 * @param key by which looking up the value in the hash map.
-	 *            Only support the key in the BinaryRow form who has only one MemorySegment.
+	 *            Only support the key in the BinaryRowData form who has only one MemorySegment.
 	 * @return {@link LookupInfo}
 	 */
-	public LookupInfo lookup(BinaryRow key) {
+	public LookupInfo lookup(BinaryRowData key) {
 		// check the looking up key having only one memory segment
 		checkArgument(key.getSegments().length == 1);
 		final int hashCode1 = key.hashCode();
@@ -310,18 +302,18 @@ public class BytesHashMap {
 	/**
 	 * Append an value into the hash map's record area.
 	 *
-	 * @return An BinaryRow mapping to the memory segments in the map's record area belonging to
+	 * @return An BinaryRowData mapping to the memory segments in the map's record area belonging to
 	 * the newly appended value.
 	 * @throws EOFException if the map can't allocate much more memory.
 	 */
-	public BinaryRow append(LookupInfo info, BinaryRow value) throws IOException {
+	public BinaryRowData append(LookupInfo info, BinaryRowData value) throws IOException {
 		try {
 			if (numElements >= growthThreshold) {
 				growAndRehash();
 				//update info's bucketSegmentIndex and bucketOffset
 				lookup(info.key);
 			}
-			BinaryRow toAppend = hashSetMode ? reusedValue : value;
+			BinaryRowData toAppend = hashSetMode ? reusedValue : value;
 			long pointerToAppended = recordArea.appendRecord(info.key, toAppend);
 			bucketSegments.get(info.bucketSegmentIndex).putLong(info.bucketOffset, pointerToAppended);
 			bucketSegments.get(info.bucketSegmentIndex).putInt(
@@ -359,7 +351,7 @@ public class BytesHashMap {
 		}
 		this.bucketSegments = new ArrayList<>(numBucketSegments);
 		for (int i = 0; i < numBucketSegments; i++) {
-			bucketSegments.add(i, freeMemorySegments.remove(freeMemorySegments.size() - 1));
+			bucketSegments.add(i, memoryPool.nextSegment());
 		}
 
 		resetBucketSegments(this.bucketSegments);
@@ -388,25 +380,17 @@ public class BytesHashMap {
 			LOG.warn("We can't handle more than Integer.MAX_VALUE buckets (eg. because hash functions return int)");
 			throw new EOFException();
 		}
-		List<MemorySegment> newBucketSegments = new ArrayList<>(required);
 
-		try {
-			int freeNumSegments = freeMemorySegments.size();
-			int numAllocatedSegments = required - freeNumSegments;
-			if (numAllocatedSegments > 0) {
-				throw new MemoryAllocationException();
-			}
-			int needNumFromFreeSegments = required - newBucketSegments.size();
-			for (int end = needNumFromFreeSegments; end > 0; end--) {
-				newBucketSegments.add(freeMemorySegments.remove(freeMemorySegments.size() - 1));
-			}
-
-			setBucketVariables(newBucketSegments);
-		} catch (MemoryAllocationException e) {
+		int numAllocatedSegments = required - memoryPool.freePages();
+		if (numAllocatedSegments > 0) {
 			LOG.warn("BytesHashMap can't allocate {} pages, and now used {} pages",
-					required, reservedNumBuffers);
+				required, reservedNumBuffers);
 			throw new EOFException();
 		}
+
+		List<MemorySegment> newBucketSegments = memoryPool.allocateSegments(required);
+		setBucketVariables(newBucketSegments);
+
 		long reHashStartTime = System.currentTimeMillis();
 		resetBucketSegments(newBucketSegments);
 		// Re-mask (we don't recompute the hashcode because we stored all 32 bits of it)
@@ -437,7 +421,7 @@ public class BytesHashMap {
 			}
 		}
 		LOG.info("The rehash take {} ms for {} segments", (System.currentTimeMillis() - reHashStartTime), required);
-		this.freeMemorySegments.addAll(this.bucketSegments);
+		this.memoryPool.returnAll(this.bucketSegments);
 		this.bucketSegments = newBucketSegments;
 	}
 
@@ -491,7 +475,7 @@ public class BytesHashMap {
 		this.bucketSegments.clear();
 		recordArea.release();
 		if (!reservedRecordMemory) {
-			memoryManager.release(freeMemorySegments);
+			memoryPool.close();
 		}
 		numElements = 0;
 		destructiveIterator = null;
@@ -507,12 +491,15 @@ public class BytesHashMap {
 		resetBucketSegments(bucketSegments);
 		numElements = 0;
 		destructiveIterator = null;
-		LOG.info("reset BytesHashMap with record memory segments {}, {} in bytes, init allocating {} for bucket area.",
-				freeMemorySegments.size(), freeMemorySegments.size() * segmentSize, bucketSegments.size());
+		LOG.info(
+				"reset BytesHashMap with record memory segments {}, {} in bytes, init allocating {} for bucket area.",
+				memoryPool.freePages(),
+				memoryPool.freePages() * segmentSize,
+				bucketSegments.size());
 	}
 
 	private void returnSegments(List<MemorySegment> segments) {
-		freeMemorySegments.addAll(segments);
+		memoryPool.returnAll(segments);
 	}
 
 	// ----------------------- Record Area -----------------------
@@ -524,7 +511,7 @@ public class BytesHashMap {
 		private final SimpleCollectingOutputView outView;
 
 		RecordArea() {
-			this.outView = new SimpleCollectingOutputView(segments, new RecordAreaMemorySource(), segmentSize);
+			this.outView = new SimpleCollectingOutputView(segments, memoryPool, segmentSize);
 			this.inView = new RandomAccessInputView(segments, segmentSize);
 		}
 
@@ -541,22 +528,8 @@ public class BytesHashMap {
 			inView.setReadPosition(0);
 		}
 
-		// ----------------------- Memory Management -----------------------
-
-		private final class RecordAreaMemorySource implements MemorySegmentSource {
-			@Override
-			public MemorySegment nextSegment() {
-				int s = freeMemorySegments.size();
-				if (s > 0) {
-					return freeMemorySegments.remove(s - 1);
-				} else {
-					return null;
-				}
-			}
-		}
-
 		// ----------------------- Append -----------------------
-		private long appendRecord(BinaryRow key, BinaryRow value) throws IOException {
+		private long appendRecord(BinaryRowData key, BinaryRowData value) throws IOException {
 			final long oldLastPosition = outView.getCurrentOffset();
 			// serialize the key into the BytesHashMap record area
 			int skip = keySerializer.serializeToPages(key, outView);
@@ -571,7 +544,7 @@ public class BytesHashMap {
 			inView.setReadPosition(position);
 		}
 
-		boolean readKeyAndEquals(BinaryRow lookup) throws IOException {
+		boolean readKeyAndEquals(BinaryRowData lookup) throws IOException {
 			reusedKey = keySerializer.mapFromPages(reusedKey, inView);
 			return lookup.equals(reusedKey);
 		}
@@ -583,8 +556,8 @@ public class BytesHashMap {
 			inView.skipBytes(inView.readInt());
 		}
 
-		BinaryRow readValue(BinaryRow reuse) throws IOException {
-			// depends on BinaryRowSerializer to check writing skip
+		BinaryRowData readValue(BinaryRowData reuse) throws IOException {
+			// depends on BinaryRowDataSerializer to check writing skip
 			// and to find the real start offset of the data
 			return valueSerializer.mapFromPages(reuse, inView);
 		}
@@ -641,15 +614,15 @@ public class BytesHashMap {
 	}
 
 	/**
-	 * Handle returned by {@link BytesHashMap#lookup(BinaryRow)} function.
+	 * Handle returned by {@link BytesHashMap#lookup(BinaryRowData)} function.
 	 */
 	public static final class LookupInfo {
 		private boolean found;
-		private BinaryRow key;
-		private BinaryRow value;
+		private BinaryRowData key;
+		private BinaryRowData value;
 
 		/**
-		 * The hashcode of the look up key passed to {@link BytesHashMap#lookup(BinaryRow)},
+		 * The hashcode of the look up key passed to {@link BytesHashMap#lookup(BinaryRowData)},
 		 * Caching this hashcode here allows us to avoid re-hashing the key when inserting a value
 		 * for that key.
 		 * The same purpose with bucketSegmentIndex, bucketOffset.
@@ -670,8 +643,8 @@ public class BytesHashMap {
 		void set(
 				boolean found,
 				int keyHashCode,
-				BinaryRow key,
-				BinaryRow value,
+				BinaryRowData key,
+				BinaryRowData value,
 				int bucketSegmentIndex, int bucketOffset) {
 			this.found = found;
 			this.keyHashCode = keyHashCode;
@@ -685,7 +658,7 @@ public class BytesHashMap {
 			return found;
 		}
 
-		public BinaryRow getValue() {
+		public BinaryRowData getValue() {
 			return value;
 		}
 	}
@@ -694,19 +667,19 @@ public class BytesHashMap {
 	 * BytesHashMap Entry contains key and value field.
 	 */
 	public static final class Entry {
-		private final BinaryRow key;
-		private final BinaryRow value;
+		private final BinaryRowData key;
+		private final BinaryRowData value;
 
-		public Entry(BinaryRow key, BinaryRow value) {
+		public Entry(BinaryRowData key, BinaryRowData value) {
 			this.key = key;
 			this.value = value;
 		}
 
-		public BinaryRow getKey() {
+		public BinaryRowData getKey() {
 			return key;
 		}
 
-		public BinaryRow getValue() {
+		public BinaryRowData getValue() {
 			return value;
 		}
 	}

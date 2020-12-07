@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" viewBox="43 281 426 118" width="426" height="118">
+  <defs>
+    <font-face font-family="Helvetica Neue" font-size="16" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="400">
+      <font-face-src>
+        <font-face-name name="HelveticaNeue"/>
+      </font-face-src>
+    </font-face>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.9.3 
+    <dc:date>2018-12-07 15:56:11 +0000</dc:date>
+  </metadata>
+  <g id="Canvas_1" stroke-opacity="1" stroke="none" stroke-dasharray="none" fill="none" fill-opacity="1">
+    <title>Canvas 1</title>
+    <g id="Canvas_1: Layer 1">
+      <title>Layer 1</title>
+      <g id="Graphic_4">
+        <circle cx="256.12546" cy="339.80863" r="58.3087247815797" fill="#eacb70"/>
+        <circle cx="256.12546" cy="339.80863" r="58.3087247815797" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Graphic_3">
+        <path d="M 44 349.925 L 44 329.69227 L 154.06398 329.69227 L 154.06398 316.01527 L 184.84133 339.80863 L 154.06398 363.602 L 154.06398 349.925 Z" fill="#ccc"/>
+        <path d="M 44 349.925 L 44 329.69227 L 154.06398 329.69227 L 154.06398 316.01527 L 184.84133 339.80863 L 154.06398 363.602 L 154.06398 349.925 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(49 330.58463)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="41.116664" y="15">data in</tspan>
+        </text>
+      </g>
+      <g id="Graphic_2">
+        <path d="M 327.4096 349.925 L 327.4096 329.69227 L 437.4736 329.69227 L 437.4736 316.01527 L 468.2509 339.80863 L 437.4736 363.602 L 437.4736 349.925 Z" fill="#ccc"/>
+        <path d="M 327.4096 349.925 L 327.4096 329.69227 L 437.4736 329.69227 L 437.4736 316.01527 L 468.2509 339.80863 L 437.4736 363.602 L 437.4736 349.925 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        <text transform="translate(332.4096 330.58463)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="16" font-weight="400" fill="black" x="35.780664" y="15">data out</tspan>
+        </text>
+      </g>
+    </g>
+  </g>
+</svg>

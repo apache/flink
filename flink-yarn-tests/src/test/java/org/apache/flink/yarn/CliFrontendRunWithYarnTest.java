@@ -18,19 +18,17 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
-import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.TestingClusterClient;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-import org.apache.flink.yarn.util.NonDeployingYarnClusterDescriptor;
 
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -38,12 +36,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
 /**
- * Tests for the RUN command using a {@link org.apache.flink.yarn.cli.FlinkYarnSessionCli} inside
- * the {@link org.apache.flink.client.cli.CliFrontend}.
+ * Tests for the RUN command using a {@link FlinkYarnSessionCli} inside the {@link CliFrontend}.
  *
  * @see org.apache.flink.client.cli.CliFrontendRunTest
  */
@@ -69,9 +65,9 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 		Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setInteger(JobManagerOptions.PORT, 8081);
+		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 
-		final ClusterClientServiceLoader testServiceLoader =
-			new TestingYarnClusterClientServiceLoader(new TestingClusterClient<>());
+		final ClusterClientServiceLoader testServiceLoader = new DefaultClusterClientServiceLoader();
 
 		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
 			configuration,
@@ -84,46 +80,13 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 		// test detached mode
 		{
 			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-d", testJarPath};
-			verifyCliFrontend(testServiceLoader, yarnCLI, parameters, 2, true);
+			verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
 		}
 
 		// test detached mode
 		{
 			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
-			verifyCliFrontend(testServiceLoader, yarnCLI, parameters, 2, true);
-		}
-	}
-
-	private static class TestingYarnClusterClientServiceLoader implements ClusterClientServiceLoader {
-
-		private final ClusterClient<ApplicationId> clusterClient;
-
-		TestingYarnClusterClientServiceLoader(ClusterClient<ApplicationId> clusterClient) {
-			this.clusterClient = checkNotNull(clusterClient);
-		}
-
-		@Override
-		public ClusterClientFactory<ApplicationId> getClusterClientFactory(Configuration configuration) {
-			return new TestingYarnClusterClientFactory(clusterClient);
-		}
-	}
-
-	private static class TestingYarnClusterClientFactory extends YarnClusterClientFactory {
-
-		private final ClusterClient<ApplicationId> clusterClient;
-
-		TestingYarnClusterClientFactory(ClusterClient<ApplicationId> clusterClient) {
-			this.clusterClient = checkNotNull(clusterClient);
-		}
-
-		@Override
-		public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
-			YarnClusterDescriptor parent = super.createClusterDescriptor(configuration);
-			return new NonDeployingYarnClusterDescriptor(
-					parent.getFlinkConfiguration(),
-					(YarnConfiguration) parent.getYarnClient().getConfig(),
-					parent.getYarnClient(),
-					clusterClient);
+			verifyCliFrontend(configuration, testServiceLoader, yarnCLI, parameters, 2, true);
 		}
 	}
 }

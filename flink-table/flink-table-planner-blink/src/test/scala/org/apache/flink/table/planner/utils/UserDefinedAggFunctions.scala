@@ -82,10 +82,6 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
 
   override def getValue(acc: Array[JTuple2[JInt, JFloat]]): Array[JTuple2[JInt, JFloat]] = acc
 
-  def resetAccumulator(acc: Array[JTuple2[JInt, JFloat]]): Unit = {
-    util.Arrays.fill(acc.asInstanceOf[Array[Object]], null)
-  }
-
   def merge(
       acc: Array[JTuple2[JInt, JFloat]],
       its: java.lang.Iterable[Array[JTuple2[JInt, JFloat]]]): Unit = {
@@ -135,10 +131,6 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
     }
   }
 
-  def resetAccumulator(acc: NonMergableCountAcc): Unit = {
-    acc.count = 0
-  }
-
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
 
   override def getValue(acc: NonMergableCountAcc): Long = acc.count
@@ -156,12 +148,6 @@ class CountMinMax extends AggregateFunction[Row, CountMinMaxAcc] {
       acc.max = value
     }
     acc.count += 1
-  }
-
-  def resetAccumulator(acc: CountMinMaxAcc): Unit = {
-    acc.count = 0
-    acc.min = 0
-    acc.max = 0
   }
 
   override def createAccumulator(): CountMinMaxAcc = CountMinMaxAcc(0L, 0, 0)

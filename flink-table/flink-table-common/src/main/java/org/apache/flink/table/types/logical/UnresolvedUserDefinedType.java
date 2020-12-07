@@ -20,20 +20,14 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
- * Placeholder type of an unresolved user-defined type that is identified by a partially or fully
- * qualified path ({@code [catalog].[database].[type]}).
+ * Placeholder type of an unresolved user-defined type that is identified by an {@link UnresolvedIdentifier}.
  *
  * <p>It assumes that a type has been registered in a catalog and just needs to be resolved to a
  * {@link DistinctType} or {@link StructuredType}.
@@ -45,56 +39,30 @@ import java.util.stream.Stream;
 @PublicEvolving
 public final class UnresolvedUserDefinedType extends LogicalType {
 
-	private final @Nullable String catalog;
+	private final UnresolvedIdentifier unresolvedIdentifier;
 
-	private final @Nullable String database;
-
-	private final String typeIdentifier;
-
-	public UnresolvedUserDefinedType(
-			boolean isNullable,
-			@Nullable String catalog,
-			@Nullable String database,
-			String typeIdentifier) {
+	public UnresolvedUserDefinedType(boolean isNullable, UnresolvedIdentifier unresolvedIdentifier) {
 		super(isNullable, LogicalTypeRoot.UNRESOLVED);
-		this.catalog = catalog;
-		this.database = database;
-		this.typeIdentifier = Preconditions.checkNotNull(
-			typeIdentifier,
+		this.unresolvedIdentifier = Preconditions.checkNotNull(unresolvedIdentifier,
 			"Type identifier must not be null.");
 	}
 
-	public UnresolvedUserDefinedType(
-			@Nullable String catalog,
-			@Nullable String database,
-			String typeIdentifier) {
-		this(true, catalog, database, typeIdentifier);
+	public UnresolvedUserDefinedType(UnresolvedIdentifier unresolvedIdentifier) {
+		this(true, unresolvedIdentifier);
 	}
 
-	public Optional<String> getCatalog() {
-		return Optional.ofNullable(catalog);
-	}
-
-	public Optional<String> getDatabase() {
-		return Optional.ofNullable(database);
-	}
-
-	public String getTypeIdentifier() {
-		return typeIdentifier;
+	public UnresolvedIdentifier getUnresolvedIdentifier() {
+		return unresolvedIdentifier;
 	}
 
 	@Override
 	public LogicalType copy(boolean isNullable) {
-		return new UnresolvedUserDefinedType(isNullable, catalog, database, typeIdentifier);
+		return new UnresolvedUserDefinedType(isNullable, unresolvedIdentifier);
 	}
 
 	@Override
 	public String asSummaryString() {
-		final String path = Stream.of(catalog, database, typeIdentifier)
-			.filter(Objects::nonNull)
-			.map(EncodingUtils::escapeIdentifier)
-			.collect(Collectors.joining("."));
-		return withNullability(path);
+		return withNullability(unresolvedIdentifier.asSummaryString());
 	}
 
 	@Override
@@ -141,13 +109,11 @@ public final class UnresolvedUserDefinedType extends LogicalType {
 			return false;
 		}
 		UnresolvedUserDefinedType that = (UnresolvedUserDefinedType) o;
-		return Objects.equals(catalog, that.catalog) &&
-			Objects.equals(database, that.database) &&
-			typeIdentifier.equals(that.typeIdentifier);
+		return unresolvedIdentifier.equals(that.unresolvedIdentifier);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(super.hashCode(), catalog, database, typeIdentifier);
+		return Objects.hash(super.hashCode(), unresolvedIdentifier);
 	}
 }

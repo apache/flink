@@ -33,12 +33,6 @@ public interface ParserResource {
 	@Resources.BaseMessage("Multiple WATERMARK statements is not supported yet.")
 	Resources.ExInst<ParseException> multipleWatermarksUnsupported();
 
-	@Resources.BaseMessage("OVERWRITE expression is only allowed for HIVE dialect.")
-	Resources.ExInst<ParseException> overwriteIsOnlyAllowedForHive();
-
 	@Resources.BaseMessage("OVERWRITE expression is only used with INSERT statement.")
 	Resources.ExInst<ParseException> overwriteIsOnlyUsedWithInsert();
-
-	@Resources.BaseMessage("PARTITION expression is only allowed for HIVE dialect.")
-	Resources.ExInst<ParseException> partitionIsOnlyAllowedForHive();
 }

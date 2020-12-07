@@ -19,10 +19,9 @@
 package org.apache.flink.table.codegen
 
 import java.math.{BigDecimal => JBigDecimal}
-
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{ROW, _}
@@ -43,6 +42,7 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.utils.EncodingUtils
+
 import org.joda.time.format.DateTimeFormatter
 
 import scala.collection.JavaConversions._
@@ -657,7 +657,6 @@ abstract class CodeGenerator(
       case FLOAT =>
         val floatValue = value.asInstanceOf[JBigDecimal].floatValue()
         floatValue match {
-          case Float.NaN => generateNonNullLiteral(resultType, "java.lang.Float.NaN")
           case Float.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Float.NEGATIVE_INFINITY")
           case Float.PositiveInfinity =>
@@ -668,7 +667,6 @@ abstract class CodeGenerator(
       case DOUBLE =>
         val doubleValue = value.asInstanceOf[JBigDecimal].doubleValue()
         doubleValue match {
-          case Double.NaN => generateNonNullLiteral(resultType, "java.lang.Double.NaN")
           case Double.NegativeInfinity =>
             generateNonNullLiteral(resultType, "java.lang.Double.NEGATIVE_INFINITY")
           case Double.PositiveInfinity =>
@@ -732,6 +730,12 @@ abstract class CodeGenerator(
     throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
+    if (call.getKind == SqlKind.SEARCH) {
+      return RexUtil.expandSearch(
+        new RexBuilder(FlinkTypeFactory.INSTANCE),
+        null,
+        call).accept(this)
+    }
 
     // special case: time materialization
     if (call.getOperator == ProctimeSqlFunction) {
@@ -1651,7 +1655,7 @@ abstract class CodeGenerator(
       function: UserDefinedFunction,
       contextTerm: String = null,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext]): String = {
-    val classQualifier = function.getClass.getCanonicalName
+    val classQualifier = function.getClass.getName
     val functionSerializedData = EncodingUtils.encodeObjectToString(function)
     val fieldTerm = s"function_${function.functionIdentifier}"
 

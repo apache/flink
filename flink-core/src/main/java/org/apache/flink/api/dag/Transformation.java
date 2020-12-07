@@ -24,11 +24,18 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -137,6 +144,19 @@ public abstract class Transformation<T> {
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/**
+	 * Each entry in this map represents a operator scope use case that this transformation needs managed memory for.
+	 * The keys indicate the use cases, while the values are the use-case-specific weights for this transformation.
+	 * Managed memory reserved for a use case will be shared by all the declaring transformations within a slot
+	 * according to this weight.
+	 */
+	private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights = new HashMap<>();
+
+	/**
+	 * Slot scope use cases that this transformation needs managed memory for.
+	 */
+	private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
+
+	/**
 	 * User-specified ID for this transformation. This is used to assign the
 	 * same operator ID across job restarts. There is also the automatically
 	 * generated {@link #id}, which is assigned from a static counter. That
@@ -232,6 +252,7 @@ public abstract class Transformation<T> {
 	 * @param preferredResources The preferred resource of this transformation.
 	 */
 	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 		this.minResources = checkNotNull(minResources);
 		this.preferredResources = checkNotNull(preferredResources);
 	}
@@ -252,6 +273,57 @@ public abstract class Transformation<T> {
 	 */
 	public ResourceSpec getPreferredResources() {
 		return preferredResources;
+	}
+
+	/**
+	 * Declares that this transformation contains certain operator scope managed memory use case.
+	 * @param managedMemoryUseCase The use case that this transformation declares needing managed memory for.
+	 * @param weight Use-case-specific weights for this transformation. Used for sharing managed memory across
+	 *                 transformations for OPERATOR scope use cases.
+	 * @return The previous weight, if exist.
+	 */
+	public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase managedMemoryUseCase, int weight) {
+		Preconditions.checkNotNull(managedMemoryUseCase);
+		Preconditions.checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.OPERATOR,
+			"Use case is not operator scope.");
+		Preconditions.checkArgument(weight > 0,
+			"Weights for operator scope use cases must be greater than 0.");
+
+		return Optional.ofNullable(managedMemoryOperatorScopeUseCaseWeights.put(managedMemoryUseCase, weight));
+	}
+
+	/**
+	 * Declares that this transformation contains certain slot scope managed memory use case.
+	 * @param managedMemoryUseCase The use case that this transformation declares needing managed memory for.
+	 */
+	public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
+		Preconditions.checkNotNull(managedMemoryUseCase);
+		Preconditions.checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.SLOT);
+
+		managedMemorySlotScopeUseCases.add(managedMemoryUseCase);
+	}
+
+	protected void updateManagedMemoryStateBackendUseCase(boolean hasStateBackend) {
+		if (hasStateBackend) {
+			managedMemorySlotScopeUseCases.add(ManagedMemoryUseCase.STATE_BACKEND);
+		} else {
+			managedMemorySlotScopeUseCases.remove(ManagedMemoryUseCase.STATE_BACKEND);
+		}
+	}
+
+	/**
+	 * Get operator scope use cases that this transformation needs managed memory for, and the use-case-specific weights
+	 * for this transformation. The weights are used for sharing managed memory across transformations for the use cases.
+	 */
+	public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
+		return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);
+	}
+
+	/**
+	 * Get slot scope use cases that this transformation needs managed memory for.
+	 */
+	public Set<ManagedMemoryUseCase> getManagedMemorySlotScopeUseCases() {
+		return Collections.unmodifiableSet(managedMemorySlotScopeUseCases);
 	}
 
 	/**
@@ -447,7 +519,13 @@ public abstract class Transformation<T> {
 	 *
 	 * @return The list of transitive predecessors.
 	 */
-	public abstract Collection<Transformation<?>> getTransitivePredecessors();
+	public abstract List<Transformation<?>> getTransitivePredecessors();
+
+	/**
+	 * Returns the {@link Transformation transformations} that are the
+	 * immediate predecessors of the current transformation in the transformation graph.
+	 */
+	public abstract List<Transformation<?>> getInputs();
 
 	@Override
 	public String toString() {

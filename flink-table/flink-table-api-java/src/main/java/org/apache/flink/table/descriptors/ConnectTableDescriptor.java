@@ -21,18 +21,14 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -48,6 +44,8 @@ public abstract class ConnectTableDescriptor
 
 	private @Nullable Schema schemaDescriptor;
 
+	private List<String> partitionKeys = new ArrayList<>();
+
 	public ConnectTableDescriptor(Registration registration, ConnectorDescriptor connectorDescriptor) {
 		super(connectorDescriptor);
 		this.registration = registration;
@@ -62,56 +60,11 @@ public abstract class ConnectTableDescriptor
 	}
 
 	/**
-	 * Searches for the specified table source, configures it accordingly, and registers it as
-	 * a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
+	 * Specifies the partition keys of this table.
 	 */
-	@Deprecated
-	public void registerTableSource(String name) {
-		Preconditions.checkNotNull(name);
-		TableSource<?> tableSource = TableFactoryUtil.findAndCreateTableSource(this);
-		registration.createTableSource(name, tableSource);
-	}
-
-	/**
-	 * Searches for the specified table sink, configures it accordingly, and registers it as
-	 * a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
-	 */
-	@Deprecated
-	public void registerTableSink(String name) {
-		Preconditions.checkNotNull(name);
-		TableSink<?> tableSink = TableFactoryUtil.findAndCreateTableSink(this);
-		registration.createTableSink(name, tableSink);
-	}
-
-	/**
-	 * Searches for the specified table source and sink, configures them accordingly, and registers
-	 * them as a table under the given name.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again you can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name table name to be registered in the table environment
-	 * @deprecated use {@link #createTemporaryTable(String)}
-	 */
-	@Deprecated
-	public void registerTableSourceAndSink(String name) {
-		registerTableSource(name);
-		registerTableSink(name);
+	public ConnectTableDescriptor withPartitionKeys(List<String> partitionKeys) {
+		this.partitionKeys = Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
+		return this;
 	}
 
 	/**
@@ -133,35 +86,19 @@ public abstract class ConnectTableDescriptor
 		if (schemaDescriptor == null) {
 			throw new TableException(
 				"Table schema must be explicitly defined. To derive schema from the underlying connector" +
-					" use registerTableSource/registerTableSink/registerTableSourceAndSink.");
+					" use registerTableSourceInternal/registerTableSinkInternal/registerTableSourceAndSink.");
 		}
 
-		Map<String, String> schemaProperties = schemaDescriptor.toProperties();
-		TableSchema tableSchema = getTableSchema(schemaProperties);
-
-		Map<String, String> properties = new HashMap<>(toProperties());
-		schemaProperties.keySet().forEach(properties::remove);
-
-		CatalogTableImpl catalogTable = new CatalogTableImpl(
-			tableSchema,
-			properties,
-			""
-		);
-
-		registration.createTemporaryTable(path, catalogTable);
-	}
-
-	private TableSchema getTableSchema(Map<String, String> schemaProperties) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(schemaProperties);
-		return properties.getTableSchema(Schema.SCHEMA);
+		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
 	}
 
 	@Override
 	protected Map<String, String> additionalProperties() {
+		DescriptorProperties properties = new DescriptorProperties();
 		if (schemaDescriptor != null) {
-			return schemaDescriptor.toProperties();
+			properties.putProperties(schemaDescriptor.toProperties());
 		}
-		return Collections.emptyMap();
+		properties.putPartitionKeys(partitionKeys);
+		return properties.asMap();
 	}
 }

@@ -23,11 +23,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
 import org.junit.BeforeClass;
@@ -64,7 +66,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
 		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
+		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
 			"FROM ParquetTable";
@@ -81,10 +83,10 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
 		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
+		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
-			"FROM ParquetTable WHERE bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
+			"FROM ParquetTable WHERE foo >= 1 AND bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";
 
 		Table table = batchTableEnvironment.sqlQuery(query);
 		DataSet<Row> dataSet = batchTableEnvironment.toDataSet(table, Row.class);
@@ -110,7 +112,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 	 */
 	private static Path createTestParquetFile(int numberOfRows) throws Exception {
 		List<IndexedRecord> records = TestUtil.createRecordList(numberOfRows);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records);
+		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records, new Configuration());
 		return path;
 	}
 }

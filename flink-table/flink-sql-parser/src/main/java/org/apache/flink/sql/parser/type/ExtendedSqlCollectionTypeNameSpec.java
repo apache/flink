@@ -62,6 +62,18 @@ public class ExtendedSqlCollectionTypeNameSpec extends SqlCollectionTypeNameSpec
 		this.unparseAsStandard = unparseAsStandard;
 	}
 
+	public boolean elementNullable() {
+		return elementNullable;
+	}
+
+	public SqlTypeName getCollectionTypeName() {
+		return collectionTypeName;
+	}
+
+	public boolean unparseAsStandard() {
+		return unparseAsStandard;
+	}
+
 	@Override
 	public RelDataType deriveType(SqlValidator validator) {
 		RelDataType elementType = getElementTypeName().deriveType(validator);

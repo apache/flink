@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFSOutputStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.commons.io.IOUtils;
@@ -60,7 +60,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
 	private final RecoverableMultiPartUpload upload;
 
-	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileProvider;
+	private final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileProvider;
 
 	/**
 	 * The number of bytes at which we start a new part of the multipart upload.
@@ -80,7 +80,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 	 */
 	S3RecoverableFsDataOutputStream(
 			RecoverableMultiPartUpload upload,
-			FunctionWithException<File, RefCountedFile, IOException> tempFileCreator,
+			FunctionWithException<File, RefCountedFileWithStream, IOException> tempFileCreator,
 			RefCountedFSOutputStream initialTmpFile,
 			long userDefinedMinPartSize,
 			long bytesBeforeCurrentPart) {
@@ -228,7 +228,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
 	public static S3RecoverableFsDataOutputStream newStream(
 			final RecoverableMultiPartUpload upload,
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileCreator,
 			final long userDefinedMinPartSize) throws IOException {
 
 		checkArgument(userDefinedMinPartSize >= S3_MULTIPART_MIN_PART_SIZE);
@@ -245,7 +245,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
 	public static S3RecoverableFsDataOutputStream recoverStream(
 			final RecoverableMultiPartUpload upload,
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileCreator,
 			final long userDefinedMinPartSize,
 			final long bytesBeforeCurrentPart) throws IOException {
 
@@ -264,7 +264,7 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 	}
 
 	private static RefCountedBufferingFileStream boundedBufferingFileStream(
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileCreator,
 			final Optional<File> incompletePart) throws IOException {
 
 		if (!incompletePart.isPresent()) {

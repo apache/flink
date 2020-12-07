@@ -45,7 +45,7 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 	/**
 	 * The table identifier registered under the environment. The identifier might be null when
 	 * the it is from {@code StreamTableEnvironment#fromDataStream(DataStream)}. But the identifier
-	 * should be not null if is from {@code StreamTableEnvironment#registerDataStream(String, DataStream)}
+	 * should be not null if is from {@code StreamTableEnvironment#createTemporaryView(String, DataStream)}
 	 * with a registered name.
 	 */
 	@Nullable

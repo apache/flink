@@ -24,36 +24,24 @@ under the License.
 -->
 
 
-As described earlier, Flink programs can be executed on
-clusters by using a `remote environment`. Alternatively, programs can be packaged into JAR Files
-(Java Archives) for execution. Packaging the program is a prerequisite to executing them through the
-[command line interface]({{ site.baseurl }}/ops/cli.html).
+正如之前所描述的，Flink 程序可以使用 `remote environment` 在集群上执行。或者，程序可以被打包成 JAR 文件（Java Archives）执行。如果使用[命令行]({% link deployment/cli.zh.md %})的方式执行程序，将程序打包是必需的。
 
-### Packaging Programs
+<a name="packaging-programs"></a>
 
-To support execution from a packaged JAR file via the command line or web interface, a program must
-use the environment obtained by `StreamExecutionEnvironment.getExecutionEnvironment()`. This environment
-will act as the cluster's environment when the JAR is submitted to the command line or web
-interface. If the Flink program is invoked differently than through these interfaces, the
-environment will act like a local environment.
+### 打包程序
 
-To package the program, simply export all involved classes as a JAR file. The JAR file's manifest
-must point to the class that contains the program's *entry point* (the class with the public
-`main` method). The simplest way to do this is by putting the *main-class* entry into the
-manifest (such as `main-class: org.apache.flinkexample.MyProgram`). The *main-class* attribute is
-the same one that is used by the Java Virtual Machine to find the main method when executing a JAR
-files through the command `java -jar pathToTheJarFile`. Most IDEs offer to include that attribute
-automatically when exporting JAR files.
+为了能够通过命令行或 web 界面执行打包的 JAR 文件，程序必须使用通过 `StreamExecutionEnvironment.getExecutionEnvironment()` 获取的 environment。当 JAR 被提交到命令行或 web 界面后，该 environment 会扮演集群环境的角色。如果调用 Flink 程序的方式与上述接口不同，该 environment 会扮演本地环境的角色。
 
-### Summary
+打包程序只要简单地将所有相关的类导出为 JAR 文件，JAR 文件的 manifest 必须指向包含程序*入口点*（拥有公共 `main` 方法）的类。实现的最简单方法是将 *main-class* 写入 manifest 中（比如 `main-class: org.apache.flinkexample.MyProgram`）。*main-class* 属性与 Java 虚拟机通过指令 `java -jar pathToTheJarFile` 执行 JAR 文件时寻找 main 方法的类是相同的。大多数 IDE 提供了在导出 JAR 文件时自动包含该属性的功能。
 
-The overall procedure to invoke a packaged program consists of two steps:
+<a name="summary"></a>
 
-1. The JAR's manifest is searched for a *main-class* or *program-class* attribute. If both
-attributes are found, the *program-class* attribute takes precedence over the *main-class*
-attribute. Both the command line and the web interface support a parameter to pass the entry point
-class name manually for cases where the JAR manifest contains neither attribute. 
+### 总结
 
-2. The system invokes the main method of the class.
+调用打包后程序的完整流程包括两步：
+
+1. 搜索 JAR 文件 manifest 中的 *main-class* 或 *program-class* 属性。如果两个属性同时存在，*program-class* 属性会优先于 *main-class* 属性。对于 JAR manifest 中两个属性都不存在的情况，命令行和 web 界面支持手动传入入口点类名参数。
+
+2. 系统接着调用该类的 main 方法。
 
 {% top %}

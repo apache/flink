@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.catalog;
 
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -39,10 +41,11 @@ import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.util.CatalogTableStatisticsConverter.convertToTableStats;
+import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToTableStats;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
@@ -55,7 +58,11 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, CatalogManager catalog, boolean isStreamingMode) {
+	public DatabaseCalciteSchema(
+			String databaseName,
+			String catalogName,
+			CatalogManager catalog,
+			boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalog;
@@ -68,34 +75,38 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		return catalogManager.getTable(identifier)
 			.map(result -> {
 				CatalogBaseTable table = result.getTable();
-				Catalog catalog = catalogManager.getCatalog(catalogName).get();
-				FlinkStatistic statistic = getStatistic(result.isTemporary(),
-					catalog, table, identifier);
-				return new CatalogSchemaTable(identifier,
-					table,
+				FlinkStatistic statistic = getStatistic(result.isTemporary(), table, identifier);
+				return new CatalogSchemaTable(
+					identifier,
+					result,
 					statistic,
-					catalog.getTableFactory().orElse(null),
-					isStreamingMode,
-					result.isTemporary());
+					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
+					isStreamingMode);
 			})
 			.orElse(null);
 	}
 
-	private static FlinkStatistic getStatistic(boolean isTemporary, Catalog catalog,
-			CatalogBaseTable catalogBaseTable, ObjectIdentifier tableIdentifier) {
+	private FlinkStatistic getStatistic(
+			boolean isTemporary,
+			CatalogBaseTable catalogBaseTable,
+			ObjectIdentifier tableIdentifier) {
 		if (isTemporary || catalogBaseTable instanceof QueryOperationCatalogView) {
 			return FlinkStatistic.UNKNOWN();
 		}
 		if (catalogBaseTable instanceof CatalogTable) {
+			Catalog catalog = catalogManager.getCatalog(catalogName).get();
 			return FlinkStatistic.builder()
 				.tableStats(extractTableStats(catalog, tableIdentifier))
+				// this is a temporary solution, FLINK-15123 will resolve this
+				.uniqueKeys(extractUniqueKeys(catalogBaseTable.getSchema()))
 				.build();
 		} else {
 			return FlinkStatistic.UNKNOWN();
 		}
 	}
 
-	private static TableStats extractTableStats(Catalog catalog,
+	private static TableStats extractTableStats(
+			Catalog catalog,
 			ObjectIdentifier objectIdentifier) {
 		final ObjectPath tablePath = objectIdentifier.toObjectPath();
 		try {
@@ -108,6 +119,18 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				objectIdentifier.getCatalogName(),
 				tablePath.getDatabaseName(),
 				tablePath.getObjectName()), e);
+		}
+	}
+
+	private static Set<Set<String>> extractUniqueKeys(TableSchema tableSchema) {
+		Optional<UniqueConstraint> primaryKeyConstraint = tableSchema.getPrimaryKey();
+		if (primaryKeyConstraint.isPresent()) {
+			Set<String> primaryKey = new HashSet<>(primaryKeyConstraint.get().getColumns());
+			Set<Set<String>> uniqueKeys = new HashSet<>();
+			uniqueKeys.add(primaryKey);
+			return uniqueKeys;
+		} else {
+			return null;
 		}
 	}
 

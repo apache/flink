@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -35,17 +37,19 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -73,23 +77,6 @@ public interface HiveShim extends Serializable {
 	 * @throws TException         for any other generic exceptions caused by Thrift
 	 */
 	List<String> getViews(IMetaStoreClient client, String databaseName) throws UnknownDBException, TException;
-
-	/**
-	 * Moves a particular file or directory to trash.
-	 * The file/directory can potentially be deleted (w/o going to trash) if purge is set to true, or if it cannot
-	 * be moved properly.
-	 *
-	 * <p>This interface is here because FileUtils.moveToTrash in different Hive versions have different signatures.
-	 *
-	 * @param fs    the FileSystem to use
-	 * @param path  the path of the file or directory to be moved to trash.
-	 * @param conf  the Configuration to use
-	 * @param purge whether try to skip trash and directly delete the file/directory. This flag may be ignored by
-	 *              old Hive versions prior to 2.3.0.
-	 * @return true if the move is successful, and false otherwise
-	 * @throws IOException if the file/directory cannot be properly moved or deleted
-	 */
-	boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException;
 
 	/**
 	 * Alters a Hive table.
@@ -140,30 +127,6 @@ public interface HiveShim extends Serializable {
 	Class<?> getTimestampDataTypeClass();
 
 	/**
-	 * The return type of HiveStatsUtils.getFileStatusRecurse was changed from array to List in Hive 3.1.0.
-	 *
-	 * @param path the path of the directory
-	 * @param level the level of recursion
-	 * @param fs the file system of the directory
-	 * @return an array of the entries
-	 * @throws IOException in case of any io error
-	 */
-	FileStatus[] getFileStatusRecurse(Path path, int level, FileSystem fs) throws IOException;
-
-	/**
-	 * The signature of HiveStatsUtils.makeSpecFromName() was changed in Hive 3.1.0.
-	 *
-	 * @param partSpec partition specs
-	 * @param currPath the current path
-	 */
-	void makeSpecFromName(Map<String, String> partSpec, Path currPath);
-
-	/**
-	 * Get ObjectInspector for a constant value.
-	 */
-	ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value);
-
-	/**
 	 * Generate Hive ColumnStatisticsData from Flink CatalogColumnStatisticsDataDate for DATE columns.
 	 */
 	ColumnStatisticsData toHiveDateColStats(CatalogColumnStatisticsDataDate flinkDateColStats);
@@ -181,8 +144,13 @@ public interface HiveShim extends Serializable {
 	/**
 	 * Get Hive's FileSinkOperator.RecordWriter.
 	 */
-	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, String outputFormatClzName,
+	FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jobConf, Class outputFormatClz,
 			Class<? extends Writable> outValClz, boolean isCompressed, Properties tableProps, Path outPath);
+
+	/**
+	 * For a given OutputFormat class, get the corresponding {@link HiveOutputFormat} class.
+	 */
+	Class getHiveOutputFormatClass(Class outputFormatClz);
 
 	/**
 	 * Get Hive table schema from deserializer.
@@ -203,4 +171,47 @@ public interface HiveShim extends Serializable {
 	 * Get the set of columns that have NOT NULL constraints.
 	 */
 	Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName);
+
+	/**
+	 * Get the primary key of a Hive table and convert it to a UniqueConstraint. Return empty if the table
+	 * doesn't have a primary key, or the constraint doesn't satisfy the desired trait, e.g. RELY.
+	 */
+	Optional<UniqueConstraint> getPrimaryKey(IMetaStoreClient client, String dbName, String tableName, byte requiredTrait);
+
+	/**
+	 * Converts a Flink timestamp instance to what's expected by Hive.
+	 */
+	@Nullable Object toHiveTimestamp(@Nullable Object flinkTimestamp);
+
+	/**
+	 * Converts a hive timestamp instance to LocalDateTime which is expected by DataFormatConverter.
+	 */
+	LocalDateTime toFlinkTimestamp(Object hiveTimestamp);
+
+	/**
+	 * Converts a Flink date instance to what's expected by Hive.
+	 */
+	@Nullable Object toHiveDate(@Nullable Object flinkDate);
+
+	/**
+	 * Converts a hive date instance to LocalDate which is expected by DataFormatConverter.
+	 */
+	LocalDate toFlinkDate(Object hiveDate);
+
+	/**
+	 * Converts a Hive primitive java object to corresponding Writable object.
+	 */
+	@Nullable Writable hivePrimitiveToWritable(@Nullable Object value);
+
+	/**
+	 * Creates a table with PK and NOT NULL constraints.
+	 */
+	void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
+			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits);
+
+	/**
+	 * Create orc {@link BulkWriter.Factory} for different hive versions.
+	 */
+	BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
+			Configuration conf, String schema, LogicalType[] fieldTypes);
 }

@@ -45,7 +45,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				RestartStrategies.noRestart(),
 				conf,
 				false);
@@ -59,7 +59,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				RestartStrategies.fixedDelayRestart(1, Time.milliseconds(1000)),
 				conf,
 				false);
@@ -75,7 +75,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				RestartStrategies.failureRateRestart(1, Time.milliseconds(1000), Time.milliseconds(1000)),
 				conf,
 				false);
@@ -91,7 +91,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "none");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 				conf,
 				false);
@@ -105,7 +105,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 				conf,
 				false);
@@ -121,7 +121,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 				conf,
 				false);
@@ -136,7 +136,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 		final Configuration conf = new Configuration();
 		conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
 
-		RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+		RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 			DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 			conf,
 			false);
@@ -145,7 +145,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 	@Test
 	public void testNoStrategySpecifiedWhenCheckpointingEnabled() {
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 				new Configuration(),
 				true);
@@ -167,7 +167,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 	@Test
 	public void testNoStrategySpecifiedWhenCheckpointingDisabled() {
 		final RestartBackoffTimeStrategy.Factory factory =
-			RestartBackoffTimeStrategyFactoryLoader.createRestartStrategyFactory(
+			RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
 				DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
 				new Configuration(),
 				false);

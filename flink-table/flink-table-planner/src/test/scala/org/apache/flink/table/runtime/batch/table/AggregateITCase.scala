@@ -18,22 +18,23 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.{NonMergableCount, Top10}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.math.BigDecimal
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -49,7 +50,7 @@ class AggregationsITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val inputTable = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b)
-    tEnv.registerDataSet("MyTable", inputTable)
+    tEnv.createTemporaryView("MyTable", inputTable)
 
     val result = tEnv.scan("MyTable")
       .where('a.get("_1") > 0)

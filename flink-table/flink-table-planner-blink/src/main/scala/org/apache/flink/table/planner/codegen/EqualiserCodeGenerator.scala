@@ -20,14 +20,17 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateEquals
 import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
+import org.apache.flink.table.types.logical.{DistinctType, LogicalType}
 
-import scala.collection.JavaConversions._
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 
-class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
+class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
 
   private val RECORD_EQUALISER = className[RecordEqualiser]
   private val LEFT_INPUT = "left"
@@ -39,7 +42,7 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
     val className = newName(name)
     val header =
       s"""
-         |if ($LEFT_INPUT.getHeader() != $RIGHT_INPUT.getHeader()) {
+         |if ($LEFT_INPUT.getRowKind() != $RIGHT_INPUT.getRowKind()) {
          |  return false;
          |}
        """.stripMargin
@@ -52,11 +55,13 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
       val rightNullTerm = "rightIsNull$" + i
       val leftFieldTerm = "leftField$" + i
       val rightFieldTerm = "rightField$" + i
-      val equalsCode = if (isInternalPrimitive(fieldType)) {
-        s"$leftFieldTerm == $rightFieldTerm"
-      } else if (isBaseRow(fieldType)) {
-        val equaliserGenerator =
-          new EqualiserCodeGenerator(fieldType.asInstanceOf[RowType].getChildren)
+
+      // TODO merge ScalarOperatorGens.generateEquals.
+      val (equalsCode, equalsResult) = if (isInternalPrimitive(fieldType)) {
+        ("", s"$leftFieldTerm == $rightFieldTerm")
+      } else if (isCompositeType(fieldType)) {
+        val equaliserGenerator = new EqualiserCodeGenerator(
+          getFieldTypes(fieldType).asScala.toArray)
         val generatedEqualiser = equaliserGenerator
           .generateRecordEqualiser("field$" + i + "GeneratedEqualiser")
         val generatedEqualiserTerm = ctx.addReusableObject(
@@ -69,12 +74,15 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
              |$equaliserTerm = ($equaliserTypeTerm)
              |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
              |""".stripMargin)
-        s"$equaliserTerm.equalsWithoutHeader($leftFieldTerm, $rightFieldTerm)"
+        ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
       } else {
-        s"$leftFieldTerm.equals($rightFieldTerm)"
+        val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
+        val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
+        val gen = generateEquals(ctx, left, right)
+        (gen.code, gen.resultTerm)
       }
-      val leftReadCode = baseRowFieldReadAccess(ctx, i, LEFT_INPUT, fieldType)
-      val rightReadCode = baseRowFieldReadAccess(ctx, i, RIGHT_INPUT, fieldType)
+      val leftReadCode = rowFieldReadAccess(ctx, i, LEFT_INPUT, fieldType)
+      val rightReadCode = rowFieldReadAccess(ctx, i, RIGHT_INPUT, fieldType)
       s"""
          |boolean $leftNullTerm = $LEFT_INPUT.isNullAt($i);
          |boolean $rightNullTerm = $RIGHT_INPUT.isNullAt($i);
@@ -86,7 +94,8 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
          |} else {
          |  $fieldTypeTerm $leftFieldTerm = $leftReadCode;
          |  $fieldTypeTerm $rightFieldTerm = $rightReadCode;
-         |  $result = $equalsCode;
+         |  $equalsCode
+         |  $result = $equalsResult;
          |}
          |if (!$result) {
          |  return false;
@@ -105,22 +114,11 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
           }
 
           @Override
-          public boolean equals($BASE_ROW $LEFT_INPUT, $BASE_ROW $RIGHT_INPUT) {
+          public boolean equals($ROW_DATA $LEFT_INPUT, $ROW_DATA $RIGHT_INPUT) {
             if ($LEFT_INPUT instanceof $BINARY_ROW && $RIGHT_INPUT instanceof $BINARY_ROW) {
               return $LEFT_INPUT.equals($RIGHT_INPUT);
             } else {
               $header
-              ${ctx.reuseLocalVariableCode()}
-              ${codes.mkString("\n")}
-              return true;
-            }
-          }
-
-          @Override
-          public boolean equalsWithoutHeader($BASE_ROW $LEFT_INPUT, $BASE_ROW $RIGHT_INPUT) {
-            if ($LEFT_INPUT instanceof $BINARY_ROW && $RIGHT_INPUT instanceof $BINARY_ROW) {
-              return (($BINARY_ROW)$LEFT_INPUT).equalsWithoutHeader((($BINARY_ROW)$RIGHT_INPUT));
-            } else {
               ${ctx.reuseLocalVariableCode()}
               ${codes.mkString("\n")}
               return true;
@@ -132,16 +130,14 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
     new GeneratedRecordEqualiser(className, functionCode, ctx.references.toArray)
   }
 
+  @tailrec
   private def isInternalPrimitive(t: LogicalType): Boolean = t.getTypeRoot match {
     case _ if PlannerTypeUtils.isPrimitive(t) => true
 
-    case DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
-         TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH |INTERVAL_DAY_TIME => true
-    case _ => false
-  }
+    case DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME => true
 
-  private def isBaseRow(t: LogicalType): Boolean = t match {
-    case _: RowType => true
+    case DISTINCT_TYPE => isInternalPrimitive(t.asInstanceOf[DistinctType].getSourceType)
+
     case _ => false
   }
 }

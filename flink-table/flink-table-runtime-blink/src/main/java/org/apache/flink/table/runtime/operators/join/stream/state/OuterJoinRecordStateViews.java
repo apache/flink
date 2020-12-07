@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -37,7 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -52,10 +52,9 @@ public final class OuterJoinRecordStateViews {
 			RuntimeContext ctx,
 			String stateName,
 			JoinInputSideSpec inputSideSpec,
-			BaseRowTypeInfo recordType,
-			long retentionTime,
-			boolean stateCleaningEnabled) {
-		StateTtlConfig ttlConfig = createTtlConfig(retentionTime, stateCleaningEnabled);
+			InternalTypeInfo<RowData> recordType,
+			long retentionTime) {
+		StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 		if (inputSideSpec.hasUniqueKey()) {
 			if (inputSideSpec.joinKeyContainsUniqueKey()) {
 				return new OuterJoinRecordStateViews.JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
@@ -77,16 +76,16 @@ public final class OuterJoinRecordStateViews {
 
 	private static final class JoinKeyContainsUniqueKey implements OuterJoinRecordStateView {
 
-		private final ValueState<Tuple2<BaseRow, Integer>> recordState;
-		private final List<BaseRow> reusedRecordList;
-		private final List<Tuple2<BaseRow, Integer>> reusedTupleList;
+		private final ValueState<Tuple2<RowData, Integer>> recordState;
+		private final List<RowData> reusedRecordList;
+		private final List<Tuple2<RowData, Integer>> reusedTupleList;
 
-		private JoinKeyContainsUniqueKey(RuntimeContext ctx, String stateName, BaseRowTypeInfo recordType, StateTtlConfig ttlConfig) {
-			TupleTypeInfo<Tuple2<BaseRow, Integer>> valueTypeInfo = new TupleTypeInfo<>(recordType, Types.INT);
-			ValueStateDescriptor<Tuple2<BaseRow, Integer>> recordStateDesc = new ValueStateDescriptor<>(
+		private JoinKeyContainsUniqueKey(RuntimeContext ctx, String stateName, InternalTypeInfo<RowData> recordType, StateTtlConfig ttlConfig) {
+			TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo = new TupleTypeInfo<>(recordType, Types.INT);
+			ValueStateDescriptor<Tuple2<RowData, Integer>> recordStateDesc = new ValueStateDescriptor<>(
 				stateName,
 				valueTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getState(recordStateDesc);
@@ -96,28 +95,28 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
+		public void addRecord(RowData record) throws Exception {
 			addRecord(record, -1);
 		}
 
 		@Override
-		public void addRecord(BaseRow record, int numOfAssociations) throws Exception {
+		public void addRecord(RowData record, int numOfAssociations) throws Exception {
 			recordState.update(Tuple2.of(record, numOfAssociations));
 		}
 
 		@Override
-		public void updateNumOfAssociations(BaseRow record, int numOfAssociations) throws Exception {
+		public void updateNumOfAssociations(RowData record, int numOfAssociations) throws Exception {
 			recordState.update(Tuple2.of(record, numOfAssociations));
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
+		public void retractRecord(RowData record) throws Exception {
 			recordState.clear();
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
-			Tuple2<BaseRow, Integer> tuple = recordState.value();
+		public Iterable<RowData> getRecords() throws Exception {
+			Tuple2<RowData, Integer> tuple = recordState.value();
 			if (tuple == null) {
 				reusedRecordList.clear();
 			} else {
@@ -127,9 +126,9 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public Iterable<Tuple2<BaseRow, Integer>> getRecordsAndNumOfAssociations() throws Exception {
+		public Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception {
 			reusedTupleList.clear();
-			Tuple2<BaseRow, Integer> tuple = recordState.value();
+			Tuple2<RowData, Integer> tuple = recordState.value();
 			if (tuple != null) {
 				reusedTupleList.add(tuple);
 			}
@@ -140,24 +139,24 @@ public final class OuterJoinRecordStateViews {
 	private static final class InputSideHasUniqueKey implements OuterJoinRecordStateView {
 
 		// stores record in the mapping <UK, <Record, associated-num>>
-		private final MapState<BaseRow, Tuple2<BaseRow, Integer>> recordState;
-		private final KeySelector<BaseRow, BaseRow> uniqueKeySelector;
+		private final MapState<RowData, Tuple2<RowData, Integer>> recordState;
+		private final KeySelector<RowData, RowData> uniqueKeySelector;
 
 		private InputSideHasUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				BaseRowTypeInfo recordType,
-				BaseRowTypeInfo uniqueKeyType,
-				KeySelector<BaseRow, BaseRow> uniqueKeySelector,
+				InternalTypeInfo<RowData> recordType,
+				InternalTypeInfo<RowData> uniqueKeyType,
+				KeySelector<RowData, RowData> uniqueKeySelector,
 				StateTtlConfig ttlConfig) {
 			checkNotNull(uniqueKeyType);
 			checkNotNull(uniqueKeySelector);
-			TupleTypeInfo<Tuple2<BaseRow, Integer>> valueTypeInfo = new TupleTypeInfo<>(recordType, Types.INT);
-			MapStateDescriptor<BaseRow, Tuple2<BaseRow, Integer>> recordStateDesc = new MapStateDescriptor<>(
+			TupleTypeInfo<Tuple2<RowData, Integer>> valueTypeInfo = new TupleTypeInfo<>(recordType, Types.INT);
+			MapStateDescriptor<RowData, Tuple2<RowData, Integer>> recordStateDesc = new MapStateDescriptor<>(
 				stateName,
 				uniqueKeyType,
 				valueTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);
@@ -165,35 +164,35 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
+		public void addRecord(RowData record) throws Exception {
 			addRecord(record, -1);
 		}
 
 		@Override
-		public void addRecord(BaseRow record, int numOfAssociations) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
+		public void addRecord(RowData record, int numOfAssociations) throws Exception {
+			RowData uniqueKey = uniqueKeySelector.getKey(record);
 			recordState.put(uniqueKey, Tuple2.of(record, numOfAssociations));
 		}
 
 		@Override
-		public void updateNumOfAssociations(BaseRow record, int numOfAssociations) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
+		public void updateNumOfAssociations(RowData record, int numOfAssociations) throws Exception {
+			RowData uniqueKey = uniqueKeySelector.getKey(record);
 			recordState.put(uniqueKey, Tuple2.of(record, numOfAssociations));
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
+		public void retractRecord(RowData record) throws Exception {
+			RowData uniqueKey = uniqueKeySelector.getKey(record);
 			recordState.remove(uniqueKey);
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
+		public Iterable<RowData> getRecords() throws Exception {
 			return new RecordsIterable(getRecordsAndNumOfAssociations());
 		}
 
 		@Override
-		public Iterable<Tuple2<BaseRow, Integer>> getRecordsAndNumOfAssociations() throws Exception {
+		public Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception {
 			return recordState.values();
 		}
 	}
@@ -201,31 +200,31 @@ public final class OuterJoinRecordStateViews {
 	private static final class InputSideHasNoUniqueKey implements OuterJoinRecordStateView {
 
 		// stores record in the mapping <Record, <appear-times, associated-num>>
-		private final MapState<BaseRow, Tuple2<Integer, Integer>> recordState;
+		private final MapState<RowData, Tuple2<Integer, Integer>> recordState;
 
 		private InputSideHasNoUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				BaseRowTypeInfo recordType,
+				InternalTypeInfo<RowData> recordType,
 				StateTtlConfig ttlConfig) {
 			TupleTypeInfo<Tuple2<Integer, Integer>> tupleTypeInfo = new TupleTypeInfo<>(Types.INT, Types.INT);
-			MapStateDescriptor<BaseRow, Tuple2<Integer, Integer>> recordStateDesc = new MapStateDescriptor<>(
+			MapStateDescriptor<RowData, Tuple2<Integer, Integer>> recordStateDesc = new MapStateDescriptor<>(
 				stateName,
 				recordType,
 				tupleTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
+		public void addRecord(RowData record) throws Exception {
 			addRecord(record, -1);
 		}
 
 		@Override
-		public void addRecord(BaseRow record, int numOfAssociations) throws Exception {
+		public void addRecord(RowData record, int numOfAssociations) throws Exception {
 			Tuple2<Integer, Integer> tuple = recordState.get(record);
 			if (tuple != null) {
 				tuple.f0 = tuple.f0 + 1;
@@ -237,7 +236,7 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public void updateNumOfAssociations(BaseRow record, int numOfAssociations) throws Exception {
+		public void updateNumOfAssociations(RowData record, int numOfAssociations) throws Exception {
 			Tuple2<Integer, Integer> tuple = recordState.get(record);
 			if (tuple != null) {
 				tuple.f1 = numOfAssociations;
@@ -249,7 +248,7 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
+		public void retractRecord(RowData record) throws Exception {
 			Tuple2<Integer, Integer> tuple = recordState.get(record);
 			if (tuple != null) {
 				if (tuple.f0 > 1) {
@@ -262,16 +261,16 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
+		public Iterable<RowData> getRecords() throws Exception {
 			return new RecordsIterable(getRecordsAndNumOfAssociations());
 		}
 
 		@Override
-		public Iterable<Tuple2<BaseRow, Integer>> getRecordsAndNumOfAssociations() throws Exception {
-			return new IterableIterator<Tuple2<BaseRow, Integer>>() {
+		public Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception {
+			return new IterableIterator<Tuple2<RowData, Integer>>() {
 
-				private final Iterator<Map.Entry<BaseRow, Tuple2<Integer, Integer>>> backingIterable = recordState.entries().iterator();
-				private Tuple2<BaseRow, Integer> tuple;
+				private final Iterator<Map.Entry<RowData, Tuple2<Integer, Integer>>> backingIterable = recordState.entries().iterator();
+				private Tuple2<RowData, Integer> tuple;
 				private int remainingTimes = 0;
 
 				@Override
@@ -280,13 +279,13 @@ public final class OuterJoinRecordStateViews {
 				}
 
 				@Override
-				public Tuple2<BaseRow, Integer> next() {
+				public Tuple2<RowData, Integer> next() {
 					if (remainingTimes > 0) {
 						checkNotNull(tuple);
 						remainingTimes--;
 						return tuple;
 					} else {
-						Map.Entry<BaseRow, Tuple2<Integer, Integer>> entry = backingIterable.next();
+						Map.Entry<RowData, Tuple2<Integer, Integer>> entry = backingIterable.next();
 						tuple = Tuple2.of(entry.getKey(), entry.getValue().f1);
 						remainingTimes = entry.getValue().f0 - 1;
 						return tuple;
@@ -294,7 +293,7 @@ public final class OuterJoinRecordStateViews {
 				}
 
 				@Override
-				public Iterator<Tuple2<BaseRow, Integer>> iterator() {
+				public Iterator<Tuple2<RowData, Integer>> iterator() {
 					return this;
 				}
 			};
@@ -303,16 +302,16 @@ public final class OuterJoinRecordStateViews {
 
 	// ----------------------------------------------------------------------------------------
 
-	private static final class RecordsIterable implements IterableIterator<BaseRow> {
-		private final Iterator<Tuple2<BaseRow, Integer>> tupleIterator;
+	private static final class RecordsIterable implements IterableIterator<RowData> {
+		private final Iterator<Tuple2<RowData, Integer>> tupleIterator;
 
-		private RecordsIterable(Iterable<Tuple2<BaseRow, Integer>> tuples) {
+		private RecordsIterable(Iterable<Tuple2<RowData, Integer>> tuples) {
 			checkNotNull(tuples);
 			this.tupleIterator = tuples.iterator();
 		}
 
 		@Override
-		public Iterator<BaseRow> iterator() {
+		public Iterator<RowData> iterator() {
 			return this;
 		}
 
@@ -322,7 +321,7 @@ public final class OuterJoinRecordStateViews {
 		}
 
 		@Override
-		public BaseRow next() {
+		public RowData next() {
 			return tupleIterator.next().f0;
 		}
 	}

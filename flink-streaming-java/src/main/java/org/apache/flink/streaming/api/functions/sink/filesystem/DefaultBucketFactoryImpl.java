@@ -20,7 +20,8 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -28,49 +29,49 @@ import java.io.IOException;
  * A factory returning {@link Bucket buckets}.
  */
 @Internal
-class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
+public class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, BucketID> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public Bucket<IN, BucketID> getNewBucket(
-			final RecoverableWriter fsWriter,
 			final int subtaskIndex,
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) {
 
 		return Bucket.getNew(
-				fsWriter,
 				subtaskIndex,
 				bucketId,
 				bucketPath,
 				initialPartCounter,
-				partFileWriterFactory,
+				bucketWriter,
 				rollingPolicy,
+				fileListener,
 				outputFileConfig);
 	}
 
 	@Override
 	public Bucket<IN, BucketID> restoreBucket(
-			final RecoverableWriter fsWriter,
 			final int subtaskIndex,
 			final long initialPartCounter,
-			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
+			@Nullable final FileLifeCycleListener<BucketID> fileListener,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
 		return Bucket.restore(
-				fsWriter,
 				subtaskIndex,
 				initialPartCounter,
-				partFileWriterFactory,
+				bucketWriter,
 				rollingPolicy,
 				bucketState,
+				fileListener,
 				outputFileConfig);
 	}
 }

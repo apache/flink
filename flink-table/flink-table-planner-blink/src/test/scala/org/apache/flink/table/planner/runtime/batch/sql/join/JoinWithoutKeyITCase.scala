@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -48,7 +48,6 @@ class JoinWithoutKeyITCase extends BatchTestBase {
 
   // single row join
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testCrossJoinWithLeftSingleRowInput(): Unit = {
     checkResult(
@@ -60,7 +59,6 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testCrossJoinWithRightSingleRowInput(): Unit = {
     checkResult(
@@ -72,7 +70,6 @@ class JoinWithoutKeyITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testCrossJoinWithEmptySingleRowInput(): Unit = {
     checkResult(

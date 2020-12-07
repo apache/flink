@@ -22,14 +22,18 @@ import org.apache.avro.Schema;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
  * Schema coder that allows reading schema that is somehow embedded into serialized record.
- * Used by {@link RegistryAvroDeserializationSchema}.
+ * Used by {@link RegistryAvroDeserializationSchema} and {@link RegistryAvroSerializationSchema}.
+ *
  */
 public interface SchemaCoder {
 	Schema readSchema(InputStream in) throws IOException;
+
+	void writeSchema(Schema schema, OutputStream out) throws IOException;
 
 	/**
 	 * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in

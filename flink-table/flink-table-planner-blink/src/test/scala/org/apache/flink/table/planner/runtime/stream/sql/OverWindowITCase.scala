@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
@@ -46,6 +47,13 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     (7L, 7, "Hello World"),
     (8L, 8, "Hello World"),
     (20L, 20, "Hello World"))
+
+  @Before
+  def setupEnv(): Unit = {
+    // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
+    // https://issues.apache.org/jira/browse/FLINK-18405
+    env.getCheckpointConfig.enableUnalignedCheckpoints(false)
+  }
 
   @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
@@ -84,16 +92,15 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOverWithBultinProctime(): Unit = {
-    val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+  def testProcTimeBoundedPartitionedRowsOverWithBulitinProctime(): Unit = {
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
     val sink = new TestingAppendSink
@@ -121,15 +128,14 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
-    val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
+      "    PARTITION BY a ORDER BY proctime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
     val sink = new TestingAppendSink
@@ -282,14 +288,18 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     tEnv.registerTable("T1", t1)
 
     val sqlQuery = "SELECT " +
-      "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+      "listagg(distinct c, '|') " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW), " +
+      "count(a) " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "from T1"
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1", "2", "3", "4", "5", "6", "7", "8", "9")
+    val expected = List("Hello,1", "Hello,2", "Hello,3", "Hello,4", "Hello,5", "Hello,6",
+      "Hello|Hello World,7", "Hello|Hello World,8", "Hello|Hello World,9")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

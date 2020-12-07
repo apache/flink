@@ -38,7 +38,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SqlAlterDatabase extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER);
+	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier databaseName;
 
@@ -85,7 +85,7 @@ public class SqlAlterDatabase extends SqlCall {
 		writer.endList(withFrame);
 	}
 
-	private void printIndent(SqlWriter writer) {
+	protected void printIndent(SqlWriter writer) {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");

@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -33,7 +35,10 @@ import java.util.Properties;
 
 /**
  * Kafka {@link StreamTableSource}.
+ *
+ * @deprecated Use {@link KafkaDynamicSource} via {@link KafkaDynamicTableFactory}.
  */
+@Deprecated
 @Internal
 public class KafkaTableSource extends KafkaTableSourceBase {
 
@@ -61,7 +66,8 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		Map<KafkaTopicPartition, Long> specificStartupOffsets,
+		long startupTimestampMillis) {
 
 		super(
 			schema,
@@ -72,7 +78,8 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets);
+			specificStartupOffsets,
+			startupTimestampMillis);
 	}
 
 	/**

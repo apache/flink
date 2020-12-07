@@ -19,10 +19,13 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Objects;
 
 /**
  * Partitioner selects the target channel based on the key group index.
@@ -59,6 +62,11 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 	}
 
 	@Override
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.RANGE;
+	}
+
+	@Override
 	public StreamPartitioner<T> copy() {
 		return this;
 	}
@@ -72,5 +80,26 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 	public void configure(int maxParallelism) {
 		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
 		this.maxParallelism = maxParallelism;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+		final KeyGroupStreamPartitioner<?, ?> that = (KeyGroupStreamPartitioner<?, ?>) o;
+		return maxParallelism == that.maxParallelism &&
+			keySelector.equals(that.keySelector);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), keySelector, maxParallelism);
 	}
 }

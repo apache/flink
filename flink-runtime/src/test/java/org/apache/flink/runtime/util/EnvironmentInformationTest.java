@@ -20,11 +20,14 @@ package org.apache.flink.runtime.util;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 
-public class EnvironmentInformationTest {
+import java.util.Arrays;
+
+public class EnvironmentInformationTest extends TestLogger {
 
 	@Test
 	public void testJavaMemory() {
@@ -63,9 +66,36 @@ public class EnvironmentInformationTest {
 			assertNotNull(EnvironmentInformation.getJvmVersion());
 			assertNotNull(EnvironmentInformation.getRevisionInformation());
 			assertNotNull(EnvironmentInformation.getVersion());
+			assertNotNull(EnvironmentInformation.getScalaVersion());
+			assertNotNull(EnvironmentInformation.getBuildTime());
+			assertNotNull(EnvironmentInformation.getBuildTimeString());
+			assertNotNull(EnvironmentInformation.getGitCommitId());
+			assertNotNull(EnvironmentInformation.getGitCommitIdAbbrev());
+			assertNotNull(EnvironmentInformation.getGitCommitTime());
+			assertNotNull(EnvironmentInformation.getGitCommitTimeString());
 			EnvironmentInformation.getHadoopVersionString();
 			assertNotNull(EnvironmentInformation.getHadoopUser());
 			assertTrue(EnvironmentInformation.getOpenFileHandlesLimit() >= -1);
+
+			if (log.isInfoEnabled()) {
+				// Visual inspection of the available Environment variables
+				// To actually see it set "rootLogger.level = INFO" in "log4j2-test.properties"
+				log.info("JvmStartupOptions      : {}", EnvironmentInformation.getJvmStartupOptions());
+				log.info("JvmStartupOptionsArray : {}", Arrays.asList(EnvironmentInformation.getJvmStartupOptionsArray()));
+				log.info("JvmVersion             : {}", EnvironmentInformation.getJvmVersion());
+				log.info("RevisionInformation    : {}", EnvironmentInformation.getRevisionInformation());
+				log.info("Version                : {}", EnvironmentInformation.getVersion());
+				log.info("ScalaVersion           : {}", EnvironmentInformation.getScalaVersion());
+				log.info("BuildTime              : {}", EnvironmentInformation.getBuildTime());
+				log.info("BuildTimeString        : {}", EnvironmentInformation.getBuildTimeString());
+				log.info("GitCommitId            : {}", EnvironmentInformation.getGitCommitId());
+				log.info("GitCommitIdAbbrev      : {}", EnvironmentInformation.getGitCommitIdAbbrev());
+				log.info("GitCommitTime          : {}", EnvironmentInformation.getGitCommitTime());
+				log.info("GitCommitTimeString    : {}", EnvironmentInformation.getGitCommitTimeString());
+				log.info("HadoopVersionString    : {}", EnvironmentInformation.getHadoopVersionString());
+				log.info("HadoopUser             : {}", EnvironmentInformation.getHadoopUser());
+				log.info("OpenFileHandlesLimit   : {}", EnvironmentInformation.getOpenFileHandlesLimit());
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();

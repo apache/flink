@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.Serializable;
 
 /**
- * Record equaliser for BaseRow which can compare two BaseRows and returns whether they are equal.
+ * Record equaliser for RowData which can compare two RowData and returns whether they are equal.
  */
 public interface RecordEqualiser extends Serializable {
 
@@ -31,11 +31,5 @@ public interface RecordEqualiser extends Serializable {
 	 * Returns {@code true} if the rows are equal to each other
 	 * and {@code false} otherwise.
 	 */
-	boolean equals(BaseRow row1, BaseRow row2);
-
-	/**
-	 * Returns {@code true} if the rows are equal to each other without header compare
-	 * and {@code false} otherwise.
-	 */
-	boolean equalsWithoutHeader(BaseRow row1, BaseRow row2);
+	boolean equals(RowData row1, RowData row2);
 }

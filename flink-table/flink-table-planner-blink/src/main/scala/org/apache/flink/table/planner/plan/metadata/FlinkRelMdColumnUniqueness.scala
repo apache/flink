@@ -65,7 +65,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: FlinkLogicalTableSourceScan,
+      rel: FlinkLogicalLegacyTableSourceScan,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
@@ -305,6 +305,22 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
+      rel: StreamExecChangelogNormalize,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    columns != null && ImmutableBitSet.of(rel.uniqueKeys: _*).equals(columns)
+  }
+
+  def areColumnsUnique(
+      rel: StreamExecDropUpdateBefore,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
+  }
+
+  def areColumnsUnique(
       rel: Aggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
@@ -485,7 +501,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecWindowJoin,
+      rel: StreamExecIntervalJoin,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {

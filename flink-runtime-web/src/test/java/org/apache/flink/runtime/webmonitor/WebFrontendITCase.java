@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -48,7 +48,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.File;
 import java.io.InputStream;
@@ -56,13 +55,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -71,7 +71,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the WebFrontend.
  */
-@Category(AlsoRunWithSchedulerNG.class)
 public class WebFrontendITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;
@@ -106,7 +105,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		// !!DO NOT REMOVE!! next line is required for tests
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "12m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
 
 		return config;
 	}
@@ -119,8 +118,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getFrontPage() throws Exception {
 		String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-		String text = "Apache Flink Web Dashboard";
-		assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
+		assertThat(fromHTTP, containsString("Apache Flink Web Dashboard"));
 	}
 
 	private int getRestPort() {
@@ -194,11 +192,24 @@ public class WebFrontendITCase extends TestLogger {
 
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
+	}
+
+	@Test
+	public void getCustomLogFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+		String customFileName = "test.log";
+		final String logDir = logFiles.logFile.getParent();
+		final String expectedLogContent = "job manager custom log";
+		FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
+
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/logs/" + customFileName);
+		assertThat(logs, containsString(expectedLogContent));
 	}
 
 	@Test
@@ -216,11 +227,11 @@ public class WebFrontendITCase extends TestLogger {
 		//we check for job manager log files, since no separate taskmanager logs exist
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
 	}
 
 	@Test
@@ -228,8 +239,8 @@ public class WebFrontendITCase extends TestLogger {
 		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 
-		String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE);
-		String actual = conf.get(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key());
+		MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		MemorySize actual = MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
 
 		assertEquals(expected, actual);
 	}
@@ -248,7 +259,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -259,12 +270,12 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// cancel the job
-			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			client.sendPatchRequest("/jobs/" + jid + "/", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -286,7 +297,53 @@ public class WebFrontendITCase extends TestLogger {
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
 				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\"," +
-				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
+				"\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
+		}
+
+		BlockingInvokable.reset();
+	}
+
+	/**
+	 * See FLINK-19518. This test ensures that the /jobs/overview handler shows a duration != 0.
+	 */
+	@Test
+	public void testJobOverviewHandler() throws Exception {
+		// this only works if there is no active job at this point
+		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
+
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(BlockingInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+
+		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
+		clusterClient.submitJob(jobGraph).get();
+
+		// wait for job to show up
+		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
+			Thread.sleep(10);
+		}
+
+		// wait for tasks to be properly running
+		BlockingInvokable.latch.await();
+
+		final Duration testTimeout = Duration.ofMinutes(2);
+
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobs/overview");
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode jsonJobs = (ArrayNode) parsed.get("jobs");
+		assertEquals(1, jsonJobs.size());
+		assertThat("Duration must be positive", jsonJobs.get(0).get("duration").asInt() > 0);
+
+		clusterClient.cancel(jobGraph.getJobID()).get();
+
+		// ensure cancellation is finished
+		while (!getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
+			Thread.sleep(20);
 		}
 
 		BlockingInvokable.reset();
@@ -306,7 +363,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -317,13 +374,13 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
+		final Deadline deadline = Deadline.fromNow(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", deadline.timeLeft());
 
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -344,10 +401,6 @@ public class WebFrontendITCase extends TestLogger {
 			.filter(status -> !status.getJobState().isGloballyTerminalState())
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
-	}
-
-	private static Duration getTimeLeft(LocalTime deadline) {
-		return Duration.between(LocalTime.now(), deadline);
 	}
 
 	/**

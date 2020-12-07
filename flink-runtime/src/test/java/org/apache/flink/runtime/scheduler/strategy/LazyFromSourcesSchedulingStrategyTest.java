@@ -19,25 +19,24 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
-import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.getExecutionVertexIdsFromDeployOptions;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -45,7 +44,12 @@ import static org.junit.Assert.assertThat;
  */
 public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 
-	private TestingSchedulerOperations testingSchedulerOperation = new TestingSchedulerOperations();
+	private TestingSchedulerOperations testingSchedulerOperation;
+
+	@Before
+	public void setUp() {
+		testingSchedulerOperation = new TestingSchedulerOperations();
+	}
 
 	/**
 	 * Tests that when start scheduling lazy from sources scheduling strategy will start input vertices in scheduling topology.
@@ -59,8 +63,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
 
 		startScheduling(testingSchedulingTopology);
-
-		assertThat(testingSchedulerOperation, hasScheduledVertices(producers));
+		assertLatestScheduledVerticesAreEqualTo(producers);
 	}
 
 	/**
@@ -82,7 +85,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			TestingSchedulingExecutionVertex::getId).collect(Collectors.toSet()));
 
 		schedulingStrategy.restartTasks(verticesToRestart);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(producers));
+		assertLatestScheduledVerticesAreEqualTo(producers);
 	}
 
 	/**
@@ -106,7 +109,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		}
 
 		schedulingStrategy.restartTasks(verticesToRestart);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -144,7 +147,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			.collect(Collectors.toSet());
 
 		schedulingStrategy.restartTasks(verticesToRestart);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -179,7 +182,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			.collect(Collectors.toSet());
 
 		schedulingStrategy.restartTasks(verticesToRestart);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -201,13 +204,14 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		Set<ExecutionVertexID> verticesToRestart = producers.stream().map(TestingSchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 		verticesToRestart.addAll(consumers.stream().map(
-			TestingSchedulingExecutionVertex::getId).collect(Collectors.toSet()));
+			TestingSchedulingExecutionVertex::getId).collect(Collectors.toList()));
 
 		schedulingStrategy.restartTasks(verticesToRestart);
 		List<TestingSchedulingExecutionVertex> toScheduleVertices = new ArrayList<>(producers.size() + consumers.size());
-		toScheduleVertices.addAll(consumers);
 		toScheduleVertices.addAll(producers);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(toScheduleVertices));
+		toScheduleVertices.addAll(consumers);
+
+		assertLatestScheduledVerticesAreEqualTo(toScheduleVertices);
 	}
 
 	/**
@@ -232,7 +236,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			TestingSchedulingExecutionVertex::getId).collect(Collectors.toSet()));
 
 		schedulingStrategy.restartTasks(verticesToRestart);
-		assertThat(testingSchedulerOperation, hasScheduledVertices(producers));
+		assertLatestScheduledVerticesAreEqualTo(producers);
 	}
 
 	/**
@@ -254,9 +258,9 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		final TestingSchedulingResultPartition partition1 = producer1.getProducedResults().iterator().next();
 
 		schedulingStrategy.onExecutionStateChange(producer1.getId(), ExecutionState.RUNNING);
-		schedulingStrategy.onPartitionConsumable(producer1.getId(), new ResultPartitionID(partition1.getId(), new ExecutionAttemptID()));
+		schedulingStrategy.onPartitionConsumable(partition1.getId());
 
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -278,7 +282,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
 		}
 
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -312,7 +316,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
 		}
 
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
 	/**
@@ -343,31 +347,27 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			schedulingStrategy.onExecutionStateChange(producer.getId(), ExecutionState.FINISHED);
 		}
 
-		assertThat(testingSchedulerOperation, hasScheduledVertices(consumers));
+		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
 
-	private static Matcher<TestingSchedulerOperations> hasScheduledVertices(final List<TestingSchedulingExecutionVertex> consumers) {
+	@Test
+	public void testOnlyCreatedVertexWillBeScheduled() {
+		final TestingSchedulingTopology testingSchedulingTopology = new TestingSchedulingTopology();
+		final TestingSchedulingExecutionVertex v1 = testingSchedulingTopology.newExecutionVertex();
+		final TestingSchedulingExecutionVertex v2 = testingSchedulingTopology.newExecutionVertex();
 
-		final Matcher<Iterable<? extends ExecutionVertexID>> vertexIdMatcher = containsInAnyOrder(consumers.stream()
-			.map(SchedulingExecutionVertex::getId)
-			.toArray(ExecutionVertexID[]::new));
-
-		return new TypeSafeDiagnosingMatcher<TestingSchedulerOperations>() {
-
+		testingSchedulerOperation = new TestingSchedulerOperations() {
 			@Override
-			protected boolean matchesSafely(final TestingSchedulerOperations item, final Description mismatchDescription) {
-				final boolean matches = vertexIdMatcher.matches(getExecutionVertexIdsFromDeployOptions(item.getLatestScheduledVertices()));
-				if (!matches) {
-					vertexIdMatcher.describeMismatch(item.getLatestScheduledVertices(), mismatchDescription);
-				}
-				return matches;
-			}
+			public void allocateSlotsAndDeploy(List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
+				super.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
 
-			@Override
-			public void describeTo(final Description description) {
-				description.appendText("to be scheduled vertex id is ").appendDescriptionOf(vertexIdMatcher);
+				// set v2 to CANCELED so that is should not be scheduled
+				v2.setState(ExecutionState.CANCELED);
 			}
 		};
+		startScheduling(testingSchedulingTopology);
+
+		assertThat(testingSchedulerOperation.getScheduledVertices(), hasSize(1));
 	}
 
 	private LazyFromSourcesSchedulingStrategy startScheduling(TestingSchedulingTopology testingSchedulingTopology) {
@@ -376,5 +376,25 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 			testingSchedulingTopology);
 		schedulingStrategy.startScheduling();
 		return schedulingStrategy;
+	}
+
+	private void assertLatestScheduledVerticesAreEqualTo(final List<TestingSchedulingExecutionVertex> expected) {
+		final List<List<ExecutionVertexDeploymentOption>> deploymentOptions = testingSchedulerOperation.getScheduledVertices();
+		assertThat(expected.size(), lessThanOrEqualTo(deploymentOptions.size()));
+		for (int i = 0; i < expected.size(); i++) {
+			assertEquals(
+				idsFromVertices(Collections.singletonList(expected.get(expected.size() - i - 1))),
+				idsFromDeploymentOptions(deploymentOptions.get(deploymentOptions.size() - i - 1)));
+		}
+	}
+
+	private static List<ExecutionVertexID> idsFromVertices(final List<TestingSchedulingExecutionVertex> vertices) {
+		return vertices.stream().map(TestingSchedulingExecutionVertex::getId).collect(Collectors.toList());
+	}
+
+	private static List<ExecutionVertexID> idsFromDeploymentOptions(
+			final List<ExecutionVertexDeploymentOption> deploymentOptions) {
+
+		return deploymentOptions.stream().map(ExecutionVertexDeploymentOption::getExecutionVertexId).collect(Collectors.toList());
 	}
 }

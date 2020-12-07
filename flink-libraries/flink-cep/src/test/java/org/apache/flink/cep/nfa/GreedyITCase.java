@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.utils.NFATestUtilities.compareMaps;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 
@@ -84,7 +84,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -136,7 +136,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -184,7 +184,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, d)
 		));
 	}
@@ -228,7 +228,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d)
 		));
 	}
@@ -285,7 +285,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -342,7 +342,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d)
 		));
 	}
@@ -391,7 +391,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -443,7 +443,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -491,7 +491,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, d)
 		));
 	}
@@ -535,7 +535,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList());
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList());
 	}
 
 	@Test
@@ -590,7 +590,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d)
 		));
 	}
@@ -647,7 +647,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList());
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList());
 	}
 
 	@Test
@@ -717,7 +717,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, d1, e1, d2, e2, f)
 		));
 	}
@@ -758,7 +758,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c),
 			Lists.newArrayList(c, a1),
 			Lists.newArrayList(c, a1, a2),
@@ -802,7 +802,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c),
 			Lists.newArrayList(c, a1),
 			Lists.newArrayList(c, a1, a2)
@@ -847,7 +847,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2),
 			Lists.newArrayList(c, a1, a2, a3),
 			Lists.newArrayList(c, a1, a2, a3, a4)
@@ -900,7 +900,7 @@ public class GreedyITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, a2, a3, a4, d)
 		));
 	}

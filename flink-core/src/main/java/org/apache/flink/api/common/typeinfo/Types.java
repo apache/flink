@@ -170,7 +170,7 @@ public class Types {
 	public static final TypeInformation<LocalDateTime> LOCAL_DATE_TIME = LocalTimeTypeInfo.LOCAL_DATE_TIME;
 
 	/**
-	 * Returns type infomation for {@link java.time.Instant}. Supports a null value.
+	 * Returns type information for {@link java.time.Instant}. Supports a null value.
 	 */
 	public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 
@@ -183,7 +183,7 @@ public class Types {
 	 * <p>A row is a fixed-length, null-aware composite type for storing multiple values in a
 	 * deterministic field order. Every field can be null regardless of the field's type.
 	 * The type of row fields cannot be automatically inferred; therefore, it is required to provide
-	 * type information whenever a row is used.
+	 * type information whenever a row is produced.
 	 *
 	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
 	 * must strictly adhere to the schema defined by the type info.

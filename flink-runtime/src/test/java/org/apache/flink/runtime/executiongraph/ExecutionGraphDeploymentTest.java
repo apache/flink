@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.time.Time;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTrack
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -365,7 +365,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics, boolean)}
+	 * and {@link Execution#markFailed(Throwable, boolean, Map, IOMetrics, boolean, boolean)}
 	 * store the given accumulators and metrics correctly.
 	 */
 	@Test
@@ -389,7 +390,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		assertEquals(accumulators, execution1.getUserAccumulators());
 
 		Execution execution2 = executions.values().iterator().next();
-		execution2.markFailed(new Throwable(), accumulators, ioMetrics);
+		execution2.markFailed(new Throwable(), false, accumulators, ioMetrics, false, true);
 
 		assertEquals(ioMetrics, execution2.getIOMetrics());
 		assertEquals(accumulators, execution2.getUserAccumulators());
@@ -781,6 +782,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					false,
 					false,
+					false,
 					0),
 				null));
 
@@ -801,7 +803,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			timeout,
 			LoggerFactory.getLogger(getClass()),
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

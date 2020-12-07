@@ -152,6 +152,8 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
 				TypeSerializerSchemaCompatibility<N> namespaceSerializerCompatibility =
 					restoredTimersSnapshot.getNamespaceSerializerSnapshot().resolveSchemaCompatibility(namespaceSerializer);
 
+				restoredTimersSnapshot = null;
+
 				if (namespaceSerializerCompatibility.isIncompatible() || namespaceSerializerCompatibility.isCompatibleAfterMigration()) {
 					throw new IllegalStateException(
 						"Tried to initialize restored TimerService with new namespace serializer that requires migration or is incompatible.");

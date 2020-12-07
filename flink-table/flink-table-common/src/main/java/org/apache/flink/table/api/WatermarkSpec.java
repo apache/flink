@@ -60,7 +60,7 @@ public class WatermarkSpec {
 	 * Returns the string representation of watermark generation expression.
 	 * The string representation is a qualified SQL expression string (UDFs are expanded).
 	 */
-	public String getWatermarkExpressionString() {
+	public String getWatermarkExpr() {
 		return watermarkExpressionString;
 	}
 
@@ -69,6 +69,11 @@ public class WatermarkSpec {
 	 */
 	public DataType getWatermarkExprOutputType() {
 		return watermarkExprOutputType;
+	}
+
+	public String asSummaryString() {
+		return "WATERMARK FOR " + rowtimeAttribute + ": " + watermarkExprOutputType +
+			" AS " + watermarkExpressionString;
 	}
 
 	@Override
@@ -92,7 +97,6 @@ public class WatermarkSpec {
 
 	@Override
 	public String toString() {
-		return "rowtime: '" + rowtimeAttribute + '\'' +
-			", watermark: '" + watermarkExpressionString + '\'';
+		return asSummaryString();
 	}
 }

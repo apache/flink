@@ -18,42 +18,55 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.utils.TypeMappingUtils
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+
+import java.util.function.{Function => JFunction}
+
+import scala.collection.JavaConverters._
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
+    tableSchema: TableSchema,
     tableSource: StreamTableSource[_],
     selectedFields: Option[Array[Int]])
-  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource, selectedFields)
+  extends PhysicalTableSourceScan(
+    cluster,
+    traitSet,
+    table,
+    tableSchema,
+    tableSource,
+    selectedFields)
   with StreamScan {
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      selectedFields,
-      streaming = true,
-      flinkTypeFactory)
+    val rowType = table.getRowType
+    selectedFields.map(idxs => {
+      val fields = rowType.getFieldList
+      val builder = cluster.getTypeFactory.builder()
+      idxs.map(fields.get).foreach(builder.add)
+      builder.build()
+    }).getOrElse(rowType)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -66,6 +79,7 @@ class StreamTableSourceScan(
       cluster,
       traitSet,
       getTable,
+      tableSchema,
       tableSource,
       selectedFields
     )
@@ -79,26 +93,21 @@ class StreamTableSourceScan(
       cluster,
       traitSet,
       getTable,
+      tableSchema,
       newTableSource.asInstanceOf[StreamTableSource[_]],
       selectedFields
     )
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
-
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      isStreamTable = true,
-      selectedFields)
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
     val inputDataStream = tableSource.getDataStream(planner.getExecutionEnvironment)
       .asInstanceOf[DataStream[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
-    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType)
+    // Fix the nullability of row type info.
+    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType).notNull()
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
@@ -109,13 +118,32 @@ class StreamTableSourceScan(
         s"Please validate the implementation of the TableSource.")
     }
 
+    val nameMapping: JFunction[String, String] = tableSource match {
+      case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+        new JFunction[String, String] {
+          override def apply(t: String): String = mapping.getFieldMapping.get(t)
+        }
+      case _ => JFunction.identity()
+    }
+
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression = TableSourceUtil.getRowtimeAttributeDescriptor(
       tableSource,
-      selectedFields,
-      cluster,
-      planner.getRelBuilder,
-      TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+      selectedFields)
+      .map(desc => TableSourceUtil.getRowtimeExtractionExpression(
+        desc.getTimestampExtractor,
+        producedDataType,
+        TypeConversions.fromLegacyInfoToDataType(TimeIndicatorTypeInfo.ROWTIME_INDICATOR),
+        planner.getRelBuilder,
+        nameMapping
+      ))
+
+    val fieldIndexes = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+      tableSource,
+      selectedFields.map(_.map(tableSchema.getTableColumn(_).get()).toList.asJava)
+        .getOrElse(tableSchema.getTableColumns),
+      true,
+      nameMapping
     )
 
     // ingest table and convert and extract time attributes if necessary

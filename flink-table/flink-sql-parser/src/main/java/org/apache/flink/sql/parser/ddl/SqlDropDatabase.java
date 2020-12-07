@@ -18,8 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -35,22 +33,22 @@ import java.util.List;
 /**
  * DROP DATABASE DDL sql call.
  */
-public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
+public class SqlDropDatabase extends SqlDrop {
 	private static final SqlOperator OPERATOR =
-		new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER);
+		new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER_DDL);
 
-	private SqlIdentifier databaseName;
-	private boolean ifExists;
-	private boolean isRestrict = true;
+	private final SqlIdentifier databaseName;
+	private final boolean ifExists;
+	private final boolean isCascade;
 
 	public SqlDropDatabase(SqlParserPos pos,
 			SqlIdentifier databaseName,
 			boolean ifExists,
-			boolean isRestrict) {
+			boolean isCascade) {
 		super(OPERATOR, pos, ifExists);
 		this.databaseName = databaseName;
 		this.ifExists = ifExists;
-		this.isRestrict = isRestrict;
+		this.isCascade = isCascade;
 	}
 
 	@Override
@@ -62,16 +60,12 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 		return databaseName;
 	}
 
-	public void setDatabaseName(SqlIdentifier viewName) {
-		this.databaseName = viewName;
-	}
-
 	public boolean getIfExists() {
 		return this.ifExists;
 	}
 
-	public void setIfExists(boolean ifExists) {
-		this.ifExists = ifExists;
+	public boolean isCascade() {
+		return isCascade;
 	}
 
 	@Override
@@ -82,15 +76,11 @@ public class SqlDropDatabase extends SqlDrop implements ExtendedSqlNode {
 			writer.keyword("IF EXISTS");
 		}
 		databaseName.unparse(writer, leftPrec, rightPrec);
-		if (isRestrict) {
-			writer.keyword("RESTRICT");
-		} else {
+		if (isCascade) {
 			writer.keyword("CASCADE");
+		} else {
+			writer.keyword("RESTRICT");
 		}
-	}
-
-	public void validate() {
-		// no-op
 	}
 
 	public String[] fullDatabaseName() {

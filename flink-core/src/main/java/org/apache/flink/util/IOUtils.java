@@ -25,6 +25,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static java.util.Arrays.asList;
 
 /**
  * An utility class for I/O related functionality.
@@ -140,6 +144,32 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Similar to {@link #readFully(InputStream, byte[], int, int)}. Returns the total number of
+	 * bytes read into the buffer.
+	 *
+	 * @param in
+	 *        The InputStream to read from
+	 * @param buf
+	 *        The buffer to fill
+	 * @return
+	 *        The total number of bytes read into the buffer
+	 * @throws IOException
+	 *         If the first byte cannot be read for any reason other than end of file,
+	 *         or if the input stream has been closed, or if some other I/O error occurs.
+	 */
+	public static int tryReadFully(final InputStream in, final byte[] buf) throws IOException {
+		int totalRead = 0;
+		while (totalRead != buf.length) {
+			int read = in.read(buf, totalRead, buf.length - totalRead);
+			if (read == -1) {
+				break;
+			}
+			totalRead += read;
+		}
+		return totalRead;
+	}
+
+	/**
 	 * Similar to readFully(). Skips bytes in a loop.
 	 *
 	 * @param in
@@ -214,6 +244,13 @@ public final class IOUtils {
 	}
 
 	/**
+	 * @see #closeAll(Iterable)
+	 */
+	public static void closeAll(AutoCloseable... closeables) throws Exception {
+		closeAll(asList(closeables));
+	}
+
+	/**
 	 * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception will be emitted
 	 * after calling close() on every object.
 	 *
@@ -244,6 +281,13 @@ public final class IOUtils {
 	/**
 	 * Closes all elements in the iterable with closeQuietly().
 	 */
+	public static void closeAllQuietly(AutoCloseable... closeables) {
+		closeAllQuietly(asList(closeables));
+	}
+
+	/**
+	 * Closes all elements in the iterable with closeQuietly().
+	 */
 	public static void closeAllQuietly(Iterable<? extends AutoCloseable> closeables) {
 		if (null != closeables) {
 			for (AutoCloseable closeable : closeables) {
@@ -262,6 +306,17 @@ public final class IOUtils {
 			if (closeable != null) {
 				closeable.close();
 			}
+		} catch (Throwable ignored) {}
+	}
+
+	/**
+	 * Deletes the given file.
+	 *
+	 * <p><b>Important:</b> This method is expected to never throw an exception.
+	 */
+	public static void deleteFileQuietly(Path path) {
+		try {
+			Files.deleteIfExists(path);
 		} catch (Throwable ignored) {}
 	}
 

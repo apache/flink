@@ -53,7 +53,7 @@ class BatchExecSortMergeJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val isSortMergeJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)
     !joinInfo.pairs().isEmpty && isSortMergeJoinEnabled
   }
@@ -108,7 +108,7 @@ class BatchExecSortMergeJoinRule
       call.transformTo(newJoin)
     }
 
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val candidates = if (tableConfig.getConfiguration.getBoolean(
       BatchExecSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time

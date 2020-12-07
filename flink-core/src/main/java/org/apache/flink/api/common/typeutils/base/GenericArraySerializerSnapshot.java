@@ -78,8 +78,10 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
 	}
 
 	@Override
-	protected boolean isOuterSnapshotCompatible(GenericArraySerializer<C> newSerializer) {
-		return this.componentClass == newSerializer.getComponentClass();
+	protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(GenericArraySerializer<C> newSerializer) {
+		return (this.componentClass == newSerializer.getComponentClass())
+			? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+			: OuterSchemaCompatibility.INCOMPATIBLE;
 	}
 
 	@Override

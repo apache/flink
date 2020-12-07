@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -35,6 +35,7 @@ class RemoveRedundantLocalSortAggRuleTest extends TableTestBase {
   def setup(): Unit = {
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)
+    util.addTableSource[(Int, Long, Long, Long, Long)]("z", 'a, 'b, 'c, 'd, 'e)
   }
 
   @Test
@@ -61,6 +62,16 @@ class RemoveRedundantLocalSortAggRuleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT sum(b) FROM r group by a
       """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUsingLocalAggCallFilters(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
+      "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+      "FROM z GROUP BY d"
     util.verifyPlan(sqlQuery)
   }
 

@@ -27,14 +27,15 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.checkpoint.savepoint.CheckpointTestUtils;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -66,6 +67,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.state.OperatorStateHandle.Mode.SPLIT_DISTRIBUTE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -97,15 +102,17 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0,
+			false);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
-		Assert.assertEquals(false, stateContext.isRestored());
+		Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
 		Assert.assertNotNull(operatorStateBackend);
 		Assert.assertNotNull(keyedStateBackend);
 		Assert.assertNotNull(timeServiceManager);
@@ -134,7 +141,7 @@ public class StreamTaskStateInitializerImplTest {
 			}
 
 			@Override
-			public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+			public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
 				throw new UnsupportedOperationException();
 			}
 
@@ -168,23 +175,22 @@ public class StreamTaskStateInitializerImplTest {
 
 		Random random = new Random(0x42);
 
-		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			new OperatorStreamStateHandle(
+		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"a",
-					new OperatorStateHandle.StateMetaInfo(
-						new long[]{0, 10},
-						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random)),
-			new OperatorStreamStateHandle(
+					new OperatorStateHandle.StateMetaInfo(new long[]{0, 10}, SPLIT_DISTRIBUTE)),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
+			.setRawOperatorState(new OperatorStreamStateHandle(
 				Collections.singletonMap(
 					"_default_",
-					new OperatorStateHandle.StateMetaInfo(
-						new long[]{0, 20, 30},
-						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
-				CheckpointTestUtils.createDummyStreamStateHandle(random)),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random));
+					new OperatorStateHandle.StateMetaInfo(new long[]{0, 20, 30}, SPLIT_DISTRIBUTE)),
+				CheckpointTestUtils.createDummyStreamStateHandle(random, null)))
+			.setManagedKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+			.setRawKeyedState(CheckpointTestUtils.createDummyKeyGroupStateHandle(random, null))
+			.setInputChannelState(singleton(createNewInputChannelStateHandle(10, random)))
+			.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, random)))
+			.build();
 
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
@@ -206,15 +212,17 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0,
+			false);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
-		Assert.assertEquals(true, stateContext.isRestored());
+		Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
 
 		Assert.assertNotNull(operatorStateBackend);
 		Assert.assertNotNull(keyedStateBackend);
@@ -255,7 +263,7 @@ public class StreamTaskStateInitializerImplTest {
 		boolean createTimerServiceManager) {
 
 		JobID jobID = new JobID(42L, 43L);
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(23L, 24L);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
 		TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
@@ -277,16 +285,19 @@ public class StreamTaskStateInitializerImplTest {
 		} else {
 			return new StreamTaskStateInitializerImpl(
 				dummyEnvironment,
-				stateBackend) {
-				@Override
-				protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-					AbstractKeyedStateBackend<K> keyedStatedBackend,
-					KeyContext keyContext,
-					ProcessingTimeService processingTimeService,
-					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-					return null;
-				}
-			};
+				stateBackend,
+				TtlTimeProvider.DEFAULT,
+				new InternalTimeServiceManager.Provider() {
+					@Override
+					public <K> InternalTimeServiceManager<K> create(
+							CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+							ClassLoader userClassloader,
+							KeyContext keyContext,
+							ProcessingTimeService processingTimeService,
+							Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+						return null;
+					}
+				});
 		}
 	}
 }

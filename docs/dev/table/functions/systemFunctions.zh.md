@@ -23,7 +23,7 @@ under the License.
 -->
 
 Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
-If a function that you need is not supported yet, you can implement a <a href="udfs.html">user-defined function</a>.
+If a function that you need is not supported yet, you can implement a [user-defined function]({% link dev/table/functions/udfs.zh.md %}).
 If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
 
 * This will be replaced by the TOC
@@ -49,7 +49,7 @@ The scalar functions take zero, one or more values as the input and return a sin
     <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 = value2
 {% endhighlight %}
       </td>
@@ -60,7 +60,7 @@ value1 = value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 <> value2
 {% endhighlight %}
       </td>
@@ -71,7 +71,7 @@ value1 <> value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 > value2
 {% endhighlight %}
       </td>
@@ -82,7 +82,7 @@ value1 > value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 >= value2
 {% endhighlight %}
       </td>
@@ -93,7 +93,7 @@ value1 >= value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 < value2
 {% endhighlight %}
       </td>
@@ -104,7 +104,7 @@ value1 < value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 <= value2
 {% endhighlight %}
       </td>
@@ -115,7 +115,7 @@ value1 <= value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value IS NULL
 {% endhighlight %}
       </td>
@@ -126,7 +126,7 @@ value IS NULL
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value IS NOT NULL
 {% endhighlight %}
       </td>
@@ -137,7 +137,7 @@ value IS NOT NULL
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 IS DISTINCT FROM value2
 {% endhighlight %}
       </td>
@@ -150,7 +150,7 @@ value1 IS DISTINCT FROM value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 IS NOT DISTINCT FROM value2
 {% endhighlight %}
       </td>
@@ -163,7 +163,7 @@ value1 IS NOT DISTINCT FROM value2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
 {% endhighlight %}
       </td>
@@ -181,7 +181,7 @@ value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
 {% endhighlight %}
       </td>
@@ -199,7 +199,7 @@ value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 string1 LIKE string2 [ ESCAPE char ]
 {% endhighlight %}
       </td>
@@ -211,7 +211,7 @@ string1 LIKE string2 [ ESCAPE char ]
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 string1 NOT LIKE string2 [ ESCAPE char ]
 {% endhighlight %}
       </td>
@@ -223,7 +223,7 @@ string1 NOT LIKE string2 [ ESCAPE char ]
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 string1 SIMILAR TO string2 [ ESCAPE char ]
 {% endhighlight %}
       </td>
@@ -236,7 +236,7 @@ string1 SIMILAR TO string2 [ ESCAPE char ]
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 string1 NOT SIMILAR TO string2 [ ESCAPE char ]
 {% endhighlight %}
       </td>
@@ -249,7 +249,7 @@ string1 NOT SIMILAR TO string2 [ ESCAPE char ]
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 IN (value2 [, value3]* )
 {% endhighlight %}
       </td>
@@ -264,7 +264,7 @@ value1 IN (value2 [, value3]* )
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value1 NOT IN (value2 [, value3]* )
 {% endhighlight %}
       </td>
@@ -279,13 +279,13 @@ value1 NOT IN (value2 [, value3]* )
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 EXISTS (sub-query)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -297,19 +297,19 @@ value IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is not equal to every row returned by <i>sub-query</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     </tbody>
@@ -328,7 +328,7 @@ value NOT IN (sub-query)
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 === ANY2
 {% endhighlight %}
       </td>
@@ -339,7 +339,7 @@ ANY1 === ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 !== ANY2
 {% endhighlight %}
       </td>
@@ -350,7 +350,7 @@ ANY1 !== ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 > ANY2
 {% endhighlight %}
       </td>
@@ -361,7 +361,7 @@ ANY1 > ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 >= ANY2
 {% endhighlight %}
       </td>
@@ -372,7 +372,7 @@ ANY1 >= ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 < ANY2
 {% endhighlight %}
       </td>
@@ -383,7 +383,7 @@ ANY1 < ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1 <= ANY2
 {% endhighlight %}
       </td>
@@ -394,7 +394,7 @@ ANY1 <= ANY2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.isNull
 {% endhighlight %}
       </td>
@@ -405,7 +405,7 @@ ANY.isNull
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.isNotNull
 {% endhighlight %}
       </td>
@@ -416,7 +416,7 @@ ANY.isNotNull
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.like(STRING2)
 {% endhighlight %}
       </td>
@@ -428,7 +428,7 @@ STRING1.like(STRING2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.similar(STRING2)
 {% endhighlight %}
       </td>
@@ -440,7 +440,7 @@ STRING1.similar(STRING2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1.in(ANY2, ANY3, ...)
 {% endhighlight %}
       </td>
@@ -453,19 +453,19 @@ ANY1.in(ANY2, ANY3, ...)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.in(TABLE)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1.between(ANY2, ANY3)
 {% endhighlight %}
       </td>
@@ -480,7 +480,7 @@ ANY1.between(ANY2, ANY3)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY1.notBetween(ANY2, ANY3)
 {% endhighlight %}
       </td>
@@ -508,7 +508,7 @@ ANY1.notBetween(ANY2, ANY3)
   <tbody>
      <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 === ANY2
 {% endhighlight %}
       </td>
@@ -519,7 +519,7 @@ ANY1 === ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 !== ANY2
 {% endhighlight %}
       </td>
@@ -530,7 +530,7 @@ ANY1 !== ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 > ANY2
 {% endhighlight %}
       </td>
@@ -541,7 +541,7 @@ ANY1 > ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 >= ANY2
 {% endhighlight %}
       </td>
@@ -552,7 +552,7 @@ ANY1 >= ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 < ANY2
 {% endhighlight %}
       </td>
@@ -563,7 +563,7 @@ ANY1 < ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1 <= ANY2
 {% endhighlight %}
       </td>
@@ -574,7 +574,7 @@ ANY1 <= ANY2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.isNull
 {% endhighlight %}
       </td>
@@ -585,7 +585,7 @@ ANY.isNull
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.isNotNull
 {% endhighlight %}
       </td>
@@ -596,7 +596,7 @@ ANY.isNotNull
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.like(STRING2)
 {% endhighlight %}
       </td>
@@ -608,7 +608,7 @@ STRING1.like(STRING2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.similar(STRING2)
 {% endhighlight %}
       </td>
@@ -620,7 +620,7 @@ STRING1.similar(STRING2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1.in(ANY2, ANY3, ...)
 {% endhighlight %}
       </td>
@@ -633,19 +633,19 @@ ANY1.in(ANY2, ANY3, ...)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.in(TABLE)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1.between(ANY2, ANY3)
 {% endhighlight %}
       </td>
@@ -660,7 +660,7 @@ ANY1.between(ANY2, ANY3)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY1.notBetween(ANY2, ANY3)
 {% endhighlight %}
       </td>
@@ -694,7 +694,7 @@ ANY1.notBetween(ANY2, ANY3)
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean1 OR boolean2
 {% endhighlight %}
       </td>
@@ -706,7 +706,7 @@ boolean1 OR boolean2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean1 AND boolean2
 {% endhighlight %}
       </td>
@@ -718,7 +718,7 @@ boolean1 AND boolean2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 NOT boolean
 {% endhighlight %}
       </td>
@@ -729,7 +729,7 @@ NOT boolean
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS FALSE
 {% endhighlight %}
       </td>
@@ -740,7 +740,7 @@ boolean IS FALSE
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS NOT FALSE
 {% endhighlight %}
       </td>
@@ -751,7 +751,7 @@ boolean IS NOT FALSE
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS TRUE
 {% endhighlight %}
       </td>
@@ -762,7 +762,7 @@ boolean IS TRUE
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS NOT TRUE
 {% endhighlight %}
       </td>
@@ -773,7 +773,7 @@ boolean IS NOT TRUE
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS UNKNOWN
 {% endhighlight %}
       </td>
@@ -784,7 +784,7 @@ boolean IS UNKNOWN
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 boolean IS NOT UNKNOWN
 {% endhighlight %}
       </td>
@@ -808,7 +808,7 @@ boolean IS NOT UNKNOWN
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN1 || BOOLEAN2
 {% endhighlight %}
       </td>
@@ -820,7 +820,7 @@ BOOLEAN1 || BOOLEAN2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN1 && BOOLEAN2
 {% endhighlight %}
       </td>
@@ -832,7 +832,7 @@ BOOLEAN1 && BOOLEAN2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 !BOOLEAN
 {% endhighlight %}
       </td>
@@ -843,7 +843,7 @@ BOOLEAN1 && BOOLEAN2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN.isTrue
 {% endhighlight %}
       </td>
@@ -854,7 +854,7 @@ BOOLEAN.isTrue
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN.isFalse
 {% endhighlight %}
       </td>
@@ -865,7 +865,7 @@ BOOLEAN.isFalse
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
@@ -876,7 +876,7 @@ BOOLEAN.isNotTrue
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN.isNotFalse
 {% endhighlight %}
       </td>
@@ -900,7 +900,7 @@ BOOLEAN.isNotFalse
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN1 || BOOLEAN2
 {% endhighlight %}
       </td>
@@ -912,7 +912,7 @@ BOOLEAN1 || BOOLEAN2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN1 && BOOLEAN2
 {% endhighlight %}
       </td>
@@ -924,7 +924,7 @@ BOOLEAN1 && BOOLEAN2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 !BOOLEAN
 {% endhighlight %}
       </td>
@@ -935,7 +935,7 @@ BOOLEAN1 && BOOLEAN2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN.isTrue
 {% endhighlight %}
       </td>
@@ -946,7 +946,7 @@ BOOLEAN.isTrue
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN.isFalse
 {% endhighlight %}
       </td>
@@ -957,7 +957,7 @@ BOOLEAN.isFalse
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
@@ -968,7 +968,7 @@ BOOLEAN.isNotTrue
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN.isNotFalse
 {% endhighlight %}
       </td>
@@ -998,7 +998,7 @@ BOOLEAN.isNotFalse
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 + numeric
 {% endhighlight %}
       </td>
@@ -1009,7 +1009,7 @@ BOOLEAN.isNotFalse
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 - numeric
 {% endhighlight %}
       </td>
@@ -1020,7 +1020,7 @@ BOOLEAN.isNotFalse
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 numeric1 + numeric2
 {% endhighlight %}
       </td>
@@ -1031,7 +1031,7 @@ numeric1 + numeric2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 numeric1 - numeric2
 {% endhighlight %}
       </td>
@@ -1042,7 +1042,7 @@ numeric1 - numeric2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 numeric1 * numeric2
 {% endhighlight %}
       </td>
@@ -1053,7 +1053,7 @@ numeric1 * numeric2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 numeric1 / numeric2
 {% endhighlight %}
       </td>
@@ -1064,7 +1064,18 @@ numeric1 / numeric2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
+numeric1 % numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the remainder (modulus) of <i>numeric1</i> divided by <i>numeric2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
 POWER(numeric1, numeric2)
 {% endhighlight %}
       </td>
@@ -1075,7 +1086,7 @@ POWER(numeric1, numeric2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ABS(numeric)
 {% endhighlight %}
       </td>
@@ -1086,7 +1097,7 @@ ABS(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MOD(numeric1, numeric2)
 {% endhighlight %}
       </td>
@@ -1097,7 +1108,7 @@ MOD(numeric1, numeric2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SQRT(numeric)
 {% endhighlight %}
       </td>
@@ -1108,7 +1119,7 @@ SQRT(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LN(numeric)
 {% endhighlight %}
       </td>
@@ -1119,7 +1130,7 @@ LN(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOG10(numeric)
 {% endhighlight %}
       </td>
@@ -1130,7 +1141,7 @@ LOG10(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOG2(numeric)
 {% endhighlight %}
       </td>
@@ -1141,7 +1152,7 @@ LOG2(numeric)
 
     <tr>
       <td>
-       {% highlight text %}
+{% highlight text %}
 LOG(numeric2)
 LOG(numeric1, numeric2)
 {% endhighlight %}
@@ -1154,7 +1165,7 @@ LOG(numeric1, numeric2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 EXP(numeric)
 {% endhighlight %}
       </td>
@@ -1165,7 +1176,7 @@ EXP(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CEIL(numeric)
 CEILING(numeric)
 {% endhighlight %}
@@ -1177,7 +1188,7 @@ CEILING(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 FLOOR(numeric)
 {% endhighlight %}
       </td>
@@ -1188,7 +1199,7 @@ FLOOR(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SIN(numeric)
 {% endhighlight %}
       </td>
@@ -1199,7 +1210,7 @@ SIN(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SINH(numeric)
 {% endhighlight %}
       </td>
@@ -1211,7 +1222,7 @@ SINH(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COS(numeric)
 {% endhighlight %}
       </td>
@@ -1222,7 +1233,7 @@ COS(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TAN(numeric)
 {% endhighlight %}
       </td>
@@ -1233,7 +1244,7 @@ TAN(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TANH(numeric)
 {% endhighlight %}
       </td>
@@ -1245,7 +1256,7 @@ TANH(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COT(numeric)
 {% endhighlight %}
       </td>
@@ -1256,7 +1267,7 @@ COT(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ASIN(numeric)
 {% endhighlight %}
       </td>
@@ -1267,7 +1278,7 @@ ASIN(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ACOS(numeric)
 {% endhighlight %}
       </td>
@@ -1278,7 +1289,7 @@ ACOS(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ATAN(numeric)
 {% endhighlight %}
       </td>
@@ -1289,7 +1300,7 @@ ATAN(numeric)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ATAN2(numeric1, numeric2)
 {% endhighlight %}
       </td>
@@ -1300,7 +1311,7 @@ ATAN2(numeric1, numeric2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COSH(numeric)
 {% endhighlight %}
       </td>
@@ -1312,7 +1323,7 @@ COSH(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DEGREES(numeric)
 {% endhighlight %}
       </td>
@@ -1323,7 +1334,7 @@ DEGREES(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RADIANS(numeric)
 {% endhighlight %}
       </td>
@@ -1334,7 +1345,7 @@ RADIANS(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SIGN(numeric)
 {% endhighlight %}
       </td>
@@ -1345,7 +1356,7 @@ SIGN(numeric)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ROUND(numeric, integer)
 {% endhighlight %}
       </td>
@@ -1356,7 +1367,7 @@ ROUND(numeric, integer)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 PI
 {% endhighlight %}
       </td>
@@ -1366,7 +1377,7 @@ PI
     </tr>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 E()
 {% endhighlight %}
       </td>
@@ -1377,7 +1388,7 @@ E()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RAND()
 {% endhighlight %}
       </td>
@@ -1388,7 +1399,7 @@ RAND()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RAND(integer)
 {% endhighlight %}
       </td>
@@ -1399,7 +1410,7 @@ RAND(integer)
 
     <tr>
      <td>
-       {% highlight text %}
+{% highlight text %}
 RAND_INTEGER(integer)
 {% endhighlight %}
      </td>
@@ -1410,7 +1421,7 @@ RAND_INTEGER(integer)
 
     <tr>
      <td>
-       {% highlight text %}
+{% highlight text %}
 RAND_INTEGER(integer1, integer2)
 {% endhighlight %}
      </td>
@@ -1421,18 +1432,19 @@ RAND_INTEGER(integer1, integer2)
 
     <tr>
      <td>
-       {% highlight text %}
+{% highlight text %}
 UUID()
 {% endhighlight %}
      </td>
     <td>
       <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
+      <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
     </td>
    </tr>
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 BIN(integer)
 {% endhighlight %}
       </td>
@@ -1447,7 +1459,7 @@ BIN(integer)
 {% highlight text %}
 HEX(numeric)
 HEX(string)
-      {% endhighlight %}
+{% endhighlight %}
       </td>
       <td>
         <p>Returns a string representation of an integer <i>numeric</i> value or a <i>string</i> in hex format. Returns NULL if the argument is NULL.</p>
@@ -1457,7 +1469,7 @@ HEX(string)
         
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TRUNCATE(numeric1, integer2)
 {% endhighlight %}
       </td>
@@ -1469,7 +1481,7 @@ TRUNCATE(numeric1, integer2)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 PI()
 {% endhighlight %}
       </td>
@@ -1495,7 +1507,7 @@ PI()
   <tbody>
    <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 + NUMERIC
 {% endhighlight %}
       </td>
@@ -1506,7 +1518,7 @@ PI()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 - NUMERIC
 {% endhighlight %}
       </td>
@@ -1517,7 +1529,7 @@ PI()
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1 + NUMERIC2
 {% endhighlight %}
       </td>
@@ -1528,7 +1540,7 @@ NUMERIC1 + NUMERIC2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1 - NUMERIC2
 {% endhighlight %}
       </td>
@@ -1539,7 +1551,7 @@ NUMERIC1 - NUMERIC2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1 * NUMERIC2
 {% endhighlight %}
       </td>
@@ -1550,7 +1562,7 @@ NUMERIC1 * NUMERIC2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1 / NUMERIC2
 {% endhighlight %}
       </td>
@@ -1561,7 +1573,7 @@ NUMERIC1 / NUMERIC2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1.power(NUMERIC2)
 {% endhighlight %}
       </td>
@@ -1572,7 +1584,7 @@ NUMERIC1.power(NUMERIC2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.abs()
 {% endhighlight %}
       </td>
@@ -1583,7 +1595,7 @@ NUMERIC.abs()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1 % NUMERIC2
 {% endhighlight %}
       </td>
@@ -1594,7 +1606,7 @@ NUMERIC1 % NUMERIC2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.sqrt()
 {% endhighlight %}
       </td>
@@ -1605,7 +1617,7 @@ NUMERIC.sqrt()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.ln()
 {% endhighlight %}
       </td>
@@ -1616,7 +1628,7 @@ NUMERIC.ln()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.log10()
 {% endhighlight %}
       </td>
@@ -1627,7 +1639,7 @@ NUMERIC.log10()
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.log2()
 {% endhighlight %}
       </td>
@@ -1638,7 +1650,7 @@ NUMERIC.log2()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC1.log()
 NUMERIC1.log(NUMERIC2)
 {% endhighlight %}
@@ -1651,7 +1663,7 @@ NUMERIC1.log(NUMERIC2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.exp()
 {% endhighlight %}
       </td>
@@ -1662,7 +1674,7 @@ NUMERIC.exp()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.ceil()
 {% endhighlight %}
       </td>
@@ -1673,7 +1685,7 @@ NUMERIC.ceil()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.floor()
 {% endhighlight %}
       </td>
@@ -1684,7 +1696,7 @@ NUMERIC.floor()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.sin()
 {% endhighlight %}
       </td>
@@ -1695,7 +1707,7 @@ NUMERIC.sin()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.sinh()
 {% endhighlight %}
       </td>
@@ -1707,7 +1719,7 @@ NUMERIC.sinh()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -1718,7 +1730,7 @@ NUMERIC.cos()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.tan()
 {% endhighlight %}
       </td>
@@ -1729,7 +1741,7 @@ NUMERIC.tan()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.tanh()
 {% endhighlight %}
       </td>
@@ -1741,7 +1753,7 @@ NUMERIC.tanh()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.cot()
 {% endhighlight %}
       </td>
@@ -1752,7 +1764,7 @@ NUMERIC.cot()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.asin()
 {% endhighlight %}
       </td>
@@ -1763,7 +1775,7 @@ NUMERIC.asin()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.acos()
 {% endhighlight %}
       </td>
@@ -1774,7 +1786,7 @@ NUMERIC.acos()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.atan()
 {% endhighlight %}
       </td>
@@ -1785,7 +1797,7 @@ NUMERIC.atan()
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 atan2(NUMERIC1, NUMERIC2)
 {% endhighlight %}
       </td>
@@ -1796,7 +1808,7 @@ atan2(NUMERIC1, NUMERIC2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.cosh()
 {% endhighlight %}
       </td>
@@ -1808,7 +1820,7 @@ NUMERIC.cosh()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.degrees()
 {% endhighlight %}
       </td>
@@ -1819,7 +1831,7 @@ NUMERIC.degrees()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.radians()
 {% endhighlight %}
       </td>
@@ -1830,7 +1842,7 @@ NUMERIC.radians()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.sign()
 {% endhighlight %}
       </td>
@@ -1841,7 +1853,7 @@ NUMERIC.sign()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.round(INT)
 {% endhighlight %}
       </td>
@@ -1852,7 +1864,7 @@ NUMERIC.round(INT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 pi()
 {% endhighlight %}
       </td>
@@ -1863,7 +1875,7 @@ pi()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 e()
 {% endhighlight %}
       </td>
@@ -1874,7 +1886,7 @@ e()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 rand()
 {% endhighlight %}
       </td>
@@ -1885,7 +1897,7 @@ rand()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 rand(INTEGER)
 {% endhighlight %}
       </td>
@@ -1896,7 +1908,7 @@ rand(INTEGER)
 
     <tr>
      <td>
-       {% highlight java %}
+{% highlight java %}
 randInteger(INTEGER)
 {% endhighlight %}
      </td>
@@ -1907,7 +1919,7 @@ randInteger(INTEGER)
 
     <tr>
      <td>
-       {% highlight java %}
+{% highlight java %}
 randInteger(INTEGER1, INTEGER2)
 {% endhighlight %}
      </td>
@@ -1918,7 +1930,7 @@ randInteger(INTEGER1, INTEGER2)
 
     <tr>
      <td>
-       {% highlight java %}
+{% highlight java %}
 uuid()
 {% endhighlight %}
      </td>
@@ -1929,7 +1941,7 @@ uuid()
 
     <tr>
      <td>
-       {% highlight java %}
+{% highlight java %}
 INTEGER.bin()
 {% endhighlight %}
      </td>
@@ -1941,7 +1953,7 @@ INTEGER.bin()
 
     <tr>
       <td>
-       {% highlight java %}
+{% highlight java %}
 NUMERIC.hex()
 STRING.hex()
 {% endhighlight %}
@@ -1954,9 +1966,9 @@ STRING.hex()
  
        <tr>
          <td>
-           {% highlight text %}
+{% highlight text %}
 numeric1.truncate(INTEGER2)
-   {% endhighlight %}
+{% endhighlight %}
          </td>
          <td>
            <p>Returns a <i>numeric</i> of truncated to <i>integer2</i> decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If <i>integer2</i> is 0,the result has no decimal point or fractional part.<i>integer2</i> can be negative to cause <i>integer2</i> digits left of the decimal point of the value to become zero.This function can also pass in only one <i>numeric1</i> parameter and not set <i>Integer2</i> to use.If <i>Integer2</i> is not set, the function truncates as if <i>Integer2</i> were 0.</p>
@@ -1980,7 +1992,7 @@ numeric1.truncate(INTEGER2)
   <tbody>
    <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 + NUMERIC
 {% endhighlight %}
       </td>
@@ -1991,7 +2003,7 @@ numeric1.truncate(INTEGER2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 - NUMERIC
 {% endhighlight %}
       </td>
@@ -2002,7 +2014,7 @@ numeric1.truncate(INTEGER2)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1 + NUMERIC2
 {% endhighlight %}
       </td>
@@ -2013,7 +2025,7 @@ NUMERIC1 + NUMERIC2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1 - NUMERIC2
 {% endhighlight %}
       </td>
@@ -2024,7 +2036,7 @@ NUMERIC1 - NUMERIC2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1 * NUMERIC2
 {% endhighlight %}
       </td>
@@ -2035,7 +2047,7 @@ NUMERIC1 * NUMERIC2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1 / NUMERIC2
 {% endhighlight %}
       </td>
@@ -2046,7 +2058,7 @@ NUMERIC1 / NUMERIC2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1.power(NUMERIC2)
 {% endhighlight %}
       </td>
@@ -2057,7 +2069,7 @@ NUMERIC1.power(NUMERIC2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.abs()
 {% endhighlight %}
       </td>
@@ -2068,7 +2080,7 @@ NUMERIC.abs()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1 % NUMERIC2
 {% endhighlight %}
       </td>
@@ -2079,7 +2091,7 @@ NUMERIC1 % NUMERIC2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.sqrt()
 {% endhighlight %}
       </td>
@@ -2090,7 +2102,7 @@ NUMERIC.sqrt()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.ln()
 {% endhighlight %}
       </td>
@@ -2101,7 +2113,7 @@ NUMERIC.ln()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.log10()
 {% endhighlight %}
       </td>
@@ -2112,7 +2124,7 @@ NUMERIC.log10()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.log2()
 {% endhighlight %}
       </td>
@@ -2123,7 +2135,7 @@ NUMERIC.log2()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC1.log()
 NUMERIC1.log(NUMERIC2)
 {% endhighlight %}
@@ -2136,7 +2148,7 @@ NUMERIC1.log(NUMERIC2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.exp()
 {% endhighlight %}
       </td>
@@ -2147,7 +2159,7 @@ NUMERIC.exp()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.ceil()
 {% endhighlight %}
       </td>
@@ -2158,7 +2170,7 @@ NUMERIC.ceil()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.floor()
 {% endhighlight %}
       </td>
@@ -2169,7 +2181,7 @@ NUMERIC.floor()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.sin()
 {% endhighlight %}
       </td>
@@ -2180,7 +2192,7 @@ NUMERIC.sin()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.sinh()
 {% endhighlight %}
       </td>
@@ -2192,7 +2204,7 @@ NUMERIC.sinh()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -2203,7 +2215,7 @@ NUMERIC.cos()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.tan()
 {% endhighlight %}
       </td>
@@ -2214,7 +2226,7 @@ NUMERIC.tan()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.tanh()
 {% endhighlight %}
       </td>
@@ -2226,7 +2238,7 @@ NUMERIC.tanh()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.cot()
 {% endhighlight %}
       </td>
@@ -2237,7 +2249,7 @@ NUMERIC.cot()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.asin()
 {% endhighlight %}
       </td>
@@ -2248,7 +2260,7 @@ NUMERIC.asin()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.acos()
 {% endhighlight %}
       </td>
@@ -2259,7 +2271,7 @@ NUMERIC.acos()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.atan()
 {% endhighlight %}
       </td>
@@ -2270,7 +2282,7 @@ NUMERIC.atan()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 atan2(NUMERIC1, NUMERIC2)
 {% endhighlight %}
       </td>
@@ -2281,7 +2293,7 @@ atan2(NUMERIC1, NUMERIC2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.cosh()
 {% endhighlight %}
       </td>
@@ -2293,7 +2305,7 @@ NUMERIC.cosh()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.degrees()
 {% endhighlight %}
       </td>
@@ -2304,7 +2316,7 @@ NUMERIC.degrees()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.radians()
 {% endhighlight %}
       </td>
@@ -2315,7 +2327,7 @@ NUMERIC.radians()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.sign()
 {% endhighlight %}
       </td>
@@ -2326,7 +2338,7 @@ NUMERIC.sign()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.round(INT)
 {% endhighlight %}
       </td>
@@ -2337,7 +2349,7 @@ NUMERIC.round(INT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 pi()
 {% endhighlight %}
       </td>
@@ -2348,7 +2360,7 @@ pi()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 e()
 {% endhighlight %}
       </td>
@@ -2359,7 +2371,7 @@ e()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 rand()
 {% endhighlight %}
       </td>
@@ -2370,7 +2382,7 @@ rand()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 rand(INTEGER)
 {% endhighlight %}
       </td>
@@ -2381,7 +2393,7 @@ rand(INTEGER)
 
     <tr>
      <td>
-       {% highlight scala %}
+{% highlight scala %}
 randInteger(INTEGER)
 {% endhighlight %}
      </td>
@@ -2392,7 +2404,7 @@ randInteger(INTEGER)
 
     <tr>
      <td>
-       {% highlight scala %}
+{% highlight scala %}
 randInteger(INTEGER1, INTEGER2)
 {% endhighlight %}
      </td>
@@ -2403,7 +2415,7 @@ randInteger(INTEGER1, INTEGER2)
 
     <tr>
      <td>
-       {% highlight scala %}
+{% highlight scala %}
 uuid()
 {% endhighlight %}
      </td>
@@ -2414,7 +2426,7 @@ uuid()
 
     <tr>
      <td>
-       {% highlight scala %}
+{% highlight scala %}
 INTEGER.bin()
 {% endhighlight %}
      </td>
@@ -2426,7 +2438,7 @@ INTEGER.bin()
 
     <tr>
       <td>
-       {% highlight scala %}
+{% highlight scala %}
 NUMERIC.hex()
 STRING.hex()
 {% endhighlight %}
@@ -2458,7 +2470,7 @@ STRING.hex()
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 string1 || string2
 {% endhighlight %}
       </td>
@@ -2469,7 +2481,7 @@ string1 || string2
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CHAR_LENGTH(string)
 CHARACTER_LENGTH(string)
 {% endhighlight %}
@@ -2481,7 +2493,7 @@ CHARACTER_LENGTH(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 UPPER(string)
 {% endhighlight %}
       </td>
@@ -2492,7 +2504,7 @@ UPPER(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOWER(string)
 {% endhighlight %}
       </td>
@@ -2503,7 +2515,7 @@ LOWER(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 POSITION(string1 IN string2)
 {% endhighlight %}
       </td>
@@ -2514,7 +2526,7 @@ POSITION(string1 IN string2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
 {% endhighlight %}
       </td>
@@ -2525,7 +2537,7 @@ TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LTRIM(string)
 {% endhighlight %}
       </td>
@@ -2537,7 +2549,7 @@ LTRIM(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RTRIM(string)
 {% endhighlight %}
       </td>
@@ -2549,7 +2561,7 @@ RTRIM(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REPEAT(string, integer)
 {% endhighlight %}
       </td>
@@ -2561,7 +2573,7 @@ REPEAT(string, integer)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REGEXP_REPLACE(string1, string2, string3)
 {% endhighlight %}
       </td>
@@ -2573,7 +2585,7 @@ REGEXP_REPLACE(string1, string2, string3)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2585,7 +2597,7 @@ OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SUBSTRING(string FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2596,7 +2608,7 @@ SUBSTRING(string FROM integer1 [ FOR integer2 ])
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REPLACE(string1, string2, string3)
 {% endhighlight %}
       </td>
@@ -2608,7 +2620,7 @@ REPLACE(string1, string2, string3)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REGEXP_EXTRACT(string1, string2[, integer])
 {% endhighlight %}
       </td>
@@ -2621,7 +2633,7 @@ REGEXP_EXTRACT(string1, string2[, integer])
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 INITCAP(string)
 {% endhighlight %}
       </td>
@@ -2632,7 +2644,7 @@ INITCAP(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CONCAT(string1, string2,...)
 {% endhighlight %}
       </td>
@@ -2644,7 +2656,7 @@ CONCAT(string1, string2,...)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CONCAT_WS(string1, string2, string3,...)
 {% endhighlight %}
       </td>
@@ -2656,7 +2668,7 @@ CONCAT_WS(string1, string2, string3,...)
 
         <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LPAD(string1, integer, string2)
 {% endhighlight %}
       </td>
@@ -2668,7 +2680,7 @@ LPAD(string1, integer, string2)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RPAD(string1, integer, string2)
 {% endhighlight %}
       </td>
@@ -2680,7 +2692,7 @@ RPAD(string1, integer, string2)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 FROM_BASE64(string)
 {% endhighlight %}
       </td>
@@ -2692,7 +2704,7 @@ FROM_BASE64(string)
         
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TO_BASE64(string)
 {% endhighlight %}
       </td>
@@ -2704,7 +2716,7 @@ TO_BASE64(string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ASCII(string)
 {% endhighlight %}
       </td>
@@ -2717,7 +2729,7 @@ ASCII(string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CHR(integer)
 {% endhighlight %}
       </td>
@@ -2730,7 +2742,7 @@ CHR(integer)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DECODE(binary, string)
 {% endhighlight %}
       </td>
@@ -2742,7 +2754,7 @@ DECODE(binary, string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ENCODE(string1, string2)
 {% endhighlight %}
       </td>
@@ -2754,7 +2766,7 @@ ENCODE(string1, string2)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 INSTR(string1, string2)
 {% endhighlight %}
       </td>
@@ -2766,7 +2778,7 @@ INSTR(string1, string2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LEFT(string, integer)
 {% endhighlight %}
       </td>
@@ -2778,7 +2790,7 @@ LEFT(string, integer)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RIGHT(string, integer)
 {% endhighlight %}
       </td>
@@ -2790,7 +2802,7 @@ RIGHT(string, integer)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOCATE(string1, string2[, integer])
 {% endhighlight %}
       </td>
@@ -2802,7 +2814,7 @@ LOCATE(string1, string2[, integer])
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 PARSE_URL(string1, string2[, string3])
 {% endhighlight %}
       </td>
@@ -2817,7 +2829,7 @@ PARSE_URL(string1, string2[, string3])
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REGEXP(string1, string2)
 {% endhighlight %}
       </td>
@@ -2829,7 +2841,7 @@ REGEXP(string1, string2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 REVERSE(string)
 {% endhighlight %}
       </td>
@@ -2841,7 +2853,7 @@ REVERSE(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SPLIT_INDEX(string1, string2, integer1)
 {% endhighlight %}
       </td>
@@ -2853,7 +2865,7 @@ SPLIT_INDEX(string1, string2, integer1)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 STR_TO_MAP(string1[, string2, string3]])
 {% endhighlight %}
       </td>
@@ -2865,7 +2877,7 @@ STR_TO_MAP(string1[, string2, string3]])
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SUBSTR(string[, integer1[, integer2]])
 {% endhighlight %}
       </td>
@@ -2892,7 +2904,7 @@ SUBSTR(string[, integer1[, integer2]])
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1 + STRING2
 {% endhighlight %}
       </td>
@@ -2903,7 +2915,7 @@ STRING1 + STRING2
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.charLength()
 {% endhighlight %}
       </td>
@@ -2914,7 +2926,7 @@ STRING.charLength()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.upperCase()
 {% endhighlight %}
       </td>
@@ -2925,7 +2937,7 @@ STRING.upperCase()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.lowerCase()
 {% endhighlight %}
       </td>
@@ -2936,7 +2948,7 @@ STRING.lowerCase()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.position(STRING2)
 {% endhighlight %}
       </td>
@@ -2947,7 +2959,7 @@ STRING1.position(STRING2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.trim(LEADING, STRING2)
 STRING1.trim(TRAILING, STRING2)
 STRING1.trim(BOTH, STRING2)
@@ -2962,7 +2974,7 @@ STRING1.trim()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.ltrim()
 {% endhighlight %}
       </td>
@@ -2974,7 +2986,7 @@ STRING.ltrim()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.rtrim()
 {% endhighlight %}
       </td>
@@ -2986,7 +2998,7 @@ STRING.rtrim()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.repeat(INT)
 {% endhighlight %}
       </td>
@@ -2998,7 +3010,7 @@ STRING.repeat(INT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.regexpReplace(STRING2, STRING3)
 {% endhighlight %}
       </td>
@@ -3010,7 +3022,7 @@ STRING1.regexpReplace(STRING2, STRING3)
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.overlay(STRING2, INT1)
 STRING1.overlay(STRING2, INT1, INT2)
 {% endhighlight %}
@@ -3023,7 +3035,7 @@ STRING1.overlay(STRING2, INT1, INT2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.substring(INT1)
 STRING.substring(INT1, INT2)
 {% endhighlight %}
@@ -3035,7 +3047,7 @@ STRING.substring(INT1, INT2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.replace(STRING2, STRING3)
 {% endhighlight %}
       </td>
@@ -3047,7 +3059,7 @@ STRING1.replace(STRING2, STRING3)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.regexpExtract(STRING2[, INTEGER1])
 {% endhighlight %}
       </td>
@@ -3060,7 +3072,7 @@ STRING1.regexpExtract(STRING2[, INTEGER1])
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.initCap()
 {% endhighlight %}
       </td>
@@ -3071,7 +3083,7 @@ STRING.initCap()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 concat(STRING1, STRING2, ...)
 {% endhighlight %}
       </td>
@@ -3083,7 +3095,7 @@ concat(STRING1, STRING2, ...)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
@@ -3095,7 +3107,7 @@ concat_ws(STRING1, STRING2, STRING3, ...)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
@@ -3107,7 +3119,7 @@ STRING1.lpad(INT, STRING2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
@@ -3119,7 +3131,7 @@ STRING1.rpad(INT, STRING2)
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.fromBase64()
 {% endhighlight %}
       </td>
@@ -3131,7 +3143,7 @@ STRING.fromBase64()
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.toBase64()
 {% endhighlight %}
       </td>
@@ -3157,7 +3169,7 @@ STRING.toBase64()
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1 + STRING2
 {% endhighlight %}
       </td>
@@ -3168,7 +3180,7 @@ STRING1 + STRING2
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.charLength()
 {% endhighlight %}
       </td>
@@ -3179,7 +3191,7 @@ STRING.charLength()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.upperCase()
 {% endhighlight %}
       </td>
@@ -3190,7 +3202,7 @@ STRING.upperCase()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.lowerCase()
 {% endhighlight %}
       </td>
@@ -3201,7 +3213,7 @@ STRING.lowerCase()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.position(STRING2)
 {% endhighlight %}
       </td>
@@ -3212,7 +3224,7 @@ STRING1.position(STRING2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.trim(
   leading = true,
   trailing = true,
@@ -3226,7 +3238,7 @@ STRING.trim(
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.ltrim()
 {% endhighlight %}
       </td>
@@ -3238,7 +3250,7 @@ STRING.ltrim()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.rtrim()
 {% endhighlight %}
       </td>
@@ -3250,7 +3262,7 @@ STRING.rtrim()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.repeat(INT)
 {% endhighlight %}
       </td>
@@ -3262,7 +3274,7 @@ STRING.repeat(INT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.regexpReplace(STRING2, STRING3)
 {% endhighlight %}
       </td>
@@ -3274,7 +3286,7 @@ STRING1.regexpReplace(STRING2, STRING3)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.overlay(STRING2, INT1)
 STRING1.overlay(STRING2, INT1, INT2)
 {% endhighlight %}
@@ -3287,7 +3299,7 @@ STRING1.overlay(STRING2, INT1, INT2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.substring(INT1)
 STRING.substring(INT1, INT2)
 {% endhighlight %}
@@ -3299,7 +3311,7 @@ STRING.substring(INT1, INT2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.replace(STRING2, STRING3)
 {% endhighlight %}
       </td>
@@ -3311,7 +3323,7 @@ STRING1.replace(STRING2, STRING3)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.regexpExtract(STRING2[, INTEGER1])
 {% endhighlight %}
       </td>
@@ -3324,7 +3336,7 @@ STRING1.regexpExtract(STRING2[, INTEGER1])
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.initCap()
 {% endhighlight %}
       </td>
@@ -3335,7 +3347,7 @@ STRING.initCap()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 concat(STRING1, STRING2, ...)
 {% endhighlight %}
       </td>
@@ -3347,7 +3359,7 @@ concat(STRING1, STRING2, ...)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
@@ -3359,7 +3371,7 @@ concat_ws(STRING1, STRING2, STRING3, ...)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
@@ -3371,7 +3383,7 @@ STRING1.lpad(INT, STRING2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
@@ -3383,7 +3395,7 @@ STRING1.rpad(INT, STRING2)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.fromBase64()
 {% endhighlight %}
       </td>
@@ -3395,7 +3407,7 @@ STRING.fromBase64()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.toBase64()
 {% endhighlight %}
       </td>
@@ -3426,7 +3438,7 @@ STRING.toBase64()
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DATE string
 {% endhighlight %}
       </td>
@@ -3437,7 +3449,7 @@ DATE string
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TIME string
 {% endhighlight %}
       </td>
@@ -3448,7 +3460,7 @@ TIME string
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TIMESTAMP string
 {% endhighlight %}
       </td>
@@ -3459,7 +3471,7 @@ TIMESTAMP string
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 INTERVAL string range
 {% endhighlight %}
       </td>
@@ -3471,7 +3483,7 @@ INTERVAL string range
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CURRENT_DATE
 {% endhighlight %}
       </td>
@@ -3482,7 +3494,7 @@ CURRENT_DATE
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CURRENT_TIME
 {% endhighlight %}
       </td>
@@ -3493,7 +3505,7 @@ CURRENT_TIME
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CURRENT_TIMESTAMP
 {% endhighlight %}
       </td>
@@ -3504,7 +3516,7 @@ CURRENT_TIMESTAMP
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOCALTIME
 {% endhighlight %}
       </td>
@@ -3515,7 +3527,7 @@ LOCALTIME
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LOCALTIMESTAMP
 {% endhighlight %}
       </td>
@@ -3526,7 +3538,7 @@ LOCALTIMESTAMP
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 EXTRACT(timeintervalunit FROM temporal)
 {% endhighlight %}
       </td>
@@ -3538,7 +3550,7 @@ EXTRACT(timeintervalunit FROM temporal)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 YEAR(date)
 {% endhighlight %}
       </td>
@@ -3550,7 +3562,7 @@ YEAR(date)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 QUARTER(date)
 {% endhighlight %}
       </td>
@@ -3562,7 +3574,7 @@ QUARTER(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MONTH(date)
 {% endhighlight %}
       </td>
@@ -3574,7 +3586,7 @@ MONTH(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 WEEK(date)
 {% endhighlight %}
       </td>
@@ -3586,7 +3598,7 @@ WEEK(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DAYOFYEAR(date)
 {% endhighlight %}
       </td>
@@ -3598,7 +3610,7 @@ DAYOFYEAR(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DAYOFMONTH(date)
 {% endhighlight %}
       </td>
@@ -3610,7 +3622,7 @@ DAYOFMONTH(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DAYOFWEEK(date)
 {% endhighlight %}
       </td>
@@ -3622,7 +3634,7 @@ DAYOFWEEK(date)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 HOUR(timestamp)
 {% endhighlight %}
       </td>
@@ -3634,7 +3646,7 @@ HOUR(timestamp)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MINUTE(timestamp)
 {% endhighlight %}
       </td>
@@ -3646,7 +3658,7 @@ MINUTE(timestamp)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SECOND(timestamp)
 {% endhighlight %}
       </td>
@@ -3658,7 +3670,7 @@ SECOND(timestamp)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 FLOOR(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
@@ -3670,7 +3682,7 @@ FLOOR(timepoint TO timeintervalunit)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CEIL(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
@@ -3682,7 +3694,7 @@ CEIL(timepoint TO timeintervalunit)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
 {% endhighlight %}
       </td>
@@ -3694,7 +3706,7 @@ CEIL(timepoint TO timeintervalunit)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
@@ -3705,7 +3717,7 @@ DATE_FORMAT(timestamp, string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TIMESTAMPADD(timeintervalunit, interval, timepoint)
 {% endhighlight %}
       </td>
@@ -3717,7 +3729,7 @@ TIMESTAMPADD(timeintervalunit, interval, timepoint)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
 {% endhighlight %}
       </td>
@@ -3729,45 +3741,46 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 CONVERT_TZ(string1, string2, string3)
 {% endhighlight %}
       </td>
       <td>
         <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
-        <p>E.g., <code>CONVERT('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
+        <p>E.g., <code>CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 FROM_UNIXTIME(numeric[, string])
 {% endhighlight %}
       </td>
       <td>
         <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
-        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 UNIX_TIMESTAMP()
 {% endhighlight %}
       </td>
       <td>
-        <p>Gets current Unix timestamp in seconds. This function is not deterministic.</p>
+        <p>Gets current Unix timestamp in seconds.</p>
+        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 UNIX_TIMESTAMP(string1[, string2])
 {% endhighlight %}
       </td>
@@ -3779,7 +3792,7 @@ UNIX_TIMESTAMP(string1[, string2])
         
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 TO_DATE(string1[, string2])
 {% endhighlight %}
       </td>
@@ -3791,7 +3804,7 @@ TO_DATE(string1[, string2])
        
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 TO_TIMESTAMP(string1[, string2])
 {% endhighlight %}
       </td>
@@ -3803,12 +3816,13 @@ TO_TIMESTAMP(string1[, string2])
         
     <tr>
       <td>
-      {% highlight text %}
+{% highlight text %}
 NOW()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
+        <p>Returns the current SQL timestamp in the UTC time zone.</p>
+        <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -3829,7 +3843,7 @@ NOW()
   <tbody>
    <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.toDate()
 {% endhighlight %}
       </td>
@@ -3840,7 +3854,7 @@ STRING.toDate()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.toTime()
 {% endhighlight %}
       </td>
@@ -3851,7 +3865,7 @@ STRING.toTime()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.toTimestamp()
 {% endhighlight %}
       </td>
@@ -3862,7 +3876,7 @@ STRING.toTimestamp()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.year
 NUMERIC.years
 {% endhighlight %}
@@ -3873,7 +3887,7 @@ NUMERIC.years
     </tr>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.quarter
 NUMERIC.quarters
 {% endhighlight %}
@@ -3885,7 +3899,7 @@ NUMERIC.quarters
     </tr>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.month
 NUMERIC.months
 {% endhighlight %}
@@ -3897,7 +3911,7 @@ NUMERIC.months
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.week
 NUMERIC.weeks
 {% endhighlight %}
@@ -3910,7 +3924,7 @@ NUMERIC.weeks
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.day
 NUMERIC.days
 {% endhighlight %}
@@ -3922,7 +3936,7 @@ NUMERIC.days
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.hour
 NUMERIC.hours
 {% endhighlight %}
@@ -3934,7 +3948,7 @@ NUMERIC.hours
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.minute
 NUMERIC.minutes
 {% endhighlight %}
@@ -3946,7 +3960,7 @@ NUMERIC.minutes
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.second
 NUMERIC.seconds
 {% endhighlight %}
@@ -3958,7 +3972,7 @@ NUMERIC.seconds
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.milli
 NUMERIC.millis
 {% endhighlight %}
@@ -3970,7 +3984,7 @@ NUMERIC.millis
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 currentDate()
 {% endhighlight %}
       </td>
@@ -3981,7 +3995,7 @@ currentDate()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 currentTime()
 {% endhighlight %}
       </td>
@@ -3992,7 +4006,7 @@ currentTime()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 currentTimestamp()
 {% endhighlight %}
       </td>
@@ -4003,7 +4017,7 @@ currentTimestamp()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 localTime()
 {% endhighlight %}
       </td>
@@ -4014,7 +4028,7 @@ localTime()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 localTimestamp()
 {% endhighlight %}
       </td>
@@ -4025,7 +4039,7 @@ localTimestamp()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 TEMPORAL.extract(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4037,7 +4051,7 @@ TEMPORAL.extract(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4049,7 +4063,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 TIMEPOINT.ceil(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4061,7 +4075,7 @@ TIMEPOINT.ceil(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
 {% endhighlight %}
       </td>
@@ -4073,7 +4087,7 @@ temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
@@ -4084,7 +4098,7 @@ dateFormat(TIMESTAMP, STRING)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
 {% endhighlight %}
       </td>
@@ -4110,7 +4124,7 @@ timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.toDate
 {% endhighlight %}
       </td>
@@ -4121,7 +4135,7 @@ STRING.toDate
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.toTime
 {% endhighlight %}
       </td>
@@ -4132,7 +4146,7 @@ STRING.toTime
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.toTimestamp
 {% endhighlight %}
       </td>
@@ -4143,7 +4157,7 @@ STRING.toTimestamp
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.year
 NUMERIC.years
 {% endhighlight %}
@@ -4155,7 +4169,7 @@ NUMERIC.years
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.quarter
 NUMERIC.quarters
 {% endhighlight %}
@@ -4168,7 +4182,7 @@ NUMERIC.quarters
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.month
 NUMERIC.months
 {% endhighlight %}
@@ -4180,7 +4194,7 @@ NUMERIC.months
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.week
 NUMERIC.weeks
 {% endhighlight %}
@@ -4193,7 +4207,7 @@ NUMERIC.weeks
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.day
 NUMERIC.days
 {% endhighlight %}
@@ -4205,7 +4219,7 @@ NUMERIC.days
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.hour
 NUMERIC.hours
 {% endhighlight %}
@@ -4217,7 +4231,7 @@ NUMERIC.hours
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.minute
 NUMERIC.minutes
 {% endhighlight %}
@@ -4229,7 +4243,7 @@ NUMERIC.minutes
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.second
 NUMERIC.seconds
 {% endhighlight %}
@@ -4241,7 +4255,7 @@ NUMERIC.seconds
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.milli
 NUMERIC.millis
 {% endhighlight %}
@@ -4253,7 +4267,7 @@ NUMERIC.millis
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 currentDate()
 {% endhighlight %}
       </td>
@@ -4264,7 +4278,7 @@ currentDate()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 currentTime()
 {% endhighlight %}
       </td>
@@ -4275,7 +4289,7 @@ currentTime()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 currentTimestamp()
 {% endhighlight %}
       </td>
@@ -4286,7 +4300,7 @@ currentTimestamp()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 localTime()
 {% endhighlight %}
       </td>
@@ -4297,7 +4311,7 @@ localTime()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 localTimestamp()
 {% endhighlight %}
       </td>
@@ -4308,7 +4322,7 @@ localTimestamp()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 TEMPORAL.extract(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4320,7 +4334,7 @@ TEMPORAL.extract(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4332,7 +4346,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 TIMEPOINT.ceil(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
@@ -4344,7 +4358,7 @@ TIMEPOINT.ceil(TIMEINTERVALUNIT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
 {% endhighlight %}
       </td>
@@ -4356,7 +4370,7 @@ temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
@@ -4367,7 +4381,7 @@ dateFormat(TIMESTAMP, STRING)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
 {% endhighlight %}
       </td>
@@ -4400,7 +4414,7 @@ timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CASE value
 WHEN value1_1 [, value1_2 ]* THEN result1
 [ WHEN value2_1 [, value2_2 ]* THEN result2 ]*
@@ -4416,7 +4430,7 @@ END
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CASE
 WHEN condition1 THEN result1
 [ WHEN condition2 THEN result2 ]*
@@ -4432,7 +4446,7 @@ END
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 NULLIF(value1, value2)
 {% endhighlight %}
       </td>
@@ -4444,7 +4458,7 @@ NULLIF(value1, value2)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COALESCE(value1, value2 [, value3 ]* )
 {% endhighlight %}
       </td>
@@ -4456,7 +4470,7 @@ COALESCE(value1, value2 [, value3 ]* )
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 IF(condition, true_value, false_value)
 {% endhighlight %}
       </td>
@@ -4469,7 +4483,7 @@ IF(condition, true_value, false_value)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 IS_ALPHA(string)
 {% endhighlight %}
       </td>
@@ -4481,7 +4495,7 @@ IS_ALPHA(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 IS_DECIMAL(string)
 {% endhighlight %}
       </td>
@@ -4493,7 +4507,7 @@ IS_DECIMAL(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 IS_DIGIT(string)
 {% endhighlight %}
       </td>
@@ -4519,7 +4533,7 @@ IS_DIGIT(string)
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
@@ -4544,7 +4558,7 @@ BOOLEAN.?(VALUE1, VALUE2)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
@@ -4576,12 +4590,12 @@ BOOLEAN.?(VALUE1, VALUE2)
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CAST(value AS type)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="sql.html#data-types">here</a>.</p>
+        <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="{% link dev/table/types.zh.md %}">here</a>.</p>
         <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
@@ -4601,12 +4615,12 @@ CAST(value AS type)
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.cast(TYPE)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
+        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.zh.md %}#data-types">here</a>.</p>
         <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
@@ -4626,12 +4640,12 @@ ANY.cast(TYPE)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.cast(TYPE)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
+        <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="{% link dev/table/tableApi.zh.md %}#data-types">here</a>.</p>
         <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
@@ -4659,7 +4673,7 @@ ANY.cast(TYPE)
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CARDINALITY(array)
 {% endhighlight %}
       </td>
@@ -4670,7 +4684,7 @@ CARDINALITY(array)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 array ‘[’ integer ‘]’
 {% endhighlight %}
       </td>
@@ -4681,7 +4695,7 @@ array ‘[’ integer ‘]’
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ELEMENT(array)
 {% endhighlight %}
       </td>
@@ -4692,7 +4706,7 @@ ELEMENT(array)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 CARDINALITY(map)
 {% endhighlight %}
       </td>
@@ -4703,7 +4717,7 @@ CARDINALITY(map)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 map ‘[’ value ‘]’
 {% endhighlight %}
       </td>
@@ -4727,7 +4741,7 @@ map ‘[’ value ‘]’
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ARRAY.cardinality()
 {% endhighlight %}
       </td>
@@ -4738,7 +4752,7 @@ ARRAY.cardinality()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ARRAY.at(INT)
 {% endhighlight %}
       </td>
@@ -4749,7 +4763,7 @@ ARRAY.at(INT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ARRAY.element()
 {% endhighlight %}
       </td>
@@ -4760,7 +4774,7 @@ ARRAY.element()
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 MAP.cardinality()
 {% endhighlight %}
       </td>
@@ -4771,7 +4785,7 @@ MAP.cardinality()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 MAP.at(ANY)
 {% endhighlight %}
       </td>
@@ -4795,7 +4809,7 @@ MAP.at(ANY)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ARRAY.cardinality()
 {% endhighlight %}
       </td>
@@ -4806,7 +4820,7 @@ ARRAY.cardinality()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ARRAY.at(INT)
 {% endhighlight %}
       </td>
@@ -4817,7 +4831,7 @@ ARRAY.at(INT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ARRAY.element()
 {% endhighlight %}
       </td>
@@ -4828,7 +4842,7 @@ ARRAY.element()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 MAP.cardinality()
 {% endhighlight %}
       </td>
@@ -4839,7 +4853,7 @@ MAP.cardinality()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 MAP.at(ANY)
 {% endhighlight %}
       </td>
@@ -4868,19 +4882,26 @@ MAP.at(ANY)
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
-ROW(value1, [, value2]*)
-(value1, [, value2]*)
+{% highlight text %}
+-- implicit constructor with parenthesis
+(value1 [, value2]*)
+
+-- explicit ROW constructor
+ROW(value1 [, value2]*)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns a row created from a list of values (<i>value1, value2,</i>...).</p>
+        <p>Note: The implicit row constructor supports arbitrary expressions as fields but requires
+        at least two fields. The explicit row constructor can deal with an arbitrary number of fields
+        but does not support all kinds of field expressions well currently.
+        See also <a href="https://issues.apache.org/jira/browse/FLINK-18027">FLINK-18027</a>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ARRAY ‘[’ value1 [, value2 ]* ‘]’
 {% endhighlight %}
       </td>
@@ -4891,7 +4912,7 @@ ARRAY ‘[’ value1 [, value2 ]* ‘]’
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
 {% endhighlight %}
       </td>
@@ -4915,7 +4936,7 @@ MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 row(ANY1, ANY2, ...)
 {% endhighlight %}
       </td>
@@ -4926,7 +4947,7 @@ row(ANY1, ANY2, ...)
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 array(ANY1, ANY2, ...)
 {% endhighlight %}
       </td>
@@ -4937,7 +4958,7 @@ array(ANY1, ANY2, ...)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 map(ANY1, ANY2, ANY3, ANY4, ...)
 {% endhighlight %}
       </td>
@@ -4948,7 +4969,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 NUMERIC.rows
 {% endhighlight %}
       </td>
@@ -4972,7 +4993,7 @@ NUMERIC.rows
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 row(ANY1, ANY2, ...)
 {% endhighlight %}
       </td>
@@ -4983,7 +5004,7 @@ row(ANY1, ANY2, ...)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 array(ANY1, ANY2, ...)
 {% endhighlight %}
       </td>
@@ -4994,7 +5015,7 @@ array(ANY1, ANY2, ...)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 map(ANY1, ANY2, ANY3, ANY4, ...)
 {% endhighlight %}
       </td>
@@ -5005,7 +5026,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 NUMERIC.rows
 {% endhighlight %}
       </td>
@@ -5036,7 +5057,7 @@ NUMERIC.rows
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 tableName.compositeType.field
 {% endhighlight %}
       </td>
@@ -5047,7 +5068,7 @@ tableName.compositeType.field
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 tableName.compositeType.*
 {% endhighlight %}
       </td>
@@ -5072,7 +5093,7 @@ tableName.compositeType.*
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 COMPOSITE.get(STRING)
 COMPOSITE.get(INT)
 {% endhighlight %}
@@ -5085,7 +5106,7 @@ COMPOSITE.get(INT)
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.flatten()
 {% endhighlight %}
       </td>
@@ -5109,7 +5130,7 @@ ANY.flatten()
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 COMPOSITE.get(STRING)
 COMPOSITE.get(INT)
 {% endhighlight %}
@@ -5122,7 +5143,7 @@ COMPOSITE.get(INT)
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.flatten()
 {% endhighlight %}
       </td>
@@ -5154,7 +5175,7 @@ ANY.flatten()
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 GROUP_ID()
 {% endhighlight %}
       </td>
@@ -5165,7 +5186,7 @@ GROUP_ID()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 GROUPING(expression1 [, expression2]* )
 GROUPING_ID(expression1 [, expression2]* )
 {% endhighlight %}
@@ -5220,7 +5241,7 @@ GROUPING_ID(expression1 [, expression2]* )
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MD5(string)
 {% endhighlight %}
       </td>
@@ -5231,7 +5252,7 @@ MD5(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA1(string)
 {% endhighlight %}
       </td>
@@ -5242,7 +5263,7 @@ SHA1(string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA224(string)
 {% endhighlight %}
       </td>
@@ -5253,7 +5274,7 @@ SHA224(string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA256(string)
 {% endhighlight %}
       </td>
@@ -5264,7 +5285,7 @@ SHA256(string)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA384(string)
 {% endhighlight %}
       </td>
@@ -5275,7 +5296,7 @@ SHA384(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA512(string)
 {% endhighlight %}
       </td>
@@ -5286,7 +5307,7 @@ SHA512(string)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SHA2(string, hashLength)
 {% endhighlight %}
       </td>
@@ -5311,8 +5332,8 @@ SHA2(string, hashLength)
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
-STRING.md5()
+{% highlight java %}
+STRING.zh.md5()
 {% endhighlight %}
       </td>
       <td>
@@ -5322,7 +5343,7 @@ STRING.md5()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha1()
 {% endhighlight %}
       </td>
@@ -5333,7 +5354,7 @@ STRING.sha1()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha224()
 {% endhighlight %}
       </td>
@@ -5344,7 +5365,7 @@ STRING.sha224()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha256()
 {% endhighlight %}
       </td>
@@ -5355,7 +5376,7 @@ STRING.sha256()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha384()
 {% endhighlight %}
       </td>
@@ -5366,7 +5387,7 @@ STRING.sha384()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha512()
 {% endhighlight %}
       </td>
@@ -5377,7 +5398,7 @@ STRING.sha512()
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 STRING.sha2(INT)
 {% endhighlight %}
       </td>
@@ -5402,8 +5423,8 @@ STRING.sha2(INT)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
-STRING.md5()
+{% highlight scala %}
+STRING.zh.md5()
 {% endhighlight %}
       </td>
       <td>
@@ -5413,7 +5434,7 @@ STRING.md5()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha1()
 {% endhighlight %}
       </td>
@@ -5424,7 +5445,7 @@ STRING.sha1()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha224()
 {% endhighlight %}
       </td>
@@ -5435,7 +5456,7 @@ STRING.sha224()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha256()
 {% endhighlight %}
       </td>
@@ -5446,7 +5467,7 @@ STRING.sha256()
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha384()
 {% endhighlight %}
       </td>
@@ -5457,7 +5478,7 @@ STRING.sha384()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha512()
 {% endhighlight %}
       </td>
@@ -5468,7 +5489,7 @@ STRING.sha512()
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 STRING.sha2(INT)
 {% endhighlight %}
       </td>
@@ -5514,7 +5535,7 @@ STRING.sha2(INT)
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 ANY.as(NAME1, NAME2, ...)
 {% endhighlight %}
       </td>
@@ -5539,7 +5560,7 @@ ANY.as(NAME1, NAME2, ...)
   <tbody>
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 ANY.as(NAME1, NAME2, ...)
 {% endhighlight %}
       </td>
@@ -5571,7 +5592,7 @@ The aggregate functions take an expression across all the rows as the input and 
   <tbody>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
 {% endhighlight %}
       </td>
@@ -5582,7 +5603,7 @@ COUNT([ ALL ] expression | DISTINCT expression1 [, expression2]*)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 COUNT(*)
 COUNT(1)
 {% endhighlight %}
@@ -5594,7 +5615,7 @@ COUNT(1)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 AVG([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5605,7 +5626,7 @@ AVG([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 SUM([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5616,7 +5637,7 @@ SUM([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MAX([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5627,7 +5648,7 @@ MAX([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 MIN([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5637,7 +5658,7 @@ MIN([ ALL | DISTINCT ] expression)
     </tr>
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 STDDEV_POP([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5648,7 +5669,7 @@ STDDEV_POP([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 STDDEV_SAMP([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5659,7 +5680,7 @@ STDDEV_SAMP([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 VAR_POP([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5670,7 +5691,7 @@ VAR_POP([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 VAR_SAMP([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5681,7 +5702,7 @@ VAR_SAMP([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-          {% highlight text %}
+{% highlight text %}
 COLLECT([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5692,7 +5713,7 @@ COLLECT([ ALL | DISTINCT ] expression)
     
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 VARIANCE([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
@@ -5704,7 +5725,7 @@ VARIANCE([ ALL | DISTINCT ] expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 RANK()
 {% endhighlight %}
       </td>
@@ -5716,7 +5737,7 @@ RANK()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 DENSE_RANK()
 {% endhighlight %}
       </td>
@@ -5728,7 +5749,7 @@ DENSE_RANK()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 ROW_NUMBER()
 {% endhighlight %}
       </td>
@@ -5741,19 +5762,19 @@ ROW_NUMBER()
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LEAD(expression [, offset] [, default] )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row before the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LAG(expression [, offset] [, default])
 {% endhighlight %}
       </td>
@@ -5765,7 +5786,7 @@ LAG(expression [, offset] [, default])
         
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 FIRST_VALUE(expression)
 {% endhighlight %}
       </td>
@@ -5777,7 +5798,7 @@ FIRST_VALUE(expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LAST_VALUE(expression)
 {% endhighlight %}
       </td>
@@ -5789,7 +5810,7 @@ LAST_VALUE(expression)
 
     <tr>
       <td>
-        {% highlight text %}
+{% highlight text %}
 LISTAGG(expression [, separator])
 {% endhighlight %}
       </td>
@@ -5816,7 +5837,7 @@ LISTAGG(expression [, separator])
   <tbody>
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.count
 {% endhighlight %}
       </td>
@@ -5827,7 +5848,7 @@ FIELD.count
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.avg
 {% endhighlight %}
       </td>
@@ -5838,7 +5859,7 @@ FIELD.avg
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.sum
 {% endhighlight %}
       </td>
@@ -5849,7 +5870,7 @@ FIELD.sum
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.sum0
 {% endhighlight %}
       </td>
@@ -5860,7 +5881,7 @@ FIELD.sum0
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.max
 {% endhighlight %}
       </td>
@@ -5871,7 +5892,7 @@ FIELD.max
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.min
 {% endhighlight %}
       </td>
@@ -5882,7 +5903,7 @@ FIELD.min
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.stddevPop
 {% endhighlight %}
       </td>
@@ -5893,7 +5914,7 @@ FIELD.stddevPop
     
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.stddevSamp
 {% endhighlight %}
       </td>
@@ -5904,7 +5925,7 @@ FIELD.stddevSamp
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.varPop
 {% endhighlight %}
       </td>
@@ -5915,7 +5936,7 @@ FIELD.varPop
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.varSamp
 {% endhighlight %}
       </td>
@@ -5926,7 +5947,7 @@ FIELD.varSamp
 
     <tr>
       <td>
-        {% highlight java %}
+{% highlight java %}
 FIELD.collect
 {% endhighlight %}
       </td>
@@ -5950,7 +5971,7 @@ FIELD.collect
   <tbody>
    <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.count
 {% endhighlight %}
       </td>
@@ -5961,7 +5982,7 @@ FIELD.count
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.avg
 {% endhighlight %}
       </td>
@@ -5972,7 +5993,7 @@ FIELD.avg
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.sum
 {% endhighlight %}
       </td>
@@ -5983,7 +6004,7 @@ FIELD.sum
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.sum0
 {% endhighlight %}
       </td>
@@ -5994,7 +6015,7 @@ FIELD.sum0
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.max
 {% endhighlight %}
       </td>
@@ -6005,7 +6026,7 @@ FIELD.max
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.min
 {% endhighlight %}
       </td>
@@ -6016,7 +6037,7 @@ FIELD.min
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.stddevPop
 {% endhighlight %}
       </td>
@@ -6027,7 +6048,7 @@ FIELD.stddevPop
     
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.stddevSamp
 {% endhighlight %}
       </td>
@@ -6038,7 +6059,7 @@ FIELD.stddevSamp
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.varPop
 {% endhighlight %}
       </td>
@@ -6049,7 +6070,7 @@ FIELD.varPop
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.varSamp
 {% endhighlight %}
       </td>
@@ -6060,7 +6081,7 @@ FIELD.varSamp
 
     <tr>
       <td>
-        {% highlight scala %}
+{% highlight scala %}
 FIELD.collect
 {% endhighlight %}
       </td>

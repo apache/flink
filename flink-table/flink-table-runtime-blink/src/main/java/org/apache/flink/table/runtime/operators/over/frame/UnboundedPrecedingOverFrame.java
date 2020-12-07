@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
@@ -35,7 +35,7 @@ public abstract class UnboundedPrecedingOverFrame implements OverWindowFrame {
 	private GeneratedAggsHandleFunction aggsHandleFunction;
 
 	AggsHandleFunction processor;
-	BaseRow accValue;
+	RowData accValue;
 
 	/**
 	 * An iterator over the input.
@@ -43,7 +43,7 @@ public abstract class UnboundedPrecedingOverFrame implements OverWindowFrame {
 	ResettableExternalBuffer.BufferIterator inputIterator;
 
 	/** The next row from `input`. */
-	BinaryRow nextRow;
+	BinaryRowData nextRow;
 
 	public UnboundedPrecedingOverFrame(GeneratedAggsHandleFunction aggsHandleFunction) {
 		this.aggsHandleFunction = aggsHandleFunction;

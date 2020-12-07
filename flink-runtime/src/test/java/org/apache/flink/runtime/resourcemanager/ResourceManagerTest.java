@@ -20,14 +20,12 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -41,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -84,6 +82,8 @@ public class ResourceManagerTest extends TestLogger {
 		0L);
 
 	private static final int dataPort = 1234;
+
+	private static final int jmxPort = 23456;
 
 	private static TestingRpcService rpcService;
 
@@ -159,16 +159,23 @@ public class ResourceManagerTest extends TestLogger {
 		assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
 		assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
 		assertEquals(dataPort, taskManagerInfo.getDataPort());
+		assertEquals(jmxPort, taskManagerInfo.getJmxPort());
 		assertEquals(0, taskManagerInfo.getNumberSlots());
 		assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
 
 	private void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
-		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+		TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			taskExecutorAddress,
 			taskExecutorId,
 			dataPort,
+			jmxPort,
 			hardwareDescription,
+			new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
+			ResourceProfile.ZERO,
+			ResourceProfile.ZERO);
+		final CompletableFuture<RegistrationResponse> registrationFuture = resourceManagerGateway.registerTaskExecutor(
+			taskExecutorRegistration,
 			TestingUtils.TIMEOUT());
 
 		assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
@@ -256,11 +263,11 @@ public class ResourceManagerTest extends TestLogger {
 
 		final TestingResourceManager resourceManager = new TestingResourceManager(
 			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 			resourceManagerResourceId,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
+			NoOpResourceManagerPartitionTracker::get,
 			jobLeaderIdService,
 			testingFatalErrorHandler,
 			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
@@ -272,25 +279,5 @@ public class ResourceManagerTest extends TestLogger {
 		resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
 
 		return resourceManager;
-	}
-
-	/**
-	 * Tests that RM and TM create the same slot resource profiles.
-	 */
-	@Test
-	public void testCreateWorkerSlotProfiles() {
-		final Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "100m");
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 5);
-
-		final ResourceProfile rmCalculatedResourceProfile =
-			ResourceManager.createWorkerSlotProfiles(config).iterator().next();
-
-		final ResourceProfile tmCalculatedResourceProfile =
-			TaskManagerServices.computeSlotResourceProfile(
-				config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
-				MemorySize.parse(config.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE)).getBytes());
-
-		assertEquals(rmCalculatedResourceProfile, tmCalculatedResourceProfile);
 	}
 }

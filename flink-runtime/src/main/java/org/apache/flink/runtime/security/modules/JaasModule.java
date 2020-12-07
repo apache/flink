@@ -160,11 +160,19 @@ public class JaasModule implements SecurityModule {
 		final File jaasConfFile;
 		try {
 			Path path = Paths.get(workingDir);
+			if (Files.notExists(path)) {
+				// We intentionally favored Path.toRealPath over Files.readSymbolicLinks as the latter one might return a
+				// relative path if the symbolic link refers to it. Path.toRealPath resolves the relative path instead.
+				Path parent = path.getParent().toRealPath();
+				Path resolvedPath = Paths.get(parent.toString(), path.getFileName().toString());
+
+				path = Files.createDirectories(resolvedPath);
+			}
 			Path jaasConfPath = Files.createTempFile(path, "jaas-", ".conf");
 			try (InputStream resourceStream = JaasModule.class.getClassLoader().getResourceAsStream(JAAS_CONF_RESOURCE_NAME)) {
 				Files.copy(resourceStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
 			}
-			jaasConfFile = jaasConfPath.toFile();
+			jaasConfFile = new File(workingDir, jaasConfPath.getFileName().toString());
 			jaasConfFile.deleteOnExit();
 		} catch (IOException e) {
 			throw new RuntimeException("unable to generate a JAAS configuration file", e);

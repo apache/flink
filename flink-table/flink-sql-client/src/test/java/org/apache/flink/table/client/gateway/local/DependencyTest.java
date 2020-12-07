@@ -22,8 +22,8 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -44,17 +44,22 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +88,46 @@ public class DependencyTest {
 
 	@Test
 	public void testTableFactoryDiscovery() throws Exception {
+		final LocalExecutor executor = createExecutor();
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			final TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber1");
+			assertEquals(
+					tableResult.getTableSchema(),
+					TableSchema.builder().fields(
+							new String[] { "name", "type", "null", "key", "extras", "watermark" },
+							new DataType[] { DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(),
+									DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING() }
+					).build()
+			);
+			List<Row> schemaData = Arrays.asList(
+					Row.of("IntegerField1", "INT", true, null, null, null),
+					Row.of("StringField1", "STRING", true, null, null, null),
+					Row.of("rowtimeField", "TIMESTAMP(3) *ROWTIME*", true, null, null, null)
+			);
+			assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
+	public void testSqlParseWithUserClassLoader() throws Exception {
+		final LocalExecutor executor = createExecutor();
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		try {
+			final Parser sqlParser = executor.getSqlParser(sessionId);
+			List<Operation> operations = sqlParser.parse("SELECT IntegerField1, StringField1 FROM TableNumber1");
+
+			assertTrue(operations != null && operations.size() == 1);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	private LocalExecutor createExecutor() throws Exception {
 		// create environment
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_CONNECTOR_TYPE", CONNECTOR_TYPE_VALUE);
@@ -92,23 +137,12 @@ public class DependencyTest {
 
 		// create executor with dependencies
 		final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
-		final LocalExecutor executor = new LocalExecutor(
+		return new LocalExecutor(
 			env,
 			Collections.singletonList(dependency),
 			new Configuration(),
-			new DefaultCLI(new Configuration()),
+			new DefaultCLI(),
 			new DefaultClusterClientServiceLoader());
-
-		final SessionContext session = new SessionContext("test-session", new Environment());
-
-		final TableSchema result = executor.getTableSchema(session, "TableNumber1");
-		final TableSchema expected = TableSchema.builder()
-			.field("IntegerField1", Types.INT())
-			.field("StringField1", Types.STRING())
-			.field("rowtimeField", Types.SQL_TIMESTAMP())
-			.build();
-
-		assertEquals(expected, result);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -212,7 +246,7 @@ public class DependencyTest {
 	public static class TestHiveCatalogFactory extends HiveCatalogFactory {
 		public static final String ADDITIONAL_TEST_DATABASE = "additional_test_database";
 		public static final String TEST_TABLE = "test_table";
-		static final String TABLE_WITH_PARAMETERIZED_TYPES = "para_types_table";
+		static final String TABLE_WITH_PARAMETERIZED_TYPES = "param_types_table";
 
 		@Override
 		public Map<String, String> requiredContext() {
@@ -224,11 +258,15 @@ public class DependencyTest {
 		}
 
 		@Override
-		public Catalog createCatalog(String name, Map<String, String> properties) {
-			// Test HiveCatalogFactory.createCatalog
-			// But not use it for testing purpose
-			assertTrue(super.createCatalog(name, properties) != null);
+		public List<String> supportedProperties() {
+			List<String> list = super.supportedProperties();
+			list.add(CatalogConfig.IS_GENERIC);
 
+			return list;
+		}
+
+		@Override
+		public Catalog createCatalog(String name, Map<String, String> properties) {
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
@@ -248,7 +286,7 @@ public class DependencyTest {
 							.field("testcol", DataTypes.INT())
 							.build(),
 						new HashMap<String, String>() {{
-							put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+							put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 						}},
 						""
 					),
@@ -268,7 +306,12 @@ public class DependencyTest {
 		private CatalogTable tableWithParameterizedTypes() {
 			TableSchema tableSchema = TableSchema.builder().fields(new String[]{"dec", "ch", "vch"},
 					new DataType[]{DataTypes.DECIMAL(10, 10), DataTypes.CHAR(5), DataTypes.VARCHAR(15)}).build();
-			return new CatalogTableImpl(tableSchema, Collections.emptyMap(), "");
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 	}
 }

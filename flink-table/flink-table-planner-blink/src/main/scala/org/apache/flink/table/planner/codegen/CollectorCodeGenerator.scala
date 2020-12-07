@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.collector.TableFunctionCollector
+import org.apache.flink.table.runtime.collector.{TableFunctionCollector, WrappingCollector}
 import org.apache.flink.table.runtime.generated.GeneratedCollector
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.util.Collector
 
 /**
-  * A code generator for generating [[org.apache.flink.util.Collector]]s.
+  * A code generator for generating [[Collector]]s.
   */
 object CollectorCodeGenerator {
 
@@ -49,8 +50,8 @@ object CollectorCodeGenerator {
       inputType: LogicalType,
       collectedType: LogicalType,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
-      collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
-      converter: String => String = (a) => a): GeneratedCollector[TableFunctionCollector[_]] = {
+      collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM)
+    : GeneratedCollector[TableFunctionCollector[_]] = {
 
     val funcName = newName(name)
     val input1TypeClass = boxedTypeTermForType(inputType)
@@ -74,7 +75,7 @@ object CollectorCodeGenerator {
         @Override
         public void collect(Object record) throws Exception {
           $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
-          $input2TypeClass $collectedTerm = ($input2TypeClass) ${converter("record")};
+          $input2TypeClass $collectedTerm = ($input2TypeClass) record;
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
           ${ctx.reusePerRecordCode()}
@@ -95,4 +96,84 @@ object CollectorCodeGenerator {
     new GeneratedCollector(funcName, funcCode, ctx.references.toArray)
   }
 
+  /**
+   * Generates a [[Collector]] that wraps another [[Collector]].
+   *
+   * @param ctx The context of the code generator
+   * @param name Class name of the collector. Must not be unique but has to be a
+   *             valid Java class identifier.
+   * @param inputType The type of the element being collected
+   * @param inputTerm The term of the input element
+   * @param inputConversion The term for converting the input
+   * @param bodyCode body code for the collector method
+   * @return instance of GeneratedCollector
+   */
+  def generateWrappingCollector(
+      ctx: CodeGeneratorContext,
+      name: String,
+      inputType: LogicalType,
+      inputTerm: String,
+      inputConversion: (String) => String,
+      bodyCode: String)
+    : GeneratedCollector[WrappingCollector[_]] = {
+
+    val funcName = newName(name)
+    val inputTypeTerm = boxedTypeTermForType(inputType)
+
+    val funcCode =
+      j"""
+      public class $funcName extends ${className[WrappingCollector[_]]} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $funcName() throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        @Override
+        public void open(${className[Configuration]} parameters) throws Exception {
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public void collect(Object record) throws Exception {
+          $inputTypeTerm $inputTerm = ($inputTypeTerm) ${inputConversion("record")};
+          ${ctx.reuseLocalVariableCode()}
+          ${ctx.reuseInputUnboxingCode()}
+          ${ctx.reusePerRecordCode()}
+          $bodyCode
+        }
+
+        @Override
+        public void close() {
+          try {
+            ${ctx.reuseCloseCode()}
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    """.stripMargin
+
+    new GeneratedCollector(funcName, funcCode, ctx.references.toArray)
+  }
+
+  def addToContext(
+      ctx: CodeGeneratorContext,
+      collectorTerm: String,
+      generatedCollector: GeneratedCollector[_])
+    : Unit = {
+
+    ctx.addReusableMember(s"private ${generatedCollector.getClassName} $collectorTerm = null;")
+    ctx.addReusableInnerClass(generatedCollector.getClassName, generatedCollector.getCode)
+    val openCollector =
+      s"""
+         |$collectorTerm = new ${generatedCollector.getClassName}();
+         |$collectorTerm.setRuntimeContext(getRuntimeContext());
+         |$collectorTerm.open(new ${className[Configuration]}());
+         |""".stripMargin
+    ctx.addReusableOpenStatement(openCollector)
+
+    ctx.references ++= generatedCollector.getReferences
+  }
 }

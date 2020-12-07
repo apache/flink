@@ -15,6 +15,12 @@
             <td>Specifies if the pipeline is submitted in attached or detached mode.</td>
         </tr>
         <tr>
+            <td><h5>execution.job-listeners</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>Custom JobListeners to be registered with the execution environment. The registered listeners cannot have constructors with arguments.</td>
+        </tr>
+        <tr>
             <td><h5>execution.shutdown-on-attached-exit</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -24,7 +30,7 @@
             <td><h5>execution.target</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The deployment target for the execution, e.g. "local" for local execution.</td>
+            <td>The deployment target for the execution. This can take one of the following values:<ul><li>remote</li><li>local</li><li>yarn-per-job</li><li>yarn-session</li><li>kubernetes-session</li></ul>.</td>
         </tr>
     </tbody>
 </table>

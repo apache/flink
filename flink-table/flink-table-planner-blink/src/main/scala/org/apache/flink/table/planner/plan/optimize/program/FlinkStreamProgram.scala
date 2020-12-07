@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
+import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -92,7 +92,17 @@ object FlinkStreamProgram {
         .build())
 
     // query decorrelation
-    chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+    chainedProgram.addLast(DECORRELATE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          // rewrite before decorrelation
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
+                .build(), "pre-rewrite before decorrelation")
+          .addProgram(new FlinkDecorrelateProgram)
+          .build())
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
@@ -122,7 +132,7 @@ object FlinkStreamProgram {
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES)
+            .add(FlinkStreamRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES)
             .build(), "push predicate into table scan")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
@@ -179,14 +189,15 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
-        .addProgram(new FlinkUpdateAsRetractionTraitInitProgram,
-          "init for retraction")
+        // add a HEP program for watermark transpose rules to make this optimization deterministic
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.RETRACTION_RULES)
-            .build(), "retraction rules")
+            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .build(), "watermark transpose")
+        .addProgram(new FlinkChangelogModeInferenceProgram,
+          "Changelog mode inference")
         .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,
           "Initialization for mini-batch interval inference")
         .addProgram(

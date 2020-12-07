@@ -44,7 +44,8 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	void process(KEY key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception;
 
 	/**
-	 * Deletes any state in the {@code Context} when the Window is purged.
+	 * Deletes any state in the {@code Context} when the Window expires
+	 * (the watermark passes its {@code maxTimestamp} + {@code allowedLateness}).
 	 *
 	 * @param context The context to which the window is being evaluated
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.

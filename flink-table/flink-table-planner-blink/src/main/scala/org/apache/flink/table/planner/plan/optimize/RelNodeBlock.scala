@@ -23,7 +23,7 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
 import org.apache.flink.table.planner.plan.rules.logical.WindowPropertiesRules
 import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, ExpandTableScanShuttle}
@@ -43,7 +43,7 @@ import scala.collection.mutable
 /**
   * A [[RelNodeBlock]] is a sub-tree in the [[RelNode]] DAG, and represents common sub-graph
   * in [[CommonSubGraphBasedOptimizer]]. All [[RelNode]]s in each block have
-  * only one [[Sink]] output.
+  * only one [[LegacySink]] output.
   *
   * The algorithm works as follows:
   * 1. If there is only one tree, the whole tree is in one block. (the next steps is needless.)
@@ -53,7 +53,7 @@ import scala.collection.mutable
   * RelNode, the RelNode is the output node of a new block (or named break-point).
   * There are several special cases that a RelNode can not be a break-point.
   * (1). UnionAll is not a break-point
-  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]] is false
   * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
   * with window attribute) are not a break-point because their physical RelNodes are a composite
   * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
@@ -91,7 +91,7 @@ import scala.collection.mutable
   * }}}
   *
   * This [[RelNode]] DAG will be decomposed into three [[RelNodeBlock]]s, the break-point
-  * is the [[RelNode]](`Join(a1=b2)`) which data outputs to multiple [[Sink]]s.
+  * is the [[RelNode]](`Join(a1=b2)`) which data outputs to multiple [[LegacySink]]s.
   * <p>Notes: Although `Project(a,b,c)` has two parents (outputs),
   * they eventually merged at `Join(a1=b2)`. So `Project(a,b,c)` is not a break-point.
   * <p>the first [[RelNodeBlock]] includes TableScan, Project(a,b,c), Filter(a>0),
@@ -111,8 +111,8 @@ import scala.collection.mutable
   * will be wrapped as an IntermediateRelTable first, and then be converted to a new TableScan
   * which is the new output node of current block and is also the input of its parent blocks.
   *
-  * @param outputNode A RelNode of the output in the block, which could be a [[Sink]] or
-  * other RelNode which data outputs to multiple [[Sink]]s.
+  * @param outputNode A RelNode of the output in the block, which could be a [[LegacySink]] or
+  *                   other RelNode which data outputs to multiple [[LegacySink]]s.
   */
 class RelNodeBlock(val outputNode: RelNode) {
   // child (or input) blocks
@@ -126,7 +126,8 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   private var optimizedPlan: Option[RelNode] = None
 
-  private var updateAsRetract: Boolean = false
+  // whether any parent block requires UPDATE_BEFORE messages
+  private var updateBeforeRequired: Boolean = false
 
   private var miniBatchInterval: MiniBatchInterval = MiniBatchInterval.NONE
 
@@ -146,14 +147,19 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   def getOptimizedPlan: RelNode = optimizedPlan.orNull
 
-  def setUpdateAsRetraction(updateAsRetract: Boolean): Unit = {
-    // set child block updateAsRetract, a child may have multi father.
-    if (updateAsRetract) {
-      this.updateAsRetract = true
+  def setUpdateBeforeRequired(requireUpdateBefore: Boolean): Unit = {
+    // set the child block whether need to produce update before messages for updates,
+    // a child block may have multiple parents (outputs), if one of the parents require
+    // update before message, then this child block has to produce update before for updates.
+    if (requireUpdateBefore) {
+      this.updateBeforeRequired = true
     }
   }
 
-  def isUpdateAsRetraction: Boolean = updateAsRetract
+  /**
+   * Returns true if any parent block requires UPDATE_BEFORE messages for updates.
+   */
+  def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
   def setMiniBatchInterval(miniBatchInterval: MiniBatchInterval): Unit = {
     this.miniBatchInterval = miniBatchInterval
@@ -257,8 +263,8 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointDisabled = config.getConfiguration.getBoolean(
-    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
+  private val isUnionAllAsBreakPointEnabled = config.getConfiguration.getBoolean(
+    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -313,7 +319,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
     */
   private def isValidBreakPoint(node: RelNode): Boolean = node match {
     case _: TableFunctionScan | _: Snapshot => false
-    case union: Union if union.all => !isUnionAllAsBreakPointDisabled
+    case union: Union if union.all => isUnionAllAsBreakPointEnabled
     case project: Project => project.getProjects.forall(p => !hasWindowGroup(p))
     case agg: Aggregate =>
       agg.getInput match {
@@ -381,10 +387,12 @@ object RelNodeBlockPlanBuilder {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.union-all-as-breakpoint-disabled")
-        .defaultValue(JBoolean.valueOf(false))
-        .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
+  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.union-all-as-breakpoint-enabled")
+        .defaultValue(JBoolean.valueOf(true))
+        .withDescription("When true, the optimizer will breakup the graph at union-all node " +
+          "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
+          "even it's a breakpoint, and will try find the breakpoint in its inputs.")
 
   // It is a experimental config, will may be removed later.
   @Experimental

@@ -45,7 +45,7 @@ object BuiltInMethods {
 
   val LOG2 = Types.lookupMethod(classOf[ScalarFunctions], "log2", classOf[Double])
 
-  val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
+  val EXP = Types.lookupMethod(classOf[ScalarFunctions], "exp", classOf[Double])
 
   val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
   val POWER_DEC = Types.lookupMethod(

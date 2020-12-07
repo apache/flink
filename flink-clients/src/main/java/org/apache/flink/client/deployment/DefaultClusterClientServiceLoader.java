@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -26,26 +27,31 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A service provider for {@link ClusterClientFactory cluster client factories}.
  */
+@Internal
 public class DefaultClusterClientServiceLoader implements ClusterClientServiceLoader {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultClusterClientServiceLoader.class);
-
-	private static final ServiceLoader<ClusterClientFactory> defaultLoader = ServiceLoader.load(ClusterClientFactory.class);
 
 	@Override
 	public <ClusterID> ClusterClientFactory<ClusterID> getClusterClientFactory(final Configuration configuration) {
 		checkNotNull(configuration);
 
+		final ServiceLoader<ClusterClientFactory> loader =
+				ServiceLoader.load(ClusterClientFactory.class);
+
 		final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
-		final Iterator<ClusterClientFactory> factories = defaultLoader.iterator();
+		final Iterator<ClusterClientFactory> factories = loader.iterator();
 		while (factories.hasNext()) {
 			try {
 				final ClusterClientFactory factory = factories.next();
@@ -70,6 +76,39 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 			throw new IllegalStateException("Multiple compatible client factories found for:\n" + String.join("\n", configStr) + ".");
 		}
 
-		return compatibleFactories.isEmpty() ? null : (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+		if (compatibleFactories.isEmpty()) {
+			throw new IllegalStateException(
+					"No ClusterClientFactory found. If you were targeting a Yarn cluster, " +
+					"please make sure to export the HADOOP_CLASSPATH environment variable or have hadoop in your " +
+					"classpath. For more information refer to the \"Deployment\" section of the official " +
+					"Apache Flink documentation.");
+		}
+
+		return (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
+	}
+
+	@Override
+	public Stream<String> getApplicationModeTargetNames() {
+		final ServiceLoader<ClusterClientFactory> loader =
+				ServiceLoader.load(ClusterClientFactory.class);
+
+		final List<String> result = new ArrayList<>();
+
+		final Iterator<ClusterClientFactory> it = loader.iterator();
+		while (it.hasNext()) {
+			try {
+				final ClusterClientFactory clientFactory = it.next();
+
+				final Optional<String> applicationName = clientFactory.getApplicationTargetName();
+				if (applicationName.isPresent()) {
+					result.add(applicationName.get());
+				}
+
+			} catch (ServiceConfigurationError e) {
+				// cannot be loaded, most likely because Hadoop is not
+				// in the classpath, we can ignore it for now.
+			}
+		}
+		return result.stream();
 	}
 }

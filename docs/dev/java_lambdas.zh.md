@@ -1,7 +1,7 @@
 ---
 title: "Java Lambda 表达式"
-nav-parent_id: api-concepts
-nav-pos: 20
+nav-parent_id: streaming
+nav-pos: 300
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +26,9 @@ Java 8 引入了几种新的语言特性，旨在实现更快、更清晰的编�
 
 <span class="label label-danger">注意</span> Flink 支持对 Java API 的所有算子使用 Lambda 表达式，但是，当 Lambda 表达式使用 Java 泛型时，你需要 *显式* 声明类型信息。
 
-本文档介绍了如何使用 Lambda 表达式并描述了其在当前应用中的限制。有关 Flink API 的通用介绍， 请参阅[编程指南]({{ site.baseurl }}/zh/dev/api_concepts.html)。
+This document shows how to use lambda expressions and describes current
+limitations. For a general introduction to the Flink API, please refer to the
+[DataSteam API overview]({% link dev/datastream_api.zh.md %})
 
 ### 示例和限制
 

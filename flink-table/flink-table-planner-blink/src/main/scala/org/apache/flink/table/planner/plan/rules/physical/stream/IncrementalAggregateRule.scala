@@ -51,7 +51,7 @@ class IncrementalAggregateRule
     val finalLocalAgg: StreamExecLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamExecGlobalGroupAggregate = call.rel(3)
 
-    val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     // whether incremental aggregate is enabled
     val incrementalAggEnabled = tableConfig.getConfiguration.getBoolean(

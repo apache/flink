@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, TableFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
@@ -170,6 +171,19 @@ class PojoUser() {
     this.name = name
     this.age = age
   }
+}
+
+@SerialVersionUID(1L)
+class MockPythonTableFunction extends TableFunction[Row] with PythonFunction {
+
+  def eval(x: Int, y: Int) = ???
+
+  override def getResultType: TypeInformation[Row] =
+    new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO)
+
+  override def getSerializedPythonFunction: Array[Byte] = Array[Byte](0)
+
+  override def getPythonEnv: PythonEnv = null
 }
 
 // ----------------------------------------------------------------------------------------------

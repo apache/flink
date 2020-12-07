@@ -18,20 +18,26 @@
 import datetime
 
 from pyflink.common import Configuration
-from pyflink.table import TableConfig
+from pyflink.table import TableConfig, SqlDialect
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class TableConfigTests(PyFlinkTestCase):
-
     def test_get_set_idle_state_retention_time(self):
         table_config = TableConfig.get_default()
 
         table_config.set_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
 
-        self.assertEqual(2 * 24 * 3600 * 1000, table_config.get_max_idle_state_retention_time())
+        self.assertEqual(3 * 24 * 3600 * 1000 / 2, table_config.get_max_idle_state_retention_time())
         self.assertEqual(24 * 3600 * 1000, table_config.get_min_idle_state_retention_time())
+
+    def test_get_set_idle_state_rentention(self):
+        table_config = TableConfig.get_default()
+
+        table_config.set_idle_state_retention(datetime.timedelta(days=1))
+
+        self.assertEqual(datetime.timedelta(days=1), table_config.get_idle_state_retention())
 
     def test_get_set_decimal_context(self):
         table_config = TableConfig.get_default()
@@ -95,3 +101,13 @@ class TableConfigTests(PyFlinkTestCase):
         table_config.add_configuration(configuration)
 
         self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+
+    def test_get_set_sql_dialect(self):
+        table_config = TableConfig.get_default()
+
+        sql_dialect = table_config.get_sql_dialect()
+        self.assertEqual(sql_dialect, SqlDialect.DEFAULT)
+
+        table_config.set_sql_dialect(SqlDialect.HIVE)
+        sql_dialect = table_config.get_sql_dialect()
+        self.assertEqual(sql_dialect, SqlDialect.HIVE)

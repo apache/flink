@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -32,10 +31,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -60,15 +56,10 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().finish();
 		final List<TestingSchedulingResultPartition> resultPartitions = testingSchedulingTopology.connectPointwise(producers, consumers).finish();
 
-		final ExecutionVertexID onlyProducerVertexId = producers.get(0).getId();
 		final ExecutionVertexID onlyConsumerVertexId = consumers.get(0).getId();
 		final IntermediateResultPartitionID onlyResultPartitionId = resultPartitions.get(0).getId();
 
-		final Set<PipelinedRegion> pipelinedRegions = pipelinedRegionsSet(
-			PipelinedRegion.from(onlyProducerVertexId),
-			PipelinedRegion.from(onlyConsumerVertexId));
-
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology, pipelinedRegions);
+		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
 		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(onlyConsumerVertexId);
 		assertThat(partitionsToRelease, contains(onlyResultPartitionId));
@@ -82,16 +73,11 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 		final List<TestingSchedulingResultPartition> sourceResultPartitions = testingSchedulingTopology.connectAllToAll(sourceVertices, intermediateVertices).finish();
 		testingSchedulingTopology.connectAllToAll(intermediateVertices, sinkVertices).withResultPartitionType(ResultPartitionType.PIPELINED).finish();
 
-		final ExecutionVertexID onlySourceVertexId = sourceVertices.get(0).getId();
 		final ExecutionVertexID onlyIntermediateVertexId = intermediateVertices.get(0).getId();
 		final ExecutionVertexID onlySinkVertexId = sinkVertices.get(0).getId();
 		final IntermediateResultPartitionID onlySourceResultPartitionId = sourceResultPartitions.get(0).getId();
 
-		final Set<PipelinedRegion> pipelinedRegions = pipelinedRegionsSet(
-			PipelinedRegion.from(onlySourceVertexId),
-			PipelinedRegion.from(onlyIntermediateVertexId, onlySinkVertexId));
-
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology, pipelinedRegions);
+		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
 		regionPartitionReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
 		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(onlySinkVertexId);
@@ -104,15 +90,9 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
 		testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
 
-		final ExecutionVertexID onlyProducerVertexId = producers.get(0).getId();
 		final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
-		final ExecutionVertexID consumerVertex2 = consumers.get(1).getId();
 
-		final Set<PipelinedRegion> pipelinedRegions = pipelinedRegionsSet(
-			PipelinedRegion.from(onlyProducerVertexId),
-			PipelinedRegion.from(consumerVertex1, consumerVertex2));
-
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology, pipelinedRegions);
+		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
 		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
 		assertThat(partitionsToRelease, is(empty()));
@@ -124,15 +104,10 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 		final List<TestingSchedulingExecutionVertex> consumers = testingSchedulingTopology.addExecutionVertices().withParallelism(2).finish();
 		testingSchedulingTopology.connectAllToAll(producers, consumers).finish();
 
-		final ExecutionVertexID onlyProducerVertexId = producers.get(0).getId();
 		final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
 		final ExecutionVertexID consumerVertex2 = consumers.get(1).getId();
 
-		final Set<PipelinedRegion> pipelinedRegions = pipelinedRegionsSet(
-			PipelinedRegion.from(onlyProducerVertexId),
-			PipelinedRegion.from(consumerVertex1, consumerVertex2));
-
-		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology, pipelinedRegions);
+		final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy = new RegionPartitionReleaseStrategy(testingSchedulingTopology);
 
 		regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
 		regionPartitionReleaseStrategy.vertexFinished(consumerVertex2);
@@ -141,9 +116,4 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 		final List<IntermediateResultPartitionID> partitionsToRelease = regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
 		assertThat(partitionsToRelease, is(empty()));
 	}
-
-	private static Set<PipelinedRegion> pipelinedRegionsSet(final PipelinedRegion... pipelinedRegions) {
-		return new HashSet<>(Arrays.asList(pipelinedRegions));
-	}
-
 }

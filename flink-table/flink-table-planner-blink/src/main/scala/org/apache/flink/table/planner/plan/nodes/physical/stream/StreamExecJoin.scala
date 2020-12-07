@@ -20,19 +20,17 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -57,44 +55,40 @@ class StreamExecJoin(
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
-  override def producesUpdates: Boolean = {
-    flinkJoinType != FlinkJoinType.INNER && flinkJoinType != FlinkJoinType.SEMI
-  }
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = {
-    def getCurrentRel(rel: RelNode): RelNode = {
-      rel match {
-        case _: HepRelVertex => rel.asInstanceOf[HepRelVertex].getCurrentRel
-        case _ => rel
-      }
-    }
-
-    val realInput = getCurrentRel(input)
-    val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(realInput)
+  /**
+   * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`.
+   * If the unique key of input contains join key, then it can support ignoring UPDATE_BEFORE.
+   * Otherwise, it can't ignore UPDATE_BEFORE. For example, if the input schema is [id, name, cnt]
+   * with the unique key (id). The join key is (id, name), then an insert and update on the id:
+   *
+   * +I(1001, Tim, 10)
+   * -U(1001, Tim, 10)
+   * +U(1001, Timo, 11)
+   *
+   * If the UPDATE_BEFORE is ignored, the `+I(1001, Tim, 10)` record in join will never be
+   * retracted. Therefore, if we want to ignore UPDATE_BEFORE, the unique key must contain
+   * join key.
+   *
+   * @see FlinkChangelogModeInferenceProgram
+   */
+  def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
+    val input = getInput(inputOrdinal)
+    val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(input)
     if (inputUniqueKeys != null) {
-      val joinKeys = if (input == getCurrentRel(getLeft)) {
+      val joinKeys = if (inputOrdinal == 0) {
+        // left input
         keyPairs.map(_.source).toArray
       } else {
+        // right input
         keyPairs.map(_.target).toArray
       }
-      val pkContainJoinKey = inputUniqueKeys.exists {
+      inputUniqueKeys.exists {
         uniqueKey => joinKeys.forall(uniqueKey.toArray.contains(_))
       }
-      if (pkContainJoinKey) false else true
     } else {
-      true
-    }
-  }
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = {
-    flinkJoinType match {
-      case FlinkJoinType.FULL | FlinkJoinType.RIGHT | FlinkJoinType.LEFT => true
-      case FlinkJoinType.ANTI => true
-      case _ => false
+      false
     }
   }
 
@@ -124,35 +118,35 @@ class StreamExecJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
+  override def getInputNodes: util.List[ExecNode[_]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[_]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      newInputNode: ExecNode[_]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val tableConfig = planner.getTableConfig
-    val returnType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val returnType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val leftTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val rightTransform = getInputNodes.get(1).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
-    val leftType = leftTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val rightType = rightTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val leftType = leftTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val rightType = rightTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
 
     val (leftJoinKey, rightJoinKey) =
       JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
 
-    val leftSelect = KeySelectorUtil.getBaseRowSelector(leftJoinKey, leftType)
-    val rightSelect = KeySelectorUtil.getBaseRowSelector(rightJoinKey, rightType)
+    val leftSelect = KeySelectorUtil.getRowDataSelector(leftJoinKey, leftType)
+    val rightSelect = KeySelectorUtil.getRowDataSelector(rightJoinKey, rightType)
 
     val leftInputSpec = analyzeJoinInput(left)
     val rightInputSpec = analyzeJoinInput(right)
@@ -191,7 +185,7 @@ class StreamExecJoin(
         minRetentionTime)
     }
 
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val ret = new TwoInputTransformation[RowData, RowData, RowData](
       leftTransform,
       rightTransform,
       getRelDetailedDescription,
@@ -215,7 +209,7 @@ class StreamExecJoin(
     if (uniqueKeys == null || uniqueKeys.isEmpty) {
       JoinInputSideSpec.withoutUniqueKey()
     } else {
-      val inRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
+      val inRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
       val joinKeys = if (input == left) {
         keyPairs.map(_.source).toArray
       } else {
@@ -228,12 +222,12 @@ class StreamExecJoin(
       if (uniqueKeysContainedByJoinKey.nonEmpty) {
         // join key contains unique key
         val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
-        val uniqueKeySelector = KeySelectorUtil.getBaseRowSelector(smallestUniqueKey, inRowType)
+        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inRowType)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
       } else {
         val smallestUniqueKey = getSmallestKey(uniqueKeys.map(_.toArray).toArray)
-        val uniqueKeySelector = KeySelectorUtil.getBaseRowSelector(smallestUniqueKey, inRowType)
+        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inRowType)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
       }

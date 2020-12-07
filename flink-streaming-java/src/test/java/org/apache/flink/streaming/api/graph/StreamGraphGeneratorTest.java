@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -34,11 +36,16 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -48,9 +55,12 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -70,14 +80,15 @@ import static org.junit.Assert.assertTrue;
  * specific tests.
  */
 @SuppressWarnings("serial")
-public class StreamGraphGeneratorTest {
+public class StreamGraphGeneratorTest extends TestLogger {
 
 	@Test
 	public void generatorForwardsSavepointRestoreSettings() {
 		StreamGraphGenerator streamGraphGenerator =
-				new StreamGraphGenerator(Collections.emptyList(),
-				new ExecutionConfig(),
-				new CheckpointConfig());
+				new StreamGraphGenerator(
+					Collections.emptyList(),
+					new ExecutionConfig(),
+					new CheckpointConfig());
 
 		streamGraphGenerator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("hello"));
 
@@ -140,50 +151,38 @@ public class StreamGraphGeneratorTest {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Integer> source = env.fromElements(1, 10);
-
 		DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
 
 		// verify that only the partitioning that was set last is used
 		DataStream<Integer> broadcastMap = rebalanceMap
-				.forward()
-				.global()
-				.broadcast()
-				.map(new NoOpIntMap());
+			.forward()
+			.global()
+			.broadcast()
+			.map(new NoOpIntMap());
 
 		broadcastMap.addSink(new DiscardingSink<>());
 
-		// verify that partitioning is preserved across union and split/select
-		EvenOddOutputSelector selector1 = new EvenOddOutputSelector();
-		EvenOddOutputSelector selector2 = new EvenOddOutputSelector();
-		EvenOddOutputSelector selector3 = new EvenOddOutputSelector();
+		DataStream<Integer> broadcastOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("broadcast");
 
-		DataStream<Integer> map1Operator = rebalanceMap
-				.map(new NoOpIntMap());
+		DataStream<Integer> map1 = broadcastOperator.broadcast();
 
-		DataStream<Integer> map1 = map1Operator
-				.broadcast()
-				.split(selector1)
-				.select("even");
+		DataStream<Integer> globalOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("global");
 
-		DataStream<Integer> map2Operator = rebalanceMap
-				.map(new NoOpIntMap());
+		DataStream<Integer> map2 = globalOperator.global();
 
-		DataStream<Integer> map2 = map2Operator
-				.split(selector2)
-				.select("odd")
-				.global();
+		DataStream<Integer> shuffleOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("shuffle");
 
-		DataStream<Integer> map3Operator = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map3 = map3Operator
-				.global()
-				.split(selector3)
-				.select("even")
-				.shuffle();
+		DataStream<Integer> map3 = shuffleOperator.shuffle();
 
 		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
-				.map(new NoOpIntMap());
+			.map(new NoOpIntMap())
+			.name("union");
 
 		unionedMap.addSink(new DiscardingSink<>());
 
@@ -196,68 +195,10 @@ public class StreamGraphGeneratorTest {
 		assertTrue(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
 		assertEquals(rebalanceMap.getId(), graph.getSourceVertex(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0)).getId());
 
-		// verify that partitioning in unions is preserved and that it works across split/select
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutputSelectors().contains(selector1));
-
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("odd"));
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutputSelectors().contains(selector2));
-
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutputSelectors().contains(selector3));
-	}
-
-	/**
-	 * This tests whether virtual Transformations behave correctly.
-	 *
-	 * <p>Checks whether output selector, partitioning works correctly when applied on a union.
-	 */
-	@Test
-	public void testVirtualTransformations2() throws Exception {
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 10);
-
-		DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
-
-		DataStream<Integer> map1 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map2 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map3 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		EvenOddOutputSelector selector = new EvenOddOutputSelector();
-
-		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
-				.broadcast()
-				.split(selector)
-				.select("foo")
-				.map(new NoOpIntMap());
-
-		unionedMap.addSink(new DiscardingSink<>());
-
-		StreamGraph graph = env.getStreamGraph();
-
-		// verify that the properties are correctly set on all input operators
-		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map1.getId()).getOutputSelectors().contains(selector));
-
-		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map2.getId()).getOutputSelectors().contains(selector));
-
-		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map3.getId()).getOutputSelectors().contains(selector));
-
+		// verify that partitioning in unions is preserved
+		assertTrue(graph.getStreamNode(broadcastOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
+		assertTrue(graph.getStreamNode(globalOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
+		assertTrue(graph.getStreamNode(shuffleOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
 	}
 
 	/**
@@ -305,6 +246,37 @@ public class StreamGraphGeneratorTest {
 		env.getStreamGraph();
 
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+	}
+
+	@Test
+	public void testMultipleInputTransformation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source1 = env.fromElements(1, 10);
+		DataStream<Long> source2 = env.fromElements(2L, 11L);
+		DataStream<String> source3 = env.fromElements("42", "44");
+
+		MultipleInputTransformation<String> transform = new MultipleInputTransformation<String>(
+			"My Operator",
+			new MultipleInputOperatorFactory(),
+			BasicTypeInfo.STRING_TYPE_INFO,
+			3);
+
+		env.addOperator(transform
+			.addInput(source1.getTransformation())
+			.addInput(source2.getTransformation())
+			.addInput(source3.getTransformation()));
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		assertEquals(4, streamGraph.getStreamNodes().size());
+
+		assertEquals(1, streamGraph.getStreamEdges(source1.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source2.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source3.getId(), transform.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source1.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source2.getId()).size());
+		assertEquals(1, streamGraph.getStreamEdges(source3.getId()).size());
+		assertEquals(0, streamGraph.getStreamEdges(transform.getId()).size());
 	}
 
 	/**
@@ -460,6 +432,9 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
 		iteration.closeWith(filter).print();
 
+		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
+		iteration.getTransformation().setResources(resources, resources);
+
 		StreamGraph streamGraph = env.getStreamGraph();
 		for (Tuple2<StreamNode, StreamNode> iterationPair : streamGraph.getIterationSourceSinkPairs()) {
 			assertNotNull(iterationPair.f0.getCoLocationGroup());
@@ -467,7 +442,16 @@ public class StreamGraphGeneratorTest {
 
 			assertEquals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, iterationPair.f0.getSlotSharingGroup());
 			assertEquals(iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
+
+			final ResourceSpec sourceMinResources = iterationPair.f0.getMinResources();
+			final ResourceSpec sinkMinResources = iterationPair.f1.getMinResources();
+			final ResourceSpec iterationResources = sourceMinResources.merge(sinkMinResources);
+			assertThat(iterationResources, equalsResourceSpec(resources));
 		}
+	}
+
+	private Matcher<ResourceSpec> equalsResourceSpec(ResourceSpec resources) {
+		return new EqualsResourceSpecMatcher(resources);
 	}
 
 	/**
@@ -485,7 +469,9 @@ public class StreamGraphGeneratorTest {
 
 		// all stream nodes share default group by default
 		StreamGraph streamGraph = new StreamGraphGenerator(
-				transformations, env.getConfig(), env.getCheckpointConfig())
+				transformations,
+				env.getConfig(),
+				env.getCheckpointConfig())
 			.generate();
 
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
@@ -494,7 +480,25 @@ public class StreamGraphGeneratorTest {
 		}
 	}
 
-	private static class OutputTypeConfigurableOperationWithTwoInputs
+	@Test
+	public void testSetManagedMemoryWeight() {
+		final int weight = 123;
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		source.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, weight);
+		source.print().name("sink");
+
+		final StreamGraph streamGraph = env.getStreamGraph();
+		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+			if (streamNode.getOperatorName().contains("source")) {
+				assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(weight));
+			} else {
+				assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().size(), is(0));
+			}
+		}
+	}
+
+	static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
 		private static final long serialVersionUID = 1L;
@@ -581,5 +585,45 @@ public class StreamGraphGeneratorTest {
 			return value;
 		}
 
+	}
+
+	private static class EqualsResourceSpecMatcher extends TypeSafeMatcher<ResourceSpec> {
+		private final ResourceSpec resources;
+
+		EqualsResourceSpecMatcher(ResourceSpec resources) {
+			this.resources = resources;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("expected resource spec ").appendValue(resources);
+		}
+
+		@Override
+		protected boolean matchesSafely(ResourceSpec item) {
+			return resources.lessThanOrEqual(item) && item.lessThanOrEqual(resources);
+		}
+	}
+
+	private static class MultipleInputOperatorFactory implements StreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setChainingStrategy(ChainingStrategy strategy) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public ChainingStrategy getChainingStrategy() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

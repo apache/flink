@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRuleCall
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
@@ -37,16 +38,17 @@ class BatchExecTableSourceScanRule
     classOf[FlinkLogicalTableSourceScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecScanTableSourceRule") {
+    "BatchExecTableSourceScanRule") {
 
-  /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
+  /** Rule must only match if TableScan targets a bounded [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
     tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+      case tst: TableSourceTable =>
         tst.tableSource match {
-          case sts: StreamTableSource[_] => sts.isBounded
+          case sts: ScanTableSource =>
+            sts.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE).isBounded
           case _ => false
         }
       case _ => false
@@ -59,11 +61,11 @@ class BatchExecTableSourceScanRule
     new BatchExecTableSourceScan(
       rel.getCluster,
       newTrait,
-      scan.getTable.asInstanceOf[TableSourceTable[_]]
+      scan.getTable.asInstanceOf[TableSourceTable]
     )
   }
 }
 
 object BatchExecTableSourceScanRule {
-  val INSTANCE: RelOptRule = new BatchExecTableSourceScanRule
+  val INSTANCE = new BatchExecTableSourceScanRule
 }

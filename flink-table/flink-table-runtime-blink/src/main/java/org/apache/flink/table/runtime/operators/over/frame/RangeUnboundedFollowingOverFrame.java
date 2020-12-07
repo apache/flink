@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -55,14 +55,14 @@ public class RangeUnboundedFollowingOverFrame extends UnboundedFollowingOverFram
 	}
 
 	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
+	public RowData process(int index, RowData current) throws Exception {
 		boolean bufferUpdated = index == 0;
 
 		// Ignore all the rows from the buffer for which the input row value is smaller than
 		// the output row lower bound.
 		ResettableExternalBuffer.BufferIterator iterator = input.newIterator(inputIndex);
 
-		BinaryRow nextRow = OverWindowFrame.getNextOrNull(iterator);
+		BinaryRowData nextRow = OverWindowFrame.getNextOrNull(iterator);
 		while (nextRow != null && lbound.compare(nextRow, current) < 0) {
 			inputIndex += 1;
 			bufferUpdated = true;

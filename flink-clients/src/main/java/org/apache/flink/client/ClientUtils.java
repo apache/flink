@@ -18,37 +18,33 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.ContextEnvironmentFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.ProgramMissingJobException;
+import org.apache.flink.client.program.StreamContextEnvironment;
+import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
+import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.JarFile;
+import java.util.Optional;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -59,28 +55,7 @@ public enum ClientUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-	public static void checkJarFile(URL jar) throws IOException {
-		File jarFile;
-		try {
-			jarFile = new File(jar.toURI());
-		} catch (URISyntaxException e) {
-			throw new IOException("JAR file path is invalid '" + jar + '\'');
-		}
-		if (!jarFile.exists()) {
-			throw new IOException("JAR file does not exist '" + jarFile.getAbsolutePath() + '\'');
-		}
-		if (!jarFile.canRead()) {
-			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + '\'');
-		}
-
-		try (JarFile ignored = new JarFile(jarFile)) {
-			// verify that we can open the Jar file
-		} catch (IOException e) {
-			throw new IOException("Error while opening jar file '" + jarFile.getAbsolutePath() + '\'', e);
-		}
-	}
-
-	public static ClassLoader buildUserCodeClassLoader(
+	public static URLClassLoader buildUserCodeClassLoader(
 			List<URL> jars,
 			List<URL> classpaths,
 			ClassLoader parent,
@@ -97,91 +72,90 @@ public enum ClientUtils {
 			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, alwaysParentFirstLoaderPatterns);
+		final boolean checkClassloaderLeak = configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+		return FlinkUserCodeClassLoaders.create(
+			resolveOrder,
+			urls,
+			parent,
+			alwaysParentFirstLoaderPatterns,
+			NOOP_EXCEPTION_HANDLER,
+			checkClassloaderLeak);
 	}
 
-	public static JobExecutionResult submitJob(
-			ClusterClient<?> client,
-			JobGraph jobGraph) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		try {
-			return client
-				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
-				.thenApply(DetachedJobExecutionResult::new)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
-		}
-	}
-
-	public static JobExecutionResult submitJobAndWaitForResult(
-			ClusterClient<?> client,
-			JobGraph jobGraph,
-			ClassLoader classLoader) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		checkNotNull(classLoader);
-
-		JobResult jobResult;
-
-		try {
-			jobResult = client
-				.submitJob(jobGraph)
-				.thenApply(JobSubmissionResult::getJobID)
-				.thenCompose(client::requestJobResult)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
-		}
-
-		try {
-			return jobResult.toJobExecutionResult(classLoader);
-		} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-		}
-	}
-
-	public static JobSubmissionResult executeProgram(
-			ExecutorServiceLoader executorServiceLoader,
+	public static void executeProgram(
+			PipelineExecutorServiceLoader executorServiceLoader,
 			Configuration configuration,
-			PackagedProgram program) throws ProgramMissingJobException, ProgramInvocationException {
-
+			PackagedProgram program,
+			boolean enforceSingleJobExecution,
+			boolean suppressSysout) throws ProgramInvocationException {
 		checkNotNull(executorServiceLoader);
 		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
-
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
 			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
-			final AtomicReference<JobExecutionResult> jobExecutionResult = new AtomicReference<>();
+			ContextEnvironment.setAsContext(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader,
+				enforceSingleJobExecution,
+				suppressSysout);
 
-			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
-					executorServiceLoader,
-					configuration,
-					userCodeClassLoader,
-					jobExecutionResult);
-			ContextEnvironment.setAsContext(factory);
+			StreamContextEnvironment.setAsContext(
+				executorServiceLoader,
+				configuration,
+				userCodeClassLoader,
+				enforceSingleJobExecution,
+				suppressSysout);
 
 			try {
 				program.invokeInteractiveModeForExecution();
-
-				JobExecutionResult result = jobExecutionResult.get();
-				if (result == null) {
-					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
-				}
-				return result;
 			} finally {
-				ContextEnvironment.unsetContext();
+				ContextEnvironment.unsetAsContext();
+				StreamContextEnvironment.unsetAsContext();
 			}
-		}
-		finally {
+		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
+	}
+
+	/**
+	 * This method blocks until the job status is not INITIALIZING anymore.
+	 * @param jobStatusSupplier supplier returning the job status.
+	 * @param jobResultSupplier supplier returning the job result. This will only be called if the job reaches the FAILED state.
+	 * @throws JobInitializationException If the initialization failed
+	 */
+	public static void waitUntilJobInitializationFinished(
+				SupplierWithException<JobStatus, Exception> jobStatusSupplier,
+				SupplierWithException<JobResult, Exception> jobResultSupplier,
+				ClassLoader userCodeClassloader)
+			throws JobInitializationException {
+		LOG.debug("Wait until job initialization is finished");
+		WaitStrategy waitStrategy = new ExponentialWaitStrategy(50, 2000);
+		try {
+			JobStatus status = jobStatusSupplier.get();
+			long attempt = 0;
+			while (status == JobStatus.INITIALIZING) {
+				Thread.sleep(waitStrategy.sleepTime(attempt++));
+				status = jobStatusSupplier.get();
+			}
+			if (status == JobStatus.FAILED) {
+				JobResult result = jobResultSupplier.get();
+				Optional<SerializedThrowable> throwable = result.getSerializedThrowable();
+				if (throwable.isPresent()) {
+					Throwable t = throwable.get().deserializeError(userCodeClassloader);
+					if (t instanceof JobInitializationException) {
+						throw t;
+					}
+				}
+			}
+		} catch (JobInitializationException initializationException) {
+			throw initializationException;
+		} catch (Throwable throwable) {
+			ExceptionUtils.checkInterrupted(throwable);
+			throw new RuntimeException("Error while waiting for job to be initialized", throwable);
 		}
 	}
 }

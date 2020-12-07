@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -87,7 +87,6 @@ class CorrelateITCase2 extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testConstantTableFunc2(): Unit = {
     registerFunction("str_split", new StringSplit())
@@ -121,7 +120,6 @@ class CorrelateITCase2 extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO substring
   @Test
   def testConstantTableFunc3(): Unit = {
     registerFunction("str_split", new StringSplit())
@@ -133,7 +131,6 @@ class CorrelateITCase2 extends BatchTestBase {
     )
   }
 
-  @Ignore
   @Test
   def testConstantTableFuncWithSubString(): Unit = {
     registerFunction("str_split", new StringSplit())

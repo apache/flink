@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -59,8 +62,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	/** The number of available buffers for holding data on the consumer side. */
 	private int numCreditsAvailable;
 
-	private int sequenceNumber = -1;
-
 	CreditBasedSequenceNumberingViewReader(
 			InputChannelID receiverId,
 			int initialCredit,
@@ -91,11 +92,18 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				throw new IllegalStateException("Subpartition already requested");
 			}
 		}
+
+		notifyDataAvailable();
 	}
 
 	@Override
 	public void addCredit(int creditDeltas) {
 		numCreditsAvailable += creditDeltas;
+	}
+
+	@Override
+	public void resumeConsumption() {
+		subpartitionView.resumeConsumption();
 	}
 
 	@Override
@@ -111,46 +119,39 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	/**
 	 * Returns true only if the next buffer is an event or the reader has both available
 	 * credits and buffers.
+	 *
+	 * @implSpec BEWARE: this must be in sync with {@link #getNextDataType(BufferAndBacklog)}, such that
+	 * {@code getNextDataType(bufferAndBacklog) != NONE <=> isAvailable()}!
 	 */
 	@Override
 	public boolean isAvailable() {
-		// BEWARE: this must be in sync with #isAvailable(BufferAndBacklog)!
-		if (numCreditsAvailable > 0) {
-			return subpartitionView.isAvailable();
-		}
-		else {
-			return subpartitionView.nextBufferIsEvent();
-		}
+		return subpartitionView.isAvailable(numCreditsAvailable);
 	}
 
 	/**
-	 * Check whether this reader is available or not (internal use, in sync with
-	 * {@link #isAvailable()}, but slightly faster).
+	 * Returns the {@link org.apache.flink.runtime.io.network.buffer.Buffer.DataType} of the next buffer in line.
 	 *
-	 * <p>Returns true only if the next buffer is an event or the reader has both available
+	 * <p>Returns the next data type only if the next buffer is an event or the reader has both available
 	 * credits and buffers.
+	 *
+	 * @implSpec BEWARE: this must be in sync with {@link #isAvailable()}, such that
+	 * {@code getNextDataType(bufferAndBacklog) != NONE <=> isAvailable()}!
 	 *
 	 * @param bufferAndBacklog
 	 * 		current buffer and backlog including information about the next buffer
+	 * @return the next data type if the next buffer can be pulled immediately or {@link Buffer.DataType#NONE}
 	 */
-	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
-		// BEWARE: this must be in sync with #isAvailable()!
-		if (numCreditsAvailable > 0) {
-			return bufferAndBacklog.isMoreAvailable();
+	private Buffer.DataType getNextDataType(BufferAndBacklog bufferAndBacklog) {
+		final Buffer.DataType nextDataType = bufferAndBacklog.getNextDataType();
+		if (numCreditsAvailable > 0 || nextDataType.isEvent()) {
+			return nextDataType;
 		}
-		else {
-			return bufferAndBacklog.nextBufferIsEvent();
-		}
+		return Buffer.DataType.NONE;
 	}
 
 	@Override
 	public InputChannelID getReceiverId() {
 		return receiverId;
-	}
-
-	@Override
-	public int getSequenceNumber() {
-		return sequenceNumber;
 	}
 
 	@VisibleForTesting
@@ -160,21 +161,24 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@VisibleForTesting
 	boolean hasBuffersAvailable() {
-		return subpartitionView.isAvailable();
+		return subpartitionView.isAvailable(Integer.MAX_VALUE);
 	}
 
+	@Nullable
 	@Override
-	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndAvailability getNextBuffer() throws IOException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
-			sequenceNumber++;
-
 			if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
 				throw new IllegalStateException("no credit available");
 			}
 
+			final Buffer.DataType nextDataType = getNextDataType(next);
 			return new BufferAndAvailability(
-				next.buffer(), isAvailable(next), next.buffersInBacklog());
+				next.buffer(),
+				nextDataType,
+				next.buffersInBacklog(),
+				next.getSequenceNumber());
 		} else {
 			return null;
 		}
@@ -201,11 +205,15 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	}
 
 	@Override
+	public void notifyPriorityEvent(int prioritySequenceNumber) {
+		notifyDataAvailable();
+	}
+
+	@Override
 	public String toString() {
 		return "CreditBasedSequenceNumberingViewReader{" +
 			"requestLock=" + requestLock +
 			", receiverId=" + receiverId +
-			", sequenceNumber=" + sequenceNumber +
 			", numCreditsAvailable=" + numCreditsAvailable +
 			", isRegisteredAsAvailable=" + isRegisteredAsAvailable +
 			'}';

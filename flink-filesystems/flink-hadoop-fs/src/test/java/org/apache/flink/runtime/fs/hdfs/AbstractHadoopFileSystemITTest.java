@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -48,22 +49,22 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 
 	protected static FileSystem fs;
 	protected static Path basePath;
-	protected static long deadline;
+	protected static long consistencyToleranceNS;
 
 	public static void checkPathExistence(Path path,
 			boolean expectedExists,
-			long deadline) throws IOException, InterruptedException {
-		if (deadline == 0) {
+			long consistencyToleranceNS) throws IOException, InterruptedException {
+		if (consistencyToleranceNS == 0) {
 			//strongly consistency
 			assertEquals(expectedExists, fs.exists(path));
 		} else {
 			//eventually consistency
-			checkPathEventualExistence(fs, path, expectedExists, deadline);
+			checkPathEventualExistence(fs, path, expectedExists, consistencyToleranceNS);
 		}
 	}
 
 	protected void checkEmptyDirectory(Path path) throws IOException, InterruptedException {
-		checkPathExistence(path, true, deadline);
+		checkPathExistence(path, true, consistencyToleranceNS);
 	}
 
 	@Test
@@ -79,7 +80,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 			}
 
 			// just in case, wait for the path to exist
-			checkPathExistence(path, true, deadline);
+			checkPathExistence(path, true, consistencyToleranceNS);
 
 			try (FSDataInputStream in = fs.open(path);
 				InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
@@ -92,7 +93,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 			fs.delete(path, false);
 		}
 
-		checkPathExistence(path, false, deadline);
+		checkPathExistence(path, false, consistencyToleranceNS);
 	}
 
 	@Test
@@ -121,7 +122,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 				}
 				// just in case, wait for the file to exist (should then also be reflected in the
 				// directory's file list below)
-				checkPathExistence(file, true, deadline);
+				checkPathExistence(file, true, consistencyToleranceNS);
 			}
 
 			FileStatus[] files = fs.listStatus(directory);
@@ -137,26 +138,29 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 		}
 		finally {
 			// clean up
-			fs.delete(directory, true);
+			cleanupDirectoryWithRetry(fs, directory, consistencyToleranceNS);
 		}
-
-		// now directory must be gone
-		checkPathExistence(directory, false, deadline);
 	}
 
 	@AfterClass
 	public static void teardown() throws IOException, InterruptedException {
 		try {
 			if (fs != null) {
-				// clean up
-				fs.delete(basePath, true);
-
-				// now directory must be gone
-				checkPathExistence(basePath, false, deadline);
+				cleanupDirectoryWithRetry(fs, basePath, consistencyToleranceNS);
 			}
 		}
 		finally {
 			FileSystem.initialize(new Configuration());
 		}
+	}
+
+	public static void cleanupDirectoryWithRetry(FileSystem fs, Path path, long consistencyToleranceNS) throws IOException, InterruptedException {
+		fs.delete(path, true);
+		long deadline = System.nanoTime() + consistencyToleranceNS;
+		while (fs.exists(path) && System.nanoTime() - deadline < 0) {
+			fs.delete(path, true);
+			Thread.sleep(50L);
+		}
+		Assert.assertFalse(fs.exists(path));
 	}
 }

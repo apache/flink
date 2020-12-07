@@ -47,7 +47,7 @@ public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStr
 	public static class Factory implements PartitionReleaseStrategy.Factory {
 
 		@Override
-		public PartitionReleaseStrategy createInstance(final SchedulingTopology<?, ?> schedulingStrategy) {
+		public PartitionReleaseStrategy createInstance(final SchedulingTopology schedulingStrategy) {
 			return new NotReleasingPartitionReleaseStrategy();
 		}
 	}

@@ -20,10 +20,10 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.JarUtils;
 
 import javax.annotation.Nullable;
 
@@ -39,12 +39,6 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -90,7 +84,7 @@ public class PackagedProgram {
 
 	private final ClassLoader userCodeClassLoader;
 
-	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
+	private final SavepointRestoreSettings savepointSettings;
 
 	/**
 	 * Flag indicating whether the job is a Python job.
@@ -117,36 +111,24 @@ public class PackagedProgram {
 			List<URL> classpaths,
 			@Nullable String entryPointClassName,
 			Configuration configuration,
+			SavepointRestoreSettings savepointRestoreSettings,
 			String... args) throws ProgramInvocationException {
-		checkNotNull(classpaths);
-		checkNotNull(args);
+		this.classpaths = checkNotNull(classpaths);
+		this.savepointSettings = checkNotNull(savepointRestoreSettings);
+		this.args = checkNotNull(args);
+
 		checkArgument(jarFile != null || entryPointClassName != null, "Either the jarFile or the entryPointClassName needs to be non-null.");
 
-		// Whether the job is a Python job.
-		isPython = isPython(entryPointClassName);
+		// whether the job is a Python job.
+		this.isPython = isPython(entryPointClassName);
 
-		URL jarFileUrl = null;
-		if (jarFile != null) {
-			try {
-				jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
-			} catch (MalformedURLException e1) {
-				throw new IllegalArgumentException("The jar file path is invalid.");
-			}
+		// load the jar file if exists
+		this.jarFile = loadJarFile(jarFile);
 
-			checkJarFile(jarFileUrl);
-		}
-
-		this.jarFile = jarFileUrl;
-		this.args = args;
-
-		// if no entryPointClassName name was given, we try and look one up through the manifest
-		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
-		}
+		assert this.jarFile != null || entryPointClassName != null;
 
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
-		this.classpaths = classpaths;
+		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
@@ -154,15 +136,14 @@ public class PackagedProgram {
 			configuration);
 
 		// load the entry point class
-		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
+		this.mainClass = loadMainClass(
+			// if no entryPointClassName name was given, we try and look one up through the manifest
+			entryPointClassName != null ? entryPointClassName : getEntryPointClassNameFromJar(this.jarFile),
+			userCodeClassLoader);
 
 		if (!hasMainMethod(mainClass)) {
 			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
-	}
-
-	public void setSavepointRestoreSettings(SavepointRestoreSettings savepointSettings) {
-		this.savepointSettings = savepointSettings;
 	}
 
 	public SavepointRestoreSettings getSavepointSettings() {
@@ -239,12 +220,12 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
 
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
-		for (File tmpLib : this.extractedTempLibraries) {
+		for (File tmpLib : extractedTempLibraries) {
 			try {
 				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			} catch (MalformedURLException e) {
@@ -253,33 +234,35 @@ public class PackagedProgram {
 		}
 
 		if (isPython) {
-			String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
-			final List<Path> pythonJarPath = new ArrayList<>();
-			try {
-				Files.walkFileTree(FileSystems.getDefault().getPath(flinkOptPath), new SimpleFileVisitor<Path>() {
-					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						FileVisitResult result = super.visitFile(file, attrs);
-						if (file.getFileName().toString().startsWith("flink-python")) {
-							pythonJarPath.add(file);
-						}
-						return result;
-					}
-				});
-			} catch (IOException e) {
-				throw new RuntimeException(
-					"Exception encountered during finding the flink-python jar. This should not happen.", e);
-			}
+			libs.add(PackagedProgramUtils.getPythonJar());
+		}
 
-			if (pythonJarPath.size() != 1) {
-				throw new RuntimeException("Found " + pythonJarPath.size() + " flink-python jar.");
-			}
+		return libs;
+	}
 
+	/**
+	 * Returns all provided libraries needed to run the program.
+	 */
+	public static List<URL> getJobJarAndDependencies(File jarFile, @Nullable String entryPointClassName) throws ProgramInvocationException {
+		URL jarFileUrl = loadJarFile(jarFile);
+
+		List<File> extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
+
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+
+		if (jarFileUrl != null) {
+			libs.add(jarFileUrl);
+		}
+		for (File tmpLib : extractedTempLibraries) {
 			try {
-				libs.add(pythonJarPath.get(0).toUri().toURL());
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
 			} catch (MalformedURLException e) {
 				throw new RuntimeException("URL is invalid. This should not happen.", e);
 			}
+		}
+
+		if (isPython(entryPointClassName)) {
+			libs.add(PackagedProgramUtils.getPythonJar());
 		}
 
 		return libs;
@@ -405,6 +388,25 @@ public class PackagedProgram {
 		}
 	}
 
+	@Nullable
+	private static URL loadJarFile(File jar) throws ProgramInvocationException {
+		if (jar != null) {
+			URL jarFileUrl;
+
+			try {
+				jarFileUrl = jar.getAbsoluteFile().toURI().toURL();
+			} catch (MalformedURLException e1) {
+				throw new IllegalArgumentException("The jar file path is invalid.");
+			}
+
+			checkJarFile(jarFileUrl);
+
+			return jarFileUrl;
+		} else {
+			return null;
+		}
+	}
+
 	private static Class<?> loadMainClass(String className, ClassLoader cl) throws ProgramInvocationException {
 		ClassLoader contextCl = null;
 		try {
@@ -519,7 +521,7 @@ public class PackagedProgram {
 
 	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
-			ClientUtils.checkJarFile(jarfile);
+			JarUtils.checkJarFile(jarfile);
 		} catch (IOException e) {
 			throw new ProgramInvocationException(e.getMessage(), e);
 		} catch (Throwable t) {
@@ -543,6 +545,8 @@ public class PackagedProgram {
 		private List<URL> userClassPaths = Collections.emptyList();
 
 		private Configuration configuration = new Configuration();
+
+		private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
 		public Builder setJarFile(@Nullable File jarFile) {
 			this.jarFile = jarFile;
@@ -569,6 +573,11 @@ public class PackagedProgram {
 			return this;
 		}
 
+		public Builder setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
+			this.savepointRestoreSettings = savepointRestoreSettings;
+			return this;
+		}
+
 		public PackagedProgram build() throws ProgramInvocationException {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
@@ -578,6 +587,7 @@ public class PackagedProgram {
 				userClassPaths,
 				entryPointClassName,
 				configuration,
+				savepointRestoreSettings,
 				args);
 		}
 

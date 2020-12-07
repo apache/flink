@@ -1,0 +1,66 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p>Possible values: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]</td>
+            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <span markdown="span">`JobStatus#FAILED`</span> or <span markdown="span">`JobStatus#SUSPENDED`</span>. In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <span markdown="span">`JobStatus#CANCELED`</span>).<br /><br />The target directory for externalized checkpoints is configured via <span markdown="span">`state.checkpoints.dir`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.interval</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Gets the interval in which checkpoints are periodically scheduled.<br /><br />This setting defines the base interval. Checkpoint triggering may be delayed by the settings <span markdown="span">`execution.checkpointing.max-concurrent-checkpoints`</span> and <span markdown="span">`execution.checkpointing.min-pause`</span></td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.max-concurrent-checkpoints</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of checkpoint attempts that may be in progress at the same time. If this value is n, then no checkpoints will be triggered while n checkpoint attempts are currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need to finish or expire.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.min-pause</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The minimal pause between checkpointing attempts. This setting defines how soon thecheckpoint coordinator may trigger another checkpoint after it becomes possible to triggeranother checkpoint with respect to the maximum number of concurrent checkpoints(see <span markdown="span">`execution.checkpointing.max-concurrent-checkpoints`</span>).<br /><br />If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure that a minimum amount of time passes where no checkpoint is in progress at all.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.mode</h5></td>
+            <td style="word-wrap: break-word;">EXACTLY_ONCE</td>
+            <td><p>Enum</p>Possible values: [EXACTLY_ONCE, AT_LEAST_ONCE]</td>
+            <td>The checkpointing mode (exactly-once vs. at-least-once).</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.prefer-checkpoint-for-recovery</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, a job recovery should fallback to checkpoint when there is a more recent savepoint.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.timeout</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>The maximum time that a checkpoint may take before being discarded.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.tolerable-failed-checkpoints</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The tolerable checkpoint failure number. If set to 0, that meanswe do not tolerance any checkpoint failure.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.<br /><br />Unaligned checkpoints contain data stored in buffers as part of the checkpoint state, which allows checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore.<br /><br />Unaligned checkpoints can only be enabled if <span markdown="span">`execution.checkpointing.mode`</span> is <span markdown="span">`EXACTLY_ONCE`</span> and if <span markdown="span">`execution.checkpointing.max-concurrent-checkpoints`</span> is 1</td>
+        </tr>
+    </tbody>
+</table>

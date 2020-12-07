@@ -190,7 +190,7 @@ public class NetUtils {
 	 * @return host:port where host will be normalized if it is an IPv6 address
 	 */
 	public static String unresolvedHostAndPortToNormalizedString(String host, int port) {
-		Preconditions.checkArgument(port >= 0 && port < 65536,
+		Preconditions.checkArgument(isValidHostPort(port),
 			"Port is not within the valid range,");
 		return unresolvedHostToNormalizedString(host) + ":" + port;
 	}
@@ -350,7 +350,7 @@ public class NetUtils {
 			if (dashIdx == -1) {
 				// only one port in range:
 				final int port = Integer.valueOf(range);
-				if (port < 0 || port > 65535) {
+				if (!isValidHostPort(port)) {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + port + ".");
 				}
@@ -358,12 +358,12 @@ public class NetUtils {
 			} else {
 				// evaluate range
 				final int start = Integer.valueOf(range.substring(0, dashIdx));
-				if (start < 0 || start > 65535) {
+				if (!isValidHostPort(start)) {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + start + ".");
 				}
 				final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
-				if (end < 0 || end > 65535) {
+				if (!isValidHostPort(end)) {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + end + ".");
 				}
@@ -429,5 +429,25 @@ public class NetUtils {
 	@FunctionalInterface
 	public interface SocketFactory {
 		ServerSocket createSocket(int port) throws IOException;
+	}
+
+	/**
+	 * Check whether the given port is in right range when connecting to somewhere.
+	 *
+	 * @param port the port to check
+	 * @return true if the number in the range 1 to 65535
+	 */
+	public static boolean isValidClientPort(int port) {
+		return 1 <= port && port <= 65535;
+	}
+
+	/**
+	 * check whether the given port is in right range when getting port from local system.
+	 *
+	 * @param port the port to check
+	 * @return true if the number in the range 0 to 65535
+	 */
+	public static boolean isValidHostPort(int port) {
+		return 0 <= port && port <= 65535;
 	}
 }

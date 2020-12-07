@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -62,7 +62,7 @@ public class LogicalTypeCastsTest {
 				// nullability does not match
 				{new SmallIntType(false), new SmallIntType(), true, true},
 
-				{new SmallIntType(), new SmallIntType(false), false, false},
+				{new SmallIntType(), new SmallIntType(false), false, true},
 
 				{
 					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
@@ -91,20 +91,32 @@ public class LogicalTypeCastsTest {
 				{new DecimalType(3, 2), new VarCharType(Integer.MAX_VALUE), false, true},
 
 				{
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
 					true,
 					true
 				},
 
 				{
-					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationAnyType<>(Types.GENERIC(Object.class)),
+					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationRawType<>(Types.GENERIC(Object.class)),
 					false,
 					false
 				},
 
 				{new NullType(), new IntType(), true, true},
+
+				{
+					new NullType(),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					true,
+					true
+				},
 
 				{new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
 
@@ -158,7 +170,7 @@ public class LogicalTypeCastsTest {
 						)
 					),
 					false,
-					false
+					true
 				},
 
 				{

@@ -107,7 +107,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 				// in theory, the subclasses of StreamSource may implement the BoundedOneInput interface,
 				// so we still need the following call to end the input
 				synchronized (lockingObject) {
-					operatorChain.endHeadOperatorInput(1);
+					operatorChain.endInput(1);
 				}
 			}
 		} finally {
@@ -180,7 +180,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 				final OperatorID operatorId,
 				final int subtaskIndex) {
 
-			latencyMarkTimer = processingTimeService.scheduleAtFixedRate(
+			latencyMarkTimer = processingTimeService.scheduleWithFixedDelay(
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {

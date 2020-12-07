@@ -26,7 +26,6 @@ import org.apache.flink.table.types.logical.{IntType, LogicalType}
 
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.util.BuiltInMethod
 
 class TimestampDiffCallGen extends CallGenerator {
 
@@ -42,11 +41,22 @@ class TimestampDiffCallGen extends CallGenerator {
            TimeUnit.MONTH |
            TimeUnit.QUARTER =>
         (operands(1).resultType.getTypeRoot, operands(2).resultType.getTypeRoot) match {
+          case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+              terms =>
+                val leftTerm = s"${terms(1)}.getMillisecond()"
+                val rightTerm = s"${terms(2)}.getMillisecond()"
+                s"""
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(
+                   |  $leftTerm, $rightTerm) / ${unit.multiplier.intValue()}
+                 """.stripMargin
+            }
           case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
+                val leftTerm = s"${terms(1)}.getMillisecond()"
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($leftTerm,
                    |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }
@@ -54,9 +64,10 @@ class TimestampDiffCallGen extends CallGenerator {
           case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
+                val rightTerm = s"${terms(2)}.getMillisecond()"
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
-                   |${terms(1)} * ${MILLIS_PER_DAY}L, ${terms(2)}) / ${unit.multiplier.intValue()}
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(
+                   |${terms(1)} * ${MILLIS_PER_DAY}L, $rightTerm) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }
 
@@ -64,7 +75,7 @@ class TimestampDiffCallGen extends CallGenerator {
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
-                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
+                   |${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}(${terms(1)},
                    |  ${terms(2)}) / ${unit.multiplier.intValue()}
                    |""".stripMargin
             }
@@ -79,16 +90,19 @@ class TimestampDiffCallGen extends CallGenerator {
           case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
+                val leftTerm = s"${terms(1)}.getMillisecond()"
+                val rightTerm = s"${terms(2)}.getMillisecond()"
                 s"""
-                   |(int)((${terms(1)} - ${terms(2)}) / ${unit.multiplier.intValue()})
+                   |(int)(($leftTerm - $rightTerm) / ${unit.multiplier.intValue()})
                    |""".stripMargin
             }
 
           case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
+                val leftTerm = s"${terms(1)}.getMillisecond()"
                 s"""
-                   |(int)((${terms(1)} -
+                   |(int)(($leftTerm -
                    |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()})
                    |""".stripMargin
             }
@@ -96,9 +110,10 @@ class TimestampDiffCallGen extends CallGenerator {
           case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
             generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
+                val rightTerm = s"${terms(2)}.getMillisecond()"
                 s"""
                    |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
-                   |  ${terms(2)}) / ${unit.multiplier.intValue()})
+                   |  $rightTerm) / ${unit.multiplier.intValue()})
                    |""".stripMargin
             }
 

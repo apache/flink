@@ -33,7 +33,7 @@ public class TumblingTimeWindows extends TumblingEventTimeWindows {
 	private static final long serialVersionUID = 1L;
 
 	private TumblingTimeWindows(long size) {
-		super(size, 0);
+		super(size, 0, WindowStagger.ALIGNED);
 	}
 
 	/**

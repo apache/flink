@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window.assigners;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.MathUtils;
@@ -68,7 +68,7 @@ public class SlidingWindowAssigner extends PanedWindowAssigner<TimeWindow> imple
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(BaseRow element, long timestamp) {
+	public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
 		List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 		long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);
 		for (long start = lastStart; start > timestamp - size; start -= slide) {

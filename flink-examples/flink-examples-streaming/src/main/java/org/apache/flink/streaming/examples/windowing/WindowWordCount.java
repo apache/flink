@@ -75,7 +75,7 @@ public class WindowWordCount {
 		// split up the lines in pairs (2-tuples) containing: (word,1)
 		text.flatMap(new WordCount.Tokenizer())
 				// create windows of windowSize records slided every slideSize records
-				.keyBy(0)
+				.keyBy(value -> value.f0)
 				.countWindow(windowSize, slideSize)
 				// group by the tuple field "0" and sum up tuple field "1"
 				.sum(1);

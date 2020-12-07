@@ -63,7 +63,7 @@ public class MemorySegmentUndersizedTest {
 
 	@Test
 	public void testZeroSizeOffHeapUnsafeHybridSegment() {
-		MemorySegment segment = MemorySegmentFactory.allocateOffHeapUnsafeMemory(0, null);
+		MemorySegment segment = MemorySegmentFactory.allocateOffHeapUnsafeMemory(0);
 
 		testZeroSizeBuffer(segment);
 		testSegmentWithSizeLargerZero(segment);
@@ -86,7 +86,7 @@ public class MemorySegmentUndersizedTest {
 
 	@Test
 	public void testSizeOneOffHeapUnsafeHybridSegment() {
-		testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateOffHeapUnsafeMemory(1, null));
+		testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateOffHeapUnsafeMemory(1));
 	}
 
 	private static void testZeroSizeBuffer(MemorySegment segment) {

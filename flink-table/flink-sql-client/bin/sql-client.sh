@@ -54,10 +54,18 @@ CC_CLASSPATH=`constructFlinkClassPath`
 ################################################################################
 
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-sql-client-$HOSTNAME.log
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlog4j.configurationFile=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
 # get path of jar in /opt if it exist
 FLINK_SQL_CLIENT_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-sql-client.*.jar")
+
+# add flink-python jar to the classpath
+if [[ ! "$CC_CLASSPATH" =~ .*flink-python.*.jar ]]; then
+    FLINK_PYTHON_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-python.*.jar")
+    if [ -n "$FLINK_PYTHON_JAR" ]; then
+        CC_CLASSPATH="$CC_CLASSPATH:$FLINK_PYTHON_JAR"
+    fi
+fi
 
 # check if SQL client is already in classpath and must not be shipped manually
 if [[ "$CC_CLASSPATH" =~ .*flink-sql-client.*.jar ]]; then

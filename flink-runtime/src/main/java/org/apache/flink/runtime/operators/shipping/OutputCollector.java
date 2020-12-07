@@ -68,12 +68,9 @@ public class OutputCollector<T> implements Collector<T> {
 			catch (IOException e) {
 				throw new RuntimeException("Emitting the record caused an I/O exception: " + e.getMessage(), e);
 			}
-			catch (InterruptedException e) {
-				throw new RuntimeException("Emitting the record was interrupted: " + e.getMessage(), e);
-			}
 		}
 		else {
-			throw new NullPointerException("The system does not support records that are null."
+			throw new NullPointerException("The system does not support records that are null. "
 								+ "Null values are only supported as fields inside other objects.");
 		}
 	}
@@ -81,7 +78,7 @@ public class OutputCollector<T> implements Collector<T> {
 	@Override
 	public void close() {
 		for (RecordWriter<?> writer : writers) {
-			writer.clearBuffers();
+			writer.close();
 			writer.flushAll();
 		}
 	}

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -167,9 +167,9 @@ public class FailingCollectionSource<T>
 			if (!failedBefore) {
 				// delay a bit, if we have not failed before
 				Thread.sleep(1);
-				if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= failureAfterNumElements) {
-					// cause a failure if we have not failed before and have reached
-					// enough completed checkpoints and elements
+				if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= 1) {
+					// cause a failure if we have not failed before and have a completed checkpoint
+					// and have processed at least one element
 					failedBefore = true;
 					throw new Exception("Artificial Failure");
 				}
@@ -243,6 +243,10 @@ public class FailingCollectionSource<T>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		numSuccessfulCheckpoints++;
 		lastCheckpointedEmittedNum = checkpointedEmittedNums.get(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
 	}
 
 	public static void reset() {

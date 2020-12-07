@@ -34,7 +34,7 @@ import java.util.Map;
  * Factory to create an implementation of {@link Executor} to use in a
  * {@link org.apache.flink.table.api.TableEnvironment}. The {@link org.apache.flink.table.api.TableEnvironment}
  * should use {@link #create(Map)} method that does not bind to any particular environment,
- * whereas {@link org.apache.flink.table.api.scala.StreamTableEnvironment} should use
+ * whereas {@link org.apache.flink.table.api.bridge.scala.StreamTableEnvironment} should use
  * {@link #create(Map, StreamExecutionEnvironment)} as it is always backed by
  * some {@link StreamExecutionEnvironment}
  */

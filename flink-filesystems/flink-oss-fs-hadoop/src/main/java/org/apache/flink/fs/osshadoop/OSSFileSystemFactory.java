@@ -45,7 +45,7 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 
 	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.oss.credentials.provider");
 
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.shaded.hadoop3.";
+	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.osshadoop.shaded.";
 
 	/**
 	 * In order to simplify, we make flink oss configuration keys same with hadoop oss module.

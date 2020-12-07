@@ -19,17 +19,24 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import static junit.framework.TestCase.assertEquals;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test utility for Netty server and client setup.
@@ -162,6 +169,43 @@ public class NettyTestUtil {
 				config);
 	}
 
+	// ---------------------------------------------------------------------------------------------
+	// Encoding & Decoding
+	// ---------------------------------------------------------------------------------------------
+
+	static <T extends NettyMessage> T encodeAndDecode(T msg, EmbeddedChannel channel) {
+		channel.writeOutbound(msg);
+		ByteBuf encoded;
+		boolean msgNotEmpty = false;
+		while ((encoded = channel.readOutbound()) != null) {
+			msgNotEmpty = channel.writeInbound(encoded);
+		}
+		assertTrue(msgNotEmpty);
+
+		return channel.readInbound();
+	}
+
+	// ---------------------------------------------------------------------------------------------
+	// Message Verification
+	// ---------------------------------------------------------------------------------------------
+
+	static void verifyErrorResponse(ErrorResponse expected, ErrorResponse actual) {
+		assertEquals(expected.receiverId, actual.receiverId);
+		assertEquals(expected.cause.getClass(), actual.cause.getClass());
+		assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
+
+		if (expected.receiverId == null) {
+			assertTrue(actual.isFatalError());
+		}
+	}
+
+	static void verifyBufferResponseHeader(BufferResponse expected, BufferResponse actual) {
+		assertEquals(expected.backlog, actual.backlog);
+		assertEquals(expected.sequenceNumber, actual.sequenceNumber);
+		assertEquals(expected.bufferSize, actual.bufferSize);
+		assertEquals(expected.receiverId, actual.receiverId);
+	}
+
 	// ------------------------------------------------------------------------
 
 	static final class NettyServerAndClient {
@@ -180,6 +224,13 @@ public class NettyTestUtil {
 
 		NettyClient client() {
 			return client;
+		}
+
+		ConnectionID getConnectionID(int connectionIndex) {
+			return new ConnectionID(new InetSocketAddress(
+				server.getConfig().getServerAddress(),
+				server.getConfig().getServerPort()),
+				connectionIndex);
 		}
 	}
 }

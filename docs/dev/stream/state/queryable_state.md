@@ -33,7 +33,7 @@ under the License.
 </div>
 
 In a nutshell, this feature exposes Flink's managed keyed (partitioned) state
-(see [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) to the outside world and 
+(see [Working with State]({% link dev/stream/state/state.md %})) to the outside world and 
 allows the user to query a job's state from outside Flink. For some scenarios, queryable state 
 eliminates the need for distributed operations/transactions with external systems such as key-value 
 stores which are often the bottleneck in practice. In addition, this feature may be particularly 
@@ -61,7 +61,7 @@ The Queryable State feature consists of three main entities:
  3. the `QueryableStateServer` which runs on each `TaskManager` and is responsible for serving the locally stored state.
  
 The client connects to one of the proxies and sends a request for the state associated with a specific 
-key, `k`. As stated in [Working with State]({{ site.baseurl }}/dev/stream/state/state.html), keyed state is organized in 
+key, `k`. As stated in [Working with State]({% link dev/stream/state/state.md %}), keyed state is organized in 
 *Key Groups*, and each `TaskManager` is assigned a number of these key groups. To discover which `TaskManager` is 
 responsible for the key group holding `k`, the proxy will ask the `JobManager`. Based on the answer, the proxy will 
 then query the `QueryableStateServer` running on that `TaskManager` for the state associated with `k`, and forward the
@@ -74,7 +74,7 @@ To enable queryable state on your Flink cluster, you need to do the following:
  1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
 from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
 to the `lib/` folder.
- 2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{ site.baseurl }}/ops/config.html#queryable-state) documentation for details and additional parameters.
+ 2. set the property `queryable-state.enable` to `true`. See the [Configuration]({% link deployment/config.md %}#queryable-state) documentation for details and additional parameters.
 
 To verify that your cluster is running with queryable state enabled, check the logs of any 
 task manager for the line: `"Started the Queryable State Proxy Server @ ..."`.
@@ -106,11 +106,6 @@ QueryableStateStream asQueryableState(
 // Shortcut for explicit ValueStateDescriptor variant
 QueryableStateStream asQueryableState(String queryableStateName)
 
-// FoldingState
-QueryableStateStream asQueryableState(
-    String queryableStateName,
-    FoldingStateDescriptor stateDescriptor)
-
 // ReducingState
 QueryableStateStream asQueryableState(
     String queryableStateName,
@@ -130,7 +125,7 @@ In a program like the following, all records of the keyed stream will be used to
 `ValueState.update(value)`:
 
 {% highlight java %}
-stream.keyBy(0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name")
 {% endhighlight %}
 
 This acts like the Scala API's `flatMapWithState`.
@@ -138,7 +133,7 @@ This acts like the Scala API's `flatMapWithState`.
 ### Managed Keyed State
 
 Managed keyed state of an operator
-(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
+(see [Using Managed Keyed State]({% link dev/stream/state/state.md %}#using-managed-keyed-state))
 can be made queryable by making the appropriate state descriptor queryable via
 `StateDescriptor.setQueryable(String queryableStateName)`, as in the example below:
 {% highlight java %}
@@ -155,7 +150,7 @@ descriptor.setQueryable("query-name"); // queryable state name
 </div>
 
 This variant has no limitations as to which type of state can be made queryable. This means that this can be used for 
-any `ValueState`, `ReduceState`, `ListState`, `MapState`, `AggregatingState`, and the currently deprecated `FoldingState`.
+any `ValueState`, `ReduceState`, `ListState`, `MapState`, and `AggregatingState`.
 
 ## Querying State
 
@@ -180,7 +175,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 {% endhighlight %}
 </div>
 
-For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
+For more on this, you can check how to [set up a Flink program]({% link dev/project-configuration.md %}).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 
@@ -210,7 +205,7 @@ to serialize/deserialize it.
 
 The careful reader will notice that the returned future contains a value of type `S`, *i.e.* a `State` object containing
 the actual value. This can be any of the state types supported by Flink: `ValueState`, `ReduceState`, `ListState`, `MapState`,
-`AggregatingState`, and the currently deprecated `FoldingState`. 
+and `AggregatingState`. 
 
 <div class="alert alert-info">
   <strong>Note:</strong> These state objects do not allow modifications to the contained state. You can use them to get 
@@ -229,7 +224,7 @@ the actual value. This can be any of the state types supported by Flink: `ValueS
 ### Example
 
 The following example extends the `CountWindowAverage` example
-(see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
+(see [Using Managed Keyed State]({% link dev/stream/state/state.md %}#using-managed-keyed-state))
 by making it queryable and shows how to query this value:
 
 {% highlight java %}

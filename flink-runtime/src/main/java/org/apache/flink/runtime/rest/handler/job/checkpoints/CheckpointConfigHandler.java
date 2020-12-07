@@ -92,7 +92,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 		if (checkpointCoordinatorConfiguration == null) {
 			throw new RestHandlerException(
 				"Checkpointing is not enabled for this job (" + executionGraph.getJobID() + ").",
-				HttpResponseStatus.NOT_FOUND);
+				HttpResponseStatus.NOT_FOUND, RestHandlerException.LoggingBehavior.IGNORE);
 		} else {
 			CheckpointRetentionPolicy retentionPolicy = checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy();
 
@@ -100,13 +100,17 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 					retentionPolicy != CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
+			String stateBackendName = executionGraph.getStateBackendName().orElse(null);
+
 			return new CheckpointConfigInfo(
 				checkpointCoordinatorConfiguration.isExactlyOnce() ? CheckpointConfigInfo.ProcessingMode.EXACTLY_ONCE : CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
 				checkpointCoordinatorConfiguration.getCheckpointInterval(),
 				checkpointCoordinatorConfiguration.getCheckpointTimeout(),
 				checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
 				checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointInfo);
+				externalizedCheckpointInfo,
+				stateBackendName,
+				checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled());
 		}
 	}
 }

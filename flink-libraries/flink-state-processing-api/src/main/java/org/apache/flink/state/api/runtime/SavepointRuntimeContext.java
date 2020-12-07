@@ -26,12 +26,11 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -49,7 +48,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * A streaming {@link RuntimeContext} which delegates to the underlying batch {@code RuntimeContext}
@@ -125,6 +124,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
+	public void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+		ctx.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
+	}
+
+	@Override
 	public <V, A extends Serializable> void addAccumulator(
 		String name, Accumulator<V, A> accumulator) {
 		ctx.addAccumulator(name, accumulator);
@@ -133,12 +137,6 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
 		return ctx.getAccumulator(name);
-	}
-
-	@Override
-	@Deprecated
-	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return ctx.getAllAccumulators();
 	}
 
 	@Override
@@ -159,6 +157,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	@Override
 	public Histogram getHistogram(String name) {
 		return ctx.getHistogram(name);
+	}
+
+	@Override
+	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+		throw new UnsupportedOperationException("Do not support external resource in current environment");
 	}
 
 	@Override
@@ -220,17 +223,6 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 
 		registeredDescriptors.add(stateProperties);
 		return keyedStateStore.getAggregatingState(stateProperties);
-	}
-
-	@Override
-	@Deprecated
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		if (!stateRegistrationAllowed) {
-			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
-		}
-
-		registeredDescriptors.add(stateProperties);
-		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
 	@Override

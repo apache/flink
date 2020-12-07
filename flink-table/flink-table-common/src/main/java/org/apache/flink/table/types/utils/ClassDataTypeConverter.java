@@ -19,10 +19,12 @@
 package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.types.Row;
 
@@ -34,6 +36,9 @@ import java.util.Optional;
 /**
  * Class-based data type extractor that supports extraction of clearly identifiable data types for
  * input and output conversion.
+ *
+ * <p>Note: In most of the cases, {@link DataTypeExtractor} is more useful as it also considers structured
+ * types and type variables possibly annotated with {@link DataTypeHint}.
  */
 @Internal
 public final class ClassDataTypeConverter {
@@ -41,7 +46,7 @@ public final class ClassDataTypeConverter {
 	private static final Map<String, DataType> defaultDataTypes = new HashMap<>();
 	static {
 		// NOTE: this list explicitly excludes data types that need further parameters
-		// exclusions: DECIMAL, INTERVAL YEAR TO MONTH, MAP, MULTISET, ROW, NULL, ANY
+		// exclusions: DECIMAL, MAP, MULTISET, ROW, NULL, ANY
 		addDefaultDataType(String.class, DataTypes.STRING());
 		addDefaultDataType(Boolean.class, DataTypes.BOOLEAN());
 		addDefaultDataType(boolean.class, DataTypes.BOOLEAN());
@@ -66,6 +71,7 @@ public final class ClassDataTypeConverter {
 		addDefaultDataType(java.time.OffsetDateTime.class, DataTypes.TIMESTAMP_WITH_TIME_ZONE(9));
 		addDefaultDataType(java.time.Instant.class, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9));
 		addDefaultDataType(java.time.Duration.class, DataTypes.INTERVAL(DataTypes.SECOND(9)));
+		addDefaultDataType(java.time.Period.class, DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH()));
 	}
 
 	private static void addDefaultDataType(Class<?> clazz, DataType rootType) {
@@ -86,8 +92,8 @@ public final class ClassDataTypeConverter {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Optional<DataType> extractDataType(Class<?> clazz) {
-		// byte arrays have higher priority than regular arrays
-		if (clazz.equals(byte[].class)) {
+		// prefer BYTES over ARRAY<TINYINT> for byte[]
+		if (clazz == byte[].class) {
 			return Optional.of(DataTypes.BYTES());
 		}
 

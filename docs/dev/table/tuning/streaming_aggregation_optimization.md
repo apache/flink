@@ -28,7 +28,7 @@ In this page, we will introduce some useful optimization options and the interna
 
 <span class="label label-danger">Attention</span> Currently, the optimization options mentioned in this page are only supported in the Blink planner.
 
-<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql.html#group-windows) will be supported in the future.
+<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({% link dev/table/sql/queries.md %}#aggregations). Optimizations for [window aggregations]({% link dev/table/sql/queries.md %}#group-windows) will be supported in the future.
 
 * This will be replaced by the TOC
 {:toc}
@@ -43,10 +43,10 @@ The core idea of mini-batch aggregation is caching a bundle of inputs in a buffe
 The following figure explains how the mini-batch aggregation reduces state operations.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
+  <img src="{% link /fig/table-streaming/minibatch_agg.png %}" width="50%" height="50%" />
 </div>
 
-MiniBatch optimization is disabled by default. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{ site.baseurl }}/dev/table/config.html#execution-options) page for more details.
+MiniBatch optimization is disabled by default. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({% link dev/table/config.md %}#execution-options) page for more details.
 
 The following examples show how to enable these options.
 
@@ -56,11 +56,12 @@ The following examples show how to enable these options.
 // instantiate table environment
 TableEnvironment tEnv = ...
 
-tEnv.getConfig()        // access high-level configuration
-  .getConfiguration()   // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true")  // enable mini-batch optimization
-  .setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-  .setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
+// access flink configuration
+Configuration configuration = tEnv.getConfig().getConfiguration();
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true"); // enable mini-batch optimization
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s"); // use 5 seconds to buffer input records
+configuration.setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 
@@ -69,11 +70,12 @@ tEnv.getConfig()        // access high-level configuration
 // instantiate table environment
 val tEnv: TableEnvironment = ...
 
-tEnv.getConfig         // access high-level configuration
-  .getConfiguration    // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
-  .setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-  .setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
+// access flink configuration
+val configuration = tEnv.getConfig().getConfiguration()
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
+configuration.setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 
@@ -82,11 +84,12 @@ tEnv.getConfig         // access high-level configuration
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()        # access high-level configuration
-  .get_configuration()    # set low-level key-value options
-  .set_string("table.exec.mini-batch.enabled", "true") # enable mini-batch optimization
-  .set_string("table.exec.mini-batch.allow-latency", "5 s") # use 5 seconds to buffer input records
-  .set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
+# access flink configuration
+configuration = t_env.get_config().get_configuration();
+# set low-level key-value options
+configuration.set_string("table.exec.mini-batch.enabled", "true"); # enable mini-batch optimization
+configuration.set_string("table.exec.mini-batch.allow-latency", "5 s"); # use 5 seconds to buffer input records
+configuration.set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 </div>
@@ -108,7 +111,7 @@ This can significantly reduce the network shuffle and the cost of state access. 
 The following figure shows how the local-global aggregation improve performance.
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/local_agg.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/local_agg.png %}" width="70%" height="70%" />
 </div>
 
 
@@ -120,12 +123,13 @@ The following examples show how to enable the local-global aggregation.
 // instantiate table environment
 TableEnvironment tEnv = ...
 
-tEnv.getConfig()        // access high-level configuration
-  .getConfiguration()   // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true")  // local-global aggregation depends on mini-batch is enabled
-  .setString("table.exec.mini-batch.allow-latency", "5 s")
-  .setString("table.exec.mini-batch.size", "5000")
-  .setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
+// access flink configuration
+Configuration configuration = tEnv.getConfig().getConfiguration();
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true"); // local-global aggregation depends on mini-batch is enabled
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
+configuration.setString("table.exec.mini-batch.size", "5000");
+configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
 {% endhighlight %}
 </div>
 
@@ -134,12 +138,13 @@ tEnv.getConfig()        // access high-level configuration
 // instantiate table environment
 val tEnv: TableEnvironment = ...
 
-tEnv.getConfig         // access high-level configuration
-  .getConfiguration    // set low-level key-value options
-  .setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
-  .setString("table.exec.mini-batch.allow-latency", "5 s")
-  .setString("table.exec.mini-batch.size", "5000")
-  .setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
+// access flink configuration
+val configuration = tEnv.getConfig().getConfiguration()
+// set low-level key-value options
+configuration.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
+configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
+configuration.setString("table.exec.mini-batch.size", "5000")
+configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
 {% endhighlight %}
 </div>
 
@@ -148,12 +153,13 @@ tEnv.getConfig         // access high-level configuration
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()        # access high-level configuration
-  .get_configuration()    # set low-level key-value options
-  .set_string("table.exec.mini-batch.enabled", "true") # local-global aggregation depends on mini-batch is enabled
-  .set_string("table.exec.mini-batch.allow-latency", "5 s")
-  .set_string("table.exec.mini-batch.size", "5000")
-  .set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
+# access flink configuration
+configuration = t_env.get_config().get_configuration();
+# set low-level key-value options
+configuration.set_string("table.exec.mini-batch.enabled", "true"); # local-global aggregation depends on mini-batch is enabled
+configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set_string("table.exec.mini-batch.size", "5000");
+configuration.set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
 {% endhighlight %}
 </div>
 </div>
@@ -192,7 +198,7 @@ GROUP BY day
 The following figure shows how the split distinct aggregation improve performance (assuming color represents days, and letter represents user_id).
 
 <div style="text-align: center">
-  <img src="{{ site.baseurl }}/fig/table-streaming/distinct_split.png" width="70%" height="70%" />
+  <img src="{% link /fig/table-streaming/distinct_split.png %}" width="70%" height="70%" />
 </div>
 
 NOTE: Above is the simplest example which can benefit from this optimization. Besides that, Flink supports to split more complex aggregation queries, for example, more than one distinct aggregates with different distinct key (e.g. `COUNT(DISTINCT a), SUM(DISTINCT b)`), works with other non-distinct aggregates (e.g. `SUM`, `MAX`, `MIN`, `COUNT`).

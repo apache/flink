@@ -18,15 +18,25 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.api.{DataTypes, _}
+import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.MapTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
 import org.junit.Test
 
+import java.time.{LocalDateTime => JLocalTimestamp}
+
 class MapTypeTest extends MapTypeTestBase {
+
+  @Test
+  def testInputTypeGeneralization(): Unit = {
+    testAllApis(
+      map(1, "ABC", 2.0, "D"),
+      "map(1, 'ABC', 2.0, 'D')",
+      "MAP[1, 'ABC', cast(2.0 AS DOUBLE), 'D']",
+      "{1.0=ABC, 2.0=D}")
+  }
 
   @Test
   def testItem(): Unit = {
@@ -83,14 +93,39 @@ class MapTypeTest extends MapTypeTestBase {
       "MAP[DATE '1985-04-11', TIME '14:15:16', DATE '2018-07-26', TIME '17:18:19']",
       "{1985-04-11=14:15:16, 2018-07-26=17:18:19}")
 
-    testAllApis(
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi(
       map(valueLiteral(gLocalTime("14:15:16")), valueLiteral(localDateTime("1985-04-11 14:15:16")),
         valueLiteral(gLocalTime("17:18:19")), valueLiteral(localDateTime("2018-07-26 17:18:19"))),
-      "map('14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
-          "'17:18:19'.toTime, '2018-07-26 17:18:19'.toTimestamp)",
+      "{14:15:16=1985-04-11 14:15:16, 17:18:19=2018-07-26 17:18:19}")
+    testSqlApi(
       "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-          "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
-      "{14:15:16=1985-04-11 14:15:16.000, 17:18:19=2018-07-26 17:18:19.000}")
+        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
+      "{14:15:16=1985-04-11 14:15:16, 17:18:19=2018-07-26 17:18:19}")
+
+    testAllApis(
+      map(valueLiteral(gLocalTime("14:15:16")),
+        valueLiteral(localDateTime("1985-04-11 14:15:16.123")),
+        valueLiteral(gLocalTime("17:18:19")),
+        valueLiteral(localDateTime("2018-07-26 17:18:19.123"))),
+      "map('14:15:16'.toTime, '1985-04-11 14:15:16.123'.toTimestamp, " +
+        "'17:18:19'.toTime, '2018-07-26 17:18:19.123'.toTimestamp)",
+      "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123', " +
+        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19.123']",
+      "{14:15:16=1985-04-11 14:15:16.123, 17:18:19=2018-07-26 17:18:19.123}")
+
+    testTableApi(
+      map(valueLiteral(gLocalTime("14:15:16")),
+        valueLiteral(JLocalTimestamp.of(1985, 4, 11, 14, 15, 16, 123456000)),
+        valueLiteral(gLocalTime("17:18:19")),
+        valueLiteral(JLocalTimestamp.of(2018, 7, 26, 17, 18, 19, 123456000))),
+      "{14:15:16=1985-04-11 14:15:16.123456, 17:18:19=2018-07-26 17:18:19.123456}")
+
+    testSqlApi(
+      "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123456', " +
+        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19.123456']",
+      "{14:15:16=1985-04-11 14:15:16.123456, 17:18:19=2018-07-26 17:18:19.123456}")
 
     testAllApis(
       map(BigDecimal(2.0002), BigDecimal(2.0003)),

@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.logical.BigIntType
 
 import org.junit.Test
 
@@ -57,7 +60,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
   @Test
   def testFilteringOnRowtime(): Unit = {
     val sqlQuery =
-      "SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP)"
+      "SELECT rowtime FROM MyTable1 WHERE rowtime > CAST('1990-12-02 12:11:11' AS TIMESTAMP(3))"
     util.verifyPlan(sqlQuery)
   }
 
@@ -162,6 +165,37 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
     util.verifyPlan(result)
   }
 
+  @Test
+  def testKeepProcessTimeAttrAfterSubGraphOptimize(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
+    val sql =
+      """
+        |SELECT
+        |    long,
+        |    SUM(`int`)
+        |FROM MyTable2
+        |    GROUP BY TUMBLE(proctime, INTERVAL '10' SECOND), long
+      """.stripMargin
+
+    val table = util.tableEnv.sqlQuery(sql)
+
+    val appendSink1 = util.createAppendTableSink(
+      Array("long", "sum"),
+      Array(new BigIntType(), new BigIntType()))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", table)
+
+    val appendSink2 = util.createAppendTableSink(
+      Array("long", "sum"),
+      Array(new BigIntType(), new BigIntType()))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink2", appendSink2)
+    stmtSet.addInsert("appendSink2", table)
+
+    util.verifyPlan(stmtSet)
+  }
+
   // TODO add temporal table join case
 }
 
@@ -170,7 +204,7 @@ object RelTimeIndicatorConverterTest {
   class TableFunc extends TableFunction[String] {
     val t = new Timestamp(0L)
 
-    def eval(time1: Long, time2: Timestamp, string: String): Unit = {
+    def eval(time1: TimestampData, time2: Timestamp, string: String): Unit = {
       collect(time1.toString + time2.after(t) + string)
     }
   }

@@ -36,6 +36,16 @@ import static org.apache.flink.configuration.description.TextElement.text;
  */
 @PublicEvolving
 public class PipelineOptions {
+
+	/**
+	 * The job name used for printing and logging.
+	 */
+	public static final ConfigOption<String> NAME =
+		key("pipeline.name")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The job name used for printing and logging.");
+
 	/**
 	 * A list of jar files that contain the user-defined function (UDF) classes and all classes used from within the UDFs.
 	 */
@@ -208,4 +218,27 @@ public class PipelineOptions {
 					" sure that only tags are written.")
 				.build());
 
+	public static final ConfigOption<Boolean> OPERATOR_CHAINING =
+		key("pipeline.operator-chaining")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription("Operator chaining allows non-shuffle operations to be co-located in the same thread " +
+				"fully avoiding serialization and de-serialization.");
+
+	public static final ConfigOption<List<String>> CACHED_FILES =
+		key("pipeline.cached-files")
+			.stringType()
+			.asList()
+			.noDefaultValue()
+			.withDescription(Description.builder()
+				.text("Files to be registered at the distributed cache under the given name. The files will be " +
+					"accessible from any user-defined function in the (distributed) runtime under a local path. " +
+					"Files may be local files (which will be distributed via BlobServer), or files in a distributed " +
+					"file system. The runtime will copy the files temporarily to a local cache, if needed.")
+				.linebreak()
+				.linebreak()
+				.text("Example:")
+				.linebreak()
+				.add(TextElement.code("name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`"))
+				.build());
 }

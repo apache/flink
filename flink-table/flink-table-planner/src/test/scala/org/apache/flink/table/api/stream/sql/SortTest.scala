@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
@@ -52,13 +53,13 @@ class SortTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM MyTable ORDER BY rowtime, c"
       
     val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode("DataStreamSort",
+      unaryNode("DataStreamSort",
+        unaryNode(
+          "DataStreamCalc",
           streamTableNode(table),
-          term("orderBy", "rowtime ASC, c ASC")),
-        term("select", "a", "rowtime", "c"))
-       
+          term("select", "a", "rowtime", "c")),
+        term("orderBy", "rowtime ASC, c ASC"))
+
     streamUtil.verifySql(sqlQuery, expected)
   }
 }

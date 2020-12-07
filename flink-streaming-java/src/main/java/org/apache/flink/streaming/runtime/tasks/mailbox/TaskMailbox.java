@@ -141,7 +141,7 @@ public interface TaskMailbox {
 	 *
 	 * @return an optional with either the oldest mail from the batch (head of queue) if the batch is not empty or an
 	 * 	empty optional otherwise.
-	 * @throws IllegalStateException if mailbox is already closed.
+	 * @throws MailboxClosedException if mailbox is already closed.
 	 */
 	Optional<Mail> tryTakeFromBatch();
 
@@ -153,7 +153,7 @@ public interface TaskMailbox {
 	 * <p>Mails can be added from any thread.
 	 *
 	 * @param mail the mail to enqueue.
-	 * @throws IllegalStateException if the mailbox is quiesced or closed.
+	 * @throws MailboxClosedException if the mailbox is quiesced or closed.
 	 */
 	void put(Mail mail);
 
@@ -163,7 +163,7 @@ public interface TaskMailbox {
 	 * <p>Mails can be added from any thread.
 	 *
 	 * @param mail the mail to enqueue.
-	 * @throws IllegalStateException if the mailbox is quiesced or closed.
+	 * @throws MailboxClosedException if the mailbox is quiesced or closed.
 	 */
 	void putFirst(Mail mail);
 
@@ -173,7 +173,16 @@ public interface TaskMailbox {
 	 * This enum represents the states of the mailbox lifecycle.
 	 */
 	enum State {
-		OPEN, QUIESCED, CLOSED
+		OPEN(true), QUIESCED(false), CLOSED(false);
+		private final boolean acceptingMails;
+
+		State(boolean acceptingMails) {
+			this.acceptingMails = acceptingMails;
+		}
+
+		public boolean isAcceptingMails() {
+			return acceptingMails;
+		}
 	}
 
 	/**
@@ -185,13 +194,13 @@ public interface TaskMailbox {
 
 	/**
 	 * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending and future put
-	 * operations will throw {@link IllegalStateException}.
+	 * operations will throw {@link MailboxClosedException}.
 	 */
 	void quiesce();
 
 	/**
 	 * Close the mailbox. In this state, all pending and future put operations and all pending and future take
-	 * operations will throw {@link IllegalStateException}. Returns all mails that were still enqueued.
+	 * operations will throw {@link MailboxClosedException}. Returns all mails that were still enqueued.
 	 *
 	 * @return list with all mails that where enqueued in the mailbox at the time of closing.
 	 */
@@ -216,4 +225,13 @@ public interface TaskMailbox {
 	 * @param runnable the runnable to execute
 	 */
 	void runExclusively(Runnable runnable);
+
+	/**
+	 * Exception thrown when {@link TaskMailbox} is closed.
+	 */
+	class MailboxClosedException extends IllegalStateException {
+		public MailboxClosedException(String message) {
+			super(message);
+		}
+	}
 }

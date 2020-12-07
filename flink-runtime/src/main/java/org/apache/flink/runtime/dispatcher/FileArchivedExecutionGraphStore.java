@@ -20,13 +20,12 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -177,7 +176,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 		// write the ArchivedExecutionGraph to disk
 		storeArchivedExecutionGraph(archivedExecutionGraph);
 
-		final JobDetails detailsForJob = WebMonitorUtils.createDetailsForJob(archivedExecutionGraph);
+		final JobDetails detailsForJob = JobDetails.createDetailsForJob(archivedExecutionGraph);
 
 		jobDetailsCache.put(jobId, detailsForJob);
 		archivedExecutionGraphCache.put(jobId, archivedExecutionGraph);

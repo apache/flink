@@ -32,16 +32,11 @@ public class NoOpMetricRegistry implements MetricRegistry {
 
 	public static final MetricRegistry INSTANCE = new NoOpMetricRegistry();
 
-	private NoOpMetricRegistry() {
+	public NoOpMetricRegistry() {
 	}
 
 	@Override
 	public char getDelimiter() {
-		return delimiter;
-	}
-
-	@Override
-	public char getDelimiter(int index) {
 		return delimiter;
 	}
 

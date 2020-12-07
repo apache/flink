@@ -164,7 +164,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 					createAndRegisterStream();
 
 					try {
-						Thread.sleep(2);
+						Thread.sleep(0);
 					} catch (InterruptedException ignored) {}
 
 					if (maxStreams != Integer.MAX_VALUE) {
@@ -240,7 +240,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		 * Causes the current thread to wait until {@link #close()} is called.
 		 */
 		public void awaitClose(final long timeout, final TimeUnit timeUnit) throws InterruptedException {
-			closeCalledLatch.await(timeout, timeUnit);
+			assertTrue(closeCalledLatch.await(timeout, timeUnit));
 		}
 	}
 

@@ -2,7 +2,7 @@
 title: "模块"
 is_beta: true
 nav-parent_id: tableapi
-nav-pos: 90
+nav-pos: 70
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -43,7 +43,7 @@ functions as Flink built-in functions.
 ### HiveModule
 
 The `HiveModule` provides Hive built-in functions as Flink's system functions to SQL and Table API users.
-Flink's [Hive documentation]({{ site.baseurl }}/dev/table/hive/hive_functions.html) provides full details on setting up the module.
+Flink's [Hive documentation]({% link dev/table/connectors/hive/hive_functions.zh.md %}) provides full details on setting up the module.
 
 ### User-Defined Module
 
@@ -105,12 +105,11 @@ modules:
      type: core
    - name: myhive
      type: hive
-     hive-version: 1.2.1
 {% endhighlight %}
 </div>
 </div>
 
-### List Available Catalogs
+### List Available Modules
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">

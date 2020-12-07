@@ -22,8 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -32,10 +31,10 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link Savepoint}.
+ * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link CheckpointMetadata}.
  */
 @Internal
-public class MergeOperatorStates implements GroupReduceFunction<OperatorState, Savepoint> {
+public class MergeOperatorStates implements GroupReduceFunction<OperatorState, CheckpointMetadata> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -48,14 +47,14 @@ public class MergeOperatorStates implements GroupReduceFunction<OperatorState, S
 	}
 
 	@Override
-	public void reduce(Iterable<OperatorState> values, Collector<Savepoint> out) {
-		Savepoint savepoint =
-			new SavepointV2(
+	public void reduce(Iterable<OperatorState> values, Collector<CheckpointMetadata> out) {
+		CheckpointMetadata metadata =
+			new CheckpointMetadata(
 				SnapshotUtils.CHECKPOINT_ID,
 				StreamSupport.stream(values.spliterator(), false).collect(Collectors.toList()),
 				masterStates);
 
-		out.collect(savepoint);
+		out.collect(metadata);
 	}
 }
 

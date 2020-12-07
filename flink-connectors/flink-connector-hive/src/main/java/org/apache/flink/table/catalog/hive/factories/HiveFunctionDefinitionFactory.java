@@ -22,14 +22,12 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinitionUtil;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDF;
@@ -63,11 +61,18 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
-		if (Boolean.valueOf(catalogFunction.getProperties().get(CatalogConfig.IS_GENERIC))) {
-			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction);
+		if (catalogFunction.isGeneric()) {
+			return createFunctionDefinitionFromFlinkFunction(name, catalogFunction);
 		}
-
 		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
+	}
+
+	public FunctionDefinition createFunctionDefinitionFromFlinkFunction(String name, CatalogFunction catalogFunction) {
+		return UserDefinedFunctionHelper.instantiateFunction(
+				Thread.currentThread().getContextClassLoader(),
+				null,
+				name,
+				catalogFunction);
 	}
 
 	/**
@@ -88,17 +93,11 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 		if (UDF.class.isAssignableFrom(clazz)) {
 			LOG.info("Transforming Hive function '{}' into a HiveSimpleUDF", name);
 
-			return new ScalarFunctionDefinition(
-				name,
-				new HiveSimpleUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim)
-			);
+			return new HiveSimpleUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
 		} else if (GenericUDF.class.isAssignableFrom(clazz)) {
 			LOG.info("Transforming Hive function '{}' into a HiveGenericUDF", name);
 
-			return new ScalarFunctionDefinition(
-				name,
-				new HiveGenericUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim)
-			);
+			return new HiveGenericUDF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
 		} else if (GenericUDTF.class.isAssignableFrom(clazz)) {
 			LOG.info("Transforming Hive function '{}' into a HiveGenericUDTF", name);
 

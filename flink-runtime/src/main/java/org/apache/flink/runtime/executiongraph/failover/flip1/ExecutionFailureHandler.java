@@ -20,6 +20,8 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.IterableUtils;
@@ -36,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionFailureHandler {
 
-	private final FailoverTopology<?, ?> failoverTopology;
+	private final SchedulingTopology schedulingTopology;
 
 	/** Strategy to judge which tasks should be restarted. */
 	private final FailoverStrategy failoverStrategy;
@@ -50,16 +52,16 @@ public class ExecutionFailureHandler {
 	/**
 	 * Creates the handler to deal with task failures.
 	 *
-	 * @param failoverTopology contains the topology info for failover
+	 * @param schedulingTopology contains the topology info for failover
 	 * @param failoverStrategy helps to decide tasks to restart on task failures
 	 * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the restarting delay
 	 */
 	public ExecutionFailureHandler(
-			final FailoverTopology<?, ?> failoverTopology,
+			final SchedulingTopology schedulingTopology,
 			final FailoverStrategy failoverStrategy,
 			final RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
 
-		this.failoverTopology = checkNotNull(failoverTopology);
+		this.schedulingTopology = checkNotNull(schedulingTopology);
 		this.failoverStrategy = checkNotNull(failoverStrategy);
 		this.restartBackoffTimeStrategy = checkNotNull(restartBackoffTimeStrategy);
 	}
@@ -73,7 +75,7 @@ public class ExecutionFailureHandler {
 	 * @return result of the failure handling
 	 */
 	public FailureHandlingResult getFailureHandlingResult(ExecutionVertexID failedTask, Throwable cause) {
-		return handleFailure(cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause));
+		return handleFailure(cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause), false);
 	}
 
 	/**
@@ -86,17 +88,20 @@ public class ExecutionFailureHandler {
 	public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
 		return handleFailure(
 			cause,
-			IterableUtils.toStream(failoverTopology.getVertices())
-				.map(FailoverVertex::getId)
-				.collect(Collectors.toSet()));
+			IterableUtils.toStream(schedulingTopology.getVertices())
+				.map(SchedulingExecutionVertex::getId)
+				.collect(Collectors.toSet()),
+			true);
 	}
 
 	private FailureHandlingResult handleFailure(
 			final Throwable cause,
-			final Set<ExecutionVertexID> verticesToRestart) {
+			final Set<ExecutionVertexID> verticesToRestart,
+			final boolean globalFailure) {
 
 		if (isUnrecoverableError(cause)) {
-			return FailureHandlingResult.unrecoverable(new JobException("The failure is not recoverable", cause));
+			return FailureHandlingResult.unrecoverable(
+				new JobException("The failure is not recoverable", cause), globalFailure);
 		}
 
 		restartBackoffTimeStrategy.notifyFailure(cause);
@@ -105,10 +110,12 @@ public class ExecutionFailureHandler {
 
 			return FailureHandlingResult.restartable(
 				verticesToRestart,
-				restartBackoffTimeStrategy.getBackoffTime());
+				restartBackoffTimeStrategy.getBackoffTime(),
+				globalFailure);
 		} else {
 			return FailureHandlingResult.unrecoverable(
-				new JobException("Recovery is suppressed by " + restartBackoffTimeStrategy, cause));
+				new JobException("Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
+				globalFailure);
 		}
 	}
 

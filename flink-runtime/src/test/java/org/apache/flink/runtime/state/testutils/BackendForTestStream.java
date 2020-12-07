@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state.testutils;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -56,13 +56,13 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 	// make no reconfiguration!
 	@Override
-	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
+	public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 		return this;
 	}
 
 	@Override
-	public CheckpointStorage createCheckpointStorage(JobID jobId) {
-		return new TestCheckpointStorage();
+	public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
+		return new TestCheckpointStorageAccess();
 	}
 
 	// ------------------------------------------------------------------------
@@ -72,7 +72,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 	// ------------------------------------------------------------------------
 
-	private final class TestCheckpointStorage implements CheckpointStorage {
+	private final class TestCheckpointStorageAccess implements CheckpointStorageAccess {
 
 		@Override
 		public boolean supportsHighlyAvailableStorage() {

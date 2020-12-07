@@ -19,29 +19,19 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.api.java.RemoteEnvironmentConfigUtils;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -51,26 +41,6 @@ import java.util.List;
  */
 @Public
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
-
-	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
-
-	/** The hostname of the JobManager. */
-	private final String host;
-
-	/** The port of the JobManager main actor system. */
-	private final int port;
-
-	/** The configuration used to parametrize the client that connects to the remote cluster. */
-	private final Configuration clientConfiguration;
-
-	/** The jar files that need to be attached to each job. */
-	private final List<URL> jarFiles;
-
-	/** The classpaths that need to be attached to each job. */
-	private final List<URL> globalClasspaths;
-
-	/** The savepoint restore settings for job execution. */
-	private final SavepointRestoreSettings savepointRestoreSettings;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -140,7 +110,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths) {
-		this(host, port, clientConfiguration, jarFiles, null, null);
+		this(host, port, clientConfiguration, jarFiles, globalClasspaths, null);
 	}
 
 	/**
@@ -171,165 +141,89 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public RemoteStreamEnvironment(String host, int port, Configuration clientConfiguration, String[] jarFiles, URL[] globalClasspaths, SavepointRestoreSettings savepointRestoreSettings) {
-		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
-			throw new InvalidProgramException(
-					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
-							"or running in a TestEnvironment context.");
-		}
-
-		if (host == null) {
-			throw new NullPointerException("Host must not be null.");
-		}
-		if (port < 1 || port >= 0xffff) {
-			throw new IllegalArgumentException("Port out of range");
-		}
-
-		this.host = host;
-		this.port = port;
-		this.clientConfiguration = clientConfiguration == null ? new Configuration() : clientConfiguration;
-		this.jarFiles = new ArrayList<>(jarFiles.length);
-		for (String jarFile : jarFiles) {
-			try {
-				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
-				this.jarFiles.add(jarFileUrl);
-				ClientUtils.checkJarFile(jarFileUrl);
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
-			} catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + jarFile, e);
-			}
-		}
-		if (globalClasspaths == null) {
-			this.globalClasspaths = Collections.emptyList();
-		}
-		else {
-			this.globalClasspaths = Arrays.asList(globalClasspaths);
-		}
-		this.savepointRestoreSettings = savepointRestoreSettings;
+		this(new DefaultExecutorServiceLoader(), host, port, clientConfiguration, jarFiles, globalClasspaths, savepointRestoreSettings);
 	}
 
-	/**
-	 * Executes the job remotely.
-	 *
-	 * <p>This method can be used independent of the {@link StreamExecutionEnvironment} type.
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
 	@PublicEvolving
-	public static JobExecutionResult executeRemotely(StreamExecutionEnvironment streamExecutionEnvironment,
-		List<URL> jarFiles,
-		String host,
-		int port,
-		Configuration clientConfiguration,
-		List<URL> globalClasspaths,
-		String jobName,
-		SavepointRestoreSettings savepointRestoreSettings
-	) throws ProgramInvocationException {
-		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
-		return executeRemotely(streamGraph,
-			streamExecutionEnvironment.getConfig(),
-			jarFiles,
-			host,
-			port,
-			clientConfiguration,
-			globalClasspaths,
-			savepointRestoreSettings);
+	public RemoteStreamEnvironment(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final String host,
+			final int port,
+			final Configuration clientConfiguration,
+			final String[] jarFiles,
+			final URL[] globalClasspaths,
+			final SavepointRestoreSettings savepointRestoreSettings) {
+		super(
+				executorServiceLoader,
+				validateAndGetEffectiveConfiguration(clientConfiguration, host, port, jarFiles, globalClasspaths, savepointRestoreSettings),
+				null
+		);
 	}
 
-	/**
-	 * Execute the given stream graph remotely.
-	 *
-	 * <p>Method for internal use since it exposes stream graph and other implementation details that are subject to change.
-	 * @throws ProgramInvocationException
-	 */
-	private static JobExecutionResult executeRemotely(StreamGraph streamGraph,
-		ExecutionConfig executionConfig,
-		List<URL> jarFiles,
-		String host,
-		int port,
-		Configuration clientConfiguration,
-		List<URL> globalClasspaths,
-		SavepointRestoreSettings savepointRestoreSettings
-	) throws ProgramInvocationException {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running remotely at {}:{}", host, port);
-		}
+	private static Configuration getClientConfiguration(final Configuration configuration) {
+		return configuration == null ? new Configuration() : configuration;
+	}
 
-		Configuration configuration = new Configuration();
-		configuration.addAll(clientConfiguration);
+	private static List<URL> getClasspathURLs(final URL[] classpaths) {
+		return classpaths == null ? Collections.emptyList() : Arrays.asList(classpaths);
+	}
 
-		configuration.setString(JobManagerOptions.ADDRESS, host);
-		configuration.setInteger(JobManagerOptions.PORT, port);
+	private static Configuration validateAndGetEffectiveConfiguration(
+			final Configuration configuration,
+			final String host,
+			final int port,
+			final String[] jarFiles,
+			final URL[] classpaths,
+			final SavepointRestoreSettings savepointRestoreSettings) {
+		RemoteEnvironmentConfigUtils.validate(host, port);
+		return getEffectiveConfiguration(
+				getClientConfiguration(configuration),
+				host,
+				port,
+				jarFiles,
+				getClasspathURLs(classpaths),
+				savepointRestoreSettings);
+	}
 
-		configuration.setInteger(RestOptions.PORT, port);
+	private static Configuration getEffectiveConfiguration(
+			final Configuration baseConfiguration,
+			final String host,
+			final int port,
+			final String[] jars,
+			final List<URL> classpaths,
+			final SavepointRestoreSettings savepointRestoreSettings) {
 
-		final ClusterClient<?> client;
-		try {
-			client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
-		}
-		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
-		}
+		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+
+		RemoteEnvironmentConfigUtils.setJobManagerAddressToConfig(host, port, effectiveConfiguration);
+		RemoteEnvironmentConfigUtils.setJarURLsToConfig(jars, effectiveConfiguration);
+		ConfigUtils.encodeCollectionToConfig(effectiveConfiguration, PipelineOptions.CLASSPATHS, classpaths, URL::toString);
 
 		if (savepointRestoreSettings != null) {
-			streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
+			SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, effectiveConfiguration);
+		} else {
+			SavepointRestoreSettings.toConfiguration(SavepointRestoreSettings.none(), effectiveConfiguration);
 		}
 
-		try {
-			final PlanExecutor executor = PlanExecutor.createRemoteExecutor(
-					host,
-					port,
-					clientConfiguration);
+		// these should be set in the end to overwrite any values from the client config provided in the constructor.
+		effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
+		effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
 
-			return executor.executePlan(streamGraph, jarFiles, globalClasspaths).getJobExecutionResult();
-		}
-		catch (ProgramInvocationException e) {
-			throw e;
-		}
-		catch (Exception e) {
-			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-			throw new ProgramInvocationException("The program execution failed" + term, e);
-		}
-		finally {
-			try {
-				client.close();
-			} catch (Exception e) {
-				LOG.warn("Could not properly shut down the cluster client.", e);
-			}
-		}
+		return effectiveConfiguration;
 	}
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
-	}
-
-	/**
-	 * Executes the remote job.
-	 *
-	 * <p>Note: This method exposes stream graph internal in the public API, but cannot be removed for backward compatibility.
-	 * @param streamGraph
-	 *            Stream Graph to execute
-	 * @param jarFiles
-	 * 			  List of jar file URLs to ship to the cluster
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 */
-	@Deprecated
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
-		return executeRemotely(streamGraph,
-			getConfig(),
-			jarFiles,
-			host,
-			port,
-			clientConfiguration,
-			globalClasspaths,
-			savepointRestoreSettings);
+		return super.execute(streamGraph);
 	}
 
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = "
-				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
+		final String host = getConfiguration().getString(JobManagerOptions.ADDRESS);
+		final int port = getConfiguration().getInteger(JobManagerOptions.PORT);
+		final String parallelism = (getParallelism() == -1 ? "default" : "" + getParallelism());
+
+		return "Remote Environment (" + host + ":" + port + " - parallelism = " + parallelism + ").";
 	}
 
 	/**
@@ -339,7 +233,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @return The hostname of the master
 	 */
 	public String getHost() {
-		return host;
+		return getConfiguration().getString(JobManagerOptions.ADDRESS);
 	}
 
 	/**
@@ -349,10 +243,12 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @return The port of the master
 	 */
 	public int getPort() {
-		return port;
+		return getConfiguration().getInteger(JobManagerOptions.PORT);
 	}
 
+	/** @deprecated This method is going to be removed in the next releases. */
+	@Deprecated
 	public Configuration getClientConfiguration() {
-		return clientConfiguration;
+		return getConfiguration();
 	}
 }
