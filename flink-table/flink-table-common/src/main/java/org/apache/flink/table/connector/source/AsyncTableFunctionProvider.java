@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.AsyncTableFunction;
  * Provider of an {@link AsyncTableFunction} instance as a runtime implementation for {@link LookupTableSource}.
  *
  * <p>The runtime will call the function with values describing the table's lookup keys (in the order
- * of declaration in {@link LookupTableSource.Context#getKeys()}).
+ * of declaration in {@link LookupTableSource.LookupContext#getKeys()}).
  */
 @PublicEvolving
 public interface AsyncTableFunctionProvider<T> extends LookupTableSource.LookupRuntimeProvider {
