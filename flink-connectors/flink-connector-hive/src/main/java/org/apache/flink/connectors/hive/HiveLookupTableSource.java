@@ -42,6 +42,8 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -67,6 +69,7 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOUR
  */
 public class HiveLookupTableSource extends HiveTableSource implements LookupTableSource {
 
+	private static final Logger LOG = LoggerFactory.getLogger(HiveLookupTableSource.class);
 	private static final Duration DEFAULT_LOOKUP_MONITOR_INTERVAL = Duration.ofHours(1L);
 	private final Configuration configuration;
 	private Duration hiveTableReloadInterval;
@@ -114,16 +117,16 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
 			Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL) == null
 					? DEFAULT_LOOKUP_MONITOR_INTERVAL
 					: configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
-			Preconditions.checkArgument(
-					monitorInterval.toMillis() >= DEFAULT_LOOKUP_MONITOR_INTERVAL.toMillis(),
-					String.format(
-							"Currently the value of '%s' is required bigger or equal to default value '%s' " +
-									"when set '%s' to 'latest', but actual is '%s'",
-							STREAMING_SOURCE_MONITOR_INTERVAL.key(),
-							DEFAULT_LOOKUP_MONITOR_INTERVAL.toMillis(),
-							STREAMING_SOURCE_PARTITION_INCLUDE.key(),
-							monitorInterval.toMillis())
-			);
+
+			if (monitorInterval.toMillis() < DEFAULT_LOOKUP_MONITOR_INTERVAL.toMillis()) {
+				LOG.warn(String.format(
+					"Currently the recommended value of '%s' is at least '%s' when set '%s' to 'latest'," +
+						" but actual is '%s', this may produce big pressure to hive metastore.",
+					STREAMING_SOURCE_MONITOR_INTERVAL.key(),
+					DEFAULT_LOOKUP_MONITOR_INTERVAL.toMillis(),
+					STREAMING_SOURCE_PARTITION_INCLUDE.key(),
+					monitorInterval.toMillis()));
+			}
 
 			hiveTableReloadInterval = monitorInterval;
 		} else {

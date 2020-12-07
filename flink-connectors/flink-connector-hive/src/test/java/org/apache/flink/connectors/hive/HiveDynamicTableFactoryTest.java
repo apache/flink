@@ -188,26 +188,23 @@ public class HiveDynamicTableFactoryTest {
 		assertEquals(configuration1.get(STREAMING_SOURCE_PARTITION_ORDER), "partition-time");
 		assertEquals(configuration1.get(PARTITION_TIME_EXTRACTOR_KIND), "custom");
 		assertEquals(configuration1.get(PARTITION_TIME_EXTRACTOR_CLASS), "path.to..TimeExtractor");
+
+		tableEnv.executeSql(String.format(
+			"create table table8 (x int, y string, z int)" +
+				" tblproperties ('%s' = 'true', '%s' = 'latest', '%s' = '5min')",
+			STREAMING_SOURCE_ENABLE.key(),
+			STREAMING_SOURCE_PARTITION_INCLUDE.key(),
+			STREAMING_SOURCE_MONITOR_INTERVAL.key()));
+		DynamicTableSource tableSource4 = getTableSource("table8");
+		assertTrue(tableSource4 instanceof HiveLookupTableSource);
+		HiveLookupTableSource lookupTableSource4 = (HiveLookupTableSource) tableSource4;
+		Configuration configuration4 = new Configuration();
+		lookupTableSource4.catalogTable.getOptions().forEach(configuration4::setString);
+		assertEquals(configuration4.get(STREAMING_SOURCE_MONITOR_INTERVAL), Duration.ofMinutes(5L));
 	}
 
 	@Test
-	public void testInvalidOptions() {
-		tableEnv.executeSql(String.format(
-				"create table table8 (x int, y string, z int)" +
-						" tblproperties ('%s' = 'true', '%s' = 'latest', '%s' = '5min')",
-				STREAMING_SOURCE_ENABLE.key(),
-				STREAMING_SOURCE_PARTITION_INCLUDE.key(),
-				STREAMING_SOURCE_MONITOR_INTERVAL.key()));
-		try {
-			getTableSource("table8");
-		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
-					"Currently the value of 'streaming-source.monitor-interval' is required bigger or " +
-							"equal to default value '3600000' when set 'streaming-source.partition.include' to 'latest'," +
-							" but actual is '300000'")
-					.isPresent());
-		}
-
+	public void testInvalidOptions() throws Exception {
 		tableEnv.executeSql(String.format(
 				"create table table9 (x int, y string, z int)" +
 						" tblproperties ('%s' = 'true', '%s' = 'latest', '%s' = '120min', '%s' = '1970-00-01')",
