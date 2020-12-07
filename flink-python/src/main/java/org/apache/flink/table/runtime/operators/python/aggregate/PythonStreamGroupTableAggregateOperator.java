@@ -29,70 +29,56 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * The Python AggregateFunction operator for the blink planner.
+ * The Python TableAggregateFunction operator for the blink planner.
  */
 @Internal
-public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggregateOperator {
+public class PythonStreamGroupTableAggregateOperator extends AbstractPythonStreamAggregateOperator {
 
 	private static final long serialVersionUID = 1L;
 
 	@VisibleForTesting
-	protected static final String STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1";
+	protected static final String STREAM_GROUP_TABLE_AGGREGATE_URN = "flink:transform:stream_group_table_aggregate:v1";
 
-	private final PythonAggregateFunctionInfo[] aggregateFunctions;
+	private final PythonAggregateFunctionInfo aggregateFunction;
 
-	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
+	private final DataViewUtils.DataViewSpec[] dataViewSpecs;
 
-	/**
-	 * True if the count(*) agg is inserted by the planner.
-	 */
-	private final boolean countStarInserted;
-
-	public PythonStreamGroupAggregateOperator(
+	public PythonStreamGroupTableAggregateOperator(
 		Configuration config,
 		RowType inputType,
 		RowType outputType,
-		PythonAggregateFunctionInfo[] aggregateFunctions,
-		DataViewUtils.DataViewSpec[][] dataViewSpecs,
+		PythonAggregateFunctionInfo aggregateFunction,
+		DataViewUtils.DataViewSpec[] dataViewSpec,
 		int[] grouping,
 		int indexOfCountStar,
-		boolean countStarInserted,
 		boolean generateUpdateBefore,
 		long minRetentionTime,
 		long maxRetentionTime) {
 		super(config, inputType, outputType, grouping, indexOfCountStar, generateUpdateBefore,
 			minRetentionTime, maxRetentionTime);
-		this.aggregateFunctions = aggregateFunctions;
-		this.dataViewSpecs = dataViewSpecs;
-		this.countStarInserted = countStarInserted;
+		this.aggregateFunction = aggregateFunction;
+		this.dataViewSpecs = dataViewSpec;
 	}
 
 	@Override
 	public PythonEnv getPythonEnv() {
-		return aggregateFunctions[0].getPythonFunction().getPythonEnv();
+		return aggregateFunction.getPythonFunction().getPythonEnv();
 	}
 
 	/**
-	 * Gets the proto representation of the Python user-defined aggregate functions to be executed.
+	 * Gets the proto representation of the Python user-defined table aggregate function to be executed.
 	 */
 	@Override
 	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
 			super.getUserDefinedFunctionsProto().toBuilder();
-		for (int i = 0; i < aggregateFunctions.length; i++) {
-			DataViewUtils.DataViewSpec[] specs = null;
-			if (i < dataViewSpecs.length) {
-				specs = dataViewSpecs[i];
-			}
-			builder.addUdfs(
-				PythonOperatorUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
-		}
-		builder.setCountStarInserted(countStarInserted);
+		builder.addUdfs(PythonOperatorUtils.getUserDefinedAggregateFunctionProto(
+			aggregateFunction, dataViewSpecs));
 		return builder.build();
 	}
 
 	@Override
 	public String getFunctionUrn() {
-		return STREAM_GROUP_AGGREGATE_URN;
+		return STREAM_GROUP_TABLE_AGGREGATE_URN;
 	}
 }

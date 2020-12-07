@@ -33,7 +33,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
-import org.apache.flink.table.runtime.utils.PassThroughStreamAggregatePythonFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughStreamTableAggregatePythonFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -45,9 +45,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
 /**
- * The tests for {@link PythonStreamGroupAggregateOperator}.
+ * The tests for {@link PythonStreamGroupTableAggregateOperator}.
  */
-public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStreamAggregateOperatorTest {
+public class PythonStreamGroupTableAggregateOperatorTest extends AbstractPythonStreamAggregateOperatorTest {
 
 	@Test
 	public void testFlushDataOnClose() throws Exception {
@@ -62,6 +62,8 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 		testHarness.close();
 
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(false, "c2", 1L)));
 		expectedOutput.add(new StreamRecord<>(newRow(false, "c2", 1L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -85,7 +87,10 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 		testHarness.prepareSnapshotPreBarrier(0L);
 
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -110,7 +115,10 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 
 		testHarness.processElement(new StreamRecord<>(newRow(true, "c3", 2L), initialTime + 2));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -137,7 +145,10 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 
 		testHarness.setProcessingTime(1000L);
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c3", 2L)));
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -163,6 +174,8 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 		testHarness.prepareSnapshotPreBarrier(0L);
 
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
 		expectedOutput.add(new Watermark(initialTime + 2));
 
@@ -191,8 +204,11 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 		testHarness.setProcessingTime(1000L);
 
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c1", 100L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "state_cleanup_triggered: c2", 699L)));
 
@@ -204,35 +220,32 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 	@Override
 	public OneInputStreamOperator getTestOperator(Configuration config) {
 		long stateTtl = Long.valueOf(config.getString("table.exec.state.ttl", "0"));
-		return new PassThroughPythonStreamGroupAggregateOperator(
+		return new PassThroughPythonStreamGroupTableAggregateOperator(
 			config,
 			getInputType(),
 			getOutputType(),
-			new PythonAggregateFunctionInfo[]{
-				new PythonAggregateFunctionInfo(
-					PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-					new Integer[]{0},
-					-1,
-					false)},
+			new PythonAggregateFunctionInfo(
+				PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
+				new Integer[]{0},
+				-1,
+				false),
 			getGrouping(),
 			-1,
-			false,
 			false,
 			stateTtl,
 			stateTtl);
 	}
 
-	private static class PassThroughPythonStreamGroupAggregateOperator
-		extends PythonStreamGroupAggregateOperator {
+	private static class PassThroughPythonStreamGroupTableAggregateOperator
+		extends PythonStreamGroupTableAggregateOperator {
 
-		PassThroughPythonStreamGroupAggregateOperator(
+		PassThroughPythonStreamGroupTableAggregateOperator(
 			Configuration config,
 			RowType inputType,
 			RowType outputType,
-			PythonAggregateFunctionInfo[] aggregateFunctions,
+			PythonAggregateFunctionInfo aggregateFunction,
 			int[] grouping,
 			int indexOfCountStar,
-			boolean countStarInserted,
 			boolean generateUpdateBefore,
 			long minRetentionTime,
 			long maxRetentionTime) {
@@ -240,11 +253,10 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 				config,
 				inputType,
 				outputType,
-				aggregateFunctions,
-				new DataViewUtils.DataViewSpec[0][0],
+				aggregateFunction,
+				new DataViewUtils.DataViewSpec[0],
 				grouping,
 				indexOfCountStar,
-				countStarInserted,
 				generateUpdateBefore,
 				minRetentionTime,
 				maxRetentionTime);
@@ -252,12 +264,12 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 
 		@Override
 		public PythonFunctionRunner createPythonFunctionRunner() {
-			return new PassThroughStreamAggregatePythonFunctionRunner(
+			return new PassThroughStreamTableAggregatePythonFunctionRunner(
 				getRuntimeContext().getTaskName(),
 				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				outputType,
-				STREAM_GROUP_AGGREGATE_URN,
+				STREAM_GROUP_TABLE_AGGREGATE_URN,
 				getUserDefinedFunctionsProto(),
 				FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
 				new HashMap<>(),
@@ -267,13 +279,16 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 				getProcessFunction());
 		}
 
-		private Function<byte[], byte[]> getProcessFunction() {
+		private Function<byte[], byte[][]> getProcessFunction() {
 			return (input_bytes) -> {
 				try {
 					RowData input = udfInputTypeSerializer.deserialize(new DataInputDeserializer(input_bytes));
 					DataOutputSerializer output = new DataOutputSerializer(1);
 					if (input.getByte(0) == NORMAL_RECORD) {
-						udfOutputTypeSerializer.serialize(input.getRow(1, inputType.getFieldCount()), output);
+						RowData data = input.getRow(1, inputType.getFieldCount());
+						udfOutputTypeSerializer.serialize(data, output);
+						byte[] result = output.getCopyOfBuffer();
+						return new byte[][]{result, result};
 					} else {
 						udfOutputTypeSerializer.serialize(GenericRowData.of(
 							StringData.fromString(
@@ -281,8 +296,8 @@ public class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStream
 									input.getRow(3, getKeyType().getFieldCount()).getString(0)),
 							input.getLong(2)),
 							output);
+						return new byte[][]{output.getCopyOfBuffer()};
 					}
-					return output.getCopyOfBuffer();
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
