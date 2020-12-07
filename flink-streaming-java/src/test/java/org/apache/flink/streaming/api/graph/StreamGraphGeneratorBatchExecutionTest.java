@@ -29,8 +29,10 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -54,6 +56,7 @@ import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -394,6 +397,81 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 	}
 
 	@Test
+	public void testMixingKeyedAndNonKeyedInputInBatchMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		KeyedStream<Integer, Integer> keyedInput = env.fromElements(1, 2).keyBy(Integer::intValue);
+		DataStreamSource<Integer> nonKeyedInput = env.fromElements(1, 2);
+
+		TwoInputTransformation<Integer, Integer, Integer> twoInputTransformation =
+			new TwoInputTransformation<>(
+				keyedInput.getTransformation(),
+				nonKeyedInput.getTransformation(),
+				"operator",
+				new DummyTwoInputOperator(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				1
+			);
+
+		twoInputTransformation.setStateKeyType(keyedInput.getKeyType());
+		twoInputTransformation.setStateKeySelectors(keyedInput.getKeySelector(), null);
+
+		DataStreamSink<Integer> sink = new DataStream<>(
+			env,
+			twoInputTransformation)
+			.addSink(new DiscardingSink<>());
+
+		StreamGraphGenerator graphGenerator = new StreamGraphGenerator(
+			Collections.singletonList(sink.getTransformation()),
+			env.getConfig(),
+			env.getCheckpointConfig()
+		);
+		graphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.BATCH);
+
+		expectedException.expect(UnsupportedOperationException.class);
+		expectedException.expectMessage(
+			"Two input operators with only a single keyed input are not supported"
+				+ " with the BATCH state backend.");
+		graphGenerator.generate();
+	}
+
+	@Test
+	public void testMixingKeyedAndNonKeyedInputsInBatchMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
+		DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+		DataStreamSource<Integer> elements3 = env.fromElements(1, 2);
+
+		MultipleInputOperatorFactory selectableOperator = new MultipleInputOperatorFactory(3, false);
+		KeyedMultipleInputTransformation<Integer> multipleInputTransformation = new KeyedMultipleInputTransformation<>(
+			"operator",
+			selectableOperator,
+			BasicTypeInfo.INT_TYPE_INFO,
+			1,
+			BasicTypeInfo.INT_TYPE_INFO
+		);
+		multipleInputTransformation.addInput(elements1.getTransformation(), e -> e);
+		multipleInputTransformation.addInput(elements2.getTransformation(), null);
+		multipleInputTransformation.addInput(elements3.getTransformation(), e -> e);
+
+		DataStreamSink<Integer> sink = new MultipleConnectedStreams(env)
+			.transform(multipleInputTransformation)
+			.addSink(new DiscardingSink<>());
+
+		StreamGraphGenerator graphGenerator = new StreamGraphGenerator(
+			Collections.singletonList(sink.getTransformation()),
+			env.getConfig(),
+			env.getCheckpointConfig()
+		);
+		graphGenerator.setRuntimeExecutionMode(RuntimeExecutionMode.BATCH);
+
+		expectedException.expect(UnsupportedOperationException.class);
+		expectedException.expectMessage(
+			"Multiple input operators with only some inputs keyed are not supported"
+				+ " with the BATCH state backend.");
+		graphGenerator.generate();
+	}
+
+	@Test
 	public void testFeedbackThrowsExceptionInBatch() {
 		final SourceTransformation<Integer, ?, ?> bounded =
 				new SourceTransformation<>(
@@ -458,6 +536,20 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
 			}
 		};
+
+	private static final class DummyTwoInputOperator
+			extends AbstractStreamOperator<Integer>
+			implements TwoInputStreamOperator<Integer, Integer, Integer> {
+		@Override
+		public void processElement1(StreamRecord<Integer> element) throws Exception {
+
+		}
+
+		@Override
+		public void processElement2(StreamRecord<Integer> element) throws Exception {
+
+		}
+	}
 
 	private static final class InputSelectableTwoInputOperator
 			extends AbstractStreamOperator<Integer>

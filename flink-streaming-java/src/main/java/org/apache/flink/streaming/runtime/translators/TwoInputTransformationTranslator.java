@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
@@ -41,10 +42,18 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
 	protected Collection<Integer> translateForBatchInternal(
 			final TwoInputTransformation<IN1, IN2, OUT> transformation,
 			final Context context) {
+		boolean input1Keyed = transformation.getStateKeySelector1() != null;
+		boolean input2Keyed = transformation.getStateKeySelector2() != null;
+
+		if ((input1Keyed ^ input2Keyed) &&
+				context.getGraphGeneratorConfig().get(ExecutionOptions.USE_BATCH_STATE_BACKEND)) {
+			throw new UnsupportedOperationException(
+				"Two input operators with only a single keyed input are not supported with"
+					+ " the BATCH state backend.");
+		}
+
 		Collection<Integer> ids = translateInternal(transformation, context);
-		boolean isKeyed =
-			transformation.getStateKeySelector1() != null && transformation.getStateKeySelector2() != null;
-		if (isKeyed) {
+		if (input1Keyed && input2Keyed) {
 			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
 		}
 		return ids;

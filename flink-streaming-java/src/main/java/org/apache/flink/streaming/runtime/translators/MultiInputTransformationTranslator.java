@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,8 +53,22 @@ public class MultiInputTransformationTranslator<OUT>
 	protected Collection<Integer> translateForBatchInternal(
 			final AbstractMultipleInputTransformation<OUT> transformation,
 			final Context context) {
-		Collection<Integer> ids = translateInternal(transformation, context);
 		boolean isKeyed = transformation instanceof KeyedMultipleInputTransformation;
+
+		if (isKeyed) {
+			boolean hasNotKeyedInput = ((KeyedMultipleInputTransformation<OUT>) transformation)
+				.getStateKeySelectors()
+				.stream()
+				.anyMatch(Objects::isNull);
+			if (hasNotKeyedInput &&
+					context.getGraphGeneratorConfig().get(ExecutionOptions.USE_BATCH_STATE_BACKEND)) {
+				throw new UnsupportedOperationException(
+					"Multiple input operators with only some inputs keyed are not supported with"
+						+ " the BATCH state backend.");
+			}
+		}
+
+		Collection<Integer> ids = translateInternal(transformation, context);
 		if (isKeyed) {
 			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
 		}
