@@ -2,7 +2,7 @@
 title: "Orc Format"
 nav-title: Orc
 nav-parent_id: sql-formats
-nav-pos: 6
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,8 +34,8 @@ The [Apache Orc](https://orc.apache.org/) format allows to read and write Orc da
 Dependencies
 ------------
 
-{% assign connector = site.data.sql-connectors['orc'] %} 
-{% include sql-connector-download-table.html 
+{% assign connector = site.data.sql-connectors['orc'] %}
+{% include sql-connector-download-table.html
     connector=connector
 %}
 

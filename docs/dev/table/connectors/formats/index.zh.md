@@ -74,6 +74,11 @@ Flink 支持以下格式：
            <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
+         <td><a href="{% link dev/table/connectors/formats/maxwell.zh.md %}">Maxwell CDC</a></td>
+          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
+        </tr>
+        <tr>
          <td><a href="{% link dev/table/connectors/formats/parquet.zh.md %}">Apache Parquet</a></td>
          <td><a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
