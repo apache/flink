@@ -132,7 +132,9 @@ into a `ClassNotFoundException`:
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
 the storage but makes Flink clean up the savepoint-related metadata as well.
 
-### Cancelling a Job
+### Terminating a Job
+
+#### Cancelling a Job Ungracefully
 
 Cancelling a job can be achieved through the `cancel` action:
 {% highlight bash %}
@@ -145,10 +147,19 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
 will be stopped.
 
-#### Stop: Cancelling a Job but creating a final Savepoint
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">	
+    <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
+    savepoint as part of the job cancellation. This feature is deprecated. Use the 
+    <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
+</p>
 
-Another action for stopping a job is `stop`. It functions in the same way as `cancel` but creates a 
-savepoint as part of the cancellation process:
+#### Stopping a Job Gracefully Creating a Final Savepoint
+
+Another action for stopping a job is `stop`. It is a more graceful way of stopping a running streaming 
+job as the `stop`  flows from source to sink. When the user requests to stop a job, all sources will 
+be requested to send the last checkpoint barrier that will trigger a savepoint, and after the successful 
+completion of that savepoint, they will finish by calling their	`cancel()` method. 
+
 {% highlight bash %}
 ./bin/flink stop --savepointPath /tmp-flink-savepoints $JOB_ID
 {% endhighlight %}
@@ -158,6 +169,11 @@ Savepoint completed. Path: file:/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0
 ```
 We have to use `--savepointPath` to specify the savepoint folder if 
 [state.savepoints.dir]({% link deployment/config.md %}#state-savepoints-dir) isn't set.
+
+If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
+barrier. This will result all registered event-time timers to fire, thus flushing out any state that 
+is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
+shut down. This allows the job to finish processing all in-flight data.
 
 ### Starting a Job from a Savepoint
 
@@ -182,8 +198,8 @@ Job has been submitted with JobID 97b20a0a8ffd5c1d656328b0cd6436a6
 
 See how the command is equal to the [initial run command](#submitting-a-job) except for the 
 `--fromSavepoint` parameter which is used to refer to the state of the 
-[previously cancelled job](#cancelling-a-job). A new JobID is generated that can be used to 
-maintain the job.
+[previously cancelled job](#stopping-a-job-gracefully-creating-a-final-savepoint). A new JobID is 
+generated that can be used to maintain the job.
 
 By default, we try to match the whole savepoint state to the job being submitted. If you want to 
 allow to skip savepoint state that cannot be restored with the new job you can set the 
