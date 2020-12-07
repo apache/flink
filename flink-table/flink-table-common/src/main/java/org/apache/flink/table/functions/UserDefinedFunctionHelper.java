@@ -324,6 +324,8 @@ public final class UserDefinedFunctionHelper {
 			validateImplementationMethod(functionClass, false, false, SCALAR_EVAL);
 		} else if (TableFunction.class.isAssignableFrom(functionClass)) {
 			validateImplementationMethod(functionClass, true, false, TABLE_EVAL);
+		} else if (AsyncTableFunction.class.isAssignableFrom(functionClass)) {
+			validateImplementationMethod(functionClass, true, false, ASYNC_TABLE_EVAL);
 		} else if (AggregateFunction.class.isAssignableFrom(functionClass)) {
 			validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
 			validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);

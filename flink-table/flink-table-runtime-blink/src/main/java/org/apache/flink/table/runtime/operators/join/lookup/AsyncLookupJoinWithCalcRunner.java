@@ -20,16 +20,15 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -43,20 +42,22 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 	private static final long serialVersionUID = 8758670006385551407L;
 
 	private final GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc;
-	private final InternalTypeInfo<RowData> rightRowTypeInfo;
-	private transient TypeSerializer<RowData> rightSerializer;
 
 	public AsyncLookupJoinWithCalcRunner(
 			GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
+			DataStructureConverter<RowData, Object> fetcherConverter,
 			GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
 			GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
-			TypeInformation<?> fetcherReturnType,
-			InternalTypeInfo<RowData> rightRowTypeInfo,
+			RowDataSerializer rightRowSerializer,
 			boolean isLeftOuterJoin,
 			int asyncBufferCapacity) {
-		super(generatedFetcher, generatedResultFuture, fetcherReturnType,
-			rightRowTypeInfo, isLeftOuterJoin, asyncBufferCapacity);
-		this.rightRowTypeInfo = rightRowTypeInfo;
+		super(
+			generatedFetcher,
+			fetcherConverter,
+			generatedResultFuture,
+			rightRowSerializer,
+			isLeftOuterJoin,
+			asyncBufferCapacity);
 		this.generatedCalc = generatedCalc;
 	}
 
@@ -65,7 +66,6 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 		super.open(parameters);
 		// try to compile the generated ResultFuture, fail fast if the code is corrupt.
 		generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
-		rightSerializer = rightRowTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 	}
 
 	@Override
@@ -142,7 +142,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 
 		@Override
 		public void collect(RowData record) {
-			this.collection.add(rightSerializer.copy(record));
+			this.collection.add(rightRowSerializer.copy(record));
 		}
 
 		@Override
