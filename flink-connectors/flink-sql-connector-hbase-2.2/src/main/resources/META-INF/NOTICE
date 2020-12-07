@@ -7,15 +7,12 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
  - commons-codec:commons-codec:1.13
- - commons-lang:commons-lang:2.6
  - io.netty:netty-all:4.1.44.Final
  - io.dropwizard.metrics:metrics-core:3.2.6
  - org.apache.commons:commons-crypto:1.0.0
  - org.apache.commons:commons-lang3:3.3.2
  - org.apache.hbase:hbase-client:2.2.3
  - org.apache.hbase:hbase-common:2.2.3
- - org.apache.hbase:hbase-hadoop-compat:2.2.3
- - org.apache.hbase:hbase-hadoop2-compat:2.2.3
  - org.apache.hbase:hbase-protocol:2.2.3
  - org.apache.hbase:hbase-protocol-shaded:2.2.3
  - org.apache.hbase.thirdparty:hbase-shaded-protobuf:2.2.1
