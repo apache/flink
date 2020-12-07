@@ -1209,8 +1209,7 @@ object TableTestUtil {
    * Stream node {id} is ignored, because id keeps incrementing in test class
    * while StreamExecutionEnvironment is up
    */
-  def replaceStreamNodeIdAndParallelism(s: String): String = {
-    s.replaceAll("\"id\" : \\d+", "\"id\" : ")
-        .replaceAll("\"parallelism\" : (\\d+|,)", "\"parallelism\" :").trim
+  def replaceStreamNodeId(s: String): String = {
+    s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
   }
 }

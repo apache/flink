@@ -14,16 +14,16 @@ DataStreamSink(name=[default_catalog.default_database.targetTable], fields=[d, e
     "type" : "Source: Custom File source",
     "pact" : "Data Source",
     "contents" : "Source: Custom File source",
-    "parallelism" :
+    "parallelism" : 1
   }, {
     "id" : ,
     "type" : "CsvTableSource(read fields: first, id)",
     "pact" : "Operator",
     "contents" : "CsvTableSource(read fields: first, id)",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "REBALANCE",
+      "ship_strategy" : "FORWARD",
       "side" : "second"
     } ]
   }, {
@@ -31,7 +31,7 @@ DataStreamSink(name=[default_catalog.default_database.targetTable], fields=[d, e
     "type" : "Map",
     "pact" : "Operator",
     "contents" : "Map",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -42,7 +42,7 @@ DataStreamSink(name=[default_catalog.default_database.targetTable], fields=[d, e
     "type" : "to: Row",
     "pact" : "Operator",
     "contents" : "to: Row",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -53,7 +53,7 @@ DataStreamSink(name=[default_catalog.default_database.targetTable], fields=[d, e
     "type" : "Sink: UnsafeMemoryAppendTableSink(d, e)",
     "pact" : "Data Sink",
     "contents" : "Sink: UnsafeMemoryAppendTableSink(d, e)",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",

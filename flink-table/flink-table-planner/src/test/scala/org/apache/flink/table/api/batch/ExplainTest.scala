@@ -180,6 +180,7 @@ class ExplainTest
   @Test
   def testBatchTableEnvironmentExecutionExplain(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = BatchTableEnvironment.create(env)
 
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
@@ -195,13 +196,14 @@ class ExplainTest
       ExplainDetail.JSON_EXECUTION_PLAN)
     val expected = readFromResource("testBatchTableEnvironmentExecutionExplain.out")
 
-    assertEquals(replaceStreamNodeIdAndParallelism(expected),
-      replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(replaceStreamNodeIdAndEstimatedCostValue(expected),
+      replaceStreamNodeIdAndEstimatedCostValue(actual))
   }
 
   @Test
   def testStatementSetExecutionExplain(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = BatchTableEnvironment.create(env)
 
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
@@ -219,8 +221,8 @@ class ExplainTest
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
     val expected = readFromResource("testStatementSetExecutionExplain1.out")
 
-    assertEquals(replaceStreamNodeIdAndParallelism(expected),
-      replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(replaceStreamNodeIdAndEstimatedCostValue(expected),
+      replaceStreamNodeIdAndEstimatedCostValue(actual))
   }
 
   def replaceString(s: String, t1: Table, t2: Table): String = {
@@ -242,9 +244,8 @@ class ExplainTest
     s.replaceAll("\\r\\n", "\n")
   }
 
-
-  def replaceStreamNodeIdAndParallelism(s: String): String = {
+  def replaceStreamNodeIdAndEstimatedCostValue(s: String): String = {
     s.replaceAll("\"id\": \\d+", "\"id\": ")
-        .replaceAll("\"parallelism\": \"(\\d+|,)\"", "\"parallelism\":").trim
+        .replaceAll("\"value\": \"([0-9]+)(\\.[\\d]+)?\"", "\"value\": \"0.0\"").trim
   }
 }

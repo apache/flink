@@ -14,16 +14,16 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Source: Custom File source",
     "pact" : "Data Source",
     "contents" : "Source: Custom File source",
-    "parallelism" :
+    "parallelism" : 1
   }, {
     "id" : ,
     "type" : "CsvTableSource(read fields: last)",
     "pact" : "Operator",
     "contents" : "CsvTableSource(read fields: last)",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "REBALANCE",
+      "ship_strategy" : "FORWARD",
       "side" : "second"
     } ]
   }, {
@@ -31,7 +31,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
     "pact" : "Operator",
     "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CsvTableSource(read fields: last)]], fields=[last])",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -42,7 +42,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "SinkConversionToRow",
     "pact" : "Operator",
     "contents" : "SinkConversionToRow",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -53,7 +53,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Map",
     "pact" : "Operator",
     "contents" : "Map",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",
@@ -64,7 +64,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[first])
     "type" : "Sink: CsvTableSink(first)",
     "pact" : "Data Sink",
     "contents" : "Sink: CsvTableSink(first)",
-    "parallelism" :,
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",

@@ -117,6 +117,7 @@ class ExplainTest extends AbstractTestBase {
   @Test
   def testStreamTableEnvironmentExecutionExplain(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -133,13 +134,13 @@ class ExplainTest extends AbstractTestBase {
       ExplainDetail.JSON_EXECUTION_PLAN)
     val expected = readFromResource("testStreamTableEnvironmentExecutionExplain.out")
 
-    assertEquals(replaceStreamNodeIdAndParallelism(expected),
-      replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(replaceStreamNodeId(expected), replaceStreamNodeId(actual))
   }
 
   @Test
   def testStatementSetExecutionExplain(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -158,8 +159,7 @@ class ExplainTest extends AbstractTestBase {
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
     val expected = readFromResource("testStatementSetExecutionExplain0.out")
 
-    assertEquals(replaceStreamNodeIdAndParallelism(expected),
-      replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(replaceStreamNodeId(expected), replaceStreamNodeId(actual))
   }
 
   def replaceString(s: String, t1: Table, t2: Table): String = {
@@ -178,8 +178,7 @@ class ExplainTest extends AbstractTestBase {
       .replace(s"%sourceNode$idx%", streamTableNode(t))
   }
 
-  def replaceStreamNodeIdAndParallelism(s: String): String = {
-    s.replaceAll("\"id\" : \\d+", "\"id\" : ")
-        .replaceAll("\"parallelism\" : (\\d+|,)", "\"parallelism\" :").trim
+  def replaceStreamNodeId(s: String): String = {
+    s.replaceAll("\"id\" : \\d+", "\"id\" : ").trim
   }
 }

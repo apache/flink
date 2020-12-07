@@ -106,6 +106,7 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExecutionExplain(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
@@ -119,13 +120,14 @@ class TableEnvironmentTest {
     val actual = tEnv.explainSql("insert into MySink select first from MyTable",
       ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeIdAndParallelism(expected),
-      TableTestUtil.replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
   }
 
   @Test
   def testStatementSetExecutionExplain(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    execEnv.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
@@ -140,8 +142,8 @@ class TableEnvironmentTest {
     statementSet.addInsertSql("insert into MySink select last from MyTable")
     val actual = statementSet.explain(ExplainDetail.JSON_EXECUTION_PLAN)
 
-    assertEquals(TableTestUtil.replaceStreamNodeIdAndParallelism(expected),
-      TableTestUtil.replaceStreamNodeIdAndParallelism(actual))
+    assertEquals(TableTestUtil.replaceStreamNodeId(expected),
+      TableTestUtil.replaceStreamNodeId(actual))
   }
 
   @Test
